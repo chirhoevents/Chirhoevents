@@ -1,5 +1,5 @@
--- ChiRho Events - Seed Data
--- Test Event: Mount 2000 Summer 2026
+// ChiRho Events - Seed Data
+// Test Event: Mount 2000 Summer 2026
 
 import { PrismaClient } from '@prisma/client'
 
