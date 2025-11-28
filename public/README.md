@@ -1,0 +1,1 @@
+# ChiRho Events Public Assets
