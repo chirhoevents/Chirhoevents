@@ -1,0 +1,421 @@
+// ChiRho Events - Prisma Schema
+// Database: PostgreSQL 15 (Neon)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===================================
+// CORE TABLES
+// ===================================
+
+model Organization {
+  id                      String   @id @default(uuid()) @db.Uuid
+  name                    String   @db.VarChar(255)
+  type                    OrganizationType
+  address                 Json?
+  contactName             String?  @map("contact_name") @db.VarChar(255)
+  contactEmail            String   @unique @map("contact_email") @db.VarChar(255)
+  contactPhone            String?  @map("contact_phone") @db.VarChar(20)
+  stripeAccountId         String?  @unique @map("stripe_account_id") @db.VarChar(255)
+  subscriptionTier        SubscriptionTier @map("subscription_tier")
+  subscriptionStatus      SubscriptionStatus @map("subscription_status")
+  monthlyFee              Decimal  @map("monthly_fee") @db.Decimal(10, 2)
+  setupFeePaid            Boolean  @default(false) @map("setup_fee_paid")
+  reactivationFeePaid     Boolean  @default(false) @map("reactivation_fee_paid")
+  storageUsedGb           Decimal  @default(0) @map("storage_used_gb") @db.Decimal(10, 2)
+  storageLimitGb          Int      @map("storage_limit_gb")
+  eventsPerYearLimit      Int?     @map("events_per_year_limit")
+  logoUrl                 String?  @map("logo_url") @db.Text
+  createdAt               DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  archivedAt              DateTime? @map("archived_at") @db.Timestamptz(6)
+
+  // Relations
+  users                   User[]
+  events                  Event[]
+  groupRegistrations      GroupRegistration[]
+  individualRegistrations IndividualRegistration[]
+  participants            Participant[]
+
+  @@index([contactEmail], name: "idx_org_email")
+  @@index([stripeAccountId], name: "idx_org_stripe")
+  @@map("organizations")
+}
+
+model User {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  email           String   @unique @db.VarChar(255)
+  firstName       String   @map("first_name") @db.VarChar(255)
+  lastName        String   @map("last_name") @db.VarChar(255)
+  preferredName   String?  @map("preferred_name") @db.VarChar(255)
+  role            UserRole
+  phone           String?  @db.VarChar(20)
+  createdBy       String?  @map("created_by") @db.Uuid
+  lastLogin       DateTime? @map("last_login") @db.Timestamptz(6)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  createdByUser   User?        @relation("UserCreatedBy", fields: [createdBy], references: [id])
+  usersCreated    User[]       @relation("UserCreatedBy")
+  eventsCreated   Event[]
+
+  @@index([organizationId], name: "idx_user_org")
+  @@index([email], name: "idx_user_email")
+  @@index([role], name: "idx_user_role")
+  @@map("users")
+}
+
+model Event {
+  id                     String   @id @default(uuid()) @db.Uuid
+  organizationId         String   @map("organization_id") @db.Uuid
+  name                   String   @db.VarChar(255)
+  slug                   String   @unique @db.VarChar(255)
+  description            String?  @db.Text
+  startDate              DateTime @map("start_date") @db.Date
+  endDate                DateTime @map("end_date") @db.Date
+  timezone               String   @db.VarChar(50)
+  locationName           String?  @map("location_name") @db.VarChar(255)
+  locationAddress        Json?    @map("location_address")
+  capacityTotal          Int?     @map("capacity_total")
+  capacityRemaining      Int?     @map("capacity_remaining")
+  registrationOpenDate   DateTime? @map("registration_open_date") @db.Timestamptz(6)
+  registrationCloseDate  DateTime? @map("registration_close_date") @db.Timestamptz(6)
+  status                 EventStatus @default(draft)
+  createdBy              String   @map("created_by") @db.Uuid
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  organization           Organization @relation(fields: [organizationId], references: [id])
+  creator                User         @relation(fields: [createdBy], references: [id])
+  settings               EventSettings?
+  pricing                EventPricing?
+  groupRegistrations     GroupRegistration[]
+  individualRegistrations IndividualRegistration[]
+
+  @@index([organizationId], name: "idx_event_org")
+  @@index([slug], name: "idx_event_slug")
+  @@index([startDate, endDate], name: "idx_event_dates")
+  @@map("events")
+}
+
+model EventSettings {
+  id                              String   @id @default(uuid()) @db.Uuid
+  eventId                         String   @unique @map("event_id") @db.Uuid
+  groupRegistrationEnabled        Boolean  @default(true) @map("group_registration_enabled")
+  individualRegistrationEnabled   Boolean  @default(true) @map("individual_registration_enabled")
+  liabilityFormsRequiredGroup     Boolean  @default(true) @map("liability_forms_required_group")
+  liabilityFormsRequiredIndividual Boolean @default(false) @map("liability_forms_required_individual")
+  showDietaryRestrictions         Boolean  @default(true) @map("show_dietary_restrictions")
+  dietaryRestrictionsRequired     Boolean  @default(false) @map("dietary_restrictions_required")
+  showAdaAccommodations           Boolean  @default(true) @map("show_ada_accommodations")
+  adaAccommodationsRequired       Boolean  @default(false) @map("ada_accommodations_required")
+  porosHousingEnabled             Boolean  @default(false) @map("poros_housing_enabled")
+  porosPriestHousingEnabled       Boolean  @default(false) @map("poros_priest_housing_enabled")
+  porosSeatingEnabled             Boolean  @default(false) @map("poros_seating_enabled")
+  porosMealColorsEnabled          Boolean  @default(false) @map("poros_meal_colors_enabled")
+  porosSmallGroupEnabled          Boolean  @default(false) @map("poros_small_group_enabled")
+  porosSglEnabled                 Boolean  @default(false) @map("poros_sgl_enabled")
+  porosSeminarianEnabled          Boolean  @default(false) @map("poros_seminarian_enabled")
+  porosReligiousStaffEnabled      Boolean  @default(false) @map("poros_religious_staff_enabled")
+  porosAdaEnabled                 Boolean  @default(false) @map("poros_ada_enabled")
+  publicPortalEnabled             Boolean  @default(false) @map("public_portal_enabled")
+  salveCheckinEnabled             Boolean  @default(false) @map("salve_checkin_enabled")
+  raphaMedicalEnabled             Boolean  @default(false) @map("rapha_medical_enabled")
+  createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("event_settings")
+}
+
+model EventPricing {
+  id                        String   @id @default(uuid()) @db.Uuid
+  eventId                   String   @unique @map("event_id") @db.Uuid
+  youthEarlyBirdPrice       Decimal? @map("youth_early_bird_price") @db.Decimal(10, 2)
+  youthRegularPrice         Decimal  @map("youth_regular_price") @db.Decimal(10, 2)
+  youthLatePrice            Decimal? @map("youth_late_price") @db.Decimal(10, 2)
+  chaperoneEarlyBirdPrice   Decimal? @map("chaperone_early_bird_price") @db.Decimal(10, 2)
+  chaperoneRegularPrice     Decimal  @map("chaperone_regular_price") @db.Decimal(10, 2)
+  chaperoneLatePrice        Decimal? @map("chaperone_late_price") @db.Decimal(10, 2)
+  priestPrice               Decimal  @default(0.00) @map("priest_price") @db.Decimal(10, 2)
+  depositAmount             Decimal  @map("deposit_amount") @db.Decimal(10, 2)
+  depositPerPerson          Boolean  @default(true) @map("deposit_per_person")
+  earlyBirdDeadline         DateTime? @map("early_bird_deadline") @db.Timestamptz(6)
+  regularDeadline           DateTime? @map("regular_deadline") @db.Timestamptz(6)
+  fullPaymentDeadline       DateTime? @map("full_payment_deadline") @db.Timestamptz(6)
+  lateFeePercentage         Decimal? @map("late_fee_percentage") @db.Decimal(5, 2)
+  lateFeeAutoApply          Boolean  @default(false) @map("late_fee_auto_apply")
+  currency                  String   @default("USD") @db.VarChar(3)
+  createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("event_pricing")
+}
+
+// ===================================
+// REGISTRATION TABLES
+// ===================================
+
+model GroupRegistration {
+  id                         String   @id @default(uuid()) @db.Uuid
+  eventId                    String   @map("event_id") @db.Uuid
+  organizationId             String   @map("organization_id") @db.Uuid
+  groupName                  String   @map("group_name") @db.VarChar(255)
+  parishName                 String?  @map("parish_name") @db.VarChar(255)
+  dioceseName                String?  @map("diocese_name") @db.VarChar(255)
+  groupLeaderUserId          String?  @map("group_leader_user_id") @db.Uuid
+  groupLeaderName            String   @map("group_leader_name") @db.VarChar(255)
+  groupLeaderEmail           String   @map("group_leader_email") @db.VarChar(255)
+  groupLeaderPhone           String   @map("group_leader_phone") @db.VarChar(20)
+  accessCode                 String   @unique @map("access_code") @db.VarChar(50)
+  youthCountMaleU18          Int      @default(0) @map("youth_count_male_u18")
+  youthCountFemaleU18        Int      @default(0) @map("youth_count_female_u18")
+  youthCountMaleO18          Int      @default(0) @map("youth_count_male_o18")
+  youthCountFemaleO18        Int      @default(0) @map("youth_count_female_o18")
+  chaperoneCountMale         Int      @default(0) @map("chaperone_count_male")
+  chaperoneCountFemale       Int      @default(0) @map("chaperone_count_female")
+  priestCount                Int      @default(0) @map("priest_count")
+  totalParticipants          Int      @map("total_participants")
+  housingType                HousingType @map("housing_type")
+  specialRequests            String?  @map("special_requests") @db.Text
+  dietaryRestrictionsSummary String?  @map("dietary_restrictions_summary") @db.Text
+  adaAccommodationsSummary   String?  @map("ada_accommodations_summary") @db.Text
+  registrationStatus         RegistrationStatus @default(incomplete) @map("registration_status")
+  registeredAt               DateTime @default(now()) @map("registered_at") @db.Timestamptz(6)
+  createdAt                  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  event         Event        @relation(fields: [eventId], references: [id])
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  participants  Participant[]
+  payments      Payment[]
+
+  @@index([eventId], name: "idx_group_event")
+  @@index([organizationId], name: "idx_group_org")
+  @@index([accessCode], name: "idx_group_access_code")
+  @@map("group_registrations")
+}
+
+model IndividualRegistration {
+  id                       String   @id @default(uuid()) @db.Uuid
+  eventId                  String   @map("event_id") @db.Uuid
+  organizationId           String   @map("organization_id") @db.Uuid
+  userId                   String?  @map("user_id") @db.Uuid
+  firstName                String   @map("first_name") @db.VarChar(255)
+  lastName                 String   @map("last_name") @db.VarChar(255)
+  preferredName            String?  @map("preferred_name") @db.VarChar(255)
+  email                    String   @db.VarChar(255)
+  phone                    String   @db.VarChar(20)
+  age                      Int?
+  gender                   Gender?
+  roomType                 RoomType? @map("room_type")
+  preferredRoommate        String?  @map("preferred_roommate") @db.Text
+  dietaryRestrictions      String?  @map("dietary_restrictions") @db.Text
+  adaAccommodations        String?  @map("ada_accommodations") @db.Text
+  emergencyContactName     String   @map("emergency_contact_name") @db.VarChar(255)
+  emergencyContactPhone    String   @map("emergency_contact_phone") @db.VarChar(20)
+  emergencyContactRelation String?  @map("emergency_contact_relation") @db.VarChar(100)
+  registrationStatus       RegistrationStatus @default(incomplete) @map("registration_status")
+  qrCode                   String?  @map("qr_code") @db.Text
+  registeredAt             DateTime @default(now()) @map("registered_at") @db.Timestamptz(6)
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  event        Event        @relation(fields: [eventId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@map("individual_registrations")
+}
+
+model Participant {
+  id                           String   @id @default(uuid()) @db.Uuid
+  groupRegistrationId          String   @map("group_registration_id") @db.Uuid
+  organizationId               String   @map("organization_id") @db.Uuid
+  firstName                    String   @map("first_name") @db.VarChar(255)
+  lastName                     String   @map("last_name") @db.VarChar(255)
+  preferredName                String?  @map("preferred_name") @db.VarChar(255)
+  email                        String?  @db.VarChar(255)
+  age                          Int
+  gender                       Gender
+  participantType              ParticipantType @map("participant_type")
+  clergyTitle                  ClergyTitle? @map("clergy_title")
+  tShirtSize                   String?  @map("t_shirt_size") @db.VarChar(10)
+  liabilityFormCompleted       Boolean  @default(false) @map("liability_form_completed")
+  liabilityFormUrl             String?  @map("liability_form_url") @db.Text
+  safeEnvironmentCertUrl       String?  @map("safe_environment_cert_url") @db.Text
+  safeEnvironmentCertStatus    SafeEnvironmentStatus? @map("safe_environment_cert_status")
+  parentEmail                  String?  @map("parent_email") @db.VarChar(255)
+  createdAt                    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  groupRegistration GroupRegistration @relation(fields: [groupRegistrationId], references: [id], onDelete: Cascade)
+  organization      Organization      @relation(fields: [organizationId], references: [id])
+
+  @@index([groupRegistrationId], name: "idx_participant_group")
+  @@index([participantType], name: "idx_participant_type")
+  @@map("participants")
+}
+
+// ===================================
+// PAYMENT TABLES
+// ===================================
+
+model Payment {
+  id                    String   @id @default(uuid()) @db.Uuid
+  groupRegistrationId   String?  @map("group_registration_id") @db.Uuid
+  eventId               String   @map("event_id") @db.Uuid
+  amount                Decimal  @db.Decimal(10, 2)
+  paymentType           PaymentType @map("payment_type")
+  paymentMethod         PaymentMethod @map("payment_method")
+  paymentStatus         PaymentStatus @map("payment_status")
+  stripePaymentIntentId String?  @unique @map("stripe_payment_intent_id") @db.VarChar(255)
+  stripeChargeId        String?  @map("stripe_charge_id") @db.VarChar(255)
+  receiptUrl            String?  @map("receipt_url") @db.Text
+  checkNumber           String?  @map("check_number") @db.VarChar(50)
+  checkReceivedDate     DateTime? @map("check_received_date") @db.Date
+  notes                 String?  @db.Text
+  processedAt           DateTime? @map("processed_at") @db.Timestamptz(6)
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  groupRegistration GroupRegistration? @relation(fields: [groupRegistrationId], references: [id])
+
+  @@index([groupRegistrationId], name: "idx_payment_group")
+  @@index([stripePaymentIntentId], name: "idx_payment_stripe")
+  @@map("payments")
+}
+
+// ===================================
+// ENUMS
+// ===================================
+
+enum OrganizationType {
+  diocese
+  archdiocese
+  parish
+  retreat_center
+  other
+}
+
+enum SubscriptionTier {
+  starter
+  small
+  growing
+  conference
+  enterprise
+}
+
+enum SubscriptionStatus {
+  active
+  archived
+  suspended
+  trial
+}
+
+enum UserRole {
+  master_admin
+  org_admin
+  group_leader
+  individual
+  parent
+  salve_user
+  rapha_user
+}
+
+enum EventStatus {
+  draft
+  published
+  registration_open
+  registration_closed
+  in_progress
+  completed
+}
+
+enum HousingType {
+  on_campus
+  off_campus
+  day_pass
+}
+
+enum RegistrationStatus {
+  incomplete
+  pending_forms
+  pending_payment
+  complete
+}
+
+enum Gender {
+  male
+  female
+  prefer_not_to_say
+}
+
+enum RoomType {
+  single
+  double
+  triple
+  quad
+}
+
+enum ParticipantType {
+  youth_u18
+  youth_o18
+  chaperone
+  priest
+}
+
+enum ClergyTitle {
+  priest
+  deacon
+  bishop
+  cardinal
+}
+
+enum SafeEnvironmentStatus {
+  not_required
+  pending
+  uploaded
+  verified
+}
+
+enum PaymentType {
+  deposit
+  balance
+  late_fee
+  refund
+}
+
+enum PaymentMethod {
+  card
+  check
+  cash
+  bank_transfer
+}
+
+enum PaymentStatus {
+  pending
+  processing
+  succeeded
+  failed
+  cancelled
+  refunded
+}
