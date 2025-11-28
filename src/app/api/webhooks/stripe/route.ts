@@ -43,9 +43,9 @@ export async function POST(request: NextRequest) {
 
     try {
       // Update payment status
-      await prisma.payment.updateMany({
+      const payment = await prisma.payment.updateMany({
         where: {
-          groupRegistrationId: registrationId,
+          registrationId: registrationId,
           stripePaymentIntentId: session.id,
         },
         data: {
@@ -59,6 +59,36 @@ export async function POST(request: NextRequest) {
         where: { id: registrationId },
         data: { registrationStatus: 'pending_forms' },
       })
+
+      // Update payment balance
+      const paymentAmount = await prisma.payment.findFirst({
+        where: {
+          registrationId: registrationId,
+          stripePaymentIntentId: session.id,
+        },
+        select: { amount: true },
+      })
+
+      if (paymentAmount) {
+        const balance = await prisma.paymentBalance.findUnique({
+          where: { registrationId: registrationId },
+        })
+
+        if (balance) {
+          const newAmountPaid = Number(balance.amountPaid) + Number(paymentAmount.amount)
+          const newAmountRemaining = Number(balance.totalAmountDue) - newAmountPaid
+
+          await prisma.paymentBalance.update({
+            where: { registrationId: registrationId },
+            data: {
+              amountPaid: newAmountPaid,
+              amountRemaining: newAmountRemaining,
+              lastPaymentDate: new Date(),
+              paymentStatus: newAmountRemaining <= 0 ? 'paid_full' : 'partial',
+            },
+          })
+        }
+      }
 
       // Fetch registration details for email
       const registration = await prisma.groupRegistration.findUnique({

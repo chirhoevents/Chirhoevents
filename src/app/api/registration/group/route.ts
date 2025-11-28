@@ -143,13 +143,30 @@ export async function POST(request: NextRequest) {
     // Create payment record
     await prisma.payment.create({
       data: {
-        groupRegistrationId: registration.id,
+        organizationId: event.organizationId,
+        registrationId: registration.id,
+        registrationType: 'group',
         eventId: event.id,
         amount: depositAmount,
         paymentType: 'deposit',
         paymentMethod: 'card',
         paymentStatus: 'pending',
         stripePaymentIntentId: checkoutSession.id,
+      },
+    })
+
+    // Create payment balance record
+    await prisma.paymentBalance.create({
+      data: {
+        organizationId: event.organizationId,
+        eventId: event.id,
+        registrationId: registration.id,
+        registrationType: 'group',
+        totalAmountDue: totalAmount,
+        amountPaid: 0, // Deposit will be marked paid after webhook confirmation
+        amountRemaining: totalAmount,
+        lateFeesApplied: 0,
+        paymentStatus: 'unpaid',
       },
     })
 

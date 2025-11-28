@@ -10,10 +10,6 @@ export async function GET(
       where: { id: params.registrationId },
       include: {
         event: true,
-        payments: {
-          where: { paymentStatus: 'succeeded' },
-          orderBy: { createdAt: 'desc' },
-        },
       },
     })
 
@@ -24,8 +20,18 @@ export async function GET(
       )
     }
 
+    // Fetch payments separately (polymorphic relationship)
+    const payments = await prisma.payment.findMany({
+      where: {
+        registrationId: params.registrationId,
+        registrationType: 'group',
+        paymentStatus: 'succeeded',
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
     // Calculate totals
-    const depositPaid = registration.payments.reduce(
+    const depositPaid = payments.reduce(
       (sum, payment) => sum + Number(payment.amount),
       0
     )
