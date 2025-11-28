@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-11-20.acacia',
+  apiVersion: '2024-06-20',
 })
 
 const resend = new Resend(process.env.RESEND_API_KEY)
