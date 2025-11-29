@@ -36,16 +36,13 @@ export default function IndividualConfirmationPage() {
         const response = await fetch(`/api/registration/individual/${registrationId}`)
         if (!response.ok) throw new Error('Registration not found')
         const data = await response.json()
-        setRegistration(data)
 
-        // If there's a session ID, verify payment
-        if (sessionId) {
-          await fetch('/api/webhooks/stripe/verify-session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionId, registrationId, registrationType: 'individual' }),
-          })
+        // Convert totalAmount to number (comes from database as string/Decimal)
+        if (data.totalAmount) {
+          data.totalAmount = Number(data.totalAmount)
         }
+
+        setRegistration(data)
       } catch (err: any) {
         setError(err.message || 'Failed to load registration')
       } finally {
@@ -153,7 +150,7 @@ export default function IndividualConfirmationPage() {
                 <p className="text-gray-600 mb-4">
                   <strong>Save this QR code!</strong> You&apos;ll need it for check-in at the event.
                 </p>
-                <Button onClick={handleDownloadQR} className="bg-navy hover:bg-navy/90">
+                <Button onClick={handleDownloadQR} className="bg-navy hover:bg-navy/90 text-white">
                   <Download className="h-4 w-4 mr-2" />
                   Download QR Code
                 </Button>
