@@ -487,7 +487,7 @@ export default function InvoiceReviewPage() {
           <Card className="max-w-2xl w-full">
             <CardHeader>
               <CardTitle>Pay by Check</CardTitle>
-              <CardDescription>You've chosen to pay by check</CardDescription>
+              <CardDescription>You&apos;ve chosen to pay by check</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
@@ -518,7 +518,7 @@ export default function InvoiceReviewPage() {
 
               <div className="bg-yellow-50 p-4 rounded-md border border-yellow-200">
                 <p className="text-sm text-yellow-900">
-                  <strong>Important:</strong> Your registration will be marked as "Pending Payment"
+                  <strong>Important:</strong> Your registration will be marked as &quot;Pending Payment&quot;
                   until your check is received and processed. You will receive an access code, but
                   your registration is not confirmed until payment is received.
                 </p>
