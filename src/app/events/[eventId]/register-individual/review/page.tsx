@@ -409,6 +409,7 @@ export default function IndividualInvoiceReviewPage() {
                   variant="outline"
                   onClick={() => router.back()}
                   disabled={submitting}
+                  className="!text-navy"
                 >
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back to Form
@@ -450,7 +451,7 @@ export default function IndividualInvoiceReviewPage() {
                     <Button
                       onClick={handleCreditCardPayment}
                       disabled={submitting}
-                      className="w-full bg-navy hover:bg-navy/90 text-white"
+                      className="w-full bg-navy hover:bg-navy/90 !text-white"
                     >
                       {submitting ? (
                         <>

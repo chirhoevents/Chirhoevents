@@ -37,8 +37,8 @@ export async function POST(request: NextRequest) {
     console.log('💳 Processing checkout.session.completed event')
     const session = event.data.object as Stripe.Checkout.Session
 
-    const { registrationId, accessCode, groupName } = session.metadata || {}
-    console.log('📋 Session metadata:', { registrationId, accessCode, groupName })
+    const { registrationId, accessCode, groupName, registrationType } = session.metadata || {}
+    console.log('📋 Session metadata:', { registrationId, accessCode, groupName, registrationType })
 
     if (!registrationId) {
       console.error('❌ No registrationId in session metadata')
@@ -46,7 +46,121 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      // Update payment status
+      // Handle INDIVIDUAL registration differently
+      if (registrationType === 'individual') {
+        console.log('👤 Processing individual registration payment')
+
+        // Update payment status
+        await prisma.payment.updateMany({
+          where: {
+            registrationId: registrationId,
+            stripePaymentIntentId: session.id,
+          },
+          data: {
+            paymentStatus: 'succeeded',
+            processedAt: new Date(),
+          },
+        })
+
+        // Update individual registration status
+        const registration = await prisma.individualRegistration.update({
+          where: { id: registrationId },
+          data: { registrationStatus: 'complete' },
+          include: {
+            event: {
+              include: {
+                settings: true,
+                pricing: true,
+              },
+            },
+          },
+        })
+
+        // Update payment balance
+        await prisma.paymentBalance.updateMany({
+          where: {
+            registrationId: registrationId,
+            registrationType: 'individual',
+          },
+          data: {
+            amountPaid: registration.event.pricing?.onCampusYouthPrice || 150,
+            amountRemaining: 0,
+            lastPaymentDate: new Date(),
+            paymentStatus: 'paid_full',
+          },
+        })
+
+        // Send confirmation email with QR code
+        await resend.emails.send({
+          from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+          to: registration.email,
+          subject: `Registration Confirmed - ${registration.event.name}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
+                <h1 style="color: white; margin: 0;">ChiRho Events</h1>
+              </div>
+
+              <div style="padding: 30px 20px;">
+                <h1 style="color: #1E3A5F; margin-top: 0;">✅ Registration Confirmed!</h1>
+
+                <p>Dear ${registration.firstName},</p>
+
+                <p>Thank you for registering for <strong>${registration.event.name}</strong>! Your payment has been received and your registration is complete.</p>
+
+                <div style="background-color: #D4EDDA; padding: 20px; border-left: 4px solid #28A745; margin: 20px 0;">
+                  <h3 style="color: #155724; margin-top: 0;">✓ Payment Confirmed</h3>
+                  <p style="margin: 5px 0; color: #155724;"><strong>Status:</strong> Paid in Full</p>
+                  <p style="margin: 5px 0; color: #155724;"><strong>Payment Method:</strong> Credit Card</p>
+                </div>
+
+                <div style="background-color: #F5F5F5; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
+                  <h3 style="color: #1E3A5F; margin-top: 0;">Your Check-In QR Code</h3>
+                  <img src="${registration.qrCode}" alt="QR Code" style="max-width: 250px; margin: 10px 0;" />
+                  <p style="font-size: 14px; color: #666;">
+                    <strong>Save this QR code!</strong> You'll need it for check-in at the event.
+                  </p>
+                </div>
+
+                <h3 style="color: #1E3A5F;">Registration Summary</h3>
+                <div style="background-color: #F5F5F5; padding: 15px; border-radius: 8px;">
+                  <p style="margin: 5px 0;"><strong>Name:</strong> ${registration.firstName} ${registration.lastName}</p>
+                  <p style="margin: 5px 0;"><strong>Email:</strong> ${registration.email}</p>
+                  <p style="margin: 5px 0;"><strong>Housing:</strong> ${registration.housingType?.replace('_', ' ')}</p>
+                  ${registration.roomType ? `<p style="margin: 5px 0;"><strong>Room Type:</strong> ${registration.roomType}</p>` : ''}
+                </div>
+
+                <h3 style="color: #1E3A5F;">Next Steps:</h3>
+                <ol>
+                  <li><strong>Save Your QR Code:</strong> Download it from the attachment or save this email.</li>
+                  <li><strong>Check-In:</strong> Bring your QR code (on your phone or printed) to check in at the event.</li>
+                  <li><strong>Prepare:</strong> Review your confirmation details and pack accordingly.</li>
+                </ol>
+
+                ${registration.event.settings?.registrationInstructions ? `
+                  <div style="background-color: #F0F8FF; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="color: #1E3A5F; margin-top: 0;">Important Information</h3>
+                    <p style="white-space: pre-line;">${registration.event.settings.registrationInstructions}</p>
+                  </div>
+                ` : ''}
+
+                <p>We can't wait to see you at ${registration.event.name}!</p>
+
+                <p>Questions? Reply to this email or contact the event organizer.</p>
+
+                <p style="color: #666; font-size: 12px; margin-top: 30px;">
+                  © 2025 ChiRho Events. All rights reserved.
+                </p>
+              </div>
+            </div>
+          `,
+        })
+
+        console.log('✅ Individual registration confirmed and email sent to:', registration.email)
+        return NextResponse.json({ received: true })
+      }
+
+      // Handle GROUP registration
       const payment = await prisma.payment.updateMany({
         where: {
           registrationId: registrationId,
