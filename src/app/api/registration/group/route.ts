@@ -171,6 +171,7 @@ export async function POST(request: NextRequest) {
         groupLeaderName,
         groupLeaderEmail,
         groupLeaderPhone,
+        groupLeaderAddress: body.groupLeaderAddress || null,
         accessCode,
         youthCountMaleU18,
         youthCountFemaleU18,
