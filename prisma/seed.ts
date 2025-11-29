@@ -107,14 +107,14 @@ async function main() {
 
   console.log('✅ Created event:', krygmaEvent.name)
 
-  // 4. Create event settings (enable all features)
+  // 4. Create event settings (GROUP REGISTRATION ONLY)
   await prisma.eventSettings.upsert({
     where: { eventId: event.id },
     update: {},
     create: {
       eventId: event.id,
       groupRegistrationEnabled: true,
-      individualRegistrationEnabled: true,
+      individualRegistrationEnabled: false, // GROUP ONLY - not individual
       liabilityFormsRequiredGroup: true,
       liabilityFormsRequiredIndividual: true,
       showDietaryRestrictions: true,
@@ -243,12 +243,11 @@ async function main() {
   console.log(`Organization: ${org.name}`)
   console.log(`Org Admin Email: ${admin.email}`)
   console.log(`Org Admin Role: ${admin.role}`)
-  console.log(`\nEvent: ${event.name}`)
+  console.log(`\n🔹 Event 1: ${event.name} (Group Registration Only)`)
   console.log(`Event Slug: ${event.slug}`)
   console.log(`Event ID: ${event.id}`)
-  console.log(`\nRegistration URLs:`)
+  console.log(`\nRegistration URL:`)
   console.log(`  Group: https://chirhoevents.com/events/${event.id}/register-group`)
-  console.log(`  Individual: https://chirhoevents.com/events/${event.id}/register-individual`)
 
   console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`)
   console.log(`\n🔹 Event 2: ${krygmaEvent.name} (Individual Registration Only)`)
