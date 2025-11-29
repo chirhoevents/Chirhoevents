@@ -477,7 +477,7 @@ export default function InvoiceReviewPage() {
                     disabled={submitting}
                   >
                     <FileText className="mr-2 h-5 w-5" />
-                    Pay by Check
+                    Pay Later
                   </Button>
                 )}
               </div>
@@ -509,13 +509,17 @@ export default function InvoiceReviewPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <Card className="max-w-2xl w-full">
             <CardHeader>
-              <CardTitle>Pay by Check</CardTitle>
-              <CardDescription>You&apos;ve chosen to pay by check</CardDescription>
+              <CardTitle>Pay Later Options</CardTitle>
+              <CardDescription>Choose how you&apos;d like to complete payment</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
-                <h4 className="font-semibold text-navy mb-2">Check Payment Information</h4>
-                <div className="space-y-2 text-sm">
+            <CardContent className="space-y-6">
+              {/* Option 1: Mail a Check */}
+              <div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
+                <h4 className="font-semibold text-navy mb-3 flex items-center">
+                  <FileText className="mr-2 h-5 w-5" />
+                  Option 1: Mail a Check
+                </h4>
+                <div className="space-y-2 text-sm ml-7">
                   <p>
                     <strong>Make check payable to:</strong>{' '}
                     {event?.settings.checkPaymentPayableTo || 'Event Organizer'}
@@ -535,6 +539,29 @@ export default function InvoiceReviewPage() {
                   )}
                   <p>
                     <strong>Include on check:</strong> {registrationData.groupName}
+                  </p>
+                </div>
+              </div>
+
+              {/* Option 2: Pay Later via Portal */}
+              <div className="border-2 border-green-200 rounded-lg p-4 bg-green-50">
+                <h4 className="font-semibold text-navy mb-3 flex items-center">
+                  <CreditCard className="mr-2 h-5 w-5" />
+                  Option 2: Pay Later via Payment Portal
+                </h4>
+                <div className="space-y-2 text-sm ml-7">
+                  <p>
+                    You&apos;ll receive an email with your unique access code and a link to the payment portal.
+                  </p>
+                  <p>
+                    You can pay anytime before the event using the portal link. We accept credit cards, ACH, and other payment methods.
+                  </p>
+                  <p className="text-green-800 font-medium">
+                    ✓ More flexible payment options
+                    <br />
+                    ✓ Pay at your convenience
+                    <br />
+                    ✓ Easy online payment
                   </p>
                 </div>
               </div>

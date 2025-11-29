@@ -232,7 +232,13 @@ export async function POST(request: NextRequest) {
         subject: `Registration Received - ${event.name}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h1 style="color: #1E3A5F;">Registration Received!</h1>
+            <!-- ChiRho Events Logo Header -->
+            <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
+              <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 200px; height: auto;" />
+            </div>
+
+            <div style="padding: 30px 20px;">
+              <h1 style="color: #1E3A5F; margin-top: 0;">Registration Received!</h1>
 
             <p>Thank you for registering <strong>${groupName}</strong> for ${event.name}!</p>
 
@@ -294,6 +300,7 @@ export async function POST(request: NextRequest) {
             <p style="color: #666; font-size: 12px; margin-top: 30px;">
               © 2025 ChiRho Events. All rights reserved.
             </p>
+            </div>
           </div>
         `,
       })

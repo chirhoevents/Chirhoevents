@@ -138,6 +138,9 @@ model EventSettings {
   checkPaymentEnabled             Boolean  @default(true) @map("check_payment_enabled")
   checkPaymentPayableTo           String?  @map("check_payment_payable_to") @db.VarChar(255)
   checkPaymentAddress             String?  @map("check_payment_address") @db.Text
+  allowOnCampus                   Boolean  @default(true) @map("allow_on_campus")
+  allowOffCampus                  Boolean  @default(true) @map("allow_off_campus")
+  allowDayPass                    Boolean  @default(true) @map("allow_day_pass")
   createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
