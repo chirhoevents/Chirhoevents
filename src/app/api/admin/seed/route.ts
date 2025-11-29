@@ -75,7 +75,10 @@ export async function POST(request: NextRequest) {
     // 3. Create Mount 2000 Summer 2026 event
     const event = await prisma.event.upsert({
       where: { slug: 'mount2000-2026' },
-      update: {},
+      update: {
+        registrationOpenDate: new Date('2025-01-01T00:00:00Z'),
+        registrationCloseDate: new Date('2026-07-08T23:59:59Z'),
+      },
       create: {
         organizationId: org.id,
         name: 'Mount 2000 Summer 2026',
@@ -105,7 +108,10 @@ export async function POST(request: NextRequest) {
     // 4. Create Krygma Retreat 2027 event
     const krygmaEvent = await prisma.event.upsert({
       where: { slug: 'krygma-retreat-2027' },
-      update: {},
+      update: {
+        registrationOpenDate: new Date('2025-01-01T00:00:00Z'),
+        registrationCloseDate: new Date('2027-03-10T23:59:59Z'),
+      },
       create: {
         organizationId: org.id,
         name: 'Krygma Retreat 2027',
