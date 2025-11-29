@@ -150,7 +150,7 @@ export default function IndividualConfirmationPage() {
                 <p className="text-gray-600 mb-4">
                   <strong>Save this QR code!</strong> You&apos;ll need it for check-in at the event.
                 </p>
-                <Button onClick={handleDownloadQR} className="bg-navy hover:bg-navy/90 text-white">
+                <Button onClick={handleDownloadQR} className="bg-navy hover:bg-navy/90 !text-white">
                   <Download className="h-4 w-4 mr-2" />
                   Download QR Code
                 </Button>
