@@ -1,14 +1,14 @@
 -- Add missing fields to individual_registrations table
 
--- Rename existing emergency contact columns to emergency_contact_1
+-- Add all emergency contact columns (if they don't exist)
 ALTER TABLE individual_registrations
-RENAME COLUMN emergency_contact_name TO emergency_contact_1_name;
+ADD COLUMN IF NOT EXISTS emergency_contact_1_name VARCHAR(255);
 
 ALTER TABLE individual_registrations
-RENAME COLUMN emergency_contact_phone TO emergency_contact_1_phone;
+ADD COLUMN IF NOT EXISTS emergency_contact_1_phone VARCHAR(20);
 
 ALTER TABLE individual_registrations
-RENAME COLUMN emergency_contact_relation TO emergency_contact_1_relation;
+ADD COLUMN IF NOT EXISTS emergency_contact_1_relation VARCHAR(100);
 
 -- Add housing_type column (on_campus, off_campus, day_pass)
 ALTER TABLE individual_registrations

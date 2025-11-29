@@ -141,6 +141,7 @@ export default function IndividualConfirmationPage() {
               <div className="text-center">
                 <div className="inline-block bg-white p-4 rounded-lg shadow-sm mb-4">
                   {registration.qrCode && (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={registration.qrCode}
                       alt="Registration QR Code"
@@ -150,7 +151,7 @@ export default function IndividualConfirmationPage() {
                   )}
                 </div>
                 <p className="text-gray-600 mb-4">
-                  <strong>Save this QR code!</strong> You'll need it for check-in at the event.
+                  <strong>Save this QR code!</strong> You&apos;ll need it for check-in at the event.
                 </p>
                 <Button onClick={handleDownloadQR} className="bg-navy hover:bg-navy/90">
                   <Download className="h-4 w-4 mr-2" />
@@ -245,7 +246,7 @@ export default function IndividualConfirmationPage() {
                   <div>
                     <p className="font-semibold text-navy">Check Your Email</p>
                     <p className="text-gray-600">
-                      We've sent a confirmation email to <strong>{registration.email}</strong> with your QR code and event details.
+                      We&apos;ve sent a confirmation email to <strong>{registration.email}</strong> with your QR code and event details.
                     </p>
                   </div>
                 </li>
@@ -256,7 +257,7 @@ export default function IndividualConfirmationPage() {
                   <div>
                     <p className="font-semibold text-navy">Complete Your Liability Form</p>
                     <p className="text-gray-600">
-                      You'll receive a separate email with instructions to complete your liability form.
+                      You&apos;ll receive a separate email with instructions to complete your liability form.
                       This is required before the event.
                     </p>
                   </div>
@@ -282,7 +283,7 @@ export default function IndividualConfirmationPage() {
               <h3 className="font-semibold text-blue-900 mb-2">Questions?</h3>
               <p className="text-blue-800 text-sm">
                 If you have any questions about your registration, please reply to your confirmation email
-                or contact the event organizer. We're here to help!
+                or contact the event organizer. We&apos;re here to help!
               </p>
             </CardContent>
           </Card>

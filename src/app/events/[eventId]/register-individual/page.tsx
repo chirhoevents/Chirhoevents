@@ -353,7 +353,7 @@ export default function IndividualRegistrationPage() {
                           placeholder="Jane Smith"
                         />
                         <p className="text-sm text-gray-500 mt-1">
-                          Enter the name of someone you'd like to room with (they must also register individually)
+                          Enter the name of someone you&apos;d like to room with (they must also register individually)
                         </p>
                       </div>
                     )}
