@@ -31,8 +31,27 @@ export async function POST(request: NextRequest) {
     } = body
 
     if (!eventId || !groupName || !groupLeaderName || !groupLeaderEmail || !groupLeaderPhone || !housingType) {
+      console.error('Validation failed:', {
+        eventId: !!eventId,
+        groupName: !!groupName,
+        groupLeaderName: !!groupLeaderName,
+        groupLeaderEmail: !!groupLeaderEmail,
+        groupLeaderPhone: !!groupLeaderPhone,
+        housingType: !!housingType,
+        receivedBody: body,
+      })
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        {
+          error: 'Missing required fields',
+          details: {
+            eventId: !eventId ? 'missing' : 'ok',
+            groupName: !groupName ? 'missing' : 'ok',
+            groupLeaderName: !groupLeaderName ? 'missing' : 'ok',
+            groupLeaderEmail: !groupLeaderEmail ? 'missing' : 'ok',
+            groupLeaderPhone: !groupLeaderPhone ? 'missing' : 'ok',
+            housingType: !housingType ? 'missing' : 'ok',
+          }
+        },
         { status: 400 }
       )
     }
