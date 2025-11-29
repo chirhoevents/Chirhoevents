@@ -32,7 +32,9 @@ export default function LandingPage() {
             </div>
             <div className="flex items-center space-x-4">
               <Button variant="outline" size="sm">Sign In</Button>
-              <Button size="sm">Get Started</Button>
+              <a href="#contact">
+                <Button size="sm">Get Started</Button>
+              </a>
             </div>
           </div>
         </div>
@@ -47,7 +49,7 @@ export default function LandingPage() {
               The Complete Catholic Registration Platform for Ministry
             </h1>
             <p className="text-xl sm:text-2xl mb-8 text-gray-200">
-              Built for Steubenville conferences, diocesan retreats, and Catholic youth events—at 30% lower cost than competitors.
+              Built for conferences, retreats, and many Catholic events—at 30% lower cost than competitors.
             </p>
             <div className="space-y-4 mb-10">
               <div className="flex items-center justify-center space-x-2">
@@ -64,12 +66,16 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button size="lg" className="text-lg px-8 py-6">
-                Get Started
-              </Button>
-              <Button size="lg" variant="outline" className="text-lg px-8 py-6 bg-transparent border-white text-white hover:bg-white hover:text-navy">
-                See Pricing
-              </Button>
+              <a href="#contact">
+                <Button size="lg" className="text-lg px-8 py-6">
+                  Get Started
+                </Button>
+              </a>
+              <a href="#pricing">
+                <Button size="lg" variant="outline" className="text-lg px-8 py-6 bg-transparent border-white text-white hover:bg-white hover:text-navy">
+                  See Pricing
+                </Button>
+              </a>
             </div>
           </div>
         </div>
@@ -279,7 +285,9 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• 2 events/year</p>
                 <p className="text-sm text-gray-600">• 500 people max</p>
                 <p className="text-sm text-gray-600">• 5GB storage</p>
-                <Button className="w-full mt-6">Get Started</Button>
+                <a href="#contact">
+                  <Button className="w-full mt-6">Get Started</Button>
+                </a>
               </CardContent>
             </Card>
 
@@ -296,7 +304,9 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• 5 events/year</p>
                 <p className="text-sm text-gray-600">• 1,000 people max</p>
                 <p className="text-sm text-gray-600">• 15GB storage</p>
-                <Button className="w-full mt-6">Get Started</Button>
+                <a href="#contact">
+                  <Button className="w-full mt-6">Get Started</Button>
+                </a>
               </CardContent>
             </Card>
 
@@ -316,7 +326,9 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• 10 events/year</p>
                 <p className="text-sm text-gray-600">• 3,000 people max</p>
                 <p className="text-sm text-gray-600">• 40GB storage</p>
-                <Button className="w-full mt-6">Get Started</Button>
+                <a href="#contact">
+                  <Button className="w-full mt-6">Get Started</Button>
+                </a>
               </CardContent>
             </Card>
 
@@ -333,7 +345,9 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• 25 events/year</p>
                 <p className="text-sm text-gray-600">• 8,000 people max</p>
                 <p className="text-sm text-gray-600">• 100GB storage</p>
-                <Button className="w-full mt-6">Get Started</Button>
+                <a href="#contact">
+                  <Button className="w-full mt-6">Get Started</Button>
+                </a>
               </CardContent>
             </Card>
 
@@ -349,7 +363,9 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• Unlimited events</p>
                 <p className="text-sm text-gray-600">• Unlimited people</p>
                 <p className="text-sm text-gray-600">• Dedicated support</p>
-                <Button variant="outline" className="w-full mt-6">Contact Sales</Button>
+                <a href="#contact">
+                  <Button variant="outline" className="w-full mt-6">Contact Sales</Button>
+                </a>
               </CardContent>
             </Card>
           </div>
