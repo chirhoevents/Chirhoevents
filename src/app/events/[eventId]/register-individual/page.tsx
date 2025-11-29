@@ -505,7 +505,7 @@ export default function IndividualRegistrationPage() {
                   >
                     Back
                   </Button>
-                  <Button type="submit" className="bg-navy hover:bg-navy/90">
+                  <Button type="submit" className="bg-navy hover:bg-navy/90 !text-white">
                     Continue to Review
                   </Button>
                 </div>

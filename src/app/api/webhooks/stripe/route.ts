@@ -116,8 +116,14 @@ export async function POST(request: NextRequest) {
 
                 <div style="background-color: #F5F5F5; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
                   <h3 style="color: #1E3A5F; margin-top: 0;">Your Check-In QR Code</h3>
-                  <img src="${registration.qrCode}" alt="QR Code" style="max-width: 250px; margin: 10px 0;" />
-                  <p style="font-size: 14px; color: #666;">
+                  <p style="font-size: 16px; color: #1E3A5F; margin: 15px 0;">
+                    <strong>View and download your QR code on your confirmation page:</strong>
+                  </p>
+                  <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/registration/confirmation/individual/${registration.id}"
+                     style="display: inline-block; background-color: #1E3A5F; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 10px 0;">
+                    View My QR Code
+                  </a>
+                  <p style="font-size: 14px; color: #666; margin-top: 15px;">
                     <strong>Save this QR code!</strong> You'll need it for check-in at the event.
                   </p>
                 </div>
@@ -132,7 +138,7 @@ export async function POST(request: NextRequest) {
 
                 <h3 style="color: #1E3A5F;">Next Steps:</h3>
                 <ol>
-                  <li><strong>Save Your QR Code:</strong> Download it from the attachment or save this email.</li>
+                  <li><strong>Save Your QR Code:</strong> Visit your confirmation page to download your QR code for check-in.</li>
                   <li><strong>Check-In:</strong> Bring your QR code (on your phone or printed) to check in at the event.</li>
                   <li><strong>Prepare:</strong> Review your confirmation details and pack accordingly.</li>
                 </ol>
