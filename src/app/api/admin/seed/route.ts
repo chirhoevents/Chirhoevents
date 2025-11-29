@@ -3,6 +3,20 @@ import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
+// CORS headers for local HTML file access
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+}
+
+/**
+ * Handle CORS preflight requests
+ */
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders })
+}
+
 /**
  * Admin API Endpoint to Seed Database
  * POST /api/admin/seed
@@ -18,7 +32,8 @@ export async function POST(request: NextRequest) {
     if (secret !== process.env.SEED_SECRET) {
       return NextResponse.json(
         { error: 'Unauthorized - Invalid secret key' },
-        { status: 401 }
+        { status: 401 },
+        { headers: corsHeaders }
       )
     }
 
@@ -269,7 +284,8 @@ export async function POST(request: NextRequest) {
           },
         ],
       },
-    })
+    },
+    { headers: corsHeaders })
   } catch (error) {
     console.error('❌ Seed failed:', error)
     return NextResponse.json(
@@ -277,7 +293,7 @@ export async function POST(request: NextRequest) {
         error: 'Seed failed',
         details: error instanceof Error ? error.message : 'Unknown error',
       },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     )
   } finally {
     await prisma.$disconnect()
