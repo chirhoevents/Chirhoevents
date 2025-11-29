@@ -16,6 +16,17 @@ export async function GET(
             name: true,
             startDate: true,
             endDate: true,
+            settings: {
+              select: {
+                liabilityFormsRequiredIndividual: true,
+              },
+            },
+            organization: {
+              select: {
+                name: true,
+                logoUrl: true,
+              },
+            },
           },
         },
       },
@@ -48,6 +59,9 @@ export async function GET(
       totalAmount: paymentBalance?.totalAmountDue || 0,
       paymentStatus: paymentBalance?.paymentStatus || 'unknown',
       registrationStatus: registration.registrationStatus,
+      liabilityFormRequired: registration.event.settings?.liabilityFormsRequiredIndividual || false,
+      organizationName: registration.event.organization.name,
+      organizationLogoUrl: registration.event.organization.logoUrl,
     })
   } catch (error) {
     console.error('Error fetching individual registration:', error)

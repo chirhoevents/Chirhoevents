@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
               include: {
                 settings: true,
                 pricing: true,
+                organization: true,
               },
             },
           },
@@ -98,7 +99,10 @@ export async function POST(request: NextRequest) {
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
-                <h1 style="color: white; margin: 0;">ChiRho Events</h1>
+                ${registration.event.organization.logoUrl
+                  ? `<img src="${registration.event.organization.logoUrl}" alt="${registration.event.organization.name}" style="max-height: 80px; max-width: 300px;" />`
+                  : `<h1 style="color: white; margin: 0;">${registration.event.organization.name}</h1>`
+                }
               </div>
 
               <div style="padding: 30px 20px;">
@@ -155,7 +159,7 @@ export async function POST(request: NextRequest) {
                 <p>Questions? Reply to this email or contact the event organizer.</p>
 
                 <p style="color: #666; font-size: 12px; margin-top: 30px;">
-                  © 2025 ChiRho Events. All rights reserved.
+                  © 2025 ${registration.event.organization.name}. All rights reserved.
                 </p>
               </div>
             </div>

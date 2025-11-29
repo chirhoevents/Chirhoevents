@@ -239,6 +239,7 @@ model IndividualRegistration {
   preferredName             String?  @map("preferred_name") @db.VarChar(255)
   email                     String   @db.VarChar(255)
   phone                     String   @db.VarChar(20)
+  address                   String?  @db.Text
   age                       Int?
   gender                    Gender?
   housingType               HousingType? @map("housing_type")

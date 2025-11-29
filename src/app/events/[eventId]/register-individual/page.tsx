@@ -42,7 +42,7 @@ export default function IndividualRegistrationPage() {
     email: '',
     phone: '',
     age: '',
-    gender: 'prefer_not_to_say',
+    gender: '',
     housingType: 'on_campus',
     roomType: 'double',
     preferredRoommate: '',
@@ -55,6 +55,7 @@ export default function IndividualRegistrationPage() {
     emergencyContact2Name: '',
     emergencyContact2Phone: '',
     emergencyContact2Relation: '',
+    address: '',
   })
 
   // Load event data
@@ -108,6 +109,7 @@ export default function IndividualRegistrationPage() {
       preferredName: formData.preferredName,
       email: formData.email,
       phone: formData.phone,
+      address: formData.address,
       age: formData.age,
       gender: formData.gender,
       housingType: formData.housingType,
@@ -242,6 +244,20 @@ export default function IndividualRegistrationPage() {
                       </div>
                     </div>
 
+                    <div>
+                      <label className="block text-sm font-medium text-navy mb-2">
+                        Address *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                        value={formData.address}
+                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                        placeholder="123 Main St, City, State, ZIP"
+                      />
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-navy mb-2">
@@ -260,14 +276,15 @@ export default function IndividualRegistrationPage() {
 
                       <div>
                         <label className="block text-sm font-medium text-navy mb-2">
-                          Gender
+                          Gender *
                         </label>
                         <select
+                          required
                           className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
                           value={formData.gender}
                           onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
                         >
-                          <option value="prefer_not_to_say">Prefer not to say</option>
+                          <option value="">Select gender</option>
                           <option value="male">Male</option>
                           <option value="female">Female</option>
                         </select>

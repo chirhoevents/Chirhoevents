@@ -102,6 +102,7 @@ export async function POST(request: NextRequest) {
         preferredName: body.preferredName || null,
         email,
         phone,
+        address: body.address || null,
         age: body.age || null,
         gender: body.gender || null,
         housingType,
