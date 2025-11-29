@@ -32,8 +32,7 @@ export async function POST(request: NextRequest) {
     if (secret !== process.env.SEED_SECRET) {
       return NextResponse.json(
         { error: 'Unauthorized - Invalid secret key' },
-        { status: 401 },
-        { headers: corsHeaders }
+        { status: 401, headers: corsHeaders }
       )
     }
 
@@ -284,8 +283,7 @@ export async function POST(request: NextRequest) {
           },
         ],
       },
-    },
-    { headers: corsHeaders })
+    }, { headers: corsHeaders })
   } catch (error) {
     console.error('❌ Seed failed:', error)
     return NextResponse.json(
