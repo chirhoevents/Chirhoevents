@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { generateAccessCode } from '@/lib/access-code'
 import Stripe from 'stripe'
+import { Resend } from 'resend'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
 })
+
+const resend = new Resend(process.env.RESEND_API_KEY!)
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,8 +34,27 @@ export async function POST(request: NextRequest) {
     } = body
 
     if (!eventId || !groupName || !groupLeaderName || !groupLeaderEmail || !groupLeaderPhone || !housingType) {
+      console.error('Validation failed:', {
+        eventId: !!eventId,
+        groupName: !!groupName,
+        groupLeaderName: !!groupLeaderName,
+        groupLeaderEmail: !!groupLeaderEmail,
+        groupLeaderPhone: !!groupLeaderPhone,
+        housingType: !!housingType,
+        receivedBody: body,
+      })
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        {
+          error: 'Missing required fields',
+          details: {
+            eventId: !eventId ? 'missing' : 'ok',
+            groupName: !groupName ? 'missing' : 'ok',
+            groupLeaderName: !groupLeaderName ? 'missing' : 'ok',
+            groupLeaderEmail: !groupLeaderEmail ? 'missing' : 'ok',
+            groupLeaderPhone: !groupLeaderPhone ? 'missing' : 'ok',
+            housingType: !housingType ? 'missing' : 'ok',
+          }
+        },
         { status: 400 }
       )
     }
@@ -178,6 +200,84 @@ export async function POST(request: NextRequest) {
           paymentMethod: 'check',
           paymentStatus: 'pending',
         },
+      })
+
+      // Fetch event settings for check payment details
+      const eventSettings = await prisma.eventSettings.findUnique({
+        where: { eventId: event.id },
+      })
+
+      // Send confirmation email for check payment
+      await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+        to: groupLeaderEmail,
+        subject: `Registration Received - ${event.name}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #1E3A5F;">Registration Received!</h1>
+
+            <p>Thank you for registering <strong>${groupName}</strong> for ${event.name}!</p>
+
+            <div style="background-color: #F5F1E8; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h2 style="color: #9C8466; margin-top: 0;">Your Access Code</h2>
+              <p style="font-size: 24px; font-weight: bold; color: #1E3A5F; font-family: monospace; letter-spacing: 2px;">
+                ${registration.accessCode}
+              </p>
+              <p style="font-size: 14px; color: #666;">
+                Save this code! You'll need it to complete liability forms and access your group portal.
+              </p>
+            </div>
+
+            <div style="background-color: #FFF3CD; padding: 20px; border-left: 4px solid #FFC107; margin: 20px 0;">
+              <h3 style="color: #856404; margin-top: 0;">⚠️ Payment Required</h3>
+              <p style="color: #856404; margin: 0;">
+                <strong>Your registration is PENDING until we receive your check payment.</strong>
+              </p>
+            </div>
+
+            <div style="background-color: #E8F4F8; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="color: #1E3A5F; margin-top: 0;">Check Payment Instructions</h3>
+              <p style="margin: 5px 0;"><strong>Make check payable to:</strong> ${eventSettings?.checkPaymentPayableTo || event.organization.name}</p>
+              <p style="margin: 5px 0;"><strong>Amount:</strong> $${depositAmount.toFixed(2)} (deposit) or $${totalAmount.toFixed(2)} (full payment)</p>
+              <p style="margin: 5px 0;"><strong>Write on check memo:</strong> ${groupName}</p>
+              ${eventSettings?.checkPaymentAddress ? `
+                <p style="margin: 10px 0 5px 0;"><strong>Mail to:</strong></p>
+                <p style="margin: 0; white-space: pre-line;">${eventSettings.checkPaymentAddress}</p>
+              ` : ''}
+            </div>
+
+            <h3 style="color: #1E3A5F;">Registration Summary</h3>
+            <div style="background-color: #F5F5F5; padding: 15px; border-radius: 8px;">
+              <p style="margin: 5px 0;"><strong>Group:</strong> ${groupName}</p>
+              <p style="margin: 5px 0;"><strong>Participants:</strong> ${totalParticipants}</p>
+              <p style="margin: 5px 0;"><strong>Total Cost:</strong> $${totalAmount.toFixed(2)}</p>
+              <p style="margin: 5px 0;"><strong>Deposit Amount:</strong> $${depositAmount.toFixed(2)}</p>
+              <p style="margin: 5px 0;"><strong>Balance Remaining:</strong> $${balanceRemaining.toFixed(2)}</p>
+              <p style="margin: 5px 0;"><strong>Payment Method:</strong> Check (Pending)</p>
+            </div>
+
+            <h3 style="color: #1E3A5F;">Next Steps:</h3>
+            <ol>
+              <li><strong>Mail Your Check:</strong> Send your check using the instructions above.</li>
+              <li><strong>Complete Liability Forms:</strong> Each participant must complete their liability form using your access code.</li>
+              <li><strong>Wait for Confirmation:</strong> We'll email you once your check is received and processed.</li>
+              <li><strong>Check-In:</strong> Bring your access code to check in at the event.</li>
+            </ol>
+
+            ${eventSettings?.registrationInstructions ? `
+              <div style="background-color: #F0F8FF; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="color: #1E3A5F; margin-top: 0;">Important Information</h3>
+                <p style="white-space: pre-line;">${eventSettings.registrationInstructions}</p>
+              </div>
+            ` : ''}
+
+            <p>Questions? Reply to this email or contact the event organizer.</p>
+
+            <p style="color: #666; font-size: 12px; margin-top: 30px;">
+              © 2025 ChiRho Events. All rights reserved.
+            </p>
+          </div>
+        `,
       })
 
       // Return without Stripe checkout URL
