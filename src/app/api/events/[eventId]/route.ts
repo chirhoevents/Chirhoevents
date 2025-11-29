@@ -47,6 +47,12 @@ export async function GET(
         chaperoneRegularPrice: Number(event.pricing?.chaperoneRegularPrice || 0),
         priestPrice: Number(event.pricing?.priestPrice || 0),
         depositAmount: Number(event.pricing?.depositAmount || 25),
+        onCampusYouthPrice: event.pricing?.onCampusYouthPrice ? Number(event.pricing.onCampusYouthPrice) : undefined,
+        offCampusYouthPrice: event.pricing?.offCampusYouthPrice ? Number(event.pricing.offCampusYouthPrice) : undefined,
+        dayPassYouthPrice: event.pricing?.dayPassYouthPrice ? Number(event.pricing.dayPassYouthPrice) : undefined,
+        onCampusChaperonePrice: event.pricing?.onCampusChaperonePrice ? Number(event.pricing.onCampusChaperonePrice) : undefined,
+        offCampusChaperonePrice: event.pricing?.offCampusChaperonePrice ? Number(event.pricing.offCampusChaperonePrice) : undefined,
+        dayPassChaperonePrice: event.pricing?.dayPassChaperonePrice ? Number(event.pricing.dayPassChaperonePrice) : undefined,
       },
       settings: event.settings,
     })
