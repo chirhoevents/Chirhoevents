@@ -11,6 +11,12 @@ interface EventPricing {
   chaperoneRegularPrice: number
   priestPrice: number
   depositAmount: number
+  onCampusYouthPrice?: number
+  offCampusYouthPrice?: number
+  dayPassYouthPrice?: number
+  onCampusChaperonePrice?: number
+  offCampusChaperonePrice?: number
+  dayPassChaperonePrice?: number
 }
 
 interface EventData {
@@ -74,6 +80,26 @@ export default function GroupRegistrationPage() {
     const { pricing } = event
     const breakdown: { label: string; count: number; price: number; subtotal: number }[] = []
 
+    // Determine youth price based on housing type (if available)
+    let youthPrice = pricing.youthRegularPrice
+    if (formData.housingType === 'on_campus' && pricing.onCampusYouthPrice) {
+      youthPrice = pricing.onCampusYouthPrice
+    } else if (formData.housingType === 'off_campus' && pricing.offCampusYouthPrice) {
+      youthPrice = pricing.offCampusYouthPrice
+    } else if (formData.housingType === 'day_pass' && pricing.dayPassYouthPrice) {
+      youthPrice = pricing.dayPassYouthPrice
+    }
+
+    // Determine chaperone price based on housing type (if available)
+    let chaperonePrice = pricing.chaperoneRegularPrice
+    if (formData.housingType === 'on_campus' && pricing.onCampusChaperonePrice) {
+      chaperonePrice = pricing.onCampusChaperonePrice
+    } else if (formData.housingType === 'off_campus' && pricing.offCampusChaperonePrice) {
+      chaperonePrice = pricing.offCampusChaperonePrice
+    } else if (formData.housingType === 'day_pass' && pricing.dayPassChaperonePrice) {
+      chaperonePrice = pricing.dayPassChaperonePrice
+    }
+
     const youthTotal =
       formData.youthCountMaleU18 +
       formData.youthCountFemaleU18 +
@@ -84,8 +110,8 @@ export default function GroupRegistrationPage() {
       breakdown.push({
         label: 'Youth',
         count: youthTotal,
-        price: pricing.youthRegularPrice,
-        subtotal: youthTotal * pricing.youthRegularPrice,
+        price: youthPrice,
+        subtotal: youthTotal * youthPrice,
       })
     }
 
@@ -94,8 +120,8 @@ export default function GroupRegistrationPage() {
       breakdown.push({
         label: 'Chaperones',
         count: chaperoneTotal,
-        price: pricing.chaperoneRegularPrice,
-        subtotal: chaperoneTotal * pricing.chaperoneRegularPrice,
+        price: chaperonePrice,
+        subtotal: chaperoneTotal * chaperonePrice,
       })
     }
 
@@ -427,9 +453,18 @@ export default function GroupRegistrationPage() {
                         value={formData.housingType}
                         onChange={(e) => setFormData({ ...formData, housingType: e.target.value })}
                       >
-                        <option value="on_campus">On-Campus Housing</option>
-                        <option value="off_campus">Off-Campus (Self-Arranged)</option>
-                        <option value="day_pass">Day Pass Only</option>
+                        <option value="on_campus">
+                          On-Campus Housing
+                          {event?.pricing.onCampusYouthPrice && ` - Youth: $${event.pricing.onCampusYouthPrice.toFixed(2)}, Chaperones: $${event.pricing.onCampusChaperonePrice?.toFixed(2)}`}
+                        </option>
+                        <option value="off_campus">
+                          Off-Campus (Self-Arranged)
+                          {event?.pricing.offCampusYouthPrice && ` - Youth: $${event.pricing.offCampusYouthPrice.toFixed(2)}, Chaperones: $${event.pricing.offCampusChaperonePrice?.toFixed(2)}`}
+                        </option>
+                        <option value="day_pass">
+                          Day Pass Only
+                          {event?.pricing.dayPassYouthPrice && ` - Youth: $${event.pricing.dayPassYouthPrice.toFixed(2)}, Chaperones: $${event.pricing.dayPassChaperonePrice?.toFixed(2)}`}
+                        </option>
                       </select>
                     </div>
 

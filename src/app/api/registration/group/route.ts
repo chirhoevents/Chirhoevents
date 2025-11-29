@@ -99,13 +99,31 @@ export async function POST(request: NextRequest) {
       : null
     const isEarlyBird = earlyBirdDeadline && now <= earlyBirdDeadline
 
-    const youthPrice = isEarlyBird
+    // Determine youth price - housing-specific pricing overrides early bird
+    let youthPrice = isEarlyBird
       ? Number(event.pricing.youthEarlyBirdPrice || event.pricing.youthRegularPrice)
       : Number(event.pricing.youthRegularPrice)
 
-    const chaperonePrice = isEarlyBird
+    if (housingType === 'on_campus' && event.pricing.onCampusYouthPrice) {
+      youthPrice = Number(event.pricing.onCampusYouthPrice)
+    } else if (housingType === 'off_campus' && event.pricing.offCampusYouthPrice) {
+      youthPrice = Number(event.pricing.offCampusYouthPrice)
+    } else if (housingType === 'day_pass' && event.pricing.dayPassYouthPrice) {
+      youthPrice = Number(event.pricing.dayPassYouthPrice)
+    }
+
+    // Determine chaperone price - housing-specific pricing overrides early bird
+    let chaperonePrice = isEarlyBird
       ? Number(event.pricing.chaperoneEarlyBirdPrice || event.pricing.chaperoneRegularPrice)
       : Number(event.pricing.chaperoneRegularPrice)
+
+    if (housingType === 'on_campus' && event.pricing.onCampusChaperonePrice) {
+      chaperonePrice = Number(event.pricing.onCampusChaperonePrice)
+    } else if (housingType === 'off_campus' && event.pricing.offCampusChaperonePrice) {
+      chaperonePrice = Number(event.pricing.offCampusChaperonePrice)
+    } else if (housingType === 'day_pass' && event.pricing.dayPassChaperonePrice) {
+      chaperonePrice = Number(event.pricing.dayPassChaperonePrice)
+    }
 
     const priestPrice = Number(event.pricing.priestPrice)
 

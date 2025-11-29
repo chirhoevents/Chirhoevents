@@ -19,6 +19,12 @@ interface EventData {
     chaperoneRegularPrice: number
     chaperoneLatePrice: number
     priestPrice: number
+    onCampusYouthPrice?: number
+    offCampusYouthPrice?: number
+    dayPassYouthPrice?: number
+    onCampusChaperonePrice?: number
+    offCampusChaperonePrice?: number
+    dayPassChaperonePrice?: number
     depositAmount: number | null
     depositPercentage: number | null
     requireFullPayment: boolean
@@ -109,8 +115,25 @@ export default function InvoiceReviewPage() {
     const earlyBirdDeadline = event.pricing.earlyBirdDeadline ? new Date(event.pricing.earlyBirdDeadline) : null
     const isEarlyBird = earlyBirdDeadline && now <= earlyBirdDeadline
 
-    const youthPrice = isEarlyBird ? event.pricing.youthEarlyBirdPrice : event.pricing.youthRegularPrice
-    const chaperonePrice = isEarlyBird ? event.pricing.chaperoneEarlyBirdPrice : event.pricing.chaperoneRegularPrice
+    // Determine youth price - housing-specific pricing overrides early bird
+    let youthPrice = isEarlyBird ? event.pricing.youthEarlyBirdPrice : event.pricing.youthRegularPrice
+    if (registrationData.housingType === 'on_campus' && event.pricing.onCampusYouthPrice) {
+      youthPrice = event.pricing.onCampusYouthPrice
+    } else if (registrationData.housingType === 'off_campus' && event.pricing.offCampusYouthPrice) {
+      youthPrice = event.pricing.offCampusYouthPrice
+    } else if (registrationData.housingType === 'day_pass' && event.pricing.dayPassYouthPrice) {
+      youthPrice = event.pricing.dayPassYouthPrice
+    }
+
+    // Determine chaperone price - housing-specific pricing overrides early bird
+    let chaperonePrice = isEarlyBird ? event.pricing.chaperoneEarlyBirdPrice : event.pricing.chaperoneRegularPrice
+    if (registrationData.housingType === 'on_campus' && event.pricing.onCampusChaperonePrice) {
+      chaperonePrice = event.pricing.onCampusChaperonePrice
+    } else if (registrationData.housingType === 'off_campus' && event.pricing.offCampusChaperonePrice) {
+      chaperonePrice = event.pricing.offCampusChaperonePrice
+    } else if (registrationData.housingType === 'day_pass' && event.pricing.dayPassChaperonePrice) {
+      chaperonePrice = event.pricing.dayPassChaperonePrice
+    }
 
     const breakdown: { label: string; count: number; price: number; subtotal: number }[] = []
 

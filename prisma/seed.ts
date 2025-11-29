@@ -120,6 +120,12 @@ async function main() {
       chaperoneRegularPrice: 75.00,
       chaperoneLatePrice: 90.00,
       priestPrice: 0.00,
+      onCampusYouthPrice: 100.00,
+      offCampusYouthPrice: 75.00,
+      dayPassYouthPrice: 50.00,
+      onCampusChaperonePrice: 75.00,
+      offCampusChaperonePrice: 60.00,
+      dayPassChaperonePrice: 40.00,
       depositAmount: 25.00, // 25% deposit
       depositPerPerson: true,
       earlyBirdDeadline: new Date('2026-05-01T23:59:59Z'),
@@ -149,7 +155,11 @@ async function main() {
   console.log(`  Late Youth: $120.00 (after June 15, 2026)`)
   console.log(`  Chaperones: $75.00`)
   console.log(`  Priests: FREE`)
-  console.log(`  Deposit Required: 25%`)
+  console.log(`\n🏠 Housing Type Pricing:`)
+  console.log(`  On-Campus Youth: $100.00 | Chaperones: $75.00`)
+  console.log(`  Off-Campus Youth: $75.00 | Chaperones: $60.00`)
+  console.log(`  Day-Pass Youth: $50.00 | Chaperones: $40.00`)
+  console.log(`\n💰 Deposit Required: $25.00 per person`)
   console.log('─'.repeat(60))
 }
 
