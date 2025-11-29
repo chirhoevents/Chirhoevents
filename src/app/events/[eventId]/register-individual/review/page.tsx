@@ -450,7 +450,7 @@ export default function IndividualInvoiceReviewPage() {
                     <Button
                       onClick={handleCreditCardPayment}
                       disabled={submitting}
-                      className="w-full bg-navy hover:bg-navy/90"
+                      className="w-full bg-navy hover:bg-navy/90 text-white"
                     >
                       {submitting ? (
                         <>
@@ -464,18 +464,6 @@ export default function IndividualInvoiceReviewPage() {
                         </>
                       )}
                     </Button>
-
-                    {event?.settings.checkPaymentEnabled && (
-                      <Button
-                        onClick={() => setShowCheckModal(true)}
-                        disabled={submitting}
-                        variant="outline"
-                        className="w-full"
-                      >
-                        <FileText className="h-4 w-4 mr-2" />
-                        Pay Later (Check/Cash)
-                      </Button>
-                    )}
                   </div>
 
                   <div className="bg-beige p-4 rounded-md text-xs text-gray-600">
