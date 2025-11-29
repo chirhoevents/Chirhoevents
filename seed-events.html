@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChiRho Events - Create Test Events</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1a2332 0%, #2d3e50 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo {
+            font-size: 36px;
+            font-weight: bold;
+            color: #1a2332;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            color: #1a2332;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #d4af37;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            background: #d4af37;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            background: #b8941f;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #d4af37;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result {
+            display: none;
+            margin-top: 24px;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .result.success {
+            background: #e8f5e9;
+            border: 2px solid #4caf50;
+        }
+
+        .result.error {
+            background: #ffebee;
+            border: 2px solid #f44336;
+        }
+
+        .result-title {
+            font-weight: 600;
+            font-size: 18px;
+            margin-bottom: 16px;
+        }
+
+        .result.success .result-title {
+            color: #2e7d32;
+        }
+
+        .result.error .result-title {
+            color: #c62828;
+        }
+
+        .event-card {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            border-left: 4px solid #d4af37;
+        }
+
+        .event-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: #1a2332;
+            margin-bottom: 8px;
+        }
+
+        .event-type {
+            display: inline-block;
+            background: #1a2332;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-bottom: 12px;
+        }
+
+        .event-details {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .event-id {
+            font-family: monospace;
+            background: #f5f5f5;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .event-url {
+            color: #1976d2;
+            text-decoration: none;
+            word-break: break-all;
+        }
+
+        .event-url:hover {
+            text-decoration: underline;
+        }
+
+        .note {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #856404;
+        }
+
+        .note strong {
+            display: block;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">ChiRho Events</div>
+            <div class="subtitle">Create Test Events</div>
+        </div>
+
+        <div class="form-group">
+            <label for="apiUrl">Your ChiRho Events URL</label>
+            <input
+                type="text"
+                id="apiUrl"
+                placeholder="https://chirhoevents.com"
+                value="https://chirhoevents.com"
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="secret">SEED_SECRET (from Vercel)</label>
+            <input
+                type="password"
+                id="secret"
+                placeholder="Enter your SEED_SECRET"
+            >
+        </div>
+
+        <button class="btn" onclick="createEvents()">
+            🌱 Create Test Events
+        </button>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 16px; color: #666;">Creating events...</p>
+        </div>
+
+        <div class="result" id="result"></div>
+
+        <div class="note">
+            <strong>📝 Instructions:</strong>
+            1. Make sure Vercel deployment is complete (green checkmark)<br>
+            2. Enter your SEED_SECRET (the password you set in Vercel)<br>
+            3. Click "Create Test Events"<br>
+            4. Wait for the success message with event IDs and URLs
+        </div>
+    </div>
+
+    <script>
+        async function createEvents() {
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const secret = document.getElementById('secret').value.trim();
+            const button = document.querySelector('.btn');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+
+            // Validation
+            if (!apiUrl) {
+                alert('Please enter your ChiRho Events URL');
+                return;
+            }
+
+            if (!secret) {
+                alert('Please enter your SEED_SECRET');
+                return;
+            }
+
+            // Show loading
+            button.disabled = true;
+            loading.style.display = 'block';
+            result.style.display = 'none';
+            result.className = 'result';
+
+            try {
+                const response = await fetch(`${apiUrl}/api/admin/seed`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ secret })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    // Success!
+                    result.className = 'result success';
+                    result.innerHTML = `
+                        <div class="result-title">✅ Success! Events Created</div>
+
+                        <div style="margin-bottom: 20px;">
+                            <strong>Organization:</strong> ${data.data.organization.name}<br>
+                            <strong>ID:</strong> <span class="event-id">${data.data.organization.id}</span>
+                        </div>
+
+                        <div class="event-card">
+                            <div class="event-name">🏕️ ${data.data.events[0].name}</div>
+                            <span class="event-type">${data.data.events[0].type}</span>
+                            <div class="event-details">
+                                <strong>Event ID:</strong><br>
+                                <span class="event-id">${data.data.events[0].id}</span>
+                                <br><br>
+                                <strong>Registration URL:</strong><br>
+                                <a href="${data.data.events[0].registrationUrl}" class="event-url" target="_blank">
+                                    ${data.data.events[0].registrationUrl}
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="event-card">
+                            <div class="event-name">✝️ ${data.data.events[1].name}</div>
+                            <span class="event-type">${data.data.events[1].type}</span>
+                            <div class="event-details">
+                                <strong>Event ID:</strong><br>
+                                <span class="event-id">${data.data.events[1].id}</span>
+                                <br><br>
+                                <strong>Registration URL:</strong><br>
+                                <a href="${data.data.events[1].registrationUrl}" class="event-url" target="_blank">
+                                    ${data.data.events[1].registrationUrl}
+                                </a>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 20px; padding: 16px; background: #e3f2fd; border-radius: 8px;">
+                            <strong style="color: #1976d2;">🎉 Next Steps:</strong><br>
+                            <span style="color: #555;">
+                                Click the registration URLs above to test the registration flows!<br>
+                                • Mount 2000 = Group Registration<br>
+                                • Krygma Retreat = Individual Registration
+                            </span>
+                        </div>
+                    `;
+                } else {
+                    // Error from API
+                    result.className = 'result error';
+                    result.innerHTML = `
+                        <div class="result-title">❌ Error</div>
+                        <p><strong>Message:</strong> ${data.error || 'Unknown error'}</p>
+                        ${data.details ? `<p style="margin-top: 8px;"><strong>Details:</strong> ${data.details}</p>` : ''}
+                        <p style="margin-top: 16px; font-size: 14px;">
+                            <strong>Common Issues:</strong><br>
+                            • Wrong SEED_SECRET (check Vercel environment variables)<br>
+                            • Vercel deployment not finished yet<br>
+                            • Database connection issue
+                        </p>
+                    `;
+                }
+            } catch (error) {
+                // Network error
+                result.className = 'result error';
+                result.innerHTML = `
+                    <div class="result-title">❌ Connection Error</div>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                    <p style="margin-top: 16px; font-size: 14px;">
+                        <strong>Possible Causes:</strong><br>
+                        • Vercel deployment not finished yet<br>
+                        • Wrong URL (check your ChiRho Events domain)<br>
+                        • Network connection issue
+                    </p>
+                `;
+            } finally {
+                // Hide loading
+                button.disabled = false;
+                loading.style.display = 'none';
+                result.style.display = 'block';
+            }
+        }
+
+        // Allow Enter key to submit
+        document.getElementById('secret').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                createEvents();
+            }
+        });
+    </script>
+</body>
+</html>
