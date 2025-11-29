@@ -76,6 +76,37 @@ async function main() {
 
   console.log('✅ Created event:', event.name)
 
+  // 3b. Create Krygma Retreat 2027 (Individual Registration Test Event)
+  const krygmaEvent = await prisma.event.upsert({
+    where: { slug: 'krygma-retreat-2027' },
+    update: {},
+    create: {
+      organizationId: org.id,
+      name: 'Krygma Retreat 2027',
+      slug: 'krygma-retreat-2027',
+      description: 'A powerful retreat experience focused on encountering Christ through the Kerygma - the essential proclamation of the Gospel.',
+      startDate: new Date('2027-03-12'),
+      endDate: new Date('2027-03-14'),
+      timezone: 'America/New_York',
+      locationName: "Mount St. Mary's University",
+      locationAddress: {
+        street: '16300 Old Emmitsburg Road',
+        city: 'Emmitsburg',
+        state: 'MD',
+        zip: '21727',
+        country: 'USA',
+      },
+      capacityTotal: 200,
+      capacityRemaining: 200,
+      registrationOpenDate: new Date('2026-11-01T00:00:00Z'),
+      registrationCloseDate: new Date('2027-03-10T23:59:59Z'),
+      status: 'registration_open',
+      createdBy: admin.id,
+    },
+  })
+
+  console.log('✅ Created event:', krygmaEvent.name)
+
   // 4. Create event settings (enable all features)
   await prisma.eventSettings.upsert({
     where: { eventId: event.id },
@@ -106,6 +137,41 @@ async function main() {
   })
 
   console.log('✅ Created event settings (all features enabled)')
+
+  // 4b. Create Krygma Retreat event settings
+  await prisma.eventSettings.upsert({
+    where: { eventId: krygmaEvent.id },
+    update: {},
+    create: {
+      eventId: krygmaEvent.id,
+      groupRegistrationEnabled: false, // Individual registration only
+      individualRegistrationEnabled: true,
+      liabilityFormsRequiredGroup: false,
+      liabilityFormsRequiredIndividual: true,
+      showDietaryRestrictions: true,
+      dietaryRestrictionsRequired: false,
+      showAdaAccommodations: true,
+      adaAccommodationsRequired: false,
+      porosHousingEnabled: true,
+      porosPriestHousingEnabled: false,
+      porosSeatingEnabled: false,
+      porosMealColorsEnabled: false,
+      porosSmallGroupEnabled: true,
+      porosSglEnabled: false,
+      porosSeminarianEnabled: false,
+      porosReligiousStaffEnabled: false,
+      porosAdaEnabled: true,
+      publicPortalEnabled: false,
+      salveCheckinEnabled: true,
+      raphaMedicalEnabled: true,
+      checkPaymentEnabled: true,
+      checkPaymentPayableTo: 'Mount Saint Mary Seminary',
+      checkPaymentAddress: '16300 Old Emmitsburg Road\nEmmitsburg, MD 21727',
+      registrationInstructions: 'Welcome to Krygma Retreat 2027! We\'re excited to have you join us for this powerful weekend of faith formation.',
+    },
+  })
+
+  console.log('✅ Created Krygma Retreat event settings')
 
   // 5. Create event pricing
   await prisma.eventPricing.upsert({
@@ -138,6 +204,39 @@ async function main() {
   })
 
   console.log('✅ Created event pricing')
+
+  // 5b. Create Krygma Retreat pricing (Individual registration focused)
+  await prisma.eventPricing.upsert({
+    where: { eventId: krygmaEvent.id },
+    update: {},
+    create: {
+      eventId: krygmaEvent.id,
+      youthEarlyBirdPrice: 0.00, // Not used for individual-only events
+      youthRegularPrice: 150.00, // Default individual price
+      youthLatePrice: 0.00,
+      chaperoneEarlyBirdPrice: 0.00,
+      chaperoneRegularPrice: 0.00,
+      chaperoneLatePrice: 0.00,
+      priestPrice: 0.00,
+      onCampusYouthPrice: 150.00,
+      offCampusYouthPrice: 100.00,
+      dayPassYouthPrice: 75.00,
+      onCampusChaperonePrice: null,
+      offCampusChaperonePrice: null,
+      dayPassChaperonePrice: null,
+      depositAmount: null,
+      depositPerPerson: false,
+      requireFullPayment: true, // Full payment required for individuals
+      earlyBirdDeadline: null,
+      regularDeadline: null,
+      fullPaymentDeadline: new Date('2027-03-10T23:59:59Z'),
+      lateFeePercentage: 0.00,
+      lateFeeAutoApply: false,
+      currency: 'USD',
+    },
+  })
+
+  console.log('✅ Created Krygma Retreat pricing')
   console.log('\n🎉 Seed completed successfully!')
   console.log('\n📋 Your Test Data:')
   console.log('─'.repeat(60))
@@ -150,6 +249,13 @@ async function main() {
   console.log(`\nRegistration URLs:`)
   console.log(`  Group: https://chirhoevents.com/events/${event.id}/register-group`)
   console.log(`  Individual: https://chirhoevents.com/events/${event.id}/register-individual`)
+
+  console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`)
+  console.log(`\n🔹 Event 2: ${krygmaEvent.name} (Individual Registration Only)`)
+  console.log(`Event Slug: ${krygmaEvent.slug}`)
+  console.log(`Event ID: ${krygmaEvent.id}`)
+  console.log(`\nRegistration URL:`)
+  console.log(`  Individual: https://chirhoevents.com/events/${krygmaEvent.id}/register-individual`)
   console.log('\n📊 Pricing:')
   console.log(`  Early Bird Youth: $90.00 (until May 1, 2026)`)
   console.log(`  Regular Youth: $100.00`)
@@ -161,6 +267,12 @@ async function main() {
   console.log(`  Off-Campus Youth: $75.00 | Chaperones: $60.00`)
   console.log(`  Day-Pass Youth: $50.00 | Chaperones: $40.00`)
   console.log(`\n💰 Deposit Required: $25.00 per person`)
+
+  console.log(`\n📊 Krygma Retreat Pricing (Individual Only):`)
+  console.log(`  On-Campus: $150.00`)
+  console.log(`  Off-Campus: $100.00`)
+  console.log(`  Day-Pass: $75.00`)
+  console.log(`\n💰 Full Payment Required (No deposit option)`)
   console.log('─'.repeat(60))
 }
 
