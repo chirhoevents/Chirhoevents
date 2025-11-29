@@ -32,7 +32,9 @@ export default function LandingPage() {
             </div>
             <div className="flex items-center space-x-4">
               <Button variant="outline" size="sm">Sign In</Button>
-              <Button size="sm">Get Started</Button>
+              <a href="#contact">
+                <Button size="sm">Get Started</Button>
+              </a>
             </div>
           </div>
         </div>
@@ -47,7 +49,7 @@ export default function LandingPage() {
               The Complete Catholic Registration Platform for Ministry
             </h1>
             <p className="text-xl sm:text-2xl mb-8 text-gray-200">
-              Built for Steubenville conferences, diocesan retreats, and Catholic youth events—at 30% lower cost than competitors.
+              Built for conferences, retreats, and many Catholic events—at 30% lower cost than competitors.
             </p>
             <div className="space-y-4 mb-10">
               <div className="flex items-center justify-center space-x-2">
@@ -64,12 +66,16 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button size="lg" className="text-lg px-8 py-6">
-                Get Started
-              </Button>
-              <Button size="lg" variant="outline" className="text-lg px-8 py-6 bg-transparent border-white text-white hover:bg-white hover:text-navy">
-                See Pricing
-              </Button>
+              <a href="#contact">
+                <Button size="lg" className="text-lg px-8 py-6">
+                  Get Started
+                </Button>
+              </a>
+              <a href="#pricing">
+                <Button size="lg" variant="outline" className="text-lg px-8 py-6 bg-transparent border-white text-white hover:bg-white hover:text-navy">
+                  See Pricing
+                </Button>
+              </a>
             </div>
           </div>
         </div>
@@ -164,7 +170,10 @@ export default function LandingPage() {
             <Card>
               <CardHeader>
                 <Home className="h-12 w-12 text-gold mb-4" />
-                <CardTitle>Housing (Poros Portal)</CardTitle>
+                <CardTitle>Housing (Poros)</CardTitle>
+                <CardDescription className="text-sm italic text-gray-500 mt-2">
+                  Πόρος (Greek: Gateway) - The entryway to your event
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2 text-gray-600">
@@ -181,6 +190,9 @@ export default function LandingPage() {
               <CardHeader>
                 <Clipboard className="h-12 w-12 text-gold mb-4" />
                 <CardTitle>Check-In (SALVE)</CardTitle>
+                <CardDescription className="text-sm italic text-gray-500 mt-2">
+                  SALVE (Latin: Greetings) - Welcome your attendees
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2 text-gray-600">
@@ -197,6 +209,9 @@ export default function LandingPage() {
               <CardHeader>
                 <Heart className="h-12 w-12 text-gold mb-4" />
                 <CardTitle>Medical (Rapha)</CardTitle>
+                <CardDescription className="text-sm italic text-gray-500 mt-2">
+                  Ραφά (Greek: To Heal) - Care for your participants
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2 text-gray-600">
@@ -236,7 +251,7 @@ export default function LandingPage() {
             </h2>
             <div className="bg-navy-600 rounded-lg p-8 text-left space-y-4 text-lg">
               <p>
-                As housing director for Mount 2000, I watched us pay Eventbrite $4,300 in fees—while still needing separate tools for housing, check-in, and medical tracking.
+                As housing director for Mount 2000, I found myself juggling multiple tools—registration software, housing spreadsheets, check-in systems, and medical forms.
               </p>
               <p>
                 None of these tools understood Catholic youth ministry. No fields for priests. No safe environment tracking. No three-tiered liability forms.
@@ -245,7 +260,7 @@ export default function LandingPage() {
                 So we built ChiRho Events—the all-in-one platform we wish we&apos;d had.
               </p>
               <p>
-                Now dioceses across the country save 30% while getting features specifically built for Catholic events.
+                Our goal is to help Catholic events run more smoothly with features specifically built for our unique needs—at a fair price.
               </p>
               <p className="text-gold font-semibold pt-4">
                 - Juanito, Founder<br />
@@ -279,7 +294,9 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• 2 events/year</p>
                 <p className="text-sm text-gray-600">• 500 people max</p>
                 <p className="text-sm text-gray-600">• 5GB storage</p>
-                <Button className="w-full mt-6">Get Started</Button>
+                <a href="#contact">
+                  <Button className="w-full mt-6">Get Started</Button>
+                </a>
               </CardContent>
             </Card>
 
@@ -296,7 +313,9 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• 5 events/year</p>
                 <p className="text-sm text-gray-600">• 1,000 people max</p>
                 <p className="text-sm text-gray-600">• 15GB storage</p>
-                <Button className="w-full mt-6">Get Started</Button>
+                <a href="#contact">
+                  <Button className="w-full mt-6">Get Started</Button>
+                </a>
               </CardContent>
             </Card>
 
@@ -316,7 +335,9 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• 10 events/year</p>
                 <p className="text-sm text-gray-600">• 3,000 people max</p>
                 <p className="text-sm text-gray-600">• 40GB storage</p>
-                <Button className="w-full mt-6">Get Started</Button>
+                <a href="#contact">
+                  <Button className="w-full mt-6">Get Started</Button>
+                </a>
               </CardContent>
             </Card>
 
@@ -333,7 +354,9 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• 25 events/year</p>
                 <p className="text-sm text-gray-600">• 8,000 people max</p>
                 <p className="text-sm text-gray-600">• 100GB storage</p>
-                <Button className="w-full mt-6">Get Started</Button>
+                <a href="#contact">
+                  <Button className="w-full mt-6">Get Started</Button>
+                </a>
               </CardContent>
             </Card>
 
@@ -349,7 +372,9 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• Unlimited events</p>
                 <p className="text-sm text-gray-600">• Unlimited people</p>
                 <p className="text-sm text-gray-600">• Dedicated support</p>
-                <Button variant="outline" className="w-full mt-6">Contact Sales</Button>
+                <a href="#contact">
+                  <Button variant="outline" className="w-full mt-6">Contact Sales</Button>
+                </a>
               </CardContent>
             </Card>
           </div>
@@ -414,7 +439,7 @@ export default function LandingPage() {
                   How long does setup take?
                 </AccordionTrigger>
                 <AccordionContent className="text-gray-600">
-                  Most organizations are up and running in 1-2 hours. We provide onboarding support to help you configure your first event.
+                  Initial account setup takes about 30 minutes. Creating your first event typically takes 1-2 hours depending on complexity. We provide onboarding support and documentation to help you get started.
                 </AccordionContent>
               </AccordionItem>
 
@@ -424,6 +449,15 @@ export default function LandingPage() {
                 </AccordionTrigger>
                 <AccordionContent className="text-gray-600">
                   Yes! We support CSV import from Eventbrite and other platforms. Our team can help you migrate your data.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="item-8">
+                <AccordionTrigger className="text-left text-lg font-semibold text-navy">
+                  Is this only for Catholic events?
+                </AccordionTrigger>
+                <AccordionContent className="text-gray-600">
+                  While ChiRho Events is built specifically with Catholic events in mind—with features like priest tracking, safe environment compliance, and three-tiered liability forms—it works beautifully for any conference, retreat, or gathering. The platform is flexible enough to adapt to your event&apos;s unique needs.
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
