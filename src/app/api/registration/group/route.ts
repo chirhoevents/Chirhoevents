@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       priestCount = 0,
       housingType,
       specialRequests = '',
-      couponCode = '',
+      paymentMethod = 'card', // 'card' or 'check'
     } = body
 
     if (!eventId || !groupName || !groupLeaderName || !groupLeaderEmail || !groupLeaderPhone || !housingType) {
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Calculate total participants and pricing
+    // Calculate total participants
     const totalParticipants =
       youthCountMaleU18 +
       youthCountFemaleU18 +
@@ -70,21 +70,55 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check for early bird pricing
+    const now = new Date()
+    const earlyBirdDeadline = event.pricing.earlyBirdDeadline
+      ? new Date(event.pricing.earlyBirdDeadline)
+      : null
+    const isEarlyBird = earlyBirdDeadline && now <= earlyBirdDeadline
+
+    const youthPrice = isEarlyBird
+      ? Number(event.pricing.youthEarlyBirdPrice || event.pricing.youthRegularPrice)
+      : Number(event.pricing.youthRegularPrice)
+
+    const chaperonePrice = isEarlyBird
+      ? Number(event.pricing.chaperoneEarlyBirdPrice || event.pricing.chaperoneRegularPrice)
+      : Number(event.pricing.chaperoneRegularPrice)
+
+    const priestPrice = Number(event.pricing.priestPrice)
+
+    // Calculate totals
     const youthTotal =
       youthCountMaleU18 + youthCountFemaleU18 + youthCountMaleO18 + youthCountFemaleO18
     const chaperoneTotal = chaperoneCountMale + chaperoneCountFemale
 
     const totalAmount =
-      youthTotal * Number(event.pricing.youthRegularPrice) +
-      chaperoneTotal * Number(event.pricing.chaperoneRegularPrice) +
-      priestCount * Number(event.pricing.priestPrice)
+      youthTotal * youthPrice +
+      chaperoneTotal * chaperonePrice +
+      priestCount * priestPrice
 
-    const depositPercentage = Number(event.pricing.depositAmount) // 25
-    const depositAmount = (totalAmount * depositPercentage) / 100
+    // Calculate deposit based on settings
+    let depositAmount = 0
+    if (event.pricing.requireFullPayment) {
+      // Option 3: Full payment required
+      depositAmount = totalAmount
+    } else if (event.pricing.depositPercentage !== null) {
+      // Option 1: Percentage-based deposit
+      depositAmount = (totalAmount * Number(event.pricing.depositPercentage)) / 100
+    } else if (event.pricing.depositAmount !== null) {
+      // Option 2: Fixed deposit amount
+      depositAmount = Number(event.pricing.depositAmount)
+    }
+    // else Option 4: No deposit required (depositAmount = 0)
+
     const balanceRemaining = totalAmount - depositAmount
 
     // Generate unique access code
     const accessCode = generateAccessCode(event.name, groupName)
+
+    // Determine registration status based on payment method
+    const registrationStatus =
+      paymentMethod === 'check' ? 'pending_payment' : 'incomplete'
 
     // Create group registration
     const registration = await prisma.groupRegistration.create({
@@ -108,54 +142,14 @@ export async function POST(request: NextRequest) {
         totalParticipants,
         housingType,
         specialRequests,
-        registrationStatus: 'pending_payment',
-      },
-    })
-
-    // Create Stripe Checkout Session
-    const checkoutSession = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: `${event.name} - Group Registration`,
-              description: `Deposit for ${groupName} (${totalParticipants} participants)`,
-            },
-            unit_amount: Math.round(depositAmount * 100), // Convert to cents
-          },
-          quantity: 1,
-        },
-      ],
-      mode: 'payment',
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/registration/confirmation/${registration.id}?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/events/${eventId}/register-group?cancelled=true`,
-      metadata: {
-        registrationId: registration.id,
-        eventId: event.id,
-        groupName,
-        accessCode,
-      },
-      customer_email: groupLeaderEmail,
-    })
-
-    // Create payment record
-    await prisma.payment.create({
-      data: {
-        organizationId: event.organizationId,
-        registrationId: registration.id,
-        registrationType: 'group',
-        eventId: event.id,
-        amount: depositAmount,
-        paymentType: 'deposit',
-        paymentMethod: 'card',
-        paymentStatus: 'pending',
-        stripePaymentIntentId: checkoutSession.id,
+        registrationStatus,
       },
     })
 
     // Create payment balance record
+    const paymentBalanceStatus =
+      paymentMethod === 'check' ? 'pending_check_payment' : 'unpaid'
+
     await prisma.paymentBalance.create({
       data: {
         organizationId: event.organizationId,
@@ -163,26 +157,99 @@ export async function POST(request: NextRequest) {
         registrationId: registration.id,
         registrationType: 'group',
         totalAmountDue: totalAmount,
-        amountPaid: 0, // Deposit will be marked paid after webhook confirmation
+        amountPaid: 0,
         amountRemaining: totalAmount,
         lateFeesApplied: 0,
-        paymentStatus: 'unpaid',
+        paymentStatus: paymentBalanceStatus,
       },
     })
 
-    return NextResponse.json({
-      success: true,
-      registrationId: registration.id,
-      accessCode: registration.accessCode,
-      checkoutUrl: checkoutSession.url,
-      totalAmount,
-      depositAmount,
-      balanceRemaining,
-    })
-  } catch (error: any) {
+    // Handle payment method
+    if (paymentMethod === 'check') {
+      // Check payment - create pending payment record
+      await prisma.payment.create({
+        data: {
+          organizationId: event.organizationId,
+          registrationId: registration.id,
+          registrationType: 'group',
+          eventId: event.id,
+          amount: depositAmount,
+          paymentType: depositAmount >= totalAmount ? 'full' : 'deposit',
+          paymentMethod: 'check',
+          paymentStatus: 'pending',
+        },
+      })
+
+      // Return without Stripe checkout URL
+      return NextResponse.json({
+        success: true,
+        registrationId: registration.id,
+        accessCode: registration.accessCode,
+        checkoutUrl: null,
+        totalAmount,
+        depositAmount,
+        balanceRemaining,
+        paymentMethod: 'check',
+      })
+    } else {
+      // Credit card payment - create Stripe checkout session
+      const checkoutSession = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: 'usd',
+              product_data: {
+                name: `${event.name} - Group Registration`,
+                description: `${event.pricing.requireFullPayment ? 'Full payment' : 'Deposit'} for ${groupName} (${totalParticipants} participants)`,
+              },
+              unit_amount: Math.round(depositAmount * 100), // Convert to cents
+            },
+            quantity: 1,
+          },
+        ],
+        mode: 'payment',
+        success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/registration/confirmation/${registration.id}?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/events/${eventId}/register-group/review?cancelled=true`,
+        metadata: {
+          registrationId: registration.id,
+          eventId: event.id,
+          groupName,
+          accessCode,
+        },
+        customer_email: groupLeaderEmail,
+      })
+
+      // Create payment record
+      await prisma.payment.create({
+        data: {
+          organizationId: event.organizationId,
+          registrationId: registration.id,
+          registrationType: 'group',
+          eventId: event.id,
+          amount: depositAmount,
+          paymentType: depositAmount >= totalAmount ? 'full' : 'deposit',
+          paymentMethod: 'card',
+          paymentStatus: 'pending',
+          stripePaymentIntentId: checkoutSession.id,
+        },
+      })
+
+      return NextResponse.json({
+        success: true,
+        registrationId: registration.id,
+        accessCode: registration.accessCode,
+        checkoutUrl: checkoutSession.url,
+        totalAmount,
+        depositAmount,
+        balanceRemaining,
+        paymentMethod: 'card',
+      })
+    }
+  } catch (error) {
     console.error('Group registration error:', error)
     return NextResponse.json(
-      { error: error.message || 'Registration failed' },
+      { error: 'Failed to process registration. Please try again.' },
       { status: 500 }
     )
   }

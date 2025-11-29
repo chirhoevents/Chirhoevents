@@ -27,7 +27,6 @@ export default function GroupRegistrationPage() {
   const eventId = params.eventId as string
 
   const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
   const [event, setEvent] = useState<EventData | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -126,41 +125,30 @@ export default function GroupRegistrationPage() {
     formData.chaperoneCountFemale +
     formData.priestCount
 
-  // Handle form submission
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Handle form submission - navigate to review page
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setSubmitting(true)
-    setError(null)
 
-    try {
-      const response = await fetch('/api/registration/group', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          eventId,
-          ...formData,
-          totalParticipants,
-        }),
-      })
+    // Build URL with all form data as query parameters
+    const params = new URLSearchParams({
+      groupName: formData.groupName,
+      parishName: formData.parishName,
+      dioceseName: formData.dioceseName,
+      groupLeaderName: formData.groupLeaderName,
+      groupLeaderEmail: formData.groupLeaderEmail,
+      groupLeaderPhone: formData.groupLeaderPhone,
+      youthCountMaleU18: formData.youthCountMaleU18.toString(),
+      youthCountFemaleU18: formData.youthCountFemaleU18.toString(),
+      youthCountMaleO18: formData.youthCountMaleO18.toString(),
+      youthCountFemaleO18: formData.youthCountFemaleO18.toString(),
+      chaperoneCountMale: formData.chaperoneCountMale.toString(),
+      chaperoneCountFemale: formData.chaperoneCountFemale.toString(),
+      priestCount: formData.priestCount.toString(),
+      housingType: formData.housingType,
+      specialRequests: formData.specialRequests,
+    })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Registration failed')
-      }
-
-      const result = await response.json()
-
-      // Redirect to Stripe checkout
-      if (result.checkoutUrl) {
-        window.location.href = result.checkoutUrl
-      } else {
-        router.push(`/registration/confirmation/${result.registrationId}`)
-      }
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong. Please try again.')
-    } finally {
-      setSubmitting(false)
-    }
+    router.push(`/events/${eventId}/register-group/review?${params.toString()}`)
   }
 
   if (loading) {
@@ -483,16 +471,9 @@ export default function GroupRegistrationPage() {
                   type="submit"
                   size="lg"
                   className="w-full"
-                  disabled={submitting || totalParticipants === 0}
+                  disabled={totalParticipants === 0}
                 >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    `Continue to Payment ($${pricing.deposit.toFixed(2)} deposit)`
-                  )}
+                  Continue to Review & Payment
                 </Button>
               </form>
             </div>
