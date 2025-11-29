@@ -225,7 +225,7 @@ export async function POST(request: NextRequest) {
               <h3 style="color: #1E3A5F;">Registration Summary</h3>
               <div style="background-color: #F5F5F5; padding: 15px; border-radius: 8px;">
                 <p style="margin: 5px 0;"><strong>Name:</strong> ${firstName} ${lastName}</p>
-                <p style="margin: 5px 0;"><strong>Housing Type:</strong> ${housingType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
+                <p style="margin: 5px 0;"><strong>Housing Type:</strong> ${housingType.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</p>
                 ${body.roomType ? `<p style="margin: 5px 0;"><strong>Room Type:</strong> ${body.roomType}</p>` : ''}
                 <p style="margin: 5px 0;"><strong>Total Cost:</strong> $${totalAmount.toFixed(2)}</p>
                 <p style="margin: 5px 0;"><strong>Payment Method:</strong> Check (Pending)</p>
