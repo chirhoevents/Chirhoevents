@@ -11,6 +11,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(request: NextRequest) {
+  console.log('🔔 Stripe webhook received')
   const body = await request.text()
   const signature = headers().get('stripe-signature')!
 
@@ -22,8 +23,9 @@ export async function POST(request: NextRequest) {
       signature,
       process.env.STRIPE_WEBHOOK_SECRET!
     )
+    console.log('✅ Webhook signature verified, event type:', event.type)
   } catch (err: any) {
-    console.error('Webhook signature verification failed:', err.message)
+    console.error('❌ Webhook signature verification failed:', err.message)
     return NextResponse.json(
       { error: 'Webhook signature verification failed' },
       { status: 400 }
@@ -32,12 +34,14 @@ export async function POST(request: NextRequest) {
 
   // Handle the event
   if (event.type === 'checkout.session.completed') {
+    console.log('💳 Processing checkout.session.completed event')
     const session = event.data.object as Stripe.Checkout.Session
 
     const { registrationId, accessCode, groupName } = session.metadata || {}
+    console.log('📋 Session metadata:', { registrationId, accessCode, groupName })
 
     if (!registrationId) {
-      console.error('No registrationId in session metadata')
+      console.error('❌ No registrationId in session metadata')
       return NextResponse.json({ error: 'Missing metadata' }, { status: 400 })
     }
 
@@ -180,9 +184,11 @@ export async function POST(request: NextRequest) {
         `,
       })
 
-      console.log('✅ Payment confirmed and email sent for registration:', registrationId)
+      console.log('✅ Payment confirmed and email sent to:', registration.groupLeaderEmail)
+      console.log('✅ Registration ID:', registrationId)
     } catch (error) {
-      console.error('Error processing payment webhook:', error)
+      console.error('❌ Error processing payment webhook:', error)
+      console.error('Error details:', error instanceof Error ? error.message : 'Unknown error')
       return NextResponse.json({ error: 'Processing failed' }, { status: 500 })
     }
   }
