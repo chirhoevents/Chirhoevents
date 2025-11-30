@@ -18,6 +18,9 @@ interface RegistrationData {
   totalAmount: number
   paymentStatus: string
   registrationStatus: string
+  liabilityFormRequired: boolean
+  organizationName: string
+  organizationLogoUrl: string | null
 }
 
 export default function IndividualConfirmationPage() {
@@ -78,7 +81,7 @@ export default function IndividualConfirmationPage() {
         <Card className="max-w-2xl mx-auto">
           <CardContent className="p-8 text-center">
             <p className="text-red-600 mb-4">{error || 'Registration not found'}</p>
-            <Button onClick={() => window.location.href = '/'}>Return Home</Button>
+            <Button onClick={() => window.location.href = '/'} className="bg-navy hover:bg-navy/90 !text-white">Return Home</Button>
           </CardContent>
         </Card>
       </div>
@@ -92,6 +95,20 @@ export default function IndividualConfirmationPage() {
     <div className="min-h-screen bg-beige py-12">
       <div className="container mx-auto px-4">
         <div className="max-w-3xl mx-auto">
+          {/* Organization Logo/Name */}
+          <div className="text-center mb-6">
+            {registration.organizationLogoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={registration.organizationLogoUrl}
+                alt={registration.organizationName}
+                className="h-20 mx-auto object-contain"
+              />
+            ) : (
+              <h2 className="text-2xl font-bold text-navy">{registration.organizationName}</h2>
+            )}
+          </div>
+
           {/* Success Header */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
@@ -247,21 +264,23 @@ export default function IndividualConfirmationPage() {
                     </p>
                   </div>
                 </li>
+                {registration.liabilityFormRequired && (
+                  <li className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 bg-navy text-white rounded-full flex items-center justify-center text-xs font-bold">
+                      {isPending ? '3' : '2'}
+                    </span>
+                    <div>
+                      <p className="font-semibold text-navy">Complete Your Liability Form</p>
+                      <p className="text-gray-600">
+                        You&apos;ll receive a separate email with instructions to complete your liability form.
+                        This is required before the event.
+                      </p>
+                    </div>
+                  </li>
+                )}
                 <li className="flex items-start gap-3">
                   <span className="flex-shrink-0 w-6 h-6 bg-navy text-white rounded-full flex items-center justify-center text-xs font-bold">
-                    {isPending ? '3' : '2'}
-                  </span>
-                  <div>
-                    <p className="font-semibold text-navy">Complete Your Liability Form</p>
-                    <p className="text-gray-600">
-                      You&apos;ll receive a separate email with instructions to complete your liability form.
-                      This is required before the event.
-                    </p>
-                  </div>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 bg-navy text-white rounded-full flex items-center justify-center text-xs font-bold">
-                    {isPending ? '4' : '3'}
+                    {isPending ? (registration.liabilityFormRequired ? '4' : '3') : (registration.liabilityFormRequired ? '3' : '2')}
                   </span>
                   <div>
                     <p className="font-semibold text-navy">Check-In at the Event</p>
@@ -291,7 +310,7 @@ export default function IndividualConfirmationPage() {
               <Download className="h-4 w-4 mr-2" />
               Print This Page
             </Button>
-            <Button onClick={() => window.location.href = '/'} className="bg-navy hover:bg-navy/90">
+            <Button onClick={() => window.location.href = '/'} className="bg-navy hover:bg-navy/90 !text-white">
               Return to Home
             </Button>
           </div>

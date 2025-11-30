@@ -31,6 +31,7 @@ interface RegistrationData {
   preferredName: string
   email: string
   phone: string
+  address: string
   age: string
   gender: string
   housingType: string
@@ -67,6 +68,7 @@ export default function IndividualInvoiceReviewPage() {
     preferredName: searchParams.get('preferredName') || '',
     email: searchParams.get('email') || '',
     phone: searchParams.get('phone') || '',
+    address: searchParams.get('address') || '',
     age: searchParams.get('age') || '',
     gender: searchParams.get('gender') || '',
     housingType: searchParams.get('housingType') || 'on_campus',
@@ -256,6 +258,12 @@ export default function IndividualInvoiceReviewPage() {
                       <span className="text-gray-600">Phone:</span>
                       <p className="font-medium text-navy">{registrationData.phone}</p>
                     </div>
+                    {registrationData.address && (
+                      <div>
+                        <span className="text-gray-600">Address:</span>
+                        <p className="font-medium text-navy">{registrationData.address}</p>
+                      </div>
+                    )}
                     {registrationData.age && (
                       <div>
                         <span className="text-gray-600">Age:</span>

@@ -44,6 +44,7 @@ export default function GroupRegistrationPage() {
     groupLeaderName: '',
     groupLeaderEmail: '',
     groupLeaderPhone: '',
+    groupLeaderAddress: '',
     youthCountMaleU18: 0,
     youthCountFemaleU18: 0,
     youthCountMaleO18: 0,
@@ -163,6 +164,7 @@ export default function GroupRegistrationPage() {
       groupLeaderName: formData.groupLeaderName,
       groupLeaderEmail: formData.groupLeaderEmail,
       groupLeaderPhone: formData.groupLeaderPhone,
+      groupLeaderAddress: formData.groupLeaderAddress,
       youthCountMaleU18: formData.youthCountMaleU18.toString(),
       youthCountFemaleU18: formData.youthCountFemaleU18.toString(),
       youthCountMaleO18: formData.youthCountMaleO18.toString(),
@@ -309,6 +311,20 @@ export default function GroupRegistrationPage() {
                           placeholder="(918) 555-1234"
                         />
                       </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-navy mb-2">
+                        Address *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                        value={formData.groupLeaderAddress}
+                        onChange={(e) => setFormData({ ...formData, groupLeaderAddress: e.target.value })}
+                        placeholder="123 Main St, City, State, ZIP"
+                      />
                     </div>
                   </CardContent>
                 </Card>
