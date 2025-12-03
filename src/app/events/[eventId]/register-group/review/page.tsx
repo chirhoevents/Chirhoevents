@@ -118,23 +118,23 @@ export default function InvoiceReviewPage() {
     const isEarlyBird = earlyBirdDeadline && now <= earlyBirdDeadline
 
     // Determine youth price - housing-specific pricing overrides early bird
-    let youthPrice = isEarlyBird ? event.pricing.youthEarlyBirdPrice : event.pricing.youthRegularPrice
+    let youthPrice = isEarlyBird ? Number(event.pricing.youthEarlyBirdPrice) : Number(event.pricing.youthRegularPrice)
     if (registrationData.housingType === 'on_campus' && event.pricing.onCampusYouthPrice) {
-      youthPrice = event.pricing.onCampusYouthPrice
+      youthPrice = Number(event.pricing.onCampusYouthPrice)
     } else if (registrationData.housingType === 'off_campus' && event.pricing.offCampusYouthPrice) {
-      youthPrice = event.pricing.offCampusYouthPrice
+      youthPrice = Number(event.pricing.offCampusYouthPrice)
     } else if (registrationData.housingType === 'day_pass' && event.pricing.dayPassYouthPrice) {
-      youthPrice = event.pricing.dayPassYouthPrice
+      youthPrice = Number(event.pricing.dayPassYouthPrice)
     }
 
     // Determine chaperone price - housing-specific pricing overrides early bird
-    let chaperonePrice = isEarlyBird ? event.pricing.chaperoneEarlyBirdPrice : event.pricing.chaperoneRegularPrice
+    let chaperonePrice = isEarlyBird ? Number(event.pricing.chaperoneEarlyBirdPrice) : Number(event.pricing.chaperoneRegularPrice)
     if (registrationData.housingType === 'on_campus' && event.pricing.onCampusChaperonePrice) {
-      chaperonePrice = event.pricing.onCampusChaperonePrice
+      chaperonePrice = Number(event.pricing.onCampusChaperonePrice)
     } else if (registrationData.housingType === 'off_campus' && event.pricing.offCampusChaperonePrice) {
-      chaperonePrice = event.pricing.offCampusChaperonePrice
+      chaperonePrice = Number(event.pricing.offCampusChaperonePrice)
     } else if (registrationData.housingType === 'day_pass' && event.pricing.dayPassChaperonePrice) {
-      chaperonePrice = event.pricing.dayPassChaperonePrice
+      chaperonePrice = Number(event.pricing.dayPassChaperonePrice)
     }
 
     const breakdown: { label: string; count: number; price: number; subtotal: number }[] = []
@@ -200,8 +200,8 @@ export default function InvoiceReviewPage() {
       breakdown.push({
         label: 'Priests',
         count: registrationData.priestCount,
-        price: event.pricing.priestPrice,
-        subtotal: registrationData.priestCount * event.pricing.priestPrice,
+        price: Number(event.pricing.priestPrice),
+        subtotal: registrationData.priestCount * Number(event.pricing.priestPrice),
       })
     }
 
@@ -210,10 +210,10 @@ export default function InvoiceReviewPage() {
     // Calculate discount if early bird
     const regularSubtotal = breakdown.reduce((sum, item) => {
       const regularPrice = item.label.includes('Youth')
-        ? event.pricing.youthRegularPrice
+        ? Number(event.pricing.youthRegularPrice)
         : item.label.includes('Chaperone')
-        ? event.pricing.chaperoneRegularPrice
-        : event.pricing.priestPrice
+        ? Number(event.pricing.chaperoneRegularPrice)
+        : Number(event.pricing.priestPrice)
       return sum + (item.count * regularPrice)
     }, 0)
 
@@ -224,10 +224,10 @@ export default function InvoiceReviewPage() {
     let deposit = 0
     if (event.pricing.requireFullPayment) {
       deposit = total
-    } else if (event.pricing.depositPercentage !== null) {
-      deposit = (total * event.pricing.depositPercentage) / 100
-    } else if (event.pricing.depositAmount !== null) {
-      deposit = event.pricing.depositAmount
+    } else if (event.pricing.depositPercentage != null && event.pricing.depositPercentage !== '') {
+      deposit = (total * Number(event.pricing.depositPercentage)) / 100
+    } else if (event.pricing.depositAmount != null && event.pricing.depositAmount !== '') {
+      deposit = Number(event.pricing.depositAmount)
     }
 
     const balance = total - deposit

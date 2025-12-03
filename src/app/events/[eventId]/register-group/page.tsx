@@ -237,10 +237,11 @@ export default function GroupRegistrationPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-navy mb-2">
-                          Parish Name
+                          Parish Name *
                         </label>
                         <input
                           type="text"
+                          required
                           className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
                           value={formData.parishName}
                           onChange={(e) => setFormData({ ...formData, parishName: e.target.value })}
@@ -250,10 +251,11 @@ export default function GroupRegistrationPage() {
 
                       <div>
                         <label className="block text-sm font-medium text-navy mb-2">
-                          Diocese Name
+                          Diocese Name *
                         </label>
                         <input
                           type="text"
+                          required
                           className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
                           value={formData.dioceseName}
                           onChange={(e) => setFormData({ ...formData, dioceseName: e.target.value })}

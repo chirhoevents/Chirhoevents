@@ -261,12 +261,13 @@ export default function IndividualRegistrationPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-navy mb-2">
-                          Age
+                          Age *
                         </label>
                         <input
                           type="number"
                           min="1"
                           max="120"
+                          required
                           className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
                           value={formData.age}
                           onChange={(e) => setFormData({ ...formData, age: e.target.value })}
@@ -292,9 +293,10 @@ export default function IndividualRegistrationPage() {
 
                       <div>
                         <label className="block text-sm font-medium text-navy mb-2">
-                          T-Shirt Size
+                          T-Shirt Size *
                         </label>
                         <select
+                          required
                           className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
                           value={formData.tShirtSize}
                           onChange={(e) => setFormData({ ...formData, tShirtSize: e.target.value })}
