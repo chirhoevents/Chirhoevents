@@ -32,7 +32,7 @@ export async function GET(
 
     // Calculate totals
     const depositPaid = payments.reduce(
-      (sum: number, payment) => sum + Number(payment.amount),
+      (sum: number, payment: { amount: any }) => sum + Number(payment.amount),
       0
     )
 
