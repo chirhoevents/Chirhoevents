@@ -251,11 +251,15 @@ export default function IndividualRegistrationPage() {
                       <input
                         type="text"
                         required
+                        minLength={10}
+                        pattern=".*\d+.*"
+                        title="Please enter a valid address (must include street number)"
                         className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
                         value={formData.address}
                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                         placeholder="123 Main St, City, State, ZIP"
                       />
+                      <p className="text-xs text-gray-500 mt-1">Please include street number, city, state, and ZIP code</p>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
