@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
                 ${registration.event.organization.logoUrl
-                  ? `<img src="${registration.event.organization.logoUrl}" alt="${registration.event.organization.name}" style="max-height: 80px; max-width: 300px;" />`
+                  ? `<img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal-white.png" alt="${registration.event.organization.name}" style="max-height: 80px; max-width: 300px;" />`
                   : `<h1 style="color: white; margin: 0;">${registration.event.organization.name}</h1>`
                 }
               </div>
