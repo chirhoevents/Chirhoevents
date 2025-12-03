@@ -350,7 +350,7 @@ export default function GroupRegistrationPage() {
                 <Card className="mb-6">
                   <CardHeader>
                     <CardTitle>Alternative Contacts</CardTitle>
-                    <CardDescription>Who can we contact if we can't reach the group leader?</CardDescription>
+                    <CardDescription>Who can we contact if we can&apos;t reach the group leader?</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     {/* Alternative Contact 1 */}
