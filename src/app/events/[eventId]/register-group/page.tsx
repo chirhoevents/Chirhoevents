@@ -45,6 +45,12 @@ export default function GroupRegistrationPage() {
     groupLeaderEmail: '',
     groupLeaderPhone: '',
     groupLeaderAddress: '',
+    alternativeContact1Name: '',
+    alternativeContact1Email: '',
+    alternativeContact1Phone: '',
+    alternativeContact2Name: '',
+    alternativeContact2Email: '',
+    alternativeContact2Phone: '',
     youthCountMaleU18: 0,
     youthCountFemaleU18: 0,
     youthCountMaleO18: 0,
@@ -165,6 +171,12 @@ export default function GroupRegistrationPage() {
       groupLeaderEmail: formData.groupLeaderEmail,
       groupLeaderPhone: formData.groupLeaderPhone,
       groupLeaderAddress: formData.groupLeaderAddress,
+      alternativeContact1Name: formData.alternativeContact1Name,
+      alternativeContact1Email: formData.alternativeContact1Email,
+      alternativeContact1Phone: formData.alternativeContact1Phone,
+      alternativeContact2Name: formData.alternativeContact2Name,
+      alternativeContact2Email: formData.alternativeContact2Email,
+      alternativeContact2Phone: formData.alternativeContact2Phone,
       youthCountMaleU18: formData.youthCountMaleU18.toString(),
       youthCountFemaleU18: formData.youthCountFemaleU18.toString(),
       youthCountMaleO18: formData.youthCountMaleO18.toString(),
@@ -237,10 +249,11 @@ export default function GroupRegistrationPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-navy mb-2">
-                          Parish Name
+                          Parish Name *
                         </label>
                         <input
                           type="text"
+                          required
                           className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
                           value={formData.parishName}
                           onChange={(e) => setFormData({ ...formData, parishName: e.target.value })}
@@ -250,10 +263,11 @@ export default function GroupRegistrationPage() {
 
                       <div>
                         <label className="block text-sm font-medium text-navy mb-2">
-                          Diocese Name
+                          Diocese Name *
                         </label>
                         <input
                           type="text"
+                          required
                           className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
                           value={formData.dioceseName}
                           onChange={(e) => setFormData({ ...formData, dioceseName: e.target.value })}
@@ -320,11 +334,113 @@ export default function GroupRegistrationPage() {
                       <input
                         type="text"
                         required
+                        minLength={10}
+                        pattern=".*\d+.*"
+                        title="Please enter a valid address (must include street number)"
                         className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
                         value={formData.groupLeaderAddress}
                         onChange={(e) => setFormData({ ...formData, groupLeaderAddress: e.target.value })}
                         placeholder="123 Main St, City, State, ZIP"
                       />
+                      <p className="text-xs text-gray-500 mt-1">Please include street number, city, state, and ZIP code</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle>Alternative Contacts</CardTitle>
+                    <CardDescription>Who can we contact if we can&apos;t reach the group leader?</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* Alternative Contact 1 */}
+                    <div className="space-y-4">
+                      <h3 className="font-semibold text-navy">Primary Alternative Contact</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-navy mb-2">
+                            Name
+                          </label>
+                          <input
+                            type="text"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                            value={formData.alternativeContact1Name}
+                            onChange={(e) => setFormData({ ...formData, alternativeContact1Name: e.target.value })}
+                            placeholder="Sarah Williams"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-navy mb-2">
+                            Email
+                          </label>
+                          <input
+                            type="email"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                            value={formData.alternativeContact1Email}
+                            onChange={(e) => setFormData({ ...formData, alternativeContact1Email: e.target.value })}
+                            placeholder="sarah@example.com"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-navy mb-2">
+                            Phone
+                          </label>
+                          <input
+                            type="tel"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                            value={formData.alternativeContact1Phone}
+                            onChange={(e) => setFormData({ ...formData, alternativeContact1Phone: e.target.value })}
+                            placeholder="(918) 555-9876"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Alternative Contact 2 */}
+                    <div className="space-y-4">
+                      <h3 className="font-semibold text-navy">Secondary Alternative Contact (Optional)</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-navy mb-2">
+                            Name
+                          </label>
+                          <input
+                            type="text"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                            value={formData.alternativeContact2Name}
+                            onChange={(e) => setFormData({ ...formData, alternativeContact2Name: e.target.value })}
+                            placeholder="Tom Anderson"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-navy mb-2">
+                            Email
+                          </label>
+                          <input
+                            type="email"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                            value={formData.alternativeContact2Email}
+                            onChange={(e) => setFormData({ ...formData, alternativeContact2Email: e.target.value })}
+                            placeholder="tom@example.com"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-navy mb-2">
+                            Phone
+                          </label>
+                          <input
+                            type="tel"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                            value={formData.alternativeContact2Phone}
+                            onChange={(e) => setFormData({ ...formData, alternativeContact2Phone: e.target.value })}
+                            placeholder="(918) 555-5432"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

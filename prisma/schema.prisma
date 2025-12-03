@@ -201,6 +201,12 @@ model GroupRegistration {
   groupLeaderEmail           String   @map("group_leader_email") @db.VarChar(255)
   groupLeaderPhone           String   @map("group_leader_phone") @db.VarChar(20)
   groupLeaderAddress         String?  @map("group_leader_address") @db.Text
+  alternativeContact1Name    String?  @map("alternative_contact_1_name") @db.VarChar(255)
+  alternativeContact1Email   String?  @map("alternative_contact_1_email") @db.VarChar(255)
+  alternativeContact1Phone   String?  @map("alternative_contact_1_phone") @db.VarChar(20)
+  alternativeContact2Name    String?  @map("alternative_contact_2_name") @db.VarChar(255)
+  alternativeContact2Email   String?  @map("alternative_contact_2_email") @db.VarChar(255)
+  alternativeContact2Phone   String?  @map("alternative_contact_2_phone") @db.VarChar(20)
   accessCode                 String   @unique @map("access_code") @db.VarChar(50)
   youthCountMaleU18          Int      @default(0) @map("youth_count_male_u18")
   youthCountFemaleU18        Int      @default(0) @map("youth_count_female_u18")

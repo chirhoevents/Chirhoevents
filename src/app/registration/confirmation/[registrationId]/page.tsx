@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, Download, Mail, Loader2 } from 'lucide-react'
+import '@/styles/print-receipt.css'
 
 interface RegistrationData {
   id: string
@@ -53,6 +54,10 @@ export default function ConfirmationPage() {
     }
     loadRegistration()
   }, [registrationId, sessionId])
+
+  const handleDownloadReceipt = () => {
+    window.print()
+  }
 
   if (loading) {
     return (
@@ -222,8 +227,8 @@ export default function ConfirmationPage() {
           </Card>
 
           {/* Action Buttons */}
-          <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" variant="outline">
+          <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center print:hidden">
+            <Button size="lg" variant="outline" onClick={handleDownloadReceipt}>
               <Download className="mr-2 h-4 w-4" />
               Download Receipt
             </Button>

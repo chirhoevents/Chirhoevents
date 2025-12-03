@@ -1,0 +1,65 @@
+/* Print styles for group registration receipt */
+@media print {
+  /* Hide elements not needed in print */
+  .print\\:hidden {
+    display: none !important;
+  }
+
+  /* Reset page margins and background */
+  @page {
+    margin: 0.5in;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Make sure important info is visible */
+  .bg-beige {
+    background: white !important;
+  }
+
+  /* Ensure cards have visible borders */
+  .border-2.border-gold,
+  .border-green-200,
+  .border-blue-200 {
+    border: 2px solid #333 !important;
+  }
+
+  /* Improve readability of text */
+  .text-navy,
+  .text-green-900,
+  .text-blue-900 {
+    color: #000 !important;
+  }
+
+  .text-gray-600,
+  .text-green-800,
+  .text-blue-800 {
+    color: #333 !important;
+  }
+
+  /* Make access code prominent */
+  .font-mono.tracking-wider {
+    font-size: 2rem !important;
+    font-weight: bold !important;
+    border: 3px solid #000 !important;
+    padding: 1rem !important;
+  }
+
+  /* Hide success header graphics */
+  .bg-green-100.rounded-full {
+    display: none;
+  }
+
+  /* Add page breaks to avoid splitting important sections */
+  .max-w-3xl > div:not(:last-child) {
+    page-break-inside: avoid;
+  }
+
+  /* Improve table/grid readability */
+  .border-t {
+    border-top: 1px solid #333 !important;
+  }
+}
