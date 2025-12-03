@@ -236,9 +236,9 @@ export default function InvoiceReviewPage() {
     let deposit = 0
     if (event.pricing.requireFullPayment) {
       deposit = total
-    } else if (event.pricing.depositPercentage != null && event.pricing.depositPercentage !== '') {
+    } else if (event.pricing.depositPercentage != null) {
       deposit = (total * Number(event.pricing.depositPercentage)) / 100
-    } else if (event.pricing.depositAmount != null && event.pricing.depositAmount !== '') {
+    } else if (event.pricing.depositAmount != null) {
       deposit = Number(event.pricing.depositAmount)
     }
 
