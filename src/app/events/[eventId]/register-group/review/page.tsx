@@ -48,6 +48,12 @@ interface RegistrationData {
   groupLeaderEmail: string
   groupLeaderPhone: string
   groupLeaderAddress: string
+  alternativeContact1Name: string
+  alternativeContact1Email: string
+  alternativeContact1Phone: string
+  alternativeContact2Name: string
+  alternativeContact2Email: string
+  alternativeContact2Phone: string
   youthCountMaleU18: number
   youthCountFemaleU18: number
   youthCountMaleO18: number
@@ -81,6 +87,12 @@ export default function InvoiceReviewPage() {
     groupLeaderEmail: searchParams.get('groupLeaderEmail') || '',
     groupLeaderPhone: searchParams.get('groupLeaderPhone') || '',
     groupLeaderAddress: searchParams.get('groupLeaderAddress') || '',
+    alternativeContact1Name: searchParams.get('alternativeContact1Name') || '',
+    alternativeContact1Email: searchParams.get('alternativeContact1Email') || '',
+    alternativeContact1Phone: searchParams.get('alternativeContact1Phone') || '',
+    alternativeContact2Name: searchParams.get('alternativeContact2Name') || '',
+    alternativeContact2Email: searchParams.get('alternativeContact2Email') || '',
+    alternativeContact2Phone: searchParams.get('alternativeContact2Phone') || '',
     youthCountMaleU18: parseInt(searchParams.get('youthCountMaleU18') || '0'),
     youthCountFemaleU18: parseInt(searchParams.get('youthCountFemaleU18') || '0'),
     youthCountMaleO18: parseInt(searchParams.get('youthCountMaleO18') || '0'),
