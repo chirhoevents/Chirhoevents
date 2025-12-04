@@ -21,12 +21,8 @@ export async function POST(request: NextRequest) {
       groupLeaderName,
       groupLeaderEmail,
       groupLeaderPhone,
-      youthCountMaleU18 = 0,
-      youthCountFemaleU18 = 0,
-      youthCountMaleO18 = 0,
-      youthCountFemaleO18 = 0,
-      chaperoneCountMale = 0,
-      chaperoneCountFemale = 0,
+      youthCount = 0,
+      chaperoneCount = 0,
       priestCount = 0,
       housingType,
       specialRequests = '',
@@ -76,14 +72,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate total participants
-    const totalParticipants =
-      youthCountMaleU18 +
-      youthCountFemaleU18 +
-      youthCountMaleO18 +
-      youthCountFemaleO18 +
-      chaperoneCountMale +
-      chaperoneCountFemale +
-      priestCount
+    const totalParticipants = youthCount + chaperoneCount + priestCount
 
     if (totalParticipants === 0) {
       return NextResponse.json(
@@ -127,14 +116,10 @@ export async function POST(request: NextRequest) {
 
     const priestPrice = Number(event.pricing.priestPrice)
 
-    // Calculate totals
-    const youthTotal =
-      youthCountMaleU18 + youthCountFemaleU18 + youthCountMaleO18 + youthCountFemaleO18
-    const chaperoneTotal = chaperoneCountMale + chaperoneCountFemale
-
+    // Calculate total amount
     const totalAmount =
-      youthTotal * youthPrice +
-      chaperoneTotal * chaperonePrice +
+      youthCount * youthPrice +
+      chaperoneCount * chaperonePrice +
       priestCount * priestPrice
 
     // Calculate deposit based on settings
@@ -142,10 +127,10 @@ export async function POST(request: NextRequest) {
     if (event.pricing.requireFullPayment) {
       // Option 3: Full payment required
       depositAmount = totalAmount
-    } else if (event.pricing.depositPercentage !== null) {
+    } else if (event.pricing.depositPercentage != null) {
       // Option 1: Percentage-based deposit
       depositAmount = (totalAmount * Number(event.pricing.depositPercentage)) / 100
-    } else if (event.pricing.depositAmount !== null) {
+    } else if (event.pricing.depositAmount != null) {
       // Option 2: Fixed deposit amount
       depositAmount = Number(event.pricing.depositAmount)
     }
@@ -171,7 +156,10 @@ export async function POST(request: NextRequest) {
         groupLeaderName,
         groupLeaderEmail,
         groupLeaderPhone,
-        groupLeaderAddress: body.groupLeaderAddress || null,
+        groupLeaderStreet: body.groupLeaderStreet || null,
+        groupLeaderCity: body.groupLeaderCity || null,
+        groupLeaderState: body.groupLeaderState || null,
+        groupLeaderZip: body.groupLeaderZip || null,
         alternativeContact1Name: body.alternativeContact1Name || null,
         alternativeContact1Email: body.alternativeContact1Email || null,
         alternativeContact1Phone: body.alternativeContact1Phone || null,
@@ -179,12 +167,8 @@ export async function POST(request: NextRequest) {
         alternativeContact2Email: body.alternativeContact2Email || null,
         alternativeContact2Phone: body.alternativeContact2Phone || null,
         accessCode,
-        youthCountMaleU18,
-        youthCountFemaleU18,
-        youthCountMaleO18,
-        youthCountFemaleO18,
-        chaperoneCountMale,
-        chaperoneCountFemale,
+        youthCount,
+        chaperoneCount,
         priestCount,
         totalParticipants,
         housingType,

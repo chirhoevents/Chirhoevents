@@ -55,7 +55,10 @@ export default function IndividualRegistrationPage() {
     emergencyContact2Name: '',
     emergencyContact2Phone: '',
     emergencyContact2Relation: '',
-    address: '',
+    street: '',
+    city: '',
+    state: '',
+    zip: '',
   })
 
   // Load event data
@@ -109,7 +112,10 @@ export default function IndividualRegistrationPage() {
       preferredName: formData.preferredName,
       email: formData.email,
       phone: formData.phone,
-      address: formData.address,
+      street: formData.street,
+      city: formData.city,
+      state: formData.state,
+      zip: formData.zip,
       age: formData.age,
       gender: formData.gender,
       housingType: formData.housingType,
@@ -246,20 +252,113 @@ export default function IndividualRegistrationPage() {
 
                     <div>
                       <label className="block text-sm font-medium text-navy mb-2">
-                        Address *
+                        Street Address *
                       </label>
                       <input
                         type="text"
                         required
-                        minLength={10}
-                        pattern=".*\d+.*"
-                        title="Please enter a valid address (must include street number)"
                         className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
-                        value={formData.address}
-                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                        placeholder="123 Main St, City, State, ZIP"
+                        value={formData.street}
+                        onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+                        placeholder="123 Main Street"
                       />
-                      <p className="text-xs text-gray-500 mt-1">Please include street number, city, state, and ZIP code</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-navy mb-2">
+                          City *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                          value={formData.city}
+                          onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                          placeholder="Tulsa"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-navy mb-2">
+                          State *
+                        </label>
+                        <select
+                          required
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                          value={formData.state}
+                          onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                        >
+                          <option value="">Select State</option>
+                          <option value="AL">Alabama</option>
+                          <option value="AK">Alaska</option>
+                          <option value="AZ">Arizona</option>
+                          <option value="AR">Arkansas</option>
+                          <option value="CA">California</option>
+                          <option value="CO">Colorado</option>
+                          <option value="CT">Connecticut</option>
+                          <option value="DE">Delaware</option>
+                          <option value="FL">Florida</option>
+                          <option value="GA">Georgia</option>
+                          <option value="HI">Hawaii</option>
+                          <option value="ID">Idaho</option>
+                          <option value="IL">Illinois</option>
+                          <option value="IN">Indiana</option>
+                          <option value="IA">Iowa</option>
+                          <option value="KS">Kansas</option>
+                          <option value="KY">Kentucky</option>
+                          <option value="LA">Louisiana</option>
+                          <option value="ME">Maine</option>
+                          <option value="MD">Maryland</option>
+                          <option value="MA">Massachusetts</option>
+                          <option value="MI">Michigan</option>
+                          <option value="MN">Minnesota</option>
+                          <option value="MS">Mississippi</option>
+                          <option value="MO">Missouri</option>
+                          <option value="MT">Montana</option>
+                          <option value="NE">Nebraska</option>
+                          <option value="NV">Nevada</option>
+                          <option value="NH">New Hampshire</option>
+                          <option value="NJ">New Jersey</option>
+                          <option value="NM">New Mexico</option>
+                          <option value="NY">New York</option>
+                          <option value="NC">North Carolina</option>
+                          <option value="ND">North Dakota</option>
+                          <option value="OH">Ohio</option>
+                          <option value="OK">Oklahoma</option>
+                          <option value="OR">Oregon</option>
+                          <option value="PA">Pennsylvania</option>
+                          <option value="RI">Rhode Island</option>
+                          <option value="SC">South Carolina</option>
+                          <option value="SD">South Dakota</option>
+                          <option value="TN">Tennessee</option>
+                          <option value="TX">Texas</option>
+                          <option value="UT">Utah</option>
+                          <option value="VT">Vermont</option>
+                          <option value="VA">Virginia</option>
+                          <option value="WA">Washington</option>
+                          <option value="WV">West Virginia</option>
+                          <option value="WI">Wisconsin</option>
+                          <option value="WY">Wyoming</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-navy mb-2">
+                          ZIP Code *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          pattern="[0-9]{5}"
+                          title="Please enter a 5-digit ZIP code"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                          value={formData.zip}
+                          onChange={(e) => setFormData({ ...formData, zip: e.target.value })}
+                          placeholder="74105"
+                          maxLength={5}
+                        />
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

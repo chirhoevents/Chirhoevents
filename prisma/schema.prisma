@@ -200,7 +200,10 @@ model GroupRegistration {
   groupLeaderName            String   @map("group_leader_name") @db.VarChar(255)
   groupLeaderEmail           String   @map("group_leader_email") @db.VarChar(255)
   groupLeaderPhone           String   @map("group_leader_phone") @db.VarChar(20)
-  groupLeaderAddress         String?  @map("group_leader_address") @db.Text
+  groupLeaderStreet          String?  @map("group_leader_street") @db.VarChar(255)
+  groupLeaderCity            String?  @map("group_leader_city") @db.VarChar(100)
+  groupLeaderState           String?  @map("group_leader_state") @db.VarChar(2)
+  groupLeaderZip             String?  @map("group_leader_zip") @db.VarChar(10)
   alternativeContact1Name    String?  @map("alternative_contact_1_name") @db.VarChar(255)
   alternativeContact1Email   String?  @map("alternative_contact_1_email") @db.VarChar(255)
   alternativeContact1Phone   String?  @map("alternative_contact_1_phone") @db.VarChar(20)
@@ -208,12 +211,8 @@ model GroupRegistration {
   alternativeContact2Email   String?  @map("alternative_contact_2_email") @db.VarChar(255)
   alternativeContact2Phone   String?  @map("alternative_contact_2_phone") @db.VarChar(20)
   accessCode                 String   @unique @map("access_code") @db.VarChar(50)
-  youthCountMaleU18          Int      @default(0) @map("youth_count_male_u18")
-  youthCountFemaleU18        Int      @default(0) @map("youth_count_female_u18")
-  youthCountMaleO18          Int      @default(0) @map("youth_count_male_o18")
-  youthCountFemaleO18        Int      @default(0) @map("youth_count_female_o18")
-  chaperoneCountMale         Int      @default(0) @map("chaperone_count_male")
-  chaperoneCountFemale       Int      @default(0) @map("chaperone_count_female")
+  youthCount                 Int      @default(0) @map("youth_count")
+  chaperoneCount             Int      @default(0) @map("chaperone_count")
   priestCount                Int      @default(0) @map("priest_count")
   totalParticipants          Int      @map("total_participants")
   housingType                HousingType @map("housing_type")
@@ -246,7 +245,10 @@ model IndividualRegistration {
   preferredName             String?  @map("preferred_name") @db.VarChar(255)
   email                     String   @db.VarChar(255)
   phone                     String   @db.VarChar(20)
-  address                   String?  @db.Text
+  street                    String?  @db.VarChar(255)
+  city                      String?  @db.VarChar(100)
+  state                     String?  @db.VarChar(2)
+  zip                       String?  @db.VarChar(10)
   age                       Int?
   gender                    Gender?
   housingType               HousingType? @map("housing_type")
