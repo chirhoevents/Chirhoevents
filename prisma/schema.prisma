@@ -200,7 +200,10 @@ model GroupRegistration {
   groupLeaderName            String   @map("group_leader_name") @db.VarChar(255)
   groupLeaderEmail           String   @map("group_leader_email") @db.VarChar(255)
   groupLeaderPhone           String   @map("group_leader_phone") @db.VarChar(20)
-  groupLeaderAddress         String?  @map("group_leader_address") @db.Text
+  groupLeaderStreet          String?  @map("group_leader_street") @db.VarChar(255)
+  groupLeaderCity            String?  @map("group_leader_city") @db.VarChar(100)
+  groupLeaderState           String?  @map("group_leader_state") @db.VarChar(2)
+  groupLeaderZip             String?  @map("group_leader_zip") @db.VarChar(10)
   alternativeContact1Name    String?  @map("alternative_contact_1_name") @db.VarChar(255)
   alternativeContact1Email   String?  @map("alternative_contact_1_email") @db.VarChar(255)
   alternativeContact1Phone   String?  @map("alternative_contact_1_phone") @db.VarChar(20)
@@ -242,7 +245,10 @@ model IndividualRegistration {
   preferredName             String?  @map("preferred_name") @db.VarChar(255)
   email                     String   @db.VarChar(255)
   phone                     String   @db.VarChar(20)
-  address                   String?  @db.Text
+  street                    String?  @db.VarChar(255)
+  city                      String?  @db.VarChar(100)
+  state                     String?  @db.VarChar(2)
+  zip                       String?  @db.VarChar(10)
   age                       Int?
   gender                    Gender?
   housingType               HousingType? @map("housing_type")

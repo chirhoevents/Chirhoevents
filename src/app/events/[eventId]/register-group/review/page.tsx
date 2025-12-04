@@ -47,7 +47,10 @@ interface RegistrationData {
   groupLeaderName: string
   groupLeaderEmail: string
   groupLeaderPhone: string
-  groupLeaderAddress: string
+  groupLeaderStreet: string
+  groupLeaderCity: string
+  groupLeaderState: string
+  groupLeaderZip: string
   alternativeContact1Name: string
   alternativeContact1Email: string
   alternativeContact1Phone: string
@@ -82,7 +85,10 @@ export default function InvoiceReviewPage() {
     groupLeaderName: searchParams.get('groupLeaderName') || '',
     groupLeaderEmail: searchParams.get('groupLeaderEmail') || '',
     groupLeaderPhone: searchParams.get('groupLeaderPhone') || '',
-    groupLeaderAddress: searchParams.get('groupLeaderAddress') || '',
+    groupLeaderStreet: searchParams.get('groupLeaderStreet') || '',
+    groupLeaderCity: searchParams.get('groupLeaderCity') || '',
+    groupLeaderState: searchParams.get('groupLeaderState') || '',
+    groupLeaderZip: searchParams.get('groupLeaderZip') || '',
     alternativeContact1Name: searchParams.get('alternativeContact1Name') || '',
     alternativeContact1Email: searchParams.get('alternativeContact1Email') || '',
     alternativeContact1Phone: searchParams.get('alternativeContact1Phone') || '',

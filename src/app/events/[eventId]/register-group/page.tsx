@@ -44,7 +44,10 @@ export default function GroupRegistrationPage() {
     groupLeaderName: '',
     groupLeaderEmail: '',
     groupLeaderPhone: '',
-    groupLeaderAddress: '',
+    groupLeaderStreet: '',
+    groupLeaderCity: '',
+    groupLeaderState: '',
+    groupLeaderZip: '',
     alternativeContact1Name: '',
     alternativeContact1Email: '',
     alternativeContact1Phone: '',
@@ -155,7 +158,10 @@ export default function GroupRegistrationPage() {
       groupLeaderName: formData.groupLeaderName,
       groupLeaderEmail: formData.groupLeaderEmail,
       groupLeaderPhone: formData.groupLeaderPhone,
-      groupLeaderAddress: formData.groupLeaderAddress,
+      groupLeaderStreet: formData.groupLeaderStreet,
+      groupLeaderCity: formData.groupLeaderCity,
+      groupLeaderState: formData.groupLeaderState,
+      groupLeaderZip: formData.groupLeaderZip,
       alternativeContact1Name: formData.alternativeContact1Name,
       alternativeContact1Email: formData.alternativeContact1Email,
       alternativeContact1Phone: formData.alternativeContact1Phone,
@@ -306,20 +312,113 @@ export default function GroupRegistrationPage() {
 
                     <div>
                       <label className="block text-sm font-medium text-navy mb-2">
-                        Address *
+                        Street Address *
                       </label>
                       <input
                         type="text"
                         required
-                        minLength={10}
-                        pattern=".*\d+.*"
-                        title="Please enter a valid address (must include street number)"
                         className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
-                        value={formData.groupLeaderAddress}
-                        onChange={(e) => setFormData({ ...formData, groupLeaderAddress: e.target.value })}
-                        placeholder="123 Main St, City, State, ZIP"
+                        value={formData.groupLeaderStreet}
+                        onChange={(e) => setFormData({ ...formData, groupLeaderStreet: e.target.value })}
+                        placeholder="123 Main Street"
                       />
-                      <p className="text-xs text-gray-500 mt-1">Please include street number, city, state, and ZIP code</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-navy mb-2">
+                          City *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                          value={formData.groupLeaderCity}
+                          onChange={(e) => setFormData({ ...formData, groupLeaderCity: e.target.value })}
+                          placeholder="Tulsa"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-navy mb-2">
+                          State *
+                        </label>
+                        <select
+                          required
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                          value={formData.groupLeaderState}
+                          onChange={(e) => setFormData({ ...formData, groupLeaderState: e.target.value })}
+                        >
+                          <option value="">Select State</option>
+                          <option value="AL">Alabama</option>
+                          <option value="AK">Alaska</option>
+                          <option value="AZ">Arizona</option>
+                          <option value="AR">Arkansas</option>
+                          <option value="CA">California</option>
+                          <option value="CO">Colorado</option>
+                          <option value="CT">Connecticut</option>
+                          <option value="DE">Delaware</option>
+                          <option value="FL">Florida</option>
+                          <option value="GA">Georgia</option>
+                          <option value="HI">Hawaii</option>
+                          <option value="ID">Idaho</option>
+                          <option value="IL">Illinois</option>
+                          <option value="IN">Indiana</option>
+                          <option value="IA">Iowa</option>
+                          <option value="KS">Kansas</option>
+                          <option value="KY">Kentucky</option>
+                          <option value="LA">Louisiana</option>
+                          <option value="ME">Maine</option>
+                          <option value="MD">Maryland</option>
+                          <option value="MA">Massachusetts</option>
+                          <option value="MI">Michigan</option>
+                          <option value="MN">Minnesota</option>
+                          <option value="MS">Mississippi</option>
+                          <option value="MO">Missouri</option>
+                          <option value="MT">Montana</option>
+                          <option value="NE">Nebraska</option>
+                          <option value="NV">Nevada</option>
+                          <option value="NH">New Hampshire</option>
+                          <option value="NJ">New Jersey</option>
+                          <option value="NM">New Mexico</option>
+                          <option value="NY">New York</option>
+                          <option value="NC">North Carolina</option>
+                          <option value="ND">North Dakota</option>
+                          <option value="OH">Ohio</option>
+                          <option value="OK">Oklahoma</option>
+                          <option value="OR">Oregon</option>
+                          <option value="PA">Pennsylvania</option>
+                          <option value="RI">Rhode Island</option>
+                          <option value="SC">South Carolina</option>
+                          <option value="SD">South Dakota</option>
+                          <option value="TN">Tennessee</option>
+                          <option value="TX">Texas</option>
+                          <option value="UT">Utah</option>
+                          <option value="VT">Vermont</option>
+                          <option value="VA">Virginia</option>
+                          <option value="WA">Washington</option>
+                          <option value="WV">West Virginia</option>
+                          <option value="WI">Wisconsin</option>
+                          <option value="WY">Wyoming</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-navy mb-2">
+                          ZIP Code *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          pattern="[0-9]{5}"
+                          title="Please enter a 5-digit ZIP code"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                          value={formData.groupLeaderZip}
+                          onChange={(e) => setFormData({ ...formData, groupLeaderZip: e.target.value })}
+                          placeholder="74105"
+                          maxLength={5}
+                        />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
