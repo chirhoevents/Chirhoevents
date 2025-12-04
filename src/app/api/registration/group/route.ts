@@ -131,8 +131,11 @@ export async function POST(request: NextRequest) {
       // Option 1: Percentage-based deposit
       depositAmount = (totalAmount * Number(event.pricing.depositPercentage)) / 100
     } else if (event.pricing.depositAmount != null) {
-      // Option 2: Fixed deposit amount
-      depositAmount = Number(event.pricing.depositAmount)
+      // Option 2: Fixed deposit amount (per person or total)
+      const baseDepositAmount = Number(event.pricing.depositAmount)
+      depositAmount = event.pricing.depositPerPerson
+        ? baseDepositAmount * totalParticipants
+        : baseDepositAmount
     }
     // else Option 4: No deposit required (depositAmount = 0)
 
