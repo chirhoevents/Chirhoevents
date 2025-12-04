@@ -54,12 +54,8 @@ interface RegistrationData {
   alternativeContact2Name: string
   alternativeContact2Email: string
   alternativeContact2Phone: string
-  youthCountMaleU18: number
-  youthCountFemaleU18: number
-  youthCountMaleO18: number
-  youthCountFemaleO18: number
-  chaperoneCountMale: number
-  chaperoneCountFemale: number
+  youthCount: number
+  chaperoneCount: number
   priestCount: number
   housingType: string
   specialRequests: string
@@ -93,12 +89,8 @@ export default function InvoiceReviewPage() {
     alternativeContact2Name: searchParams.get('alternativeContact2Name') || '',
     alternativeContact2Email: searchParams.get('alternativeContact2Email') || '',
     alternativeContact2Phone: searchParams.get('alternativeContact2Phone') || '',
-    youthCountMaleU18: parseInt(searchParams.get('youthCountMaleU18') || '0'),
-    youthCountFemaleU18: parseInt(searchParams.get('youthCountFemaleU18') || '0'),
-    youthCountMaleO18: parseInt(searchParams.get('youthCountMaleO18') || '0'),
-    youthCountFemaleO18: parseInt(searchParams.get('youthCountFemaleO18') || '0'),
-    chaperoneCountMale: parseInt(searchParams.get('chaperoneCountMale') || '0'),
-    chaperoneCountFemale: parseInt(searchParams.get('chaperoneCountFemale') || '0'),
+    youthCount: parseInt(searchParams.get('youthCount') || '0'),
+    chaperoneCount: parseInt(searchParams.get('chaperoneCount') || '0'),
     priestCount: parseInt(searchParams.get('priestCount') || '0'),
     housingType: searchParams.get('housingType') || 'on_campus',
     specialRequests: searchParams.get('specialRequests') || '',
@@ -151,59 +143,23 @@ export default function InvoiceReviewPage() {
 
     const breakdown: { label: string; count: number; price: number; subtotal: number }[] = []
 
-    // Youth counts by gender and age
-    if (registrationData.youthCountMaleU18 > 0) {
+    // Youth
+    if (registrationData.youthCount > 0) {
       breakdown.push({
-        label: 'Youth (Male, Under 18)',
-        count: registrationData.youthCountMaleU18,
+        label: 'Youth',
+        count: registrationData.youthCount,
         price: youthPrice,
-        subtotal: registrationData.youthCountMaleU18 * youthPrice,
-      })
-    }
-
-    if (registrationData.youthCountFemaleU18 > 0) {
-      breakdown.push({
-        label: 'Youth (Female, Under 18)',
-        count: registrationData.youthCountFemaleU18,
-        price: youthPrice,
-        subtotal: registrationData.youthCountFemaleU18 * youthPrice,
-      })
-    }
-
-    if (registrationData.youthCountMaleO18 > 0) {
-      breakdown.push({
-        label: 'Youth (Male, Over 18)',
-        count: registrationData.youthCountMaleO18,
-        price: youthPrice,
-        subtotal: registrationData.youthCountMaleO18 * youthPrice,
-      })
-    }
-
-    if (registrationData.youthCountFemaleO18 > 0) {
-      breakdown.push({
-        label: 'Youth (Female, Over 18)',
-        count: registrationData.youthCountFemaleO18,
-        price: youthPrice,
-        subtotal: registrationData.youthCountFemaleO18 * youthPrice,
+        subtotal: registrationData.youthCount * youthPrice,
       })
     }
 
     // Chaperones
-    if (registrationData.chaperoneCountMale > 0) {
+    if (registrationData.chaperoneCount > 0) {
       breakdown.push({
-        label: 'Chaperones (Male)',
-        count: registrationData.chaperoneCountMale,
+        label: 'Chaperones',
+        count: registrationData.chaperoneCount,
         price: chaperonePrice,
-        subtotal: registrationData.chaperoneCountMale * chaperonePrice,
-      })
-    }
-
-    if (registrationData.chaperoneCountFemale > 0) {
-      breakdown.push({
-        label: 'Chaperones (Female)',
-        count: registrationData.chaperoneCountFemale,
-        price: chaperonePrice,
-        subtotal: registrationData.chaperoneCountFemale * chaperonePrice,
+        subtotal: registrationData.chaperoneCount * chaperonePrice,
       })
     }
 
@@ -249,12 +205,8 @@ export default function InvoiceReviewPage() {
 
   const pricing = calculatePricing()
   const totalParticipants =
-    registrationData.youthCountMaleU18 +
-    registrationData.youthCountFemaleU18 +
-    registrationData.youthCountMaleO18 +
-    registrationData.youthCountFemaleO18 +
-    registrationData.chaperoneCountMale +
-    registrationData.chaperoneCountFemale +
+    registrationData.youthCount +
+    registrationData.chaperoneCount +
     registrationData.priestCount
 
   // Handle credit card payment

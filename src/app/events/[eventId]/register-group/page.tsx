@@ -51,12 +51,8 @@ export default function GroupRegistrationPage() {
     alternativeContact2Name: '',
     alternativeContact2Email: '',
     alternativeContact2Phone: '',
-    youthCountMaleU18: 0,
-    youthCountFemaleU18: 0,
-    youthCountMaleO18: 0,
-    youthCountFemaleO18: 0,
-    chaperoneCountMale: 0,
-    chaperoneCountFemale: 0,
+    youthCount: 0,
+    chaperoneCount: 0,
     priestCount: 0,
     housingType: 'on_campus',
     specialRequests: '',
@@ -107,28 +103,21 @@ export default function GroupRegistrationPage() {
       chaperonePrice = pricing.dayPassChaperonePrice
     }
 
-    const youthTotal =
-      formData.youthCountMaleU18 +
-      formData.youthCountFemaleU18 +
-      formData.youthCountMaleO18 +
-      formData.youthCountFemaleO18
-
-    if (youthTotal > 0) {
+    if (formData.youthCount > 0) {
       breakdown.push({
         label: 'Youth',
-        count: youthTotal,
+        count: formData.youthCount,
         price: youthPrice,
-        subtotal: youthTotal * youthPrice,
+        subtotal: formData.youthCount * youthPrice,
       })
     }
 
-    const chaperoneTotal = formData.chaperoneCountMale + formData.chaperoneCountFemale
-    if (chaperoneTotal > 0) {
+    if (formData.chaperoneCount > 0) {
       breakdown.push({
         label: 'Chaperones',
-        count: chaperoneTotal,
+        count: formData.chaperoneCount,
         price: chaperonePrice,
-        subtotal: chaperoneTotal * chaperonePrice,
+        subtotal: formData.chaperoneCount * chaperonePrice,
       })
     }
 
@@ -150,12 +139,8 @@ export default function GroupRegistrationPage() {
 
   const pricing = calculatePricing()
   const totalParticipants =
-    formData.youthCountMaleU18 +
-    formData.youthCountFemaleU18 +
-    formData.youthCountMaleO18 +
-    formData.youthCountFemaleO18 +
-    formData.chaperoneCountMale +
-    formData.chaperoneCountFemale +
+    formData.youthCount +
+    formData.chaperoneCount +
     formData.priestCount
 
   // Handle form submission - navigate to review page
@@ -177,12 +162,8 @@ export default function GroupRegistrationPage() {
       alternativeContact2Name: formData.alternativeContact2Name,
       alternativeContact2Email: formData.alternativeContact2Email,
       alternativeContact2Phone: formData.alternativeContact2Phone,
-      youthCountMaleU18: formData.youthCountMaleU18.toString(),
-      youthCountFemaleU18: formData.youthCountFemaleU18.toString(),
-      youthCountMaleO18: formData.youthCountMaleO18.toString(),
-      youthCountFemaleO18: formData.youthCountFemaleO18.toString(),
-      chaperoneCountMale: formData.chaperoneCountMale.toString(),
-      chaperoneCountFemale: formData.chaperoneCountFemale.toString(),
+      youthCount: formData.youthCount.toString(),
+      chaperoneCount: formData.chaperoneCount.toString(),
       priestCount: formData.priestCount.toString(),
       housingType: formData.housingType,
       specialRequests: formData.specialRequests,
@@ -228,8 +209,8 @@ export default function GroupRegistrationPage() {
               <form onSubmit={handleSubmit}>
                 <Card className="mb-6">
                   <CardHeader>
-                    <CardTitle>Group Information</CardTitle>
-                    <CardDescription>Tell us about your youth group</CardDescription>
+                    <CardTitle>Parish & Group Leader Information</CardTitle>
+                    <CardDescription>Tell us about your parish and group leader</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
@@ -275,14 +256,10 @@ export default function GroupRegistrationPage() {
                         />
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
 
-                <Card className="mb-6">
-                  <CardHeader>
-                    <CardTitle>Group Leader Contact</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
+                    <hr className="my-4 border-gray-200" />
+                    <h3 className="font-semibold text-navy mb-3">Group Leader Contact</h3>
+
                     <div>
                       <label className="block text-sm font-medium text-navy mb-2">
                         Full Name *
@@ -448,114 +425,46 @@ export default function GroupRegistrationPage() {
                 <Card className="mb-6">
                   <CardHeader>
                     <CardTitle>Participant Counts</CardTitle>
-                    <CardDescription>How many people are coming?</CardDescription>
+                    <CardDescription>How many people are coming? (We&apos;ll collect specific details in liability forms later)</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
+                  <CardContent className="space-y-4">
                     <div>
-                      <h3 className="font-semibold text-navy mb-3">Youth (Under 18)</h3>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Male
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
-                            value={formData.youthCountMaleU18}
-                            onChange={(e) =>
-                              setFormData({ ...formData, youthCountMaleU18: parseInt(e.target.value) || 0 })
-                            }
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Female
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
-                            value={formData.youthCountFemaleU18}
-                            onChange={(e) =>
-                              setFormData({ ...formData, youthCountFemaleU18: parseInt(e.target.value) || 0 })
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="font-semibold text-navy mb-3">Youth (Over 18)</h3>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Male
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
-                            value={formData.youthCountMaleO18}
-                            onChange={(e) =>
-                              setFormData({ ...formData, youthCountMaleO18: parseInt(e.target.value) || 0 })
-                            }
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Female
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
-                            value={formData.youthCountFemaleO18}
-                            onChange={(e) =>
-                              setFormData({ ...formData, youthCountFemaleO18: parseInt(e.target.value) || 0 })
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="font-semibold text-navy mb-3">Chaperones</h3>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Male
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
-                            value={formData.chaperoneCountMale}
-                            onChange={(e) =>
-                              setFormData({ ...formData, chaperoneCountMale: parseInt(e.target.value) || 0 })
-                            }
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Female
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
-                            value={formData.chaperoneCountFemale}
-                            onChange={(e) =>
-                              setFormData({ ...formData, chaperoneCountFemale: parseInt(e.target.value) || 0 })
-                            }
-                          />
-                        </div>
-                      </div>
+                      <label className="block text-sm font-medium text-navy mb-2">
+                        Youth Count *
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        required
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                        value={formData.youthCount}
+                        onChange={(e) =>
+                          setFormData({ ...formData, youthCount: parseInt(e.target.value) || 0 })
+                        }
+                        placeholder="Total number of youth participants"
+                      />
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-navy mb-2">
-                        Priests
+                        Chaperone Count *
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        required
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                        value={formData.chaperoneCount}
+                        onChange={(e) =>
+                          setFormData({ ...formData, chaperoneCount: parseInt(e.target.value) || 0 })
+                        }
+                        placeholder="Total number of chaperones"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-navy mb-2">
+                        Priest Count
                       </label>
                       <input
                         type="number"
@@ -565,6 +474,7 @@ export default function GroupRegistrationPage() {
                         onChange={(e) =>
                           setFormData({ ...formData, priestCount: parseInt(e.target.value) || 0 })
                         }
+                        placeholder="Number of priests (optional)"
                       />
                     </div>
                   </CardContent>
