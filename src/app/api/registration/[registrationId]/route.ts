@@ -47,18 +47,9 @@ export async function GET(
       )
     }
 
-    const youthTotal =
-      registration.youthCountMaleU18 +
-      registration.youthCountFemaleU18 +
-      registration.youthCountMaleO18 +
-      registration.youthCountFemaleO18
-
-    const chaperoneTotal =
-      registration.chaperoneCountMale + registration.chaperoneCountFemale
-
     const totalAmount =
-      youthTotal * Number(eventPricing.youthRegularPrice) +
-      chaperoneTotal * Number(eventPricing.chaperoneRegularPrice) +
+      registration.youthCount * Number(eventPricing.youthRegularPrice) +
+      registration.chaperoneCount * Number(eventPricing.chaperoneRegularPrice) +
       registration.priestCount * Number(eventPricing.priestPrice)
 
     const balanceRemaining = totalAmount - depositPaid
