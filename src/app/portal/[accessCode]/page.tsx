@@ -130,7 +130,7 @@ export default function AccessCodePortal() {
                     Access Code: <span className="font-mono font-bold text-navy">{accessCode}</span>
                   </p>
                   <p className="text-xs text-gray-600 mt-1">
-                    Save this code - you'll need it to access forms later
+                    Save this code - you&apos;ll need it to access forms later
                   </p>
                 </div>
               </div>
