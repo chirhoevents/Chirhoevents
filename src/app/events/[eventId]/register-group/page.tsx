@@ -435,10 +435,11 @@ export default function GroupRegistrationPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-navy mb-2">
-                            Name
+                            Name <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
+                            required
                             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
                             value={formData.alternativeContact1Name}
                             onChange={(e) => setFormData({ ...formData, alternativeContact1Name: e.target.value })}
@@ -448,10 +449,11 @@ export default function GroupRegistrationPage() {
 
                         <div>
                           <label className="block text-sm font-medium text-navy mb-2">
-                            Email
+                            Email <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="email"
+                            required
                             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
                             value={formData.alternativeContact1Email}
                             onChange={(e) => setFormData({ ...formData, alternativeContact1Email: e.target.value })}
@@ -461,10 +463,11 @@ export default function GroupRegistrationPage() {
 
                         <div>
                           <label className="block text-sm font-medium text-navy mb-2">
-                            Phone
+                            Phone <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="tel"
+                            required
                             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
                             value={formData.alternativeContact1Phone}
                             onChange={(e) => setFormData({ ...formData, alternativeContact1Phone: e.target.value })}
