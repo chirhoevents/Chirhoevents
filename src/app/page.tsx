@@ -15,11 +15,11 @@ export default function LandingPage() {
             <div className="flex items-center">
               <Link href="/" className="flex items-center">
                 <Image
-                  src="/logo-horizontal.png"
+                  src="/dark-logo-horizontal.png"
                   alt="ChiRho Events"
-                  width={150}
-                  height={40}
-                  className="h-10 w-auto cursor-pointer"
+                  width={200}
+                  height={60}
+                  className="h-10 md:h-14 w-auto cursor-pointer"
                   priority
                 />
               </Link>
