@@ -1,12 +1,54 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 
-export default function RoleSelectionPage() {
+interface GroupData {
+  groupName: string
+  eventName: string
+  eventDates: string
+}
+
+export default function PorosRoleSelection() {
   const params = useParams()
   const router = useRouter()
   const accessCode = params.accessCode as string
+
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [groupData, setGroupData] = useState<GroupData | null>(null)
+
+  useEffect(() => {
+    async function validateAccessCode() {
+      try {
+        const response = await fetch('/api/portal/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ access_code: accessCode }),
+        })
+
+        if (!response.ok) {
+          throw new Error('Invalid access code')
+        }
+
+        const data = await response.json()
+        setGroupData({
+          groupName: data.groupName,
+          eventName: data.eventName,
+          eventDates: data.eventDates,
+        })
+      } catch (err) {
+        setError('Invalid or expired access code')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (accessCode) {
+      validateAccessCode()
+    }
+  }, [accessCode])
 
   const roles = [
     {
@@ -41,9 +83,9 @@ export default function RoleSelectionPage() {
     },
     {
       type: 'clergy',
-      title: 'Priest/Deacon',
-      description: 'Clergy only',
-      details: 'Special form',
+      title: 'Priest/Deacon/Bishop',
+      description: 'Clergy form',
+      details: 'Special form for clergy',
       icon: (
         <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
@@ -57,8 +99,40 @@ export default function RoleSelectionPage() {
   ]
 
   const handleRoleSelect = (roleType: string) => {
-    // TODO: Navigate to the appropriate form based on role type
-    router.push(`/portal/${accessCode}/forms/${roleType}`)
+    router.push(`/poros/${accessCode}/forms/${roleType}/new`)
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy mx-auto mb-4"></div>
+          <p className="text-navy font-medium">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !groupData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-navy mb-2">Invalid Access Code</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={() => router.push('/poros')}
+            className="bg-navy text-white px-6 py-3 rounded-lg font-semibold hover:bg-navy/90 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -81,21 +155,18 @@ export default function RoleSelectionPage() {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-5xl mx-auto">
-          {/* Back Button */}
-          <button
-            onClick={() => router.back()}
-            className="flex items-center text-navy hover:text-navy/80 mb-6 transition-colors"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Back to Portal
-          </button>
-
-          {/* Title */}
+          {/* Title Section */}
           <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold text-navy mb-3">Select Form Type</h1>
-            <p className="text-lg text-gray-600">Who are you filling out a form for?</p>
+            <h1 className="text-4xl font-bold text-navy mb-3">
+              Fill Out Your Liability Form
+            </h1>
+            <p className="text-xl text-gray-700 mb-2">{groupData.eventName}</p>
+            <p className="text-lg text-gray-600">Group: {groupData.groupName}</p>
+          </div>
+
+          {/* Question */}
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-semibold text-navy">Who are you?</h2>
           </div>
 
           {/* Role Cards */}
@@ -109,11 +180,11 @@ export default function RoleSelectionPage() {
                 <div className={`flex justify-center ${role.iconColor} mb-4`}>
                   {role.icon}
                 </div>
-                <h2 className="text-2xl font-bold text-navy mb-2">{role.title}</h2>
+                <h3 className="text-2xl font-bold text-navy mb-2">{role.title}</h3>
                 <p className="text-gray-700 font-medium mb-1">{role.description}</p>
                 <p className="text-sm text-gray-600 mb-6">{role.details}</p>
                 <div className="flex items-center justify-center text-navy font-medium">
-                  Continue
+                  Select
                   <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </svg>
@@ -135,7 +206,7 @@ export default function RoleSelectionPage() {
                 <ul className="space-y-2 text-sm text-gray-700">
                   <li><strong>Youth Under 18:</strong> If the participant is between ages 12-17, select this option. A parent will need to complete and sign the form.</li>
                   <li><strong>Youth 18+ or Chaperone:</strong> If the participant is 18 or older (including adult chaperones), select this option. The participant can complete the form themselves.</li>
-                  <li><strong>Priest/Deacon:</strong> Only for clergy members attending the event. This form has specialized fields for clergy information.</li>
+                  <li><strong>Priest/Deacon/Bishop:</strong> Only for clergy members attending the event. This form has specialized fields for clergy information.</li>
                 </ul>
               </div>
             </div>
