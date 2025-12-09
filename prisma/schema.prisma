@@ -44,6 +44,9 @@ model Organization {
   participants            Participant[]
   payments                Payment[]
   paymentBalances         PaymentBalance[]
+  liabilityForms          LiabilityForm[]
+  safeEnvironmentCertificates SafeEnvironmentCertificate[]
+  liabilityFormTemplates  LiabilityFormTemplate[]
 
   @@index([contactEmail], name: "idx_org_email")
   @@index([stripeAccountId], name: "idx_org_stripe")
@@ -69,6 +72,8 @@ model User {
   createdByUser   User?        @relation("UserCreatedBy", fields: [createdBy], references: [id])
   usersCreated    User[]       @relation("UserCreatedBy")
   eventsCreated   Event[]
+  uploadedCertificates SafeEnvironmentCertificate[] @relation("UploadedCertificates")
+  verifiedCertificates SafeEnvironmentCertificate[] @relation("VerifiedCertificates")
 
   @@index([organizationId], name: "idx_user_org")
   @@index([email], name: "idx_user_email")
@@ -104,6 +109,8 @@ model Event {
   groupRegistrations        GroupRegistration[]
   individualRegistrations   IndividualRegistration[]
   customRegistrationQuestions CustomRegistrationQuestion[]
+  liabilityForms            LiabilityForm[]
+  liabilityFormTemplates    LiabilityFormTemplate[]
 
   @@index([organizationId], name: "idx_event_org")
   @@index([slug], name: "idx_event_slug")
@@ -272,6 +279,7 @@ model IndividualRegistration {
   // Relations
   event        Event        @relation(fields: [eventId], references: [id])
   organization Organization @relation(fields: [organizationId], references: [id])
+  liabilityForms LiabilityForm[]
 
   @@map("individual_registrations")
 }
@@ -300,6 +308,8 @@ model Participant {
   // Relations
   groupRegistration GroupRegistration @relation(fields: [groupRegistrationId], references: [id], onDelete: Cascade)
   organization      Organization      @relation(fields: [organizationId], references: [id])
+  liabilityForms    LiabilityForm[]
+  safeEnvironmentCertificates SafeEnvironmentCertificate[]
 
   @@index([groupRegistrationId], name: "idx_participant_group")
   @@index([participantType], name: "idx_participant_type")
@@ -359,6 +369,111 @@ model PaymentBalance {
   @@index([registrationId], name: "idx_balance_registration")
   @@index([eventId], name: "idx_balance_event")
   @@map("payment_balances")
+}
+
+// ===================================
+// LIABILITY FORM TABLES
+// ===================================
+
+model LiabilityForm {
+  id                        String   @id @default(uuid()) @db.Uuid
+  organizationId            String   @map("organization_id") @db.Uuid
+  eventId                   String   @map("event_id") @db.Uuid
+  participantId             String?  @map("participant_id") @db.Uuid
+  individualRegistrationId  String?  @map("individual_registration_id") @db.Uuid
+  formType                  LiabilityFormType @map("form_type")
+  participantFirstName      String   @map("participant_first_name") @db.VarChar(255)
+  participantLastName       String   @map("participant_last_name") @db.VarChar(255)
+  participantAge            Int?     @map("participant_age")
+  participantGender         Gender?  @map("participant_gender")
+  participantEmail          String?  @map("participant_email") @db.VarChar(255)
+  parentEmail               String?  @map("parent_email") @db.VarChar(255)
+  parentToken               String?  @unique @map("parent_token") @db.VarChar(255)
+  parentTokenExpiresAt      DateTime? @map("parent_token_expires_at") @db.Timestamptz(6)
+  medicalConditions         String?  @map("medical_conditions") @db.Text
+  medications               String?  @db.Text
+  allergies                 String?  @db.Text
+  dietaryRestrictions       String?  @map("dietary_restrictions") @db.Text
+  adaAccommodations         String?  @map("ada_accommodations") @db.Text
+  emergencyContact1Name     String   @map("emergency_contact_1_name") @db.VarChar(255)
+  emergencyContact1Phone    String   @map("emergency_contact_1_phone") @db.VarChar(20)
+  emergencyContact1Relation String?  @map("emergency_contact_1_relation") @db.VarChar(100)
+  emergencyContact2Name     String?  @map("emergency_contact_2_name") @db.VarChar(255)
+  emergencyContact2Phone    String?  @map("emergency_contact_2_phone") @db.VarChar(20)
+  emergencyContact2Relation String?  @map("emergency_contact_2_relation") @db.VarChar(100)
+  insuranceProvider         String?  @map("insurance_provider") @db.VarChar(255)
+  insurancePolicyNumber     String?  @map("insurance_policy_number") @db.VarChar(100)
+  insuranceGroupNumber      String?  @map("insurance_group_number") @db.VarChar(100)
+  signatureData             Json     @map("signature_data")
+  completed                 Boolean  @default(false)
+  completedByEmail          String?  @map("completed_by_email") @db.VarChar(255)
+  completedAt               DateTime? @map("completed_at") @db.Timestamptz(6)
+  pdfUrl                    String?  @map("pdf_url") @db.Text
+  createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  organization          Organization @relation(fields: [organizationId], references: [id])
+  event                 Event        @relation(fields: [eventId], references: [id])
+  participant           Participant? @relation(fields: [participantId], references: [id])
+  individualRegistration IndividualRegistration? @relation(fields: [individualRegistrationId], references: [id])
+  safeEnvironmentCertificates SafeEnvironmentCertificate[]
+
+  @@index([organizationId], name: "idx_liability_org")
+  @@index([eventId], name: "idx_liability_event")
+  @@index([participantId], name: "idx_liability_participant")
+  @@index([parentToken], name: "idx_liability_parent_token")
+  @@map("liability_forms")
+}
+
+model SafeEnvironmentCertificate {
+  id                  String   @id @default(uuid()) @db.Uuid
+  participantId       String   @map("participant_id") @db.Uuid
+  liabilityFormId     String?  @map("liability_form_id") @db.Uuid
+  organizationId      String   @map("organization_id") @db.Uuid
+  fileUrl             String   @map("file_url") @db.Text
+  originalFilename    String?  @map("original_filename") @db.VarChar(255)
+  fileSizeBytes       BigInt?  @map("file_size_bytes")
+  programName         String?  @map("program_name") @db.VarChar(255)
+  completionDate      DateTime? @map("completion_date") @db.Date
+  expirationDate      DateTime? @map("expiration_date") @db.Date
+  status              CertificateStatus @default(pending)
+  uploadedByUserId    String?  @map("uploaded_by_user_id") @db.Uuid
+  uploadedAt          DateTime @default(now()) @map("uploaded_at") @db.Timestamptz(6)
+  verifiedAt          DateTime? @map("verified_at") @db.Timestamptz(6)
+  verifiedByUserId    String?  @map("verified_by_user_id") @db.Uuid
+
+  // Relations
+  participant      Participant @relation(fields: [participantId], references: [id])
+  liabilityForm    LiabilityForm? @relation(fields: [liabilityFormId], references: [id])
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  uploadedBy       User? @relation("UploadedCertificates", fields: [uploadedByUserId], references: [id])
+  verifiedBy       User? @relation("VerifiedCertificates", fields: [verifiedByUserId], references: [id])
+
+  @@index([participantId], name: "idx_cert_participant")
+  @@index([organizationId], name: "idx_cert_org")
+  @@index([status], name: "idx_cert_status")
+  @@map("safe_environment_certificates")
+}
+
+model LiabilityFormTemplate {
+  id                String   @id @default(uuid()) @db.Uuid
+  organizationId    String   @map("organization_id") @db.Uuid
+  eventId           String?  @map("event_id") @db.Uuid
+  formType          LiabilityFormType @map("form_type")
+  customQuestions   Json?    @map("custom_questions")
+  customSections    Json?    @map("custom_sections")
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id])
+  event        Event?       @relation(fields: [eventId], references: [id])
+
+  @@index([organizationId], name: "idx_template_org")
+  @@index([eventId], name: "idx_template_event")
+  @@map("liability_form_templates")
 }
 
 // ===================================
@@ -490,6 +605,19 @@ enum PaymentBalanceStatus {
   overpaid
   refunded
   pending_check_payment
+}
+
+enum LiabilityFormType {
+  youth_u18
+  youth_o18_chaperone
+  clergy
+}
+
+enum CertificateStatus {
+  pending
+  verified
+  rejected
+  expired
 }
 
 enum QuestionType {
