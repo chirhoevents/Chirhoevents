@@ -33,6 +33,12 @@ export async function GET(
       )
     }
 
+    // Fetch depositPerPerson directly via raw query (Prisma client may not have this field)
+    const depositPerPersonResult = await prisma.$queryRaw<Array<{ deposit_per_person: boolean | null }>>`
+      SELECT deposit_per_person FROM event_pricing WHERE event_id = ${params.eventId}::uuid LIMIT 1
+    `
+    const depositPerPerson = depositPerPersonResult[0]?.deposit_per_person ?? true
+
     return NextResponse.json({
       id: event.id,
       name: event.name,
@@ -44,9 +50,15 @@ export async function GET(
       capacityRemaining: event.capacityRemaining,
       pricing: {
         youthRegularPrice: Number(event.pricing?.youthRegularPrice || 0),
+        youthEarlyBirdPrice: event.pricing?.youthEarlyBirdPrice ? Number(event.pricing.youthEarlyBirdPrice) : null,
         chaperoneRegularPrice: Number(event.pricing?.chaperoneRegularPrice || 0),
+        chaperoneEarlyBirdPrice: event.pricing?.chaperoneEarlyBirdPrice ? Number(event.pricing.chaperoneEarlyBirdPrice) : null,
         priestPrice: Number(event.pricing?.priestPrice || 0),
-        depositAmount: Number(event.pricing?.depositAmount || 25),
+        earlyBirdDeadline: event.pricing?.earlyBirdDeadline || null,
+        depositAmount: event.pricing?.depositAmount ? Number(event.pricing.depositAmount) : null,
+        depositPercentage: event.pricing?.depositPercentage ? Number(event.pricing.depositPercentage) : null,
+        depositPerPerson: depositPerPerson,
+        requireFullPayment: event.pricing?.requireFullPayment || false,
         onCampusYouthPrice: event.pricing?.onCampusYouthPrice ? Number(event.pricing.onCampusYouthPrice) : undefined,
         offCampusYouthPrice: event.pricing?.offCampusYouthPrice ? Number(event.pricing.offCampusYouthPrice) : undefined,
         dayPassYouthPrice: event.pricing?.dayPassYouthPrice ? Number(event.pricing.dayPassYouthPrice) : undefined,
