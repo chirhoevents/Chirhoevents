@@ -71,6 +71,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Fetch depositPerPerson directly via raw query (Prisma client may not have this field)
+    const depositPerPersonResult = await prisma.$queryRaw<Array<{ deposit_per_person: boolean | null }>>`
+      SELECT deposit_per_person FROM event_pricing WHERE event_id = ${eventId}::uuid LIMIT 1
+    `
+    const depositPerPerson = depositPerPersonResult[0]?.deposit_per_person ?? true
+
     // Calculate total participants
     const totalParticipants = youthCount + chaperoneCount + priestCount
 
@@ -133,8 +139,6 @@ export async function POST(request: NextRequest) {
     } else if (event.pricing.depositAmount != null) {
       // Option 2: Fixed deposit amount (per person or total)
       const baseDepositAmount = Number(event.pricing.depositAmount)
-      // Access depositPerPerson field (may not be in generated types yet)
-      const depositPerPerson = (event.pricing as any).depositPerPerson ?? true
       depositAmount = depositPerPerson
         ? baseDepositAmount * totalParticipants
         : baseDepositAmount
