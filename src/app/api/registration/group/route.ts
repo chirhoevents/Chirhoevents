@@ -133,7 +133,9 @@ export async function POST(request: NextRequest) {
     } else if (event.pricing.depositAmount != null) {
       // Option 2: Fixed deposit amount (per person or total)
       const baseDepositAmount = Number(event.pricing.depositAmount)
-      depositAmount = event.pricing.depositPerPerson
+      // Access depositPerPerson field (may not be in generated types yet)
+      const depositPerPerson = (event.pricing as any).depositPerPerson ?? true
+      depositAmount = depositPerPerson
         ? baseDepositAmount * totalParticipants
         : baseDepositAmount
     }
