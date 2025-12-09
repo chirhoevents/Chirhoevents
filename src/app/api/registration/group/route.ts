@@ -21,6 +21,9 @@ export async function POST(request: NextRequest) {
       groupLeaderName,
       groupLeaderEmail,
       groupLeaderPhone,
+      alternativeContact1Name,
+      alternativeContact1Email,
+      alternativeContact1Phone,
       youthCount = 0,
       chaperoneCount = 0,
       priestCount = 0,
@@ -29,13 +32,16 @@ export async function POST(request: NextRequest) {
       paymentMethod = 'card', // 'card' or 'check'
     } = body
 
-    if (!eventId || !groupName || !groupLeaderName || !groupLeaderEmail || !groupLeaderPhone || !housingType) {
+    if (!eventId || !groupName || !groupLeaderName || !groupLeaderEmail || !groupLeaderPhone || !housingType || !alternativeContact1Name || !alternativeContact1Email || !alternativeContact1Phone) {
       console.error('Validation failed:', {
         eventId: !!eventId,
         groupName: !!groupName,
         groupLeaderName: !!groupLeaderName,
         groupLeaderEmail: !!groupLeaderEmail,
         groupLeaderPhone: !!groupLeaderPhone,
+        alternativeContact1Name: !!alternativeContact1Name,
+        alternativeContact1Email: !!alternativeContact1Email,
+        alternativeContact1Phone: !!alternativeContact1Phone,
         housingType: !!housingType,
         receivedBody: body,
       })
@@ -48,6 +54,9 @@ export async function POST(request: NextRequest) {
             groupLeaderName: !groupLeaderName ? 'missing' : 'ok',
             groupLeaderEmail: !groupLeaderEmail ? 'missing' : 'ok',
             groupLeaderPhone: !groupLeaderPhone ? 'missing' : 'ok',
+            alternativeContact1Name: !alternativeContact1Name ? 'missing' : 'ok',
+            alternativeContact1Email: !alternativeContact1Email ? 'missing' : 'ok',
+            alternativeContact1Phone: !alternativeContact1Phone ? 'missing' : 'ok',
             housingType: !housingType ? 'missing' : 'ok',
           }
         },
@@ -169,9 +178,9 @@ export async function POST(request: NextRequest) {
         groupLeaderCity: body.groupLeaderCity || null,
         groupLeaderState: body.groupLeaderState || null,
         groupLeaderZip: body.groupLeaderZip || null,
-        alternativeContact1Name: body.alternativeContact1Name || null,
-        alternativeContact1Email: body.alternativeContact1Email || null,
-        alternativeContact1Phone: body.alternativeContact1Phone || null,
+        alternativeContact1Name,
+        alternativeContact1Email,
+        alternativeContact1Phone,
         alternativeContact2Name: body.alternativeContact2Name || null,
         alternativeContact2Email: body.alternativeContact2Email || null,
         alternativeContact2Phone: body.alternativeContact2Phone || null,
