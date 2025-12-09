@@ -201,7 +201,11 @@ export default function InvoiceReviewPage() {
     } else if (event.pricing.depositPercentage != null) {
       deposit = (total * Number(event.pricing.depositPercentage)) / 100
     } else if (event.pricing.depositAmount != null) {
-      deposit = Number(event.pricing.depositAmount)
+      const baseDepositAmount = Number(event.pricing.depositAmount)
+      const totalParticipants = registrationData.youthCount + registrationData.chaperoneCount + registrationData.priestCount
+      // Access depositPerPerson field (may not be in generated types yet)
+      const depositPerPerson = (event.pricing as any).depositPerPerson ?? true
+      deposit = depositPerPerson ? baseDepositAmount * totalParticipants : baseDepositAmount
     }
 
     const balance = total - deposit
