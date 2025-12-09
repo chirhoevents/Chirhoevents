@@ -142,11 +142,11 @@ export default function PorosRoleSelection() {
         <div className="container mx-auto px-4">
           <div className="flex justify-center">
             <Image
-              src="/logo-horizontal.png"
-              alt="ChiRho Events"
-              width={200}
-              height={60}
-              className="h-12 w-auto"
+              src="/Poros logo.png"
+              alt="Poros - ChiRho Events"
+              width={350}
+              height={105}
+              className="h-16 md:h-20 w-auto"
             />
           </div>
         </div>

@@ -66,11 +66,11 @@ export default function PorosLandingPage() {
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-center">
           <Image
-            src="/logo-horizontal.png"
-            alt="ChiRho Events"
-            width={250}
-            height={75}
-            className="h-16 w-auto"
+            src="/Poros logo.png"
+            alt="Poros - ChiRho Events"
+            width={400}
+            height={120}
+            className="h-20 md:h-28 w-auto"
           />
         </div>
       </div>
