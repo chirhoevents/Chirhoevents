@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
         email: liabilityForm.participantEmail,
         age: liabilityForm.participantAge!,
         gender: liabilityForm.participantGender!,
-        participantType: liabilityForm.participantType!,
+        participantType: 'youth_u18', // Explicitly set for youth U18 forms
         tShirtSize: liabilityForm.tShirtSize,
         liabilityFormCompleted: true,
         parentEmail: liabilityForm.parentEmail,
