@@ -45,6 +45,7 @@ export default function LiabilityFormsPage() {
 
   useEffect(() => {
     filterForms()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [forms, activeFilter])
 
   const fetchForms = async () => {
