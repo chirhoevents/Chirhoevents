@@ -33,7 +33,76 @@ export async function POST(request: NextRequest) {
   }
 
   // Handle the event
-  if (event.type === 'checkout.session.completed') {
+  if (event.type === 'payment_intent.succeeded') {
+    console.log('💳 Processing payment_intent.succeeded event')
+    const paymentIntent = event.data.object as Stripe.PaymentIntent
+
+    const { registrationId, registrationType, notes } = paymentIntent.metadata || {}
+    console.log('📋 Payment intent metadata:', { registrationId, registrationType, notes })
+
+    if (!registrationId) {
+      console.error('❌ No registrationId in payment intent metadata')
+      return NextResponse.json({ error: 'Missing metadata' }, { status: 400 })
+    }
+
+    try {
+      // Update payment status and store notes
+      await prisma.payment.updateMany({
+        where: {
+          registrationId: registrationId,
+          stripePaymentIntentId: paymentIntent.id,
+        },
+        data: {
+          paymentStatus: 'succeeded',
+          processedAt: new Date(),
+        },
+      })
+
+      // Update payment balance
+      const paymentRecord = await prisma.payment.findFirst({
+        where: {
+          registrationId: registrationId,
+          stripePaymentIntentId: paymentIntent.id,
+        },
+        select: { amount: true },
+      })
+
+      if (paymentRecord) {
+        const balance = await prisma.paymentBalance.findUnique({
+          where: { registrationId: registrationId },
+        })
+
+        if (balance) {
+          const newAmountPaid = Number(balance.amountPaid) + Number(paymentRecord.amount)
+          const newAmountRemaining = Number(balance.totalAmountDue) - newAmountPaid
+
+          await prisma.paymentBalance.update({
+            where: { registrationId: registrationId },
+            data: {
+              amountPaid: newAmountPaid,
+              amountRemaining: newAmountRemaining,
+              lastPaymentDate: new Date(),
+              paymentStatus: newAmountRemaining <= 0 ? 'paid_full' : 'partial',
+            },
+          })
+        }
+      }
+
+      // Update registration status if group registration
+      if (registrationType === 'group') {
+        await prisma.groupRegistration.update({
+          where: { id: registrationId },
+          data: { registrationStatus: 'pending_forms' },
+        })
+      }
+
+      console.log('✅ Payment intent processed successfully')
+      return NextResponse.json({ received: true })
+    } catch (error) {
+      console.error('❌ Error processing payment_intent.succeeded:', error)
+      return NextResponse.json({ error: 'Processing failed' }, { status: 500 })
+    }
+  } else if (event.type === 'checkout.session.completed') {
     console.log('💳 Processing checkout.session.completed event')
     const session = event.data.object as Stripe.Checkout.Session
 

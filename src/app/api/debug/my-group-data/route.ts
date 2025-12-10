@@ -59,7 +59,7 @@ export async function GET() {
         priestCount: groupRegistration.priestCount,
       },
       participantsInDatabase: groupRegistration.participants.length,
-      participants: groupRegistration.participants.map(p => ({
+      participants: groupRegistration.participants.map((p: any) => ({
         id: p.id,
         name: `${p.firstName} ${p.lastName}`,
         age: p.age,
@@ -68,7 +68,7 @@ export async function GET() {
         formsCount: p.liabilityForms.length,
       })),
       directLiabilityForms: directLiabilityForms.length,
-      liabilityForms: directLiabilityForms.map(f => ({
+      liabilityForms: directLiabilityForms.map((f: any) => ({
         id: f.id,
         participantName: `${f.participantFirstName} ${f.participantLastName}`,
         type: f.formType,

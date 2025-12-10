@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth, UserButton } from '@clerk/nextjs'
+import { useAuth, UserButton, useClerk } from '@clerk/nextjs'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
@@ -29,6 +29,7 @@ export default function GroupLeaderLayout({
 }) {
   const router = useRouter()
   const { userId } = useAuth()
+  const { signOut } = useClerk()
   const [groupInfo, setGroupInfo] = useState<GroupInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -153,12 +154,12 @@ export default function GroupLeaderLayout({
               <UserButton afterSignOutUrl="/" />
               <div className="flex-1">
                 <p className="text-sm font-medium text-white">Account</p>
-                <Link
-                  href="/api/auth/signout"
-                  className="text-xs text-[#E8DCC8] hover:text-white"
+                <button
+                  onClick={() => signOut()}
+                  className="text-xs text-[#E8DCC8] hover:text-white cursor-pointer"
                 >
                   Sign out
-                </Link>
+                </button>
               </div>
             </div>
           </div>

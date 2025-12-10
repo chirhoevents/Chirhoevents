@@ -41,7 +41,7 @@ export async function GET() {
     const forms = []
 
     // Add actual participants who have started/completed forms
-    groupRegistration.participants.forEach((participant) => {
+    groupRegistration.participants.forEach((participant: any) => {
       const latestForm = participant.liabilityForms[0]
 
       forms.push({

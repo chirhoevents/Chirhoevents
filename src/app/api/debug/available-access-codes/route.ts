@@ -23,7 +23,7 @@ export async function GET() {
       take: 10,
     })
 
-    const registrations = availableRegistrations.map(reg => ({
+    const registrations = availableRegistrations.map((reg: any) => ({
       accessCode: reg.accessCode,
       groupName: reg.groupName,
       eventName: reg.event.name,
