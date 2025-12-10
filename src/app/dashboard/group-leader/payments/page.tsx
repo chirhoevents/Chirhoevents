@@ -169,8 +169,6 @@ export default function PaymentsPage() {
         setTimeout(() => {
           fetchPaymentData()
         }, 2000)
-        // Remove query param using Next.js router
-        router.replace('/dashboard/group-leader/payments', { scroll: false })
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
