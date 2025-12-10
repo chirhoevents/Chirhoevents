@@ -31,8 +31,8 @@ export async function POST() {
             preferredName: form.participantPreferredName,
             email: form.participantEmail,
             age: form.participantAge || 18, // Default if missing
-            gender: form.participantGender || 'other', // Default if missing
-            participantType: form.participantType || 'youth_u18', // Default if missing
+            gender: (form.participantGender || 'other') as any, // Default if missing
+            participantType: (form.participantType || 'youth_u18') as any, // Default if missing
             clergyTitle: form.clergyTitle,
             tShirtSize: form.tShirtSize,
             liabilityFormCompleted: true,
