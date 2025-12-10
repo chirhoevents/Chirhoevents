@@ -55,17 +55,17 @@ export async function GET() {
     return NextResponse.json({
       balance: paymentBalance
         ? {
-            totalAmountDue: paymentBalance.totalAmountDue,
-            amountPaid: paymentBalance.amountPaid,
-            amountRemaining: paymentBalance.amountRemaining,
-            lateFeesApplied: paymentBalance.lateFeesApplied,
+            totalAmountDue: Number(paymentBalance.totalAmountDue),
+            amountPaid: Number(paymentBalance.amountPaid),
+            amountRemaining: Number(paymentBalance.amountRemaining),
+            lateFeesApplied: Number(paymentBalance.lateFeesApplied),
             lastPaymentDate: paymentBalance.lastPaymentDate,
             paymentStatus: paymentBalance.paymentStatus,
           }
         : null,
       payments: payments.map((payment) => ({
         id: payment.id,
-        amount: payment.amount,
+        amount: Number(payment.amount),
         paymentType: payment.paymentType,
         paymentMethod: payment.paymentMethod,
         paymentStatus: payment.paymentStatus,
