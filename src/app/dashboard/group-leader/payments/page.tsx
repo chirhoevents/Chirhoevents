@@ -12,7 +12,7 @@ export default function PaymentsPage() {
           Payments
         </h1>
         <p className="text-[#6B7280]">
-          Manage your group's payments and view transaction history
+          Manage your group&apos;s payments and view transaction history
         </p>
       </div>
 

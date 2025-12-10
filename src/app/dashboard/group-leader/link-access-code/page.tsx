@@ -50,7 +50,7 @@ export default function LinkAccessCodePage() {
             Link Your Registration
           </h1>
           <p className="text-[#6B7280]">
-            Enter your group's access code to access your dashboard
+            Enter your group&apos;s access code to access your dashboard
           </p>
         </div>
 
@@ -90,10 +90,10 @@ export default function LinkAccessCodePage() {
 
         <div className="mt-6 text-center">
           <p className="text-sm text-[#6B7280]">
-            Don't have an access code?
+            Don&apos;t have an access code?
           </p>
           <p className="text-sm text-[#6B7280] mt-1">
-            You'll receive it via email after registering your group.
+            You&apos;ll receive it via email after registering your group.
           </p>
         </div>
       </Card>
