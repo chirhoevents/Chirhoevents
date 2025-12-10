@@ -143,21 +143,6 @@ export default function PaymentsPage() {
   const [clientSecret, setClientSecret] = useState('')
   const [creatingPayment, setCreatingPayment] = useState(false)
 
-  useEffect(() => {
-    fetchPaymentData()
-
-    // Check if returning from successful payment
-    const urlParams = new URLSearchParams(window.location.search)
-    if (urlParams.get('payment') === 'success') {
-      // Refresh payment data after successful payment
-      setTimeout(() => {
-        fetchPaymentData()
-      }, 2000)
-      // Remove query param using Next.js router
-      router.replace('/dashboard/group-leader/payments')
-    }
-  }, [router])
-
   const fetchPaymentData = async () => {
     try {
       const response = await fetch('/api/group-leader/payments')
@@ -172,6 +157,24 @@ export default function PaymentsPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    fetchPaymentData()
+
+    // Check if returning from successful payment
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      if (urlParams.get('payment') === 'success') {
+        // Refresh payment data after successful payment
+        setTimeout(() => {
+          fetchPaymentData()
+        }, 2000)
+        // Remove query param using Next.js router
+        router.replace('/dashboard/group-leader/payments', { scroll: false })
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleCreatePaymentIntent = async () => {
     const amount = parseFloat(paymentAmount)
