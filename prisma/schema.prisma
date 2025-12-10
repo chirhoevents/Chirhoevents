@@ -204,6 +204,8 @@ model GroupRegistration {
   parishName                 String?  @map("parish_name") @db.VarChar(255)
   dioceseName                String?  @map("diocese_name") @db.VarChar(255)
   groupLeaderUserId          String?  @map("group_leader_user_id") @db.Uuid
+  clerkUserId                String?  @unique @map("clerk_user_id") @db.VarChar(255)
+  dashboardLastAccessedAt    DateTime? @map("dashboard_last_accessed_at") @db.Timestamptz(6)
   groupLeaderName            String   @map("group_leader_name") @db.VarChar(255)
   groupLeaderEmail           String   @map("group_leader_email") @db.VarChar(255)
   groupLeaderPhone           String   @map("group_leader_phone") @db.VarChar(20)
