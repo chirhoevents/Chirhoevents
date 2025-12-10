@@ -737,7 +737,7 @@ export default function YouthO18ChaperoneForm() {
                     <div>
                       <span className="font-medium">I&apos;ll upload my certificate later</span>
                       <p className="text-sm text-gray-600 mt-1">
-                        You can upload your certificate through the Group Leader Portal after registration
+                        Please send your certificate via email to your group leader so they can upload it on the Group Leader Portal
                       </p>
                     </div>
                   </label>
