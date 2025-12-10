@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
+import { generateLiabilityFormPDF } from '@/lib/pdf/generate-liability-form-pdf'
+import { uploadLiabilityFormPDF } from '@/lib/r2/upload-pdf'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -131,7 +133,31 @@ export async function POST(request: NextRequest) {
         completedByEmail: email,
         completedAt: new Date(),
       },
+      include: {
+        event: true,
+      },
     })
+
+    // Generate PDF
+    let pdfUrl: string | null = null
+    try {
+      const pdfBuffer = await generateLiabilityFormPDF(liabilityForm)
+      pdfUrl = await uploadLiabilityFormPDF(
+        pdfBuffer,
+        liabilityForm.id,
+        liabilityForm.organizationId,
+        liabilityForm.eventId
+      )
+
+      // Update form with PDF URL
+      await prisma.liabilityForm.update({
+        where: { id: liabilityForm.id },
+        data: { pdfUrl },
+      })
+    } catch (pdfError) {
+      console.error('PDF generation error:', pdfError)
+      // Continue even if PDF generation fails
+    }
 
     // Count total forms for progress tracking
     const totalFormsCompleted = await prisma.liabilityForm.count({
@@ -171,6 +197,14 @@ export async function POST(request: NextRequest) {
             <h1 style="color: #1E3A5F; text-align: center;">✅ Form Completed!</h1>
 
             <p>Thank you, ${greeting} ${last_name}, for completing your liability form for <strong>${groupRegistration.event.name}</strong>.</p>
+
+            ${pdfUrl ? `
+              <div style="text-align: center; margin: 20px 0;">
+                <a href="${pdfUrl}" style="display: inline-block; background-color: #10B981; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                  📥 Download PDF Copy
+                </a>
+              </div>
+            ` : ''}
 
             <p style="font-size: 14px; color: #666;">
               A copy has been sent to your group leader at ${groupRegistration.groupLeaderEmail}.
@@ -236,7 +270,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       form_id: liabilityForm.id,
-      pdf_url: null, // Will be implemented in Phase 4
+      pdf_url: pdfUrl,
     })
   } catch (error) {
     console.error('Clergy submit error:', error)
