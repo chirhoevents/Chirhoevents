@@ -382,11 +382,19 @@ model LiabilityForm {
   participantId             String?  @map("participant_id") @db.Uuid
   individualRegistrationId  String?  @map("individual_registration_id") @db.Uuid
   formType                  LiabilityFormType @map("form_type")
+  participantType           ParticipantType? @map("participant_type")
   participantFirstName      String   @map("participant_first_name") @db.VarChar(255)
   participantLastName       String   @map("participant_last_name") @db.VarChar(255)
+  participantPreferredName  String?  @map("participant_preferred_name") @db.VarChar(255)
   participantAge            Int?     @map("participant_age")
   participantGender         Gender?  @map("participant_gender")
   participantEmail          String?  @map("participant_email") @db.VarChar(255)
+  participantPhone          String?  @map("participant_phone") @db.VarChar(20)
+  tShirtSize                String?  @map("t_shirt_size") @db.VarChar(10)
+  clergyTitle               ClergyTitle? @map("clergy_title")
+  dioceseOfIncardination    String?  @map("diocese_of_incardination") @db.VarChar(255)
+  currentAssignment         String?  @map("current_assignment") @db.VarChar(255)
+  facultyInformation        String?  @map("faculty_information") @db.Text
   parentEmail               String?  @map("parent_email") @db.VarChar(255)
   parentToken               String?  @unique @map("parent_token") @db.VarChar(255)
   parentTokenExpiresAt      DateTime? @map("parent_token_expires_at") @db.Timestamptz(6)
