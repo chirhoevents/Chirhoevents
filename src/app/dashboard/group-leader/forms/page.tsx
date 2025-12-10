@@ -19,11 +19,11 @@ type ParticipantType = 'youth_u18' | 'youth_o18' | 'chaperone' | 'priest'
 
 interface ParticipantForm {
   id: string
-  firstName: string
-  lastName: string
-  age: number
-  gender: string
-  participantType: ParticipantType
+  firstName: string | null
+  lastName: string | null
+  age: number | null
+  gender: string | null
+  participantType: ParticipantType | null
   formStatus: FormStatus
   formId?: string
   pdfUrl?: string
@@ -45,6 +45,7 @@ export default function LiabilityFormsPage() {
 
   useEffect(() => {
     filterForms()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [forms, activeFilter])
 
   const fetchForms = async () => {
@@ -71,7 +72,8 @@ export default function LiabilityFormsPage() {
     }
   }
 
-  const getParticipantTypeLabel = (type: ParticipantType): string => {
+  const getParticipantTypeLabel = (type: ParticipantType | null): string => {
+    if (!type) return 'Not Started'
     const labels = {
       youth_u18: 'Youth U18',
       youth_o18: 'Youth 18+',
@@ -301,17 +303,25 @@ export default function LiabilityFormsPage() {
                   <tr key={form.id} className="hover:bg-[#F9FAFB] transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="font-medium text-[#1F2937]">
-                        {form.firstName} {form.lastName}
+                        {form.firstName && form.lastName ? (
+                          `${form.firstName} ${form.lastName}`
+                        ) : (
+                          <span className="text-[#6B7280] italic">Form not started</span>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[#6B7280]">
-                      {form.age}
+                      {form.age || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[#6B7280] capitalize">
-                      {form.gender}
+                      {form.gender || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-[#E8DCC8] text-[#1E3A5F]">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                        form.participantType
+                          ? 'bg-[#E8DCC8] text-[#1E3A5F]'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
                         {getParticipantTypeLabel(form.participantType)}
                       </span>
                     </td>

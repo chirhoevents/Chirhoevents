@@ -54,16 +54,17 @@ export async function GET() {
     })
 
     // Calculate forms status
-    const totalParticipants = groupRegistration.participants.length
+    // Use the totalParticipants from registration (the count entered when registering)
+    // NOT participants.length (which is 0 until forms are submitted)
+    const totalParticipants = groupRegistration.totalParticipants
     const completedForms = groupRegistration.participants.filter(
       p => p.liabilityFormCompleted
     ).length
     const pendingForms = totalParticipants - completedForms
 
     // Calculate certificates status
-    const chaperoneCount = groupRegistration.participants.filter(
-      p => p.participantType === 'chaperone'
-    ).length
+    // Use chaperoneCount from registration, not participants array count
+    const chaperoneCount = groupRegistration.chaperoneCount
 
     const certificatesUploaded = groupRegistration.participants.filter(
       p => p.participantType === 'chaperone' &&
