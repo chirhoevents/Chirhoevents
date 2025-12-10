@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,7 +24,12 @@ import {
   useElements,
 } from '@stripe/react-stripe-js'
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+// Validate Stripe key exists
+const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+if (!stripeKey) {
+  console.error('Missing NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY environment variable')
+}
+const stripePromise = stripeKey ? loadStripe(stripeKey) : null
 
 type PaymentStatus = 'paid_full' | 'paid_partial' | 'deposit_paid' | 'pending' | 'pending_check_payment'
 type PaymentType = 'deposit' | 'balance' | 'late_fee' | 'refund'
@@ -70,25 +74,41 @@ function CheckoutForm({
   const [processing, setProcessing] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
+  // Add useEffect to check Stripe loading status
+  useEffect(() => {
+    if (!stripe) {
+      console.log('Stripe.js has not yet loaded.')
+    } else {
+      console.log('Stripe.js loaded successfully')
+    }
+  }, [stripe])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!stripe || !elements) {
+      setErrorMessage('Payment system not ready. Please wait a moment and try again.')
       return
     }
 
     setProcessing(true)
     setErrorMessage(null)
 
-    const { error } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: `${window.location.origin}/dashboard/group-leader/payments?payment=success`,
-      },
-    })
+    try {
+      const { error } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/dashboard/group-leader/payments?payment=success`,
+        },
+      })
 
-    if (error) {
-      setErrorMessage(error.message || 'An error occurred')
+      if (error) {
+        setErrorMessage(error.message || 'An error occurred')
+        setProcessing(false)
+      }
+    } catch (err) {
+      console.error('Payment error:', err)
+      setErrorMessage('An unexpected error occurred. Please try again.')
       setProcessing(false)
     }
   }
@@ -102,6 +122,12 @@ function CheckoutForm({
         </p>
       </div>
 
+      {!stripe && (
+        <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded">
+          <p className="text-sm text-blue-800">Loading payment system...</p>
+        </div>
+      )}
+
       <PaymentElement />
 
       {errorMessage && (
@@ -114,9 +140,10 @@ function CheckoutForm({
         <Button
           type="submit"
           disabled={!stripe || processing}
-          className="flex-1 bg-[#9C8466] hover:bg-[#8B7355] text-white"
+          className="flex-1 bg-[#9C8466] hover:bg-[#8B7355] text-white disabled:opacity-50 disabled:cursor-not-allowed"
+          title={!stripe ? 'Waiting for payment system to load...' : ''}
         >
-          {processing ? 'Processing...' : `Pay $${amount.toFixed(2)}`}
+          {processing ? 'Processing...' : !stripe ? 'Loading...' : `Pay $${amount.toFixed(2)}`}
         </Button>
         <Button
           type="button"
@@ -133,7 +160,6 @@ function CheckoutForm({
 }
 
 export default function PaymentsPage() {
-  const router = useRouter()
   const [balance, setBalance] = useState<PaymentBalance | null>(null)
   const [payments, setPayments] = useState<PaymentTransaction[]>([])
   const [loading, setLoading] = useState(true)
@@ -490,25 +516,43 @@ export default function PaymentsPage() {
           <h3 className="text-lg font-semibold text-[#1E3A5F] mb-6">
             Complete Payment
           </h3>
-          <Elements
-            stripe={stripePromise}
-            options={{
-              clientSecret,
-              appearance: {
-                theme: 'stripe',
-                variables: {
-                  colorPrimary: '#9C8466',
+          {!stripePromise ? (
+            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+              <p className="text-sm text-red-800 font-medium">
+                Payment system configuration error
+              </p>
+              <p className="text-xs text-red-700 mt-1">
+                Stripe is not properly configured. Please contact support.
+              </p>
+              <Button
+                onClick={handleCancelPayment}
+                variant="outline"
+                className="mt-3 border-red-500 text-red-700"
+              >
+                Go Back
+              </Button>
+            </div>
+          ) : (
+            <Elements
+              stripe={stripePromise}
+              options={{
+                clientSecret,
+                appearance: {
+                  theme: 'stripe',
+                  variables: {
+                    colorPrimary: '#9C8466',
+                  },
                 },
-              },
-            }}
-          >
-            <CheckoutForm
-              clientSecret={clientSecret}
-              amount={parseFloat(paymentAmount)}
-              onSuccess={handlePaymentSuccess}
-              onCancel={handleCancelPayment}
-            />
-          </Elements>
+              }}
+            >
+              <CheckoutForm
+                clientSecret={clientSecret}
+                amount={parseFloat(paymentAmount)}
+                onSuccess={handlePaymentSuccess}
+                onCancel={handleCancelPayment}
+              />
+            </Elements>
+          )}
         </Card>
       )}
 
