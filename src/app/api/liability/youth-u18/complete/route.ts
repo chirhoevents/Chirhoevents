@@ -120,26 +120,14 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Generate PDF
-    let pdfUrl: string | null = null
-    try {
-      const pdfBuffer = await generateLiabilityFormPDF(updatedForm)
-      pdfUrl = await uploadLiabilityFormPDF(
-        pdfBuffer,
-        updatedForm.id,
-        updatedForm.organizationId,
-        updatedForm.eventId
-      )
+    // Generate PDF URL (using API endpoint for now until R2 is set up)
+    const pdfUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/liability/forms/${updatedForm.id}/pdf`
 
-      // Update form with PDF URL
-      await prisma.liabilityForm.update({
-        where: { id: updatedForm.id },
-        data: { pdfUrl },
-      })
-    } catch (pdfError) {
-      console.error('PDF generation error:', pdfError)
-      // Continue even if PDF generation fails
-    }
+    // Update form with PDF URL
+    await prisma.liabilityForm.update({
+      where: { id: updatedForm.id },
+      data: { pdfUrl },
+    })
 
     // Count total forms for this group
     const totalFormsCompleted = await prisma.liabilityForm.count({
