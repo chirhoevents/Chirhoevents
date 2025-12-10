@@ -395,8 +395,8 @@ model LiabilityForm {
   allergies                 String?  @db.Text
   dietaryRestrictions       String?  @map("dietary_restrictions") @db.Text
   adaAccommodations         String?  @map("ada_accommodations") @db.Text
-  emergencyContact1Name     String   @map("emergency_contact_1_name") @db.VarChar(255)
-  emergencyContact1Phone    String   @map("emergency_contact_1_phone") @db.VarChar(20)
+  emergencyContact1Name     String?  @map("emergency_contact_1_name") @db.VarChar(255)
+  emergencyContact1Phone    String?  @map("emergency_contact_1_phone") @db.VarChar(20)
   emergencyContact1Relation String?  @map("emergency_contact_1_relation") @db.VarChar(100)
   emergencyContact2Name     String?  @map("emergency_contact_2_name") @db.VarChar(255)
   emergencyContact2Phone    String?  @map("emergency_contact_2_phone") @db.VarChar(20)
