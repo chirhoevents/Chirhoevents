@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Send reminder emails
-    const emailPromises = participants.map(async (participant) => {
+    const emailPromises = participants.map(async (participant: any) => {
       // For youth U18, send to parent email
       if (participant.participantType === 'youth_u18' && participant.parentEmail) {
         // Get or create liability form

@@ -58,7 +58,7 @@ export async function GET() {
     // NOT participants.length (which is 0 until forms are submitted)
     const totalParticipants = groupRegistration.totalParticipants
     const completedForms = groupRegistration.participants.filter(
-      p => p.liabilityFormCompleted
+      (p: any) => p.liabilityFormCompleted
     ).length
     const pendingForms = totalParticipants - completedForms
 
@@ -67,12 +67,12 @@ export async function GET() {
     const chaperoneCount = groupRegistration.chaperoneCount
 
     const certificatesUploaded = groupRegistration.participants.filter(
-      p => p.participantType === 'chaperone' &&
+      (p: any) => p.participantType === 'chaperone' &&
            (p.safeEnvironmentCertStatus === 'uploaded' || p.safeEnvironmentCertStatus === 'verified')
     ).length
 
     const certificatesVerified = groupRegistration.participants.filter(
-      p => p.participantType === 'chaperone' && p.safeEnvironmentCertStatus === 'verified'
+      (p: any) => p.participantType === 'chaperone' && p.safeEnvironmentCertStatus === 'verified'
     ).length
 
     const certificatesPending = chaperoneCount - certificatesUploaded

@@ -63,7 +63,7 @@ export async function GET() {
             paymentStatus: paymentBalance.paymentStatus,
           }
         : null,
-      payments: payments.map((payment) => ({
+      payments: payments.map((payment: any) => ({
         id: payment.id,
         amount: Number(payment.amount),
         paymentType: payment.paymentType,

@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { amount } = body
+    const { amount, notes } = body
 
     if (!amount || amount <= 0) {
       return NextResponse.json(
@@ -63,6 +63,23 @@ export async function POST(req: NextRequest) {
         eventId: groupRegistration.eventId,
         eventName: groupRegistration.event.name,
         organizationId: groupRegistration.event.organizationId,
+        notes: notes || '',
+      },
+    })
+
+    // Create Payment record in database
+    await prisma.payment.create({
+      data: {
+        organizationId: groupRegistration.event.organizationId,
+        eventId: groupRegistration.eventId,
+        registrationId: groupRegistration.id,
+        registrationType: 'group',
+        amount: amount,
+        paymentType: 'event_fee',
+        paymentMethod: 'credit_card',
+        paymentStatus: 'pending',
+        stripePaymentIntentId: paymentIntent.id,
+        notes: notes || null,
       },
     })
 

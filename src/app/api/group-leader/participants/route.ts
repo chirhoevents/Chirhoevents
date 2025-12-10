@@ -48,7 +48,7 @@ export async function GET() {
     }
 
     // Transform participants data
-    const participants = groupRegistration.participants.map((participant) => {
+    const participants = groupRegistration.participants.map((participant: any) => {
       const latestForm = participant.liabilityForms[0]
 
       return {

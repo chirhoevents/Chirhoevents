@@ -137,6 +137,7 @@ export default function PaymentsPage() {
   const [loading, setLoading] = useState(true)
   const [showPaymentForm, setShowPaymentForm] = useState(false)
   const [paymentAmount, setPaymentAmount] = useState('')
+  const [paymentNotes, setPaymentNotes] = useState('')
   const [clientSecret, setClientSecret] = useState('')
   const [creatingPayment, setCreatingPayment] = useState(false)
 
@@ -187,7 +188,7 @@ export default function PaymentsPage() {
       const response = await fetch('/api/group-leader/payments/create-payment-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount }),
+        body: JSON.stringify({ amount, notes: paymentNotes }),
       })
 
       if (response.ok) {
@@ -209,12 +210,14 @@ export default function PaymentsPage() {
     setShowPaymentForm(false)
     setClientSecret('')
     setPaymentAmount('')
+    setPaymentNotes('')
     fetchPaymentData()
   }
 
   const handleCancelPayment = () => {
     setShowPaymentForm(false)
     setClientSecret('')
+    setPaymentNotes('')
   }
 
   const getPaymentStatusBadge = (status: PaymentStatus) => {
@@ -424,6 +427,23 @@ export default function PaymentsPage() {
                 >
                   Pay Half
                 </Button>
+              </div>
+
+              <div>
+                <Label htmlFor="paymentNotes" className="text-[#1E3A5F]">
+                  Notes (Optional)
+                </Label>
+                <textarea
+                  id="paymentNotes"
+                  value={paymentNotes}
+                  onChange={(e) => setPaymentNotes(e.target.value)}
+                  placeholder="Add a note about this payment (e.g., 'Deposit for 5 participants')"
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9C8466] focus:border-transparent"
+                  rows={2}
+                />
+                <p className="text-xs text-[#6B7280] mt-1">
+                  Add any notes or details about this payment for your records
+                </p>
               </div>
 
               <Button
