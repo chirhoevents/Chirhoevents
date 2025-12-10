@@ -385,7 +385,7 @@ export default function LiabilityFormsPage() {
                               <Download className="h-4 w-4" />
                             </button>
                             <button
-                              onClick={() => handleResendEmail(form.id, form.parentEmail)}
+                              onClick={() => handleResendEmail(form.id, form.parentEmail ?? null)}
                               className="text-[#3B82F6] hover:text-[#2563EB]"
                               title="Resend Email"
                             >
