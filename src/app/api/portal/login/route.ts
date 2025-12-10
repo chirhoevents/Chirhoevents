@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
       eventName: groupRegistration.event.name,
       eventDates,
       totalParticipants: groupRegistration.totalParticipants,
+      priestCount: groupRegistration.priestCount,
       formsCompleted,
       formsPending,
     })

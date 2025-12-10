@@ -8,6 +8,7 @@ interface GroupData {
   groupName: string
   eventName: string
   eventDates: string
+  priestCount: number
 }
 
 export default function PorosRoleSelection() {
@@ -37,6 +38,7 @@ export default function PorosRoleSelection() {
           groupName: data.groupName,
           eventName: data.eventName,
           eventDates: data.eventDates,
+          priestCount: data.priestCount || 0,
         })
       } catch (err) {
         setError('Invalid or expired access code')
@@ -99,8 +101,15 @@ export default function PorosRoleSelection() {
   ]
 
   const handleRoleSelect = (roleType: string) => {
+    // Check if clergy form is allowed
+    if (roleType === 'clergy' && groupData && groupData.priestCount === 0) {
+      setError('Your group registration does not include any clergy members. Please select a different form type.')
+      return
+    }
     router.push(`/poros/${accessCode}/forms/${roleType}/new`)
   }
+
+  const isClergyAllowed = groupData ? groupData.priestCount > 0 : true
 
   if (loading) {
     return (
@@ -171,26 +180,44 @@ export default function PorosRoleSelection() {
 
           {/* Role Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {roles.map((role) => (
-              <button
-                key={role.type}
-                onClick={() => handleRoleSelect(role.type)}
-                className={`${role.bgColor} border-2 ${role.borderColor} ${role.hoverColor} rounded-xl p-8 text-center transition-all duration-200 hover:shadow-lg transform hover:-translate-y-1`}
-              >
-                <div className={`flex justify-center ${role.iconColor} mb-4`}>
-                  {role.icon}
+            {roles.map((role) => {
+              const isClergy = role.type === 'clergy'
+              const isDisabled = isClergy && !isClergyAllowed
+
+              return (
+                <div key={role.type} className="relative">
+                  <button
+                    onClick={() => handleRoleSelect(role.type)}
+                    disabled={isDisabled}
+                    className={`w-full ${role.bgColor} border-2 ${role.borderColor} ${
+                      isDisabled
+                        ? 'opacity-50 cursor-not-allowed'
+                        : `${role.hoverColor} hover:shadow-lg transform hover:-translate-y-1`
+                    } rounded-xl p-8 text-center transition-all duration-200`}
+                  >
+                    <div className={`flex justify-center ${role.iconColor} mb-4`}>
+                      {role.icon}
+                    </div>
+                    <h3 className="text-2xl font-bold text-navy mb-2">{role.title}</h3>
+                    <p className="text-gray-700 font-medium mb-1">{role.description}</p>
+                    <p className="text-sm text-gray-600 mb-6">{role.details}</p>
+                    <div className="flex items-center justify-center text-navy font-medium">
+                      {isDisabled ? 'Not Available' : 'Select'}
+                      {!isDisabled && (
+                        <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                      )}
+                    </div>
+                  </button>
+                  {isDisabled && (
+                    <div className="mt-2 text-sm text-red-600 text-center">
+                      Your group registration does not include clergy
+                    </div>
+                  )}
                 </div>
-                <h3 className="text-2xl font-bold text-navy mb-2">{role.title}</h3>
-                <p className="text-gray-700 font-medium mb-1">{role.description}</p>
-                <p className="text-sm text-gray-600 mb-6">{role.details}</p>
-                <div className="flex items-center justify-center text-navy font-medium">
-                  Select
-                  <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                  </svg>
-                </div>
-              </button>
-            ))}
+              )
+            })}
           </div>
 
           {/* Help Text */}
