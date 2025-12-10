@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -132,6 +133,7 @@ function CheckoutForm({
 }
 
 export default function PaymentsPage() {
+  const router = useRouter()
   const [balance, setBalance] = useState<PaymentBalance | null>(null)
   const [payments, setPayments] = useState<PaymentTransaction[]>([])
   const [loading, setLoading] = useState(true)
@@ -151,10 +153,10 @@ export default function PaymentsPage() {
       setTimeout(() => {
         fetchPaymentData()
       }, 2000)
-      // Remove query param
-      window.history.replaceState({}, '', '/dashboard/group-leader/payments')
+      // Remove query param using Next.js router
+      router.replace('/dashboard/group-leader/payments')
     }
-  }, [])
+  }, [router])
 
   const fetchPaymentData = async () => {
     try {
