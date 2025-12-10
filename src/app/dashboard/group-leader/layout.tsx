@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth, UserButton } from '@clerk/nextjs'
 import Link from 'next/link'
+import Image from 'next/image'
 import {
   LayoutDashboard,
   CreditCard,
@@ -100,8 +101,14 @@ export default function GroupLeaderLayout({
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-6 border-b border-[#2A4A6F]">
-            <Link href="/" className="text-xl font-bold text-white">
-              ChiRho Events
+            <Link href="/" className="flex items-center">
+              <Image
+                src="/light-logo-horizontal.png"
+                alt="ChiRho Events"
+                width={160}
+                height={40}
+                className="h-8 w-auto"
+              />
             </Link>
             <button
               onClick={() => setSidebarOpen(false)}
