@@ -27,8 +27,8 @@ import {
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 type PaymentStatus = 'paid_full' | 'paid_partial' | 'deposit_paid' | 'pending' | 'pending_check_payment'
-type PaymentType = 'deposit' | 'full_payment' | 'additional_payment' | 'late_fee' | 'refund'
-type PaymentMethod = 'stripe_card' | 'stripe_ach' | 'check' | 'cash'
+type PaymentType = 'deposit' | 'balance' | 'late_fee' | 'refund'
+type PaymentMethod = 'card' | 'check' | 'cash'
 
 interface PaymentBalance {
   totalAmountDue: number
@@ -257,10 +257,9 @@ export default function PaymentsPage() {
   }
 
   const getPaymentTypeLabel = (type: PaymentType): string => {
-    const labels = {
+    const labels: Record<PaymentType, string> = {
       deposit: 'Deposit',
-      full_payment: 'Full Payment',
-      additional_payment: 'Payment',
+      balance: 'Balance Payment',
       late_fee: 'Late Fee',
       refund: 'Refund',
     }
@@ -268,9 +267,8 @@ export default function PaymentsPage() {
   }
 
   const getPaymentMethodLabel = (method: PaymentMethod): string => {
-    const labels = {
-      stripe_card: 'Credit/Debit Card',
-      stripe_ach: 'ACH Transfer',
+    const labels: Record<PaymentMethod, string> = {
+      card: 'Credit/Debit Card',
       check: 'Check',
       cash: 'Cash',
     }
