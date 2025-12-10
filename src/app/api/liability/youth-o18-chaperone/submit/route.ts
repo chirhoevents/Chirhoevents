@@ -100,12 +100,31 @@ export async function POST(request: NextRequest) {
       user_agent: request.headers.get('user-agent') || 'unknown',
     }
 
-    // Create liability form
+    // Create Participant record first
+    const participant = await prisma.participant.create({
+      data: {
+        groupRegistrationId: groupRegistration.id,
+        organizationId: groupRegistration.organizationId,
+        firstName: first_name,
+        lastName: last_name,
+        preferredName: preferred_name || null,
+        email: email,
+        age: age,
+        gender: gender,
+        participantType: participant_type,
+        tShirtSize: t_shirt_size,
+        liabilityFormCompleted: true,
+        parentEmail: null, // Not applicable for 18+ participants
+      },
+    })
+
+    // Create liability form linked to the participant
     const liabilityForm = await prisma.liabilityForm.create({
       data: {
         organizationId: groupRegistration.organizationId,
         eventId: groupRegistration.eventId,
         groupRegistrationId: groupRegistration.id,
+        participantId: participant.id,
         formType: 'youth_o18_chaperone',
         participantType: participant_type,
         participantFirstName: first_name,
@@ -150,7 +169,7 @@ export async function POST(request: NextRequest) {
 
       await prisma.safeEnvironmentCertificate.create({
         data: {
-          participantId: liabilityForm.id, // Using liability form ID as placeholder
+          participantId: participant.id,
           liabilityFormId: liabilityForm.id,
           organizationId: groupRegistration.organizationId,
           fileUrl: fileUrl,

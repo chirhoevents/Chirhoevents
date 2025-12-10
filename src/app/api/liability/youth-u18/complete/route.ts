@@ -91,10 +91,29 @@ export async function POST(request: NextRequest) {
       user_agent: request.headers.get('user-agent') || 'unknown',
     }
 
-    // Update liability form with parent's data
+    // Create Participant record first
+    const participant = await prisma.participant.create({
+      data: {
+        groupRegistrationId: liabilityForm.groupRegistrationId!,
+        organizationId: liabilityForm.organizationId,
+        firstName: liabilityForm.participantFirstName,
+        lastName: liabilityForm.participantLastName,
+        preferredName: liabilityForm.participantPreferredName,
+        email: liabilityForm.participantEmail,
+        age: liabilityForm.participantAge!,
+        gender: liabilityForm.participantGender!,
+        participantType: liabilityForm.participantType!,
+        tShirtSize: liabilityForm.tShirtSize,
+        liabilityFormCompleted: true,
+        parentEmail: liabilityForm.parentEmail,
+      },
+    })
+
+    // Update liability form with parent's data and link to participant
     const updatedForm = await prisma.liabilityForm.update({
       where: { id: liabilityForm.id },
       data: {
+        participantId: participant.id,
         medicalConditions: medical_conditions || null,
         medications: medications || null,
         allergies: allergies || null,

@@ -97,14 +97,34 @@ export async function POST(request: NextRequest) {
       user_agent: request.headers.get('user-agent') || 'unknown',
     }
 
-    // Create liability form
+    // Create Participant record first
+    const participant = await prisma.participant.create({
+      data: {
+        groupRegistrationId: groupRegistration.id,
+        organizationId: groupRegistration.organizationId,
+        firstName: first_name,
+        lastName: last_name,
+        preferredName: preferred_name || null,
+        email: email,
+        age: age,
+        gender: 'male' as any, // Default to male for clergy (can be updated if needed)
+        participantType: 'priest',
+        clergyTitle: clergy_title,
+        tShirtSize: t_shirt_size,
+        liabilityFormCompleted: true,
+        parentEmail: null, // Not applicable for clergy
+      },
+    })
+
+    // Create liability form linked to the participant
     const liabilityForm = await prisma.liabilityForm.create({
       data: {
         organizationId: groupRegistration.organizationId,
         eventId: groupRegistration.eventId,
         groupRegistrationId: groupRegistration.id,
+        participantId: participant.id,
         formType: 'clergy',
-        participantType: 'priest' as any, // Using priest as the participant type for clergy
+        participantType: 'priest' as any,
         participantFirstName: first_name,
         participantLastName: last_name,
         participantPreferredName: preferred_name || null,
