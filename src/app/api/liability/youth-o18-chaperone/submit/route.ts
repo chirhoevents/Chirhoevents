@@ -15,6 +15,7 @@ export async function POST(request: NextRequest) {
       first_name,
       last_name,
       preferred_name,
+      date_of_birth,
       age,
       gender,
       email,
@@ -48,12 +49,12 @@ export async function POST(request: NextRequest) {
     } = body
 
     // Validate required fields
-    if (!access_code || !first_name || !last_name || !age || !gender ||
+    if (!access_code || !first_name || !last_name || !date_of_birth || !age || !gender ||
         !email || !phone || !participant_type || !t_shirt_size ||
         !emergency_contact_1_name || !emergency_contact_1_phone ||
         !emergency_contact_1_relation || !insurance_provider ||
         !insurance_policy_number || !signature_full_name ||
-        !signature_initials || !certify_accurate) {
+        !signature_initials || !signature_date || !certify_accurate) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -104,6 +105,7 @@ export async function POST(request: NextRequest) {
       data: {
         organizationId: groupRegistration.organizationId,
         eventId: groupRegistration.eventId,
+        groupRegistrationId: groupRegistration.id,
         formType: 'youth_o18_chaperone',
         participantType: participant_type,
         participantFirstName: first_name,
@@ -173,8 +175,7 @@ export async function POST(request: NextRequest) {
     // Count total forms for progress tracking
     const totalFormsCompleted = await prisma.liabilityForm.count({
       where: {
-        eventId: liabilityForm.eventId,
-        organizationId: liabilityForm.organizationId,
+        groupRegistrationId: groupRegistration.id,
         completed: true,
       },
     })

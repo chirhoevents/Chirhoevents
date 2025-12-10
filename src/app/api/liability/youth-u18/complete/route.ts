@@ -75,12 +75,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Get group registration for group leader email
-    const groupRegistration = await prisma.groupRegistration.findFirst({
-      where: {
-        eventId: liabilityForm.eventId,
-        organizationId: liabilityForm.organizationId,
-      },
-    })
+    const groupRegistration = liabilityForm.groupRegistrationId
+      ? await prisma.groupRegistration.findUnique({
+          where: { id: liabilityForm.groupRegistrationId },
+        })
+      : null
 
     // Build signature data JSON
     const signatureData = {
@@ -130,13 +129,14 @@ export async function POST(request: NextRequest) {
     })
 
     // Count total forms for this group
-    const totalFormsCompleted = await prisma.liabilityForm.count({
-      where: {
-        eventId: liabilityForm.eventId,
-        organizationId: liabilityForm.organizationId,
-        completed: true,
-      },
-    })
+    const totalFormsCompleted = liabilityForm.groupRegistrationId
+      ? await prisma.liabilityForm.count({
+          where: {
+            groupRegistrationId: liabilityForm.groupRegistrationId,
+            completed: true,
+          },
+        })
+      : 0
 
     // Build review link for parent
     const reviewLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/poros/review/${parent_token}`

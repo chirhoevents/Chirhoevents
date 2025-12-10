@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
       first_name,
       last_name,
       preferred_name,
+      date_of_birth,
       age,
       gender,
       t_shirt_size,
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
     } = body
 
     // Validate required fields
-    if (!access_code || !first_name || !last_name || !age || !gender || !t_shirt_size || !parent_email) {
+    if (!access_code || !first_name || !last_name || !date_of_birth || !age || !gender || !t_shirt_size || !parent_email) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -62,12 +63,15 @@ export async function POST(request: NextRequest) {
       data: {
         organizationId: groupRegistration.organizationId,
         eventId: groupRegistration.eventId,
+        groupRegistrationId: groupRegistration.id,
         formType: 'youth_u18',
         participantFirstName: first_name,
         participantLastName: last_name,
+        participantPreferredName: preferred_name || null,
         participantAge: age,
         participantGender: gender,
         participantEmail: null,
+        tShirtSize: t_shirt_size,
         parentEmail: parent_email,
         parentToken: parentToken,
         parentTokenExpiresAt: parentTokenExpiresAt,
