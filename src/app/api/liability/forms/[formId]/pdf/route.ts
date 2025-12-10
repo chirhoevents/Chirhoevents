@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { generateLiabilityFormPDF } from '@/lib/pdf/generate-liability-form-pdf'
-import { uploadLiabilityFormPDF } from '@/lib/r2/upload-pdf'
 
 export async function GET(
   request: NextRequest,
@@ -27,40 +26,28 @@ export async function GET(
       )
     }
 
-    // If PDF already exists, redirect to it
-    if (form.pdfUrl) {
-      return NextResponse.redirect(form.pdfUrl)
-    }
+    // Generate PDF
+    const pdfBuffer = await generateLiabilityFormPDF(form)
 
-    // If no PDF exists, generate on-demand
-    try {
-      const pdfBuffer = await generateLiabilityFormPDF(form)
-      const pdfUrl = await uploadLiabilityFormPDF(
-        pdfBuffer,
-        form.id,
-        form.organizationId,
-        form.eventId
-      )
+    // Create filename
+    const filename = `liability-form-${form.participantFirstName}-${form.participantLastName}-${formId.substring(0, 8)}.pdf`
 
-      // Update database with PDF URL
-      await prisma.liabilityForm.update({
-        where: { id: form.id },
-        data: { pdfUrl },
-      })
+    // Convert Buffer to Uint8Array for Response
+    const uint8Array = new Uint8Array(pdfBuffer)
 
-      // Redirect to the PDF
-      return NextResponse.redirect(pdfUrl)
-    } catch (pdfError) {
-      console.error('PDF generation error:', pdfError)
-      return NextResponse.json(
-        { error: 'Failed to generate PDF' },
-        { status: 500 }
-      )
-    }
+    // Return PDF as downloadable file
+    return new Response(uint8Array, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Length': pdfBuffer.length.toString(),
+      },
+    })
   } catch (error) {
     console.error('PDF download endpoint error:', error)
     return NextResponse.json(
-      { error: 'Failed to retrieve PDF' },
+      { error: 'Failed to generate PDF' },
       { status: 500 }
     )
   }
