@@ -52,7 +52,7 @@ export default function PorosRoleSelection() {
 
   const roles = [
     {
-      type: 'youth_u18',
+      type: 'youth-u18',
       title: 'Youth Under 18',
       description: 'Ages 12-17',
       details: 'Parent consent required',
@@ -67,7 +67,7 @@ export default function PorosRoleSelection() {
       iconColor: 'text-blue-600',
     },
     {
-      type: 'youth_o18_chaperone',
+      type: 'youth-o18-chaperone',
       title: 'Youth 18+ or Chaperone',
       description: 'Ages 18+',
       details: 'Self-completion',
