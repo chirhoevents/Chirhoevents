@@ -31,7 +31,6 @@ interface Participant {
   lastName: string
   preferredName: string | null
   age: number | null
-  dateOfBirth: string | null
   gender: Gender
   participantType: ParticipantType
   email: string | null
@@ -69,6 +68,7 @@ export default function ParticipantsPage() {
 
   useEffect(() => {
     filterParticipants()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [participants, searchTerm, selectedType])
 
   const fetchParticipants = async () => {
