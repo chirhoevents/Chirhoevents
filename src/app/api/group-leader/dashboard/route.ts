@@ -82,7 +82,8 @@ export async function GET() {
     const eventDates = `${startDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`
 
     // Check if payment is overdue
-    const isOverdue = paymentBalance?.paymentStatus === 'overdue' || false
+    // TODO: Calculate based on due date vs current date
+    const isOverdue = false
 
     return NextResponse.json({
       groupId: groupRegistration.id,
