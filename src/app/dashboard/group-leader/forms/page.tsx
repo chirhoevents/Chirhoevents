@@ -124,18 +124,46 @@ export default function LiabilityFormsPage() {
     }
   }
 
-  const handleResendEmail = async (participantId: string, parentEmail: string) => {
+  const handleResendEmail = async (participantId: string, parentEmail: string | null) => {
+    const email = parentEmail || prompt('Enter email address to send the form link:')
+    if (!email) return
+
     try {
       const response = await fetch('/api/group-leader/forms/resend-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ participantId, parentEmail })
+        body: JSON.stringify({ participantId, parentEmail: email })
       })
       if (response.ok) {
         alert('Email sent successfully!')
+      } else {
+        alert('Failed to send email')
       }
     } catch (error) {
       console.error('Error resending email:', error)
+      alert('Error sending email')
+    }
+  }
+
+  const handleDeleteForm = async (participantId: string, participantName: string) => {
+    if (!confirm(`Are you sure you want to delete ${participantName}'s form? This cannot be undone and they will need to fill out the form again.`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/group-leader/forms/${participantId}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        alert('Form deleted successfully. The participant can now fill out a new form.')
+        fetchForms() // Refresh the list
+      } else {
+        alert('Failed to delete form')
+      }
+    } catch (error) {
+      console.error('Error deleting form:', error)
+      alert('Error deleting form')
     }
   }
 
@@ -340,7 +368,7 @@ export default function LiabilityFormsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
-                        {form.formStatus === 'completed' && form.formId && (
+                        {form.formStatus === 'completed' && form.formId && form.firstName && form.lastName && (
                           <>
                             <button
                               onClick={() => setSelectedForm(form)}
@@ -355,6 +383,20 @@ export default function LiabilityFormsPage() {
                               title="Download PDF"
                             >
                               <Download className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleResendEmail(form.id, form.parentEmail)}
+                              className="text-[#3B82F6] hover:text-[#2563EB]"
+                              title="Resend Email"
+                            >
+                              <Mail className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteForm(form.id, `${form.firstName} ${form.lastName}`)}
+                              className="text-red-600 hover:text-red-800"
+                              title="Delete Form"
+                            >
+                              <Trash2 className="h-4 w-4" />
                             </button>
                           </>
                         )}
