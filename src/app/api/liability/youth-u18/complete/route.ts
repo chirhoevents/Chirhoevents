@@ -124,6 +124,9 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Build review link for parent
+    const reviewLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/poros/review/${parent_token}`
+
     // Send confirmation email to parent
     await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
@@ -148,19 +151,21 @@ export async function POST(request: NextRequest) {
 
             <p>Thank you for completing <strong>${liabilityForm.participantFirstName} ${liabilityForm.participantLastName}</strong>'s liability form for <strong>${liabilityForm.event.name}</strong>.</p>
 
-            <div style="background-color: #F3F4F6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h3 style="margin-top: 0; color: #1E3A5F;">Next Steps:</h3>
-              <ul style="margin: 10px 0; padding-left: 20px;">
-                <li>Safe environment certificate (if chaperone)</li>
-                <li>Payment (if not yet completed)</li>
-              </ul>
+            <div style="background-color: #FEF3C7; border-left: 4px solid #F59E0B; padding: 15px; margin: 20px 0;">
+              <p style="margin: 0; color: #92400E;"><strong>Important:</strong> Once submitted, this form cannot be edited. If you believe a mistake was made, please contact your group leader immediately to make the necessary changes.</p>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${reviewLink}" style="display: inline-block; background-color: #1E3A5F; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                📄 Review Your Submitted Form
+              </a>
             </div>
 
             <p style="font-size: 14px; color: #666;">
               A copy has been sent to your group leader at ${groupRegistration?.groupLeaderEmail || 'the group leader'}.
             </p>
 
-            <p>Have a great event!</p>
+            <p style="margin-top: 30px;">Pax Christi,<br><strong>ChiRho Events Team</strong></p>
 
             <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
 
@@ -205,6 +210,8 @@ export async function POST(request: NextRequest) {
               <p style="font-size: 14px; color: #666;">
                 You can view all forms in your group leader portal (coming soon).
               </p>
+
+              <p style="margin-top: 30px;">Pax Christi,<br><strong>ChiRho Events Team</strong></p>
 
               <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
 

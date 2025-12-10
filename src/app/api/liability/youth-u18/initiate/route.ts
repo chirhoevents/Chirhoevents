@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
               If you didn't expect this email, please contact the event organizer at ${groupRegistration.groupLeaderEmail}.
             </p>
 
-            <p>Thank you,<br>ChiRho Events Team</p>
+            <p>Pax Christi,<br><strong>ChiRho Events Team</strong></p>
 
             <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
 
