@@ -14,6 +14,7 @@ export default function ClergyForm() {
     firstName: '',
     lastName: '',
     preferredName: '',
+    dateOfBirth: '',
     age: '',
     email: '',
     phone: '',
@@ -41,6 +42,7 @@ export default function ClergyForm() {
     consentTransportation: false,
     signatureFullName: '',
     signatureInitials: '',
+    signatureDate: '',
     certifyAccurate: false,
   })
 
@@ -104,6 +106,7 @@ export default function ClergyForm() {
           first_name: formData.firstName,
           last_name: formData.lastName,
           preferred_name: formData.preferredName || null,
+          date_of_birth: formData.dateOfBirth,
           age: parseInt(formData.age),
           email: formData.email,
           phone: formData.phone,
@@ -127,7 +130,7 @@ export default function ClergyForm() {
           insurance_group_number: formData.insuranceGroupNumber || null,
           signature_full_name: formData.signatureFullName,
           signature_initials: formData.signatureInitials,
-          signature_date: new Date().toISOString(),
+          signature_date: formData.signatureDate,
           certify_accurate: formData.certifyAccurate,
         }),
       })
@@ -236,10 +239,11 @@ export default function ClergyForm() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
                 >
                   <option value="">Select...</option>
-                  <option value="priest">Priest</option>
+                  <option value="father">Father</option>
                   <option value="deacon">Deacon</option>
-                  <option value="bishop">Bishop</option>
-                  <option value="cardinal">Cardinal</option>
+                  <option value="mr">Mr.</option>
+                  <option value="most_reverend">Most Reverend</option>
+                  <option value="seminarian">Seminarian</option>
                 </select>
               </div>
               <div>
@@ -278,6 +282,19 @@ export default function ClergyForm() {
                   value={formData.preferredName}
                   onChange={handleInputChange}
                   placeholder="e.g., Father John"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Date of Birth <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  name="dateOfBirth"
+                  value={formData.dateOfBirth}
+                  onChange={handleInputChange}
+                  required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
                 />
               </div>
@@ -686,7 +703,7 @@ export default function ClergyForm() {
             </div>
 
             <div className="border-t pt-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Full Legal Name <span className="text-red-500">*</span>
@@ -713,6 +730,19 @@ export default function ClergyForm() {
                     required
                     maxLength={3}
                     placeholder="e.g., JD"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Date <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    name="signatureDate"
+                    value={formData.signatureDate}
+                    onChange={handleInputChange}
+                    required
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
                   />
                 </div>

@@ -13,6 +13,7 @@ export default function YouthU18InitialForm() {
     firstName: '',
     lastName: '',
     preferredName: '',
+    dateOfBirth: '',
     age: '',
     gender: '',
     tShirtSize: '',
@@ -45,6 +46,7 @@ export default function YouthU18InitialForm() {
           first_name: formData.firstName,
           last_name: formData.lastName,
           preferred_name: formData.preferredName || null,
+          date_of_birth: formData.dateOfBirth,
           age: parseInt(formData.age),
           gender: formData.gender,
           t_shirt_size: formData.tShirtSize,
@@ -219,6 +221,19 @@ export default function YouthU18InitialForm() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Date of Birth <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.dateOfBirth}
+                    onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gold focus:border-gold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Age <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -232,7 +247,9 @@ export default function YouthU18InitialForm() {
                   />
                   <p className="text-xs text-gray-500 mt-1">Must be 12-17</p>
                 </div>
+              </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Gender <span className="text-red-500">*</span>

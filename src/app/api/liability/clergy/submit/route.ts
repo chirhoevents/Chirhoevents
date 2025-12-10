@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
       first_name,
       last_name,
       preferred_name,
+      date_of_birth,
       age,
       email,
       phone,
@@ -45,11 +46,11 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!access_code || !clergy_title || !first_name || !last_name ||
-        !age || !email || !phone || !t_shirt_size ||
+        !date_of_birth || !age || !email || !phone || !t_shirt_size ||
         !diocese_of_incardination || !emergency_contact_1_name ||
         !emergency_contact_1_phone || !emergency_contact_1_relation ||
         !insurance_provider || !insurance_policy_number ||
-        !signature_full_name || !signature_initials || !certify_accurate) {
+        !signature_full_name || !signature_initials || !signature_date || !certify_accurate) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate clergy title
-    const validTitles = ['priest', 'deacon', 'bishop', 'cardinal']
+    const validTitles = ['father', 'deacon', 'mr', 'most_reverend', 'seminarian']
     if (!validTitles.includes(clergy_title)) {
       return NextResponse.json(
         { error: 'Invalid clergy title' },
@@ -101,8 +102,9 @@ export async function POST(request: NextRequest) {
       data: {
         organizationId: groupRegistration.organizationId,
         eventId: groupRegistration.eventId,
+        groupRegistrationId: groupRegistration.id,
         formType: 'clergy',
-        participantType: 'clergy' as any, // Cast to avoid type error
+        participantType: 'priest' as any, // Using priest as the participant type for clergy
         participantFirstName: first_name,
         participantLastName: last_name,
         participantPreferredName: preferred_name || null,
@@ -150,17 +152,17 @@ export async function POST(request: NextRequest) {
     // Count total forms for progress tracking
     const totalFormsCompleted = await prisma.liabilityForm.count({
       where: {
-        eventId: liabilityForm.eventId,
-        organizationId: liabilityForm.organizationId,
+        groupRegistrationId: groupRegistration.id,
         completed: true,
       },
     })
 
     // Determine greeting based on clergy title
-    const greeting = clergy_title === 'priest' ? 'Father' :
+    const greeting = clergy_title === 'father' ? 'Father' :
                      clergy_title === 'deacon' ? 'Deacon' :
-                     clergy_title === 'bishop' ? 'Your Excellency' :
-                     clergy_title === 'cardinal' ? 'Your Eminence' : ''
+                     clergy_title === 'mr' ? 'Mr.' :
+                     clergy_title === 'most_reverend' ? 'Most Reverend' :
+                     clergy_title === 'seminarian' ? 'Seminarian' : ''
 
     // Send confirmation email to clergy member
     await resend.emails.send({

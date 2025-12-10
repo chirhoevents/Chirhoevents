@@ -13,6 +13,7 @@ export default function YouthO18ChaperoneForm() {
     firstName: '',
     lastName: '',
     preferredName: '',
+    dateOfBirth: '',
     age: '',
     gender: '',
     email: '',
@@ -43,6 +44,7 @@ export default function YouthO18ChaperoneForm() {
     consentTransportation: false,
     signatureFullName: '',
     signatureInitials: '',
+    signatureDate: '',
     certifyAccurate: false,
   })
 
@@ -148,6 +150,7 @@ export default function YouthO18ChaperoneForm() {
           first_name: formData.firstName,
           last_name: formData.lastName,
           preferred_name: formData.preferredName || null,
+          date_of_birth: formData.dateOfBirth,
           age: parseInt(formData.age),
           gender: formData.gender,
           email: formData.email,
@@ -176,7 +179,7 @@ export default function YouthO18ChaperoneForm() {
           safe_env_cert_upload_later: formData.safeEnvCertOption === 'upload_later',
           signature_full_name: formData.signatureFullName,
           signature_initials: formData.signatureInitials,
-          signature_date: new Date().toISOString(),
+          signature_date: formData.signatureDate,
           certify_accurate: formData.certifyAccurate,
         }),
       })
@@ -308,6 +311,19 @@ export default function YouthO18ChaperoneForm() {
                   name="preferredName"
                   value={formData.preferredName}
                   onChange={handleInputChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Date of Birth <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  name="dateOfBirth"
+                  value={formData.dateOfBirth}
+                  onChange={handleInputChange}
+                  required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
                 />
               </div>
@@ -823,7 +839,7 @@ export default function YouthO18ChaperoneForm() {
             </div>
 
             <div className="border-t pt-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Full Legal Name <span className="text-red-500">*</span>
@@ -850,6 +866,19 @@ export default function YouthO18ChaperoneForm() {
                     required
                     maxLength={3}
                     placeholder="e.g., JD"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Date <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    name="signatureDate"
+                    value={formData.signatureDate}
+                    onChange={handleInputChange}
+                    required
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
                   />
                 </div>

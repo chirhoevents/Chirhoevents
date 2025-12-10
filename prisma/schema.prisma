@@ -232,9 +232,10 @@ model GroupRegistration {
   updatedAt                  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   // Relations
-  event         Event        @relation(fields: [eventId], references: [id])
-  organization  Organization @relation(fields: [organizationId], references: [id])
-  participants  Participant[]
+  event          Event           @relation(fields: [eventId], references: [id])
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  participants   Participant[]
+  liabilityForms LiabilityForm[]
 
   @@index([eventId], name: "idx_group_event")
   @@index([organizationId], name: "idx_group_org")
@@ -379,6 +380,7 @@ model LiabilityForm {
   id                        String   @id @default(uuid()) @db.Uuid
   organizationId            String   @map("organization_id") @db.Uuid
   eventId                   String   @map("event_id") @db.Uuid
+  groupRegistrationId       String?  @map("group_registration_id") @db.Uuid
   participantId             String?  @map("participant_id") @db.Uuid
   individualRegistrationId  String?  @map("individual_registration_id") @db.Uuid
   formType                  LiabilityFormType @map("form_type")
@@ -421,14 +423,16 @@ model LiabilityForm {
   updatedAt                 DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   // Relations
-  organization          Organization @relation(fields: [organizationId], references: [id])
-  event                 Event        @relation(fields: [eventId], references: [id])
-  participant           Participant? @relation(fields: [participantId], references: [id])
+  organization           Organization            @relation(fields: [organizationId], references: [id])
+  event                  Event                   @relation(fields: [eventId], references: [id])
+  groupRegistration      GroupRegistration?      @relation(fields: [groupRegistrationId], references: [id])
+  participant            Participant?            @relation(fields: [participantId], references: [id])
   individualRegistration IndividualRegistration? @relation(fields: [individualRegistrationId], references: [id])
   safeEnvironmentCertificates SafeEnvironmentCertificate[]
 
   @@index([organizationId], name: "idx_liability_org")
   @@index([eventId], name: "idx_liability_event")
+  @@index([groupRegistrationId], name: "idx_liability_group")
   @@index([participantId], name: "idx_liability_participant")
   @@index([parentToken], name: "idx_liability_parent_token")
   @@map("liability_forms")
@@ -565,10 +569,11 @@ enum ParticipantType {
 }
 
 enum ClergyTitle {
-  priest
+  father
   deacon
-  bishop
-  cardinal
+  mr
+  most_reverend
+  seminarian
 }
 
 enum SafeEnvironmentStatus {
