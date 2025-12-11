@@ -428,11 +428,12 @@ export default function GroupLeaderDashboard() {
             </Button>
 
             <Button
+              onClick={() => window.print()}
               variant="outline"
               className="w-full border-[#1E3A5F] text-[#1E3A5F]"
             >
               <Download className="h-4 w-4 mr-2" />
-              Download Invoice
+              Download Current Information
             </Button>
           </div>
         </Card>
