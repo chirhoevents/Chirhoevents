@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
+import Link from 'next/link'
 
 interface GroupInfo {
   groupName: string
@@ -74,13 +75,15 @@ export default function PorosLandingPage() {
       {/* Header with Logo */}
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-center">
-          <Image
-            src="/Poros logo.png"
-            alt="Poros - ChiRho Events"
-            width={400}
-            height={120}
-            className="h-20 md:h-28 w-auto"
-          />
+          <Link href="/">
+            <Image
+              src="/Poros logo.png"
+              alt="Poros - ChiRho Events"
+              width={400}
+              height={120}
+              className="h-20 md:h-28 w-auto cursor-pointer hover:opacity-90 transition-opacity"
+            />
+          </Link>
         </div>
       </div>
 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
+import Link from 'next/link'
 
 interface GroupData {
   groupName: string
@@ -150,13 +151,15 @@ export default function PorosRoleSelection() {
       <div className="bg-navy py-6 shadow-md">
         <div className="container mx-auto px-4">
           <div className="flex justify-center">
-            <Image
-              src="/Poros logo.png"
-              alt="Poros - ChiRho Events"
-              width={350}
-              height={105}
-              className="h-16 md:h-20 w-auto"
-            />
+            <Link href="/poros">
+              <Image
+                src="/Poros logo.png"
+                alt="Poros - ChiRho Events"
+                width={350}
+                height={105}
+                className="h-16 md:h-20 w-auto cursor-pointer hover:opacity-90 transition-opacity"
+              />
+            </Link>
           </div>
         </div>
       </div>

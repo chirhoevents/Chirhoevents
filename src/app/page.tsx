@@ -1,3 +1,6 @@
+'use client'
+
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -6,6 +9,17 @@ import Link from "next/link";
 import Image from "next/image";
 
 export default function LandingPage() {
+  const [contactFormSubmitted, setContactFormSubmitted] = useState(false);
+
+  const handleContactSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // TODO: Integrate with actual contact form API
+    setContactFormSubmitted(true);
+    setTimeout(() => {
+      setContactFormSubmitted(false);
+    }, 5000);
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Navigation */}
@@ -476,68 +490,84 @@ export default function LandingPage() {
             </h2>
             <Card>
               <CardContent className="p-8">
-                <form className="space-y-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-navy mb-2">Name *</label>
-                      <input
-                        type="text"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
-                        required
-                      />
+                {contactFormSubmitted ? (
+                  <div className="text-center py-12">
+                    <Check className="h-16 w-16 text-green-600 mx-auto mb-4" />
+                    <h3 className="text-2xl font-bold text-navy mb-2">Thank You!</h3>
+                    <p className="text-gray-600">
+                      We&apos;ve received your message and will get back to you within 24 hours.
+                    </p>
+                    <Button
+                      onClick={() => setContactFormSubmitted(false)}
+                      className="mt-6"
+                    >
+                      Submit Another
+                    </Button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleContactSubmit} className="space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-navy mb-2">Name *</label>
+                        <input
+                          type="text"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-navy mb-2">Email *</label>
+                        <input
+                          type="email"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-navy mb-2">Phone *</label>
+                        <input
+                          type="tel"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-navy mb-2">Organization *</label>
+                        <input
+                          type="text"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                          required
+                        />
+                      </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-navy mb-2">Email *</label>
-                      <input
-                        type="email"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-navy mb-2">Phone *</label>
-                      <input
-                        type="tel"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
-                        required
-                      />
+                      <label className="block text-sm font-medium text-navy mb-2">What do you need? *</label>
+                      <select className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold" required>
+                        <option value="">Select...</option>
+                        <option value="diocesan">Diocesan retreat</option>
+                        <option value="conference">Large conference (1,000+)</option>
+                        <option value="parish">Parish event</option>
+                        <option value="seminary">Seminary program</option>
+                        <option value="other">Other</option>
+                      </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-navy mb-2">Organization *</label>
-                      <input
-                        type="text"
+                      <label className="block text-sm font-medium text-navy mb-2">Message</label>
+                      <textarea
+                        rows={4}
                         className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
-                        required
-                      />
+                      ></textarea>
                     </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-navy mb-2">What do you need? *</label>
-                    <select className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold" required>
-                      <option value="">Select...</option>
-                      <option value="diocesan">Diocesan retreat</option>
-                      <option value="conference">Large conference (1,000+)</option>
-                      <option value="parish">Parish event</option>
-                      <option value="seminary">Seminary program</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-navy mb-2">Message</label>
-                    <textarea
-                      rows={4}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
-                    ></textarea>
-                  </div>
-                  <Button type="submit" size="lg" className="w-full">
-                    Get Started
-                  </Button>
-                  <p className="text-center text-sm text-gray-600">
-                    Or email us at <a href="mailto:hello@chirhoevents.com" className="text-gold hover:underline">hello@chirhoevents.com</a>
-                  </p>
-                </form>
+                    <Button type="submit" size="lg" className="w-full">
+                      Get Started
+                    </Button>
+                    <p className="text-center text-sm text-gray-600">
+                      Or email us at <a href="mailto:hello@chirhoevents.com" className="text-gold hover:underline">hello@chirhoevents.com</a>
+                    </p>
+                  </form>
+                )}
               </CardContent>
             </Card>
           </div>

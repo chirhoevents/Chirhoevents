@@ -2,83 +2,85 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth, UserButton, useClerk } from '@clerk/nextjs'
+import { UserButton, useClerk } from '@clerk/nextjs'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
   LayoutDashboard,
-  CreditCard,
-  FileText,
+  Calendar,
   Users,
-  Shield,
+  Home,
+  CheckSquare,
+  Activity,
+  BarChart3,
   Settings,
   Menu,
   X,
   LogOut
 } from 'lucide-react'
 
-interface GroupInfo {
-  groupName: string
-  eventName: string
+interface OrgInfo {
+  organizationName: string
+  userRole: string
 }
 
-export default function GroupLeaderLayout({
+export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   const router = useRouter()
-  const { userId } = useAuth()
   const { signOut } = useClerk()
-  const [groupInfo, setGroupInfo] = useState<GroupInfo | null>(null)
+  const [orgInfo, setOrgInfo] = useState<OrgInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
     const checkAccess = async () => {
       try {
-        const response = await fetch('/api/group-leader/dashboard')
+        const response = await fetch('/api/admin/check-access')
 
-        if (response.status === 404) {
-          // No linked registration - redirect to link page
-          router.push('/dashboard/group-leader/link-access-code')
+        if (response.status === 403) {
+          // Not an admin - redirect appropriately
+          router.push('/dashboard/group-leader')
           return
         }
 
         if (!response.ok) {
-          throw new Error('Failed to fetch dashboard data')
+          throw new Error('Failed to verify admin access')
         }
 
         const data = await response.json()
-        setGroupInfo({
-          groupName: data.groupName,
-          eventName: data.eventName,
+        setOrgInfo({
+          organizationName: data.organizationName,
+          userRole: data.userRole,
         })
       } catch (error) {
         console.error('Error:', error)
+        router.push('/')
       } finally {
         setLoading(false)
       }
     }
 
-    if (userId) {
-      checkAccess()
-    }
-  }, [userId, router])
+    checkAccess()
+  }, [router])
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard/group-leader', icon: LayoutDashboard },
-    { name: 'Payments', href: '/dashboard/group-leader/payments', icon: CreditCard },
-    { name: 'Liability Forms', href: '/dashboard/group-leader/forms', icon: FileText },
-    { name: 'Participants', href: '/dashboard/group-leader/participants', icon: Users },
-    { name: 'Certificates', href: '/dashboard/group-leader/certificates', icon: Shield },
-    { name: 'Settings', href: '/dashboard/group-leader/settings', icon: Settings },
+    { name: 'Dashboard', href: '/dashboard/admin', icon: LayoutDashboard },
+    { name: 'Events', href: '/dashboard/admin/events', icon: Calendar },
+    { name: 'Registrations', href: '/dashboard/admin/registrations', icon: Users },
+    { name: 'Poros Portal', href: '/dashboard/admin/poros', icon: Home },
+    { name: 'SALVE Check-In', href: '/dashboard/admin/salve', icon: CheckSquare },
+    { name: 'Rapha Medical', href: '/dashboard/admin/rapha', icon: Activity },
+    { name: 'Reports', href: '/dashboard/admin/reports', icon: BarChart3 },
+    { name: 'Settings', href: '/dashboard/admin/settings', icon: Settings },
   ]
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F5F1E8]">
-        <div className="text-[#1E3A5F]">Loading...</div>
+        <div className="text-[#1E3A5F]">Loading admin portal...</div>
       </div>
     )
   }
@@ -102,7 +104,7 @@ export default function GroupLeaderLayout({
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between h-20 lg:h-24 px-6 border-b border-[#2A4A6F]">
-            <Link href="/dashboard/group-leader" className="flex items-center">
+            <Link href="/dashboard/admin" className="flex items-center">
               <Image
                 src="/light-logo-horizontal.png"
                 alt="ChiRho Events"
@@ -119,16 +121,15 @@ export default function GroupLeaderLayout({
             </button>
           </div>
 
-          {/* Event & Group Info */}
-          {groupInfo && (
+          {/* Organization Info */}
+          {orgInfo && (
             <div className="px-6 py-4 border-b border-[#2A4A6F]">
-              <p className="text-xs text-[#E8DCC8] mb-1">Event</p>
+              <p className="text-xs text-[#E8DCC8] mb-1">Organization</p>
               <p className="text-sm font-medium text-white truncate">
-                {groupInfo.eventName}
+                {orgInfo.organizationName}
               </p>
-              <p className="text-xs text-[#E8DCC8] mt-2 mb-1">Group</p>
-              <p className="text-sm font-medium text-white truncate">
-                {groupInfo.groupName}
+              <p className="text-xs text-[#9C8466] mt-1 capitalize">
+                {orgInfo.userRole.replace('_', ' ')}
               </p>
             </div>
           )}
@@ -156,8 +157,9 @@ export default function GroupLeaderLayout({
                 <p className="text-sm font-medium text-white">Account</p>
                 <button
                   onClick={() => signOut()}
-                  className="text-xs text-[#E8DCC8] hover:text-white cursor-pointer"
+                  className="text-xs text-[#E8DCC8] hover:text-white cursor-pointer flex items-center gap-1"
                 >
+                  <LogOut className="h-3 w-3" />
                   Sign out
                 </button>
               </div>
@@ -178,12 +180,14 @@ export default function GroupLeaderLayout({
               <Menu className="h-6 w-6" />
             </button>
 
-            {groupInfo && (
+            {orgInfo && (
               <div className="hidden lg:block">
                 <h2 className="text-lg font-semibold text-[#1E3A5F]">
-                  {groupInfo.eventName}
+                  {orgInfo.organizationName}
                 </h2>
-                <p className="text-sm text-[#6B7280]">{groupInfo.groupName}</p>
+                <p className="text-sm text-[#6B7280] capitalize">
+                  {orgInfo.userRole.replace('_', ' ')} Portal
+                </p>
               </div>
             )}
 
