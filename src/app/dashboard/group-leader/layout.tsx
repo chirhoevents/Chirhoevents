@@ -102,13 +102,13 @@ export default function GroupLeaderLayout({
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between h-20 lg:h-24 px-6 border-b border-[#2A4A6F]">
-            <Link href="/" className="flex items-center">
+            <Link href="/dashboard/group-leader" className="flex items-center">
               <Image
                 src="/light-logo-horizontal.png"
                 alt="ChiRho Events"
                 width={200}
                 height={50}
-                className="h-10 lg:h-14 w-auto"
+                className="h-10 lg:h-14 w-auto hover:opacity-90 transition-opacity cursor-pointer"
               />
             </Link>
             <button

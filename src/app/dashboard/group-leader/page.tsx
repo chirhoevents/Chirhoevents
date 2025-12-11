@@ -410,22 +410,24 @@ export default function GroupLeaderDashboard() {
               </Button>
             </div>
 
-            <Link href="/dashboard/group-leader/settings">
+            <Button
+              variant="outline"
+              className="w-full border-[#1E3A5F] text-[#1E3A5F]"
+              disabled
+              title="Coming soon"
+            >
+              Edit Registration Details
+            </Button>
+
+            <a href="mailto:support@chirhoevents.com?subject=Event Question">
               <Button
                 variant="outline"
                 className="w-full border-[#1E3A5F] text-[#1E3A5F]"
               >
-                Edit Registration Details
+                <Mail className="h-4 w-4 mr-2" />
+                Contact Event Organizers
               </Button>
-            </Link>
-
-            <Button
-              variant="outline"
-              className="w-full border-[#1E3A5F] text-[#1E3A5F]"
-            >
-              <Mail className="h-4 w-4 mr-2" />
-              Contact Event Organizers
-            </Button>
+            </a>
 
             <Button
               onClick={() => window.print()}
