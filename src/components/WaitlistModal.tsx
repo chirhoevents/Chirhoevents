@@ -102,10 +102,10 @@ export default function WaitlistModal({
           <div className="text-center py-8">
             <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
             <DialogTitle className="text-2xl font-bold text-[#1E3A5F] mb-2">
-              You're on the Waitlist!
+              You&apos;re on the Waitlist!
             </DialogTitle>
             <DialogDescription className="text-base">
-              We'll notify you via email if a spot becomes available for {eventName}.
+              We&apos;ll notify you via email if a spot becomes available for {eventName}.
             </DialogDescription>
           </div>
         ) : (
@@ -115,7 +115,7 @@ export default function WaitlistModal({
                 Join Waitlist
               </DialogTitle>
               <DialogDescription>
-                Enter your information below and we'll contact you if a spot opens up
+                Enter your information below and we&apos;ll contact you if a spot opens up
                 for {eventName}.
               </DialogDescription>
             </DialogHeader>
