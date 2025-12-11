@@ -373,6 +373,19 @@ export default function PaymentsPage() {
             </div>
           </div>
 
+          {/* Download Invoice Button */}
+          <div className="mb-6">
+            <Button
+              onClick={() => window.print()}
+              variant="outline"
+              size="sm"
+              className="w-full border-[#9C8466] text-[#9C8466] hover:bg-[#9C8466] hover:text-white"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Download Payment Invoice
+            </Button>
+          </div>
+
           {balance.lateFeesApplied > 0 && (
             <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded">
               <div className="flex items-center">
