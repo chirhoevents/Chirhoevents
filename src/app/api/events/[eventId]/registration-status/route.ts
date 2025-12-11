@@ -4,14 +4,17 @@ import { getRegistrationStatus, getSpotsRemainingMessage } from '@/lib/registrat
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventSlug: string } }
+  { params }: { params: { eventId: string } }
 ) {
   try {
-    const { eventSlug } = params
+    const { eventId } = params
+
+    // Check if eventId is a UUID (id) or a slug
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId)
 
     // Fetch event
     const event = await prisma.event.findUnique({
-      where: { slug: eventSlug },
+      where: isUuid ? { id: eventId } : { slug: eventId },
       select: {
         id: true,
         name: true,

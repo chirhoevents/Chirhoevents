@@ -8,16 +8,19 @@ import EventLandingClient from './EventLandingClient'
 
 interface EventPageProps {
   params: {
-    eventSlug: string
+    eventId: string
   }
 }
 
 export default async function EventLandingPage({ params }: EventPageProps) {
-  const { eventSlug } = params
+  const { eventId } = params
 
-  // Fetch event with all related data
+  // Check if eventId is a UUID (id) or a slug
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId)
+
+  // Fetch event with all related data - try by id first, then by slug
   const event = await prisma.event.findUnique({
-    where: { slug: eventSlug },
+    where: isUuid ? { id: eventId } : { slug: eventId },
     include: {
       organization: true,
       settings: true,
