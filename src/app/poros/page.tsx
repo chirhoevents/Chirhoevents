@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 
 interface GroupInfo {
@@ -13,10 +13,19 @@ interface GroupInfo {
 
 export default function PorosLandingPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [accessCode, setAccessCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [groupInfo, setGroupInfo] = useState<GroupInfo | null>(null)
+
+  // Auto-fill access code from URL if provided
+  useEffect(() => {
+    const codeFromUrl = searchParams.get('code')
+    if (codeFromUrl) {
+      setAccessCode(codeFromUrl.toUpperCase())
+    }
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

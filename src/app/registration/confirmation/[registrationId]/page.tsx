@@ -177,7 +177,12 @@ export default function ConfirmationPage() {
                       Each participant must complete their liability form. Under 18? Parents will receive an email.
                       Over 18? They can complete it themselves.
                     </p>
-                    <Button variant="outline" className="mt-2" size="sm">
+                    <Button
+                      variant="outline"
+                      className="mt-2"
+                      size="sm"
+                      onClick={() => window.open(`/poros?code=${registration.accessCode}`, '_blank')}
+                    >
                       Start Liability Forms
                     </Button>
                   </div>
@@ -232,7 +237,7 @@ export default function ConfirmationPage() {
               <Download className="mr-2 h-4 w-4" />
               Download Receipt
             </Button>
-            <Button size="lg">
+            <Button size="lg" onClick={() => window.location.href = '/sign-in'}>
               Access Group Portal
             </Button>
           </div>

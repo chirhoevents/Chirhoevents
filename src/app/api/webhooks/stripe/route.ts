@@ -67,14 +67,28 @@ export async function POST(request: NextRequest) {
         select: { amount: true },
       })
 
+      console.log('💰 Payment record found:', paymentRecord ? `Amount: $${paymentRecord.amount}` : 'NOT FOUND')
+
       if (paymentRecord) {
         const balance = await prisma.paymentBalance.findUnique({
           where: { registrationId: registrationId },
         })
 
+        console.log('📊 Current balance:', balance ? {
+          totalDue: Number(balance.totalAmountDue),
+          paid: Number(balance.amountPaid),
+          remaining: Number(balance.amountRemaining)
+        } : 'NOT FOUND')
+
         if (balance) {
           const newAmountPaid = Number(balance.amountPaid) + Number(paymentRecord.amount)
           const newAmountRemaining = Number(balance.totalAmountDue) - newAmountPaid
+
+          console.log('🔄 Updating balance:', {
+            newAmountPaid,
+            newAmountRemaining,
+            status: newAmountRemaining <= 0 ? 'paid_full' : 'partial'
+          })
 
           await prisma.paymentBalance.update({
             where: { registrationId: registrationId },
@@ -85,7 +99,13 @@ export async function POST(request: NextRequest) {
               paymentStatus: newAmountRemaining <= 0 ? 'paid_full' : 'partial',
             },
           })
+
+          console.log('✅ Balance updated successfully')
+        } else {
+          console.error('❌ PaymentBalance not found for registration:', registrationId)
         }
+      } else {
+        console.error('❌ Payment record not found for payment intent:', paymentIntent.id)
       }
 
       // Update registration status if group registration

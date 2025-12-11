@@ -31,7 +31,9 @@ export default function LandingPage() {
               <a href="#contact" className="text-navy hover:text-gold transition-colors font-medium">Contact</a>
             </div>
             <div className="flex items-center space-x-4">
-              <Button variant="outline" size="sm">Sign In</Button>
+              <Link href="/sign-in">
+                <Button variant="outline" size="sm">Sign In</Button>
+              </Link>
               <a href="#contact">
                 <Button size="sm">Get Started</Button>
               </a>

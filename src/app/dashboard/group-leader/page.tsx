@@ -390,14 +390,25 @@ export default function GroupLeaderDashboard() {
           </div>
 
           <div className="space-y-3">
-            <Button
-              onClick={copyAccessCode}
-              variant="outline"
-              className="w-full border-[#1E3A5F] text-[#1E3A5F]"
-            >
-              <Share2 className="h-4 w-4 mr-2" />
-              Share Access Code
-            </Button>
+            <div>
+              <Button
+                onClick={copyAccessCode}
+                variant="outline"
+                className="w-full border-[#1E3A5F] text-[#1E3A5F]"
+              >
+                {copySuccess ? (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                    Copied to Clipboard!
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Share Access Code
+                  </>
+                )}
+              </Button>
+            </div>
 
             <Link href="/dashboard/group-leader/settings">
               <Button

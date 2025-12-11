@@ -9,6 +9,7 @@ export default function SignInPage() {
           <p className="text-[#E8DCC8]">Sign in to your ChiRho Events account</p>
         </div>
         <SignIn
+          afterSignInUrl="/dashboard/group-leader"
           appearance={{
             elements: {
               rootBox: "mx-auto",
