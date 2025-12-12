@@ -640,14 +640,1029 @@ export default function CreateEventClient({
             </>
           )}
 
-          {/* Placeholder for remaining steps - I'll add these next */}
-          {currentStep > 2 && currentStep < 7 && (
-            <div className="py-12 text-center text-gray-500">
-              <p>Step {currentStep} content coming soon...</p>
-              <p className="text-sm mt-2">
-                (Building this step - use Next button to continue)
-              </p>
-            </div>
+          {/* Step 3: Pricing */}
+          {currentStep === 3 && (
+            <>
+              <div className="space-y-6">
+                {/* Youth Pricing */}
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-blue-900 mb-3">
+                    Youth Pricing
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="youthEarlyBirdPrice">
+                        Early Bird Price
+                      </Label>
+                      <div className="relative mt-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                          $
+                        </span>
+                        <Input
+                          id="youthEarlyBirdPrice"
+                          type="number"
+                          value={formData.youthEarlyBirdPrice}
+                          onChange={(e) =>
+                            updateFormData({
+                              youthEarlyBirdPrice: e.target.value,
+                            })
+                          }
+                          placeholder="90"
+                          className="pl-7"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="youthRegularPrice">
+                        Regular Price <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative mt-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                          $
+                        </span>
+                        <Input
+                          id="youthRegularPrice"
+                          type="number"
+                          value={formData.youthRegularPrice}
+                          onChange={(e) =>
+                            updateFormData({
+                              youthRegularPrice: e.target.value,
+                            })
+                          }
+                          placeholder="100"
+                          className="pl-7"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="youthLatePrice">Late Price</Label>
+                      <div className="relative mt-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                          $
+                        </span>
+                        <Input
+                          id="youthLatePrice"
+                          type="number"
+                          value={formData.youthLatePrice}
+                          onChange={(e) =>
+                            updateFormData({ youthLatePrice: e.target.value })
+                          }
+                          placeholder="120"
+                          className="pl-7"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Chaperone Pricing */}
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-green-900 mb-3">
+                    Chaperone Pricing
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="chaperoneEarlyBirdPrice">
+                        Early Bird Price
+                      </Label>
+                      <div className="relative mt-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                          $
+                        </span>
+                        <Input
+                          id="chaperoneEarlyBirdPrice"
+                          type="number"
+                          value={formData.chaperoneEarlyBirdPrice}
+                          onChange={(e) =>
+                            updateFormData({
+                              chaperoneEarlyBirdPrice: e.target.value,
+                            })
+                          }
+                          placeholder="65"
+                          className="pl-7"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="chaperoneRegularPrice">
+                        Regular Price <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative mt-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                          $
+                        </span>
+                        <Input
+                          id="chaperoneRegularPrice"
+                          type="number"
+                          value={formData.chaperoneRegularPrice}
+                          onChange={(e) =>
+                            updateFormData({
+                              chaperoneRegularPrice: e.target.value,
+                            })
+                          }
+                          placeholder="75"
+                          className="pl-7"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="chaperoneLatePrice">Late Price</Label>
+                      <div className="relative mt-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                          $
+                        </span>
+                        <Input
+                          id="chaperoneLatePrice"
+                          type="number"
+                          value={formData.chaperoneLatePrice}
+                          onChange={(e) =>
+                            updateFormData({
+                              chaperoneLatePrice: e.target.value,
+                            })
+                          }
+                          placeholder="90"
+                          className="pl-7"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Clergy Pricing */}
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-purple-900 mb-3">
+                    Clergy Pricing
+                  </h3>
+                  <div className="max-w-xs">
+                    <Label htmlFor="priestPrice">Priest/Deacon Price</Label>
+                    <div className="relative mt-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                        $
+                      </span>
+                      <Input
+                        id="priestPrice"
+                        type="number"
+                        value={formData.priestPrice}
+                        onChange={(e) =>
+                          updateFormData({ priestPrice: e.target.value })
+                        }
+                        placeholder="0"
+                        className="pl-7"
+                      />
+                    </div>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Typically free ($0) for clergy
+                    </p>
+                  </div>
+                </div>
+
+                {/* Housing Type Pricing */}
+                <div className="bg-amber-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-amber-900 mb-3">
+                    Housing Type Pricing (Optional)
+                  </h3>
+                  <p className="text-sm text-amber-800 mb-4">
+                    Set different prices for on-campus, off-campus, and day pass
+                    options
+                  </p>
+
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="offCampusYouthPrice">
+                          Off-Campus Youth Price
+                        </Label>
+                        <div className="relative mt-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                            $
+                          </span>
+                          <Input
+                            id="offCampusYouthPrice"
+                            type="number"
+                            value={formData.offCampusYouthPrice}
+                            onChange={(e) =>
+                              updateFormData({
+                                offCampusYouthPrice: e.target.value,
+                              })
+                            }
+                            placeholder="75"
+                            className="pl-7"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="dayPassYouthPrice">
+                          Day Pass Youth Price
+                        </Label>
+                        <div className="relative mt-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                            $
+                          </span>
+                          <Input
+                            id="dayPassYouthPrice"
+                            type="number"
+                            value={formData.dayPassYouthPrice}
+                            onChange={(e) =>
+                              updateFormData({
+                                dayPassYouthPrice: e.target.value,
+                              })
+                            }
+                            placeholder="50"
+                            className="pl-7"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="offCampusChaperonePrice">
+                          Off-Campus Chaperone Price
+                        </Label>
+                        <div className="relative mt-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                            $
+                          </span>
+                          <Input
+                            id="offCampusChaperonePrice"
+                            type="number"
+                            value={formData.offCampusChaperonePrice}
+                            onChange={(e) =>
+                              updateFormData({
+                                offCampusChaperonePrice: e.target.value,
+                              })
+                            }
+                            placeholder="50"
+                            className="pl-7"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="dayPassChaperonePrice">
+                          Day Pass Chaperone Price
+                        </Label>
+                        <div className="relative mt-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                            $
+                          </span>
+                          <Input
+                            id="dayPassChaperonePrice"
+                            type="number"
+                            value={formData.dayPassChaperonePrice}
+                            onChange={(e) =>
+                              updateFormData({
+                                dayPassChaperonePrice: e.target.value,
+                              })
+                            }
+                            placeholder="25"
+                            className="pl-7"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Deposit Settings */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-gray-900 mb-3">
+                    Deposit Settings
+                  </h3>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="radio"
+                        id="depositPercentage"
+                        name="depositType"
+                        value="percentage"
+                        checked={formData.depositType === 'percentage'}
+                        onChange={(e) =>
+                          updateFormData({ depositType: 'percentage' })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F]"
+                      />
+                      <Label htmlFor="depositPercentage" className="mb-0">
+                        Percentage-based deposit:
+                      </Label>
+                      <Input
+                        type="number"
+                        value={formData.depositPercentage}
+                        onChange={(e) =>
+                          updateFormData({ depositPercentage: e.target.value })
+                        }
+                        placeholder="25"
+                        className="w-20"
+                        disabled={formData.depositType !== 'percentage'}
+                      />
+                      <span className="text-gray-600">%</span>
+                    </div>
+
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="radio"
+                        id="depositFixed"
+                        name="depositType"
+                        value="fixed"
+                        checked={formData.depositType === 'fixed'}
+                        onChange={(e) =>
+                          updateFormData({ depositType: 'fixed' })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F]"
+                      />
+                      <Label htmlFor="depositFixed" className="mb-0">
+                        Fixed deposit amount: $
+                      </Label>
+                      <Input
+                        type="number"
+                        value={formData.depositAmount}
+                        onChange={(e) =>
+                          updateFormData({ depositAmount: e.target.value })
+                        }
+                        placeholder="500"
+                        className="w-32"
+                        disabled={formData.depositType !== 'fixed'}
+                      />
+                    </div>
+
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="radio"
+                        id="depositFull"
+                        name="depositType"
+                        value="full"
+                        checked={formData.depositType === 'full'}
+                        onChange={(e) =>
+                          updateFormData({ depositType: 'full' })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F]"
+                      />
+                      <Label htmlFor="depositFull" className="mb-0">
+                        Full payment required (no deposit)
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="radio"
+                        id="depositNone"
+                        name="depositType"
+                        value="none"
+                        checked={formData.depositType === 'none'}
+                        onChange={(e) =>
+                          updateFormData({ depositType: 'none' })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F]"
+                      />
+                      <Label htmlFor="depositNone" className="mb-0">
+                        No deposit required (pay later)
+                      </Label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Step 4: Features & Modules */}
+          {currentStep === 4 && (
+            <>
+              <div className="space-y-6">
+                {/* Registration Types */}
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-blue-900 mb-3">
+                    Registration Types
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="groupRegistrationEnabled"
+                        checked={formData.groupRegistrationEnabled}
+                        onChange={(e) =>
+                          updateFormData({
+                            groupRegistrationEnabled: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label
+                        htmlFor="groupRegistrationEnabled"
+                        className="mb-0"
+                      >
+                        Enable Group Registration
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="individualRegistrationEnabled"
+                        checked={formData.individualRegistrationEnabled}
+                        onChange={(e) =>
+                          updateFormData({
+                            individualRegistrationEnabled: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label
+                        htmlFor="individualRegistrationEnabled"
+                        className="mb-0"
+                      >
+                        Enable Individual Registration
+                      </Label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Housing Options */}
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-green-900 mb-3">
+                    Housing & Logistics
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="porosHousingEnabled"
+                        checked={formData.porosHousingEnabled}
+                        onChange={(e) =>
+                          updateFormData({
+                            porosHousingEnabled: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="porosHousingEnabled" className="mb-0">
+                        Enable Poros Portal (Housing Assignments)
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="allowOnCampus"
+                        checked={formData.allowOnCampus}
+                        onChange={(e) =>
+                          updateFormData({ allowOnCampus: e.target.checked })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="allowOnCampus" className="mb-0">
+                        Allow On-Campus Housing
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="allowOffCampus"
+                        checked={formData.allowOffCampus}
+                        onChange={(e) =>
+                          updateFormData({ allowOffCampus: e.target.checked })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="allowOffCampus" className="mb-0">
+                        Allow Off-Campus Housing
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="allowDayPass"
+                        checked={formData.allowDayPass}
+                        onChange={(e) =>
+                          updateFormData({ allowDayPass: e.target.checked })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="allowDayPass" className="mb-0">
+                        Allow Day Pass Only
+                      </Label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Check-In & Medical */}
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-purple-900 mb-3">
+                    Check-In & Medical
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="salveCheckinEnabled"
+                        checked={formData.salveCheckinEnabled}
+                        onChange={(e) =>
+                          updateFormData({
+                            salveCheckinEnabled: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="salveCheckinEnabled" className="mb-0">
+                        Enable SALVE Check-In System
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="raphaMedicalEnabled"
+                        checked={formData.raphaMedicalEnabled}
+                        onChange={(e) =>
+                          updateFormData({
+                            raphaMedicalEnabled: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="raphaMedicalEnabled" className="mb-0">
+                        Enable Rapha Medical Platform
+                      </Label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Public Portal */}
+                <div className="bg-amber-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-amber-900 mb-3">
+                    Public Portal
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="publicPortalEnabled"
+                        checked={formData.publicPortalEnabled}
+                        onChange={(e) =>
+                          updateFormData({
+                            publicPortalEnabled: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="publicPortalEnabled" className="mb-0">
+                        Enable Public Resource Portal
+                      </Label>
+                    </div>
+                    <p className="text-sm text-gray-600 ml-6">
+                      Allows group leaders to view seating, meal times, and
+                      schedule
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Step 5: Contact & Instructions */}
+          {currentStep === 5 && (
+            <>
+              <div className="space-y-6">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-blue-900 mb-3">
+                    Contact Information
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="contactEmail">
+                        Contact Email <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="contactEmail"
+                        type="email"
+                        value={formData.contactEmail}
+                        onChange={(e) =>
+                          updateFormData({ contactEmail: e.target.value })
+                        }
+                        placeholder="info@mount2000.org"
+                        className="mt-1"
+                      />
+                      <p className="text-sm text-gray-500 mt-1">
+                        Main contact email for event inquiries
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="contactPhone">Contact Phone</Label>
+                      <Input
+                        id="contactPhone"
+                        type="tel"
+                        value={formData.contactPhone}
+                        onChange={(e) =>
+                          updateFormData({ contactPhone: e.target.value })
+                        }
+                        placeholder="(301) 447-5000"
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="registrationInstructions">
+                    Registration Instructions
+                  </Label>
+                  <Textarea
+                    id="registrationInstructions"
+                    value={formData.registrationInstructions}
+                    onChange={(e) =>
+                      updateFormData({
+                        registrationInstructions: e.target.value,
+                      })
+                    }
+                    placeholder="Welcome to Mount 2000! After registering, you will receive a confirmation email with your access code..."
+                    rows={6}
+                    className="mt-1"
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    These instructions will appear on the invoice page before
+                    payment
+                  </p>
+                </div>
+
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-green-900 mb-3">
+                    Check Payment Settings
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="checkPaymentEnabled"
+                        checked={formData.checkPaymentEnabled}
+                        onChange={(e) =>
+                          updateFormData({
+                            checkPaymentEnabled: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="checkPaymentEnabled" className="mb-0">
+                        Allow payment by check
+                      </Label>
+                    </div>
+
+                    {formData.checkPaymentEnabled && (
+                      <>
+                        <div>
+                          <Label htmlFor="checkPaymentPayableTo">
+                            Make Check Payable To
+                          </Label>
+                          <Input
+                            id="checkPaymentPayableTo"
+                            value={formData.checkPaymentPayableTo}
+                            onChange={(e) =>
+                              updateFormData({
+                                checkPaymentPayableTo: e.target.value,
+                              })
+                            }
+                            placeholder="Mount Saint Mary Seminary"
+                            className="mt-1"
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="checkPaymentAddress">
+                            Mail Checks To
+                          </Label>
+                          <Textarea
+                            id="checkPaymentAddress"
+                            value={formData.checkPaymentAddress}
+                            onChange={(e) =>
+                              updateFormData({
+                                checkPaymentAddress: e.target.value,
+                              })
+                            }
+                            placeholder="Mount Saint Mary Seminary&#10;16300 Old Emmitsburg Rd&#10;Emmitsburg, MD 21727"
+                            rows={4}
+                            className="mt-1"
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Step 6: Landing Page Content */}
+          {currentStep === 6 && (
+            <>
+              <div className="space-y-6">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-blue-900 mb-3">
+                    Landing Page Visibility Toggles
+                  </h3>
+                  <p className="text-sm text-blue-800 mb-4">
+                    Choose what sections to show on your public event landing
+                    page
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="landingPageShowPrice"
+                        checked={formData.landingPageShowPrice}
+                        onChange={(e) =>
+                          updateFormData({
+                            landingPageShowPrice: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="landingPageShowPrice" className="mb-0">
+                        Show Price
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="landingPageShowSchedule"
+                        checked={formData.landingPageShowSchedule}
+                        onChange={(e) =>
+                          updateFormData({
+                            landingPageShowSchedule: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label
+                        htmlFor="landingPageShowSchedule"
+                        className="mb-0"
+                      >
+                        Show Schedule
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="landingPageShowFaq"
+                        checked={formData.landingPageShowFaq}
+                        onChange={(e) =>
+                          updateFormData({
+                            landingPageShowFaq: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="landingPageShowFaq" className="mb-0">
+                        Show FAQ
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="landingPageShowIncluded"
+                        checked={formData.landingPageShowIncluded}
+                        onChange={(e) =>
+                          updateFormData({
+                            landingPageShowIncluded: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label
+                        htmlFor="landingPageShowIncluded"
+                        className="mb-0"
+                      >
+                        Show What&apos;s Included
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="landingPageShowBring"
+                        checked={formData.landingPageShowBring}
+                        onChange={(e) =>
+                          updateFormData({
+                            landingPageShowBring: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="landingPageShowBring" className="mb-0">
+                        Show What to Bring
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="landingPageShowContact"
+                        checked={formData.landingPageShowContact}
+                        onChange={(e) =>
+                          updateFormData({
+                            landingPageShowContact: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="landingPageShowContact" className="mb-0">
+                        Show Contact Information
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="landingPageShowGallery"
+                        checked={formData.landingPageShowGallery}
+                        onChange={(e) =>
+                          updateFormData({
+                            landingPageShowGallery: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="landingPageShowGallery" className="mb-0">
+                        Show Photo Gallery
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="landingPageShowSponsors"
+                        checked={formData.landingPageShowSponsors}
+                        onChange={(e) =>
+                          updateFormData({
+                            landingPageShowSponsors: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label
+                        htmlFor="landingPageShowSponsors"
+                        className="mb-0"
+                      >
+                        Show Sponsors
+                      </Label>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-green-900 mb-3">
+                    Countdown Timer Settings
+                  </h3>
+
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="countdownLocation">
+                        Countdown Timer Location
+                      </Label>
+                      <select
+                        id="countdownLocation"
+                        value={formData.countdownLocation}
+                        onChange={(e) =>
+                          updateFormData({
+                            countdownLocation: e.target.value as
+                              | 'hero'
+                              | 'sticky'
+                              | 'registration',
+                          })
+                        }
+                        className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2"
+                      >
+                        <option value="hero">Hero Section (Top)</option>
+                        <option value="sticky">Sticky Top Bar</option>
+                        <option value="registration">
+                          Registration Section
+                        </option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="countdownBeforeOpen"
+                        checked={formData.countdownBeforeOpen}
+                        onChange={(e) =>
+                          updateFormData({
+                            countdownBeforeOpen: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="countdownBeforeOpen" className="mb-0">
+                        Show countdown before registration opens
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="countdownBeforeClose"
+                        checked={formData.countdownBeforeClose}
+                        onChange={(e) =>
+                          updateFormData({
+                            countdownBeforeClose: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="countdownBeforeClose" className="mb-0">
+                        Show countdown before registration closes
+                      </Label>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-amber-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-amber-900 mb-3">
+                    Availability & Waitlist
+                  </h3>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="showAvailability"
+                        checked={formData.showAvailability}
+                        onChange={(e) =>
+                          updateFormData({ showAvailability: e.target.checked })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="showAvailability" className="mb-0">
+                        Show spots remaining on landing page
+                      </Label>
+                    </div>
+
+                    {formData.showAvailability && (
+                      <div>
+                        <Label htmlFor="availabilityThreshold">
+                          Show availability when fewer than X spots remain
+                        </Label>
+                        <Input
+                          id="availabilityThreshold"
+                          type="number"
+                          value={formData.availabilityThreshold}
+                          onChange={(e) =>
+                            updateFormData({
+                              availabilityThreshold: e.target.value,
+                            })
+                          }
+                          placeholder="20"
+                          className="mt-1 max-w-xs"
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="enableWaitlist"
+                        checked={formData.enableWaitlist}
+                        onChange={(e) =>
+                          updateFormData({ enableWaitlist: e.target.checked })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="enableWaitlist" className="mb-0">
+                        Enable waitlist when event is full
+                      </Label>
+                    </div>
+
+                    {formData.enableWaitlist && (
+                      <div>
+                        <Label htmlFor="waitlistCapacity">
+                          Maximum waitlist entries (optional)
+                        </Label>
+                        <Input
+                          id="waitlistCapacity"
+                          type="number"
+                          value={formData.waitlistCapacity}
+                          onChange={(e) =>
+                            updateFormData({
+                              waitlistCapacity: e.target.value,
+                            })
+                          }
+                          placeholder="Leave empty for unlimited"
+                          className="mt-1 max-w-xs"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </>
           )}
 
           {/* Step 7: Review & Publish */}
