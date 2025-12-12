@@ -54,10 +54,10 @@ interface EventFormData {
 
   // Individual Registration Pricing
   individualBasePrice: string
-  singleRoomModifier: string
-  doubleRoomModifier: string
-  tripleRoomModifier: string
-  quadRoomModifier: string
+  singleRoomPrice: string
+  doubleRoomPrice: string
+  tripleRoomPrice: string
+  quadRoomPrice: string
   individualOffCampusPrice: string
 
   // Step 3: Features & Modules (swapped with Pricing)
@@ -159,11 +159,11 @@ export default function CreateEventClient({
     depositAmount: '500',
 
     // Individual Registration Pricing
-    individualBasePrice: '150',
-    singleRoomModifier: '50',
-    doubleRoomModifier: '0',
-    tripleRoomModifier: '-10',
-    quadRoomModifier: '-20',
+    individualBasePrice: '100',
+    singleRoomPrice: '100',
+    doubleRoomPrice: '50',
+    tripleRoomPrice: '40',
+    quadRoomPrice: '30',
     individualOffCampusPrice: '100',
 
     // Step 3: Features
@@ -1240,15 +1240,15 @@ export default function CreateEventClient({
                     {/* Individual Base Pricing */}
                     <div className="bg-purple-50 p-4 rounded-lg border-2 border-purple-200">
                       <h3 className="font-semibold text-purple-900 mb-2">
-                        🧑 Individual Registration Pricing
+                        🧑 Individual General Admission
                       </h3>
                       <p className="text-sm text-purple-800 mb-4">
-                        Individual participants pay full amount at registration (no deposit option)
+                        Base price for event attendance (does NOT include housing)
                       </p>
 
                       <div className="max-w-md">
                         <Label htmlFor="individualBasePrice">
-                          Base Price (Double Room) <span className="text-red-500">*</span>
+                          General Admission Price <span className="text-red-500">*</span>
                         </Label>
                         <div className="relative mt-1">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
@@ -1257,96 +1257,96 @@ export default function CreateEventClient({
                             type="number"
                             value={formData.individualBasePrice}
                             onChange={(e) => updateFormData({ individualBasePrice: e.target.value })}
-                            placeholder="150"
+                            placeholder="100"
                             className="pl-7"
                           />
                         </div>
                         <p className="text-sm text-gray-500 mt-1">
-                          Base price for double room (most common)
+                          Includes event attendance, materials, and meals (no housing)
                         </p>
                       </div>
                     </div>
 
-                    {/* Room Type Modifiers */}
-                    {formData.porosHousingEnabled && (
+                    {/* Room Type Add-Ons */}
+                    {formData.porosHousingEnabled && formData.allowOnCampus && (
                       <div className="bg-indigo-50 p-4 rounded-lg border-2 border-indigo-200">
                         <h3 className="font-semibold text-indigo-900 mb-2">
-                          🛏️ Room Type Pricing Modifiers
+                          🛏️ On-Campus Housing Add-On (Optional)
                         </h3>
                         <p className="text-sm text-indigo-800 mb-4">
-                          Adjust price based on room type (positive = add to base, negative = subtract)
+                          Additional cost if staying on-campus. Individuals can choose their room type.
                         </p>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
-                            <Label htmlFor="singleRoomModifier">Single Room Modifier</Label>
+                            <Label htmlFor="singleRoomPrice">Single Room Price</Label>
                             <div className="relative mt-1">
                               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
                               <Input
-                                id="singleRoomModifier"
+                                id="singleRoomPrice"
                                 type="number"
-                                value={formData.singleRoomModifier}
-                                onChange={(e) => updateFormData({ singleRoomModifier: e.target.value })}
+                                value={formData.singleRoomPrice}
+                                onChange={(e) => updateFormData({ singleRoomPrice: e.target.value })}
+                                placeholder="100"
+                                className="pl-7"
+                              />
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Total: ${formData.individualBasePrice || '100'} + ${formData.singleRoomPrice || '100'} = <span className="font-semibold">${(parseFloat(formData.individualBasePrice || '100') + parseFloat(formData.singleRoomPrice || '100')).toFixed(2)}</span>
+                            </p>
+                          </div>
+
+                          <div>
+                            <Label htmlFor="doubleRoomPrice">Double Room Price</Label>
+                            <div className="relative mt-1">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                              <Input
+                                id="doubleRoomPrice"
+                                type="number"
+                                value={formData.doubleRoomPrice}
+                                onChange={(e) => updateFormData({ doubleRoomPrice: e.target.value })}
                                 placeholder="50"
                                 className="pl-7"
                               />
                             </div>
                             <p className="text-xs text-gray-500 mt-1">
-                              Usually +$50 (Base ${formData.individualBasePrice || '150'} + $50 = ${(parseFloat(formData.individualBasePrice || '150') + parseFloat(formData.singleRoomModifier || '50')).toFixed(2)})
+                              Total: ${formData.individualBasePrice || '100'} + ${formData.doubleRoomPrice || '50'} = <span className="font-semibold">${(parseFloat(formData.individualBasePrice || '100') + parseFloat(formData.doubleRoomPrice || '50')).toFixed(2)}</span>
                             </p>
                           </div>
 
                           <div>
-                            <Label htmlFor="doubleRoomModifier">Double Room Modifier</Label>
+                            <Label htmlFor="tripleRoomPrice">Triple Room Price</Label>
                             <div className="relative mt-1">
                               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
                               <Input
-                                id="doubleRoomModifier"
+                                id="tripleRoomPrice"
                                 type="number"
-                                value={formData.doubleRoomModifier}
-                                onChange={(e) => updateFormData({ doubleRoomModifier: e.target.value })}
-                                placeholder="0"
+                                value={formData.tripleRoomPrice}
+                                onChange={(e) => updateFormData({ tripleRoomPrice: e.target.value })}
+                                placeholder="40"
                                 className="pl-7"
                               />
                             </div>
                             <p className="text-xs text-gray-500 mt-1">
-                              Base price (${formData.individualBasePrice || '150'})
+                              Total: ${formData.individualBasePrice || '100'} + ${formData.tripleRoomPrice || '40'} = <span className="font-semibold">${(parseFloat(formData.individualBasePrice || '100') + parseFloat(formData.tripleRoomPrice || '40')).toFixed(2)}</span>
                             </p>
                           </div>
 
                           <div>
-                            <Label htmlFor="tripleRoomModifier">Triple Room Modifier</Label>
+                            <Label htmlFor="quadRoomPrice">Quad Room Price</Label>
                             <div className="relative mt-1">
                               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
                               <Input
-                                id="tripleRoomModifier"
+                                id="quadRoomPrice"
                                 type="number"
-                                value={formData.tripleRoomModifier}
-                                onChange={(e) => updateFormData({ tripleRoomModifier: e.target.value })}
-                                placeholder="-10"
+                                value={formData.quadRoomPrice}
+                                onChange={(e) => updateFormData({ quadRoomPrice: e.target.value })}
+                                placeholder="30"
                                 className="pl-7"
                               />
                             </div>
                             <p className="text-xs text-gray-500 mt-1">
-                              Usually -$10 (${formData.individualBasePrice || '150'} - $10 = ${(parseFloat(formData.individualBasePrice || '150') + parseFloat(formData.tripleRoomModifier || '-10')).toFixed(2)})
-                            </p>
-                          </div>
-
-                          <div>
-                            <Label htmlFor="quadRoomModifier">Quad Room Modifier</Label>
-                            <div className="relative mt-1">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
-                              <Input
-                                id="quadRoomModifier"
-                                type="number"
-                                value={formData.quadRoomModifier}
-                                onChange={(e) => updateFormData({ quadRoomModifier: e.target.value })}
-                                placeholder="-20"
-                                className="pl-7"
-                              />
-                            </div>
-                            <p className="text-xs text-gray-500 mt-1">
-                              Usually -$20 (${formData.individualBasePrice || '150'} - $20 = ${(parseFloat(formData.individualBasePrice || '150') + parseFloat(formData.quadRoomModifier || '-20')).toFixed(2)})
+                              Total: ${formData.individualBasePrice || '100'} + ${formData.quadRoomPrice || '30'} = <span className="font-semibold">${(parseFloat(formData.individualBasePrice || '100') + parseFloat(formData.quadRoomPrice || '30')).toFixed(2)}</span>
                             </p>
                           </div>
                         </div>
@@ -1357,10 +1357,10 @@ export default function CreateEventClient({
                     {formData.allowOffCampus && (
                       <div className="bg-amber-50 p-4 rounded-lg border-2 border-amber-200">
                         <h3 className="font-semibold text-amber-900 mb-2">
-                          🏨 Individual Off-Campus Option
+                          🏨 Not Staying On-Campus
                         </h3>
                         <p className="text-sm text-amber-800 mb-4">
-                          Price for individuals staying off-campus (hotel/home)
+                          Price for individuals staying off-campus or commuting (typically same as general admission)
                         </p>
 
                         <div className="max-w-md">
@@ -1377,7 +1377,7 @@ export default function CreateEventClient({
                             />
                           </div>
                           <p className="text-sm text-gray-500 mt-1">
-                            Flat rate for individuals not staying on-campus
+                            Usually equals general admission price (${formData.individualBasePrice || '100'}) since no housing is included
                           </p>
                         </div>
                       </div>
