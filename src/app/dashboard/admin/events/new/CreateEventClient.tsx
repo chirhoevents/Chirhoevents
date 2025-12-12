@@ -52,6 +52,14 @@ interface EventFormData {
   depositPercentage: string
   depositAmount: string
 
+  // Individual Registration Pricing
+  individualBasePrice: string
+  singleRoomModifier: string
+  doubleRoomModifier: string
+  tripleRoomModifier: string
+  quadRoomModifier: string
+  individualOffCampusPrice: string
+
   // Step 3: Features & Modules (swapped with Pricing)
   groupRegistrationEnabled: boolean
   individualRegistrationEnabled: boolean
@@ -150,9 +158,17 @@ export default function CreateEventClient({
     depositPercentage: '25',
     depositAmount: '500',
 
+    // Individual Registration Pricing
+    individualBasePrice: '150',
+    singleRoomModifier: '50',
+    doubleRoomModifier: '0',
+    tripleRoomModifier: '-10',
+    quadRoomModifier: '-20',
+    individualOffCampusPrice: '100',
+
     // Step 3: Features
     groupRegistrationEnabled: true,
-    individualRegistrationEnabled: true,
+    individualRegistrationEnabled: false,
     porosHousingEnabled: false,
     tshirtsEnabled: false,
     salveCheckinEnabled: false,
@@ -901,390 +917,483 @@ export default function CreateEventClient({
             </>
           )}
 
-          {/* Step 4: Pricing (moved from Step 3) */}
+          {/* Step 4: Pricing - Different based on registration type */}
           {currentStep === 4 && (
             <>
               <div className="space-y-6">
-                {/* Youth Pricing */}
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-blue-900 mb-3">
-                    Youth Pricing
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <Label htmlFor="youthEarlyBirdPrice">
-                        Early Bird Price
-                      </Label>
-                      <div className="relative mt-1">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                          $
-                        </span>
-                        <Input
-                          id="youthEarlyBirdPrice"
-                          type="number"
-                          value={formData.youthEarlyBirdPrice}
-                          onChange={(e) =>
-                            updateFormData({
-                              youthEarlyBirdPrice: e.target.value,
-                            })
-                          }
-                          placeholder="90"
-                          className="pl-7"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="youthRegularPrice">
-                        Regular Price <span className="text-red-500">*</span>
-                      </Label>
-                      <div className="relative mt-1">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                          $
-                        </span>
-                        <Input
-                          id="youthRegularPrice"
-                          type="number"
-                          value={formData.youthRegularPrice}
-                          onChange={(e) =>
-                            updateFormData({
-                              youthRegularPrice: e.target.value,
-                            })
-                          }
-                          placeholder="100"
-                          className="pl-7"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="youthLatePrice">Late Price</Label>
-                      <div className="relative mt-1">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                          $
-                        </span>
-                        <Input
-                          id="youthLatePrice"
-                          type="number"
-                          value={formData.youthLatePrice}
-                          onChange={(e) =>
-                            updateFormData({ youthLatePrice: e.target.value })
-                          }
-                          placeholder="120"
-                          className="pl-7"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Chaperone Pricing */}
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-green-900 mb-3">
-                    Chaperone Pricing
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <Label htmlFor="chaperoneEarlyBirdPrice">
-                        Early Bird Price
-                      </Label>
-                      <div className="relative mt-1">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                          $
-                        </span>
-                        <Input
-                          id="chaperoneEarlyBirdPrice"
-                          type="number"
-                          value={formData.chaperoneEarlyBirdPrice}
-                          onChange={(e) =>
-                            updateFormData({
-                              chaperoneEarlyBirdPrice: e.target.value,
-                            })
-                          }
-                          placeholder="65"
-                          className="pl-7"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="chaperoneRegularPrice">
-                        Regular Price <span className="text-red-500">*</span>
-                      </Label>
-                      <div className="relative mt-1">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                          $
-                        </span>
-                        <Input
-                          id="chaperoneRegularPrice"
-                          type="number"
-                          value={formData.chaperoneRegularPrice}
-                          onChange={(e) =>
-                            updateFormData({
-                              chaperoneRegularPrice: e.target.value,
-                            })
-                          }
-                          placeholder="75"
-                          className="pl-7"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="chaperoneLatePrice">Late Price</Label>
-                      <div className="relative mt-1">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                          $
-                        </span>
-                        <Input
-                          id="chaperoneLatePrice"
-                          type="number"
-                          value={formData.chaperoneLatePrice}
-                          onChange={(e) =>
-                            updateFormData({
-                              chaperoneLatePrice: e.target.value,
-                            })
-                          }
-                          placeholder="90"
-                          className="pl-7"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Clergy Pricing */}
-                <div className="bg-purple-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-purple-900 mb-3">
-                    Clergy Pricing
-                  </h3>
-                  <div className="max-w-xs">
-                    <Label htmlFor="priestPrice">Priest/Deacon Price</Label>
-                    <div className="relative mt-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                        $
-                      </span>
-                      <Input
-                        id="priestPrice"
-                        type="number"
-                        value={formData.priestPrice}
-                        onChange={(e) =>
-                          updateFormData({ priestPrice: e.target.value })
-                        }
-                        placeholder="0"
-                        className="pl-7"
-                      />
-                    </div>
-                    <p className="text-sm text-gray-500 mt-1">
-                      Typically free ($0) for clergy
-                    </p>
-                  </div>
-                </div>
-
-                {/* Housing Type Pricing */}
-                <div className="bg-amber-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-amber-900 mb-3">
-                    Housing Type Pricing (Optional)
-                  </h3>
-                  <p className="text-sm text-amber-800 mb-4">
-                    Set different prices for on-campus, off-campus, and day pass
-                    options
+                {/* Show which registration type they selected */}
+                <div className="bg-blue-100 border-2 border-blue-300 p-4 rounded-lg">
+                  <p className="text-blue-900 font-medium">
+                    💡 Pricing for:{' '}
+                    <span className="font-bold">
+                      {formData.groupRegistrationEnabled
+                        ? 'Group Registration'
+                        : 'Individual Registration'}
+                    </span>
                   </p>
+                  <p className="text-sm text-blue-800 mt-1">
+                    {formData.groupRegistrationEnabled
+                      ? 'Configure pricing for groups, housing types, and deposits'
+                      : 'Configure individual pricing and room type modifiers'}
+                  </p>
+                </div>
 
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="offCampusYouthPrice">
-                          Off-Campus Youth Price
-                        </Label>
-                        <div className="relative mt-1">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                            $
-                          </span>
-                          <Input
-                            id="offCampusYouthPrice"
-                            type="number"
-                            value={formData.offCampusYouthPrice}
-                            onChange={(e) =>
-                              updateFormData({
-                                offCampusYouthPrice: e.target.value,
-                              })
-                            }
-                            placeholder="75"
-                            className="pl-7"
-                          />
+                {/* GROUP REGISTRATION PRICING */}
+                {formData.groupRegistrationEnabled && (
+                  <>
+                    {/* Base Pricing - On-Campus (Full Price) */}
+                    <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
+                      <h3 className="font-semibold text-blue-900 mb-2">
+                        🏫 On-Campus Housing Pricing (Base Price)
+                      </h3>
+                      <p className="text-sm text-blue-800 mb-4">
+                        Base prices for participants staying on-campus (includes housing, meals, materials)
+                      </p>
+
+                      {/* Youth Pricing */}
+                      <div className="mb-4">
+                        <h4 className="font-medium text-blue-900 mb-2">Youth Pricing</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <Label htmlFor="youthEarlyBirdPrice">Early Bird</Label>
+                            <div className="relative mt-1">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                              <Input
+                                id="youthEarlyBirdPrice"
+                                type="number"
+                                value={formData.youthEarlyBirdPrice}
+                                onChange={(e) => updateFormData({ youthEarlyBirdPrice: e.target.value })}
+                                placeholder="90"
+                                className="pl-7"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <Label htmlFor="youthRegularPrice">Regular <span className="text-red-500">*</span></Label>
+                            <div className="relative mt-1">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                              <Input
+                                id="youthRegularPrice"
+                                type="number"
+                                value={formData.youthRegularPrice}
+                                onChange={(e) => updateFormData({ youthRegularPrice: e.target.value })}
+                                placeholder="100"
+                                className="pl-7"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <Label htmlFor="youthLatePrice">Late</Label>
+                            <div className="relative mt-1">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                              <Input
+                                id="youthLatePrice"
+                                type="number"
+                                value={formData.youthLatePrice}
+                                onChange={(e) => updateFormData({ youthLatePrice: e.target.value })}
+                                placeholder="120"
+                                className="pl-7"
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
 
-                      <div>
-                        <Label htmlFor="dayPassYouthPrice">
-                          Day Pass Youth Price
-                        </Label>
-                        <div className="relative mt-1">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                            $
-                          </span>
-                          <Input
-                            id="dayPassYouthPrice"
-                            type="number"
-                            value={formData.dayPassYouthPrice}
-                            onChange={(e) =>
-                              updateFormData({
-                                dayPassYouthPrice: e.target.value,
-                              })
-                            }
-                            placeholder="50"
-                            className="pl-7"
-                          />
+                      {/* Chaperone Pricing */}
+                      <div className="mb-4">
+                        <h4 className="font-medium text-blue-900 mb-2">Chaperone Pricing (Ages 21+)</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <Label htmlFor="chaperoneEarlyBirdPrice">Early Bird</Label>
+                            <div className="relative mt-1">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                              <Input
+                                id="chaperoneEarlyBirdPrice"
+                                type="number"
+                                value={formData.chaperoneEarlyBirdPrice}
+                                onChange={(e) => updateFormData({ chaperoneEarlyBirdPrice: e.target.value })}
+                                placeholder="65"
+                                className="pl-7"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <Label htmlFor="chaperoneRegularPrice">Regular <span className="text-red-500">*</span></Label>
+                            <div className="relative mt-1">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                              <Input
+                                id="chaperoneRegularPrice"
+                                type="number"
+                                value={formData.chaperoneRegularPrice}
+                                onChange={(e) => updateFormData({ chaperoneRegularPrice: e.target.value })}
+                                placeholder="75"
+                                className="pl-7"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <Label htmlFor="chaperoneLatePrice">Late</Label>
+                            <div className="relative mt-1">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                              <Input
+                                id="chaperoneLatePrice"
+                                type="number"
+                                value={formData.chaperoneLatePrice}
+                                onChange={(e) => updateFormData({ chaperoneLatePrice: e.target.value })}
+                                placeholder="90"
+                                className="pl-7"
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
 
+                      {/* Clergy Pricing */}
                       <div>
-                        <Label htmlFor="offCampusChaperonePrice">
-                          Off-Campus Chaperone Price
-                        </Label>
-                        <div className="relative mt-1">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                            $
-                          </span>
-                          <Input
-                            id="offCampusChaperonePrice"
-                            type="number"
-                            value={formData.offCampusChaperonePrice}
-                            onChange={(e) =>
-                              updateFormData({
-                                offCampusChaperonePrice: e.target.value,
-                              })
-                            }
-                            placeholder="50"
-                            className="pl-7"
-                          />
+                        <h4 className="font-medium text-blue-900 mb-2">Clergy Pricing</h4>
+                        <div className="max-w-xs">
+                          <Label htmlFor="priestPrice">Priest/Deacon Price</Label>
+                          <div className="relative mt-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                            <Input
+                              id="priestPrice"
+                              type="number"
+                              value={formData.priestPrice}
+                              onChange={(e) => updateFormData({ priestPrice: e.target.value })}
+                              placeholder="0"
+                              className="pl-7"
+                            />
+                          </div>
+                          <p className="text-sm text-gray-500 mt-1">Typically free ($0) for clergy</p>
                         </div>
                       </div>
+                    </div>
 
-                      <div>
-                        <Label htmlFor="dayPassChaperonePrice">
-                          Day Pass Chaperone Price
-                        </Label>
-                        <div className="relative mt-1">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                            $
-                          </span>
+                    {/* Housing Type Pricing Modifiers */}
+                    {formData.porosHousingEnabled && (
+                      <div className="bg-green-50 p-4 rounded-lg border-2 border-green-200">
+                        <h3 className="font-semibold text-green-900 mb-2">
+                          🏠 Alternative Housing Pricing
+                        </h3>
+                        <p className="text-sm text-green-800 mb-4">
+                          Set different prices for off-campus and day pass options (if enabled in Features)
+                        </p>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {formData.allowOffCampus && (
+                            <>
+                              <div>
+                                <Label htmlFor="offCampusYouthPrice">Off-Campus Youth</Label>
+                                <div className="relative mt-1">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                                  <Input
+                                    id="offCampusYouthPrice"
+                                    type="number"
+                                    value={formData.offCampusYouthPrice}
+                                    onChange={(e) => updateFormData({ offCampusYouthPrice: e.target.value })}
+                                    placeholder="75"
+                                    className="pl-7"
+                                  />
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">Staying at hotel/home</p>
+                              </div>
+                              <div>
+                                <Label htmlFor="offCampusChaperonePrice">Off-Campus Chaperone</Label>
+                                <div className="relative mt-1">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                                  <Input
+                                    id="offCampusChaperonePrice"
+                                    type="number"
+                                    value={formData.offCampusChaperonePrice}
+                                    onChange={(e) => updateFormData({ offCampusChaperonePrice: e.target.value })}
+                                    placeholder="50"
+                                    className="pl-7"
+                                  />
+                                </div>
+                              </div>
+                            </>
+                          )}
+
+                          {formData.allowDayPass && (
+                            <>
+                              <div>
+                                <Label htmlFor="dayPassYouthPrice">Day Pass Youth</Label>
+                                <div className="relative mt-1">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                                  <Input
+                                    id="dayPassYouthPrice"
+                                    type="number"
+                                    value={formData.dayPassYouthPrice}
+                                    onChange={(e) => updateFormData({ dayPassYouthPrice: e.target.value })}
+                                    placeholder="50"
+                                    className="pl-7"
+                                  />
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">Attending sessions only</p>
+                              </div>
+                              <div>
+                                <Label htmlFor="dayPassChaperonePrice">Day Pass Chaperone</Label>
+                                <div className="relative mt-1">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                                  <Input
+                                    id="dayPassChaperonePrice"
+                                    type="number"
+                                    value={formData.dayPassChaperonePrice}
+                                    onChange={(e) => updateFormData({ dayPassChaperonePrice: e.target.value })}
+                                    placeholder="25"
+                                    className="pl-7"
+                                  />
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Deposit Settings - Groups Only */}
+                    <div className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200">
+                      <h3 className="font-semibold text-gray-900 mb-2">
+                        💰 Deposit Settings (Groups Only)
+                      </h3>
+                      <p className="text-sm text-gray-600 mb-4">
+                        How much groups must pay upfront when registering
+                      </p>
+
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="radio"
+                            id="depositPercentage"
+                            name="depositType"
+                            value="percentage"
+                            checked={formData.depositType === 'percentage'}
+                            onChange={() => updateFormData({ depositType: 'percentage' })}
+                            className="w-4 h-4 text-[#1E3A5F]"
+                          />
+                          <Label htmlFor="depositPercentage" className="mb-0">Percentage-based:</Label>
                           <Input
-                            id="dayPassChaperonePrice"
                             type="number"
-                            value={formData.dayPassChaperonePrice}
-                            onChange={(e) =>
-                              updateFormData({
-                                dayPassChaperonePrice: e.target.value,
-                              })
-                            }
+                            value={formData.depositPercentage}
+                            onChange={(e) => updateFormData({ depositPercentage: e.target.value })}
                             placeholder="25"
-                            className="pl-7"
+                            className="w-20"
+                            disabled={formData.depositType !== 'percentage'}
                           />
+                          <span className="text-gray-600">%</span>
+                        </div>
+
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="radio"
+                            id="depositFixed"
+                            name="depositType"
+                            value="fixed"
+                            checked={formData.depositType === 'fixed'}
+                            onChange={() => updateFormData({ depositType: 'fixed' })}
+                            className="w-4 h-4 text-[#1E3A5F]"
+                          />
+                          <Label htmlFor="depositFixed" className="mb-0">Fixed amount: $</Label>
+                          <Input
+                            type="number"
+                            value={formData.depositAmount}
+                            onChange={(e) => updateFormData({ depositAmount: e.target.value })}
+                            placeholder="500"
+                            className="w-32"
+                            disabled={formData.depositType !== 'fixed'}
+                          />
+                        </div>
+
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="radio"
+                            id="depositFull"
+                            name="depositType"
+                            value="full"
+                            checked={formData.depositType === 'full'}
+                            onChange={() => updateFormData({ depositType: 'full' })}
+                            className="w-4 h-4 text-[#1E3A5F]"
+                          />
+                          <Label htmlFor="depositFull" className="mb-0">Full payment required</Label>
+                        </div>
+
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="radio"
+                            id="depositNone"
+                            name="depositType"
+                            value="none"
+                            checked={formData.depositType === 'none'}
+                            onChange={() => updateFormData({ depositType: 'none' })}
+                            className="w-4 h-4 text-[#1E3A5F]"
+                          />
+                          <Label htmlFor="depositNone" className="mb-0">No deposit (pay later)</Label>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </div>
+                  </>
+                )}
 
-                {/* Deposit Settings */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-gray-900 mb-3">
-                    Deposit Settings
-                  </h3>
+                {/* INDIVIDUAL REGISTRATION PRICING */}
+                {formData.individualRegistrationEnabled && (
+                  <>
+                    {/* Individual Base Pricing */}
+                    <div className="bg-purple-50 p-4 rounded-lg border-2 border-purple-200">
+                      <h3 className="font-semibold text-purple-900 mb-2">
+                        🧑 Individual Registration Pricing
+                      </h3>
+                      <p className="text-sm text-purple-800 mb-4">
+                        Individual participants pay full amount at registration (no deposit option)
+                      </p>
 
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-3">
-                      <input
-                        type="radio"
-                        id="depositPercentage"
-                        name="depositType"
-                        value="percentage"
-                        checked={formData.depositType === 'percentage'}
-                        onChange={(e) =>
-                          updateFormData({ depositType: 'percentage' })
-                        }
-                        className="w-4 h-4 text-[#1E3A5F]"
-                      />
-                      <Label htmlFor="depositPercentage" className="mb-0">
-                        Percentage-based deposit:
-                      </Label>
-                      <Input
-                        type="number"
-                        value={formData.depositPercentage}
-                        onChange={(e) =>
-                          updateFormData({ depositPercentage: e.target.value })
-                        }
-                        placeholder="25"
-                        className="w-20"
-                        disabled={formData.depositType !== 'percentage'}
-                      />
-                      <span className="text-gray-600">%</span>
+                      <div className="max-w-md">
+                        <Label htmlFor="individualBasePrice">
+                          Base Price (Double Room) <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="relative mt-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                          <Input
+                            id="individualBasePrice"
+                            type="number"
+                            value={formData.individualBasePrice}
+                            onChange={(e) => updateFormData({ individualBasePrice: e.target.value })}
+                            placeholder="150"
+                            className="pl-7"
+                          />
+                        </div>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Base price for double room (most common)
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="flex items-center space-x-3">
-                      <input
-                        type="radio"
-                        id="depositFixed"
-                        name="depositType"
-                        value="fixed"
-                        checked={formData.depositType === 'fixed'}
-                        onChange={(e) =>
-                          updateFormData({ depositType: 'fixed' })
-                        }
-                        className="w-4 h-4 text-[#1E3A5F]"
-                      />
-                      <Label htmlFor="depositFixed" className="mb-0">
-                        Fixed deposit amount: $
-                      </Label>
-                      <Input
-                        type="number"
-                        value={formData.depositAmount}
-                        onChange={(e) =>
-                          updateFormData({ depositAmount: e.target.value })
-                        }
-                        placeholder="500"
-                        className="w-32"
-                        disabled={formData.depositType !== 'fixed'}
-                      />
-                    </div>
+                    {/* Room Type Modifiers */}
+                    {formData.porosHousingEnabled && (
+                      <div className="bg-indigo-50 p-4 rounded-lg border-2 border-indigo-200">
+                        <h3 className="font-semibold text-indigo-900 mb-2">
+                          🛏️ Room Type Pricing Modifiers
+                        </h3>
+                        <p className="text-sm text-indigo-800 mb-4">
+                          Adjust price based on room type (positive = add to base, negative = subtract)
+                        </p>
 
-                    <div className="flex items-center space-x-3">
-                      <input
-                        type="radio"
-                        id="depositFull"
-                        name="depositType"
-                        value="full"
-                        checked={formData.depositType === 'full'}
-                        onChange={(e) =>
-                          updateFormData({ depositType: 'full' })
-                        }
-                        className="w-4 h-4 text-[#1E3A5F]"
-                      />
-                      <Label htmlFor="depositFull" className="mb-0">
-                        Full payment required (no deposit)
-                      </Label>
-                    </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="singleRoomModifier">Single Room Modifier</Label>
+                            <div className="relative mt-1">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                              <Input
+                                id="singleRoomModifier"
+                                type="number"
+                                value={formData.singleRoomModifier}
+                                onChange={(e) => updateFormData({ singleRoomModifier: e.target.value })}
+                                placeholder="50"
+                                className="pl-7"
+                              />
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Usually +$50 (Base ${formData.individualBasePrice || '150'} + $50 = ${(parseFloat(formData.individualBasePrice || '150') + parseFloat(formData.singleRoomModifier || '50')).toFixed(2)})
+                            </p>
+                          </div>
 
-                    <div className="flex items-center space-x-3">
-                      <input
-                        type="radio"
-                        id="depositNone"
-                        name="depositType"
-                        value="none"
-                        checked={formData.depositType === 'none'}
-                        onChange={(e) =>
-                          updateFormData({ depositType: 'none' })
-                        }
-                        className="w-4 h-4 text-[#1E3A5F]"
-                      />
-                      <Label htmlFor="depositNone" className="mb-0">
-                        No deposit required (pay later)
-                      </Label>
+                          <div>
+                            <Label htmlFor="doubleRoomModifier">Double Room Modifier</Label>
+                            <div className="relative mt-1">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                              <Input
+                                id="doubleRoomModifier"
+                                type="number"
+                                value={formData.doubleRoomModifier}
+                                onChange={(e) => updateFormData({ doubleRoomModifier: e.target.value })}
+                                placeholder="0"
+                                className="pl-7"
+                              />
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Base price (${formData.individualBasePrice || '150'})
+                            </p>
+                          </div>
+
+                          <div>
+                            <Label htmlFor="tripleRoomModifier">Triple Room Modifier</Label>
+                            <div className="relative mt-1">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                              <Input
+                                id="tripleRoomModifier"
+                                type="number"
+                                value={formData.tripleRoomModifier}
+                                onChange={(e) => updateFormData({ tripleRoomModifier: e.target.value })}
+                                placeholder="-10"
+                                className="pl-7"
+                              />
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Usually -$10 (${formData.individualBasePrice || '150'} - $10 = ${(parseFloat(formData.individualBasePrice || '150') + parseFloat(formData.tripleRoomModifier || '-10')).toFixed(2)})
+                            </p>
+                          </div>
+
+                          <div>
+                            <Label htmlFor="quadRoomModifier">Quad Room Modifier</Label>
+                            <div className="relative mt-1">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                              <Input
+                                id="quadRoomModifier"
+                                type="number"
+                                value={formData.quadRoomModifier}
+                                onChange={(e) => updateFormData({ quadRoomModifier: e.target.value })}
+                                placeholder="-20"
+                                className="pl-7"
+                              />
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Usually -$20 (${formData.individualBasePrice || '150'} - $20 = ${(parseFloat(formData.individualBasePrice || '150') + parseFloat(formData.quadRoomModifier || '-20')).toFixed(2)})
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Individual Off-Campus Option */}
+                    {formData.allowOffCampus && (
+                      <div className="bg-amber-50 p-4 rounded-lg border-2 border-amber-200">
+                        <h3 className="font-semibold text-amber-900 mb-2">
+                          🏨 Individual Off-Campus Option
+                        </h3>
+                        <p className="text-sm text-amber-800 mb-4">
+                          Price for individuals staying off-campus (hotel/home)
+                        </p>
+
+                        <div className="max-w-md">
+                          <Label htmlFor="individualOffCampusPrice">Off-Campus Price</Label>
+                          <div className="relative mt-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                            <Input
+                              id="individualOffCampusPrice"
+                              type="number"
+                              value={formData.individualOffCampusPrice}
+                              onChange={(e) => updateFormData({ individualOffCampusPrice: e.target.value })}
+                              placeholder="100"
+                              className="pl-7"
+                            />
+                          </div>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Flat rate for individuals not staying on-campus
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Note about no deposits */}
+                    <div className="bg-blue-100 border-l-4 border-blue-500 p-4">
+                      <p className="text-blue-900 font-medium">
+                        ℹ️ Note: Individual registrants pay the full amount at time of registration
+                      </p>
+                      <p className="text-sm text-blue-800 mt-1">
+                        Unlike group registrations, individuals cannot use the deposit system - they must pay in full when they register.
+                      </p>
                     </div>
-                  </div>
-                </div>
+                  </>
+                )}
               </div>
             </>
           )}
