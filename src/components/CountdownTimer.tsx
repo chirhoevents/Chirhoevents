@@ -86,26 +86,26 @@ export default function CountdownTimer({
 
   const currentSize = sizeClasses[size]
 
-  // Color classes based on urgency
+  // Color classes - white text for better visibility
   const numberColor = isVeryUrgent
-    ? 'text-red-600'
+    ? 'text-red-300'
     : isUrgent
-    ? 'text-orange-600'
-    : 'text-[#1E3A5F]'
+    ? 'text-orange-300'
+    : 'text-white'
 
   const labelColor = isVeryUrgent
-    ? 'text-red-500'
+    ? 'text-red-200'
     : isUrgent
-    ? 'text-orange-500'
-    : 'text-[#9C8466]'
+    ? 'text-orange-200'
+    : 'text-white/90'
 
   return (
     <div className={`w-full ${className}`}>
       {label && (
         <h3
-          className={`text-center font-semibold mb-4 ${
+          className={`text-center font-semibold mb-4 text-white ${
             size === 'lg' ? 'text-xl md:text-2xl' : size === 'md' ? 'text-lg md:text-xl' : 'text-base'
-          } ${numberColor}`}
+          }`}
         >
           {label}
         </h3>
@@ -138,7 +138,7 @@ export default function CountdownTimer({
       </div>
 
       {total <= 0 && (
-        <div className="text-center mt-4 text-lg font-semibold text-[#1E3A5F]">
+        <div className="text-center mt-4 text-lg font-semibold text-white">
           Registration is now open!
         </div>
       )}
