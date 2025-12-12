@@ -326,7 +326,7 @@ export default function EventsListClient({
                       </td>
                       <td className="py-4 px-6 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Link href={`/events/${event.id}`}>
+                          <Link href={`/events/${event.slug}`}>
                             <Button
                               variant="outline"
                               size="sm"
