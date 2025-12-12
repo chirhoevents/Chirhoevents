@@ -99,7 +99,7 @@ export default function EventLandingClient({
           {status.allowRegistration && (
             <>
               {settings.groupRegistrationEnabled && (
-                <Link href={`/events/${eventId}/register/group`}>
+                <Link href={`/events/${eventId}/register-group`}>
                   <Button
                     size="lg"
                     className={`w-full sm:w-auto ${
@@ -113,7 +113,7 @@ export default function EventLandingClient({
                 </Link>
               )}
               {settings.individualRegistrationEnabled && (
-                <Link href={`/events/${eventId}/register/individual`}>
+                <Link href={`/events/${eventId}/register-individual`}>
                   <Button
                     size="lg"
                     className={`w-full sm:w-auto ${
