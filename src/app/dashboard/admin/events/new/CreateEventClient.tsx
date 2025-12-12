@@ -59,12 +59,14 @@ interface EventFormData {
   tripleRoomPrice: string
   quadRoomPrice: string
   individualOffCampusPrice: string
+  individualMealPackagePrice: string
 
   // Step 3: Features & Modules (swapped with Pricing)
   groupRegistrationEnabled: boolean
   individualRegistrationEnabled: boolean
   porosHousingEnabled: boolean
   tshirtsEnabled: boolean
+  individualMealsEnabled: boolean
   salveCheckinEnabled: boolean
   raphaMedicalEnabled: boolean
   publicPortalEnabled: boolean
@@ -165,12 +167,14 @@ export default function CreateEventClient({
     tripleRoomPrice: '40',
     quadRoomPrice: '30',
     individualOffCampusPrice: '100',
+    individualMealPackagePrice: '50',
 
     // Step 3: Features
     groupRegistrationEnabled: true,
     individualRegistrationEnabled: false,
     porosHousingEnabled: false,
     tshirtsEnabled: false,
+    individualMealsEnabled: false,
     salveCheckinEnabled: false,
     raphaMedicalEnabled: false,
     publicPortalEnabled: false,
@@ -840,6 +844,35 @@ export default function CreateEventClient({
                   </p>
                 </div>
 
+                {/* Individual Meals Package - Only for Individual Registration */}
+                {formData.individualRegistrationEnabled && (
+                  <div className="bg-orange-50 p-4 rounded-lg border-2 border-orange-200">
+                    <h3 className="font-semibold text-orange-900 mb-3">
+                      🍽️ Individual Meal Packages
+                    </h3>
+                    <p className="text-sm text-orange-800 mb-3">
+                      Only for individual registration (groups include meals automatically)
+                    </p>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="individualMealsEnabled"
+                        checked={formData.individualMealsEnabled}
+                        onChange={(e) =>
+                          updateFormData({ individualMealsEnabled: e.target.checked })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="individualMealsEnabled" className="mb-0 font-medium">
+                        Enable Individual Meal Package Add-On
+                      </Label>
+                    </div>
+                    <p className="text-sm text-gray-600 ml-6 mt-2">
+                      Individuals can add a meal package during registration (with dietary restrictions option)
+                    </p>
+                  </div>
+                )}
+
                 {/* Check-In & Medical */}
                 <div className="bg-amber-50 p-4 rounded-lg">
                   <h3 className="font-semibold text-amber-900 mb-3">
@@ -1243,7 +1276,7 @@ export default function CreateEventClient({
                         🧑 Individual General Admission
                       </h3>
                       <p className="text-sm text-purple-800 mb-4">
-                        Base price for event attendance (does NOT include housing)
+                        Base price for event attendance only (does NOT include housing or meals)
                       </p>
 
                       <div className="max-w-md">
@@ -1262,7 +1295,7 @@ export default function CreateEventClient({
                           />
                         </div>
                         <p className="text-sm text-gray-500 mt-1">
-                          Includes event attendance, materials, and meals (no housing)
+                          Includes event attendance and materials only. Housing and meals are separate add-ons.
                         </p>
                       </div>
                     </div>
@@ -1378,6 +1411,41 @@ export default function CreateEventClient({
                           </div>
                           <p className="text-sm text-gray-500 mt-1">
                             Usually equals general admission price (${formData.individualBasePrice || '100'}) since no housing is included
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Individual Meal Package Add-On */}
+                    {formData.individualMealsEnabled && (
+                      <div className="bg-orange-50 p-4 rounded-lg border-2 border-orange-200">
+                        <h3 className="font-semibold text-orange-900 mb-2">
+                          🍽️ Meal Package Add-On
+                        </h3>
+                        <p className="text-sm text-orange-800 mb-4">
+                          Optional meal package for individuals (includes dietary restrictions option)
+                        </p>
+
+                        <div className="max-w-md">
+                          <Label htmlFor="individualMealPackagePrice">
+                            Meal Package Price
+                          </Label>
+                          <div className="relative mt-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                            <Input
+                              id="individualMealPackagePrice"
+                              type="number"
+                              value={formData.individualMealPackagePrice}
+                              onChange={(e) => updateFormData({ individualMealPackagePrice: e.target.value })}
+                              placeholder="50"
+                              className="pl-7"
+                            />
+                          </div>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Add-on for all event meals. Example: ${formData.individualBasePrice || '100'} + ${formData.individualMealPackagePrice || '50'} = <span className="font-semibold">${(parseFloat(formData.individualBasePrice || '100') + parseFloat(formData.individualMealPackagePrice || '50')).toFixed(2)}</span>
+                          </p>
+                          <p className="text-sm text-orange-700 mt-2 font-medium">
+                            💡 If meal package is selected, individuals will be asked for dietary restrictions during registration
                           </p>
                         </div>
                       </div>
