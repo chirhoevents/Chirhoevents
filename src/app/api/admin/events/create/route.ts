@@ -86,6 +86,11 @@ export async function POST(request: Request) {
             countdownLocation: data.countdownLocation || 'hero',
             countdownBeforeOpen: data.countdownBeforeOpen !== false,
             countdownBeforeClose: data.countdownBeforeClose !== false,
+            backgroundImageUrl: data.backgroundImageUrl || null,
+            primaryColor: data.primaryColor || '#1E3A5F',
+            secondaryColor: data.secondaryColor || '#9C8466',
+            overlayColor: data.overlayColor || '#000000',
+            overlayOpacity: parseInt(data.overlayOpacity) || 40,
           },
         },
 

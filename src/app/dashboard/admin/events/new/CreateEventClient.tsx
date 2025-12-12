@@ -86,6 +86,13 @@ interface EventFormData {
   countdownBeforeClose: boolean
   enableWaitlist: boolean
   waitlistCapacity: string
+
+  // Theme Customization
+  backgroundImageUrl: string
+  primaryColor: string
+  secondaryColor: string
+  overlayColor: string
+  overlayOpacity: string
 }
 
 const STEPS = [
@@ -177,6 +184,13 @@ export default function CreateEventClient({
     countdownBeforeClose: true,
     enableWaitlist: false,
     waitlistCapacity: '',
+
+    // Theme Customization
+    backgroundImageUrl: '',
+    primaryColor: '#1E3A5F', // Default navy
+    secondaryColor: '#9C8466', // Default gold
+    overlayColor: '#000000', // Default black overlay
+    overlayOpacity: '40', // 40% opacity
   })
 
   const updateFormData = (updates: Partial<EventFormData>) => {
@@ -1674,6 +1688,175 @@ export default function CreateEventClient({
                         />
                       </div>
                     )}
+                  </div>
+                </div>
+
+                {/* Theme Customization */}
+                <div className="bg-purple-50 p-4 rounded-lg border-2 border-purple-200">
+                  <h3 className="font-semibold text-purple-900 mb-3">
+                    🎨 Theme Customization
+                  </h3>
+                  <p className="text-sm text-purple-800 mb-4">
+                    Customize the look and feel of your event landing page
+                  </p>
+
+                  <div className="space-y-4">
+                    {/* Background Image */}
+                    <div>
+                      <Label htmlFor="backgroundImageUrl">
+                        Background Image URL
+                      </Label>
+                      <Input
+                        id="backgroundImageUrl"
+                        type="url"
+                        value={formData.backgroundImageUrl}
+                        onChange={(e) =>
+                          updateFormData({
+                            backgroundImageUrl: e.target.value,
+                          })
+                        }
+                        placeholder="https://example.com/image.jpg"
+                        className="mt-1"
+                      />
+                      <p className="text-sm text-gray-500 mt-1">
+                        Enter the URL of your hero background image (recommended: 1920x1080px)
+                      </p>
+                    </div>
+
+                    {/* Color Pickers */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="primaryColor">
+                          Primary Color (Navy)
+                        </Label>
+                        <div className="flex gap-2 mt-1">
+                          <input
+                            id="primaryColor"
+                            type="color"
+                            value={formData.primaryColor}
+                            onChange={(e) =>
+                              updateFormData({ primaryColor: e.target.value })
+                            }
+                            className="h-10 w-20 rounded border border-gray-300 cursor-pointer"
+                          />
+                          <Input
+                            type="text"
+                            value={formData.primaryColor}
+                            onChange={(e) =>
+                              updateFormData({ primaryColor: e.target.value })
+                            }
+                            placeholder="#1E3A5F"
+                            className="flex-1"
+                          />
+                        </div>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Main color for buttons and headers
+                        </p>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="secondaryColor">
+                          Secondary Color (Gold)
+                        </Label>
+                        <div className="flex gap-2 mt-1">
+                          <input
+                            id="secondaryColor"
+                            type="color"
+                            value={formData.secondaryColor}
+                            onChange={(e) =>
+                              updateFormData({ secondaryColor: e.target.value })
+                            }
+                            className="h-10 w-20 rounded border border-gray-300 cursor-pointer"
+                          />
+                          <Input
+                            type="text"
+                            value={formData.secondaryColor}
+                            onChange={(e) =>
+                              updateFormData({ secondaryColor: e.target.value })
+                            }
+                            placeholder="#9C8466"
+                            className="flex-1"
+                          />
+                        </div>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Accent color for highlights and borders
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Overlay Settings */}
+                    <div className="border-t pt-4">
+                      <h4 className="font-medium text-purple-900 mb-3">
+                        Background Overlay (Filter)
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="overlayColor">Overlay Color</Label>
+                          <div className="flex gap-2 mt-1">
+                            <input
+                              id="overlayColor"
+                              type="color"
+                              value={formData.overlayColor}
+                              onChange={(e) =>
+                                updateFormData({ overlayColor: e.target.value })
+                              }
+                              className="h-10 w-20 rounded border border-gray-300 cursor-pointer"
+                            />
+                            <Input
+                              type="text"
+                              value={formData.overlayColor}
+                              onChange={(e) =>
+                                updateFormData({ overlayColor: e.target.value })
+                              }
+                              placeholder="#000000"
+                              className="flex-1"
+                            />
+                          </div>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Color of the overlay on top of background image
+                          </p>
+                        </div>
+
+                        <div>
+                          <Label htmlFor="overlayOpacity">
+                            Overlay Opacity ({formData.overlayOpacity}%)
+                          </Label>
+                          <Input
+                            id="overlayOpacity"
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={formData.overlayOpacity}
+                            onChange={(e) =>
+                              updateFormData({ overlayOpacity: e.target.value })
+                            }
+                            className="mt-1 w-full"
+                          />
+                          <p className="text-sm text-gray-500 mt-1">
+                            Adjust darkness/lightness of background (0% = no overlay, 100% = solid color)
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Preview Box */}
+                    <div className="border-t pt-4">
+                      <Label className="mb-2 block">Color Preview</Label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div
+                          className="h-20 rounded-lg flex items-center justify-center text-white font-semibold"
+                          style={{ backgroundColor: formData.primaryColor }}
+                        >
+                          Primary Color
+                        </div>
+                        <div
+                          className="h-20 rounded-lg flex items-center justify-center text-white font-semibold"
+                          style={{ backgroundColor: formData.secondaryColor }}
+                        >
+                          Secondary Color
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
