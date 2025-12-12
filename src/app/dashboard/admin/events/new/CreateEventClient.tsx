@@ -52,10 +52,11 @@ interface EventFormData {
   depositPercentage: string
   depositAmount: string
 
-  // Step 4: Features & Modules
+  // Step 3: Features & Modules (swapped with Pricing)
   groupRegistrationEnabled: boolean
   individualRegistrationEnabled: boolean
   porosHousingEnabled: boolean
+  tshirtsEnabled: boolean
   salveCheckinEnabled: boolean
   raphaMedicalEnabled: boolean
   publicPortalEnabled: boolean
@@ -78,8 +79,6 @@ interface EventFormData {
   landingPageShowIncluded: boolean
   landingPageShowBring: boolean
   landingPageShowContact: boolean
-  landingPageShowGallery: boolean
-  landingPageShowSponsors: boolean
   showAvailability: boolean
   availabilityThreshold: string
   countdownLocation: 'hero' | 'sticky' | 'registration'
@@ -87,13 +86,20 @@ interface EventFormData {
   countdownBeforeClose: boolean
   enableWaitlist: boolean
   waitlistCapacity: string
+
+  // Theme Customization
+  backgroundImageUrl: string
+  primaryColor: string
+  secondaryColor: string
+  overlayColor: string
+  overlayOpacity: string
 }
 
 const STEPS = [
   { number: 1, title: 'Basic Information' },
   { number: 2, title: 'Registration Settings' },
-  { number: 3, title: 'Pricing' },
-  { number: 4, title: 'Features & Modules' },
+  { number: 3, title: 'Features & Modules' },
+  { number: 4, title: 'Pricing' },
   { number: 5, title: 'Contact & Instructions' },
   { number: 6, title: 'Landing Page' },
   { number: 7, title: 'Review & Publish' },
@@ -144,16 +150,17 @@ export default function CreateEventClient({
     depositPercentage: '25',
     depositAmount: '500',
 
-    // Step 4
+    // Step 3: Features
     groupRegistrationEnabled: true,
     individualRegistrationEnabled: true,
     porosHousingEnabled: false,
+    tshirtsEnabled: false,
     salveCheckinEnabled: false,
     raphaMedicalEnabled: false,
     publicPortalEnabled: false,
     allowOnCampus: true,
     allowOffCampus: true,
-    allowDayPass: true,
+    allowDayPass: false,
 
     // Step 5
     contactEmail: '',
@@ -170,8 +177,6 @@ export default function CreateEventClient({
     landingPageShowIncluded: true,
     landingPageShowBring: true,
     landingPageShowContact: true,
-    landingPageShowGallery: false,
-    landingPageShowSponsors: false,
     showAvailability: true,
     availabilityThreshold: '20',
     countdownLocation: 'hero',
@@ -179,6 +184,13 @@ export default function CreateEventClient({
     countdownBeforeClose: true,
     enableWaitlist: false,
     waitlistCapacity: '',
+
+    // Theme Customization
+    backgroundImageUrl: '',
+    primaryColor: '#1E3A5F', // Default navy
+    secondaryColor: '#9C8466', // Default gold
+    overlayColor: '#000000', // Default black overlay
+    overlayOpacity: '40', // 40% opacity
   })
 
   const updateFormData = (updates: Partial<EventFormData>) => {
@@ -640,8 +652,257 @@ export default function CreateEventClient({
             </>
           )}
 
-          {/* Step 3: Pricing */}
+          {/* Step 3: Features & Modules */}
           {currentStep === 3 && (
+            <>
+              <div className="space-y-6">
+                {/* Registration Types - FIRST - Radio buttons (mutually exclusive) */}
+                <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
+                  <h3 className="font-semibold text-blue-900 mb-3">
+                    📝 Registration Type
+                  </h3>
+                  <p className="text-sm text-blue-800 mb-4">
+                    Choose ONE registration type for this event (you cannot enable both)
+                  </p>
+                  <div className="space-y-4">
+                    <div className="flex items-start space-x-3">
+                      <input
+                        type="radio"
+                        id="registrationType-group"
+                        name="registrationType"
+                        checked={formData.groupRegistrationEnabled && !formData.individualRegistrationEnabled}
+                        onChange={() =>
+                          updateFormData({
+                            groupRegistrationEnabled: true,
+                            individualRegistrationEnabled: false,
+                          })
+                        }
+                        className="w-4 h-4 mt-1 text-[#1E3A5F] border-gray-300"
+                      />
+                      <div className="flex-1">
+                        <Label
+                          htmlFor="registrationType-group"
+                          className="mb-0 font-medium text-blue-900 cursor-pointer"
+                        >
+                          👥 Group Registration
+                        </Label>
+                        <p className="text-sm text-blue-700 mt-1">
+                          Allow parishes and youth groups to register multiple participants together. Group leaders can manage their entire team.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start space-x-3">
+                      <input
+                        type="radio"
+                        id="registrationType-individual"
+                        name="registrationType"
+                        checked={!formData.groupRegistrationEnabled && formData.individualRegistrationEnabled}
+                        onChange={() =>
+                          updateFormData({
+                            groupRegistrationEnabled: false,
+                            individualRegistrationEnabled: true,
+                          })
+                        }
+                        className="w-4 h-4 mt-1 text-[#1E3A5F] border-gray-300"
+                      />
+                      <div className="flex-1">
+                        <Label
+                          htmlFor="registrationType-individual"
+                          className="mb-0 font-medium text-blue-900 cursor-pointer"
+                        >
+                          🧑 Individual Registration
+                        </Label>
+                        <p className="text-sm text-blue-700 mt-1">
+                          Allow individuals to register on their own without being part of a youth group or parish.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Housing & Logistics */}
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-green-900 mb-3">
+                    🏠 Housing & Logistics
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="porosHousingEnabled"
+                        checked={formData.porosHousingEnabled}
+                        onChange={(e) =>
+                          updateFormData({
+                            porosHousingEnabled: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="porosHousingEnabled" className="mb-0 font-medium">
+                        Enable Poros Portal (Housing Management System)
+                      </Label>
+                    </div>
+
+                    {/* Conditional housing options - only show if Poros is enabled */}
+                    {formData.porosHousingEnabled && (
+                      <div className="ml-6 pl-4 border-l-2 border-green-300 space-y-3">
+                        <p className="text-sm text-green-800 font-medium">
+                          Housing Options:
+                        </p>
+
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id="allowOnCampus"
+                            checked={formData.allowOnCampus}
+                            onChange={(e) =>
+                              updateFormData({ allowOnCampus: e.target.checked })
+                            }
+                            className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                          />
+                          <Label htmlFor="allowOnCampus" className="mb-0">
+                            Allow On-Campus Housing
+                          </Label>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id="allowOffCampus"
+                            checked={formData.allowOffCampus}
+                            onChange={(e) =>
+                              updateFormData({ allowOffCampus: e.target.checked })
+                            }
+                            className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                          />
+                          <Label htmlFor="allowOffCampus" className="mb-0">
+                            Allow Off-Campus Housing (staying elsewhere)
+                          </Label>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id="allowDayPass"
+                            checked={formData.allowDayPass}
+                            onChange={(e) =>
+                              updateFormData({ allowDayPass: e.target.checked })
+                            }
+                            className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                          />
+                          <Label htmlFor="allowDayPass" className="mb-0">
+                            Allow Day Pass Only (attending but not staying overnight)
+                          </Label>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* T-Shirts */}
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-purple-900 mb-3">
+                    👕 T-Shirts
+                  </h3>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="tshirtsEnabled"
+                      checked={formData.tshirtsEnabled}
+                      onChange={(e) =>
+                        updateFormData({ tshirtsEnabled: e.target.checked })
+                      }
+                      className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                    />
+                    <Label htmlFor="tshirtsEnabled" className="mb-0 font-medium">
+                      Enable T-Shirt Sales
+                    </Label>
+                  </div>
+                  <p className="text-sm text-gray-600 ml-6 mt-2">
+                    Allow participants to order event t-shirts during registration
+                  </p>
+                </div>
+
+                {/* Check-In & Medical */}
+                <div className="bg-amber-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-amber-900 mb-3">
+                    ✅ Check-In & Medical
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="salveCheckinEnabled"
+                        checked={formData.salveCheckinEnabled}
+                        onChange={(e) =>
+                          updateFormData({
+                            salveCheckinEnabled: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="salveCheckinEnabled" className="mb-0">
+                        Enable SALVE Check-In System
+                      </Label>
+                    </div>
+                    <p className="text-sm text-gray-600 ml-6">
+                      QR code scanning and digital check-in for event day
+                    </p>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="raphaMedicalEnabled"
+                        checked={formData.raphaMedicalEnabled}
+                        onChange={(e) =>
+                          updateFormData({
+                            raphaMedicalEnabled: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="raphaMedicalEnabled" className="mb-0">
+                        Enable Rapha Medical Platform
+                      </Label>
+                    </div>
+                    <p className="text-sm text-gray-600 ml-6">
+                      Medical incident tracking and first aid management
+                    </p>
+                  </div>
+                </div>
+
+                {/* Public Portal */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-gray-900 mb-3">
+                    🌐 Public Portal
+                  </h3>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="publicPortalEnabled"
+                      checked={formData.publicPortalEnabled}
+                      onChange={(e) =>
+                        updateFormData({
+                          publicPortalEnabled: e.target.checked,
+                        })
+                      }
+                      className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                    />
+                    <Label htmlFor="publicPortalEnabled" className="mb-0">
+                      Enable Public Resource Portal
+                    </Label>
+                  </div>
+                  <p className="text-sm text-gray-600 ml-6 mt-2">
+                    Allows group leaders to view seating, meal times, and schedule
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Step 4: Pricing (moved from Step 3) */}
+          {currentStep === 4 && (
             <>
               <div className="space-y-6">
                 {/* Youth Pricing */}
@@ -1028,201 +1289,6 @@ export default function CreateEventClient({
             </>
           )}
 
-          {/* Step 4: Features & Modules */}
-          {currentStep === 4 && (
-            <>
-              <div className="space-y-6">
-                {/* Registration Types */}
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-blue-900 mb-3">
-                    Registration Types
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="groupRegistrationEnabled"
-                        checked={formData.groupRegistrationEnabled}
-                        onChange={(e) =>
-                          updateFormData({
-                            groupRegistrationEnabled: e.target.checked,
-                          })
-                        }
-                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
-                      />
-                      <Label
-                        htmlFor="groupRegistrationEnabled"
-                        className="mb-0"
-                      >
-                        Enable Group Registration
-                      </Label>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="individualRegistrationEnabled"
-                        checked={formData.individualRegistrationEnabled}
-                        onChange={(e) =>
-                          updateFormData({
-                            individualRegistrationEnabled: e.target.checked,
-                          })
-                        }
-                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
-                      />
-                      <Label
-                        htmlFor="individualRegistrationEnabled"
-                        className="mb-0"
-                      >
-                        Enable Individual Registration
-                      </Label>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Housing Options */}
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-green-900 mb-3">
-                    Housing & Logistics
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="porosHousingEnabled"
-                        checked={formData.porosHousingEnabled}
-                        onChange={(e) =>
-                          updateFormData({
-                            porosHousingEnabled: e.target.checked,
-                          })
-                        }
-                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
-                      />
-                      <Label htmlFor="porosHousingEnabled" className="mb-0">
-                        Enable Poros Portal (Housing Assignments)
-                      </Label>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="allowOnCampus"
-                        checked={formData.allowOnCampus}
-                        onChange={(e) =>
-                          updateFormData({ allowOnCampus: e.target.checked })
-                        }
-                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
-                      />
-                      <Label htmlFor="allowOnCampus" className="mb-0">
-                        Allow On-Campus Housing
-                      </Label>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="allowOffCampus"
-                        checked={formData.allowOffCampus}
-                        onChange={(e) =>
-                          updateFormData({ allowOffCampus: e.target.checked })
-                        }
-                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
-                      />
-                      <Label htmlFor="allowOffCampus" className="mb-0">
-                        Allow Off-Campus Housing
-                      </Label>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="allowDayPass"
-                        checked={formData.allowDayPass}
-                        onChange={(e) =>
-                          updateFormData({ allowDayPass: e.target.checked })
-                        }
-                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
-                      />
-                      <Label htmlFor="allowDayPass" className="mb-0">
-                        Allow Day Pass Only
-                      </Label>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Check-In & Medical */}
-                <div className="bg-purple-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-purple-900 mb-3">
-                    Check-In & Medical
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="salveCheckinEnabled"
-                        checked={formData.salveCheckinEnabled}
-                        onChange={(e) =>
-                          updateFormData({
-                            salveCheckinEnabled: e.target.checked,
-                          })
-                        }
-                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
-                      />
-                      <Label htmlFor="salveCheckinEnabled" className="mb-0">
-                        Enable SALVE Check-In System
-                      </Label>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="raphaMedicalEnabled"
-                        checked={formData.raphaMedicalEnabled}
-                        onChange={(e) =>
-                          updateFormData({
-                            raphaMedicalEnabled: e.target.checked,
-                          })
-                        }
-                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
-                      />
-                      <Label htmlFor="raphaMedicalEnabled" className="mb-0">
-                        Enable Rapha Medical Platform
-                      </Label>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Public Portal */}
-                <div className="bg-amber-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-amber-900 mb-3">
-                    Public Portal
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="publicPortalEnabled"
-                        checked={formData.publicPortalEnabled}
-                        onChange={(e) =>
-                          updateFormData({
-                            publicPortalEnabled: e.target.checked,
-                          })
-                        }
-                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
-                      />
-                      <Label htmlFor="publicPortalEnabled" className="mb-0">
-                        Enable Public Resource Portal
-                      </Label>
-                    </div>
-                    <p className="text-sm text-gray-600 ml-6">
-                      Allows group leaders to view seating, meal times, and
-                      schedule
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
 
           {/* Step 5: Contact & Instructions */}
           {currentStep === 5 && (
@@ -1477,43 +1543,6 @@ export default function CreateEventClient({
                         Show Contact Information
                       </Label>
                     </div>
-
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="landingPageShowGallery"
-                        checked={formData.landingPageShowGallery}
-                        onChange={(e) =>
-                          updateFormData({
-                            landingPageShowGallery: e.target.checked,
-                          })
-                        }
-                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
-                      />
-                      <Label htmlFor="landingPageShowGallery" className="mb-0">
-                        Show Photo Gallery
-                      </Label>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="landingPageShowSponsors"
-                        checked={formData.landingPageShowSponsors}
-                        onChange={(e) =>
-                          updateFormData({
-                            landingPageShowSponsors: e.target.checked,
-                          })
-                        }
-                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
-                      />
-                      <Label
-                        htmlFor="landingPageShowSponsors"
-                        className="mb-0"
-                      >
-                        Show Sponsors
-                      </Label>
-                    </div>
                   </div>
                 </div>
 
@@ -1659,6 +1688,175 @@ export default function CreateEventClient({
                         />
                       </div>
                     )}
+                  </div>
+                </div>
+
+                {/* Theme Customization */}
+                <div className="bg-purple-50 p-4 rounded-lg border-2 border-purple-200">
+                  <h3 className="font-semibold text-purple-900 mb-3">
+                    🎨 Theme Customization
+                  </h3>
+                  <p className="text-sm text-purple-800 mb-4">
+                    Customize the look and feel of your event landing page
+                  </p>
+
+                  <div className="space-y-4">
+                    {/* Background Image */}
+                    <div>
+                      <Label htmlFor="backgroundImageUrl">
+                        Background Image URL
+                      </Label>
+                      <Input
+                        id="backgroundImageUrl"
+                        type="url"
+                        value={formData.backgroundImageUrl}
+                        onChange={(e) =>
+                          updateFormData({
+                            backgroundImageUrl: e.target.value,
+                          })
+                        }
+                        placeholder="https://example.com/image.jpg"
+                        className="mt-1"
+                      />
+                      <p className="text-sm text-gray-500 mt-1">
+                        Enter the URL of your hero background image (recommended: 1920x1080px)
+                      </p>
+                    </div>
+
+                    {/* Color Pickers */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="primaryColor">
+                          Primary Color (Navy)
+                        </Label>
+                        <div className="flex gap-2 mt-1">
+                          <input
+                            id="primaryColor"
+                            type="color"
+                            value={formData.primaryColor}
+                            onChange={(e) =>
+                              updateFormData({ primaryColor: e.target.value })
+                            }
+                            className="h-10 w-20 rounded border border-gray-300 cursor-pointer"
+                          />
+                          <Input
+                            type="text"
+                            value={formData.primaryColor}
+                            onChange={(e) =>
+                              updateFormData({ primaryColor: e.target.value })
+                            }
+                            placeholder="#1E3A5F"
+                            className="flex-1"
+                          />
+                        </div>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Main color for buttons and headers
+                        </p>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="secondaryColor">
+                          Secondary Color (Gold)
+                        </Label>
+                        <div className="flex gap-2 mt-1">
+                          <input
+                            id="secondaryColor"
+                            type="color"
+                            value={formData.secondaryColor}
+                            onChange={(e) =>
+                              updateFormData({ secondaryColor: e.target.value })
+                            }
+                            className="h-10 w-20 rounded border border-gray-300 cursor-pointer"
+                          />
+                          <Input
+                            type="text"
+                            value={formData.secondaryColor}
+                            onChange={(e) =>
+                              updateFormData({ secondaryColor: e.target.value })
+                            }
+                            placeholder="#9C8466"
+                            className="flex-1"
+                          />
+                        </div>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Accent color for highlights and borders
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Overlay Settings */}
+                    <div className="border-t pt-4">
+                      <h4 className="font-medium text-purple-900 mb-3">
+                        Background Overlay (Filter)
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="overlayColor">Overlay Color</Label>
+                          <div className="flex gap-2 mt-1">
+                            <input
+                              id="overlayColor"
+                              type="color"
+                              value={formData.overlayColor}
+                              onChange={(e) =>
+                                updateFormData({ overlayColor: e.target.value })
+                              }
+                              className="h-10 w-20 rounded border border-gray-300 cursor-pointer"
+                            />
+                            <Input
+                              type="text"
+                              value={formData.overlayColor}
+                              onChange={(e) =>
+                                updateFormData({ overlayColor: e.target.value })
+                              }
+                              placeholder="#000000"
+                              className="flex-1"
+                            />
+                          </div>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Color of the overlay on top of background image
+                          </p>
+                        </div>
+
+                        <div>
+                          <Label htmlFor="overlayOpacity">
+                            Overlay Opacity ({formData.overlayOpacity}%)
+                          </Label>
+                          <Input
+                            id="overlayOpacity"
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={formData.overlayOpacity}
+                            onChange={(e) =>
+                              updateFormData({ overlayOpacity: e.target.value })
+                            }
+                            className="mt-1 w-full"
+                          />
+                          <p className="text-sm text-gray-500 mt-1">
+                            Adjust darkness/lightness of background (0% = no overlay, 100% = solid color)
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Preview Box */}
+                    <div className="border-t pt-4">
+                      <Label className="mb-2 block">Color Preview</Label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div
+                          className="h-20 rounded-lg flex items-center justify-center text-white font-semibold"
+                          style={{ backgroundColor: formData.primaryColor }}
+                        >
+                          Primary Color
+                        </div>
+                        <div
+                          className="h-20 rounded-lg flex items-center justify-center text-white font-semibold"
+                          style={{ backgroundColor: formData.secondaryColor }}
+                        >
+                          Secondary Color
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
