@@ -38,7 +38,11 @@ export default async function EditEventPage({ params }: PageProps) {
     startDate: event.startDate.toISOString().split('T')[0],
     endDate: event.endDate.toISOString().split('T')[0],
     locationName: event.locationName || '',
-    locationAddress: event.locationAddress || '',
+    locationAddress: typeof event.locationAddress === 'string'
+      ? event.locationAddress
+      : event.locationAddress
+        ? JSON.stringify(event.locationAddress)
+        : '',
     timezone: event.timezone || 'America/New_York',
     capacityTotal: event.capacityTotal?.toString() || '1000',
 
