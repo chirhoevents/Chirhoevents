@@ -258,14 +258,15 @@ export default function CreateEventClient({
       })
 
       if (!response.ok) {
-        throw new Error('Failed to save draft')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to save draft')
       }
 
       const { event } = await response.json()
       router.push(`/dashboard/admin/events/${event.id}`)
     } catch (error) {
       console.error('Error saving draft:', error)
-      alert('Failed to save draft. Please try again.')
+      alert(error instanceof Error ? error.message : 'Failed to save draft. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -285,14 +286,15 @@ export default function CreateEventClient({
       })
 
       if (!response.ok) {
-        throw new Error('Failed to publish event')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to publish event')
       }
 
       const { event } = await response.json()
       router.push(`/dashboard/admin/events`)
     } catch (error) {
       console.error('Error publishing event:', error)
-      alert('Failed to publish event. Please try again.')
+      alert(error instanceof Error ? error.message : 'Failed to publish event. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -1393,7 +1395,7 @@ export default function CreateEventClient({
                     )}
 
                     {/* Individual Off-Campus Option */}
-                    {formData.allowOffCampus && (
+                    {formData.porosHousingEnabled && formData.allowOffCampus && (
                       <div className="bg-amber-50 p-4 rounded-lg border-2 border-amber-200">
                         <h3 className="font-semibold text-amber-900 mb-2">
                           🏨 Not Staying On-Campus

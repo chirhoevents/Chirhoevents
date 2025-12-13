@@ -15,6 +15,24 @@ export async function POST(request: Request) {
 
     const data = await request.json()
 
+    // Validate required fields based on status
+    if (!data.name || !data.slug) {
+      return NextResponse.json(
+        { error: 'Event name and slug are required' },
+        { status: 400 }
+      )
+    }
+
+    // For published events, require dates
+    if (data.status === 'published') {
+      if (!data.startDate || !data.endDate) {
+        return NextResponse.json(
+          { error: 'Start and end dates are required for published events' },
+          { status: 400 }
+        )
+      }
+    }
+
     // Create event with all related data
     const event = await prisma.event.create({
       data: {
@@ -22,10 +40,10 @@ export async function POST(request: Request) {
         name: data.name,
         slug: data.slug,
         description: data.description || null,
-        startDate: new Date(data.startDate),
-        endDate: new Date(data.endDate),
+        startDate: data.startDate ? new Date(data.startDate) : new Date(),
+        endDate: data.endDate ? new Date(data.endDate) : new Date(),
         timezone: data.timezone || 'America/New_York',
-        locationName: data.locationName,
+        locationName: data.locationName || null,
         locationAddress: data.locationAddress || null,
         capacityTotal: parseInt(data.capacityTotal) || null,
         capacityRemaining: parseInt(data.capacityTotal) || null,
