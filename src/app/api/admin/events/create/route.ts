@@ -66,6 +66,8 @@ export async function POST(request: Request) {
             publicPortalEnabled: data.publicPortalEnabled || false,
             salveCheckinEnabled: data.salveCheckinEnabled || false,
             raphaMedicalEnabled: data.raphaMedicalEnabled || false,
+            tshirtsEnabled: data.tshirtsEnabled || false,
+            individualMealsEnabled: data.individualMealsEnabled || false,
             registrationInstructions: data.registrationInstructions || null,
             checkPaymentEnabled: data.checkPaymentEnabled !== false,
             checkPaymentPayableTo: data.checkPaymentPayableTo || null,
@@ -130,6 +132,27 @@ export async function POST(request: Request) {
               : null,
             dayPassChaperonePrice: data.dayPassChaperonePrice
               ? parseFloat(data.dayPassChaperonePrice)
+              : null,
+            individualBasePrice: data.individualBasePrice
+              ? parseFloat(data.individualBasePrice)
+              : null,
+            singleRoomPrice: data.singleRoomPrice
+              ? parseFloat(data.singleRoomPrice)
+              : null,
+            doubleRoomPrice: data.doubleRoomPrice
+              ? parseFloat(data.doubleRoomPrice)
+              : null,
+            tripleRoomPrice: data.tripleRoomPrice
+              ? parseFloat(data.tripleRoomPrice)
+              : null,
+            quadRoomPrice: data.quadRoomPrice
+              ? parseFloat(data.quadRoomPrice)
+              : null,
+            individualOffCampusPrice: data.individualOffCampusPrice
+              ? parseFloat(data.individualOffCampusPrice)
+              : null,
+            individualMealPackagePrice: data.individualMealPackagePrice
+              ? parseFloat(data.individualMealPackagePrice)
               : null,
             depositAmount:
               data.depositType === 'fixed' && data.depositAmount

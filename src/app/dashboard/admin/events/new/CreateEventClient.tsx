@@ -363,6 +363,71 @@ export default function CreateEventClient({
           {currentStep === 1 && (
             <>
               <div className="space-y-4">
+                {/* Registration Type - FIRST QUESTION */}
+                <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
+                  <h3 className="font-semibold text-blue-900 mb-3">
+                    📝 Registration Type <span className="text-red-500">*</span>
+                  </h3>
+                  <p className="text-sm text-blue-800 mb-4">
+                    Choose ONE registration type for this event (you cannot enable both)
+                  </p>
+                  <div className="space-y-4">
+                    <div className="flex items-start space-x-3">
+                      <input
+                        type="radio"
+                        id="registrationType-group"
+                        name="registrationType"
+                        checked={formData.groupRegistrationEnabled && !formData.individualRegistrationEnabled}
+                        onChange={() =>
+                          updateFormData({
+                            groupRegistrationEnabled: true,
+                            individualRegistrationEnabled: false,
+                          })
+                        }
+                        className="w-4 h-4 mt-1 text-[#1E3A5F] border-gray-300"
+                      />
+                      <div className="flex-1">
+                        <Label
+                          htmlFor="registrationType-group"
+                          className="mb-0 font-medium text-blue-900 cursor-pointer"
+                        >
+                          👥 Group Registration
+                        </Label>
+                        <p className="text-sm text-blue-700 mt-1">
+                          Allow parishes and youth groups to register multiple participants together. Group leaders can manage their entire team.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start space-x-3">
+                      <input
+                        type="radio"
+                        id="registrationType-individual"
+                        name="registrationType"
+                        checked={!formData.groupRegistrationEnabled && formData.individualRegistrationEnabled}
+                        onChange={() =>
+                          updateFormData({
+                            groupRegistrationEnabled: false,
+                            individualRegistrationEnabled: true,
+                          })
+                        }
+                        className="w-4 h-4 mt-1 text-[#1E3A5F] border-gray-300"
+                      />
+                      <div className="flex-1">
+                        <Label
+                          htmlFor="registrationType-individual"
+                          className="mb-0 font-medium text-blue-900 cursor-pointer"
+                        >
+                          🧑 Individual Registration
+                        </Label>
+                        <p className="text-sm text-blue-700 mt-1">
+                          Allow individuals to register on their own without being part of a youth group or parish.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div>
                   <Label htmlFor="name">
                     Event Name <span className="text-red-500">*</span>
@@ -627,47 +692,53 @@ export default function CreateEventClient({
                   </div>
                 </div>
 
-                <div className="bg-orange-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-orange-900 mb-2">
-                    Late Fee Settings
-                  </h3>
+                {/* Late Fee Settings - Only for Group Registration */}
+                {formData.groupRegistrationEnabled && (
+                  <div className="bg-orange-50 p-4 rounded-lg border-2 border-orange-200">
+                    <h3 className="font-semibold text-orange-900 mb-2">
+                      💰 Late Fee Settings (Group Registration Only)
+                    </h3>
+                    <p className="text-sm text-orange-800 mb-3">
+                      Late fees apply to groups that select &quot;pay later&quot; deposit options
+                    </p>
 
-                  <div className="space-y-3">
-                    <div>
-                      <Label htmlFor="lateFeePercentage">
-                        Late Fee Percentage (%)
-                      </Label>
-                      <Input
-                        id="lateFeePercentage"
-                        type="number"
-                        value={formData.lateFeePercentage}
-                        onChange={(e) =>
-                          updateFormData({ lateFeePercentage: e.target.value })
-                        }
-                        placeholder="20"
-                        className="mt-1"
-                      />
-                      <p className="text-sm text-gray-500 mt-1">
-                        Percentage to add for late registrations/payments
-                      </p>
-                    </div>
+                    <div className="space-y-3">
+                      <div>
+                        <Label htmlFor="lateFeePercentage">
+                          Late Fee Percentage (%)
+                        </Label>
+                        <Input
+                          id="lateFeePercentage"
+                          type="number"
+                          value={formData.lateFeePercentage}
+                          onChange={(e) =>
+                            updateFormData({ lateFeePercentage: e.target.value })
+                          }
+                          placeholder="20"
+                          className="mt-1"
+                        />
+                        <p className="text-sm text-gray-500 mt-1">
+                          Percentage to add for late registrations/payments
+                        </p>
+                      </div>
 
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="lateFeeAutoApply"
-                        checked={formData.lateFeeAutoApply}
-                        onChange={(e) =>
-                          updateFormData({ lateFeeAutoApply: e.target.checked })
-                        }
-                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
-                      />
-                      <Label htmlFor="lateFeeAutoApply" className="mb-0">
-                        Automatically apply late fees after deadline
-                      </Label>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="lateFeeAutoApply"
+                          checked={formData.lateFeeAutoApply}
+                          onChange={(e) =>
+                            updateFormData({ lateFeeAutoApply: e.target.checked })
+                          }
+                          className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                        />
+                        <Label htmlFor="lateFeeAutoApply" className="mb-0">
+                          Automatically apply late fees after deadline
+                        </Label>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             </>
           )}
@@ -676,71 +747,6 @@ export default function CreateEventClient({
           {currentStep === 3 && (
             <>
               <div className="space-y-6">
-                {/* Registration Types - FIRST - Radio buttons (mutually exclusive) */}
-                <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
-                  <h3 className="font-semibold text-blue-900 mb-3">
-                    📝 Registration Type
-                  </h3>
-                  <p className="text-sm text-blue-800 mb-4">
-                    Choose ONE registration type for this event (you cannot enable both)
-                  </p>
-                  <div className="space-y-4">
-                    <div className="flex items-start space-x-3">
-                      <input
-                        type="radio"
-                        id="registrationType-group"
-                        name="registrationType"
-                        checked={formData.groupRegistrationEnabled && !formData.individualRegistrationEnabled}
-                        onChange={() =>
-                          updateFormData({
-                            groupRegistrationEnabled: true,
-                            individualRegistrationEnabled: false,
-                          })
-                        }
-                        className="w-4 h-4 mt-1 text-[#1E3A5F] border-gray-300"
-                      />
-                      <div className="flex-1">
-                        <Label
-                          htmlFor="registrationType-group"
-                          className="mb-0 font-medium text-blue-900 cursor-pointer"
-                        >
-                          👥 Group Registration
-                        </Label>
-                        <p className="text-sm text-blue-700 mt-1">
-                          Allow parishes and youth groups to register multiple participants together. Group leaders can manage their entire team.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start space-x-3">
-                      <input
-                        type="radio"
-                        id="registrationType-individual"
-                        name="registrationType"
-                        checked={!formData.groupRegistrationEnabled && formData.individualRegistrationEnabled}
-                        onChange={() =>
-                          updateFormData({
-                            groupRegistrationEnabled: false,
-                            individualRegistrationEnabled: true,
-                          })
-                        }
-                        className="w-4 h-4 mt-1 text-[#1E3A5F] border-gray-300"
-                      />
-                      <div className="flex-1">
-                        <Label
-                          htmlFor="registrationType-individual"
-                          className="mb-0 font-medium text-blue-900 cursor-pointer"
-                        >
-                          🧑 Individual Registration
-                        </Label>
-                        <p className="text-sm text-blue-700 mt-1">
-                          Allow individuals to register on their own without being part of a youth group or parish.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Housing & Logistics */}
                 <div className="bg-green-50 p-4 rounded-lg">
                   <h3 className="font-semibold text-green-900 mb-3">
@@ -1533,68 +1539,74 @@ export default function CreateEventClient({
                   </p>
                 </div>
 
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-green-900 mb-3">
-                    Check Payment Settings
-                  </h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="checkPaymentEnabled"
-                        checked={formData.checkPaymentEnabled}
-                        onChange={(e) =>
-                          updateFormData({
-                            checkPaymentEnabled: e.target.checked,
-                          })
-                        }
-                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
-                      />
-                      <Label htmlFor="checkPaymentEnabled" className="mb-0">
-                        Allow payment by check
-                      </Label>
+                {/* Check Payment Settings - Only for Group Registration */}
+                {formData.groupRegistrationEnabled && (
+                  <div className="bg-green-50 p-4 rounded-lg border-2 border-green-200">
+                    <h3 className="font-semibold text-green-900 mb-3">
+                      💳 Check Payment Settings (Group Registration Only)
+                    </h3>
+                    <p className="text-sm text-green-800 mb-3">
+                      Allow groups to pay by check instead of credit card (for deposit or balance)
+                    </p>
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="checkPaymentEnabled"
+                          checked={formData.checkPaymentEnabled}
+                          onChange={(e) =>
+                            updateFormData({
+                              checkPaymentEnabled: e.target.checked,
+                            })
+                          }
+                          className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                        />
+                        <Label htmlFor="checkPaymentEnabled" className="mb-0">
+                          Allow payment by check
+                        </Label>
+                      </div>
+
+                      {formData.checkPaymentEnabled && (
+                        <>
+                          <div>
+                            <Label htmlFor="checkPaymentPayableTo">
+                              Make Check Payable To
+                            </Label>
+                            <Input
+                              id="checkPaymentPayableTo"
+                              value={formData.checkPaymentPayableTo}
+                              onChange={(e) =>
+                                updateFormData({
+                                  checkPaymentPayableTo: e.target.value,
+                                })
+                              }
+                              placeholder="Mount Saint Mary Seminary"
+                              className="mt-1"
+                            />
+                          </div>
+
+                          <div>
+                            <Label htmlFor="checkPaymentAddress">
+                              Mail Checks To
+                            </Label>
+                            <Textarea
+                              id="checkPaymentAddress"
+                              value={formData.checkPaymentAddress}
+                              onChange={(e) =>
+                                updateFormData({
+                                  checkPaymentAddress: e.target.value,
+                                })
+                              }
+                              placeholder="Mount Saint Mary Seminary&#10;16300 Old Emmitsburg Rd&#10;Emmitsburg, MD 21727"
+                              rows={4}
+                              className="mt-1"
+                            />
+                          </div>
+                        </>
+                      )}
                     </div>
-
-                    {formData.checkPaymentEnabled && (
-                      <>
-                        <div>
-                          <Label htmlFor="checkPaymentPayableTo">
-                            Make Check Payable To
-                          </Label>
-                          <Input
-                            id="checkPaymentPayableTo"
-                            value={formData.checkPaymentPayableTo}
-                            onChange={(e) =>
-                              updateFormData({
-                                checkPaymentPayableTo: e.target.value,
-                              })
-                            }
-                            placeholder="Mount Saint Mary Seminary"
-                            className="mt-1"
-                          />
-                        </div>
-
-                        <div>
-                          <Label htmlFor="checkPaymentAddress">
-                            Mail Checks To
-                          </Label>
-                          <Textarea
-                            id="checkPaymentAddress"
-                            value={formData.checkPaymentAddress}
-                            onChange={(e) =>
-                              updateFormData({
-                                checkPaymentAddress: e.target.value,
-                              })
-                            }
-                            placeholder="Mount Saint Mary Seminary&#10;16300 Old Emmitsburg Rd&#10;Emmitsburg, MD 21727"
-                            rows={4}
-                            className="mt-1"
-                          />
-                        </div>
-                      </>
-                    )}
                   </div>
-                </div>
+                )}
               </div>
             </>
           )}
