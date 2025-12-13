@@ -699,7 +699,7 @@ export default function CreateEventClient({
                       💰 Late Fee Settings (Group Registration Only)
                     </h3>
                     <p className="text-sm text-orange-800 mb-3">
-                      Late fees apply to groups that select "pay later" deposit options
+                      Late fees apply to groups that select &quot;pay later&quot; deposit options
                     </p>
 
                     <div className="space-y-3">
