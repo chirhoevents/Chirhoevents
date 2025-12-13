@@ -35,6 +35,13 @@ export default async function EventDetailPage({ params }: PageProps) {
     notFound()
   }
 
+  // Fetch payment balances for this event
+  const paymentBalances = await prisma.paymentBalance.findMany({
+    where: {
+      eventId: eventId,
+    },
+  })
+
   // Calculate stats
   const totalRegistrations =
     event.groupRegistrations.length + event.individualRegistrations.length
@@ -45,14 +52,14 @@ export default async function EventDetailPage({ params }: PageProps) {
       0
     ) + event.individualRegistrations.length
 
-  // Calculate revenue (simplified - just sum up totals)
-  const totalRevenue = event.groupRegistrations.reduce(
-    (sum, reg) => sum + Number(reg.totalAmount || 0),
+  // Calculate revenue from payment balances
+  const totalRevenue = paymentBalances.reduce(
+    (sum, balance) => sum + Number(balance.totalAmountDue || 0),
     0
   )
 
-  const totalPaid = event.groupRegistrations.reduce(
-    (sum, reg) => sum + Number(reg.amountPaid || 0),
+  const totalPaid = paymentBalances.reduce(
+    (sum, balance) => sum + Number(balance.amountPaid || 0),
     0
   )
 
