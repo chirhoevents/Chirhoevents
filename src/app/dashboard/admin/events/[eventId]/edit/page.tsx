@@ -103,13 +103,13 @@ export default async function EditEventPage({ params }: PageProps) {
     individualMealPackagePrice: event.pricing?.individualMealPackagePrice?.toString() || '50',
 
     // Deposit settings
-    depositType: event.pricing?.requireFullPayment
+    depositType: (event.pricing?.requireFullPayment
       ? 'full'
       : event.pricing?.depositPercentage
       ? 'percentage'
       : event.pricing?.depositAmount
       ? 'fixed'
-      : 'none',
+      : 'none') as 'fixed' | 'percentage' | 'full' | 'none',
     depositPercentage: event.pricing?.depositPercentage?.toString() || '25',
     depositAmount: event.pricing?.depositAmount?.toString() || '500',
 
