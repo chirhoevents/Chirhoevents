@@ -27,11 +27,7 @@ export default async function EventDetailPage({ params }: PageProps) {
           participants: true,
         },
       },
-      individualRegistrations: {
-        include: {
-          participant: true,
-        },
-      },
+      individualRegistrations: true,
     },
   })
 
