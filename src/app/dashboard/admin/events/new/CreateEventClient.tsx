@@ -11,6 +11,9 @@ import { Check, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 
 interface CreateEventClientProps {
   organizationId: string
+  eventId?: string
+  initialData?: Partial<EventFormData>
+  isEditMode?: boolean
 }
 
 interface EventFormData {
@@ -117,11 +120,16 @@ const STEPS = [
 
 export default function CreateEventClient({
   organizationId,
+  eventId,
+  initialData,
+  isEditMode = false,
 }: CreateEventClientProps) {
   const router = useRouter()
   const [currentStep, setCurrentStep] = useState(1)
   const [saving, setSaving] = useState(false)
-  const [formData, setFormData] = useState<EventFormData>({
+
+  // Use initialData if provided (edit mode), otherwise use defaults
+  const defaultFormData: EventFormData = {
     // Step 1
     name: '',
     slug: '',
@@ -211,6 +219,11 @@ export default function CreateEventClient({
     secondaryColor: '#9C8466', // Default gold
     overlayColor: '#000000', // Default black overlay
     overlayOpacity: '40', // 40% opacity
+  }
+
+  const [formData, setFormData] = useState<EventFormData>({
+    ...defaultFormData,
+    ...initialData,
   })
 
   const updateFormData = (updates: Partial<EventFormData>) => {
@@ -247,8 +260,13 @@ export default function CreateEventClient({
   const handleSaveDraft = async () => {
     setSaving(true)
     try {
-      const response = await fetch('/api/admin/events/create', {
-        method: 'POST',
+      const url = isEditMode
+        ? `/api/admin/events/${eventId}`
+        : '/api/admin/events/create'
+      const method = isEditMode ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
@@ -263,8 +281,8 @@ export default function CreateEventClient({
       }
 
       const { event } = await response.json()
-      // Redirect to events list since event detail page doesn't exist yet
-      router.push(`/dashboard/admin/events`)
+      // Redirect to event detail page
+      router.push(`/dashboard/admin/events/${event.id}`)
     } catch (error) {
       console.error('Error saving draft:', error)
       alert(error instanceof Error ? error.message : 'Failed to save draft. Please try again.')
@@ -276,8 +294,13 @@ export default function CreateEventClient({
   const handlePublish = async () => {
     setSaving(true)
     try {
-      const response = await fetch('/api/admin/events/create', {
-        method: 'POST',
+      const url = isEditMode
+        ? `/api/admin/events/${eventId}`
+        : '/api/admin/events/create'
+      const method = isEditMode ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
@@ -292,7 +315,8 @@ export default function CreateEventClient({
       }
 
       const { event } = await response.json()
-      router.push(`/dashboard/admin/events`)
+      // Redirect to event detail page
+      router.push(`/dashboard/admin/events/${event.id}`)
     } catch (error) {
       console.error('Error publishing event:', error)
       alert(error instanceof Error ? error.message : 'Failed to publish event. Please try again.')
@@ -304,14 +328,16 @@ export default function CreateEventClient({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-[#1E3A5F] mb-2">
-          Create New Event
-        </h1>
-        <p className="text-[#6B7280]">
-          Fill in the details below to create your event
-        </p>
-      </div>
+      {!isEditMode && (
+        <div>
+          <h1 className="text-2xl font-bold text-[#1E3A5F] mb-2">
+            Create New Event
+          </h1>
+          <p className="text-[#6B7280]">
+            Fill in the details below to create your event
+          </p>
+        </div>
+      )}
 
       {/* Progress Steps */}
       <div className="flex items-center justify-between">
@@ -2153,10 +2179,10 @@ export default function CreateEventClient({
                 {saving ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Publishing...
+                    {isEditMode ? 'Updating...' : 'Publishing...'}
                   </>
                 ) : (
-                  'Publish Event'
+                  isEditMode ? 'Update Event' : 'Publish Event'
                 )}
               </Button>
             </>
