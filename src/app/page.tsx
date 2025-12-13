@@ -39,7 +39,8 @@ export default function LandingPage() {
               </Link>
             </div>
             <div className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-navy hover:text-gold transition-colors font-medium">Features</a>
+              <Link href="/about" className="text-navy hover:text-gold transition-colors font-medium">About</Link>
+              <Link href="/features" className="text-navy hover:text-gold transition-colors font-medium">Features</Link>
               <a href="#pricing" className="text-navy hover:text-gold transition-colors font-medium">Pricing</a>
               <a href="#faq" className="text-navy hover:text-gold transition-colors font-medium">FAQ</a>
               <a href="#contact" className="text-navy hover:text-gold transition-colors font-medium">Contact</a>
@@ -65,7 +66,7 @@ export default function LandingPage() {
               The Complete Catholic Registration Platform for Ministry
             </h1>
             <p className="text-xl sm:text-2xl mb-8 text-gray-200">
-              Built for conferences, retreats, and many Catholic events—at 30% lower cost than competitors.
+              A registration and event-management platform built specifically for Catholic ministry so you can spend less time on spreadsheets and more time forming disciples.
             </p>
             <div className="space-y-4 mb-10">
               <div className="flex items-center justify-center space-x-2">
@@ -263,24 +264,30 @@ export default function LandingPage() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-3xl sm:text-4xl font-bold mb-8">
-              Built BY Youth Ministry, FOR Youth Ministry
+              Built by ministry for ministry
             </h2>
             <div className="bg-navy-600 rounded-lg p-8 text-left space-y-4 text-lg">
               <p>
-                As housing director for Mount 2000, I found myself juggling multiple tools—registration software, housing spreadsheets, check-in systems, and medical forms.
+                As a registration assistant for the Steubenville Conferences, housing director for Mount 2000, and event manager for countless smaller retreats, I often found myself juggling a patchwork of tools—registration platforms, housing spreadsheets, check-in lists, medical forms, and more.
               </p>
               <p>
-                None of these tools understood Catholic youth ministry. No fields for priests. No safe environment tracking. No three-tiered liability forms.
+                But none of those tools truly understood Catholic youth ministry.
               </p>
               <p>
-                So we built ChiRho Events—the all-in-one platform we wish we&apos;d had.
+                There were no fields for priests.<br />
+                No safe-environment tracking.<br />
+                No tiered liability forms.<br />
+                No assessment systems.<br />
+                No way to respect the unique structure of our parishes, youth groups, and sacramental life.
               </p>
               <p>
-                Our goal is to help Catholic events run more smoothly with features specifically built for our unique needs—at a fair price.
+                So we built ChiRho Events—the all-in-one system we wish we&apos;d had.
+              </p>
+              <p>
+                Our mission is simple: To help Catholic events run more smoothly, more safely, and more beautifully, using tools intentionally crafted for the Church&apos;s pastoral needs—at a fair and honest price.
               </p>
               <p className="text-gold font-semibold pt-4">
-                - Juanito, Founder<br />
-                Mount Saint Mary Seminary
+                — Juanito, Founder
               </p>
             </div>
           </div>
@@ -587,7 +594,7 @@ export default function LandingPage() {
             <div>
               <h4 className="font-semibold mb-4">Product</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="#features" className="hover:text-gold transition-colors">Features</a></li>
+                <li><Link href="/features" className="hover:text-gold transition-colors">Features</Link></li>
                 <li><a href="#pricing" className="hover:text-gold transition-colors">Pricing</a></li>
                 <li><a href="#" className="hover:text-gold transition-colors">Security</a></li>
               </ul>
@@ -595,7 +602,7 @@ export default function LandingPage() {
             <div>
               <h4 className="font-semibold mb-4">Company</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-gold transition-colors">About</a></li>
+                <li><Link href="/about" className="hover:text-gold transition-colors">About</Link></li>
                 <li><a href="#contact" className="hover:text-gold transition-colors">Contact</a></li>
               </ul>
             </div>
