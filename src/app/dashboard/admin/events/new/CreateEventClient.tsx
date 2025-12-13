@@ -263,7 +263,8 @@ export default function CreateEventClient({
       }
 
       const { event } = await response.json()
-      router.push(`/dashboard/admin/events/${event.id}`)
+      // Redirect to events list since event detail page doesn't exist yet
+      router.push(`/dashboard/admin/events`)
     } catch (error) {
       console.error('Error saving draft:', error)
       alert(error instanceof Error ? error.message : 'Failed to save draft. Please try again.')
