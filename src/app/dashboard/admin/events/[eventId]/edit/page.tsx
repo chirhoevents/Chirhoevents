@@ -130,7 +130,7 @@ export default async function EditEventPage({ params }: PageProps) {
     landingPageShowContact: event.settings?.landingPageShowContact ?? true,
     showAvailability: event.settings?.showAvailability ?? true,
     availabilityThreshold: event.settings?.availabilityThreshold?.toString() || '20',
-    countdownLocation: event.settings?.countdownLocation || 'hero',
+    countdownLocation: (event.settings?.countdownLocation || 'hero') as 'hero' | 'sticky' | 'registration',
     countdownBeforeOpen: event.settings?.countdownBeforeOpen ?? true,
     countdownBeforeClose: event.settings?.countdownBeforeClose ?? true,
     enableWaitlist: event.enableWaitlist || false,
