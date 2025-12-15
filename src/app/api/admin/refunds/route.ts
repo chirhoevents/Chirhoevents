@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       where: {
         registrationId: registrationId,
         registrationType: registrationType,
-        status: 'succeeded',
+        paymentStatus: 'succeeded',
         stripePaymentIntentId: { not: null },
       },
       orderBy: { createdAt: 'desc' },
