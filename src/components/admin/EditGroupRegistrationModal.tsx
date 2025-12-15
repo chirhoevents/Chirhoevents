@@ -9,12 +9,11 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
-import { Loader2, User, DollarSign, FileText, X, Plus, Pencil, Trash2, AlertCircle } from 'lucide-react'
+import { Loader2, User, DollarSign, FileText, AlertCircle } from 'lucide-react'
 import {
   calculateRegistrationPrice,
   type EventPricing,
 } from '@/lib/registration-price-calculator'
-import ParticipantFormModal from './ParticipantFormModal'
 import RefundModal from './RefundModal'
 
 interface Participant {
@@ -84,9 +83,12 @@ export default function EditGroupRegistrationModal({
     pricePerPerson: number
     subtotal: number
   }>>([])
-  const [participants, setParticipants] = useState<Participant[]>([])
-  const [showParticipantModal, setShowParticipantModal] = useState(false)
-  const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null)
+  const [participantCounts, setParticipantCounts] = useState({
+    youth_u18: 0,
+    youth_o18: 0,
+    chaperone: 0,
+    priest: 0,
+  })
   const [showRefundModal, setShowRefundModal] = useState(false)
   const [auditTrail, setAuditTrail] = useState<Array<{
     id: string
@@ -117,29 +119,88 @@ export default function EditGroupRegistrationModal({
         housingType: registration.housingType,
         adminNotes: '',
       })
-      setParticipants(registration.participants)
+
+      // Count participants by type
+      const counts = {
+        youth_u18: registration.participants.filter((p: Participant) => p.participantType === 'youth_u18').length,
+        youth_o18: registration.participants.filter((p: Participant) => p.participantType === 'youth_o18').length,
+        chaperone: registration.participants.filter((p: Participant) => p.participantType === 'chaperone').length,
+        priest: registration.participants.filter((p: Participant) => p.participantType === 'priest').length,
+      }
+      setParticipantCounts(counts)
+
       const total = registration.paymentBalance?.totalAmountDue || 0
       setOriginalTotal(total)
       setNewTotal(total)
     }
   }, [registration])
 
-  // Recalculate price when housing type or participants change
+  // Recalculate price when housing type or participant counts change
   useEffect(() => {
-    if (eventPricing && participants.length > 0) {
+    const totalCount = participantCounts.youth_u18 + participantCounts.youth_o18 + participantCounts.chaperone + participantCounts.priest
+
+    if (eventPricing && totalCount > 0) {
+      // Create temporary participant objects for price calculation
+      const tempParticipants: Participant[] = []
+
+      // Add youth under 18
+      for (let i = 0; i < participantCounts.youth_u18; i++) {
+        tempParticipants.push({
+          firstName: 'Youth',
+          lastName: `U18-${i + 1}`,
+          age: 16,
+          participantType: 'youth_u18',
+        })
+      }
+
+      // Add youth over 18
+      for (let i = 0; i < participantCounts.youth_o18; i++) {
+        tempParticipants.push({
+          firstName: 'Youth',
+          lastName: `O18-${i + 1}`,
+          age: 19,
+          participantType: 'youth_o18',
+        })
+      }
+
+      // Add chaperones
+      for (let i = 0; i < participantCounts.chaperone; i++) {
+        tempParticipants.push({
+          firstName: 'Chaperone',
+          lastName: `${i + 1}`,
+          age: 30,
+          participantType: 'chaperone',
+        })
+      }
+
+      // Add priests
+      for (let i = 0; i < participantCounts.priest; i++) {
+        tempParticipants.push({
+          firstName: 'Priest',
+          lastName: `${i + 1}`,
+          age: 40,
+          participantType: 'priest',
+        })
+      }
+
       const calculation = calculateRegistrationPrice({
-        participants,
+        participants: tempParticipants,
         housingType: formData.housingType,
         pricing: eventPricing,
         registrationDate: registration ? new Date(registration.registeredAt) : new Date(),
       })
       setNewTotal(calculation.total)
       setPriceBreakdown(calculation.breakdown)
+    } else if (totalCount === 0) {
+      setNewTotal(0)
+      setPriceBreakdown([])
     }
-  }, [formData.housingType, participants, eventPricing, registration])
+  }, [formData.housingType, participantCounts, eventPricing, registration])
 
   const handleSave = async () => {
     if (!registration) return
+
+    const newTotalParticipants = participantCounts.youth_u18 + participantCounts.youth_o18 + participantCounts.chaperone + participantCounts.priest
 
     setSaving(true)
     try {
@@ -152,7 +213,7 @@ export default function EditGroupRegistrationModal({
           },
           body: JSON.stringify({
             ...formData,
-            participants,
+            totalParticipants: newTotalParticipants,
             eventId,
             oldTotal: originalTotal,
             newTotal,
@@ -176,41 +237,6 @@ export default function EditGroupRegistrationModal({
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
-  }
-
-  const handleAddParticipant = () => {
-    setEditingParticipant(null)
-    setShowParticipantModal(true)
-  }
-
-  const handleEditParticipant = (participant: Participant) => {
-    setEditingParticipant(participant)
-    setShowParticipantModal(true)
-  }
-
-  const handleRemoveParticipant = (participantId: string) => {
-    if (confirm('Are you sure you want to remove this participant? This will recalculate the total price.')) {
-      setParticipants((prev) => prev.filter((p) => p.id !== participantId))
-    }
-  }
-
-  const handleSaveParticipant = (participant: Participant) => {
-    if (participant.id) {
-      // Update existing participant
-      setParticipants((prev) =>
-        prev.map((p) => (p.id === participant.id ? participant : p))
-      )
-    } else {
-      // Add new participant
-      const newParticipant = {
-        ...participant,
-        id: `temp-${Date.now()}`, // Temporary ID until saved to DB
-        liabilityFormCompleted: false,
-      }
-      setParticipants((prev) => [...prev, newParticipant])
-    }
-    setShowParticipantModal(false)
-    setEditingParticipant(null)
   }
 
   const fetchAuditTrail = async () => {
@@ -263,7 +289,7 @@ export default function EditGroupRegistrationModal({
             </TabsTrigger>
             <TabsTrigger value="participants">
               <User className="h-4 w-4 mr-2" />
-              Participants ({registration.participants.length})
+              Participants ({participantCounts.youth_u18 + participantCounts.youth_o18 + participantCounts.chaperone + participantCounts.priest})
             </TabsTrigger>
             <TabsTrigger value="payment">
               <DollarSign className="h-4 w-4 mr-2" />
@@ -420,66 +446,150 @@ export default function EditGroupRegistrationModal({
 
           {/* Participants Tab */}
           <TabsContent value="participants" className="space-y-4">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center mb-4">
               <h3 className="font-semibold text-[#1E3A5F]">
-                Participants ({participants.length})
+                Total Participants: {participantCounts.youth_u18 + participantCounts.youth_o18 + participantCounts.chaperone + participantCounts.priest}
               </h3>
-              <Button size="sm" variant="outline" onClick={handleAddParticipant}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Participant
-              </Button>
+              <div className="text-sm text-gray-600">
+                Original: {registration.totalParticipants}
+              </div>
             </div>
 
-            <div className="space-y-2">
-              {participants.length === 0 ? (
-                <Card className="p-8 text-center">
-                  <p className="text-gray-500">No participants yet. Add some to get started!</p>
-                </Card>
-              ) : (
-                participants.map((participant) => (
-                  <Card key={participant.id || `${participant.firstName}-${participant.lastName}-${participant.age}`} className="p-4">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="font-medium">
-                          {participant.firstName} {participant.lastName}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          Age: {participant.age} • Type:{' '}
-                          {participant.participantType.replace('_', ' ')}
-                        </div>
-                        <Badge
-                          variant={
-                            participant.liabilityFormCompleted
-                              ? 'default'
-                              : 'destructive'
-                          }
-                          className="mt-2"
-                        >
-                          {participant.liabilityFormCompleted
-                            ? 'Form Complete'
-                            : 'Form Incomplete'}
-                        </Badge>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleEditParticipant(participant)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => participant.id && handleRemoveParticipant(participant.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-600" />
-                        </Button>
-                      </div>
+            {/* Warning if count reduced */}
+            {(participantCounts.youth_u18 + participantCounts.youth_o18 + participantCounts.chaperone + participantCounts.priest) < registration.totalParticipants && (
+              <Card className="p-4 bg-yellow-50 border-yellow-300">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                  <div>
+                    <div className="font-medium text-yellow-900">Participant Count Reduced</div>
+                    <div className="text-sm text-yellow-800 mt-1">
+                      You are reducing the participant count from {registration.totalParticipants} to {participantCounts.youth_u18 + participantCounts.youth_o18 + participantCounts.chaperone + participantCounts.priest}. A refund may be needed based on the updated balance.
                     </div>
-                  </Card>
-                ))
-              )}
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* Counter Interface */}
+            <Card className="p-6">
+              <div className="space-y-4">
+                {/* Youth Under 18 */}
+                <div className="flex justify-between items-center py-3 border-b">
+                  <div>
+                    <div className="font-medium text-[#1E3A5F]">Youth Under 18</div>
+                    <div className="text-xs text-gray-500">Ages 17 and under</div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setParticipantCounts(prev => ({...prev, youth_u18: Math.max(0, prev.youth_u18 - 1)}))}
+                      disabled={participantCounts.youth_u18 === 0}
+                    >
+                      -
+                    </Button>
+                    <span className="w-12 text-center font-semibold text-lg">
+                      {participantCounts.youth_u18}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setParticipantCounts(prev => ({...prev, youth_u18: prev.youth_u18 + 1}))}
+                    >
+                      +
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Youth Over 18 */}
+                <div className="flex justify-between items-center py-3 border-b">
+                  <div>
+                    <div className="font-medium text-[#1E3A5F]">Youth Over 18</div>
+                    <div className="text-xs text-gray-500">Ages 18+</div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setParticipantCounts(prev => ({...prev, youth_o18: Math.max(0, prev.youth_o18 - 1)}))}
+                      disabled={participantCounts.youth_o18 === 0}
+                    >
+                      -
+                    </Button>
+                    <span className="w-12 text-center font-semibold text-lg">
+                      {participantCounts.youth_o18}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setParticipantCounts(prev => ({...prev, youth_o18: prev.youth_o18 + 1}))}
+                    >
+                      +
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Chaperones */}
+                <div className="flex justify-between items-center py-3 border-b">
+                  <div>
+                    <div className="font-medium text-[#1E3A5F]">Chaperones</div>
+                    <div className="text-xs text-gray-500">Adult supervisors</div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setParticipantCounts(prev => ({...prev, chaperone: Math.max(0, prev.chaperone - 1)}))}
+                      disabled={participantCounts.chaperone === 0}
+                    >
+                      -
+                    </Button>
+                    <span className="w-12 text-center font-semibold text-lg">
+                      {participantCounts.chaperone}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setParticipantCounts(prev => ({...prev, chaperone: prev.chaperone + 1}))}
+                    >
+                      +
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Priests */}
+                <div className="flex justify-between items-center py-3">
+                  <div>
+                    <div className="font-medium text-[#1E3A5F]">Priests</div>
+                    <div className="text-xs text-gray-500">Clergy members</div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setParticipantCounts(prev => ({...prev, priest: Math.max(0, prev.priest - 1)}))}
+                      disabled={participantCounts.priest === 0}
+                    >
+                      -
+                    </Button>
+                    <span className="w-12 text-center font-semibold text-lg">
+                      {participantCounts.priest}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setParticipantCounts(prev => ({...prev, priest: prev.priest + 1}))}
+                    >
+                      +
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Note about existing participants */}
+            <div className="text-xs text-gray-500 italic">
+              Note: Individual participant records are maintained separately for liability and housing purposes. This counter only updates the total participant count for payment calculations.
             </div>
           </TabsContent>
 
@@ -643,17 +753,6 @@ export default function EditGroupRegistrationModal({
           </Button>
         </div>
       </DialogContent>
-
-      {/* Participant Form Modal */}
-      <ParticipantFormModal
-        isOpen={showParticipantModal}
-        onClose={() => {
-          setShowParticipantModal(false)
-          setEditingParticipant(null)
-        }}
-        participant={editingParticipant}
-        onSave={handleSaveParticipant}
-      />
 
       {/* Refund Modal */}
       {registration && (
