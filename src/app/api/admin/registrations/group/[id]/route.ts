@@ -131,6 +131,9 @@ export async function PUT(
       groupLeaderPhone,
       housingType,
       totalParticipants,
+      youthCount,
+      chaperoneCount,
+      priestCount,
       adminNotes,
       oldTotal,
       newTotal,
@@ -139,6 +142,12 @@ export async function PUT(
 
     // Calculate the difference
     const difference = newTotal - oldTotal
+
+    // Calculate individual counts from participantCounts if provided
+    // The frontend sends youth_u18 and youth_o18, we need to combine them for youthCount
+    const finalYouthCount = youthCount !== undefined ? youthCount : existingRegistration.youthCount
+    const finalChaperoneCount = chaperoneCount !== undefined ? chaperoneCount : existingRegistration.chaperoneCount
+    const finalPriestCount = priestCount !== undefined ? priestCount : existingRegistration.priestCount
 
     // Update the group registration
     const updatedRegistration = await prisma.groupRegistration.update({
@@ -151,6 +160,9 @@ export async function PUT(
         groupLeaderPhone,
         housingType,
         totalParticipants: totalParticipants !== undefined ? totalParticipants : existingRegistration.totalParticipants,
+        youthCount: finalYouthCount,
+        chaperoneCount: finalChaperoneCount,
+        priestCount: finalPriestCount,
       },
     })
 
