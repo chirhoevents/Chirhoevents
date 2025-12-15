@@ -87,6 +87,22 @@ export default function EditGroupRegistrationModal({
   const [showParticipantModal, setShowParticipantModal] = useState(false)
   const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null)
   const [showRefundModal, setShowRefundModal] = useState(false)
+  const [auditTrail, setAuditTrail] = useState<Array<{
+    id: string
+    editedAt: string
+    editType: string
+    changesMade: Record<string, unknown> | null
+    oldTotal: number | null
+    newTotal: number | null
+    difference: number | null
+    adminNotes: string | null
+    editedBy: {
+      firstName: string
+      lastName: string
+      email: string
+    }
+  }>>([])
+  const [loadingAuditTrail, setLoadingAuditTrail] = useState(false)
 
   // Initialize form data when registration changes
   useEffect(() => {
@@ -194,6 +210,32 @@ export default function EditGroupRegistrationModal({
     setShowParticipantModal(false)
     setEditingParticipant(null)
   }
+
+  const fetchAuditTrail = async () => {
+    if (!registration) return
+
+    setLoadingAuditTrail(true)
+    try {
+      const response = await fetch(
+        `/api/admin/registrations/${registration.id}/audit?type=group`
+      )
+      if (response.ok) {
+        const data = await response.json()
+        setAuditTrail(data.edits || [])
+      }
+    } catch (error) {
+      console.error('Error fetching audit trail:', error)
+    } finally {
+      setLoadingAuditTrail(false)
+    }
+  }
+
+  // Fetch audit trail when Updates tab is activated
+  useEffect(() => {
+    if (activeTab === 'updates' && registration && auditTrail.length === 0) {
+      fetchAuditTrail()
+    }
+  }, [activeTab, registration])
 
   const difference = newTotal - originalTotal
 
@@ -492,9 +534,96 @@ export default function EditGroupRegistrationModal({
 
           {/* Updates Tab */}
           <TabsContent value="updates" className="space-y-4">
-            <div className="text-center text-gray-500 py-8">
-              No updates yet
-            </div>
+            {loadingAuditTrail ? (
+              <div className="flex justify-center items-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-[#1E3A5F]" />
+                <span className="ml-2 text-gray-600">Loading updates...</span>
+              </div>
+            ) : auditTrail.length === 0 ? (
+              <div className="text-center text-gray-500 py-8">
+                No updates yet
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {auditTrail.map((edit) => (
+                  <Card key={edit.id} className="p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <Badge variant="outline" className="mb-2">
+                          {edit.editType.replace('_', ' ').toUpperCase()}
+                        </Badge>
+                        <div className="text-sm text-gray-600">
+                          {new Date(edit.editedAt).toLocaleString()}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          By {edit.editedBy.firstName} {edit.editedBy.lastName} (
+                          {edit.editedBy.email})
+                        </div>
+                      </div>
+                      {edit.difference !== null && edit.difference !== 0 && (
+                        <div
+                          className={`font-bold text-lg ${
+                            edit.difference > 0 ? 'text-red-600' : 'text-green-600'
+                          }`}
+                        >
+                          {edit.difference > 0 ? '+' : ''}$
+                          {edit.difference.toFixed(2)}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Changes Made */}
+                    {edit.changesMade && Object.keys(edit.changesMade).length > 0 && (
+                      <div className="mt-3 p-3 bg-gray-50 rounded text-sm">
+                        <div className="font-medium mb-2">Changes:</div>
+                        <div className="space-y-1">
+                          {Object.entries(edit.changesMade).map(
+                            ([field, change]: [string, unknown]) => {
+                              const changeObj = change as {old: unknown; new: unknown}
+                              return (
+                                <div key={field} className="text-xs">
+                                  <span className="font-medium">
+                                    {field.replace(/([A-Z])/g, ' $1').trim()}:
+                                  </span>{' '}
+                                  <span className="text-gray-600">
+                                    {typeof changeObj.old === 'object'
+                                      ? JSON.stringify(changeObj.old)
+                                      : String(changeObj.old || 'N/A')}
+                                  </span>
+                                  {' → '}
+                                  <span className="text-gray-900">
+                                    {typeof changeObj.new === 'object'
+                                      ? JSON.stringify(changeObj.new)
+                                      : String(changeObj.new)}
+                                  </span>
+                                </div>
+                              )
+                            }
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Price Change */}
+                    {edit.oldTotal !== null && edit.newTotal !== null && (
+                      <div className="mt-2 text-sm text-gray-600">
+                        Price: ${edit.oldTotal.toFixed(2)} → ${edit.newTotal.toFixed(2)}
+                      </div>
+                    )}
+
+                    {/* Admin Notes */}
+                    {edit.adminNotes && (
+                      <div className="mt-3 p-3 bg-blue-50 rounded text-sm">
+                        <div className="font-medium text-blue-900 mb-1">
+                          Admin Notes:
+                        </div>
+                        <div className="text-blue-800">{edit.adminNotes}</div>
+                      </div>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
 
