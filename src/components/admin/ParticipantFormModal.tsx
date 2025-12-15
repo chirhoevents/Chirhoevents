@@ -183,7 +183,7 @@ export default function ParticipantFormModal({
             <Button
               type="submit"
               disabled={isSaving}
-              className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90"
+              className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white"
             >
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {participant?.id ? 'Update' : 'Add'} Participant

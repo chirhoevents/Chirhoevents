@@ -672,14 +672,14 @@ export default function EditGroupRegistrationModal({
                           {edit.editedBy.email})
                         </div>
                       </div>
-                      {edit.difference !== null && edit.difference !== 0 && (
+                      {edit.difference !== null && edit.difference !== undefined && edit.difference !== 0 && (
                         <div
                           className={`font-bold text-lg ${
                             edit.difference > 0 ? 'text-red-600' : 'text-green-600'
                           }`}
                         >
                           {edit.difference > 0 ? '+' : ''}$
-                          {edit.difference.toFixed(2)}
+                          {Number(edit.difference).toFixed(2)}
                         </div>
                       )}
                     </div>
@@ -746,7 +746,7 @@ export default function EditGroupRegistrationModal({
           <Button
             onClick={handleSave}
             disabled={isSaving}
-            className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90"
+            className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white"
           >
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save Changes
