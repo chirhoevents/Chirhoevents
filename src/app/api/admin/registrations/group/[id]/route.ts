@@ -32,7 +32,6 @@ export async function PUT(
       include: {
         event: true,
         participants: true,
-        paymentBalance: true,
       },
     })
 
@@ -46,6 +45,13 @@ export async function PUT(
     if (existingRegistration.organizationId !== user.organizationId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+
+    // Get payment balance separately
+    const paymentBalance = await prisma.paymentBalance.findUnique({
+      where: {
+        registrationId: registrationId,
+      },
+    })
 
     const {
       groupName,
@@ -115,9 +121,9 @@ export async function PUT(
     }
 
     // Update payment balance if total changed
-    if (difference !== 0 && existingRegistration.paymentBalance) {
+    if (difference !== 0 && paymentBalance) {
       await prisma.paymentBalance.update({
-        where: { id: existingRegistration.paymentBalance.id },
+        where: { id: paymentBalance.id },
         data: {
           totalAmountDue: newTotal,
           amountRemaining: {
