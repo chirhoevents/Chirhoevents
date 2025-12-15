@@ -22,6 +22,7 @@ interface Participant {
   firstName: string
   lastName: string
   age: number
+  gender?: 'male' | 'female' | 'other'
   participantType: 'youth_u18' | 'youth_o18' | 'chaperone' | 'priest'
   liabilityFormCompleted?: boolean
 }
@@ -143,7 +144,7 @@ export default function EditGroupRegistrationModal({
     setSaving(true)
     try {
       const response = await fetch(
-        `/api/admin/registrations/group/${registration.id}/edit`,
+        `/api/admin/registrations/group/${registration.id}`,
         {
           method: 'PUT',
           headers: {
@@ -151,6 +152,7 @@ export default function EditGroupRegistrationModal({
           },
           body: JSON.stringify({
             ...formData,
+            participants,
             eventId,
             oldTotal: originalTotal,
             newTotal,

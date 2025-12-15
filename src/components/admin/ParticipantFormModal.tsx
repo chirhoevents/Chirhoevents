@@ -12,6 +12,7 @@ interface Participant {
   firstName: string
   lastName: string
   age: number
+  gender?: 'male' | 'female' | 'other'
   participantType: 'youth_u18' | 'youth_o18' | 'chaperone' | 'priest'
   liabilityFormCompleted?: boolean
 }
@@ -33,18 +34,20 @@ export default function ParticipantFormModal({
     firstName: '',
     lastName: '',
     age: 16,
+    gender: 'other',
     participantType: 'youth_u18',
   })
   const [isSaving, setSaving] = useState(false)
 
   useEffect(() => {
     if (participant) {
-      setFormData(participant)
+      setFormData({ ...participant, gender: participant.gender || 'other' })
     } else {
       setFormData({
         firstName: '',
         lastName: '',
         age: 16,
+        gender: 'other',
         participantType: 'youth_u18',
       })
     }
@@ -125,6 +128,28 @@ export default function ParticipantFormModal({
                 }
                 required
               />
+            </div>
+
+            <div>
+              <Label htmlFor="gender">
+                Gender <span className="text-red-500">*</span>
+              </Label>
+              <select
+                id="gender"
+                value={formData.gender}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    gender: e.target.value as 'male' | 'female' | 'other',
+                  })
+                }
+                className="w-full border border-gray-300 rounded-md p-2"
+                required
+              >
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other/Prefer not to say</option>
+              </select>
             </div>
 
             <div>

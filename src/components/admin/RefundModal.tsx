@@ -62,7 +62,7 @@ export default function RefundModal({
         return
       }
 
-      const response = await fetch('/api/admin/refunds/process', {
+      const response = await fetch('/api/admin/refunds', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

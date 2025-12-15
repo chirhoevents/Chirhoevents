@@ -23,6 +23,7 @@ import {
 import { format } from 'date-fns'
 import Link from 'next/link'
 import EditGroupRegistrationModal from '@/components/admin/EditGroupRegistrationModal'
+import EditIndividualRegistrationModal from '@/components/admin/EditIndividualRegistrationModal'
 
 interface GroupRegistration {
   id: string
@@ -87,6 +88,7 @@ export default function RegistrationsClient({
   const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all')
   const [formsFilter, setFormsFilter] = useState<FormsFilter>('all')
   const [editingRegistration, setEditingRegistration] = useState<GroupRegistration | null>(null)
+  const [editingIndividualRegistration, setEditingIndividualRegistration] = useState<IndividualRegistration | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
 
   // Filter registrations
@@ -524,6 +526,20 @@ export default function RegistrationsClient({
         />
       )}
 
+      {/* Edit Individual Registration Modal */}
+      {editingIndividualRegistration && (
+        <EditIndividualRegistrationModal
+          isOpen={true}
+          onClose={() => setEditingIndividualRegistration(null)}
+          registration={editingIndividualRegistration}
+          eventId={eventId}
+          onUpdate={() => {
+            // Refresh the page data
+            window.location.reload()
+          }}
+        />
+      )}
+
       {/* Individual Registrations Table */}
       {showIndividuals && filteredIndividualRegs.length > 0 && (
         <Card className="bg-white border-[#D1D5DB]">
@@ -598,6 +614,13 @@ export default function RegistrationsClient({
                       </td>
                       <td className="p-3 text-center">
                         <div className="flex gap-1 justify-center">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setEditingIndividualRegistration(reg)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
                           <Button size="sm" variant="ghost" disabled>
                             <Eye className="h-4 w-4" />
                           </Button>

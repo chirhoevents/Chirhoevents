@@ -60,6 +60,7 @@ export async function PUT(
       groupLeaderEmail,
       groupLeaderPhone,
       housingType,
+      participants,
       adminNotes,
       oldTotal,
       newTotal,
@@ -68,6 +69,57 @@ export async function PUT(
 
     // Calculate the difference
     const difference = newTotal - oldTotal
+
+    // Handle participant updates if provided
+    if (participants && Array.isArray(participants)) {
+      // Get existing participant IDs
+      const existingParticipantIds = existingRegistration.participants.map((p: any) => p.id)
+      const incomingParticipantIds = participants
+        .filter((p: any) => p.id && !p.id.startsWith('temp-'))
+        .map((p: any) => p.id)
+
+      // Delete participants that were removed
+      const participantsToDelete = existingParticipantIds.filter(
+        (id: string) => !incomingParticipantIds.includes(id)
+      )
+      if (participantsToDelete.length > 0) {
+        await prisma.participant.deleteMany({
+          where: {
+            id: { in: participantsToDelete },
+          },
+        })
+      }
+
+      // Update or create participants
+      for (const participant of participants) {
+        if (participant.id && !participant.id.startsWith('temp-')) {
+          // Update existing participant
+          await prisma.participant.update({
+            where: { id: participant.id },
+            data: {
+              firstName: participant.firstName,
+              lastName: participant.lastName,
+              age: participant.age,
+              gender: participant.gender || 'other',
+              participantType: participant.participantType,
+            },
+          })
+        } else {
+          // Create new participant
+          await prisma.participant.create({
+            data: {
+              firstName: participant.firstName,
+              lastName: participant.lastName,
+              age: participant.age,
+              gender: participant.gender || 'other',
+              participantType: participant.participantType,
+              groupRegistrationId: registrationId,
+              organizationId: existingRegistration.organizationId,
+            },
+          })
+        }
+      }
+    }
 
     // Update the group registration
     const updatedRegistration = await prisma.groupRegistration.update({
@@ -79,6 +131,7 @@ export async function PUT(
         groupLeaderEmail,
         groupLeaderPhone,
         housingType,
+        totalParticipants: participants ? participants.length : existingRegistration.totalParticipants,
       },
     })
 
