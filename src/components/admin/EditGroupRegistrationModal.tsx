@@ -143,7 +143,7 @@ export default function EditGroupRegistrationModal({
     setSaving(true)
     try {
       const response = await fetch(
-        `/api/admin/registrations/group/${registration.id}/edit`,
+        `/api/admin/registrations/group/${registration.id}`,
         {
           method: 'PUT',
           headers: {
@@ -151,6 +151,7 @@ export default function EditGroupRegistrationModal({
           },
           body: JSON.stringify({
             ...formData,
+            participants,
             eventId,
             oldTotal: originalTotal,
             newTotal,
