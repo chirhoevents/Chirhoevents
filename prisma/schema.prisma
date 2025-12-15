@@ -383,8 +383,8 @@ model Payment {
 
   // Relations
   organization Organization @relation(fields: [organizationId], references: [id])
-  groupRegistration GroupRegistration? @relation(fields: [registrationId], references: [id])
-  individualRegistration IndividualRegistration? @relation(fields: [registrationId], references: [id])
+  groupRegistration GroupRegistration? @relation(fields: [registrationId], references: [id], map: "payments_group_registration_fkey")
+  individualRegistration IndividualRegistration? @relation(fields: [registrationId], references: [id], map: "payments_individual_registration_fkey")
 
   @@index([registrationId, registrationType], name: "idx_payment_registration")
   @@index([stripePaymentIntentId], name: "idx_payment_stripe")
@@ -408,8 +408,8 @@ model PaymentBalance {
 
   // Relations
   organization Organization @relation(fields: [organizationId], references: [id])
-  groupRegistration GroupRegistration? @relation(fields: [registrationId], references: [id])
-  individualRegistration IndividualRegistration? @relation(fields: [registrationId], references: [id])
+  groupRegistration GroupRegistration? @relation(fields: [registrationId], references: [id], map: "payment_balances_group_registration_fkey")
+  individualRegistration IndividualRegistration? @relation(fields: [registrationId], references: [id], map: "payment_balances_individual_registration_fkey")
 
   @@index([registrationId], name: "idx_balance_registration")
   @@index([eventId], name: "idx_balance_event")
