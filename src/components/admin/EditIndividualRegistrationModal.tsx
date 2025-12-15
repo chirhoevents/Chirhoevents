@@ -361,9 +361,9 @@ export default function EditIndividualRegistrationModal({
                       )}
 
                       {/* Price Change */}
-                      {edit.oldTotal !== null && edit.newTotal !== null && (
+                      {edit.oldTotal !== null && edit.oldTotal !== undefined && edit.newTotal !== null && edit.newTotal !== undefined && (
                         <div className="mt-2 text-sm text-gray-600">
-                          Price: ${edit.oldTotal.toFixed(2)} → ${edit.newTotal.toFixed(2)}
+                          Price: ${Number(edit.oldTotal).toFixed(2)} → ${Number(edit.newTotal).toFixed(2)}
                         </div>
                       )}
 
