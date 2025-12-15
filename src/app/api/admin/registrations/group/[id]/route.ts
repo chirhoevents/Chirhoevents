@@ -111,7 +111,7 @@ export async function PUT(
           registrationType: 'group',
           editedByUserId: user.id,
           editType: difference !== 0 ? 'payment_updated' : 'info_updated',
-          changesMade,
+          changesMade: changesMade as any,
           oldTotal: oldTotal || null,
           newTotal: newTotal || null,
           difference: difference || null,
