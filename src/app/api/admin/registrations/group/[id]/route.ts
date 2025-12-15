@@ -113,7 +113,6 @@ export async function PUT(
               participantType: participant.participantType,
               groupRegistrationId: registrationId,
               organizationId: existingRegistration.organizationId,
-              eventId: existingRegistration.eventId,
             },
           })
         }
