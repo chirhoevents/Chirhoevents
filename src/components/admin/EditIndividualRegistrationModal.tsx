@@ -18,7 +18,7 @@ interface IndividualRegistration {
   email: string
   phone: string | null
   age: number | null
-  housingType: string
+  housingType: string | null
   totalAmount: number
   amountPaid: number
   balance: number
@@ -63,7 +63,7 @@ export default function EditIndividualRegistrationModal({
         email: registration.email,
         phone: registration.phone || '',
         age: registration.age || 0,
-        housingType: registration.housingType,
+        housingType: registration.housingType || 'on_campus',
       })
     }
   }, [registration])
