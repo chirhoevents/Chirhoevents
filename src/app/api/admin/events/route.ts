@@ -46,7 +46,7 @@ export async function GET() {
 
     // Calculate stats for each event
     const eventsWithStats = await Promise.all(
-      events.map(async (event) => {
+      events.map(async (event: any) => {
         // Calculate total registrations count
         const totalRegistrations =
           event._count.groupRegistrations + event._count.individualRegistrations
@@ -54,7 +54,7 @@ export async function GET() {
         // Calculate total participants
         const totalParticipants =
           event.groupRegistrations.reduce(
-            (sum, reg) => sum + reg.totalParticipants,
+            (sum: number, reg: any) => sum + reg.totalParticipants,
             0
           ) + event._count.individualRegistrations
 
@@ -70,7 +70,7 @@ export async function GET() {
         })
 
         const revenue = payments.reduce(
-          (sum, payment) => sum + Number(payment.amount),
+          (sum: number, payment: any) => sum + Number(payment.amount),
           0
         )
 
@@ -85,7 +85,7 @@ export async function GET() {
         })
 
         const totalExpectedRevenue = balances.reduce(
-          (sum, balance) => sum + Number(balance.totalAmountDue),
+          (sum: number, balance: any) => sum + Number(balance.totalAmountDue),
           0
         )
 

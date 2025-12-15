@@ -56,7 +56,7 @@ export async function GET() {
     }
 
     // Transform the data for easier consumption
-    const certificates = groupRegistration.participants.map((participant) => ({
+    const certificates = groupRegistration.participants.map((participant: any) => ({
       participantId: participant.id,
       participantName: `${participant.firstName} ${participant.lastName}`,
       participantEmail: participant.email,

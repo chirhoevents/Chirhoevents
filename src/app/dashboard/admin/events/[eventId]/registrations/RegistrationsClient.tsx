@@ -18,9 +18,11 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  Pencil,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import Link from 'next/link'
+import EditGroupRegistrationModal from '@/components/admin/EditGroupRegistrationModal'
 
 interface GroupRegistration {
   id: string
@@ -84,6 +86,8 @@ export default function RegistrationsClient({
     useState<RegistrationType>('all')
   const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all')
   const [formsFilter, setFormsFilter] = useState<FormsFilter>('all')
+  const [editingRegistration, setEditingRegistration] = useState<GroupRegistration | null>(null)
+  const [showEditModal, setShowEditModal] = useState(false)
 
   // Filter registrations
   const filteredGroupRegs = useMemo(() => {
@@ -457,6 +461,17 @@ export default function RegistrationsClient({
                       </td>
                       <td className="p-3 text-center">
                         <div className="flex gap-1 justify-center">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setEditingRegistration(reg)
+                              setShowEditModal(true)
+                            }}
+                            title="Edit Registration"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
                           <Button size="sm" variant="ghost" disabled>
                             <Eye className="h-4 w-4" />
                           </Button>
@@ -472,6 +487,41 @@ export default function RegistrationsClient({
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Edit Group Registration Modal */}
+      {editingRegistration && (
+        <EditGroupRegistrationModal
+          isOpen={showEditModal}
+          onClose={() => {
+            setShowEditModal(false)
+            setEditingRegistration(null)
+          }}
+          registration={{
+            id: editingRegistration.id,
+            groupName: editingRegistration.groupName,
+            parishName: editingRegistration.parishName || '',
+            groupLeaderName: editingRegistration.leaderName,
+            groupLeaderEmail: editingRegistration.leaderEmail,
+            groupLeaderPhone: editingRegistration.leaderPhone,
+            totalParticipants: editingRegistration.participantCount,
+            housingType: editingRegistration.housingType as 'on_campus' | 'off_campus' | 'day_pass',
+            registeredAt: editingRegistration.registeredAt,
+            participants: [], // Will be fetched by the modal
+            paymentBalance: {
+              totalAmountDue: editingRegistration.totalAmount,
+              amountPaid: editingRegistration.amountPaid,
+              amountRemaining: editingRegistration.balance,
+              paymentStatus: editingRegistration.paymentStatus,
+            },
+          }}
+          eventId={eventId}
+          eventPricing={null} // Will need to be passed from parent
+          onUpdate={() => {
+            // Refresh the page data
+            window.location.reload()
+          }}
+        />
       )}
 
       {/* Individual Registrations Table */}

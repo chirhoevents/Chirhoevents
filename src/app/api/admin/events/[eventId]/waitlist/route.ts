@@ -52,7 +52,7 @@ export async function GET(
         id: event.id,
         name: event.name,
       },
-      entries: entries.map((entry, index) => ({
+      entries: entries.map((entry: any, index: number) => ({
         id: entry.id,
         name: entry.name,
         email: entry.email,
@@ -67,10 +67,10 @@ export async function GET(
       })),
       summary: {
         total: entries.length,
-        pending: entries.filter((e) => e.status === 'pending').length,
-        contacted: entries.filter((e) => e.status === 'contacted').length,
-        registered: entries.filter((e) => e.status === 'registered').length,
-        expired: entries.filter((e) => e.status === 'expired').length,
+        pending: entries.filter((e: any) => e.status === 'pending').length,
+        contacted: entries.filter((e: any) => e.status === 'contacted').length,
+        registered: entries.filter((e: any) => e.status === 'registered').length,
+        expired: entries.filter((e: any) => e.status === 'expired').length,
       },
     })
   } catch (error) {

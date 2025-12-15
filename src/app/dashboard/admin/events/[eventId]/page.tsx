@@ -48,18 +48,18 @@ export default async function EventDetailPage({ params }: PageProps) {
 
   const totalParticipants =
     event.groupRegistrations.reduce(
-      (sum, reg) => sum + reg.participants.length,
+      (sum: number, reg: any) => sum + reg.participants.length,
       0
     ) + event.individualRegistrations.length
 
   // Calculate revenue from payment balances
   const totalRevenue = paymentBalances.reduce(
-    (sum, balance) => sum + Number(balance.totalAmountDue || 0),
+    (sum: number, balance: any) => sum + Number(balance.totalAmountDue || 0),
     0
   )
 
   const totalPaid = paymentBalances.reduce(
-    (sum, balance) => sum + Number(balance.amountPaid || 0),
+    (sum: number, balance: any) => sum + Number(balance.amountPaid || 0),
     0
   )
 

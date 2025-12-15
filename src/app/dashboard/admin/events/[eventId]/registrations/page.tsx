@@ -65,14 +65,14 @@ export default async function EventRegistrationsPage({ params }: PageProps) {
 
   // Create a map of payment balances by registration ID
   const paymentMap = new Map(
-    paymentBalances.map((pb) => [pb.registrationId, pb])
+    paymentBalances.map((pb: any) => [pb.registrationId, pb])
   )
 
   // Transform group registrations with payment data
-  const groupRegs = groupRegistrations.map((reg) => {
-    const payment = paymentMap.get(reg.id)
+  const groupRegs = groupRegistrations.map((reg: any) => {
+    const payment: any = paymentMap.get(reg.id)
     const completedForms = reg.participants.filter(
-      (p) => p.liabilityFormCompleted
+      (p: any) => p.liabilityFormCompleted
     ).length
 
     return {
@@ -96,8 +96,8 @@ export default async function EventRegistrationsPage({ params }: PageProps) {
   })
 
   // Transform individual registrations with payment data
-  const individualRegs = individualRegistrations.map((reg) => {
-    const payment = paymentMap.get(reg.id)
+  const individualRegs = individualRegistrations.map((reg: any) => {
+    const payment: any = paymentMap.get(reg.id)
 
     return {
       id: reg.id,
@@ -119,7 +119,7 @@ export default async function EventRegistrationsPage({ params }: PageProps) {
 
   const totalRegistrations = groupRegs.length + individualRegs.length
   const totalParticipants =
-    groupRegs.reduce((sum, reg) => sum + reg.participantCount, 0) +
+    groupRegs.reduce((sum: number, reg: any) => sum + reg.participantCount, 0) +
     individualRegs.length
 
   return (
