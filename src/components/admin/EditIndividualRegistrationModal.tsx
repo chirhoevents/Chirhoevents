@@ -335,25 +335,44 @@ export default function EditIndividualRegistrationModal({
                           <div className="space-y-1">
                             {Object.entries(edit.changesMade).map(
                               ([field, change]: [string, unknown]) => {
-                                const changeObj = change as {old: unknown; new: unknown}
-                                return (
-                                  <div key={field} className="text-xs">
-                                    <span className="font-medium">
-                                      {field.replace(/([A-Z])/g, ' $1').trim()}:
-                                    </span>{' '}
-                                    <span className="text-gray-600">
-                                      {typeof changeObj.old === 'object'
-                                        ? JSON.stringify(changeObj.old)
-                                        : String(changeObj.old || 'N/A')}
-                                    </span>
-                                    {' → '}
-                                    <span className="text-gray-900">
-                                      {typeof changeObj.new === 'object'
-                                        ? JSON.stringify(changeObj.new)
-                                        : String(changeObj.new)}
-                                    </span>
-                                  </div>
-                                )
+                                // Check if this is an old/new format or a direct value
+                                const isOldNewFormat = change && typeof change === 'object' && 'old' in change && 'new' in change
+
+                                if (isOldNewFormat) {
+                                  const changeObj = change as {old: unknown; new: unknown}
+                                  return (
+                                    <div key={field} className="text-xs">
+                                      <span className="font-medium">
+                                        {field.replace(/([A-Z])/g, ' $1').trim()}:
+                                      </span>{' '}
+                                      <span className="text-gray-600">
+                                        {typeof changeObj.old === 'object'
+                                          ? JSON.stringify(changeObj.old)
+                                          : String(changeObj.old || 'N/A')}
+                                      </span>
+                                      {' → '}
+                                      <span className="text-gray-900">
+                                        {typeof changeObj.new === 'object'
+                                          ? JSON.stringify(changeObj.new)
+                                          : String(changeObj.new)}
+                                      </span>
+                                    </div>
+                                  )
+                                } else {
+                                  // Direct value (e.g., refund fields)
+                                  return (
+                                    <div key={field} className="text-xs">
+                                      <span className="font-medium">
+                                        {field.replace(/([A-Z])/g, ' $1').trim()}:
+                                      </span>{' '}
+                                      <span className="text-gray-900">
+                                        {typeof change === 'number' && field.toLowerCase().includes('amount')
+                                          ? `$${Number(change).toFixed(2)}`
+                                          : String(change)}
+                                      </span>
+                                    </div>
+                                  )
+                                }
                               }
                             )}
                           </div>
