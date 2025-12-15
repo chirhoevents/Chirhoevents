@@ -75,6 +75,8 @@ model User {
   eventsCreated   Event[]
   uploadedCertificates SafeEnvironmentCertificate[] @relation("UploadedCertificates")
   verifiedCertificates SafeEnvironmentCertificate[] @relation("VerifiedCertificates")
+  registrationEdits RegistrationEdit[]
+  refundsProcessed Refund[]
 
   @@index([organizationId], name: "idx_user_org")
   @@index([email], name: "idx_user_email")
@@ -687,6 +689,34 @@ enum WaitlistStatus {
   expired
 }
 
+enum EditType {
+  info_updated
+  participant_added
+  participant_removed
+  payment_updated
+  refund_processed
+}
+
+enum RefundMethod {
+  stripe
+  manual
+}
+
+enum RefundReason {
+  participant_removed
+  group_cancellation
+  event_cancellation
+  overpayment_correction
+  emergency_illness
+  other
+}
+
+enum RefundStatus {
+  pending
+  completed
+  failed
+}
+
 // ===================================
 // CUSTOM REGISTRATION QUESTIONS
 // ===================================
@@ -753,3 +783,56 @@ model WaitlistEntry {
   @@index([email], name: "idx_waitlist_email")
   @@map("waitlist_entries")
 }
+
+// ===================================
+// REGISTRATION MANAGEMENT TABLES
+// ===================================
+
+model RegistrationEdit {
+  id                  String   @id @default(uuid()) @db.Uuid
+  registrationId      String   @map("registration_id") @db.Uuid
+  registrationType    RegistrationType @map("registration_type")
+  editedByUserId      String   @map("edited_by_user_id") @db.Uuid
+  editedAt            DateTime @default(now()) @map("edited_at") @db.Timestamptz(6)
+  editType            EditType @map("edit_type")
+  changesMade         Json?    @map("changes_made")
+  oldTotal            Decimal? @map("old_total") @db.Decimal(10, 2)
+  newTotal            Decimal? @map("new_total") @db.Decimal(10, 2)
+  difference          Decimal? @db.Decimal(10, 2)
+  adminNotes          String?  @map("admin_notes") @db.Text
+  emailSent           Boolean  @default(false) @map("email_sent")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  editedBy User @relation(fields: [editedByUserId], references: [id])
+
+  @@index([registrationId], name: "idx_reg_edit_registration")
+  @@index([editedByUserId], name: "idx_reg_edit_user")
+  @@index([editedAt], name: "idx_reg_edit_date")
+  @@map("registration_edits")
+}
+
+model Refund {
+  id                  String   @id @default(uuid()) @db.Uuid
+  registrationId      String   @map("registration_id") @db.Uuid
+  registrationType    RegistrationType @map("registration_type")
+  refundAmount        Decimal  @map("refund_amount") @db.Decimal(10, 2)
+  refundMethod        RefundMethod @map("refund_method")
+  refundReason        RefundReason @map("refund_reason")
+  notes               String?  @db.Text
+  processedByUserId   String   @map("processed_by_user_id") @db.Uuid
+  processedAt         DateTime @default(now()) @map("processed_at") @db.Timestamptz(6)
+  stripeRefundId      String?  @map("stripe_refund_id") @db.VarChar(255)
+  status              RefundStatus @default(pending)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  processedBy User @relation(fields: [processedByUserId], references: [id])
+
+  @@index([registrationId], name: "idx_refund_registration")
+  @@index([processedByUserId], name: "idx_refund_user")
+  @@index([status], name: "idx_refund_status")
+  @@map("refunds")
+}
+
