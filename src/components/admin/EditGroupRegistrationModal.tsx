@@ -22,6 +22,7 @@ interface Participant {
   firstName: string
   lastName: string
   age: number
+  gender?: 'male' | 'female' | 'other'
   participantType: 'youth_u18' | 'youth_o18' | 'chaperone' | 'priest'
   liabilityFormCompleted?: boolean
 }

@@ -100,6 +100,7 @@ export async function PUT(
               firstName: participant.firstName,
               lastName: participant.lastName,
               age: participant.age,
+              gender: participant.gender || 'other',
               participantType: participant.participantType,
             },
           })
@@ -110,6 +111,7 @@ export async function PUT(
               firstName: participant.firstName,
               lastName: participant.lastName,
               age: participant.age,
+              gender: participant.gender || 'other',
               participantType: participant.participantType,
               groupRegistrationId: registrationId,
               organizationId: existingRegistration.organizationId,
