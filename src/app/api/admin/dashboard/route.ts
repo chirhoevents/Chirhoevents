@@ -54,7 +54,7 @@ export async function GET() {
     })
 
     const revenue = payments.reduce(
-      (sum: number, payment: { amount: number }) => sum + Number(payment.amount),
+      (sum: number, payment) => sum + Number(payment.amount),
       0
     )
 
