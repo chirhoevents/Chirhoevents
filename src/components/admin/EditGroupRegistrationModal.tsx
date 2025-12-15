@@ -107,33 +107,64 @@ export default function EditGroupRegistrationModal({
   }>>([])
   const [loadingAuditTrail, setLoadingAuditTrail] = useState(false)
 
+  // Fetch full registration data including participants
+  const [fullRegistration, setFullRegistration] = useState<GroupRegistration | null>(null)
+  const [loadingRegistration, setLoadingRegistration] = useState(false)
+
+  useEffect(() => {
+    if (registration && isOpen) {
+      setLoadingRegistration(true)
+      fetch(`/api/admin/registrations/group/${registration.id}`)
+        .then(res => res.json())
+        .then(data => {
+          setFullRegistration(data.registration)
+          setLoadingRegistration(false)
+        })
+        .catch(err => {
+          console.error('Error fetching registration:', err)
+          setLoadingRegistration(false)
+        })
+    }
+  }, [registration, isOpen])
+
   // Initialize form data when registration changes
   useEffect(() => {
-    if (registration) {
+    const regData = fullRegistration || registration
+    if (regData) {
       setFormData({
-        groupName: registration.groupName,
-        parishName: registration.parishName,
-        groupLeaderName: registration.groupLeaderName,
-        groupLeaderEmail: registration.groupLeaderEmail,
-        groupLeaderPhone: registration.groupLeaderPhone,
-        housingType: registration.housingType,
+        groupName: regData.groupName,
+        parishName: regData.parishName,
+        groupLeaderName: regData.groupLeaderName,
+        groupLeaderEmail: regData.groupLeaderEmail,
+        groupLeaderPhone: regData.groupLeaderPhone,
+        housingType: regData.housingType,
         adminNotes: '',
       })
 
-      // Count participants by type
-      const counts = {
-        youth_u18: registration.participants.filter((p: Participant) => p.participantType === 'youth_u18').length,
-        youth_o18: registration.participants.filter((p: Participant) => p.participantType === 'youth_o18').length,
-        chaperone: registration.participants.filter((p: Participant) => p.participantType === 'chaperone').length,
-        priest: registration.participants.filter((p: Participant) => p.participantType === 'priest').length,
+      // Count participants by type - handle case where participants might be undefined
+      if (regData.participants && Array.isArray(regData.participants)) {
+        const counts = {
+          youth_u18: regData.participants.filter((p: Participant) => p.participantType === 'youth_u18').length,
+          youth_o18: regData.participants.filter((p: Participant) => p.participantType === 'youth_o18').length,
+          chaperone: regData.participants.filter((p: Participant) => p.participantType === 'chaperone').length,
+          priest: regData.participants.filter((p: Participant) => p.participantType === 'priest').length,
+        }
+        setParticipantCounts(counts)
+      } else {
+        // If no participants array, reset counts to 0
+        setParticipantCounts({
+          youth_u18: 0,
+          youth_o18: 0,
+          chaperone: 0,
+          priest: 0,
+        })
       }
-      setParticipantCounts(counts)
 
-      const total = registration.paymentBalance?.totalAmountDue || 0
+      const total = regData.paymentBalance?.totalAmountDue || 0
       setOriginalTotal(total)
       setNewTotal(total)
     }
-  }, [registration])
+  }, [fullRegistration, registration])
 
   // Recalculate price when housing type or participant counts change
   useEffect(() => {
@@ -717,9 +748,9 @@ export default function EditGroupRegistrationModal({
                     )}
 
                     {/* Price Change */}
-                    {edit.oldTotal !== null && edit.newTotal !== null && (
+                    {edit.oldTotal !== null && edit.oldTotal !== undefined && edit.newTotal !== null && edit.newTotal !== undefined && (
                       <div className="mt-2 text-sm text-gray-600">
-                        Price: ${edit.oldTotal.toFixed(2)} → ${edit.newTotal.toFixed(2)}
+                        Price: ${Number(edit.oldTotal).toFixed(2)} → ${Number(edit.newTotal).toFixed(2)}
                       </div>
                     )}
 
