@@ -54,7 +54,7 @@ export async function GET() {
     })
 
     const revenue = payments.reduce(
-      (sum, payment) => sum + Number(payment.amount),
+      (sum: number, payment: { amount: number }) => sum + Number(payment.amount),
       0
     )
 
@@ -163,7 +163,7 @@ export async function GET() {
         formsCompleted,
         formsTotal,
       },
-      upcomingEvents: upcomingEvents.map(event => ({
+      upcomingEvents: upcomingEvents.map((event: any) => ({
         id: event.id,
         name: event.name,
         slug: event.slug,
@@ -171,7 +171,7 @@ export async function GET() {
         endDate: event.endDate,
         totalRegistrations: event._count.groupRegistrations + event._count.individualRegistrations,
       })),
-      recentRegistrations: recentGroupRegistrations.map(reg => ({
+      recentRegistrations: recentGroupRegistrations.map((reg: any) => ({
         id: reg.id,
         groupName: reg.groupName,
         eventName: reg.event.name,

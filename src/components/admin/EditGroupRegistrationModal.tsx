@@ -18,12 +18,12 @@ import ParticipantFormModal from './ParticipantFormModal'
 import RefundModal from './RefundModal'
 
 interface Participant {
-  id: string
+  id?: string
   firstName: string
   lastName: string
   age: number
   participantType: 'youth_u18' | 'youth_o18' | 'chaperone' | 'priest'
-  liabilityFormCompleted: boolean
+  liabilityFormCompleted?: boolean
 }
 
 interface PaymentBalance {
@@ -435,7 +435,7 @@ export default function EditGroupRegistrationModal({
                 </Card>
               ) : (
                 participants.map((participant) => (
-                  <Card key={participant.id} className="p-4">
+                  <Card key={participant.id || `${participant.firstName}-${participant.lastName}-${participant.age}`} className="p-4">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <div className="font-medium">
@@ -469,7 +469,7 @@ export default function EditGroupRegistrationModal({
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => handleRemoveParticipant(participant.id)}
+                          onClick={() => participant.id && handleRemoveParticipant(participant.id)}
                         >
                           <Trash2 className="h-4 w-4 text-red-600" />
                         </Button>

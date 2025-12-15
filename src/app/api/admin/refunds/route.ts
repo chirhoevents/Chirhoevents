@@ -49,31 +49,9 @@ export async function POST(request: NextRequest) {
       registrationType === 'group'
         ? await prisma.groupRegistration.findUnique({
             where: { id: registrationId },
-            include: {
-              paymentBalance: true,
-              payments: {
-                where: {
-                  status: 'succeeded',
-                  stripePaymentIntentId: { not: null },
-                },
-                orderBy: { createdAt: 'desc' },
-                take: 1,
-              },
-            },
           })
         : await prisma.individualRegistration.findUnique({
             where: { id: registrationId },
-            include: {
-              paymentBalance: true,
-              payments: {
-                where: {
-                  status: 'succeeded',
-                  stripePaymentIntentId: { not: null },
-                },
-                orderBy: { createdAt: 'desc' },
-                take: 1,
-              },
-            },
           })
 
     if (!registration) {
@@ -87,8 +65,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    // Get payment balance
+    const paymentBalance = await prisma.paymentBalance.findUnique({
+      where: {
+        registrationId: registrationId,
+      },
+    })
+
+    // Get the most recent successful payment with Stripe
+    const lastPayment = await prisma.payment.findFirst({
+      where: {
+        registrationId: registrationId,
+        registrationType: registrationType,
+        status: 'succeeded',
+        stripePaymentIntentId: { not: null },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
     // Validate refund amount
-    const amountPaid = registration.paymentBalance?.amountPaid || 0
+    const amountPaid = paymentBalance?.amountPaid || 0
     if (refundAmount > amountPaid) {
       return NextResponse.json(
         { error: 'Refund amount exceeds amount paid' },
@@ -109,9 +105,6 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        // Get the most recent successful payment
-        const lastPayment = registration.payments[0]
-
         if (!lastPayment || !lastPayment.stripePaymentIntentId) {
           return NextResponse.json(
             { error: 'No Stripe payment found to refund' },
@@ -166,18 +159,20 @@ export async function POST(request: NextRequest) {
     })
 
     // Update payment balance
-    await prisma.paymentBalance.update({
-      where: { id: registration.paymentBalance!.id },
-      data: {
-        amountPaid: {
-          decrement: refundAmount,
+    if (paymentBalance) {
+      await prisma.paymentBalance.update({
+        where: { id: paymentBalance.id },
+        data: {
+          amountPaid: {
+            decrement: refundAmount,
+          },
+          amountRemaining: {
+            increment: refundAmount,
+          },
+          paymentStatus: 'partial', // Will need to recalculate actual status
         },
-        amountRemaining: {
-          increment: refundAmount,
-        },
-        paymentStatus: 'partial', // Will need to recalculate actual status
-      },
-    })
+      })
+    }
 
     // Create audit trail entry
     await prisma.registrationEdit.create({
