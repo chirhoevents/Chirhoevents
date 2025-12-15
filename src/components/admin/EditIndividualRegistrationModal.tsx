@@ -316,14 +316,14 @@ export default function EditIndividualRegistrationModal({
                             {edit.editedBy.email})
                           </div>
                         </div>
-                        {edit.difference !== null && edit.difference !== 0 && (
+                        {edit.difference !== null && edit.difference !== undefined && edit.difference !== 0 && (
                           <div
                             className={`font-bold text-lg ${
                               edit.difference > 0 ? 'text-red-600' : 'text-green-600'
                             }`}
                           >
                             {edit.difference > 0 ? '+' : ''}$
-                            {edit.difference.toFixed(2)}
+                            {Number(edit.difference).toFixed(2)}
                           </div>
                         )}
                       </div>
