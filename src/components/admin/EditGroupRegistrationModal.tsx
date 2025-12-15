@@ -141,34 +141,43 @@ export default function EditGroupRegistrationModal({
         adminNotes: '',
       })
 
-      // Count participants by type - use totalParticipants as the source of truth
-      // If we have individual participant records with types, use those
-      // Otherwise, default to putting all participants in youth_o18 (most common/safe default)
+      // Use the original registration counts from when they first registered
+      // GroupRegistration stores: youthCount, chaperoneCount, priestCount
+      // Note: youthCount doesn't distinguish between under/over 18 in the original registration
+      const youthCount = (regData as any).youthCount || 0
+      const chaperoneCount = (regData as any).chaperoneCount || 0
+      const priestCount = (regData as any).priestCount || 0
+
+      // For youth, if we have individual participant records with age breakdown, use those
+      // Otherwise, put all youth in youth_o18 (most common)
       if (regData.participants && Array.isArray(regData.participants) && regData.participants.length > 0) {
-        // Count from existing participant records
-        const counts = {
-          youth_u18: regData.participants.filter((p: Participant) => p.participantType === 'youth_u18').length,
-          youth_o18: regData.participants.filter((p: Participant) => p.participantType === 'youth_o18').length,
-          chaperone: regData.participants.filter((p: Participant) => p.participantType === 'chaperone').length,
-          priest: regData.participants.filter((p: Participant) => p.participantType === 'priest').length,
+        const youth_u18_count = regData.participants.filter((p: Participant) => p.participantType === 'youth_u18').length
+        const youth_o18_count = regData.participants.filter((p: Participant) => p.participantType === 'youth_o18').length
+
+        // If we have youth participants with types, use those
+        if (youth_u18_count + youth_o18_count > 0) {
+          setParticipantCounts({
+            youth_u18: youth_u18_count,
+            youth_o18: youth_o18_count,
+            chaperone: chaperoneCount,
+            priest: priestCount,
+          })
+        } else {
+          // Use original registration counts
+          setParticipantCounts({
+            youth_u18: 0,
+            youth_o18: youthCount,
+            chaperone: chaperoneCount,
+            priest: priestCount,
+          })
         }
-        setParticipantCounts(counts)
-      } else if (regData.totalParticipants > 0) {
-        // No participant records but we have totalParticipants - use that
-        // Default all to youth_o18 (Youth Over 18) - admin can adjust with counters
-        setParticipantCounts({
-          youth_u18: 0,
-          youth_o18: regData.totalParticipants,
-          chaperone: 0,
-          priest: 0,
-        })
       } else {
-        // No data at all
+        // No participant records - use original registration counts
         setParticipantCounts({
           youth_u18: 0,
-          youth_o18: 0,
-          chaperone: 0,
-          priest: 0,
+          youth_o18: youthCount,
+          chaperone: chaperoneCount,
+          priest: priestCount,
         })
       }
 
