@@ -141,8 +141,11 @@ export default function EditGroupRegistrationModal({
         adminNotes: '',
       })
 
-      // Count participants by type - handle case where participants might be undefined
-      if (regData.participants && Array.isArray(regData.participants)) {
+      // Count participants by type - use totalParticipants as the source of truth
+      // If we have individual participant records with types, use those
+      // Otherwise, default to putting all participants in youth_o18 (most common/safe default)
+      if (regData.participants && Array.isArray(regData.participants) && regData.participants.length > 0) {
+        // Count from existing participant records
         const counts = {
           youth_u18: regData.participants.filter((p: Participant) => p.participantType === 'youth_u18').length,
           youth_o18: regData.participants.filter((p: Participant) => p.participantType === 'youth_o18').length,
@@ -150,8 +153,17 @@ export default function EditGroupRegistrationModal({
           priest: regData.participants.filter((p: Participant) => p.participantType === 'priest').length,
         }
         setParticipantCounts(counts)
+      } else if (regData.totalParticipants > 0) {
+        // No participant records but we have totalParticipants - use that
+        // Default all to youth_o18 (Youth Over 18) - admin can adjust with counters
+        setParticipantCounts({
+          youth_u18: 0,
+          youth_o18: regData.totalParticipants,
+          chaperone: 0,
+          priest: 0,
+        })
       } else {
-        // If no participants array, reset counts to 0
+        // No data at all
         setParticipantCounts({
           youth_u18: 0,
           youth_o18: 0,
