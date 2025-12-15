@@ -9,14 +9,20 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
-import { Loader2, User, DollarSign, FileText, X, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Loader2, User, DollarSign, FileText, X, Plus, Pencil, Trash2, AlertCircle } from 'lucide-react'
+import {
+  calculateRegistrationPrice,
+  type EventPricing,
+} from '@/lib/registration-price-calculator'
+import ParticipantFormModal from './ParticipantFormModal'
+import RefundModal from './RefundModal'
 
 interface Participant {
   id: string
   firstName: string
   lastName: string
   age: number
-  participantType: string
+  participantType: 'youth_u18' | 'youth_o18' | 'chaperone' | 'priest'
   liabilityFormCompleted: boolean
 }
 
@@ -35,7 +41,7 @@ interface GroupRegistration {
   groupLeaderEmail: string
   groupLeaderPhone: string
   totalParticipants: number
-  housingType: string
+  housingType: 'on_campus' | 'off_campus' | 'day_pass'
   registeredAt: string
   participants: Participant[]
   paymentBalance?: PaymentBalance
@@ -46,6 +52,7 @@ interface EditGroupRegistrationModalProps {
   onClose: () => void
   registration: GroupRegistration | null
   eventId: string
+  eventPricing: EventPricing | null
   onUpdate?: () => void
 }
 
@@ -54,6 +61,7 @@ export default function EditGroupRegistrationModal({
   onClose,
   registration,
   eventId,
+  eventPricing,
   onUpdate,
 }: EditGroupRegistrationModalProps) {
   const [activeTab, setActiveTab] = useState('overview')
@@ -64,11 +72,21 @@ export default function EditGroupRegistrationModal({
     groupLeaderName: '',
     groupLeaderEmail: '',
     groupLeaderPhone: '',
-    housingType: '',
+    housingType: 'on_campus' as 'on_campus' | 'off_campus' | 'day_pass',
     adminNotes: '',
   })
   const [originalTotal, setOriginalTotal] = useState(0)
   const [newTotal, setNewTotal] = useState(0)
+  const [priceBreakdown, setPriceBreakdown] = useState<Array<{
+    participantType: string
+    count: number
+    pricePerPerson: number
+    subtotal: number
+  }>>([])
+  const [participants, setParticipants] = useState<Participant[]>([])
+  const [showParticipantModal, setShowParticipantModal] = useState(false)
+  const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null)
+  const [showRefundModal, setShowRefundModal] = useState(false)
 
   // Initialize form data when registration changes
   useEffect(() => {
@@ -82,11 +100,26 @@ export default function EditGroupRegistrationModal({
         housingType: registration.housingType,
         adminNotes: '',
       })
+      setParticipants(registration.participants)
       const total = registration.paymentBalance?.totalAmountDue || 0
       setOriginalTotal(total)
       setNewTotal(total)
     }
   }, [registration])
+
+  // Recalculate price when housing type or participants change
+  useEffect(() => {
+    if (eventPricing && participants.length > 0) {
+      const calculation = calculateRegistrationPrice({
+        participants,
+        housingType: formData.housingType,
+        pricing: eventPricing,
+        registrationDate: registration ? new Date(registration.registeredAt) : new Date(),
+      })
+      setNewTotal(calculation.total)
+      setPriceBreakdown(calculation.breakdown)
+    }
+  }, [formData.housingType, participants, eventPricing, registration])
 
   const handleSave = async () => {
     if (!registration) return
@@ -125,6 +158,41 @@ export default function EditGroupRegistrationModal({
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleAddParticipant = () => {
+    setEditingParticipant(null)
+    setShowParticipantModal(true)
+  }
+
+  const handleEditParticipant = (participant: Participant) => {
+    setEditingParticipant(participant)
+    setShowParticipantModal(true)
+  }
+
+  const handleRemoveParticipant = (participantId: string) => {
+    if (confirm('Are you sure you want to remove this participant? This will recalculate the total price.')) {
+      setParticipants((prev) => prev.filter((p) => p.id !== participantId))
+    }
+  }
+
+  const handleSaveParticipant = (participant: Participant) => {
+    if (participant.id) {
+      // Update existing participant
+      setParticipants((prev) =>
+        prev.map((p) => (p.id === participant.id ? participant : p))
+      )
+    } else {
+      // Add new participant
+      const newParticipant = {
+        ...participant,
+        id: `temp-${Date.now()}`, // Temporary ID until saved to DB
+        liabilityFormCompleted: false,
+      }
+      setParticipants((prev) => [...prev, newParticipant])
+    }
+    setShowParticipantModal(false)
+    setEditingParticipant(null)
   }
 
   const difference = newTotal - originalTotal
@@ -244,13 +312,42 @@ export default function EditGroupRegistrationModal({
               />
             </div>
 
+            {/* Live Price Breakdown */}
+            {priceBreakdown.length > 0 && (
+              <Card className="p-4 bg-blue-50 border-blue-200">
+                <h4 className="font-semibold text-sm text-[#1E3A5F] mb-3">
+                  Live Price Calculation
+                </h4>
+                <div className="space-y-2">
+                  {priceBreakdown.map((item, index) => (
+                    <div key={index} className="flex justify-between text-sm">
+                      <span className="text-gray-700">
+                        {item.count}x {item.participantType.replace('_', ' ')} @ $
+                        {item.pricePerPerson.toFixed(2)}
+                      </span>
+                      <span className="font-medium">
+                        ${item.subtotal.toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between border-t pt-2 font-semibold">
+                    <span>New Total:</span>
+                    <span className="text-[#1E3A5F]">${newTotal.toFixed(2)}</span>
+                  </div>
+                </div>
+              </Card>
+            )}
+
             {/* Price Change Summary */}
             {difference !== 0 && (
               <Card className="p-4 bg-yellow-50 border-yellow-200">
                 <div className="flex justify-between items-center">
                   <div>
-                    <div className="font-medium text-sm">Price Change</div>
-                    <div className="text-xs text-gray-600">
+                    <div className="font-medium text-sm flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4" />
+                      Price Change Detected
+                    </div>
+                    <div className="text-xs text-gray-600 mt-1">
                       Original: ${originalTotal.toFixed(2)} → New: $
                       {newTotal.toFixed(2)}
                     </div>
@@ -263,6 +360,16 @@ export default function EditGroupRegistrationModal({
                     {difference > 0 ? '+' : ''}${difference.toFixed(2)}
                   </div>
                 </div>
+                {difference > 0 && (
+                  <div className="mt-3 text-xs text-gray-600">
+                    Group will be notified of additional charges
+                  </div>
+                )}
+                {difference < 0 && (
+                  <div className="mt-3 text-xs text-gray-600">
+                    Credit will be applied to balance or refunded if requested
+                  </div>
+                )}
               </Card>
             )}
           </TabsContent>
@@ -271,49 +378,64 @@ export default function EditGroupRegistrationModal({
           <TabsContent value="participants" className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="font-semibold text-[#1E3A5F]">
-                Participants ({registration.participants.length})
+                Participants ({participants.length})
               </h3>
-              <Button size="sm" variant="outline">
+              <Button size="sm" variant="outline" onClick={handleAddParticipant}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Participant
               </Button>
             </div>
 
             <div className="space-y-2">
-              {registration.participants.map((participant) => (
-                <Card key={participant.id} className="p-4">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="font-medium">
-                        {participant.firstName} {participant.lastName}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        Age: {participant.age} • Type: {participant.participantType}
-                      </div>
-                      <Badge
-                        variant={
-                          participant.liabilityFormCompleted
-                            ? 'default'
-                            : 'destructive'
-                        }
-                        className="mt-2"
-                      >
-                        {participant.liabilityFormCompleted
-                          ? 'Form Complete'
-                          : 'Form Incomplete'}
-                      </Badge>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="ghost">
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="ghost">
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      </Button>
-                    </div>
-                  </div>
+              {participants.length === 0 ? (
+                <Card className="p-8 text-center">
+                  <p className="text-gray-500">No participants yet. Add some to get started!</p>
                 </Card>
-              ))}
+              ) : (
+                participants.map((participant) => (
+                  <Card key={participant.id} className="p-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="font-medium">
+                          {participant.firstName} {participant.lastName}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          Age: {participant.age} • Type:{' '}
+                          {participant.participantType.replace('_', ' ')}
+                        </div>
+                        <Badge
+                          variant={
+                            participant.liabilityFormCompleted
+                              ? 'default'
+                              : 'destructive'
+                          }
+                          className="mt-2"
+                        >
+                          {participant.liabilityFormCompleted
+                            ? 'Form Complete'
+                            : 'Form Incomplete'}
+                        </Badge>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleEditParticipant(participant)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleRemoveParticipant(participant.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))
+              )}
             </div>
           </TabsContent>
 
@@ -357,7 +479,12 @@ export default function EditGroupRegistrationModal({
               </div>
             </Card>
 
-            <Button variant="outline" className="w-full">
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => setShowRefundModal(true)}
+              disabled={!registration.paymentBalance?.amountPaid || registration.paymentBalance.amountPaid === 0}
+            >
               <DollarSign className="h-4 w-4 mr-2" />
               Process Refund
             </Button>
@@ -385,6 +512,33 @@ export default function EditGroupRegistrationModal({
           </Button>
         </div>
       </DialogContent>
+
+      {/* Participant Form Modal */}
+      <ParticipantFormModal
+        isOpen={showParticipantModal}
+        onClose={() => {
+          setShowParticipantModal(false)
+          setEditingParticipant(null)
+        }}
+        participant={editingParticipant}
+        onSave={handleSaveParticipant}
+      />
+
+      {/* Refund Modal */}
+      {registration && (
+        <RefundModal
+          isOpen={showRefundModal}
+          onClose={() => setShowRefundModal(false)}
+          registrationId={registration.id}
+          registrationType="group"
+          currentBalance={registration.paymentBalance?.amountRemaining || 0}
+          amountPaid={registration.paymentBalance?.amountPaid || 0}
+          onRefundProcessed={() => {
+            setShowRefundModal(false)
+            onUpdate?.()
+          }}
+        />
+      )}
     </Dialog>
   )
 }
