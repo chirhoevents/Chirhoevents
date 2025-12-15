@@ -272,6 +272,8 @@ model GroupRegistration {
   organization   Organization    @relation(fields: [organizationId], references: [id])
   participants   Participant[]
   liabilityForms LiabilityForm[]
+  paymentBalance PaymentBalance?
+  payments       Payment[]
 
   @@index([eventId], name: "idx_group_event")
   @@index([organizationId], name: "idx_group_org")
@@ -317,6 +319,8 @@ model IndividualRegistration {
   event        Event        @relation(fields: [eventId], references: [id])
   organization Organization @relation(fields: [organizationId], references: [id])
   liabilityForms LiabilityForm[]
+  paymentBalance PaymentBalance?
+  payments       Payment[]
 
   @@map("individual_registrations")
 }
@@ -379,6 +383,8 @@ model Payment {
 
   // Relations
   organization Organization @relation(fields: [organizationId], references: [id])
+  groupRegistration GroupRegistration? @relation(fields: [registrationId], references: [id])
+  individualRegistration IndividualRegistration? @relation(fields: [registrationId], references: [id])
 
   @@index([registrationId, registrationType], name: "idx_payment_registration")
   @@index([stripePaymentIntentId], name: "idx_payment_stripe")
@@ -402,6 +408,8 @@ model PaymentBalance {
 
   // Relations
   organization Organization @relation(fields: [organizationId], references: [id])
+  groupRegistration GroupRegistration? @relation(fields: [registrationId], references: [id])
+  individualRegistration IndividualRegistration? @relation(fields: [registrationId], references: [id])
 
   @@index([registrationId], name: "idx_balance_registration")
   @@index([eventId], name: "idx_balance_event")
