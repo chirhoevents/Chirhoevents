@@ -530,152 +530,153 @@ export default function EditGroupRegistrationModal({
 
           {/* Full Details Tab */}
           <TabsContent value="details" className="space-y-4">
-            <div className="space-y-6">
-              {/* Group Information */}
-              <Card className="p-4">
-                <h3 className="font-semibold text-[#1E3A5F] mb-3">Group Information</h3>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <span className="font-medium text-gray-600">Group Name:</span>
-                    <div>{registration.groupName}</div>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-600">Parish:</span>
-                    <div>{registration.parishName || 'N/A'}</div>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-600">Diocese:</span>
-                    <div>{(registration as any).dioceseName || 'N/A'}</div>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-600">Access Code:</span>
-                    <div className="font-mono font-semibold text-[#1E3A5F]">{(registration as any).accessCode}</div>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-600">Registration Status:</span>
-                    <div><Badge>{(registration as any).registrationStatus || 'N/A'}</Badge></div>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-600">Registered:</span>
-                    <div>{new Date(registration.registeredAt).toLocaleString()}</div>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Group Leader */}
-              <Card className="p-4">
-                <h3 className="font-semibold text-[#1E3A5F] mb-3">Group Leader</h3>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <span className="font-medium text-gray-600">Name:</span>
-                    <div>{registration.groupLeaderName}</div>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-600">Email:</span>
-                    <div>{registration.groupLeaderEmail}</div>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-600">Phone:</span>
-                    <div>{registration.groupLeaderPhone}</div>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="font-medium text-gray-600">Address:</span>
-                    <div>
-                      {(registration as any).groupLeaderStreet && (
-                        <>
-                          {(registration as any).groupLeaderStreet}<br />
-                          {(registration as any).groupLeaderCity}, {(registration as any).groupLeaderState} {(registration as any).groupLeaderZip}
-                        </>
-                      ) || 'No address provided'}
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Alternative Contacts */}
-              <Card className="p-4">
-                <h3 className="font-semibold text-[#1E3A5F] mb-3">Alternative Contacts</h3>
-                <div className="space-y-4">
-                  {/* Contact 1 */}
-                  <div>
-                    <div className="font-medium text-sm text-gray-700 mb-2">Contact 1</div>
-                    <div className="grid grid-cols-3 gap-3 text-sm">
-                      <div>
-                        <span className="font-medium text-gray-600">Name:</span>
-                        <div>{(registration as any).alternativeContact1Name || 'N/A'}</div>
-                      </div>
-                      <div>
-                        <span className="font-medium text-gray-600">Email:</span>
-                        <div>{(registration as any).alternativeContact1Email || 'N/A'}</div>
-                      </div>
-                      <div>
-                        <span className="font-medium text-gray-600">Phone:</span>
-                        <div>{(registration as any).alternativeContact1Phone || 'N/A'}</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Contact 2 */}
-                  {((registration as any).alternativeContact2Name || (registration as any).alternativeContact2Email || (registration as any).alternativeContact2Phone) && (
-                    <div className="pt-3 border-t">
-                      <div className="font-medium text-sm text-gray-700 mb-2">Contact 2</div>
-                      <div className="grid grid-cols-3 gap-3 text-sm">
-                        <div>
-                          <span className="font-medium text-gray-600">Name:</span>
-                          <div>{(registration as any).alternativeContact2Name || 'N/A'}</div>
+            {loadingRegistration ? (
+              <div className="flex justify-center items-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-[#1E3A5F]" />
+                <span className="ml-2 text-gray-600">Loading details...</span>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {(() => {
+                  const regData = fullRegistration || registration
+                  return (
+                    <>
+                      {/* Group Information */}
+                      <Card className="p-4">
+                        <h3 className="font-semibold text-[#1E3A5F] mb-3">Group Information</h3>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <span className="font-medium text-gray-600">Group Name:</span>
+                            <div>{regData.groupName}</div>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-600">Parish:</span>
+                            <div>{regData.parishName || 'N/A'}</div>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-600">Diocese:</span>
+                            <div>{(regData as any).dioceseName || 'N/A'}</div>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-600">Access Code:</span>
+                            <div className="font-mono font-semibold text-[#1E3A5F]">{(regData as any).accessCode || 'N/A'}</div>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-600">Registration Status:</span>
+                            <div><Badge>{(regData as any).registrationStatus || 'pending'}</Badge></div>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-600">Registered:</span>
+                            <div>{new Date(regData.registeredAt).toLocaleString()}</div>
+                          </div>
                         </div>
-                        <div>
-                          <span className="font-medium text-gray-600">Email:</span>
-                          <div>{(registration as any).alternativeContact2Email || 'N/A'}</div>
-                        </div>
-                        <div>
-                          <span className="font-medium text-gray-600">Phone:</span>
-                          <div>{(registration as any).alternativeContact2Phone || 'N/A'}</div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </Card>
+                      </Card>
 
-              {/* Additional Information */}
-              <Card className="p-4">
-                <h3 className="font-semibold text-[#1E3A5F] mb-3">Additional Information</h3>
-                <div className="space-y-3 text-sm">
-                  <div>
-                    <span className="font-medium text-gray-600">Special Requests:</span>
-                    <div className="mt-1 p-2 bg-gray-50 rounded whitespace-pre-wrap">
-                      {(registration as any).specialRequests || 'None'}
-                    </div>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-600">Dietary Restrictions Summary:</span>
-                    <div className="mt-1 p-2 bg-gray-50 rounded whitespace-pre-wrap">
-                      {(registration as any).dietaryRestrictionsSummary || 'None'}
-                    </div>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-600">ADA Accommodations Summary:</span>
-                    <div className="mt-1 p-2 bg-gray-50 rounded whitespace-pre-wrap">
-                      {(registration as any).adaAccommodationsSummary || 'None'}
-                    </div>
-                  </div>
-                </div>
-              </Card>
+                      {/* Group Leader */}
+                      <Card className="p-4">
+                        <h3 className="font-semibold text-[#1E3A5F] mb-3">Group Leader</h3>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <span className="font-medium text-gray-600">Name:</span>
+                            <div>{regData.groupLeaderName}</div>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-600">Email:</span>
+                            <div>{regData.groupLeaderEmail}</div>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-600">Phone:</span>
+                            <div>{regData.groupLeaderPhone}</div>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="font-medium text-gray-600">Address:</span>
+                            <div>
+                              {(regData as any).groupLeaderStreet ? (
+                                <>
+                                  {(regData as any).groupLeaderStreet}<br />
+                                  {(regData as any).groupLeaderCity}, {(regData as any).groupLeaderState} {(regData as any).groupLeaderZip}
+                                </>
+                              ) : 'No address provided'}
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
 
-              {/* Edit Form Button */}
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => {
-                  const eventId = (registration as any).eventId
-                  window.open(`/events/${eventId}/register-group/edit/${registration.id}`, '_blank')
-                }}
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                Edit Original Registration Form
-              </Button>
-            </div>
+                      {/* Alternative Contacts */}
+                      <Card className="p-4">
+                        <h3 className="font-semibold text-[#1E3A5F] mb-3">Alternative Contacts</h3>
+                        <div className="space-y-4">
+                          {/* Contact 1 */}
+                          <div>
+                            <div className="font-medium text-sm text-gray-700 mb-2">Contact 1</div>
+                            <div className="grid grid-cols-3 gap-3 text-sm">
+                              <div>
+                                <span className="font-medium text-gray-600">Name:</span>
+                                <div>{(regData as any).alternativeContact1Name || 'N/A'}</div>
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-600">Email:</span>
+                                <div>{(regData as any).alternativeContact1Email || 'N/A'}</div>
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-600">Phone:</span>
+                                <div>{(regData as any).alternativeContact1Phone || 'N/A'}</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Contact 2 */}
+                          {((regData as any).alternativeContact2Name || (regData as any).alternativeContact2Email || (regData as any).alternativeContact2Phone) && (
+                            <div className="pt-3 border-t">
+                              <div className="font-medium text-sm text-gray-700 mb-2">Contact 2</div>
+                              <div className="grid grid-cols-3 gap-3 text-sm">
+                                <div>
+                                  <span className="font-medium text-gray-600">Name:</span>
+                                  <div>{(regData as any).alternativeContact2Name || 'N/A'}</div>
+                                </div>
+                                <div>
+                                  <span className="font-medium text-gray-600">Email:</span>
+                                  <div>{(regData as any).alternativeContact2Email || 'N/A'}</div>
+                                </div>
+                                <div>
+                                  <span className="font-medium text-gray-600">Phone:</span>
+                                  <div>{(regData as any).alternativeContact2Phone || 'N/A'}</div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </Card>
+
+                      {/* Additional Information */}
+                      <Card className="p-4">
+                        <h3 className="font-semibold text-[#1E3A5F] mb-3">Additional Information</h3>
+                        <div className="space-y-3 text-sm">
+                          <div>
+                            <span className="font-medium text-gray-600">Special Requests:</span>
+                            <div className="mt-1 p-2 bg-gray-50 rounded whitespace-pre-wrap">
+                              {(regData as any).specialRequests || 'None'}
+                            </div>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-600">Dietary Restrictions Summary:</span>
+                            <div className="mt-1 p-2 bg-gray-50 rounded whitespace-pre-wrap">
+                              {(regData as any).dietaryRestrictionsSummary || 'None'}
+                            </div>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-600">ADA Accommodations Summary:</span>
+                            <div className="mt-1 p-2 bg-gray-50 rounded whitespace-pre-wrap">
+                              {(regData as any).adaAccommodationsSummary || 'None'}
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    </>
+                  )
+                })()}
+              </div>
+            )}
           </TabsContent>
 
           {/* Participants Tab */}
@@ -936,7 +937,7 @@ export default function EditGroupRegistrationModal({
 
                       {/* Check Payment Details */}
                       {payment.paymentMethod === 'check' && (
-                        <div className="mt-2 pt-2 border-t space-y-1 text-sm">
+                        <div className="mt-2 pt-2 border-t space-y-2 text-sm">
                           {payment.checkNumber && (
                             <div className="flex justify-between">
                               <span className="text-gray-600">Check Number:</span>
@@ -952,9 +953,41 @@ export default function EditGroupRegistrationModal({
                             </div>
                           )}
                           {!payment.checkReceivedDate && payment.paymentStatus === 'pending' && (
-                            <div className="text-xs text-amber-600 italic mt-1">
-                              Check payment pending - awaiting receipt
-                            </div>
+                            <>
+                              <div className="text-xs text-amber-600 italic">
+                                Check payment pending - awaiting receipt
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full mt-2"
+                                onClick={async () => {
+                                  if (!confirm('Mark this check payment as received?')) return
+
+                                  try {
+                                    const res = await fetch(`/api/admin/payments/${payment.id}/mark-check-received`, {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({}),
+                                    })
+
+                                    if (res.ok) {
+                                      alert('Check marked as received successfully')
+                                      // Refresh the registration data
+                                      window.location.reload()
+                                    } else {
+                                      const error = await res.json()
+                                      alert(`Error: ${error.error || 'Failed to mark check as received'}`)
+                                    }
+                                  } catch (error) {
+                                    console.error('Error marking check as received:', error)
+                                    alert('Failed to mark check as received')
+                                  }
+                                }}
+                              >
+                                Mark as Received
+                              </Button>
+                            </>
                           )}
                         </div>
                       )}
