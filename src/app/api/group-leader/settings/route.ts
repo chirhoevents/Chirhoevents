@@ -14,16 +14,28 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    console.log('Fetching settings for user:', userId)
+
     // Get all group registrations for this user
-    const groupRegistrations = await prisma.groupRegistration.findMany({
-      where: { clerkUserId: userId },
-      include: {
-        event: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    })
+    let groupRegistrations
+    try {
+      groupRegistrations = await prisma.groupRegistration.findMany({
+        where: { clerkUserId: userId },
+        include: {
+          event: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      })
+      console.log('Found', groupRegistrations.length, 'group registrations')
+    } catch (error) {
+      console.error('Error fetching group registrations:', error)
+      return NextResponse.json(
+        { error: 'Database error while fetching registrations' },
+        { status: 500 }
+      )
+    }
 
     if (groupRegistrations.length === 0) {
       return NextResponse.json(
@@ -35,19 +47,31 @@ export async function GET(request: NextRequest) {
     // Use the first (most recent) registration for user info
     const primaryRegistration = groupRegistrations[0]
 
-    // Get user preferences or create default ones
-    let preferences = await prisma.userPreferences.findUnique({
-      where: { clerkUserId: userId },
-    })
-
-    if (!preferences) {
-      // Create default preferences
-      preferences = await prisma.userPreferences.create({
-        data: {
-          clerkUserId: userId,
-          groupRegistrationId: primaryRegistration.id,
-        },
+    // Get user preferences or create default ones (optional - may not exist yet)
+    let preferences = null
+    try {
+      preferences = await prisma.userPreferences.findUnique({
+        where: { clerkUserId: userId },
       })
+
+      if (!preferences) {
+        // Try to create default preferences
+        try {
+          preferences = await prisma.userPreferences.create({
+            data: {
+              clerkUserId: userId,
+              groupRegistrationId: primaryRegistration.id,
+            },
+          })
+          console.log('Created default preferences')
+        } catch (createError) {
+          console.warn('Could not create preferences (table may not exist yet):', createError)
+          // Continue without preferences - this is not critical
+        }
+      }
+    } catch (error) {
+      console.warn('Error accessing userPreferences table (may not exist yet):', error)
+      // Continue without preferences - this is not critical
     }
 
     // Build user info from primary registration
@@ -72,14 +96,24 @@ export async function GET(request: NextRequest) {
     }))
 
     return NextResponse.json({
-      preferences,
+      preferences: preferences || {}, // Return empty object if no preferences
       userInfo,
       linkedEvents,
     })
   } catch (error) {
     console.error('Error fetching settings:', error)
+
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+    console.error('Error details:', {
+      message: errorMessage,
+      timestamp: new Date().toISOString(),
+    })
+
     return NextResponse.json(
-      { error: 'Internal server error' },
+      {
+        error: 'Failed to load settings',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+      },
       { status: 500 }
     )
   }
@@ -97,12 +131,30 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const body = await request.json()
+    let body
+    try {
+      body = await request.json()
+    } catch (error) {
+      console.error('Failed to parse request body:', error)
+      return NextResponse.json(
+        { error: 'Invalid request body' },
+        { status: 400 }
+      )
+    }
 
     // Get any group registration for this user
-    const groupRegistration = await prisma.groupRegistration.findFirst({
-      where: { clerkUserId: userId },
-    })
+    let groupRegistration
+    try {
+      groupRegistration = await prisma.groupRegistration.findFirst({
+        where: { clerkUserId: userId },
+      })
+    } catch (error) {
+      console.error('Error fetching group registration:', error)
+      return NextResponse.json(
+        { error: 'Database error while fetching registration' },
+        { status: 500 }
+      )
+    }
 
     if (!groupRegistration) {
       return NextResponse.json(
@@ -112,15 +164,24 @@ export async function PUT(request: NextRequest) {
     }
 
     // Upsert preferences
-    const preferences = await prisma.userPreferences.upsert({
-      where: { clerkUserId: userId },
-      update: body,
-      create: {
-        clerkUserId: userId,
-        groupRegistrationId: groupRegistration.id,
-        ...body,
-      },
-    })
+    let preferences
+    try {
+      preferences = await prisma.userPreferences.upsert({
+        where: { clerkUserId: userId },
+        update: body,
+        create: {
+          clerkUserId: userId,
+          groupRegistrationId: groupRegistration.id,
+          ...body,
+        },
+      })
+    } catch (error) {
+      console.error('Error upserting preferences:', error)
+      return NextResponse.json(
+        { error: 'Database error while saving preferences' },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({
       success: true,
@@ -128,8 +189,18 @@ export async function PUT(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error updating settings:', error)
+
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+    console.error('Error details:', {
+      message: errorMessage,
+      timestamp: new Date().toISOString(),
+    })
+
     return NextResponse.json(
-      { error: 'Internal server error' },
+      {
+        error: 'Failed to update settings',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+      },
       { status: 500 }
     )
   }
