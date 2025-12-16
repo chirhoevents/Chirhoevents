@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Loader2, DollarSign } from 'lucide-react'
@@ -15,10 +16,21 @@ interface IndividualRegistration {
   id: string
   firstName: string
   lastName: string
+  preferredName?: string | null
   email: string
   phone: string | null
   age: number | null
+  gender?: string | null
+  street?: string | null
+  city?: string | null
+  state?: string | null
+  zip?: string | null
   housingType: string | null
+  roomType?: string | null
+  tShirtSize?: string | null
+  preferredRoommate?: string | null
+  dietaryRestrictions?: string | null
+  adaAccommodations?: string | null
   totalAmount: number
   amountPaid: number
   balance: number
@@ -64,10 +76,22 @@ export default function EditIndividualRegistrationModal({
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
+    preferredName: '',
     email: '',
     phone: '',
     age: 0,
+    gender: 'male',
+    street: '',
+    city: '',
+    state: '',
+    zip: '',
     housingType: 'on_campus',
+    roomType: 'single',
+    tShirtSize: '',
+    preferredRoommate: '',
+    dietaryRestrictions: '',
+    adaAccommodations: '',
+    adminNotes: '',
   })
 
   // Reset form when registration changes
@@ -76,10 +100,22 @@ export default function EditIndividualRegistrationModal({
       setFormData({
         firstName: registration.firstName,
         lastName: registration.lastName,
+        preferredName: registration.preferredName || '',
         email: registration.email,
         phone: registration.phone || '',
         age: registration.age || 0,
+        gender: registration.gender || 'male',
+        street: registration.street || '',
+        city: registration.city || '',
+        state: registration.state || '',
+        zip: registration.zip || '',
         housingType: registration.housingType || 'on_campus',
+        roomType: registration.roomType || 'single',
+        tShirtSize: registration.tShirtSize || '',
+        preferredRoommate: registration.preferredRoommate || '',
+        dietaryRestrictions: registration.dietaryRestrictions || '',
+        adaAccommodations: registration.adaAccommodations || '',
+        adminNotes: '',
       })
     }
   }, [registration])
@@ -164,69 +200,221 @@ export default function EditIndividualRegistrationModal({
             </TabsList>
 
             {/* Overview Tab */}
-            <TabsContent value="overview" className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <TabsContent value="overview" className="space-y-6">
+              {/* Basic Information */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-[#1E3A5F]">Basic Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="firstName">First Name *</Label>
+                    <Input
+                      id="firstName"
+                      value={formData.firstName}
+                      onChange={(e) => handleInputChange('firstName', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="lastName">Last Name *</Label>
+                    <Input
+                      id="lastName"
+                      value={formData.lastName}
+                      onChange={(e) => handleInputChange('lastName', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="preferredName">Preferred Name</Label>
+                    <Input
+                      id="preferredName"
+                      value={formData.preferredName}
+                      onChange={(e) => handleInputChange('preferredName', e.target.value)}
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="age">Age *</Label>
+                    <Input
+                      id="age"
+                      type="number"
+                      value={formData.age}
+                      onChange={(e) => handleInputChange('age', parseInt(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="gender">Gender</Label>
+                    <select
+                      id="gender"
+                      value={formData.gender}
+                      onChange={(e) => handleInputChange('gender', e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="tShirtSize">T-Shirt Size</Label>
+                    <select
+                      id="tShirtSize"
+                      value={formData.tShirtSize}
+                      onChange={(e) => handleInputChange('tShirtSize', e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <option value="">Select size</option>
+                      <option value="XS">XS</option>
+                      <option value="S">S</option>
+                      <option value="M">M</option>
+                      <option value="L">L</option>
+                      <option value="XL">XL</option>
+                      <option value="2XL">2XL</option>
+                      <option value="3XL">3XL</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Information */}
+              <div className="space-y-4 border-t pt-4">
+                <h3 className="font-semibold text-[#1E3A5F]">Contact Information</h3>
                 <div>
-                  <Label htmlFor="firstName">First Name</Label>
+                  <Label htmlFor="email">Email *</Label>
                   <Input
-                    id="firstName"
-                    value={formData.firstName}
-                    onChange={(e) => handleInputChange('firstName', e.target.value)}
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="lastName">Last Name</Label>
+                  <Label htmlFor="phone">Phone</Label>
                   <Input
-                    id="lastName"
-                    value={formData.lastName}
-                    onChange={(e) => handleInputChange('lastName', e.target.value)}
+                    id="phone"
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => handleInputChange('phone', e.target.value)}
                   />
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
+              {/* Address */}
+              <div className="space-y-4 border-t pt-4">
+                <h3 className="font-semibold text-[#1E3A5F]">Address</h3>
+                <div>
+                  <Label htmlFor="street">Street Address</Label>
+                  <Input
+                    id="street"
+                    value={formData.street}
+                    onChange={(e) => handleInputChange('street', e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="col-span-2">
+                    <Label htmlFor="city">City</Label>
+                    <Input
+                      id="city"
+                      value={formData.city}
+                      onChange={(e) => handleInputChange('city', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="state">State</Label>
+                    <Input
+                      id="state"
+                      value={formData.state}
+                      onChange={(e) => handleInputChange('state', e.target.value)}
+                      placeholder="e.g., CA"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="zip">ZIP Code</Label>
+                    <Input
+                      id="zip"
+                      value={formData.zip}
+                      onChange={(e) => handleInputChange('zip', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Housing Information */}
+              <div className="space-y-4 border-t pt-4">
+                <h3 className="font-semibold text-[#1E3A5F]">Housing Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="housingType">Housing Type</Label>
+                    <select
+                      id="housingType"
+                      value={formData.housingType}
+                      onChange={(e) => handleInputChange('housingType', e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <option value="on_campus">On Campus</option>
+                      <option value="off_campus">Off Campus</option>
+                      <option value="day_pass">Day Pass</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="roomType">Room Type</Label>
+                    <select
+                      id="roomType"
+                      value={formData.roomType}
+                      onChange={(e) => handleInputChange('roomType', e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <option value="single">Single</option>
+                      <option value="double">Double</option>
+                      <option value="shared">Shared</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="preferredRoommate">Preferred Roommate</Label>
+                  <Input
+                    id="preferredRoommate"
+                    value={formData.preferredRoommate}
+                    onChange={(e) => handleInputChange('preferredRoommate', e.target.value)}
+                    placeholder="Optional"
+                  />
+                </div>
+              </div>
+
+              {/* Special Needs */}
+              <div className="space-y-4 border-t pt-4">
+                <h3 className="font-semibold text-[#1E3A5F]">Special Needs & Accommodations</h3>
+                <div>
+                  <Label htmlFor="dietaryRestrictions">Dietary Restrictions</Label>
+                  <Textarea
+                    id="dietaryRestrictions"
+                    value={formData.dietaryRestrictions}
+                    onChange={(e) => handleInputChange('dietaryRestrictions', e.target.value)}
+                    placeholder="Any dietary restrictions or allergies..."
+                    rows={2}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="adaAccommodations">ADA Accommodations</Label>
+                  <Textarea
+                    id="adaAccommodations"
+                    value={formData.adaAccommodations}
+                    onChange={(e) => handleInputChange('adaAccommodations', e.target.value)}
+                    placeholder="Any accessibility needs or accommodations..."
+                    rows={2}
+                  />
+                </div>
+              </div>
+
+              {/* Admin Notes */}
+              <div className="space-y-2 border-t pt-4">
+                <Label htmlFor="adminNotes">Admin Notes</Label>
+                <Textarea
+                  id="adminNotes"
+                  value={formData.adminNotes}
+                  onChange={(e) => handleInputChange('adminNotes', e.target.value)}
+                  placeholder="Add any notes about this edit..."
+                  rows={3}
                 />
-              </div>
-
-              <div>
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="age">Age</Label>
-                  <Input
-                    id="age"
-                    type="number"
-                    value={formData.age}
-                    onChange={(e) => handleInputChange('age', parseInt(e.target.value) || 0)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="housingType">Housing Type</Label>
-                  <select
-                    id="housingType"
-                    value={formData.housingType}
-                    onChange={(e) => handleInputChange('housingType', e.target.value)}
-                    className="w-full border border-gray-300 rounded-md p-2"
-                  >
-                    <option value="on_campus">On Campus</option>
-                    <option value="off_campus">Off Campus</option>
-                    <option value="day_pass">Day Pass</option>
-                  </select>
-                </div>
               </div>
             </TabsContent>
 

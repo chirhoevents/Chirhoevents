@@ -80,11 +80,20 @@ interface GroupRegistration {
   id: string
   groupName: string
   parishName: string
+  dioceseName?: string
   groupLeaderName: string
   groupLeaderEmail: string
   groupLeaderPhone: string
+  groupLeaderStreet?: string
+  groupLeaderCity?: string
+  groupLeaderState?: string
+  groupLeaderZip?: string
   totalParticipants: number
+  youthCount?: number
+  chaperoneCount?: number
+  priestCount?: number
   housingType: 'on_campus' | 'off_campus' | 'day_pass'
+  specialRequests?: string
   registeredAt: string
   participants: Participant[]
   paymentBalance?: PaymentBalance
@@ -118,10 +127,16 @@ export default function EditGroupRegistrationModal({
   const [formData, setFormData] = useState({
     groupName: '',
     parishName: '',
+    dioceseName: '',
     groupLeaderName: '',
     groupLeaderEmail: '',
     groupLeaderPhone: '',
+    groupLeaderStreet: '',
+    groupLeaderCity: '',
+    groupLeaderState: '',
+    groupLeaderZip: '',
     housingType: 'on_campus' as 'on_campus' | 'off_campus' | 'day_pass',
+    specialRequests: '',
     adminNotes: '',
   })
   const [originalTotal, setOriginalTotal] = useState(0)
@@ -188,10 +203,16 @@ export default function EditGroupRegistrationModal({
       setFormData({
         groupName: regData.groupName,
         parishName: regData.parishName,
+        dioceseName: regData.dioceseName || '',
         groupLeaderName: regData.groupLeaderName,
         groupLeaderEmail: regData.groupLeaderEmail,
         groupLeaderPhone: regData.groupLeaderPhone,
+        groupLeaderStreet: regData.groupLeaderStreet || '',
+        groupLeaderCity: regData.groupLeaderCity || '',
+        groupLeaderState: regData.groupLeaderState || '',
+        groupLeaderZip: regData.groupLeaderZip || '',
         housingType: regData.housingType,
+        specialRequests: regData.specialRequests || '',
         adminNotes: '',
       })
 
@@ -440,6 +461,15 @@ export default function EditGroupRegistrationModal({
               </div>
 
               <div>
+                <Label htmlFor="dioceseName">Diocese Name</Label>
+                <Input
+                  id="dioceseName"
+                  value={formData.dioceseName}
+                  onChange={(e) => handleInputChange('dioceseName', e.target.value)}
+                />
+              </div>
+
+              <div>
                 <Label htmlFor="groupLeaderName">Group Leader Name</Label>
                 <Input
                   id="groupLeaderName"
@@ -473,6 +503,44 @@ export default function EditGroupRegistrationModal({
                 />
               </div>
 
+              <div className="col-span-2">
+                <Label htmlFor="groupLeaderStreet">Group Leader Street Address</Label>
+                <Input
+                  id="groupLeaderStreet"
+                  value={formData.groupLeaderStreet}
+                  onChange={(e) => handleInputChange('groupLeaderStreet', e.target.value)}
+                  placeholder="Street address"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="groupLeaderCity">City</Label>
+                <Input
+                  id="groupLeaderCity"
+                  value={formData.groupLeaderCity}
+                  onChange={(e) => handleInputChange('groupLeaderCity', e.target.value)}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="groupLeaderState">State</Label>
+                <Input
+                  id="groupLeaderState"
+                  value={formData.groupLeaderState}
+                  onChange={(e) => handleInputChange('groupLeaderState', e.target.value)}
+                  placeholder="e.g., CA"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="groupLeaderZip">ZIP Code</Label>
+                <Input
+                  id="groupLeaderZip"
+                  value={formData.groupLeaderZip}
+                  onChange={(e) => handleInputChange('groupLeaderZip', e.target.value)}
+                />
+              </div>
+
               <div>
                 <Label htmlFor="housingType">Housing Type</Label>
                 <select
@@ -486,6 +554,17 @@ export default function EditGroupRegistrationModal({
                   <option value="day_pass">Day Pass</option>
                 </select>
               </div>
+            </div>
+
+            <div>
+              <Label htmlFor="specialRequests">Special Requests</Label>
+              <Textarea
+                id="specialRequests"
+                value={formData.specialRequests}
+                onChange={(e) => handleInputChange('specialRequests', e.target.value)}
+                placeholder="Any special requests or notes from the group..."
+                rows={3}
+              />
             </div>
 
             <div>
