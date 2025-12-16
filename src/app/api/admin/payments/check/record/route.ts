@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     if (registrationType === 'individual') {
       registration = await prisma.individualRegistration.findUnique({
         where: { id: registrationId },
-        include: { event: true, participant: true },
+        include: { event: true },
       })
     } else {
       registration = await prisma.groupRegistration.findUnique({
@@ -162,11 +162,11 @@ export async function POST(request: NextRequest) {
     // Send email notification if requested
     if (sendEmail && registration && event) {
       const recipientEmail = registrationType === 'individual'
-        ? registration.participant?.email
+        ? registration.email
         : registration.groupLeaderEmail
 
       const recipientName = registrationType === 'individual'
-        ? `${registration.participant?.firstName} ${registration.participant?.lastName}`
+        ? `${registration.firstName} ${registration.lastName}`
         : registration.groupLeaderName
 
       if (recipientEmail) {
