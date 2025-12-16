@@ -82,7 +82,7 @@ export async function PUT(
         registrationId,
         registrationType: registrationType as 'individual' | 'group',
         editedByUserId: user.id,
-        editType: 'price_adjustment',
+        editType: 'payment_updated',
         oldTotal: Number(paymentBalance.totalAmountDue),
         newTotal: newTotalDueNumber,
         difference: priceDifference,
