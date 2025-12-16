@@ -95,7 +95,13 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
           ...individualRegistration,
           type: 'individual' as const,
         }}
-        paymentBalance={paymentBalance}
+        paymentBalance={paymentBalance ? {
+          ...paymentBalance,
+          totalAmountDue: Number(paymentBalance.totalAmountDue),
+          amountPaid: Number(paymentBalance.amountPaid),
+          amountRemaining: Number(paymentBalance.amountRemaining),
+          lateFeesApplied: Number(paymentBalance.lateFeesApplied),
+        } : null}
         payments={payments}
       />
     )
@@ -155,7 +161,13 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
           ...groupRegistration,
           type: 'group' as const,
         }}
-        paymentBalance={paymentBalance}
+        paymentBalance={paymentBalance ? {
+          ...paymentBalance,
+          totalAmountDue: Number(paymentBalance.totalAmountDue),
+          amountPaid: Number(paymentBalance.amountPaid),
+          amountRemaining: Number(paymentBalance.amountRemaining),
+          lateFeesApplied: Number(paymentBalance.lateFeesApplied),
+        } : null}
         payments={payments}
       />
     )
