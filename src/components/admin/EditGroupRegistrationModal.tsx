@@ -904,7 +904,7 @@ export default function EditGroupRegistrationModal({
                     <div>
                       <span className="font-medium">Make checks payable to:</span>
                       <p className="text-gray-700 mt-1">
-                        {(fullRegistration || registration).event.settings.checkPaymentPayableTo}
+                        {(fullRegistration || registration).event?.settings?.checkPaymentPayableTo}
                       </p>
                     </div>
                   )}
@@ -912,7 +912,7 @@ export default function EditGroupRegistrationModal({
                     <div className="mt-2">
                       <span className="font-medium">Mail to:</span>
                       <p className="text-gray-700 mt-1 whitespace-pre-line">
-                        {(fullRegistration || registration).event.settings.checkPaymentAddress}
+                        {(fullRegistration || registration).event?.settings?.checkPaymentAddress}
                       </p>
                     </div>
                   )}
