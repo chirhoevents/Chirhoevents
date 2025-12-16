@@ -63,10 +63,7 @@ export async function POST(request: NextRequest) {
     // Get payment balance
     const paymentBalance = await prisma.paymentBalance.findUnique({
       where: {
-        registrationId_registrationType: {
-          registrationId,
-          registrationType,
-        },
+        registrationId,
       },
       include: {
         individualRegistration: registrationType === 'individual' ? {
@@ -146,10 +143,7 @@ export async function POST(request: NextRequest) {
     // Update payment balance
     await prisma.paymentBalance.update({
       where: {
-        registrationId_registrationType: {
-          registrationId,
-          registrationType,
-        },
+        registrationId,
       },
       data: {
         amountPaid: newAmountPaid,
