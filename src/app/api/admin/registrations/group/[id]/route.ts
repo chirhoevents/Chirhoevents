@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+import { Resend } from 'resend'
+
+const resend = new Resend(process.env.RESEND_API_KEY!)
 
 export async function GET(
   request: NextRequest,
@@ -153,10 +156,16 @@ export async function PUT(
     const {
       groupName,
       parishName,
+      dioceseName,
       groupLeaderName,
       groupLeaderEmail,
       groupLeaderPhone,
+      groupLeaderStreet,
+      groupLeaderCity,
+      groupLeaderState,
+      groupLeaderZip,
       housingType,
+      specialRequests,
       totalParticipants,
       youthCount,
       chaperoneCount,
@@ -182,14 +191,21 @@ export async function PUT(
       data: {
         groupName,
         parishName,
+        dioceseName: dioceseName || null,
         groupLeaderName,
         groupLeaderEmail,
         groupLeaderPhone,
+        groupLeaderStreet: groupLeaderStreet || null,
+        groupLeaderCity: groupLeaderCity || null,
+        groupLeaderState: groupLeaderState || null,
+        groupLeaderZip: groupLeaderZip || null,
         housingType,
+        specialRequests: specialRequests || null,
         totalParticipants: totalParticipants !== undefined ? totalParticipants : existingRegistration.totalParticipants,
         youthCount: finalYouthCount,
         chaperoneCount: finalChaperoneCount,
         priestCount: finalPriestCount,
+        updatedAt: new Date(),
       },
     })
 
@@ -245,6 +261,96 @@ export async function PUT(
           },
         },
       })
+    }
+
+    // Send email notification to group leader
+    if (groupLeaderEmail && existingRegistration.event) {
+      try {
+        // Build list of changes for email
+        const emailChanges: string[] = []
+
+        if (existingRegistration.groupName !== groupName) {
+          emailChanges.push(`Group Name: ${existingRegistration.groupName} → ${groupName}`)
+        }
+        if (existingRegistration.parishName !== parishName) {
+          emailChanges.push(`Parish Name: ${existingRegistration.parishName} → ${parishName}`)
+        }
+        if (existingRegistration.housingType !== housingType) {
+          emailChanges.push(`Housing Type: ${existingRegistration.housingType} → ${housingType}`)
+        }
+        if (existingRegistration.totalParticipants !== totalParticipants) {
+          emailChanges.push(`Total Participants: ${existingRegistration.totalParticipants} → ${totalParticipants}`)
+        }
+        if (oldTotal !== newTotal) {
+          emailChanges.push(`Total Amount Due: $${oldTotal.toFixed(2)} → $${newTotal.toFixed(2)}`)
+        }
+
+        if (emailChanges.length > 0) {
+          const emailSubject = `Registration Updated - ${existingRegistration.event.name}`
+
+          const emailBody = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background-color: #1E3A5F; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+                .content { background-color: #f9f9f9; padding: 30px; border: 1px solid #ddd; border-top: none; }
+                .info-box { background-color: white; border-left: 4px solid #1E3A5F; padding: 15px; margin: 20px 0; }
+                .changes-list { background-color: #FFF4E6; border-left: 4px solid #F59E0B; padding: 15px; margin: 20px 0; }
+                .changes-list ul { margin: 10px 0; padding-left: 20px; }
+                .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header">
+                  <h1>Registration Updated</h1>
+                </div>
+                <div class="content">
+                  <p>Hello ${groupLeaderName},</p>
+
+                  <p>Your group registration for <strong>${existingRegistration.event.name}</strong> has been updated by event administrators.</p>
+
+                  <div class="changes-list">
+                    <h3 style="margin-top: 0; color: #F59E0B;">Changes Made</h3>
+                    <ul>
+                      ${emailChanges.map(change => `<li>${change}</li>`).join('')}
+                    </ul>
+                  </div>
+
+                  ${adminNotes ? `
+                    <div class="info-box" style="background-color: #E8F4FD;">
+                      <h3 style="margin-top: 0; color: #1E3A5F;">Admin Notes</h3>
+                      <p style="margin: 0;">${adminNotes}</p>
+                    </div>
+                  ` : ''}
+
+                  <p>If you have any questions about these changes, please contact the event organizers.</p>
+
+                  <p>Thank you!</p>
+                </div>
+                <div class="footer">
+                  <p>This is an automated message from ChiRho Events.</p>
+                  <p>${existingRegistration.event.name}</p>
+                </div>
+              </div>
+            </body>
+            </html>
+          `
+
+          await resend.emails.send({
+            from: 'ChiRho Events <noreply@chirhoevents.com>',
+            to: groupLeaderEmail,
+            subject: emailSubject,
+            html: emailBody,
+          })
+        }
+      } catch (emailError) {
+        console.error('Failed to send email:', emailError)
+        // Don't fail the entire request if email fails
+      }
     }
 
     return NextResponse.json({
