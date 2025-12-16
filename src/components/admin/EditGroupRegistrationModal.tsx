@@ -33,6 +33,25 @@ interface PaymentBalance {
   paymentStatus: string
 }
 
+interface Payment {
+  id: string
+  amount: number
+  paymentType: string
+  paymentMethod: 'card' | 'check' | 'cash' | 'bank_transfer'
+  paymentStatus: string
+  checkNumber?: string | null
+  checkReceivedDate?: string | null
+  notes?: string | null
+  createdAt: string
+  processedAt?: string | null
+}
+
+interface EventSettings {
+  checkPaymentEnabled: boolean
+  checkPaymentPayableTo: string | null
+  checkPaymentAddress: string | null
+}
+
 interface GroupRegistration {
   id: string
   groupName: string
@@ -45,6 +64,12 @@ interface GroupRegistration {
   registeredAt: string
   participants: Participant[]
   paymentBalance?: PaymentBalance
+  payments?: Payment[]
+  event?: {
+    id: string
+    name: string
+    settings?: EventSettings
+  }
 }
 
 interface EditGroupRegistrationModalProps {
@@ -337,10 +362,14 @@ export default function EditGroupRegistrationModal({
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">
               <User className="h-4 w-4 mr-2" />
               Overview
+            </TabsTrigger>
+            <TabsTrigger value="details">
+              <FileText className="h-4 w-4 mr-2" />
+              Full Details
             </TabsTrigger>
             <TabsTrigger value="participants">
               <User className="h-4 w-4 mr-2" />
@@ -497,6 +526,156 @@ export default function EditGroupRegistrationModal({
                 )}
               </Card>
             )}
+          </TabsContent>
+
+          {/* Full Details Tab */}
+          <TabsContent value="details" className="space-y-4">
+            <div className="space-y-6">
+              {/* Group Information */}
+              <Card className="p-4">
+                <h3 className="font-semibold text-[#1E3A5F] mb-3">Group Information</h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-600">Group Name:</span>
+                    <div>{registration.groupName}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Parish:</span>
+                    <div>{registration.parishName || 'N/A'}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Diocese:</span>
+                    <div>{(registration as any).dioceseName || 'N/A'}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Access Code:</span>
+                    <div className="font-mono font-semibold text-[#1E3A5F]">{(registration as any).accessCode}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Registration Status:</span>
+                    <div><Badge>{(registration as any).registrationStatus || 'N/A'}</Badge></div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Registered:</span>
+                    <div>{new Date(registration.registeredAt).toLocaleString()}</div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Group Leader */}
+              <Card className="p-4">
+                <h3 className="font-semibold text-[#1E3A5F] mb-3">Group Leader</h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-600">Name:</span>
+                    <div>{registration.groupLeaderName}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Email:</span>
+                    <div>{registration.groupLeaderEmail}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Phone:</span>
+                    <div>{registration.groupLeaderPhone}</div>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="font-medium text-gray-600">Address:</span>
+                    <div>
+                      {(registration as any).groupLeaderStreet && (
+                        <>
+                          {(registration as any).groupLeaderStreet}<br />
+                          {(registration as any).groupLeaderCity}, {(registration as any).groupLeaderState} {(registration as any).groupLeaderZip}
+                        </>
+                      ) || 'No address provided'}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Alternative Contacts */}
+              <Card className="p-4">
+                <h3 className="font-semibold text-[#1E3A5F] mb-3">Alternative Contacts</h3>
+                <div className="space-y-4">
+                  {/* Contact 1 */}
+                  <div>
+                    <div className="font-medium text-sm text-gray-700 mb-2">Contact 1</div>
+                    <div className="grid grid-cols-3 gap-3 text-sm">
+                      <div>
+                        <span className="font-medium text-gray-600">Name:</span>
+                        <div>{(registration as any).alternativeContact1Name || 'N/A'}</div>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-600">Email:</span>
+                        <div>{(registration as any).alternativeContact1Email || 'N/A'}</div>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-600">Phone:</span>
+                        <div>{(registration as any).alternativeContact1Phone || 'N/A'}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Contact 2 */}
+                  {((registration as any).alternativeContact2Name || (registration as any).alternativeContact2Email || (registration as any).alternativeContact2Phone) && (
+                    <div className="pt-3 border-t">
+                      <div className="font-medium text-sm text-gray-700 mb-2">Contact 2</div>
+                      <div className="grid grid-cols-3 gap-3 text-sm">
+                        <div>
+                          <span className="font-medium text-gray-600">Name:</span>
+                          <div>{(registration as any).alternativeContact2Name || 'N/A'}</div>
+                        </div>
+                        <div>
+                          <span className="font-medium text-gray-600">Email:</span>
+                          <div>{(registration as any).alternativeContact2Email || 'N/A'}</div>
+                        </div>
+                        <div>
+                          <span className="font-medium text-gray-600">Phone:</span>
+                          <div>{(registration as any).alternativeContact2Phone || 'N/A'}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </Card>
+
+              {/* Additional Information */}
+              <Card className="p-4">
+                <h3 className="font-semibold text-[#1E3A5F] mb-3">Additional Information</h3>
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-600">Special Requests:</span>
+                    <div className="mt-1 p-2 bg-gray-50 rounded whitespace-pre-wrap">
+                      {(registration as any).specialRequests || 'None'}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Dietary Restrictions Summary:</span>
+                    <div className="mt-1 p-2 bg-gray-50 rounded whitespace-pre-wrap">
+                      {(registration as any).dietaryRestrictionsSummary || 'None'}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">ADA Accommodations Summary:</span>
+                    <div className="mt-1 p-2 bg-gray-50 rounded whitespace-pre-wrap">
+                      {(registration as any).adaAccommodationsSummary || 'None'}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Edit Form Button */}
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  const eventId = (registration as any).eventId
+                  window.open(`/events/${eventId}/register-group/edit/${registration.id}`, '_blank')
+                }}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Edit Original Registration Form
+              </Button>
+            </div>
           </TabsContent>
 
           {/* Participants Tab */}
@@ -687,6 +866,116 @@ export default function EditGroupRegistrationModal({
                 </Badge>
               </div>
             </Card>
+
+            {/* Check Payment Instructions */}
+            {registration.event?.settings?.checkPaymentEnabled && (
+              <Card className="p-4 bg-blue-50 border-blue-200">
+                <h3 className="font-semibold text-[#1E3A5F] mb-3 flex items-center">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Check Payment Information
+                </h3>
+                <div className="space-y-2 text-sm">
+                  {registration.event.settings.checkPaymentPayableTo && (
+                    <div>
+                      <span className="font-medium">Make checks payable to:</span>
+                      <p className="text-gray-700 mt-1">
+                        {registration.event.settings.checkPaymentPayableTo}
+                      </p>
+                    </div>
+                  )}
+                  {registration.event.settings.checkPaymentAddress && (
+                    <div className="mt-2">
+                      <span className="font-medium">Mail to:</span>
+                      <p className="text-gray-700 mt-1 whitespace-pre-line">
+                        {registration.event.settings.checkPaymentAddress}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
+
+            {/* Payment History */}
+            {registration.payments && registration.payments.length > 0 && (
+              <Card className="p-4">
+                <h3 className="font-semibold text-[#1E3A5F] mb-4">
+                  Payment History
+                </h3>
+                <div className="space-y-3">
+                  {registration.payments.map((payment) => (
+                    <div
+                      key={payment.id}
+                      className="border rounded-lg p-3 bg-gray-50"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <Badge variant="outline" className="mb-1">
+                            {payment.paymentMethod.toUpperCase()}
+                          </Badge>
+                          <div className="text-sm text-gray-600">
+                            {new Date(payment.createdAt).toLocaleString()}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-semibold text-lg text-green-600">
+                            ${payment.amount.toFixed(2)}
+                          </div>
+                          <Badge
+                            variant={
+                              payment.paymentStatus === 'succeeded'
+                                ? 'default'
+                                : payment.paymentStatus === 'pending'
+                                ? 'outline'
+                                : 'destructive'
+                            }
+                          >
+                            {payment.paymentStatus}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      {/* Check Payment Details */}
+                      {payment.paymentMethod === 'check' && (
+                        <div className="mt-2 pt-2 border-t space-y-1 text-sm">
+                          {payment.checkNumber && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Check Number:</span>
+                              <span className="font-medium">{payment.checkNumber}</span>
+                            </div>
+                          )}
+                          {payment.checkReceivedDate && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Received Date:</span>
+                              <span className="font-medium">
+                                {new Date(payment.checkReceivedDate).toLocaleDateString()}
+                              </span>
+                            </div>
+                          )}
+                          {!payment.checkReceivedDate && payment.paymentStatus === 'pending' && (
+                            <div className="text-xs text-amber-600 italic mt-1">
+                              Check payment pending - awaiting receipt
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Payment Notes */}
+                      {payment.notes && (
+                        <div className="mt-2 pt-2 border-t">
+                          <span className="text-xs text-gray-600">Notes:</span>
+                          <p className="text-sm text-gray-700 mt-1">{payment.notes}</p>
+                        </div>
+                      )}
+
+                      {/* Payment Type */}
+                      <div className="text-xs text-gray-500 mt-2">
+                        Type: {payment.paymentType}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
 
             <Button
               variant="outline"
