@@ -115,13 +115,15 @@ export async function POST(request: NextRequest) {
     // Create payment record
     const payment = await prisma.payment.create({
       data: {
+        organizationId: paymentBalance.organizationId,
+        eventId: paymentBalance.eventId,
         registrationId,
         registrationType,
         amount: paymentAmount,
-        currency: 'usd',
-        status: paymentStatus === 'received' ? 'succeeded' : 'pending',
+        paymentType: paymentType || 'partial',
+        paymentStatus: paymentStatus === 'received' ? 'succeeded' : 'pending',
         paymentMethod: 'check',
-        createdAt: new Date(),
+        checkNumber: checkNumber || null,
         notes: JSON.stringify(notesObject),
       },
     })
