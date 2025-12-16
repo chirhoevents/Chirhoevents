@@ -76,7 +76,7 @@ export async function GET(
           amountRemaining: Number(paymentBalance.amountRemaining),
           paymentStatus: paymentBalance.paymentStatus,
         } : null,
-        payments: payments.map(p => ({
+        payments: payments.map((p: any) => ({
           id: p.id,
           amount: Number(p.amount),
           paymentType: p.paymentType,

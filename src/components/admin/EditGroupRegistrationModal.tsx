@@ -16,6 +16,7 @@ import {
 } from '@/lib/registration-price-calculator'
 import RefundModal from './RefundModal'
 import MarkCheckReceivedModal from './MarkCheckReceivedModal'
+import RecordCheckPaymentModal from './RecordCheckPaymentModal'
 
 interface Participant {
   id?: string
@@ -117,6 +118,7 @@ export default function EditGroupRegistrationModal({
   })
   const [showRefundModal, setShowRefundModal] = useState(false)
   const [showCheckModal, setShowCheckModal] = useState(false)
+  const [showRecordCheckModal, setShowRecordCheckModal] = useState(false)
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null)
   const [auditTrail, setAuditTrail] = useState<Array<{
     id: string
@@ -893,6 +895,21 @@ export default function EditGroupRegistrationModal({
                   {registration.paymentBalance?.paymentStatus || 'pending'}
                 </Badge>
               </div>
+
+              {/* Record Check Payment Button */}
+              {registration.event?.settings?.checkPaymentEnabled &&
+               registration.paymentBalance?.amountRemaining &&
+               registration.paymentBalance.amountRemaining > 0 && (
+                <div className="mt-4 pt-4 border-t">
+                  <Button
+                    onClick={() => setShowRecordCheckModal(true)}
+                    className="w-full bg-[#1E3A5F] hover:bg-[#2A4A6F]"
+                  >
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Record Check Payment
+                  </Button>
+                </div>
+              )}
             </Card>
 
             {/* Check Payment Instructions */}
@@ -1188,6 +1205,22 @@ export default function EditGroupRegistrationModal({
           onUpdate?.()
         }}
       />
+
+      {/* Record Check Payment Modal */}
+      {registration && registration.paymentBalance && (
+        <RecordCheckPaymentModal
+          isOpen={showRecordCheckModal}
+          onClose={() => setShowRecordCheckModal(false)}
+          registrationId={registration.id}
+          registrationType="group"
+          balanceRemaining={registration.paymentBalance.amountRemaining}
+          totalAmountDue={registration.paymentBalance.totalAmountDue}
+          onSuccess={() => {
+            setShowRecordCheckModal(false)
+            onUpdate?.()
+          }}
+        />
+      )}
     </Dialog>
   )
 }
