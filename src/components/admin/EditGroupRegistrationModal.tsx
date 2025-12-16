@@ -337,10 +337,14 @@ export default function EditGroupRegistrationModal({
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">
               <User className="h-4 w-4 mr-2" />
               Overview
+            </TabsTrigger>
+            <TabsTrigger value="details">
+              <FileText className="h-4 w-4 mr-2" />
+              Full Details
             </TabsTrigger>
             <TabsTrigger value="participants">
               <User className="h-4 w-4 mr-2" />
@@ -497,6 +501,156 @@ export default function EditGroupRegistrationModal({
                 )}
               </Card>
             )}
+          </TabsContent>
+
+          {/* Full Details Tab */}
+          <TabsContent value="details" className="space-y-4">
+            <div className="space-y-6">
+              {/* Group Information */}
+              <Card className="p-4">
+                <h3 className="font-semibold text-[#1E3A5F] mb-3">Group Information</h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-600">Group Name:</span>
+                    <div>{registration.groupName}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Parish:</span>
+                    <div>{registration.parishName || 'N/A'}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Diocese:</span>
+                    <div>{(registration as any).dioceseName || 'N/A'}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Access Code:</span>
+                    <div className="font-mono font-semibold text-[#1E3A5F]">{(registration as any).accessCode}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Registration Status:</span>
+                    <div><Badge>{(registration as any).registrationStatus || 'N/A'}</Badge></div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Registered:</span>
+                    <div>{new Date(registration.registeredAt).toLocaleString()}</div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Group Leader */}
+              <Card className="p-4">
+                <h3 className="font-semibold text-[#1E3A5F] mb-3">Group Leader</h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-600">Name:</span>
+                    <div>{registration.groupLeaderName}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Email:</span>
+                    <div>{registration.groupLeaderEmail}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Phone:</span>
+                    <div>{registration.groupLeaderPhone}</div>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="font-medium text-gray-600">Address:</span>
+                    <div>
+                      {(registration as any).groupLeaderStreet && (
+                        <>
+                          {(registration as any).groupLeaderStreet}<br />
+                          {(registration as any).groupLeaderCity}, {(registration as any).groupLeaderState} {(registration as any).groupLeaderZip}
+                        </>
+                      ) || 'No address provided'}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Alternative Contacts */}
+              <Card className="p-4">
+                <h3 className="font-semibold text-[#1E3A5F] mb-3">Alternative Contacts</h3>
+                <div className="space-y-4">
+                  {/* Contact 1 */}
+                  <div>
+                    <div className="font-medium text-sm text-gray-700 mb-2">Contact 1</div>
+                    <div className="grid grid-cols-3 gap-3 text-sm">
+                      <div>
+                        <span className="font-medium text-gray-600">Name:</span>
+                        <div>{(registration as any).alternativeContact1Name || 'N/A'}</div>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-600">Email:</span>
+                        <div>{(registration as any).alternativeContact1Email || 'N/A'}</div>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-600">Phone:</span>
+                        <div>{(registration as any).alternativeContact1Phone || 'N/A'}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Contact 2 */}
+                  {((registration as any).alternativeContact2Name || (registration as any).alternativeContact2Email || (registration as any).alternativeContact2Phone) && (
+                    <div className="pt-3 border-t">
+                      <div className="font-medium text-sm text-gray-700 mb-2">Contact 2</div>
+                      <div className="grid grid-cols-3 gap-3 text-sm">
+                        <div>
+                          <span className="font-medium text-gray-600">Name:</span>
+                          <div>{(registration as any).alternativeContact2Name || 'N/A'}</div>
+                        </div>
+                        <div>
+                          <span className="font-medium text-gray-600">Email:</span>
+                          <div>{(registration as any).alternativeContact2Email || 'N/A'}</div>
+                        </div>
+                        <div>
+                          <span className="font-medium text-gray-600">Phone:</span>
+                          <div>{(registration as any).alternativeContact2Phone || 'N/A'}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </Card>
+
+              {/* Additional Information */}
+              <Card className="p-4">
+                <h3 className="font-semibold text-[#1E3A5F] mb-3">Additional Information</h3>
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-600">Special Requests:</span>
+                    <div className="mt-1 p-2 bg-gray-50 rounded whitespace-pre-wrap">
+                      {(registration as any).specialRequests || 'None'}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Dietary Restrictions Summary:</span>
+                    <div className="mt-1 p-2 bg-gray-50 rounded whitespace-pre-wrap">
+                      {(registration as any).dietaryRestrictionsSummary || 'None'}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">ADA Accommodations Summary:</span>
+                    <div className="mt-1 p-2 bg-gray-50 rounded whitespace-pre-wrap">
+                      {(registration as any).adaAccommodationsSummary || 'None'}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Edit Form Button */}
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  const eventId = (registration as any).eventId
+                  window.open(`/events/${eventId}/register-group/edit/${registration.id}`, '_blank')
+                }}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Edit Original Registration Form
+              </Button>
+            </div>
           </TabsContent>
 
           {/* Participants Tab */}
