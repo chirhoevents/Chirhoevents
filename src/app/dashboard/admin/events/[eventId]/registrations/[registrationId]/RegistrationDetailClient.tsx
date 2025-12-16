@@ -88,6 +88,7 @@ interface PaymentBalance {
   totalAmountDue: number
   amountPaid: number
   amountRemaining: number
+  lateFeesApplied: number
   paymentStatus: string
 }
 
