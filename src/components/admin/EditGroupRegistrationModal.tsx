@@ -672,6 +672,30 @@ export default function EditGroupRegistrationModal({
                           </div>
                         </div>
                       </Card>
+
+                      {/* Group Leader Dashboard Link */}
+                      {(regData as any).accessCode && (
+                        <Card className="p-4 bg-blue-50 border-blue-200">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-semibold text-[#1E3A5F] mb-1">Group Leader Access</h4>
+                              <p className="text-sm text-gray-600">
+                                Access Code: <span className="font-mono font-bold text-[#1E3A5F]">{(regData as any).accessCode}</span>
+                              </p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                window.open('/dashboard/group-leader', '_blank')
+                              }}
+                            >
+                              <FileText className="h-4 w-4 mr-2" />
+                              View Dashboard
+                            </Button>
+                          </div>
+                        </Card>
+                      )}
                     </>
                   )
                 })()}
@@ -876,19 +900,19 @@ export default function EditGroupRegistrationModal({
                   Check Payment Information
                 </h3>
                 <div className="space-y-2 text-sm">
-                  {registration.event.settings.checkPaymentPayableTo && (
+                  {(fullRegistration || registration).event?.settings?.checkPaymentPayableTo && (
                     <div>
                       <span className="font-medium">Make checks payable to:</span>
                       <p className="text-gray-700 mt-1">
-                        {registration.event.settings.checkPaymentPayableTo}
+                        {(fullRegistration || registration).event?.settings?.checkPaymentPayableTo}
                       </p>
                     </div>
                   )}
-                  {registration.event.settings.checkPaymentAddress && (
+                  {(fullRegistration || registration).event?.settings?.checkPaymentAddress && (
                     <div className="mt-2">
                       <span className="font-medium">Mail to:</span>
                       <p className="text-gray-700 mt-1 whitespace-pre-line">
-                        {registration.event.settings.checkPaymentAddress}
+                        {(fullRegistration || registration).event?.settings?.checkPaymentAddress}
                       </p>
                     </div>
                   )}
@@ -897,13 +921,13 @@ export default function EditGroupRegistrationModal({
             )}
 
             {/* Payment History */}
-            {registration.payments && registration.payments.length > 0 && (
+            {(fullRegistration || registration).payments && (fullRegistration || registration).payments!.length > 0 && (
               <Card className="p-4">
                 <h3 className="font-semibold text-[#1E3A5F] mb-4">
                   Payment History
                 </h3>
                 <div className="space-y-3">
-                  {registration.payments.map((payment) => (
+                  {(fullRegistration || registration).payments!.map((payment: Payment) => (
                     <div
                       key={payment.id}
                       className="border rounded-lg p-3 bg-gray-50"
