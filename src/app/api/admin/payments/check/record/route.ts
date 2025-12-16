@@ -65,20 +65,6 @@ export async function POST(request: NextRequest) {
       where: {
         registrationId,
       },
-      include: {
-        individualRegistration: registrationType === 'individual' ? {
-          include: {
-            event: true,
-            participant: true,
-          },
-        } : undefined,
-        groupRegistration: registrationType === 'group' ? {
-          include: {
-            event: true,
-            groupLeader: true,
-          },
-        } : undefined,
-      },
     })
 
     if (!paymentBalance) {
@@ -86,6 +72,26 @@ export async function POST(request: NextRequest) {
         { error: 'Payment balance not found for this registration' },
         { status: 404 }
       )
+    }
+
+    // Get registration details for email
+    let registration: any = null
+    let event: any = null
+
+    if (registrationType === 'individual') {
+      registration = await prisma.individualRegistration.findUnique({
+        where: { id: registrationId },
+        include: { event: true, participant: true },
+      })
+    } else {
+      registration = await prisma.groupRegistration.findUnique({
+        where: { id: registrationId },
+        include: { event: true },
+      })
+    }
+
+    if (registration) {
+      event = registration.event
     }
 
     // Build notes object
@@ -154,28 +160,22 @@ export async function POST(request: NextRequest) {
     })
 
     // Send email notification if requested
-    if (sendEmail) {
-      const registration = registrationType === 'individual'
-        ? paymentBalance.individualRegistration
-        : paymentBalance.groupRegistration
+    if (sendEmail && registration && event) {
+      const recipientEmail = registrationType === 'individual'
+        ? registration.participant?.email
+        : registration.groupLeaderEmail
 
-      if (registration) {
-        const event = registration.event
-        const recipientEmail = registrationType === 'individual'
-          ? paymentBalance.individualRegistration?.participant?.email
-          : paymentBalance.groupRegistration?.groupLeader?.email
+      const recipientName = registrationType === 'individual'
+        ? `${registration.participant?.firstName} ${registration.participant?.lastName}`
+        : registration.groupLeaderName
 
-        const recipientName = registrationType === 'individual'
-          ? `${paymentBalance.individualRegistration?.participant?.firstName} ${paymentBalance.individualRegistration?.participant?.lastName}`
-          : paymentBalance.groupRegistration?.groupLeader?.name
+      if (recipientEmail) {
+        try {
+          const emailSubject = paymentStatus === 'received'
+            ? `Check Payment Received - ${event.name}`
+            : `Check Payment Expected - ${event.name}`
 
-        if (recipientEmail) {
-          try {
-            const emailSubject = paymentStatus === 'received'
-              ? `Check Payment Received - ${event.name}`
-              : `Check Payment Expected - ${event.name}`
-
-            const emailBody = `
+          const emailBody = `
               <!DOCTYPE html>
               <html>
               <head>
@@ -286,16 +286,15 @@ export async function POST(request: NextRequest) {
               </html>
             `
 
-            await resend.emails.send({
-              from: 'ChiRho Events <noreply@chirhoevents.com>',
-              to: recipientEmail,
-              subject: emailSubject,
-              html: emailBody,
-            })
-          } catch (emailError) {
-            console.error('Failed to send email:', emailError)
-            // Don't fail the entire request if email fails
-          }
+          await resend.emails.send({
+            from: 'ChiRho Events <noreply@chirhoevents.com>',
+            to: recipientEmail,
+            subject: emailSubject,
+            html: emailBody,
+          })
+        } catch (emailError) {
+          console.error('Failed to send email:', emailError)
+          // Don't fail the entire request if email fails
         }
       }
     }
