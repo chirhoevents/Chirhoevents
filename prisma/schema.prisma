@@ -750,8 +750,8 @@ enum DateFormat {
 }
 
 enum TimeFormat {
-  12h
-  24h
+  h12
+  h24
 }
 
 enum ParticipantSortOrder {
@@ -943,7 +943,7 @@ model UserPreferences {
   // Display Preferences
   dashboardView                DashboardView @default(cards) @map("dashboard_view")
   dateFormat                   DateFormat @default(mdy) @map("date_format")
-  timeFormat                   TimeFormat @default(12h) @map("time_format")
+  timeFormat                   TimeFormat @default(h12) @map("time_format")
   timezone                     String   @default("America/Chicago") @db.Text
   participantSortOrder         ParticipantSortOrder @default(name) @map("participant_sort_order")
   itemsPerPage                 Int      @default(25) @map("items_per_page")

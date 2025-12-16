@@ -1195,8 +1195,8 @@ export default function SettingsPage() {
                         <input
                           type="radio"
                           name="timeFormat"
-                          value="12h"
-                          checked={preferences.timeFormat === '12h'}
+                          value="h12"
+                          checked={preferences.timeFormat === 'h12'}
                           onChange={(e) => updatePreference('timeFormat', e.target.value)}
                           className="mr-2"
                         />
@@ -1206,8 +1206,8 @@ export default function SettingsPage() {
                         <input
                           type="radio"
                           name="timeFormat"
-                          value="24h"
-                          checked={preferences.timeFormat === '24h'}
+                          value="h24"
+                          checked={preferences.timeFormat === 'h24'}
                           onChange={(e) => updatePreference('timeFormat', e.target.value)}
                           className="mr-2"
                         />

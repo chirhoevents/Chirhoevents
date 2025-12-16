@@ -14,7 +14,7 @@ CREATE TYPE "DashboardView" AS ENUM ('cards', 'list', 'detailed');
 CREATE TYPE "DateFormat" AS ENUM ('mdy', 'dmy', 'ymd');
 
 -- CreateEnum
-CREATE TYPE "TimeFormat" AS ENUM ('12h', '24h');
+CREATE TYPE "TimeFormat" AS ENUM ('h12', 'h24');
 
 -- CreateEnum
 CREATE TYPE "ParticipantSortOrder" AS ENUM ('name', 'age', 'type', 'form_status');
@@ -79,7 +79,7 @@ CREATE TABLE "user_preferences" (
     -- Display Preferences
     "dashboard_view" "DashboardView" NOT NULL DEFAULT 'cards',
     "date_format" "DateFormat" NOT NULL DEFAULT 'mdy',
-    "time_format" "TimeFormat" NOT NULL DEFAULT '12h',
+    "time_format" "TimeFormat" NOT NULL DEFAULT 'h12',
     "timezone" TEXT NOT NULL DEFAULT 'America/Chicago',
     "participant_sort_order" "ParticipantSortOrder" NOT NULL DEFAULT 'name',
     "items_per_page" INTEGER NOT NULL DEFAULT 25,
