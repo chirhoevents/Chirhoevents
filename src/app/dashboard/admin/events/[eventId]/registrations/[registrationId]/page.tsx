@@ -25,14 +25,18 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
       name: true,
       startDate: true,
       endDate: true,
-      youthRegularPrice: true,
-      chaperoneRegularPrice: true,
-      onCampusYouthPrice: true,
-      offCampusYouthPrice: true,
-      dayPassYouthPrice: true,
-      onCampusChaperonePrice: true,
-      offCampusChaperonePrice: true,
-      dayPassChaperonePrice: true,
+      pricing: {
+        select: {
+          youthRegularPrice: true,
+          chaperoneRegularPrice: true,
+          onCampusYouthPrice: true,
+          offCampusYouthPrice: true,
+          dayPassYouthPrice: true,
+          onCampusChaperonePrice: true,
+          offCampusChaperonePrice: true,
+          dayPassChaperonePrice: true,
+        },
+      },
     },
   })
 

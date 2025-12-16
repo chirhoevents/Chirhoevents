@@ -27,14 +27,16 @@ interface Event {
   name: string
   startDate: Date
   endDate: Date
-  youthRegularPrice: number
-  chaperoneRegularPrice: number
-  onCampusYouthPrice?: number | null
-  offCampusYouthPrice?: number | null
-  dayPassYouthPrice?: number | null
-  onCampusChaperonePrice?: number | null
-  offCampusChaperonePrice?: number | null
-  dayPassChaperonePrice?: number | null
+  pricing: {
+    youthRegularPrice: number
+    chaperoneRegularPrice: number
+    onCampusYouthPrice?: number | null
+    offCampusYouthPrice?: number | null
+    dayPassYouthPrice?: number | null
+    onCampusChaperonePrice?: number | null
+    offCampusChaperonePrice?: number | null
+    dayPassChaperonePrice?: number | null
+  } | null
 }
 
 interface IndividualRegistration {
@@ -154,19 +156,20 @@ export default function RegistrationDetailClient({
   // Calculate price based on housing type
   const calculatePrice = () => {
     if (registration.type !== 'individual') return paymentBalance?.totalAmountDue || 0
+    if (!event.pricing) return paymentBalance?.totalAmountDue || 0
 
     const housingType = formData.housingType
 
     // Default to youth regular price
-    let basePrice = event.youthRegularPrice
+    let basePrice = Number(event.pricing.youthRegularPrice)
 
     // Adjust based on housing type
-    if (housingType === 'on_campus' && event.onCampusYouthPrice) {
-      basePrice = event.onCampusYouthPrice
-    } else if (housingType === 'off_campus' && event.offCampusYouthPrice) {
-      basePrice = event.offCampusYouthPrice
-    } else if (housingType === 'day_pass' && event.dayPassYouthPrice) {
-      basePrice = event.dayPassYouthPrice
+    if (housingType === 'on_campus' && event.pricing.onCampusYouthPrice) {
+      basePrice = Number(event.pricing.onCampusYouthPrice)
+    } else if (housingType === 'off_campus' && event.pricing.offCampusYouthPrice) {
+      basePrice = Number(event.pricing.offCampusYouthPrice)
+    } else if (housingType === 'day_pass' && event.pricing.dayPassYouthPrice) {
+      basePrice = Number(event.pricing.dayPassYouthPrice)
     }
 
     return basePrice
