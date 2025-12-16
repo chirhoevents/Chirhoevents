@@ -47,7 +47,7 @@ interface IndividualRegistration {
   preferredName?: string | null
   email: string
   phone: string
-  age: number
+  age: number | null
   gender?: string | null
   street?: string | null
   city?: string | null
@@ -130,7 +130,7 @@ export default function RegistrationDetailClient({
         preferredName: registration.preferredName || '',
         email: registration.email,
         phone: registration.phone,
-        age: registration.age,
+        age: registration.age || 0,
         gender: registration.gender || 'male',
         street: registration.street || '',
         city: registration.city || '',
