@@ -159,36 +159,6 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Create audit trail entry
-    await prisma.auditLog.create({
-      data: {
-        action: paymentStatus === 'received' ? 'check_payment_recorded' : 'check_payment_expected',
-        entityType: 'payment',
-        entityId: payment.id,
-        details: JSON.stringify({
-          registrationId,
-          registrationType,
-          amount: paymentAmount,
-          checkNumber,
-          paymentType,
-          paymentStatus,
-          payerName,
-          previousBalance: {
-            amountPaid: currentAmountPaid,
-            amountRemaining: Number(paymentBalance.amountRemaining),
-            paymentStatus: paymentBalance.paymentStatus,
-          },
-          newBalance: {
-            amountPaid: newAmountPaid,
-            amountRemaining: newBalanceRemaining,
-            paymentStatus: newPaymentStatus,
-          },
-        }),
-        performedBy: 'admin', // In production, this should be the actual admin user ID
-        timestamp: new Date(),
-      },
-    })
-
     // Send email notification if requested
     if (sendEmail) {
       const registration = registrationType === 'individual'

@@ -144,34 +144,6 @@ export async function PUT(
       })
     }
 
-    // Create audit trail entry
-    await prisma.auditLog.create({
-      data: {
-        action: 'participant_edited',
-        entityType: 'participant',
-        entityId: participantId,
-        details: JSON.stringify({
-          participantId,
-          groupRegistrationId: existingParticipant.groupRegistrationId,
-          oldValues,
-          newValues: {
-            firstName,
-            lastName,
-            preferredName,
-            email,
-            age: parseInt(age),
-            gender,
-            participantType,
-            tShirtSize,
-          },
-          liabilityFormUpdated: !!updatedLiabilityForm,
-          adminNotes: adminNotes || null,
-        }),
-        performedBy: 'admin', // In production, this should be the actual admin user ID
-        timestamp: new Date(),
-      },
-    })
-
     // Send email notification if requested
     if (sendEmail && existingParticipant.groupRegistration) {
       const groupRegistration = existingParticipant.groupRegistration
