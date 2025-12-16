@@ -102,7 +102,10 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
           amountRemaining: Number(paymentBalance.amountRemaining),
           lateFeesApplied: Number(paymentBalance.lateFeesApplied),
         } : null}
-        payments={payments}
+        payments={payments.map((p: any) => ({
+          ...p,
+          amount: Number(p.amount),
+        }))}
       />
     )
   }
@@ -168,7 +171,10 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
           amountRemaining: Number(paymentBalance.amountRemaining),
           lateFeesApplied: Number(paymentBalance.lateFeesApplied),
         } : null}
-        payments={payments}
+        payments={payments.map((p: any) => ({
+          ...p,
+          amount: Number(p.amount),
+        }))}
       />
     )
   }
