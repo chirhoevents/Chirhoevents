@@ -78,7 +78,19 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
 
     return (
       <RegistrationDetailClient
-        event={event}
+        event={{
+          ...event,
+          pricing: event.pricing ? {
+            youthRegularPrice: Number(event.pricing.youthRegularPrice),
+            chaperoneRegularPrice: Number(event.pricing.chaperoneRegularPrice),
+            onCampusYouthPrice: event.pricing.onCampusYouthPrice ? Number(event.pricing.onCampusYouthPrice) : null,
+            offCampusYouthPrice: event.pricing.offCampusYouthPrice ? Number(event.pricing.offCampusYouthPrice) : null,
+            dayPassYouthPrice: event.pricing.dayPassYouthPrice ? Number(event.pricing.dayPassYouthPrice) : null,
+            onCampusChaperonePrice: event.pricing.onCampusChaperonePrice ? Number(event.pricing.onCampusChaperonePrice) : null,
+            offCampusChaperonePrice: event.pricing.offCampusChaperonePrice ? Number(event.pricing.offCampusChaperonePrice) : null,
+            dayPassChaperonePrice: event.pricing.dayPassChaperonePrice ? Number(event.pricing.dayPassChaperonePrice) : null,
+          } : null,
+        }}
         registration={{
           ...individualRegistration,
           type: 'individual' as const,
@@ -126,7 +138,19 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
 
     return (
       <RegistrationDetailClient
-        event={event}
+        event={{
+          ...event,
+          pricing: event.pricing ? {
+            youthRegularPrice: Number(event.pricing.youthRegularPrice),
+            chaperoneRegularPrice: Number(event.pricing.chaperoneRegularPrice),
+            onCampusYouthPrice: event.pricing.onCampusYouthPrice ? Number(event.pricing.onCampusYouthPrice) : null,
+            offCampusYouthPrice: event.pricing.offCampusYouthPrice ? Number(event.pricing.offCampusYouthPrice) : null,
+            dayPassYouthPrice: event.pricing.dayPassYouthPrice ? Number(event.pricing.dayPassYouthPrice) : null,
+            onCampusChaperonePrice: event.pricing.onCampusChaperonePrice ? Number(event.pricing.onCampusChaperonePrice) : null,
+            offCampusChaperonePrice: event.pricing.offCampusChaperonePrice ? Number(event.pricing.offCampusChaperonePrice) : null,
+            dayPassChaperonePrice: event.pricing.dayPassChaperonePrice ? Number(event.pricing.dayPassChaperonePrice) : null,
+          } : null,
+        }}
         registration={{
           ...groupRegistration,
           type: 'group' as const,
