@@ -16,15 +16,38 @@ import {
 } from '@/lib/registration-price-calculator'
 import RefundModal from './RefundModal'
 import MarkCheckReceivedModal from './MarkCheckReceivedModal'
+import RecordCheckPaymentModal from './RecordCheckPaymentModal'
+import EditParticipantModal from './EditParticipantModal'
 
 interface Participant {
   id?: string
   firstName: string
   lastName: string
+  preferredName?: string
+  email?: string
   age: number
-  gender?: 'male' | 'female' | 'other'
+  gender: 'male' | 'female' | 'other'
   participantType: 'youth_u18' | 'youth_o18' | 'chaperone' | 'priest'
+  tShirtSize?: string
   liabilityFormCompleted?: boolean
+  liabilityForm?: {
+    participantPhone?: string
+    medicalConditions?: string
+    medications?: string
+    allergies?: string
+    dietaryRestrictions?: string
+    adaAccommodations?: string
+    emergencyContact1Name?: string
+    emergencyContact1Phone?: string
+    emergencyContact1Relation?: string
+    emergencyContact2Name?: string
+    emergencyContact2Phone?: string
+    emergencyContact2Relation?: string
+    insuranceProvider?: string
+    insurancePolicyNumber?: string
+    insuranceGroupNumber?: string
+    parentEmail?: string
+  }
 }
 
 interface PaymentBalance {
@@ -117,7 +140,10 @@ export default function EditGroupRegistrationModal({
   })
   const [showRefundModal, setShowRefundModal] = useState(false)
   const [showCheckModal, setShowCheckModal] = useState(false)
+  const [showRecordCheckModal, setShowRecordCheckModal] = useState(false)
+  const [showEditParticipantModal, setShowEditParticipantModal] = useState(false)
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null)
+  const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null)
   const [auditTrail, setAuditTrail] = useState<Array<{
     id: string
     editedAt: string
@@ -229,6 +255,7 @@ export default function EditGroupRegistrationModal({
           firstName: 'Youth',
           lastName: `U18-${i + 1}`,
           age: 16,
+          gender: 'male',
           participantType: 'youth_u18',
         })
       }
@@ -239,6 +266,7 @@ export default function EditGroupRegistrationModal({
           firstName: 'Youth',
           lastName: `O18-${i + 1}`,
           age: 19,
+          gender: 'male',
           participantType: 'youth_o18',
         })
       }
@@ -249,6 +277,7 @@ export default function EditGroupRegistrationModal({
           firstName: 'Chaperone',
           lastName: `${i + 1}`,
           age: 30,
+          gender: 'male',
           participantType: 'chaperone',
         })
       }
@@ -259,6 +288,7 @@ export default function EditGroupRegistrationModal({
           firstName: 'Priest',
           lastName: `${i + 1}`,
           age: 40,
+          gender: 'male',
           participantType: 'priest',
         })
       }
@@ -853,6 +883,76 @@ export default function EditGroupRegistrationModal({
             <div className="text-xs text-gray-500 italic">
               Note: Individual participant records are maintained separately for liability and housing purposes. This counter only updates the total participant count for payment calculations.
             </div>
+
+            {/* Individual Participants List */}
+            {registration.participants && registration.participants.length > 0 && (
+              <Card className="p-4 mt-6">
+                <h3 className="font-semibold text-[#1E3A5F] mb-4">
+                  Individual Participant Records
+                </h3>
+                <div className="space-y-3">
+                  {registration.participants.map((participant: Participant) => (
+                    <div
+                      key={participant.id}
+                      className="border rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="font-medium text-[#1E3A5F]">
+                            {participant.firstName} {participant.lastName}
+                            {participant.preferredName && (
+                              <span className="text-gray-600 ml-2">({participant.preferredName})</span>
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-600 mt-1 grid grid-cols-2 gap-2">
+                            <div>
+                              <span className="font-medium">Age:</span> {participant.age}
+                            </div>
+                            <div>
+                              <span className="font-medium">Gender:</span> {participant.gender}
+                            </div>
+                            <div>
+                              <span className="font-medium">Type:</span>{' '}
+                              {participant.participantType === 'youth_u18'
+                                ? 'Youth Under 18'
+                                : participant.participantType === 'youth_o18'
+                                ? 'Youth Over 18'
+                                : participant.participantType === 'chaperone'
+                                ? 'Chaperone'
+                                : 'Priest'}
+                            </div>
+                            {participant.tShirtSize && (
+                              <div>
+                                <span className="font-medium">T-Shirt:</span> {participant.tShirtSize}
+                              </div>
+                            )}
+                          </div>
+                          {participant.liabilityFormCompleted && (
+                            <div className="mt-2">
+                              <Badge variant="default" className="text-xs">
+                                Liability Form Completed
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedParticipant(participant)
+                            setShowEditParticipantModal(true)
+                          }}
+                          className="ml-4"
+                        >
+                          <User className="h-3 w-3 mr-1" />
+                          Edit
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
           </TabsContent>
 
           {/* Payment Tab */}
@@ -893,6 +993,21 @@ export default function EditGroupRegistrationModal({
                   {registration.paymentBalance?.paymentStatus || 'pending'}
                 </Badge>
               </div>
+
+              {/* Record Check Payment Button */}
+              {registration.event?.settings?.checkPaymentEnabled &&
+               registration.paymentBalance?.amountRemaining &&
+               registration.paymentBalance.amountRemaining > 0 && (
+                <div className="mt-4 pt-4 border-t">
+                  <Button
+                    onClick={() => setShowRecordCheckModal(true)}
+                    className="w-full bg-[#1E3A5F] hover:bg-[#2A4A6F]"
+                  >
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Record Check Payment
+                  </Button>
+                </div>
+              )}
             </Card>
 
             {/* Check Payment Instructions */}
@@ -1185,6 +1300,37 @@ export default function EditGroupRegistrationModal({
         onSuccess={() => {
           setShowCheckModal(false)
           setSelectedPayment(null)
+          onUpdate?.()
+        }}
+      />
+
+      {/* Record Check Payment Modal */}
+      {registration && registration.paymentBalance && (
+        <RecordCheckPaymentModal
+          isOpen={showRecordCheckModal}
+          onClose={() => setShowRecordCheckModal(false)}
+          registrationId={registration.id}
+          registrationType="group"
+          balanceRemaining={registration.paymentBalance.amountRemaining}
+          totalAmountDue={registration.paymentBalance.totalAmountDue}
+          onSuccess={() => {
+            setShowRecordCheckModal(false)
+            onUpdate?.()
+          }}
+        />
+      )}
+
+      {/* Edit Participant Modal */}
+      <EditParticipantModal
+        isOpen={showEditParticipantModal}
+        onClose={() => {
+          setShowEditParticipantModal(false)
+          setSelectedParticipant(null)
+        }}
+        participant={selectedParticipant}
+        onSuccess={() => {
+          setShowEditParticipantModal(false)
+          setSelectedParticipant(null)
           onUpdate?.()
         }}
       />
