@@ -47,7 +47,6 @@ export async function PUT(
         groupRegistration: {
           include: {
             event: true,
-            groupLeader: true,
           },
         },
       },
@@ -175,10 +174,10 @@ export async function PUT(
 
     // Send email notification if requested
     if (sendEmail && existingParticipant.groupRegistration) {
-      const groupLeader = existingParticipant.groupRegistration.groupLeader
-      const event = existingParticipant.groupRegistration.event
+      const groupRegistration = existingParticipant.groupRegistration
+      const event = groupRegistration.event
 
-      if (groupLeader?.email) {
+      if (groupRegistration.groupLeaderEmail) {
         try {
           // Build list of changes
           const changes: string[] = []
@@ -225,7 +224,7 @@ export async function PUT(
                   <h1>Participant Information Updated</h1>
                 </div>
                 <div class="content">
-                  <p>Hello ${groupLeader.name},</p>
+                  <p>Hello ${groupRegistration.groupLeaderName},</p>
 
                   <p>We wanted to notify you that participant information has been updated for one of your group members in <strong>${event.name}</strong>.</p>
 
@@ -268,7 +267,7 @@ export async function PUT(
 
           await resend.emails.send({
             from: 'ChiRho Events <noreply@chirhoevents.com>',
-            to: groupLeader.email,
+            to: groupRegistration.groupLeaderEmail,
             subject: emailSubject,
             html: emailBody,
           })
