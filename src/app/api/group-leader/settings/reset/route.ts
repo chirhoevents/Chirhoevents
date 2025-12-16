@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the group registration for this user
-    const groupRegistration = await prisma.groupRegistration.findUnique({
+    const groupRegistration = await prisma.groupRegistration.findFirst({
       where: { clerkUserId: userId },
     })
 
