@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
         amountPaid: newAmountPaid,
         amountRemaining: newBalanceRemaining,
         paymentStatus: newPaymentStatus,
-        lastUpdated: new Date(),
+        lastPaymentDate: new Date(),
       },
     })
 
