@@ -85,6 +85,7 @@ interface GroupRegistration {
 }
 
 interface PaymentBalance {
+  id: string
   totalAmountDue: number
   amountPaid: number
   amountRemaining: number

@@ -101,16 +101,22 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
           type: 'individual' as const,
         }}
         paymentBalance={paymentBalance ? {
-          ...paymentBalance,
+          id: paymentBalance.id,
           totalAmountDue: Number(paymentBalance.totalAmountDue),
           amountPaid: Number(paymentBalance.amountPaid),
           amountRemaining: Number(paymentBalance.amountRemaining),
           lateFeesApplied: Number(paymentBalance.lateFeesApplied),
+          paymentStatus: paymentBalance.paymentStatus,
         } : null}
         payments={payments.map((p: any) => ({
-          ...p,
+          id: p.id,
           amount: Number(p.amount),
+          paymentMethod: p.paymentMethod,
+          paymentType: p.paymentType,
+          paymentStatus: p.paymentStatus,
           processedAt: p.processedAt.toISOString(),
+          checkNumber: p.checkNumber,
+          notes: p.notes,
         }))}
       />
     )
@@ -181,16 +187,22 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
           type: 'group' as const,
         }}
         paymentBalance={paymentBalance ? {
-          ...paymentBalance,
+          id: paymentBalance.id,
           totalAmountDue: Number(paymentBalance.totalAmountDue),
           amountPaid: Number(paymentBalance.amountPaid),
           amountRemaining: Number(paymentBalance.amountRemaining),
           lateFeesApplied: Number(paymentBalance.lateFeesApplied),
+          paymentStatus: paymentBalance.paymentStatus,
         } : null}
         payments={payments.map((p: any) => ({
-          ...p,
+          id: p.id,
           amount: Number(p.amount),
+          paymentMethod: p.paymentMethod,
+          paymentType: p.paymentType,
+          paymentStatus: p.paymentStatus,
           processedAt: p.processedAt.toISOString(),
+          checkNumber: p.checkNumber,
+          notes: p.notes,
         }))}
       />
     )
