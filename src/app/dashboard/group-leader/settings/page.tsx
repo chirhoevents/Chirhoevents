@@ -10,14 +10,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
-  Settings,
   User,
   Bell,
-  Monitor,
   HelpCircle,
   Save,
-  RotateCcw,
-  Upload,
   Copy,
   Check,
   BookOpen,
@@ -28,6 +24,10 @@ import {
   Trash2,
   Lock,
   CheckCircle,
+  Plus,
+  X,
+  Calendar,
+  Link as LinkIcon,
 } from 'lucide-react'
 
 interface UserInfo {
@@ -37,32 +37,22 @@ interface UserInfo {
   groupName: string
   parishName: string | null
   dioceseName: string | null
+  memberSince: string
+}
+
+interface LinkedEvent {
+  id: string
   accessCode: string
   eventName: string
-  memberSince: string
+  eventDates: string
+  groupName: string
+  linkedAt: string
 }
 
 interface UserPreferences {
   id: string
-  // Account Settings
   phone: string | null
   profilePhotoUrl: string | null
-  groupNameDefault: string | null
-  parishNameDefault: string | null
-  dioceseDefault: string | null
-  mailingAddress: any
-  billingAddress: any
-
-  // Registration Preferences
-  primaryContactName: string | null
-  primaryContactPhone: string | null
-  primaryContactEmail: string | null
-  secondaryContactName: string | null
-  secondaryContactPhone: string | null
-  secondaryContactEmail: string | null
-  preferredPaymentMethod: string | null
-  preferredHousingType: string | null
-  specialRequestsDefault: string | null
 
   // Notification Settings
   emailRegistrationConfirmation: boolean
@@ -88,43 +78,24 @@ interface UserPreferences {
   quietHoursEnabled: boolean
   quietHoursStart: string | null
   quietHoursEnd: string | null
-  smsEnabled: boolean
-  smsPaymentReminders: boolean
-  smsUrgentUpdates: boolean
-  smsPaymentReceived: boolean
-
-  // Display Preferences
-  dashboardView: string
-  dateFormat: string
-  timeFormat: string
-  timezone: string
-  participantSortOrder: string
-  itemsPerPage: number
-  showAge: boolean
-  showGender: boolean
-  showTshirt: boolean
-  showFormStatus: boolean
-  showDietary: boolean
-  showAllergies: boolean
-  showEmergencyContact: boolean
-  showMedical: boolean
-  sessionTimeoutMinutes: number
-  twoFactorEnabled: boolean
-  highContrastMode: boolean
-  largerText: boolean
-  screenReaderOptimized: boolean
-  language: string
 }
 
 export default function SettingsPage() {
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
+  const [linkedEvents, setLinkedEvents] = useState<LinkedEvent[]>([])
   const [preferences, setPreferences] = useState<UserPreferences | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
-  const [copySuccess, setCopySuccess] = useState(false)
+  const [copySuccess, setCopySuccess] = useState<string | null>(null)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [activeTab, setActiveTab] = useState('account')
+
+  // Add code state
+  const [showAddCode, setShowAddCode] = useState(false)
+  const [newAccessCode, setNewAccessCode] = useState('')
+  const [addingCode, setAddingCode] = useState(false)
+  const [addCodeError, setAddCodeError] = useState('')
 
   // Support form state
   const [supportSubject, setSupportSubject] = useState('')
@@ -142,6 +113,7 @@ export default function SettingsPage() {
       if (response.ok) {
         const data = await response.json()
         setUserInfo(data.userInfo)
+        setLinkedEvents(data.linkedEvents)
         setPreferences(data.preferences)
       }
     } catch (error) {
@@ -174,26 +146,65 @@ export default function SettingsPage() {
     }
   }
 
-  const handleReset = async () => {
-    if (!confirm('Are you sure you want to reset all settings to default values?')) {
+  const handleAddCode = async () => {
+    if (!newAccessCode.trim()) {
+      setAddCodeError('Please enter an access code')
       return
     }
 
-    setSaving(true)
+    setAddingCode(true)
+    setAddCodeError('')
+
     try {
-      const response = await fetch('/api/group-leader/settings/reset', {
+      const response = await fetch('/api/group-leader/settings/link-code', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessCode: newAccessCode.trim() }),
       })
 
+      const data = await response.json()
+
       if (response.ok) {
+        // Refresh the linked events
         await fetchSettings()
-        setSaveSuccess(true)
-        setTimeout(() => setSaveSuccess(false), 3000)
+        setNewAccessCode('')
+        setShowAddCode(false)
+        alert('Access code linked successfully!')
+      } else {
+        setAddCodeError(data.error || 'Failed to link access code')
       }
     } catch (error) {
-      console.error('Error resetting settings:', error)
+      console.error('Error adding code:', error)
+      setAddCodeError('Failed to link access code')
     } finally {
-      setSaving(false)
+      setAddingCode(false)
+    }
+  }
+
+  const handleUnlinkCode = async (registrationId: string, eventName: string) => {
+    if (!confirm(`Are you sure you want to unlink "${eventName}"? You will lose access to this event's dashboard.`)) {
+      return
+    }
+
+    try {
+      const response = await fetch('/api/group-leader/settings/unlink-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ registrationId }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Refresh the linked events
+        await fetchSettings()
+        alert('Event unlinked successfully')
+      } else {
+        alert(data.error || 'Failed to unlink event')
+      }
+    } catch (error) {
+      console.error('Error unlinking code:', error)
+      alert('Failed to unlink event')
     }
   }
 
@@ -228,12 +239,10 @@ export default function SettingsPage() {
     }
   }
 
-  const copyAccessCode = () => {
-    if (userInfo) {
-      navigator.clipboard.writeText(userInfo.accessCode)
-      setCopySuccess(true)
-      setTimeout(() => setCopySuccess(false), 2000)
-    }
+  const copyAccessCode = (code: string) => {
+    navigator.clipboard.writeText(code)
+    setCopySuccess(code)
+    setTimeout(() => setCopySuccess(null), 2000)
   }
 
   const updatePreference = (key: string, value: any) => {
@@ -267,7 +276,7 @@ export default function SettingsPage() {
             Settings
           </h1>
           <p className="text-[#6B7280]">
-            Manage your account, preferences, and notification settings
+            Manage your account and notification preferences
           </p>
         </div>
         <div className="flex items-center space-x-3">
@@ -295,15 +304,6 @@ export default function SettingsPage() {
               </>
             )}
           </Button>
-          <Button
-            onClick={handleReset}
-            variant="outline"
-            disabled={saving}
-            className="border-[#1E3A5F] text-[#1E3A5F]"
-          >
-            <RotateCcw className="h-4 w-4 mr-2" />
-            Reset to Defaults
-          </Button>
         </div>
       </div>
 
@@ -314,17 +314,9 @@ export default function SettingsPage() {
             <User className="h-4 w-4 mr-2" />
             Account
           </TabsTrigger>
-          <TabsTrigger value="registration" className="data-[state=active]:bg-[#9C8466] data-[state=active]:text-white">
-            <FileText className="h-4 w-4 mr-2" />
-            Registration
-          </TabsTrigger>
           <TabsTrigger value="notifications" className="data-[state=active]:bg-[#9C8466] data-[state=active]:text-white">
             <Bell className="h-4 w-4 mr-2" />
             Notifications
-          </TabsTrigger>
-          <TabsTrigger value="preferences" className="data-[state=active]:bg-[#9C8466] data-[state=active]:text-white">
-            <Monitor className="h-4 w-4 mr-2" />
-            Preferences
           </TabsTrigger>
           <TabsTrigger value="support" className="data-[state=active]:bg-[#9C8466] data-[state=active]:text-white">
             <HelpCircle className="h-4 w-4 mr-2" />
@@ -356,29 +348,10 @@ export default function SettingsPage() {
                       <User className="h-10 w-10 text-[#9C8466]" />
                     )}
                   </div>
-                  <div className="space-x-2">
-                    <Button
-                      variant="outline"
-                      className="border-[#1E3A5F] text-[#1E3A5F]"
-                      disabled
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload New Photo
-                    </Button>
-                    {preferences.profilePhotoUrl && (
-                      <Button
-                        variant="outline"
-                        className="border-red-500 text-red-500"
-                        disabled
-                      >
-                        Remove
-                      </Button>
-                    )}
+                  <div className="text-sm text-[#6B7280]">
+                    <p>Profile photo management coming soon</p>
                   </div>
                 </div>
-                <p className="text-xs text-[#6B7280] mt-2">
-                  Coming soon: Upload a profile photo (Max 5MB, JPG/PNG)
-                </p>
               </div>
 
               {/* Name */}
@@ -460,11 +433,130 @@ export default function SettingsPage() {
               </div>
 
               <div className="border-t border-[#D1D5DB] pt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-[#1E3A5F]">
+                      Linked Events
+                    </h3>
+                    <p className="text-sm text-[#6B7280]">
+                      Manage your event access codes
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => setShowAddCode(true)}
+                    className="bg-[#9C8466] hover:bg-[#8B7355] text-white"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Event Code
+                  </Button>
+                </div>
+
+                {showAddCode && (
+                  <Card className="p-4 mb-4 bg-[#F5F1E8] border-[#9C8466]">
+                    <Label htmlFor="newCode" className="text-[#1E3A5F]">
+                      Enter Access Code
+                    </Label>
+                    <div className="flex items-center space-x-2 mt-2">
+                      <Input
+                        id="newCode"
+                        value={newAccessCode}
+                        onChange={(e) => {
+                          setNewAccessCode(e.target.value.toUpperCase())
+                          setAddCodeError('')
+                        }}
+                        placeholder="ABC-XYZ-123"
+                        className="flex-1"
+                        disabled={addingCode}
+                      />
+                      <Button
+                        onClick={handleAddCode}
+                        disabled={addingCode || !newAccessCode.trim()}
+                        className="bg-[#9C8466] hover:bg-[#8B7355] text-white"
+                      >
+                        {addingCode ? 'Adding...' : 'Link Code'}
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setShowAddCode(false)
+                          setNewAccessCode('')
+                          setAddCodeError('')
+                        }}
+                        variant="outline"
+                        disabled={addingCode}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                    {addCodeError && (
+                      <p className="text-sm text-red-600 mt-2">{addCodeError}</p>
+                    )}
+                  </Card>
+                )}
+
+                <div className="space-y-3">
+                  {linkedEvents.map((event) => (
+                    <Card key={event.id} className="p-4 bg-white border-[#D1D5DB]">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <Calendar className="h-5 w-5 text-[#9C8466]" />
+                            <h4 className="font-semibold text-[#1E3A5F]">{event.eventName}</h4>
+                          </div>
+                          <div className="space-y-1 text-sm text-[#6B7280]">
+                            <p><strong>Dates:</strong> {event.eventDates}</p>
+                            <p><strong>Group:</strong> {event.groupName}</p>
+                            <div className="flex items-center space-x-2">
+                              <strong>Access Code:</strong>
+                              <code className="font-mono bg-[#F9FAFB] px-2 py-1 rounded border border-[#E5E7EB]">
+                                {event.accessCode}
+                              </code>
+                              <Button
+                                onClick={() => copyAccessCode(event.accessCode)}
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2"
+                              >
+                                {copySuccess === event.accessCode ? (
+                                  <Check className="h-3 w-3 text-green-600" />
+                                ) : (
+                                  <Copy className="h-3 w-3" />
+                                )}
+                              </Button>
+                            </div>
+                            <p className="text-xs">
+                              Linked: {new Date(event.linkedAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          onClick={() => handleUnlinkCode(event.id, event.eventName)}
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Unlink
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+
+                {linkedEvents.length === 0 && (
+                  <div className="text-center py-8 text-[#6B7280]">
+                    <LinkIcon className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>No events linked yet</p>
+                    <p className="text-sm">Add an access code to get started</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-[#D1D5DB] pt-6">
                 <h3 className="text-lg font-semibold text-[#1E3A5F] mb-4">
-                  Role & Access
+                  Account Details
                 </h3>
 
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <div>
                     <Label className="text-[#1E3A5F]">Role</Label>
                     <p className="text-[#1F2937] mt-1">Group Leader</p>
@@ -482,270 +574,9 @@ export default function SettingsPage() {
                   </div>
 
                   <div>
-                    <Label className="text-[#1E3A5F]">Access Code</Label>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <code className="font-mono text-sm bg-[#F9FAFB] px-3 py-2 rounded border border-[#E5E7EB] flex-1">
-                        {userInfo.accessCode}
-                      </code>
-                      <Button
-                        onClick={copyAccessCode}
-                        variant="outline"
-                        size="sm"
-                        className="border-[#1E3A5F] text-[#1E3A5F]"
-                      >
-                        {copySuccess ? (
-                          <>
-                            <Check className="h-4 w-4 mr-1" />
-                            Copied
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="h-4 w-4 mr-1" />
-                            Copy
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                    <p className="text-sm text-[#6B7280] mt-1">
-                      Share this code with participants to complete forms
-                    </p>
+                    <Label className="text-[#1E3A5F]">Total Linked Events</Label>
+                    <p className="text-[#1F2937] mt-1">{linkedEvents.length}</p>
                   </div>
-                </div>
-              </div>
-            </div>
-          </Card>
-        </TabsContent>
-
-        {/* REGISTRATION TAB */}
-        <TabsContent value="registration" className="space-y-6">
-          <Card className="p-6 bg-white border-[#D1D5DB]">
-            <h2 className="text-xl font-semibold text-[#1E3A5F] mb-6">
-              Registration Preferences
-            </h2>
-
-            <div className="space-y-6">
-              {/* Default Information */}
-              <div>
-                <h3 className="text-lg font-semibold text-[#1E3A5F] mb-4">
-                  Default Information
-                </h3>
-                <p className="text-sm text-[#6B7280] mb-4">
-                  Pre-fill this info for future registrations
-                </p>
-
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="defaultGroupName" className="text-[#1E3A5F]">
-                      Default Group Name
-                    </Label>
-                    <Input
-                      id="defaultGroupName"
-                      value={preferences.groupNameDefault || ''}
-                      onChange={(e) => updatePreference('groupNameDefault', e.target.value)}
-                      placeholder="St. Mary's Youth Group"
-                      className="mt-1"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="defaultParish" className="text-[#1E3A5F]">
-                      Default Parish
-                    </Label>
-                    <Input
-                      id="defaultParish"
-                      value={preferences.parishNameDefault || ''}
-                      onChange={(e) => updatePreference('parishNameDefault', e.target.value)}
-                      placeholder="St. Mary Catholic Church"
-                      className="mt-1"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="defaultDiocese" className="text-[#1E3A5F]">
-                      Default Diocese
-                    </Label>
-                    <Input
-                      id="defaultDiocese"
-                      value={preferences.dioceseDefault || ''}
-                      onChange={(e) => updatePreference('dioceseDefault', e.target.value)}
-                      placeholder="Diocese of Tulsa"
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Contact Preferences */}
-              <div className="border-t border-[#D1D5DB] pt-6">
-                <h3 className="text-lg font-semibold text-[#1E3A5F] mb-4">
-                  Contact Preferences
-                </h3>
-
-                <div className="space-y-4">
-                  <div>
-                    <Label className="text-[#1E3A5F] mb-2 block">Primary Contact for Registrations</Label>
-                    <div className="space-y-3">
-                      <Input
-                        value={preferences.primaryContactName || ''}
-                        onChange={(e) => updatePreference('primaryContactName', e.target.value)}
-                        placeholder="Name"
-                      />
-                      <Input
-                        type="tel"
-                        value={preferences.primaryContactPhone || ''}
-                        onChange={(e) => updatePreference('primaryContactPhone', e.target.value)}
-                        placeholder="Phone"
-                      />
-                      <Input
-                        type="email"
-                        value={preferences.primaryContactEmail || ''}
-                        onChange={(e) => updatePreference('primaryContactEmail', e.target.value)}
-                        placeholder="Email"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label className="text-[#1E3A5F] mb-2 block">
-                      Secondary Contact (optional)
-                    </Label>
-                    <div className="space-y-3">
-                      <Input
-                        value={preferences.secondaryContactName || ''}
-                        onChange={(e) => updatePreference('secondaryContactName', e.target.value)}
-                        placeholder="Name"
-                      />
-                      <Input
-                        type="tel"
-                        value={preferences.secondaryContactPhone || ''}
-                        onChange={(e) => updatePreference('secondaryContactPhone', e.target.value)}
-                        placeholder="Phone"
-                      />
-                      <Input
-                        type="email"
-                        value={preferences.secondaryContactEmail || ''}
-                        onChange={(e) => updatePreference('secondaryContactEmail', e.target.value)}
-                        placeholder="Email"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Payment Preferences */}
-              <div className="border-t border-[#D1D5DB] pt-6">
-                <h3 className="text-lg font-semibold text-[#1E3A5F] mb-4">
-                  Payment Preferences
-                </h3>
-
-                <div className="space-y-3">
-                  <Label className="text-[#1E3A5F]">Preferred Payment Method</Label>
-                  <div className="space-y-2">
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value="card"
-                        checked={preferences.preferredPaymentMethod === 'card'}
-                        onChange={(e) => updatePreference('preferredPaymentMethod', e.target.value)}
-                        className="mr-2"
-                      />
-                      <span className="text-[#1F2937]">Credit Card (pay online via Stripe)</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value="check"
-                        checked={preferences.preferredPaymentMethod === 'check'}
-                        onChange={(e) => updatePreference('preferredPaymentMethod', e.target.value)}
-                        className="mr-2"
-                      />
-                      <span className="text-[#1F2937]">Check (mail payment)</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value="no_preference"
-                        checked={preferences.preferredPaymentMethod === 'no_preference'}
-                        onChange={(e) => updatePreference('preferredPaymentMethod', e.target.value)}
-                        className="mr-2"
-                      />
-                      <span className="text-[#1F2937]">No preference</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              {/* Housing Preferences */}
-              <div className="border-t border-[#D1D5DB] pt-6">
-                <h3 className="text-lg font-semibold text-[#1E3A5F] mb-4">
-                  Housing Preferences
-                </h3>
-
-                <div className="space-y-3">
-                  <Label className="text-[#1E3A5F]">Default Housing Type</Label>
-                  <div className="space-y-2">
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="housingType"
-                        value="on_campus"
-                        checked={preferences.preferredHousingType === 'on_campus'}
-                        onChange={(e) => updatePreference('preferredHousingType', e.target.value)}
-                        className="mr-2"
-                      />
-                      <span className="text-[#1F2937]">On-Campus (staying in dorms)</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="housingType"
-                        value="off_campus"
-                        checked={preferences.preferredHousingType === 'off_campus'}
-                        onChange={(e) => updatePreference('preferredHousingType', e.target.value)}
-                        className="mr-2"
-                      />
-                      <span className="text-[#1F2937]">Off-Campus (staying elsewhere)</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="housingType"
-                        value="day_pass"
-                        checked={preferences.preferredHousingType === 'day_pass'}
-                        onChange={(e) => updatePreference('preferredHousingType', e.target.value)}
-                        className="mr-2"
-                      />
-                      <span className="text-[#1F2937]">Day Pass (attending but not staying overnight)</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="housingType"
-                        value="no_default"
-                        checked={preferences.preferredHousingType === 'no_default'}
-                        onChange={(e) => updatePreference('preferredHousingType', e.target.value)}
-                        className="mr-2"
-                      />
-                      <span className="text-[#1F2937]">No default (ask each time)</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="mt-4">
-                  <Label htmlFor="specialRequests" className="text-[#1E3A5F]">
-                    Special Requests/Notes (applies to all registrations)
-                  </Label>
-                  <Textarea
-                    id="specialRequests"
-                    value={preferences.specialRequestsDefault || ''}
-                    onChange={(e) => updatePreference('specialRequestsDefault', e.target.value)}
-                    placeholder="Please keep our youth rooms close together. We typically need 3-4 chaperone rooms."
-                    rows={4}
-                    className="mt-1"
-                  />
                 </div>
               </div>
             </div>
@@ -1053,421 +884,6 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </div>
-
-              {/* SMS Notifications */}
-              <div className="border-t border-[#D1D5DB] pt-6">
-                <h3 className="font-semibold text-[#1E3A5F] mb-3">
-                  SMS Notifications (Future Feature)
-                </h3>
-
-                <div className="space-y-3 opacity-50">
-                  <div>
-                    <Label className="text-[#1E3A5F]">Mobile Phone</Label>
-                    <Input
-                      value={preferences.phone || ''}
-                      disabled
-                      className="mt-1 bg-[#F9FAFB]"
-                    />
-                  </div>
-
-                  <label className="flex items-center">
-                    <Checkbox disabled />
-                    <span className="ml-2 text-[#1F2937]">Enable SMS notifications</span>
-                  </label>
-
-                  <div className="ml-6 space-y-2">
-                    <label className="flex items-center">
-                      <Checkbox disabled />
-                      <span className="ml-2 text-[#1F2937]">Payment reminders</span>
-                    </label>
-                    <label className="flex items-center">
-                      <Checkbox disabled />
-                      <span className="ml-2 text-[#1F2937]">Urgent event updates</span>
-                    </label>
-                    <label className="flex items-center">
-                      <Checkbox disabled />
-                      <span className="ml-2 text-[#1F2937]">Payment received confirmations</span>
-                    </label>
-                  </div>
-
-                  <p className="text-sm text-[#6B7280]">
-                    ⓘ Standard messaging rates may apply
-                  </p>
-                </div>
-              </div>
-            </div>
-          </Card>
-        </TabsContent>
-
-        {/* PREFERENCES TAB */}
-        <TabsContent value="preferences" className="space-y-6">
-          <Card className="p-6 bg-white border-[#D1D5DB]">
-            <h2 className="text-xl font-semibold text-[#1E3A5F] mb-6">
-              Dashboard Preferences
-            </h2>
-
-            <div className="space-y-6">
-              {/* Display Settings */}
-              <div>
-                <h3 className="font-semibold text-[#1E3A5F] mb-4">Display Settings</h3>
-
-                <div className="space-y-4">
-                  <div>
-                    <Label className="text-[#1E3A5F]">Dashboard View</Label>
-                    <div className="space-y-2 mt-2">
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="dashboardView"
-                          value="cards"
-                          checked={preferences.dashboardView === 'cards'}
-                          onChange={(e) => updatePreference('dashboardView', e.target.value)}
-                          className="mr-2"
-                        />
-                        <span className="text-[#1F2937]">Cards View (default - grid of info cards)</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="dashboardView"
-                          value="list"
-                          checked={preferences.dashboardView === 'list'}
-                          onChange={(e) => updatePreference('dashboardView', e.target.value)}
-                          className="mr-2"
-                        />
-                        <span className="text-[#1F2937]">List View (compact list format)</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="dashboardView"
-                          value="detailed"
-                          checked={preferences.dashboardView === 'detailed'}
-                          onChange={(e) => updatePreference('dashboardView', e.target.value)}
-                          className="mr-2"
-                        />
-                        <span className="text-[#1F2937]">Detailed View (show everything)</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label className="text-[#1E3A5F]">Date Format</Label>
-                    <div className="space-y-2 mt-2">
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="dateFormat"
-                          value="mdy"
-                          checked={preferences.dateFormat === 'mdy'}
-                          onChange={(e) => updatePreference('dateFormat', e.target.value)}
-                          className="mr-2"
-                        />
-                        <span className="text-[#1F2937]">MM/DD/YYYY (04/15/2026)</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="dateFormat"
-                          value="dmy"
-                          checked={preferences.dateFormat === 'dmy'}
-                          onChange={(e) => updatePreference('dateFormat', e.target.value)}
-                          className="mr-2"
-                        />
-                        <span className="text-[#1F2937]">DD/MM/YYYY (15/04/2026)</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="dateFormat"
-                          value="ymd"
-                          checked={preferences.dateFormat === 'ymd'}
-                          onChange={(e) => updatePreference('dateFormat', e.target.value)}
-                          className="mr-2"
-                        />
-                        <span className="text-[#1F2937]">YYYY-MM-DD (2026-04-15)</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label className="text-[#1E3A5F]">Time Format</Label>
-                    <div className="space-y-2 mt-2">
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="timeFormat"
-                          value="h12"
-                          checked={preferences.timeFormat === 'h12'}
-                          onChange={(e) => updatePreference('timeFormat', e.target.value)}
-                          className="mr-2"
-                        />
-                        <span className="text-[#1F2937]">12-hour (2:30 PM)</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="timeFormat"
-                          value="h24"
-                          checked={preferences.timeFormat === 'h24'}
-                          onChange={(e) => updatePreference('timeFormat', e.target.value)}
-                          className="mr-2"
-                        />
-                        <span className="text-[#1F2937]">24-hour (14:30)</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="timezone" className="text-[#1E3A5F]">Timezone</Label>
-                    <select
-                      id="timezone"
-                      value={preferences.timezone}
-                      onChange={(e) => updatePreference('timezone', e.target.value)}
-                      className="mt-1 w-full px-3 py-2 border border-[#D1D5DB] rounded-md"
-                    >
-                      <option value="America/New_York">America/New York (Eastern)</option>
-                      <option value="America/Chicago">America/Chicago (Central)</option>
-                      <option value="America/Denver">America/Denver (Mountain)</option>
-                      <option value="America/Los_Angeles">America/Los Angeles (Pacific)</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Participant List Preferences */}
-              <div className="border-t border-[#D1D5DB] pt-6">
-                <h3 className="font-semibold text-[#1E3A5F] mb-4">Participant List Preferences</h3>
-
-                <div className="space-y-4">
-                  <div>
-                    <Label className="text-[#1E3A5F]">Default Sort Order</Label>
-                    <div className="space-y-2 mt-2">
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="sortOrder"
-                          value="name"
-                          checked={preferences.participantSortOrder === 'name'}
-                          onChange={(e) => updatePreference('participantSortOrder', e.target.value)}
-                          className="mr-2"
-                        />
-                        <span className="text-[#1F2937]">By Name (A-Z)</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="sortOrder"
-                          value="age"
-                          checked={preferences.participantSortOrder === 'age'}
-                          onChange={(e) => updatePreference('participantSortOrder', e.target.value)}
-                          className="mr-2"
-                        />
-                        <span className="text-[#1F2937]">By Age (youngest first)</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="sortOrder"
-                          value="type"
-                          checked={preferences.participantSortOrder === 'type'}
-                          onChange={(e) => updatePreference('participantSortOrder', e.target.value)}
-                          className="mr-2"
-                        />
-                        <span className="text-[#1F2937]">By Type (Youth, then Chaperones)</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="sortOrder"
-                          value="form_status"
-                          checked={preferences.participantSortOrder === 'form_status'}
-                          onChange={(e) => updatePreference('participantSortOrder', e.target.value)}
-                          className="mr-2"
-                        />
-                        <span className="text-[#1F2937]">By Form Status (incomplete first)</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="itemsPerPage" className="text-[#1E3A5F]">Items Per Page</Label>
-                    <select
-                      id="itemsPerPage"
-                      value={preferences.itemsPerPage}
-                      onChange={(e) => updatePreference('itemsPerPage', parseInt(e.target.value))}
-                      className="mt-1 w-full px-3 py-2 border border-[#D1D5DB] rounded-md"
-                    >
-                      <option value={10}>10</option>
-                      <option value={25}>25</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <Label className="text-[#1E3A5F] mb-3 block">Show in Participant List</Label>
-                    <div className="space-y-2">
-                      <label className="flex items-center">
-                        <Checkbox
-                          checked={preferences.showAge}
-                          onCheckedChange={(checked) => updatePreference('showAge', checked)}
-                        />
-                        <span className="ml-2 text-[#1F2937]">Age</span>
-                      </label>
-                      <label className="flex items-center">
-                        <Checkbox
-                          checked={preferences.showGender}
-                          onCheckedChange={(checked) => updatePreference('showGender', checked)}
-                        />
-                        <span className="ml-2 text-[#1F2937]">Gender</span>
-                      </label>
-                      <label className="flex items-center">
-                        <Checkbox
-                          checked={preferences.showTshirt}
-                          onCheckedChange={(checked) => updatePreference('showTshirt', checked)}
-                        />
-                        <span className="ml-2 text-[#1F2937]">T-Shirt Size</span>
-                      </label>
-                      <label className="flex items-center">
-                        <Checkbox
-                          checked={preferences.showFormStatus}
-                          onCheckedChange={(checked) => updatePreference('showFormStatus', checked)}
-                        />
-                        <span className="ml-2 text-[#1F2937]">Form Status</span>
-                      </label>
-                      <label className="flex items-center">
-                        <Checkbox
-                          checked={preferences.showDietary}
-                          onCheckedChange={(checked) => updatePreference('showDietary', checked)}
-                        />
-                        <span className="ml-2 text-[#1F2937]">Dietary Restrictions</span>
-                      </label>
-                      <label className="flex items-center">
-                        <Checkbox
-                          checked={preferences.showAllergies}
-                          onCheckedChange={(checked) => updatePreference('showAllergies', checked)}
-                        />
-                        <span className="ml-2 text-[#1F2937]">Allergies</span>
-                      </label>
-                      <label className="flex items-center">
-                        <Checkbox
-                          checked={preferences.showEmergencyContact}
-                          onCheckedChange={(checked) => updatePreference('showEmergencyContact', checked)}
-                        />
-                        <span className="ml-2 text-[#1F2937]">Emergency Contact</span>
-                      </label>
-                      <label className="flex items-center">
-                        <Checkbox
-                          checked={preferences.showMedical}
-                          onCheckedChange={(checked) => updatePreference('showMedical', checked)}
-                        />
-                        <span className="ml-2 text-[#1F2937]">Medical Conditions</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Privacy & Security */}
-              <div className="border-t border-[#D1D5DB] pt-6">
-                <h3 className="font-semibold text-[#1E3A5F] mb-4">Privacy & Security</h3>
-
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="sessionTimeout" className="text-[#1E3A5F]">
-                      Session Timeout
-                    </Label>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <span className="text-sm text-[#6B7280]">Auto-logout after</span>
-                      <select
-                        id="sessionTimeout"
-                        value={preferences.sessionTimeoutMinutes}
-                        onChange={(e) => updatePreference('sessionTimeoutMinutes', parseInt(e.target.value))}
-                        className="px-3 py-2 border border-[#D1D5DB] rounded-md"
-                      >
-                        <option value={15}>15 minutes</option>
-                        <option value={30}>30 minutes</option>
-                        <option value={60}>60 minutes</option>
-                        <option value={120}>120 minutes</option>
-                      </select>
-                      <span className="text-sm text-[#6B7280]">of inactivity</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label className="text-[#1E3A5F]">Two-Factor Authentication</Label>
-                    <div className="flex items-center justify-between mt-2 p-3 bg-amber-50 border border-amber-200 rounded">
-                      <div>
-                        <p className="text-sm font-medium text-amber-800">Status: ⚠️ Not Enabled</p>
-                        <p className="text-xs text-amber-700">Recommended for security</p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        className="border-amber-600 text-amber-600"
-                        disabled
-                      >
-                        <Lock className="h-4 w-4 mr-2" />
-                        Enable 2FA
-                      </Button>
-                    </div>
-                    <p className="text-xs text-[#6B7280] mt-2">
-                      Two-factor authentication is managed through Clerk (Coming soon)
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Language & Accessibility */}
-              <div className="border-t border-[#D1D5DB] pt-6">
-                <h3 className="font-semibold text-[#1E3A5F] mb-4">Language & Accessibility</h3>
-
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="language" className="text-[#1E3A5F]">Language</Label>
-                    <select
-                      id="language"
-                      value={preferences.language}
-                      onChange={(e) => updatePreference('language', e.target.value)}
-                      className="mt-1 w-full px-3 py-2 border border-[#D1D5DB] rounded-md"
-                    >
-                      <option value="en">English</option>
-                      <option value="es" disabled>Spanish (Coming soon)</option>
-                      <option value="fr" disabled>French (Coming soon)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <Label className="text-[#1E3A5F] mb-3 block">Accessibility</Label>
-                    <div className="space-y-2">
-                      <label className="flex items-center">
-                        <Checkbox
-                          checked={preferences.highContrastMode}
-                          onCheckedChange={(checked) => updatePreference('highContrastMode', checked)}
-                        />
-                        <span className="ml-2 text-[#1F2937]">High contrast mode</span>
-                      </label>
-                      <label className="flex items-center">
-                        <Checkbox
-                          checked={preferences.largerText}
-                          onCheckedChange={(checked) => updatePreference('largerText', checked)}
-                        />
-                        <span className="ml-2 text-[#1F2937]">Larger text</span>
-                      </label>
-                      <label className="flex items-center">
-                        <Checkbox
-                          checked={preferences.screenReaderOptimized}
-                          onCheckedChange={(checked) => updatePreference('screenReaderOptimized', checked)}
-                        />
-                        <span className="ml-2 text-[#1F2937]">Screen reader optimizations</span>
-                      </label>
-                    </div>
-                    <p className="text-xs text-[#6B7280] mt-2">
-                      Note: Some accessibility features are in development
-                    </p>
-                  </div>
-                </div>
-              </div>
             </div>
           </Card>
         </TabsContent>
@@ -1535,17 +951,10 @@ export default function SettingsPage() {
               <div className="border-t border-[#D1D5DB] pt-6">
                 <h3 className="font-semibold text-[#1E3A5F] mb-2">Contact Support</h3>
                 <p className="text-sm text-[#6B7280] mb-4">
-                  Need help? Contact the event organizers or send a message directly:
+                  Need help? Send a message to the ChiRho Events support team:
                 </p>
 
                 <div className="space-y-4">
-                  <div className="bg-[#F5F1E8] p-4 rounded-lg">
-                    <p className="text-sm font-medium text-[#1E3A5F]">Event: {userInfo.eventName}</p>
-                    <p className="text-sm text-[#6B7280] mt-1">
-                      Contact Email: support@chirhoevents.com
-                    </p>
-                  </div>
-
                   <div>
                     <Label htmlFor="supportSubject" className="text-[#1E3A5F]">Subject</Label>
                     <Input
@@ -1600,23 +1009,6 @@ export default function SettingsPage() {
                   <p className="text-sm font-medium text-[#1E3A5F]">ChiRho Events Platform Support</p>
                   <p className="text-sm text-[#6B7280] mt-1">Email: support@chirhoevents.com</p>
                   <p className="text-sm text-[#6B7280]">Hours: Mon-Fri, 9am-5pm Central</p>
-                </div>
-
-                <div className="flex space-x-2">
-                  <Button
-                    variant="outline"
-                    className="border-[#1E3A5F] text-[#1E3A5F]"
-                    disabled
-                  >
-                    Report a Bug
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="border-[#1E3A5F] text-[#1E3A5F]"
-                    disabled
-                  >
-                    Request a Feature
-                  </Button>
                 </div>
               </div>
 
