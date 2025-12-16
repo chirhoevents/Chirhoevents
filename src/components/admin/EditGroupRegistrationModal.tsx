@@ -17,6 +17,7 @@ import {
 import RefundModal from './RefundModal'
 import MarkCheckReceivedModal from './MarkCheckReceivedModal'
 import RecordCheckPaymentModal from './RecordCheckPaymentModal'
+import RecordAdditionalPaymentModal from './RecordAdditionalPaymentModal'
 import EditParticipantModal from './EditParticipantModal'
 
 interface Participant {
@@ -156,6 +157,7 @@ export default function EditGroupRegistrationModal({
   const [showRefundModal, setShowRefundModal] = useState(false)
   const [showCheckModal, setShowCheckModal] = useState(false)
   const [showRecordCheckModal, setShowRecordCheckModal] = useState(false)
+  const [showRecordAdditionalPaymentModal, setShowRecordAdditionalPaymentModal] = useState(false)
   const [showEditParticipantModal, setShowEditParticipantModal] = useState(false)
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null)
   const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null)
@@ -1073,17 +1075,32 @@ export default function EditGroupRegistrationModal({
                 </Badge>
               </div>
 
-              {/* Record Check Payment Button */}
+              {/* Record Additional Payment Button - Universal payment recording */}
+              <div className="mt-4 pt-4 border-t">
+                <Button
+                  onClick={() => setShowRecordAdditionalPaymentModal(true)}
+                  className="w-full bg-[#10B981] hover:bg-[#059669]"
+                >
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  + Record Additional Payment
+                </Button>
+                <p className="text-xs text-gray-500 mt-2 text-center">
+                  Record any payment: check, card, cash, wire transfer, etc.
+                </p>
+              </div>
+
+              {/* Record Check Payment Button - Legacy specific check button */}
               {registration.event?.settings?.checkPaymentEnabled &&
                registration.paymentBalance?.amountRemaining &&
                registration.paymentBalance.amountRemaining > 0 && (
                 <div className="mt-4 pt-4 border-t">
                   <Button
                     onClick={() => setShowRecordCheckModal(true)}
-                    className="w-full bg-[#1E3A5F] hover:bg-[#2A4A6F]"
+                    variant="outline"
+                    className="w-full"
                   >
                     <DollarSign className="h-4 w-4 mr-2" />
-                    Record Check Payment
+                    Record Check Payment (Legacy)
                   </Button>
                 </div>
               )}
@@ -1394,6 +1411,22 @@ export default function EditGroupRegistrationModal({
           totalAmountDue={registration.paymentBalance.totalAmountDue}
           onSuccess={() => {
             setShowRecordCheckModal(false)
+            onUpdate?.()
+          }}
+        />
+      )}
+
+      {/* Record Additional Payment Modal */}
+      {registration && registration.paymentBalance && (
+        <RecordAdditionalPaymentModal
+          isOpen={showRecordAdditionalPaymentModal}
+          onClose={() => setShowRecordAdditionalPaymentModal(false)}
+          registrationId={registration.id}
+          registrationType="group"
+          registrationName={registration.groupName}
+          balanceRemaining={registration.paymentBalance.amountRemaining}
+          onSuccess={() => {
+            setShowRecordAdditionalPaymentModal(false)
             onUpdate?.()
           }}
         />
