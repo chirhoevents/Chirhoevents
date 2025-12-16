@@ -32,6 +32,12 @@ interface IndividualRegistration {
   preferredRoommate?: string | null
   dietaryRestrictions?: string | null
   adaAccommodations?: string | null
+  emergencyContact1Name?: string | null
+  emergencyContact1Phone?: string | null
+  emergencyContact1Relation?: string | null
+  emergencyContact2Name?: string | null
+  emergencyContact2Phone?: string | null
+  emergencyContact2Relation?: string | null
   totalAmount: number
   amountPaid: number
   balance: number
@@ -93,6 +99,12 @@ export default function EditIndividualRegistrationModal({
     preferredRoommate: '',
     dietaryRestrictions: '',
     adaAccommodations: '',
+    emergencyContact1Name: '',
+    emergencyContact1Phone: '',
+    emergencyContact1Relation: '',
+    emergencyContact2Name: '',
+    emergencyContact2Phone: '',
+    emergencyContact2Relation: '',
     adminNotes: '',
   })
 
@@ -117,6 +129,12 @@ export default function EditIndividualRegistrationModal({
         preferredRoommate: registration.preferredRoommate || '',
         dietaryRestrictions: registration.dietaryRestrictions || '',
         adaAccommodations: registration.adaAccommodations || '',
+        emergencyContact1Name: registration.emergencyContact1Name || '',
+        emergencyContact1Phone: registration.emergencyContact1Phone || '',
+        emergencyContact1Relation: registration.emergencyContact1Relation || '',
+        emergencyContact2Name: registration.emergencyContact2Name || '',
+        emergencyContact2Phone: registration.emergencyContact2Phone || '',
+        emergencyContact2Relation: registration.emergencyContact2Relation || '',
         adminNotes: '',
       })
     }
@@ -404,6 +422,81 @@ export default function EditIndividualRegistrationModal({
                     placeholder="Any accessibility needs or accommodations..."
                     rows={2}
                   />
+                </div>
+              </div>
+
+              {/* Emergency Contacts */}
+              <div className="space-y-4 border-t pt-4">
+                <h3 className="font-semibold text-[#1E3A5F]">Emergency Contacts</h3>
+
+                {/* Primary Emergency Contact */}
+                <div className="space-y-3 bg-gray-50 p-4 rounded-md">
+                  <h4 className="text-sm font-semibold text-[#1E3A5F]">Primary Contact *</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="emergencyContact1Name">Name *</Label>
+                      <Input
+                        id="emergencyContact1Name"
+                        value={formData.emergencyContact1Name}
+                        onChange={(e) => handleInputChange('emergencyContact1Name', e.target.value)}
+                        placeholder="Emergency contact name"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="emergencyContact1Phone">Phone *</Label>
+                      <Input
+                        id="emergencyContact1Phone"
+                        type="tel"
+                        value={formData.emergencyContact1Phone}
+                        onChange={(e) => handleInputChange('emergencyContact1Phone', e.target.value)}
+                        placeholder="(555) 123-4567"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="emergencyContact1Relation">Relationship</Label>
+                    <Input
+                      id="emergencyContact1Relation"
+                      value={formData.emergencyContact1Relation}
+                      onChange={(e) => handleInputChange('emergencyContact1Relation', e.target.value)}
+                      placeholder="e.g., Mother, Father, Spouse"
+                    />
+                  </div>
+                </div>
+
+                {/* Secondary Emergency Contact */}
+                <div className="space-y-3 bg-gray-50 p-4 rounded-md">
+                  <h4 className="text-sm font-semibold text-[#1E3A5F]">Secondary Contact (Optional)</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="emergencyContact2Name">Name</Label>
+                      <Input
+                        id="emergencyContact2Name"
+                        value={formData.emergencyContact2Name}
+                        onChange={(e) => handleInputChange('emergencyContact2Name', e.target.value)}
+                        placeholder="Secondary contact name"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="emergencyContact2Phone">Phone</Label>
+                      <Input
+                        id="emergencyContact2Phone"
+                        type="tel"
+                        value={formData.emergencyContact2Phone}
+                        onChange={(e) => handleInputChange('emergencyContact2Phone', e.target.value)}
+                        placeholder="(555) 987-6543"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="emergencyContact2Relation">Relationship</Label>
+                    <Input
+                      id="emergencyContact2Relation"
+                      value={formData.emergencyContact2Relation}
+                      onChange={(e) => handleInputChange('emergencyContact2Relation', e.target.value)}
+                      placeholder="e.g., Friend, Sibling"
+                    />
+                  </div>
                 </div>
               </div>
 

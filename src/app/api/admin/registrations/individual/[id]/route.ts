@@ -59,6 +59,12 @@ export async function PUT(
       preferredRoommate,
       dietaryRestrictions,
       adaAccommodations,
+      emergencyContact1Name,
+      emergencyContact1Phone,
+      emergencyContact1Relation,
+      emergencyContact2Name,
+      emergencyContact2Phone,
+      emergencyContact2Relation,
       adminNotes,
     } = body
 
@@ -83,6 +89,12 @@ export async function PUT(
         preferredRoommate: preferredRoommate || null,
         dietaryRestrictions: dietaryRestrictions || null,
         adaAccommodations: adaAccommodations || null,
+        emergencyContact1Name: emergencyContact1Name || existingRegistration.emergencyContact1Name,
+        emergencyContact1Phone: emergencyContact1Phone || existingRegistration.emergencyContact1Phone,
+        emergencyContact1Relation: emergencyContact1Relation || null,
+        emergencyContact2Name: emergencyContact2Name || null,
+        emergencyContact2Phone: emergencyContact2Phone || null,
+        emergencyContact2Relation: emergencyContact2Relation || null,
         updatedAt: new Date(),
       },
     })
