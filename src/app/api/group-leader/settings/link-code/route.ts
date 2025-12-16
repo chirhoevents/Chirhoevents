@@ -23,13 +23,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Normalize the access code
+    const normalizedCode = accessCode.trim().toUpperCase()
+    console.log('Looking up access code:', normalizedCode)
+
     // Find the group registration with this access code
     const groupRegistration = await prisma.groupRegistration.findUnique({
-      where: { accessCode: accessCode.toUpperCase() },
+      where: { accessCode: normalizedCode },
       include: {
         event: true,
       },
     })
+
+    console.log('Group registration found:', groupRegistration ? 'Yes' : 'No')
 
     if (!groupRegistration) {
       return NextResponse.json(
@@ -80,8 +86,22 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error linking access code:', error)
+
+    // Return more detailed error information
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+    const errorStack = error instanceof Error ? error.stack : undefined
+
+    console.error('Error details:', {
+      message: errorMessage,
+      stack: errorStack,
+      timestamp: new Date().toISOString(),
+    })
+
     return NextResponse.json(
-      { error: 'Internal server error' },
+      {
+        error: 'Failed to link access code',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+      },
       { status: 500 }
     )
   }
