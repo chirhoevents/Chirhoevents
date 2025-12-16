@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -343,12 +344,13 @@ export default function SettingsPage() {
               <div>
                 <Label className="text-[#1E3A5F]">Profile Photo</Label>
                 <div className="flex items-center space-x-4 mt-2">
-                  <div className="h-20 w-20 rounded-full bg-[#F5F1E8] flex items-center justify-center">
+                  <div className="h-20 w-20 rounded-full bg-[#F5F1E8] flex items-center justify-center relative overflow-hidden">
                     {preferences.profilePhotoUrl ? (
-                      <img
+                      <Image
                         src={preferences.profilePhotoUrl}
                         alt="Profile"
-                        className="h-20 w-20 rounded-full object-cover"
+                        fill
+                        className="rounded-full object-cover"
                       />
                     ) : (
                       <User className="h-10 w-10 text-[#9C8466]" />
@@ -1032,7 +1034,7 @@ export default function SettingsPage() {
                     </label>
                     {preferences.quietHoursEnabled && (
                       <div className="flex items-center space-x-2 mt-3 ml-6">
-                        <span className="text-sm text-[#6B7280]">Don't send notifications between</span>
+                        <span className="text-sm text-[#6B7280]">Don&apos;t send notifications between</span>
                         <Input
                           type="time"
                           value={preferences.quietHoursStart || '22:00'}
