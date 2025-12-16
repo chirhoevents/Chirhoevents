@@ -10,6 +10,13 @@ import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   User,
   Bell,
   HelpCircle,
@@ -28,6 +35,7 @@ import {
   X,
   Calendar,
   Link as LinkIcon,
+  ChevronDown,
 } from 'lucide-react'
 
 interface UserInfo {
@@ -83,6 +91,7 @@ interface UserPreferences {
 export default function SettingsPage() {
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
   const [linkedEvents, setLinkedEvents] = useState<LinkedEvent[]>([])
+  const [selectedEventId, setSelectedEventId] = useState<string>('')
   const [preferences, setPreferences] = useState<UserPreferences | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -115,6 +124,10 @@ export default function SettingsPage() {
         setUserInfo(data.userInfo)
         setLinkedEvents(data.linkedEvents)
         setPreferences(data.preferences)
+        // Set first event as selected if not already set
+        if (data.linkedEvents.length > 0 && !selectedEventId) {
+          setSelectedEventId(data.linkedEvents[0].id)
+        }
       }
     } catch (error) {
       console.error('Error fetching settings:', error)
@@ -267,17 +280,53 @@ export default function SettingsPage() {
     )
   }
 
+  const selectedEvent = linkedEvents.find((e) => e.id === selectedEventId)
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex items-center justify-between">
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold text-[#1E3A5F] mb-2">
             Settings
           </h1>
-          <p className="text-[#6B7280]">
-            Manage your account and notification preferences
-          </p>
+          <div className="flex items-center space-x-3">
+            {linkedEvents.length > 1 && (
+              <div className="flex items-center space-x-2">
+                <Label className="text-sm text-[#6B7280]">Event:</Label>
+                <Select value={selectedEventId} onValueChange={setSelectedEventId}>
+                  <SelectTrigger className="w-[300px] bg-white border-[#D1D5DB]">
+                    <SelectValue>
+                      {selectedEvent ? (
+                        <div className="flex items-center space-x-2">
+                          <Calendar className="h-4 w-4 text-[#9C8466]" />
+                          <span className="font-medium">{selectedEvent.eventName}</span>
+                          <span className="text-sm text-[#6B7280]">({selectedEvent.eventDates})</span>
+                        </div>
+                      ) : (
+                        'Select event'
+                      )}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {linkedEvents.map((event) => (
+                      <SelectItem key={event.id} value={event.id}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{event.eventName}</span>
+                          <span className="text-sm text-[#6B7280]">{event.eventDates}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {linkedEvents.length === 1 && (
+              <p className="text-[#6B7280]">
+                Manage your account and notification preferences
+              </p>
+            )}
+          </div>
         </div>
         <div className="flex items-center space-x-3">
           {lastSaved && (
