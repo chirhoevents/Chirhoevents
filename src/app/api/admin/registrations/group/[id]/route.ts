@@ -30,7 +30,11 @@ export async function GET(
       where: { id: registrationId },
       include: {
         participants: true,
-        event: true,
+        event: {
+          include: {
+            settings: true,
+          },
+        },
       },
     })
 
@@ -52,6 +56,17 @@ export async function GET(
       },
     })
 
+    // Get payment records for this registration
+    const payments = await prisma.payment.findMany({
+      where: {
+        registrationId: registrationId,
+        registrationType: 'group',
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    })
+
     return NextResponse.json({
       registration: {
         ...registration,
@@ -61,6 +76,18 @@ export async function GET(
           amountRemaining: Number(paymentBalance.amountRemaining),
           paymentStatus: paymentBalance.paymentStatus,
         } : null,
+        payments: payments.map(p => ({
+          id: p.id,
+          amount: Number(p.amount),
+          paymentType: p.paymentType,
+          paymentMethod: p.paymentMethod,
+          paymentStatus: p.paymentStatus,
+          checkNumber: p.checkNumber,
+          checkReceivedDate: p.checkReceivedDate,
+          notes: p.notes,
+          createdAt: p.createdAt,
+          processedAt: p.processedAt,
+        })),
       },
     })
   } catch (error) {
