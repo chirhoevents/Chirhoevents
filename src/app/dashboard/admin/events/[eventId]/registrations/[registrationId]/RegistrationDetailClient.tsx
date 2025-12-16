@@ -25,8 +25,8 @@ import RecordAdditionalPaymentModal from '@/components/admin/RecordAdditionalPay
 interface Event {
   id: string
   name: string
-  startDate: Date
-  endDate: Date
+  startDate: string
+  endDate: string
   pricing: {
     youthRegularPrice: number
     chaperoneRegularPrice: number
@@ -98,7 +98,7 @@ interface Payment {
   paymentMethod: string
   paymentType: string
   paymentStatus: string
-  processedAt: Date
+  processedAt: string
   checkNumber?: string | null
   notes?: string | null
 }

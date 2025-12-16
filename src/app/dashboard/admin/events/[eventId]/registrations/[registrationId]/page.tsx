@@ -80,6 +80,8 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
       <RegistrationDetailClient
         event={{
           ...event,
+          startDate: event.startDate.toISOString(),
+          endDate: event.endDate.toISOString(),
           pricing: event.pricing ? {
             youthRegularPrice: Number(event.pricing.youthRegularPrice),
             chaperoneRegularPrice: Number(event.pricing.chaperoneRegularPrice),
@@ -105,6 +107,7 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
         payments={payments.map((p: any) => ({
           ...p,
           amount: Number(p.amount),
+          processedAt: p.processedAt.toISOString(),
         }))}
       />
     )
@@ -149,6 +152,8 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
       <RegistrationDetailClient
         event={{
           ...event,
+          startDate: event.startDate.toISOString(),
+          endDate: event.endDate.toISOString(),
           pricing: event.pricing ? {
             youthRegularPrice: Number(event.pricing.youthRegularPrice),
             chaperoneRegularPrice: Number(event.pricing.chaperoneRegularPrice),
@@ -174,6 +179,7 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
         payments={payments.map((p: any) => ({
           ...p,
           amount: Number(p.amount),
+          processedAt: p.processedAt.toISOString(),
         }))}
       />
     )
