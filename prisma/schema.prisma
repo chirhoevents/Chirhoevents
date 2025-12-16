@@ -371,7 +371,13 @@ model Payment {
   stripeChargeId        String?  @map("stripe_charge_id") @db.VarChar(255)
   receiptUrl            String?  @map("receipt_url") @db.Text
   checkNumber           String?  @map("check_number") @db.VarChar(50)
+  checkDate             DateTime? @map("check_date") @db.Date
   checkReceivedDate     DateTime? @map("check_received_date") @db.Date
+  cardLast4             String?  @map("card_last_4") @db.VarChar(4)
+  cardholderName        String?  @map("cardholder_name") @db.VarChar(255)
+  authorizationCode     String?  @map("authorization_code") @db.VarChar(255)
+  paymentMethodDetails  String?  @map("payment_method_details") @db.Text
+  transactionReference  String?  @map("transaction_reference") @db.VarChar(255)
   notes                 String?  @db.Text
   processedAt           DateTime? @map("processed_at") @db.Timestamptz(6)
   createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -631,6 +637,7 @@ enum PaymentMethod {
   check
   cash
   bank_transfer
+  other
 }
 
 enum PaymentStatus {

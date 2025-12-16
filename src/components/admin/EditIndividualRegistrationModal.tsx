@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Loader2, DollarSign } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import RefundModal from './RefundModal'
+import RecordAdditionalPaymentModal from './RecordAdditionalPaymentModal'
 
 interface IndividualRegistration {
   id: string
@@ -56,6 +57,7 @@ export default function EditIndividualRegistrationModal({
   const [activeTab, setActiveTab] = useState('overview')
   const [saving, setSaving] = useState(false)
   const [showRefundModal, setShowRefundModal] = useState(false)
+  const [showRecordAdditionalPaymentModal, setShowRecordAdditionalPaymentModal] = useState(false)
   const [auditTrail, setAuditTrail] = useState<Array<{
     id: string
     editedAt: string
@@ -462,7 +464,18 @@ export default function EditIndividualRegistrationModal({
                     </div>
                   </div>
 
-                  <div className="mt-6 pt-6 border-t">
+                  <div className="mt-6 pt-6 border-t space-y-3">
+                    <Button
+                      onClick={() => setShowRecordAdditionalPaymentModal(true)}
+                      className="w-full bg-[#10B981] hover:bg-[#059669]"
+                    >
+                      <DollarSign className="h-4 w-4 mr-2" />
+                      + Record Additional Payment
+                    </Button>
+                    <p className="text-xs text-gray-500 text-center">
+                      Record any payment: check, card, cash, wire transfer, etc.
+                    </p>
+
                     <Button
                       variant="outline"
                       onClick={() => setShowRefundModal(true)}
@@ -605,6 +618,20 @@ export default function EditIndividualRegistrationModal({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Record Additional Payment Modal */}
+      <RecordAdditionalPaymentModal
+        isOpen={showRecordAdditionalPaymentModal}
+        onClose={() => setShowRecordAdditionalPaymentModal(false)}
+        registrationId={registration.id}
+        registrationType="individual"
+        registrationName={`${registration.firstName} ${registration.lastName}`}
+        balanceRemaining={registration.balance}
+        onSuccess={() => {
+          setShowRecordAdditionalPaymentModal(false)
+          onUpdate?.()
+        }}
+      />
 
       {/* Refund Modal */}
       <RefundModal
