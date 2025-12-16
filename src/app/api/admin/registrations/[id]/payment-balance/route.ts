@@ -30,10 +30,7 @@ export async function PUT(
     // Get current payment balance
     const paymentBalance = await prisma.paymentBalance.findUnique({
       where: {
-        registrationId_registrationType: {
-          registrationId,
-          registrationType: registrationType as 'individual' | 'group',
-        },
+        registrationId,
       },
     })
 
@@ -68,10 +65,7 @@ export async function PUT(
     // Update payment balance
     const updatedBalance = await prisma.paymentBalance.update({
       where: {
-        registrationId_registrationType: {
-          registrationId,
-          registrationType: registrationType as 'individual' | 'group',
-        },
+        registrationId,
       },
       data: {
         totalAmountDue: newTotalDueNumber,

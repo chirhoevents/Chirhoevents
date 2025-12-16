@@ -57,10 +57,7 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
     // Fetch payment balance
     const paymentBalance = await prisma.paymentBalance.findUnique({
       where: {
-        registrationId_registrationType: {
-          registrationId: registrationId,
-          registrationType: 'individual',
-        },
+        registrationId: registrationId,
       },
     })
 
@@ -108,10 +105,7 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
     // Fetch payment balance
     const paymentBalance = await prisma.paymentBalance.findUnique({
       where: {
-        registrationId_registrationType: {
-          registrationId: registrationId,
-          registrationType: 'group',
-        },
+        registrationId: registrationId,
       },
     })
 
