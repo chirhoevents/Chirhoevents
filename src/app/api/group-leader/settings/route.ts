@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 
-// GET /api/group-leader/settings - Get user preferences
+// GET /api/group-leader/settings - Get user preferences and all linked registrations
 export async function GET(request: NextRequest) {
   try {
     const { userId } = await auth()
@@ -14,20 +14,26 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get the group registration for this user
-    const groupRegistration = await prisma.groupRegistration.findUnique({
+    // Get all group registrations for this user
+    const groupRegistrations = await prisma.groupRegistration.findMany({
       where: { clerkUserId: userId },
       include: {
         event: true,
       },
+      orderBy: {
+        createdAt: 'desc',
+      },
     })
 
-    if (!groupRegistration) {
+    if (groupRegistrations.length === 0) {
       return NextResponse.json(
-        { error: 'No group registration found' },
+        { error: 'No group registrations found' },
         { status: 404 }
       )
     }
+
+    // Use the first (most recent) registration for user info
+    const primaryRegistration = groupRegistrations[0]
 
     // Get user preferences or create default ones
     let preferences = await prisma.userPreferences.findUnique({
@@ -39,27 +45,36 @@ export async function GET(request: NextRequest) {
       preferences = await prisma.userPreferences.create({
         data: {
           clerkUserId: userId,
-          groupRegistrationId: groupRegistration.id,
+          groupRegistrationId: primaryRegistration.id,
         },
       })
     }
 
-    // Also return user info from group registration
+    // Build user info from primary registration
     const userInfo = {
-      name: groupRegistration.groupLeaderName,
-      email: groupRegistration.groupLeaderEmail,
-      phone: groupRegistration.groupLeaderPhone,
-      groupName: groupRegistration.groupName,
-      parishName: groupRegistration.parishName,
-      dioceseName: groupRegistration.dioceseName,
-      accessCode: groupRegistration.accessCode,
-      eventName: groupRegistration.event.name,
-      memberSince: groupRegistration.createdAt,
+      name: primaryRegistration.groupLeaderName,
+      email: primaryRegistration.groupLeaderEmail,
+      phone: primaryRegistration.groupLeaderPhone,
+      groupName: primaryRegistration.groupName,
+      parishName: primaryRegistration.parishName,
+      dioceseName: primaryRegistration.dioceseName,
+      memberSince: primaryRegistration.createdAt,
     }
+
+    // Build linked events info
+    const linkedEvents = groupRegistrations.map((reg) => ({
+      id: reg.id,
+      accessCode: reg.accessCode,
+      eventName: reg.event.name,
+      eventDates: `${new Date(reg.event.startDate).toLocaleDateString()} - ${new Date(reg.event.endDate).toLocaleDateString()}`,
+      groupName: reg.groupName,
+      linkedAt: reg.createdAt,
+    }))
 
     return NextResponse.json({
       preferences,
       userInfo,
+      linkedEvents,
     })
   } catch (error) {
     console.error('Error fetching settings:', error)
@@ -84,8 +99,8 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json()
 
-    // Get the group registration for this user
-    const groupRegistration = await prisma.groupRegistration.findUnique({
+    // Get any group registration for this user
+    const groupRegistration = await prisma.groupRegistration.findFirst({
       where: { clerkUserId: userId },
     })
 
