@@ -15,6 +15,7 @@ import {
   type EventPricing,
 } from '@/lib/registration-price-calculator'
 import RefundModal from './RefundModal'
+import MarkCheckReceivedModal from './MarkCheckReceivedModal'
 
 interface Participant {
   id?: string
@@ -115,6 +116,8 @@ export default function EditGroupRegistrationModal({
     priest: 0,
   })
   const [showRefundModal, setShowRefundModal] = useState(false)
+  const [showCheckModal, setShowCheckModal] = useState(false)
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null)
   const [auditTrail, setAuditTrail] = useState<Array<{
     id: string
     editedAt: string
@@ -985,28 +988,9 @@ export default function EditGroupRegistrationModal({
                                 size="sm"
                                 variant="outline"
                                 className="w-full mt-2"
-                                onClick={async () => {
-                                  if (!confirm('Mark this check payment as received?')) return
-
-                                  try {
-                                    const res = await fetch(`/api/admin/payments/${payment.id}/mark-check-received`, {
-                                      method: 'POST',
-                                      headers: { 'Content-Type': 'application/json' },
-                                      body: JSON.stringify({}),
-                                    })
-
-                                    if (res.ok) {
-                                      alert('Check marked as received successfully')
-                                      // Refresh the registration data
-                                      window.location.reload()
-                                    } else {
-                                      const error = await res.json()
-                                      alert(`Error: ${error.error || 'Failed to mark check as received'}`)
-                                    }
-                                  } catch (error) {
-                                    console.error('Error marking check as received:', error)
-                                    alert('Failed to mark check as received')
-                                  }
+                                onClick={() => {
+                                  setSelectedPayment(payment)
+                                  setShowCheckModal(true)
                                 }}
                               >
                                 Mark as Received
@@ -1189,6 +1173,21 @@ export default function EditGroupRegistrationModal({
           }}
         />
       )}
+
+      {/* Mark Check Received Modal */}
+      <MarkCheckReceivedModal
+        isOpen={showCheckModal}
+        onClose={() => {
+          setShowCheckModal(false)
+          setSelectedPayment(null)
+        }}
+        payment={selectedPayment}
+        onSuccess={() => {
+          setShowCheckModal(false)
+          setSelectedPayment(null)
+          onUpdate?.()
+        }}
+      />
     </Dialog>
   )
 }
