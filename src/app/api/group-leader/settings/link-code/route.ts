@@ -87,7 +87,6 @@ export async function POST(request: NextRequest) {
         where: { id: groupRegistration.id },
         data: {
           clerkUserId: userId,
-          dashboardLastAccessedAt: new Date(),
         },
         include: {
           event: true,
@@ -111,7 +110,7 @@ export async function POST(request: NextRequest) {
         eventName: updatedRegistration.event.name,
         eventDates: `${new Date(updatedRegistration.event.startDate).toLocaleDateString()} - ${new Date(updatedRegistration.event.endDate).toLocaleDateString()}`,
         groupName: updatedRegistration.groupName,
-        linkedAt: updatedRegistration.dashboardLastAccessedAt,
+        linkedAt: updatedRegistration.createdAt,
       },
     })
   } catch (error) {
