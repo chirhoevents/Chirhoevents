@@ -76,6 +76,9 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
       },
     })
 
+    // Exclude non-serializable Date fields
+    const { createdAt, updatedAt, ...registrationData } = individualRegistration
+
     return (
       <RegistrationDetailClient
         event={{
@@ -94,7 +97,7 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
           } : null,
         }}
         registration={{
-          ...individualRegistration,
+          ...registrationData,
           type: 'individual' as const,
         }}
         paymentBalance={paymentBalance ? {
@@ -148,6 +151,13 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
       },
     })
 
+    // Exclude non-serializable Date fields from group registration and participants
+    const { createdAt, updatedAt, participants, ...groupRegistrationData } = groupRegistration
+    const serializedParticipants = participants.map((p: any) => {
+      const { createdAt, updatedAt, ...participantData } = p
+      return participantData
+    })
+
     return (
       <RegistrationDetailClient
         event={{
@@ -166,7 +176,8 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
           } : null,
         }}
         registration={{
-          ...groupRegistration,
+          ...groupRegistrationData,
+          participants: serializedParticipants,
           type: 'group' as const,
         }}
         paymentBalance={paymentBalance ? {
