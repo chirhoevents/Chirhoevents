@@ -14,7 +14,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { accessCode } = await request.json()
+    let accessCode: string
+    try {
+      const body = await request.json()
+      accessCode = body.accessCode
+    } catch (error) {
+      console.error('Failed to parse request body:', error)
+      return NextResponse.json(
+        { error: 'Invalid request body' },
+        { status: 400 }
+      )
+    }
 
     if (!accessCode) {
       return NextResponse.json(
@@ -28,12 +38,21 @@ export async function POST(request: NextRequest) {
     console.log('Looking up access code:', normalizedCode)
 
     // Find the group registration with this access code
-    const groupRegistration = await prisma.groupRegistration.findUnique({
-      where: { accessCode: normalizedCode },
-      include: {
-        event: true,
-      },
-    })
+    let groupRegistration
+    try {
+      groupRegistration = await prisma.groupRegistration.findUnique({
+        where: { accessCode: normalizedCode },
+        include: {
+          event: true,
+        },
+      })
+    } catch (error) {
+      console.error('Database query failed:', error)
+      return NextResponse.json(
+        { error: 'Database error while looking up access code' },
+        { status: 500 }
+      )
+    }
 
     console.log('Group registration found:', groupRegistration ? 'Yes' : 'No')
 
@@ -61,16 +80,27 @@ export async function POST(request: NextRequest) {
     }
 
     // Link the access code to this user
-    const updatedRegistration = await prisma.groupRegistration.update({
-      where: { id: groupRegistration.id },
-      data: {
-        clerkUserId: userId,
-        dashboardLastAccessedAt: new Date(),
-      },
-      include: {
-        event: true,
-      },
-    })
+    console.log('Updating group registration with userId:', userId)
+    let updatedRegistration
+    try {
+      updatedRegistration = await prisma.groupRegistration.update({
+        where: { id: groupRegistration.id },
+        data: {
+          clerkUserId: userId,
+          dashboardLastAccessedAt: new Date(),
+        },
+        include: {
+          event: true,
+        },
+      })
+      console.log('Successfully updated registration')
+    } catch (error) {
+      console.error('Database update failed:', error)
+      return NextResponse.json(
+        { error: 'Database error while linking access code' },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({
       success: true,
