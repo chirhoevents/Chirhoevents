@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
         registrationId,
         registrationType: registrationType as 'individual' | 'group',
         amount: paymentAmount,
-        paymentType: 'partial', // Admin recorded payments are partial payments
+        paymentType: 'balance', // Admin recorded payments
         paymentMethod: paymentMethod as 'card' | 'check' | 'cash' | 'bank_transfer' | 'other',
         paymentStatus: 'succeeded', // Manual payments are immediately completed
         checkNumber: checkNumber || null,
