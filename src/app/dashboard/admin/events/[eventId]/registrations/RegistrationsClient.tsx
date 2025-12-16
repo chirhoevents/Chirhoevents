@@ -470,13 +470,19 @@ export default function RegistrationsClient({
                               setEditingRegistration(reg)
                               setShowEditModal(true)
                             }}
-                            title="Edit Registration"
+                            title="Quick Edit"
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="ghost" disabled>
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                          <Link href={`/dashboard/admin/events/${eventId}/registrations/${reg.id}`}>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              title="View Full Registration"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </Link>
                           <Button size="sm" variant="ghost" disabled>
                             <Mail className="h-4 w-4" />
                           </Button>
@@ -618,12 +624,19 @@ export default function RegistrationsClient({
                             size="sm"
                             variant="ghost"
                             onClick={() => setEditingIndividualRegistration(reg)}
+                            title="Quick Edit"
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="ghost" disabled>
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                          <Link href={`/dashboard/admin/events/${eventId}/registrations/${reg.id}`}>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              title="View Full Registration"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </Link>
                           <Button size="sm" variant="ghost" disabled>
                             <Mail className="h-4 w-4" />
                           </Button>
