@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 
 interface LinkedEvent {
   id: string
+  eventId: string
   accessCode: string
   eventName: string
   eventDates: string
@@ -51,8 +52,15 @@ export function EventProvider({ children }: { children: ReactNode }) {
         const data = await response.json()
         setLinkedEvents(data.linkedEvents || [])
 
-        // If no event is selected, select the first one
-        if (!selectedEventId && data.linkedEvents && data.linkedEvents.length > 0) {
+        // Validate that the saved event ID still exists
+        const savedEventId = localStorage.getItem('selectedEventId')
+        const eventExists = data.linkedEvents?.some((e: LinkedEvent) => e.id === savedEventId)
+
+        if (savedEventId && eventExists) {
+          // Use the saved event if it still exists
+          setSelectedEventIdState(savedEventId)
+        } else if (data.linkedEvents && data.linkedEvents.length > 0) {
+          // Otherwise, select the first event
           setSelectedEventId(data.linkedEvents[0].id)
         }
       }
