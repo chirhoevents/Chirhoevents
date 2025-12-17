@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { useEvent } from '@/contexts/EventContext'
 import {
   CheckCircle,
   AlertCircle,
@@ -46,14 +47,19 @@ interface DashboardData {
 }
 
 export default function GroupLeaderDashboard() {
+  const { selectedEventId } = useEvent()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [copySuccess, setCopySuccess] = useState(false)
 
   useEffect(() => {
     const fetchDashboard = async () => {
+      if (!selectedEventId) return
+
+      setLoading(true)
       try {
-        const response = await fetch('/api/group-leader/dashboard')
+        const url = `/api/group-leader/dashboard?eventId=${selectedEventId}`
+        const response = await fetch(url)
         if (response.ok) {
           const dashboardData = await response.json()
           setData(dashboardData)
@@ -66,6 +72,16 @@ export default function GroupLeaderDashboard() {
     }
 
     fetchDashboard()
+  }, [selectedEventId])
+
+  // Listen for event changes from other components
+  useEffect(() => {
+    const handleEventChange = () => {
+      setLoading(true)
+    }
+
+    window.addEventListener('eventChanged', handleEventChange)
+    return () => window.removeEventListener('eventChanged', handleEventChange)
   }, [])
 
   const copyAccessCode = () => {
