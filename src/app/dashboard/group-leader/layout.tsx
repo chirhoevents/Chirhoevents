@@ -28,21 +28,14 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-
-interface LinkedEvent {
-  id: string
-  accessCode: string
-  eventName: string
-  eventDates: string
-  groupName: string
-}
+import { EventProvider, useEvent } from '@/contexts/EventContext'
 
 interface GroupInfo {
   groupName: string
   eventName: string
 }
 
-export default function GroupLeaderLayout({
+function GroupLeaderLayoutContent({
   children,
 }: {
   children: React.ReactNode
@@ -50,9 +43,8 @@ export default function GroupLeaderLayout({
   const router = useRouter()
   const { userId } = useAuth()
   const { signOut } = useClerk()
+  const { selectedEventId, setSelectedEventId, linkedEvents, setLinkedEvents, currentEvent, refreshEvents } = useEvent()
   const [groupInfo, setGroupInfo] = useState<GroupInfo | null>(null)
-  const [linkedEvents, setLinkedEvents] = useState<LinkedEvent[]>([])
-  const [selectedEventId, setSelectedEventId] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showAddCode, setShowAddCode] = useState(false)
@@ -63,29 +55,12 @@ export default function GroupLeaderLayout({
   useEffect(() => {
     const checkAccess = async () => {
       try {
-        const response = await fetch('/api/group-leader/settings')
+        await refreshEvents()
 
-        if (response.status === 404) {
+        if (linkedEvents.length === 0) {
           // No linked registration - redirect to link page
           router.push('/dashboard/group-leader/link-access-code')
           return
-        }
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch dashboard data')
-        }
-
-        const data = await response.json()
-        setLinkedEvents(data.linkedEvents || [])
-
-        // Set first event as selected if not already set
-        if (data.linkedEvents && data.linkedEvents.length > 0) {
-          const firstEvent = data.linkedEvents[0]
-          setSelectedEventId(firstEvent.id)
-          setGroupInfo({
-            groupName: firstEvent.groupName,
-            eventName: firstEvent.eventName,
-          })
         }
       } catch (error) {
         console.error('Error:', error)
@@ -99,16 +74,15 @@ export default function GroupLeaderLayout({
     }
   }, [userId, router])
 
-  // Update groupInfo when selectedEventId changes
+  // Update groupInfo when currentEvent changes
   useEffect(() => {
-    const selectedEvent = linkedEvents.find((e) => e.id === selectedEventId)
-    if (selectedEvent) {
+    if (currentEvent) {
       setGroupInfo({
-        groupName: selectedEvent.groupName,
-        eventName: selectedEvent.eventName,
+        groupName: currentEvent.groupName,
+        eventName: currentEvent.eventName,
       })
     }
-  }, [selectedEventId, linkedEvents])
+  }, [currentEvent])
 
   const handleAddCode = async () => {
     if (!newAccessCode.trim()) {
@@ -130,15 +104,11 @@ export default function GroupLeaderLayout({
 
       if (response.ok) {
         // Refresh the linked events
-        const refreshResponse = await fetch('/api/group-leader/settings')
-        if (refreshResponse.ok) {
-          const refreshData = await refreshResponse.json()
-          setLinkedEvents(refreshData.linkedEvents || [])
+        await refreshEvents()
 
-          // Select the newly added event
-          if (data.registration) {
-            setSelectedEventId(data.registration.id)
-          }
+        // Select the newly added event
+        if (data.registration) {
+          setSelectedEventId(data.registration.id)
         }
 
         setNewAccessCode('')
@@ -366,5 +336,17 @@ export default function GroupLeaderLayout({
         </main>
       </div>
     </div>
+  )
+}
+
+export default function GroupLeaderLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <EventProvider>
+      <GroupLeaderLayoutContent>{children}</GroupLeaderLayoutContent>
+    </EventProvider>
   )
 }
