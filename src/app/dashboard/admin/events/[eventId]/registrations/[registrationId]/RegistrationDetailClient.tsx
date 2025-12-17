@@ -85,6 +85,7 @@ interface GroupRegistration {
 }
 
 interface PaymentBalance {
+  id: string
   totalAmountDue: number
   amountPaid: number
   amountRemaining: number
@@ -238,14 +239,254 @@ export default function RegistrationDetailClient({
 
   if (registration.type === 'group') {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <Card>
-          <CardContent className="p-8 text-center">
-            <p className="text-gray-600">
-              Group registration editing coming soon...
-            </p>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="container mx-auto px-4">
+          <div className="max-w-6xl mx-auto">
+            {/* Header */}
+            <div className="mb-6">
+              <Link
+                href={`/dashboard/admin/events/${event.id}/registrations`}
+                className="inline-flex items-center text-sm text-[#9C8466] hover:underline mb-4"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Registrations
+              </Link>
+              <h1 className="text-3xl font-bold text-gray-900">
+                Group Registration Details
+              </h1>
+              <p className="text-gray-600 mt-2">
+                {registration.groupName} - {event.name}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Main Content - Left Side */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Group Information */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <User className="h-5 w-5" />
+                      Group Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium text-gray-700">Group Name</Label>
+                        <p className="text-gray-900 mt-1">{registration.groupName}</p>
+                      </div>
+                      {registration.parishName && (
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">Parish Name</Label>
+                          <p className="text-gray-900 mt-1">{registration.parishName}</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium text-gray-700">Group Leader</Label>
+                        <p className="text-gray-900 mt-1">{registration.groupLeaderName}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-gray-700">Total Participants</Label>
+                        <p className="text-gray-900 mt-1">{registration.totalParticipants}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium text-gray-700">Email</Label>
+                        <p className="text-gray-900 mt-1">{registration.groupLeaderEmail}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-gray-700">Phone</Label>
+                        <p className="text-gray-900 mt-1">{registration.groupLeaderPhone}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Housing Type</Label>
+                      <p className="text-gray-900 mt-1 capitalize">{registration.housingType?.replace(/_/g, ' ')}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Participants List */}
+                {registration.participants && registration.participants.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Participants ({registration.participants.length})</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {registration.participants.map((participant: any, index: number) => (
+                          <div
+                            key={participant.id}
+                            className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <p className="font-medium text-gray-900">
+                                  {participant.firstName} {participant.lastName}
+                                </p>
+                                <div className="flex gap-4 mt-1 text-sm text-gray-600">
+                                  <span>Age: {participant.age}</span>
+                                  <span className="capitalize">
+                                    {participant.participantType?.replace(/_/g, ' ')}
+                                  </span>
+                                  {participant.gender && (
+                                    <span className="capitalize">{participant.gender}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Payment History */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Calendar className="h-5 w-5" />
+                      Payment History
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {payments.length > 0 ? (
+                      <div className="space-y-3">
+                        {payments.map((payment) => (
+                          <div
+                            key={payment.id}
+                            className="p-4 border border-gray-200 rounded-lg"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium text-gray-900">
+                                  ${payment.amount.toFixed(2)}
+                                </p>
+                                <p className="text-sm text-gray-600 mt-1">
+                                  {format(new Date(payment.processedAt), 'MMM d, yyyy')}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <Badge variant="outline" className="capitalize">
+                                  {payment.paymentMethod.replace(/_/g, ' ')}
+                                </Badge>
+                                {payment.checkNumber && (
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    Check #{payment.checkNumber}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            {payment.notes && (
+                              <p className="text-sm text-gray-600 mt-2 pt-2 border-t border-gray-100">
+                                {payment.notes}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 text-center py-4">No payments recorded yet</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Sidebar - Right Side */}
+              <div className="space-y-6">
+                {/* Payment Summary */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <DollarSign className="h-5 w-5" />
+                      Payment Summary
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {paymentBalance ? (
+                      <>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Total Amount Due</span>
+                            <span className="font-medium text-gray-900">
+                              ${paymentBalance.totalAmountDue.toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Amount Paid</span>
+                            <span className="font-medium text-green-600">
+                              ${paymentBalance.amountPaid.toFixed(2)}
+                            </span>
+                          </div>
+                          {paymentBalance.lateFeesApplied > 0 && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600">Late Fees</span>
+                              <span className="font-medium text-red-600">
+                                ${paymentBalance.lateFeesApplied.toFixed(2)}
+                              </span>
+                            </div>
+                          )}
+                          <div className="pt-2 border-t border-gray-200">
+                            <div className="flex justify-between">
+                              <span className="font-medium text-gray-900">Amount Remaining</span>
+                              <span className="font-bold text-lg text-gray-900">
+                                ${paymentBalance.amountRemaining.toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <Badge
+                            variant={
+                              paymentBalance.paymentStatus === 'paid_full'
+                                ? 'default'
+                                : paymentBalance.paymentStatus === 'partial'
+                                ? 'secondary'
+                                : 'destructive'
+                            }
+                            className="w-full justify-center py-1"
+                          >
+                            {paymentBalance.paymentStatus.replace(/_/g, ' ').toUpperCase()}
+                          </Badge>
+                        </div>
+
+                        <Button
+                          onClick={() => setShowPaymentModal(true)}
+                          className="w-full bg-[#9C8466] hover:bg-[#8a7559]"
+                        >
+                          <DollarSign className="h-4 w-4 mr-2" />
+                          Record Payment
+                        </Button>
+                      </>
+                    ) : (
+                      <p className="text-gray-500 text-sm">No payment balance found</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Payment Modal */}
+        <RecordAdditionalPaymentModal
+          isOpen={showPaymentModal}
+          registrationId={registration.id}
+          registrationType="group"
+          registrationName={registration.groupName}
+          balanceRemaining={paymentBalance?.amountRemaining || 0}
+          onClose={() => setShowPaymentModal(false)}
+          onSuccess={() => {
+            setShowPaymentModal(false)
+            window.location.reload()
+          }}
+        />
       </div>
     )
   }
