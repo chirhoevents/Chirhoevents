@@ -17,7 +17,7 @@ export async function GET(
     }
 
     // Get user from database to verify org admin role
-    const user = await prisma.user.findUnique({
+    const user = await prisma.user.findFirst({
       where: { clerkUserId: userId },
       include: { organization: true },
     })
@@ -114,7 +114,7 @@ export async function PUT(
     }
 
     // Get user from database to verify org admin role
-    const user = await prisma.user.findUnique({
+    const user = await prisma.user.findFirst({
       where: { clerkUserId: userId },
       include: { organization: true },
     })
