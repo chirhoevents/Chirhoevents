@@ -88,6 +88,7 @@ export async function GET(request: NextRequest) {
     // Build linked events info
     const linkedEvents = groupRegistrations.map((reg) => ({
       id: reg.id,
+      eventId: reg.eventId,
       accessCode: reg.accessCode,
       eventName: reg.event.name,
       eventDates: `${new Date(reg.event.startDate).toLocaleDateString()} - ${new Date(reg.event.endDate).toLocaleDateString()}`,

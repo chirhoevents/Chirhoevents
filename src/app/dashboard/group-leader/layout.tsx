@@ -17,6 +17,7 @@ import {
   LogOut,
   Plus,
   ChevronDown,
+  ExternalLink,
 } from 'lucide-react'
 import {
   Select,
@@ -218,6 +219,23 @@ function GroupLeaderLayoutContent({
                     </SelectContent>
                   </Select>
                 </div>
+
+                {currentEvent && (
+                  <Link
+                    href={`/events/${currentEvent.eventId}`}
+                    target="_blank"
+                    className="w-full"
+                  >
+                    <Button
+                      className="w-full bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white text-sm border border-[#3A5A7F]"
+                      size="sm"
+                      variant="outline"
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Go to Event Page
+                    </Button>
+                  </Link>
+                )}
 
                 <Button
                   onClick={() => setShowAddCode(true)}

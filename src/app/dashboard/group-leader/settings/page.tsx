@@ -50,6 +50,7 @@ interface UserInfo {
 
 interface LinkedEvent {
   id: string
+  eventId: string
   accessCode: string
   eventName: string
   eventDates: string

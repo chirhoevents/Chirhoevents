@@ -106,6 +106,7 @@ export async function POST(request: NextRequest) {
       message: 'Access code linked successfully!',
       registration: {
         id: updatedRegistration.id,
+        eventId: updatedRegistration.eventId,
         accessCode: updatedRegistration.accessCode,
         eventName: updatedRegistration.event.name,
         eventDates: `${new Date(updatedRegistration.event.startDate).toLocaleDateString()} - ${new Date(updatedRegistration.event.endDate).toLocaleDateString()}`,
