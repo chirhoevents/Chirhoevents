@@ -18,7 +18,14 @@ export interface EmailLogData {
  */
 export async function logEmail(data: EmailLogData): Promise<void> {
   try {
-    await prisma.emailLog.create({
+    console.log('[EmailLogger] Logging email:', {
+      registrationId: data.registrationId,
+      registrationType: data.registrationType,
+      emailType: data.emailType,
+      recipientEmail: data.recipientEmail,
+    })
+
+    const result = await prisma.emailLog.create({
       data: {
         organizationId: data.organizationId,
         eventId: data.eventId || null,
@@ -33,9 +40,12 @@ export async function logEmail(data: EmailLogData): Promise<void> {
         metadata: data.metadata || undefined,
       },
     })
+
+    console.log('[EmailLogger] Email logged successfully with ID:', result.id)
   } catch (error) {
     // Log error but don't fail the email sending
-    console.error('Failed to log email:', error)
+    console.error('[EmailLogger] Failed to log email:', error)
+    console.error('[EmailLogger] Email data:', JSON.stringify(data, null, 2))
   }
 }
 
@@ -75,7 +85,12 @@ export async function getEmailHistory(
   registrationId: string,
   registrationType: 'group' | 'individual'
 ) {
-  return prisma.emailLog.findMany({
+  console.log('[EmailLogger] Fetching email history for:', {
+    registrationId,
+    registrationType,
+  })
+
+  const emails = await prisma.emailLog.findMany({
     where: {
       registrationId,
       registrationType,
@@ -94,6 +109,10 @@ export async function getEmailHistory(
       htmlContent: true,
     },
   })
+
+  console.log('[EmailLogger] Found emails:', emails.length)
+
+  return emails
 }
 
 /**

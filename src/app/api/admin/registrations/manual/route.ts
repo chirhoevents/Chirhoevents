@@ -103,6 +103,92 @@ export async function POST(request: NextRequest) {
         })
       }
 
+      // Send email notification if email is provided and not a placeholder
+      if (fields.email && !fields.email.includes('placeholder.com')) {
+        const emailSubject = `Manual Registration Created - ${event.name}`
+        const emailHtml = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <!-- ChiRho Events Logo Header -->
+            <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
+              <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 200px; height: auto;" />
+            </div>
+
+            <div style="padding: 30px 20px;">
+              <h1 style="color: #1E3A5F; margin-top: 0;">Registration Created</h1>
+
+              <p>A manual registration has been created for you for <strong>${event.name}</strong>.</p>
+
+              <h3 style="color: #1E3A5F;">Registration Summary</h3>
+              <div style="background-color: #F5F5F5; padding: 15px; border-radius: 8px;">
+                <p style="margin: 5px 0;"><strong>Name:</strong> ${fields.firstName} ${fields.lastName}</p>
+                ${fields.preferredName ? `<p style="margin: 5px 0;"><strong>Preferred Name:</strong> ${fields.preferredName}</p>` : ''}
+                <p style="margin: 5px 0;"><strong>Email:</strong> ${fields.email}</p>
+                <p style="margin: 5px 0;"><strong>Phone:</strong> ${fields.phone || 'N/A'}</p>
+                <p style="margin: 5px 0;"><strong>Housing Type:</strong> ${(fields.housingType || 'on_campus').replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</p>
+                <p style="margin: 5px 0;"><strong>Total Amount Due:</strong> $${price.toFixed(2)}</p>
+              </div>
+
+              <h3 style="color: #1E3A5F;">Next Steps:</h3>
+              <ol>
+                <li><strong>Payment:</strong> Contact the event organizer regarding payment arrangements.</li>
+                <li><strong>Check-In:</strong> Bring a photo ID to check in at the event.</li>
+              </ol>
+
+              <p>Questions? Reply to this email or contact the event organizer.</p>
+
+              <p style="color: #666; font-size: 12px; margin-top: 30px;">
+                © 2025 ChiRho Events. All rights reserved.
+              </p>
+            </div>
+          </div>
+        `
+
+        try {
+          await resend.emails.send({
+            from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+            to: fields.email,
+            subject: emailSubject,
+            html: emailHtml,
+          })
+
+          // Log the email
+          await logEmail({
+            organizationId: user.organizationId,
+            eventId,
+            registrationId: registration.id,
+            registrationType: 'individual',
+            recipientEmail: fields.email,
+            recipientName: `${fields.firstName} ${fields.lastName}`,
+            emailType: 'manual_individual_registration_created',
+            subject: emailSubject,
+            htmlContent: emailHtml,
+            metadata: {
+              firstName: fields.firstName,
+              lastName: fields.lastName,
+              housingType: fields.housingType,
+              totalAmount: price,
+            },
+          })
+        } catch (emailError) {
+          console.error('Error sending email notification:', emailError)
+          await logEmailFailure(
+            {
+              organizationId: user.organizationId,
+              eventId,
+              registrationId: registration.id,
+              registrationType: 'individual',
+              recipientEmail: fields.email,
+              recipientName: `${fields.firstName} ${fields.lastName}`,
+              emailType: 'manual_individual_registration_created',
+              subject: emailSubject,
+              htmlContent: emailHtml,
+            },
+            emailError instanceof Error ? emailError.message : 'Unknown error'
+          )
+          // Don't fail the registration if email fails
+        }
+      }
+
       return NextResponse.json({ success: true, registration })
     } else {
       // Create group registration
