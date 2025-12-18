@@ -18,6 +18,7 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  UserPlus,
   Pencil,
 } from 'lucide-react'
 import { format } from 'date-fns'
@@ -215,6 +216,15 @@ export default function RegistrationsClient({
 
             {/* Actions */}
             <div className="flex gap-2">
+              <Link href={`/dashboard/admin/events/${eventId}/registrations/new`}>
+                <Button
+                  size="sm"
+                  className="bg-[#9C8466] hover:bg-[#8a7559] text-white"
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Manual Registration
+                </Button>
+              </Link>
               <Button
                 variant="outline"
                 size="sm"
