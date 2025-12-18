@@ -19,6 +19,7 @@ import {
   CheckSquare,
   Activity,
   BarChart3,
+  UserPlus,
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -356,17 +357,30 @@ export default function EventDetailClient({
         {/* Registrations Tab */}
         <TabsContent value="registrations">
           <Card className="bg-white border-[#D1D5DB]">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg text-[#1E3A5F]">
+                  Registrations Management
+                </CardTitle>
+                <Link href={`/dashboard/admin/events/${event.id}/registrations/new`}>
+                  <Button
+                    size="sm"
+                    className="bg-[#9C8466] hover:bg-[#8a7559] text-white"
+                  >
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Manual Registration
+                  </Button>
+                </Link>
+              </div>
+            </CardHeader>
             <CardContent className="p-8 text-center">
               <Users className="h-16 w-16 text-[#9C8466] mx-auto mb-4" />
-              <h3 className="font-semibold text-[#1E3A5F] mb-2">
-                Registrations Management
-              </h3>
               <p className="text-[#6B7280] mb-4">
                 View and manage all registrations for this event
               </p>
               <Link href={`/dashboard/admin/events/${event.id}/registrations`}>
                 <Button className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
-                  View Registrations
+                  View All Registrations
                 </Button>
               </Link>
             </CardContent>
