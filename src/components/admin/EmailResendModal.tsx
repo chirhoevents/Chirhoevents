@@ -61,15 +61,23 @@ export default function EmailResendModal({
   const fetchEmails = async () => {
     setLoading(true)
     try {
+      console.log('[EmailResendModal] Fetching emails for:', { registrationId, registrationType })
+
       const response = await fetch(
         `/api/admin/registrations/${registrationId}/emails?type=${registrationType}`
       )
 
+      console.log('[EmailResendModal] Response status:', response.status)
+
       if (!response.ok) {
-        throw new Error('Failed to fetch emails')
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('[EmailResendModal] Error response:', errorData)
+        throw new Error(errorData.error || `Failed to fetch emails (status ${response.status})`)
       }
 
       const data = await response.json()
+      console.log('[EmailResendModal] Received email data:', { emailCount: data.emails?.length || 0 })
+
       setEmails(data.emails || [])
 
       // Auto-select the most recent email
@@ -78,8 +86,8 @@ export default function EmailResendModal({
         setSelectedEmail(data.emails[0])
       }
     } catch (error) {
-      console.error('Error fetching emails:', error)
-      alert('Failed to load email history')
+      console.error('[EmailResendModal] Error fetching emails:', error)
+      alert(`Failed to load email history: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setLoading(false)
     }
@@ -129,7 +137,7 @@ export default function EmailResendModal({
       subjectToSend = processSubject(selectedTemplate.subject, templateData)
 
       if (selectedTemplate.id === 'custom_message') {
-        htmlToSend = selectedTemplate.generateHtml({ customMessage })
+        htmlToSend = selectedTemplate.generateHtml({ eventName: templateData.eventName, customMessage })
       } else {
         htmlToSend = selectedTemplate.generateHtml(templateData)
       }
@@ -296,21 +304,37 @@ export default function EmailResendModal({
                   </h3>
                   <div className="space-y-3 border border-gray-200 rounded-lg p-4 bg-gray-50">
                     {selectedTemplate.id === 'custom_message' ? (
-                      <div>
-                        <Label htmlFor="custom-message" className="text-sm text-gray-600">
-                          Your Message *
-                        </Label>
-                        <Textarea
-                          id="custom-message"
-                          value={customMessage}
-                          onChange={(e) => setCustomMessage(e.target.value)}
-                          placeholder="Enter your custom message here..."
-                          rows={8}
-                          className="mt-1 font-mono text-sm"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                          Tip: You can use HTML tags for formatting
-                        </p>
+                      <div className="space-y-3">
+                        <div>
+                          <Label htmlFor="custom-event-name" className="text-sm text-gray-600">
+                            Event Name *
+                          </Label>
+                          <Input
+                            id="custom-event-name"
+                            value={templateData.eventName || ''}
+                            onChange={(e) =>
+                              setTemplateData({ ...templateData, eventName: e.target.value })
+                            }
+                            placeholder="e.g., Youth Retreat 2025"
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="custom-message" className="text-sm text-gray-600">
+                            Your Message *
+                          </Label>
+                          <Textarea
+                            id="custom-message"
+                            value={customMessage}
+                            onChange={(e) => setCustomMessage(e.target.value)}
+                            placeholder="Enter your custom message here..."
+                            rows={8}
+                            className="mt-1 font-mono text-sm"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Tip: You can use HTML tags for formatting
+                          </p>
+                        </div>
                       </div>
                     ) : (
                       <>

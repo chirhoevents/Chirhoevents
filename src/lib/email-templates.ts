@@ -229,7 +229,7 @@ export const emailTemplates: EmailTemplate[] = [
     description: 'Send a custom message to registrants',
     subject: '{{eventName}} - Message from Event Organizer',
     generateHtml: (data) => wrapEmail(`
-      <h1 style="color: #1E3A5F; margin-top: 0;">Message from Event Organizer</h1>
+      <h1 style="color: #1E3A5F; margin-top: 0;">${data.eventName || 'Message from Event Organizer'}</h1>
 
       ${data.customMessage || '<p>You have received a message from the event organizer.</p>'}
 

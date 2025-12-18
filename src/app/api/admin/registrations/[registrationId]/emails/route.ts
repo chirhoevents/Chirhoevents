@@ -19,7 +19,10 @@ export async function GET(
 ) {
   try {
     const { userId } = await auth()
+    console.log('[GET /emails] Request from user:', userId)
+
     if (!userId) {
+      console.log('[GET /emails] Unauthorized - no userId')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -29,7 +32,10 @@ export async function GET(
       include: { organization: true },
     })
 
+    console.log('[GET /emails] User found:', { id: user?.id, role: user?.role, orgId: user?.organizationId })
+
     if (!user || user.role !== 'org_admin') {
+      console.log('[GET /emails] Forbidden - not org admin')
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -37,7 +43,10 @@ export async function GET(
     const { searchParams } = new URL(request.url)
     const registrationType = searchParams.get('type') as 'group' | 'individual' | null
 
+    console.log('[GET /emails] Fetching emails for:', { registrationId, registrationType })
+
     if (!registrationType) {
+      console.log('[GET /emails] Missing registration type')
       return NextResponse.json(
         { error: 'Registration type is required' },
         { status: 400 }
@@ -58,7 +67,10 @@ export async function GET(
       })
     }
 
+    console.log('[GET /emails] Registration found:', !!registration)
+
     if (!registration) {
+      console.log('[GET /emails] Registration not found')
       return NextResponse.json(
         { error: 'Registration not found' },
         { status: 404 }
@@ -66,6 +78,7 @@ export async function GET(
     }
 
     if (registration.organizationId !== user.organizationId) {
+      console.log('[GET /emails] Organization mismatch:', { regOrg: registration.organizationId, userOrg: user.organizationId })
       return NextResponse.json(
         { error: 'You do not have permission to access this registration' },
         { status: 403 }
@@ -74,10 +87,13 @@ export async function GET(
 
     // Get email history
     const emailHistory = await getEmailHistory(registrationId, registrationType)
+    console.log('[GET /emails] Email history retrieved:', { count: emailHistory.length })
 
     return NextResponse.json({ success: true, emails: emailHistory })
   } catch (error) {
-    console.error('Error fetching email history:', error)
+    console.error('[GET /emails] Error fetching email history:', error)
+    console.error('[GET /emails] Error details:', error instanceof Error ? error.message : 'Unknown error')
+    console.error('[GET /emails] Error stack:', error instanceof Error ? error.stack : 'No stack trace')
     return NextResponse.json(
       { error: 'Failed to fetch email history' },
       { status: 500 }
