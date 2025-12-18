@@ -25,6 +25,7 @@ import { format } from 'date-fns'
 import Link from 'next/link'
 import EditGroupRegistrationModal from '@/components/admin/EditGroupRegistrationModal'
 import EditIndividualRegistrationModal from '@/components/admin/EditIndividualRegistrationModal'
+import EmailResendModal from '@/components/admin/EmailResendModal'
 
 interface GroupRegistration {
   id: string
@@ -91,6 +92,13 @@ export default function RegistrationsClient({
   const [editingRegistration, setEditingRegistration] = useState<GroupRegistration | null>(null)
   const [editingIndividualRegistration, setEditingIndividualRegistration] = useState<IndividualRegistration | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [emailModalOpen, setEmailModalOpen] = useState(false)
+  const [selectedEmailRegistration, setSelectedEmailRegistration] = useState<{
+    id: string
+    type: 'group' | 'individual'
+    email: string
+    name: string
+  } | null>(null)
 
   // Filter registrations
   const filteredGroupRegs = useMemo(() => {
@@ -493,7 +501,20 @@ export default function RegistrationsClient({
                               <Eye className="h-4 w-4" />
                             </Button>
                           </Link>
-                          <Button size="sm" variant="ghost" disabled>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            title="Email History & Resend"
+                            onClick={() => {
+                              setSelectedEmailRegistration({
+                                id: reg.id,
+                                type: 'group',
+                                email: reg.leaderEmail,
+                                name: reg.leaderName,
+                              })
+                              setEmailModalOpen(true)
+                            }}
+                          >
                             <Mail className="h-4 w-4" />
                           </Button>
                         </div>
@@ -647,7 +668,20 @@ export default function RegistrationsClient({
                               <Eye className="h-4 w-4" />
                             </Button>
                           </Link>
-                          <Button size="sm" variant="ghost" disabled>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            title="Email History & Resend"
+                            onClick={() => {
+                              setSelectedEmailRegistration({
+                                id: reg.id,
+                                type: 'individual',
+                                email: reg.email,
+                                name: `${reg.firstName} ${reg.lastName}`,
+                              })
+                              setEmailModalOpen(true)
+                            }}
+                          >
                             <Mail className="h-4 w-4" />
                           </Button>
                         </div>
@@ -676,6 +710,21 @@ export default function RegistrationsClient({
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {/* Email Resend Modal */}
+      {selectedEmailRegistration && (
+        <EmailResendModal
+          isOpen={emailModalOpen}
+          onClose={() => {
+            setEmailModalOpen(false)
+            setSelectedEmailRegistration(null)
+          }}
+          registrationId={selectedEmailRegistration.id}
+          registrationType={selectedEmailRegistration.type}
+          defaultRecipientEmail={selectedEmailRegistration.email}
+          defaultRecipientName={selectedEmailRegistration.name}
+        />
       )}
     </div>
   )

@@ -728,6 +728,12 @@ enum RefundStatus {
   failed
 }
 
+enum EmailStatus {
+  sent
+  failed
+  bounced
+}
+
 enum PreferredPaymentMethod {
   card
   check
@@ -836,6 +842,37 @@ model WaitlistEntry {
   @@index([status], name: "idx_waitlist_status")
   @@index([email], name: "idx_waitlist_email")
   @@map("waitlist_entries")
+}
+
+// ===================================
+// EMAIL TRACKING TABLES
+// ===================================
+
+model EmailLog {
+  id               String           @id @default(uuid()) @db.Uuid
+  organizationId   String           @map("organization_id") @db.Uuid
+  eventId          String?          @map("event_id") @db.Uuid
+  registrationId   String?          @map("registration_id") @db.Uuid
+  registrationType RegistrationType? @map("registration_type")
+  recipientEmail   String           @map("recipient_email") @db.VarChar(255)
+  recipientName    String?          @map("recipient_name") @db.VarChar(255)
+  emailType        String           @map("email_type") @db.VarChar(100)
+  subject          String           @db.VarChar(500)
+  htmlContent      String           @map("html_content") @db.Text
+  sentAt           DateTime         @default(now()) @map("sent_at") @db.Timestamptz(6)
+  sentVia          String           @default("resend") @map("sent_via") @db.VarChar(50)
+  sentStatus       EmailStatus      @default(sent) @map("sent_status")
+  errorMessage     String?          @map("error_message") @db.Text
+  metadata         Json?
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([organizationId], name: "idx_email_org")
+  @@index([eventId], name: "idx_email_event")
+  @@index([registrationId, registrationType], name: "idx_email_registration")
+  @@index([recipientEmail], name: "idx_email_recipient")
+  @@index([sentAt], name: "idx_email_sent_at")
+  @@map("email_logs")
 }
 
 // ===================================

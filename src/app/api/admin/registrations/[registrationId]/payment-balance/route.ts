@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { registrationId: string } }
 ) {
   try {
     const user = await getCurrentUser()
@@ -16,7 +16,7 @@ export async function PUT(
       )
     }
 
-    const registrationId = params.id
+    const { registrationId } = params
     const body = await request.json()
     const { registrationType, newTotalDue } = body
 
