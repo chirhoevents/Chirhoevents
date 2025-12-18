@@ -85,7 +85,7 @@ export async function GET(
   }
 }
 
-// POST to resend an email
+// POST to resend an email or send from template
 export async function POST(
   request: NextRequest,
   { params }: RouteParams
@@ -109,7 +109,10 @@ export async function POST(
     const { registrationId } = params
     const body = await request.json()
     const {
-      emailId,
+      emailId, // Optional: for resending from history
+      subject, // Optional: for sending from template
+      htmlContent, // Optional: for sending from template
+      emailType, // Type of email being sent
       recipientEmail,
       recipientName,
       registrationType,
@@ -118,6 +121,14 @@ export async function POST(
     if (!registrationType || !recipientEmail) {
       return NextResponse.json(
         { error: 'Registration type and recipient email are required' },
+        { status: 400 }
+      )
+    }
+
+    // Must have either emailId (for resend) or subject+htmlContent (for template)
+    if (!emailId && (!subject || !htmlContent)) {
+      return NextResponse.json(
+        { error: 'Must provide either emailId or subject and htmlContent' },
         { status: 400 }
       )
     }
@@ -172,22 +183,38 @@ export async function POST(
       )
     }
 
-    // Get the email to resend
-    const emailToResend = await prisma.emailLog.findUnique({
-      where: { id: emailId },
-      select: {
-        subject: true,
-        htmlContent: true,
-        emailType: true,
-        metadata: true,
-      },
-    })
+    // Determine email content
+    let subjectToSend: string
+    let htmlToSend: string
+    let emailTypeToLog: string
 
-    if (!emailToResend) {
-      return NextResponse.json(
-        { error: 'Email not found' },
-        { status: 404 }
-      )
+    if (emailId) {
+      // Resending from history
+      const emailToResend = await prisma.emailLog.findUnique({
+        where: { id: emailId },
+        select: {
+          subject: true,
+          htmlContent: true,
+          emailType: true,
+          metadata: true,
+        },
+      })
+
+      if (!emailToResend) {
+        return NextResponse.json(
+          { error: 'Email not found' },
+          { status: 404 }
+        )
+      }
+
+      subjectToSend = emailToResend.subject
+      htmlToSend = emailToResend.htmlContent
+      emailTypeToLog = `${emailToResend.emailType}_resent`
+    } else {
+      // Sending from template
+      subjectToSend = subject!
+      htmlToSend = htmlContent!
+      emailTypeToLog = emailType || 'template_email'
     }
 
     // Send the email
@@ -201,11 +228,11 @@ export async function POST(
       await resend.emails.send({
         from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
         to: recipientEmail,
-        subject: emailToResend.subject,
-        html: emailToResend.htmlContent,
+        subject: subjectToSend,
+        html: htmlToSend,
       })
 
-      // Log the resent email
+      // Log the sent email
       await logEmail({
         organizationId: user.organizationId,
         eventId,
@@ -213,22 +240,26 @@ export async function POST(
         registrationType,
         recipientEmail,
         recipientName: finalRecipientName,
-        emailType: `${emailToResend.emailType}_resent`,
-        subject: emailToResend.subject,
-        htmlContent: emailToResend.htmlContent,
-        metadata: {
-          ...(emailToResend.metadata as Record<string, any>),
-          originalEmailId: emailId,
-          resentByUserId: user.id,
-        },
+        emailType: emailTypeToLog,
+        subject: subjectToSend,
+        htmlContent: htmlToSend,
+        metadata: emailId
+          ? {
+              originalEmailId: emailId,
+              sentByUserId: user.id,
+            }
+          : {
+              sentByUserId: user.id,
+              sentFrom: 'template',
+            },
       })
 
       return NextResponse.json({
         success: true,
-        message: 'Email resent successfully',
+        message: 'Email sent successfully',
       })
     } catch (emailError) {
-      console.error('Error resending email:', emailError)
+      console.error('Error sending email:', emailError)
 
       await logEmailFailure(
         {
@@ -238,9 +269,9 @@ export async function POST(
           registrationType,
           recipientEmail,
           recipientName: finalRecipientName,
-          emailType: `${emailToResend.emailType}_resent`,
-          subject: emailToResend.subject,
-          htmlContent: emailToResend.htmlContent,
+          emailType: emailTypeToLog,
+          subject: subjectToSend,
+          htmlContent: htmlToSend,
         },
         emailError instanceof Error ? emailError.message : 'Unknown error'
       )
@@ -251,9 +282,9 @@ export async function POST(
       )
     }
   } catch (error) {
-    console.error('Error resending email:', error)
+    console.error('Error sending email:', error)
     return NextResponse.json(
-      { error: 'Failed to resend email' },
+      { error: 'Failed to send email' },
       { status: 500 }
     )
   }
