@@ -356,34 +356,36 @@ export default function EditRegistrationModal({
 
           {/* Participant Counts */}
           <div>
-            <h3 className="text-lg font-semibold text-[#1E3A5F] mb-4">
+            <h3 className="text-lg font-semibold text-[#1E3A5F] mb-2">
               Participant Counts
             </h3>
+            <div className="bg-[#F5F1E8] border border-[#9C8466] rounded-lg p-4 mb-4">
+              <p className="text-sm text-[#1E3A5F] font-medium mb-1">
+                📋 Note: Participant counts cannot be changed here
+              </p>
+              <p className="text-xs text-[#6B7280]">
+                To modify participant numbers (youth, chaperones, priests), please contact the event organization administrator. Changes affect payment calculations and liability requirements.
+              </p>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="youthCount">Youth *</Label>
+                <Label htmlFor="youthCount">Youth</Label>
                 <Input
                   id="youthCount"
                   type="number"
-                  min="0"
                   value={data.youthCount}
-                  onChange={(e) =>
-                    updateField('youthCount', parseInt(e.target.value) || 0)
-                  }
-                  className="mt-1"
+                  disabled
+                  className="mt-1 bg-gray-100 cursor-not-allowed"
                 />
               </div>
               <div>
-                <Label htmlFor="chaperoneCount">Chaperones *</Label>
+                <Label htmlFor="chaperoneCount">Chaperones</Label>
                 <Input
                   id="chaperoneCount"
                   type="number"
-                  min="0"
                   value={data.chaperoneCount}
-                  onChange={(e) =>
-                    updateField('chaperoneCount', parseInt(e.target.value) || 0)
-                  }
-                  className="mt-1"
+                  disabled
+                  className="mt-1 bg-gray-100 cursor-not-allowed"
                 />
               </div>
               <div>
@@ -391,12 +393,9 @@ export default function EditRegistrationModal({
                 <Input
                   id="priestCount"
                   type="number"
-                  min="0"
                   value={data.priestCount}
-                  onChange={(e) =>
-                    updateField('priestCount', parseInt(e.target.value) || 0)
-                  }
-                  className="mt-1"
+                  disabled
+                  className="mt-1 bg-gray-100 cursor-not-allowed"
                 />
               </div>
             </div>
