@@ -728,6 +728,12 @@ enum RefundStatus {
   failed
 }
 
+enum EmailStatus {
+  sent
+  failed
+  bounced
+}
+
 enum PreferredPaymentMethod {
   card
   check
