@@ -1,10 +1,10 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const { userId } = auth()
+    const { userId } = await auth()
 
     if (!userId) {
       return NextResponse.json(
@@ -13,9 +13,19 @@ export async function GET() {
       )
     }
 
+    // Get eventId from query parameters
+    const searchParams = request.nextUrl.searchParams
+    const eventId = searchParams.get('eventId')
+
+    // Build where clause - filter by eventId if provided
+    const whereClause: any = { clerkUserId: userId }
+    if (eventId) {
+      whereClause.id = eventId
+    }
+
     // Find the group registration linked to this Clerk user
     const groupRegistration = await prisma.groupRegistration.findFirst({
-      where: { clerkUserId: userId },
+      where: whereClause,
       include: {
         event: {
           select: {

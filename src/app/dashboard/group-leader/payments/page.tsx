@@ -23,6 +23,7 @@ import {
   useStripe,
   useElements,
 } from '@stripe/react-stripe-js'
+import { useEvent } from '@/contexts/EventContext'
 
 // Validate Stripe key exists
 const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
@@ -160,6 +161,7 @@ function CheckoutForm({
 }
 
 export default function PaymentsPage() {
+  const { selectedEventId } = useEvent()
   const [balance, setBalance] = useState<PaymentBalance | null>(null)
   const [payments, setPayments] = useState<PaymentTransaction[]>([])
   const [loading, setLoading] = useState(true)
@@ -170,8 +172,13 @@ export default function PaymentsPage() {
   const [creatingPayment, setCreatingPayment] = useState(false)
 
   const fetchPaymentData = async () => {
+    if (!selectedEventId) {
+      setLoading(false)
+      return
+    }
+
     try {
-      const response = await fetch('/api/group-leader/payments')
+      const response = await fetch(`/api/group-leader/payments?eventId=${selectedEventId}`)
       if (response.ok) {
         const data = await response.json()
         setBalance(data.balance)
@@ -198,6 +205,16 @@ export default function PaymentsPage() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedEventId])
+
+  // Listen for event changes and refresh
+  useEffect(() => {
+    const handleEventChange = () => {
+      setLoading(true)
+    }
+
+    window.addEventListener('eventChanged', handleEventChange)
+    return () => window.removeEventListener('eventChanged', handleEventChange)
   }, [])
 
   const handleCreatePaymentIntent = async () => {
@@ -212,12 +229,17 @@ export default function PaymentsPage() {
       return
     }
 
+    if (!selectedEventId) {
+      alert('No event selected')
+      return
+    }
+
     setCreatingPayment(true)
     try {
       const response = await fetch('/api/group-leader/payments/create-payment-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount, notes: paymentNotes }),
+        body: JSON.stringify({ amount, notes: paymentNotes, eventId: selectedEventId }),
       })
 
       if (response.ok) {

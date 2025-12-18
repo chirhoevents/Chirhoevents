@@ -9,7 +9,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = auth()
+    const { userId } = await auth()
 
     if (!userId) {
       return NextResponse.json(
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { amount, notes } = body
+    const { amount, notes, eventId } = body
 
     if (!amount || amount <= 0) {
       return NextResponse.json(
@@ -28,9 +28,15 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Build where clause - filter by eventId if provided
+    const whereClause: any = { clerkUserId: userId }
+    if (eventId) {
+      whereClause.id = eventId
+    }
+
     // Find the group registration linked to this Clerk user
     const groupRegistration = await prisma.groupRegistration.findFirst({
-      where: { clerkUserId: userId },
+      where: whereClause,
       include: {
         event: {
           select: {
