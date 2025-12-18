@@ -34,6 +34,8 @@ export default async function EventLandingPage({ params }: EventPageProps) {
 
   // Get registration status
   const status = getRegistrationStatus({
+    status: event.status,
+    closedMessage: event.settings?.registrationClosedMessage,
     startDate: event.startDate,
     endDate: event.endDate,
     registrationOpenDate: event.registrationOpenDate,
@@ -44,6 +46,7 @@ export default async function EventLandingPage({ params }: EventPageProps) {
     settings: {
       countdownBeforeOpen: event.settings?.countdownBeforeOpen ?? true,
       countdownBeforeClose: event.settings?.countdownBeforeClose ?? true,
+      waitlistEnabled: event.settings?.waitlistEnabled ?? event.enableWaitlist,
     },
   })
 
@@ -86,10 +89,23 @@ export default async function EventLandingPage({ params }: EventPageProps) {
     })}`
   }
 
+  // Hero background styles
+  const heroStyle: React.CSSProperties = event.settings?.backgroundImageUrl
+    ? {
+        backgroundImage: `linear-gradient(rgba(${parseInt(event.settings.overlayColor.slice(1, 3), 16)}, ${parseInt(event.settings.overlayColor.slice(3, 5), 16)}, ${parseInt(event.settings.overlayColor.slice(5, 7), 16)}, ${(event.settings.overlayOpacity || 40) / 100}), rgba(${parseInt(event.settings.overlayColor.slice(1, 3), 16)}, ${parseInt(event.settings.overlayColor.slice(3, 5), 16)}, ${parseInt(event.settings.overlayColor.slice(5, 7), 16)}, ${(event.settings.overlayOpacity || 40) / 100})), url(${event.settings.backgroundImageUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }
+    : {
+        background: event.settings?.primaryColor
+          ? `linear-gradient(to bottom right, ${event.settings.primaryColor}, ${event.settings.secondaryColor})`
+          : 'linear-gradient(to bottom right, #1E3A5F, #2A4A6F)',
+      }
+
   return (
     <div className="min-h-screen bg-[#F5F1E8]">
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-[#1E3A5F] to-[#2A4A6F] text-white py-16 md:py-24">
+      <section className="text-white py-16 md:py-24" style={heroStyle}>
         <div className="container mx-auto px-4 max-w-6xl">
           <div className="text-center mb-8">
             <div className="inline-block bg-white/10 px-4 py-2 rounded-full mb-4">

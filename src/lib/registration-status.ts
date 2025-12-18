@@ -28,6 +28,7 @@ export interface RegistrationStatusResult {
 }
 
 export interface EventForStatus {
+  status?: string // Manual event status override
   startDate: Date
   endDate: Date
   registrationOpenDate: Date | null
@@ -35,9 +36,11 @@ export interface EventForStatus {
   capacityTotal: number | null
   capacityRemaining: number | null
   enableWaitlist: boolean
+  closedMessage?: string | null // Custom message when closed
   settings?: {
     countdownBeforeOpen?: boolean
     countdownBeforeClose?: boolean
+    waitlistEnabled?: boolean
   }
 }
 
@@ -55,6 +58,20 @@ export function getRegistrationStatus(
   const eventEnd = event.endDate.getTime()
   const regOpen = event.registrationOpenDate?.getTime() || null
   const regClose = event.registrationCloseDate?.getTime() || null
+
+  // 0. MANUAL STATUS OVERRIDE - Admin manually closed registration
+  if (event.status === 'registration_closed') {
+    return {
+      status: 'closed',
+      message: event.closedMessage || 'Registration is closed',
+      showCountdown: false,
+      countdownTarget: null,
+      allowRegistration: false,
+      allowWaitlist: event.settings?.waitlistEnabled ?? event.enableWaitlist,
+      spotsRemaining: event.capacityRemaining,
+      urgentStyle: false,
+    }
+  }
 
   // 1. EVENT ENDED - Event has completed
   if (now > eventEnd) {

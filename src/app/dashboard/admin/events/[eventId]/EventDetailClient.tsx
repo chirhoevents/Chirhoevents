@@ -6,6 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import {
   Calendar,
   Users,
@@ -47,7 +50,14 @@ interface EventDetailClientProps {
     totalPaid: number
     balance: number
   }
-  settings: any
+  settings: {
+    id?: string
+    waitlistEnabled?: boolean
+    registrationClosedMessage?: string | null
+    porosHousingEnabled?: boolean
+    salveCheckinEnabled?: boolean
+    raphaMedicalEnabled?: boolean
+  } | null
 }
 
 export default function EventDetailClient({
@@ -58,6 +68,9 @@ export default function EventDetailClient({
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('overview')
   const [updatingStatus, setUpdatingStatus] = useState(false)
+  const [waitlistEnabled, setWaitlistEnabled] = useState(settings?.waitlistEnabled ?? false)
+  const [closedMessage, setClosedMessage] = useState(settings?.registrationClosedMessage ?? '')
+  const [savingSettings, setSavingSettings] = useState(false)
 
   const handleStatusUpdate = async (newStatus: string) => {
     if (updatingStatus) return
@@ -80,6 +93,34 @@ export default function EventDetailClient({
       alert('Failed to update event status. Please try again.')
     } finally {
       setUpdatingStatus(false)
+    }
+  }
+
+  const handleSaveSettings = async () => {
+    if (savingSettings) return
+
+    try {
+      setSavingSettings(true)
+      const response = await fetch(`/api/admin/events/${event.id}/settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          waitlistEnabled,
+          registrationClosedMessage: closedMessage || null,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to save settings')
+      }
+
+      router.refresh()
+      alert('Settings saved successfully!')
+    } catch (error) {
+      console.error('Error saving settings:', error)
+      alert('Failed to save settings. Please try again.')
+    } finally {
+      setSavingSettings(false)
     }
   }
 
@@ -574,49 +615,59 @@ export default function EventDetailClient({
                   )}
                 </div>
                 <div className="pt-4 border-t border-gray-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-[#1E3A5F]">
-                      Waitlist
-                    </span>
-                    <Badge className="bg-gray-500 text-white">Coming Soon</Badge>
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <Label htmlFor="waitlist-toggle" className="text-sm font-medium text-[#1E3A5F]">
+                        Enable Waitlist
+                      </Label>
+                      <p className="text-xs text-[#6B7280] mt-1">
+                        Allow participants to join when event is full or closed
+                      </p>
+                    </div>
+                    <Switch
+                      id="waitlist-toggle"
+                      checked={waitlistEnabled}
+                      onCheckedChange={setWaitlistEnabled}
+                    />
                   </div>
-                  <p className="text-sm text-[#6B7280]">
-                    Waitlist functionality will allow participants to join a waiting list when the event is full
-                  </p>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Additional Settings Placeholder */}
+          {/* Closed Message */}
           <Card className="bg-white border-[#D1D5DB]">
             <CardHeader>
               <CardTitle className="text-lg text-[#1E3A5F]">
-                Additional Settings
+                Closed Registration Message
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-sm text-[#6B7280]">
-                More event settings will be available here in future updates, including:
-              </p>
-              <ul className="mt-3 space-y-2 text-sm text-[#6B7280]">
-                <li className="flex items-center gap-2">
-                  <div className="h-1.5 w-1.5 rounded-full bg-[#9C8466]"></div>
-                  Email notification preferences
-                </li>
-                <li className="flex items-center gap-2">
-                  <div className="h-1.5 w-1.5 rounded-full bg-[#9C8466]"></div>
-                  Custom registration form fields
-                </li>
-                <li className="flex items-center gap-2">
-                  <div className="h-1.5 w-1.5 rounded-full bg-[#9C8466]"></div>
-                  Payment deadline settings
-                </li>
-                <li className="flex items-center gap-2">
-                  <div className="h-1.5 w-1.5 rounded-full bg-[#9C8466]"></div>
-                  Automated reminder emails
-                </li>
-              </ul>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="closed-message" className="text-sm text-[#6B7280]">
+                  Custom message to display when registration is closed
+                </Label>
+                <Textarea
+                  id="closed-message"
+                  value={closedMessage}
+                  onChange={(e) => setClosedMessage(e.target.value)}
+                  placeholder="Enter a custom message (leave blank for default message)"
+                  className="mt-2 min-h-[100px]"
+                />
+                <p className="text-xs text-[#6B7280] mt-2">
+                  This message will be shown on the event landing page when registration is manually closed.
+                  Leave blank to use the default message: &ldquo;Registration is closed&rdquo;
+                </p>
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  onClick={handleSaveSettings}
+                  disabled={savingSettings}
+                  className="bg-[#9C8466] hover:bg-[#8a7559] text-white"
+                >
+                  {savingSettings ? 'Saving...' : 'Save Settings'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
