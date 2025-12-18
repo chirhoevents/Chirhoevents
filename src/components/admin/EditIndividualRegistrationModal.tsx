@@ -80,6 +80,13 @@ export default function EditIndividualRegistrationModal({
     }
   }>>([])
   const [loadingAuditTrail, setLoadingAuditTrail] = useState(false)
+  const [eventPricing, setEventPricing] = useState<{
+    onCampusSinglePrice?: number | null
+    onCampusDoublePrice?: number | null
+    onCampusSharedPrice?: number | null
+    offCampusPrice?: number | null
+    dayPassPrice?: number | null
+  } | null>(null)
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -192,6 +199,27 @@ export default function EditIndividualRegistrationModal({
       setLoadingAuditTrail(false)
     }
   }
+
+  const fetchEventPricing = async () => {
+    if (!eventId) return
+
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}/pricing`)
+      if (response.ok) {
+        const data = await response.json()
+        setEventPricing(data.individualPricing || null)
+      }
+    } catch (error) {
+      console.error('Error fetching event pricing:', error)
+    }
+  }
+
+  // Fetch event pricing when modal opens
+  useEffect(() => {
+    if (isOpen && eventId) {
+      fetchEventPricing()
+    }
+  }, [isOpen, eventId])
 
   // Fetch audit trail when Updates tab is activated
   useEffect(() => {
@@ -370,9 +398,21 @@ export default function EditIndividualRegistrationModal({
                       onChange={(e) => handleInputChange('housingType', e.target.value)}
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      <option value="on_campus">On Campus</option>
-                      <option value="off_campus">Off Campus</option>
-                      <option value="day_pass">Day Pass</option>
+                      <option value="on_campus">On Campus (see room type for price)</option>
+                      {eventPricing?.offCampusPrice ? (
+                        <option value="off_campus">
+                          Off Campus - ${eventPricing.offCampusPrice.toFixed(2)}
+                        </option>
+                      ) : (
+                        <option value="off_campus">Off Campus</option>
+                      )}
+                      {eventPricing?.dayPassPrice ? (
+                        <option value="day_pass">
+                          Day Pass - ${eventPricing.dayPassPrice.toFixed(2)}
+                        </option>
+                      ) : (
+                        <option value="day_pass">Day Pass</option>
+                      )}
                     </select>
                   </div>
                   <div>
@@ -382,11 +422,36 @@ export default function EditIndividualRegistrationModal({
                       value={formData.roomType}
                       onChange={(e) => handleInputChange('roomType', e.target.value)}
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      disabled={formData.housingType !== 'on_campus'}
                     >
-                      <option value="single">Single</option>
-                      <option value="double">Double</option>
-                      <option value="shared">Shared</option>
+                      {eventPricing?.onCampusSinglePrice && (
+                        <option value="single">
+                          Single - ${eventPricing.onCampusSinglePrice.toFixed(2)}
+                        </option>
+                      )}
+                      {eventPricing?.onCampusDoublePrice && (
+                        <option value="double">
+                          Double - ${eventPricing.onCampusDoublePrice.toFixed(2)}
+                        </option>
+                      )}
+                      {eventPricing?.onCampusSharedPrice && (
+                        <option value="shared">
+                          Shared - ${eventPricing.onCampusSharedPrice.toFixed(2)}
+                        </option>
+                      )}
+                      {!eventPricing && (
+                        <>
+                          <option value="single">Single</option>
+                          <option value="double">Double</option>
+                          <option value="shared">Shared</option>
+                        </>
+                      )}
                     </select>
+                    {formData.housingType !== 'on_campus' && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Room type only applies to on-campus housing
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
+import { logEmail, logEmailFailure } from '@/lib/email-logger'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -26,7 +27,11 @@ export async function PUT(
     const existingRegistration = await prisma.individualRegistration.findUnique({
       where: { id: registrationId },
       include: {
-        event: true,
+        event: {
+          include: {
+            individualPricing: true,
+          },
+        },
       },
     })
 
@@ -68,6 +73,41 @@ export async function PUT(
       adminNotes,
     } = body
 
+    // Calculate new price if housing type or room type changed
+    let newTotalAmount = existingRegistration.totalAmount
+    let priceChanged = false
+
+    if ((housingType !== existingRegistration.housingType || roomType !== existingRegistration.roomType) &&
+        existingRegistration.event.individualPricing) {
+      const pricing = existingRegistration.event.individualPricing
+
+      // Calculate price based on housing type
+      if (housingType === 'on_campus') {
+        // Find the price for the selected room type
+        if (roomType === 'single' && pricing.onCampusSinglePrice) {
+          newTotalAmount = pricing.onCampusSinglePrice
+        } else if (roomType === 'double' && pricing.onCampusDoublePrice) {
+          newTotalAmount = pricing.onCampusDoublePrice
+        } else if (roomType === 'shared' && pricing.onCampusSharedPrice) {
+          newTotalAmount = pricing.onCampusSharedPrice
+        } else if (pricing.onCampusSinglePrice) {
+          // Default to single if specific room type price not available
+          newTotalAmount = pricing.onCampusSinglePrice
+        }
+      } else if (housingType === 'off_campus' && pricing.offCampusPrice) {
+        newTotalAmount = pricing.offCampusPrice
+      } else if (housingType === 'day_pass' && pricing.dayPassPrice) {
+        newTotalAmount = pricing.dayPassPrice
+      }
+
+      priceChanged = newTotalAmount !== existingRegistration.totalAmount
+    }
+
+    // Calculate new balance if price changed
+    const newBalance = priceChanged
+      ? newTotalAmount - existingRegistration.amountPaid
+      : existingRegistration.balance
+
     // Update the individual registration
     const updatedRegistration = await prisma.individualRegistration.update({
       where: { id: registrationId },
@@ -95,6 +135,8 @@ export async function PUT(
         emergencyContact2Name: emergencyContact2Name || null,
         emergencyContact2Phone: emergencyContact2Phone || null,
         emergencyContact2Relation: emergencyContact2Relation || null,
+        totalAmount: newTotalAmount,
+        balance: newBalance,
         updatedAt: new Date(),
       },
     })
@@ -121,14 +163,17 @@ export async function PUT(
     }
 
     // Create audit trail entry if changes were made
-    if (Object.keys(changesMade).length > 0) {
+    if (Object.keys(changesMade).length > 0 || priceChanged) {
       await prisma.registrationEdit.create({
         data: {
           registrationId,
           registrationType: 'individual',
           editedByUserId: user.id,
-          editType: 'info_updated',
+          editType: priceChanged ? 'price_updated' : 'info_updated',
           changesMade: changesMade as any,
+          oldTotal: priceChanged ? existingRegistration.totalAmount : null,
+          newTotal: priceChanged ? newTotalAmount : null,
+          difference: priceChanged ? (newTotalAmount - existingRegistration.totalAmount) : null,
           adminNotes: adminNotes || null,
         },
       })
@@ -136,10 +181,10 @@ export async function PUT(
 
     // Send email notification
     if (email && existingRegistration.event) {
-      try {
-        // Build list of changes for email
-        const emailChanges: string[] = []
+      // Build list of changes for email
+      const emailChanges: string[] = []
 
+      try {
         if (existingRegistration.firstName !== firstName || existingRegistration.lastName !== lastName) {
           emailChanges.push(`Name: ${existingRegistration.firstName} ${existingRegistration.lastName} → ${firstName} ${lastName}`)
         }
@@ -148,6 +193,10 @@ export async function PUT(
         }
         if (existingRegistration.housingType !== housingType) {
           emailChanges.push(`Housing Type: ${existingRegistration.housingType || 'None'} → ${housingType || 'None'}`)
+        }
+        if (priceChanged) {
+          emailChanges.push(`Total Amount: $${existingRegistration.totalAmount.toFixed(2)} → $${newTotalAmount.toFixed(2)}`)
+          emailChanges.push(`New Balance: $${newBalance.toFixed(2)}`)
         }
 
         if (emailChanges.length > 0) {
@@ -211,9 +260,42 @@ export async function PUT(
             subject: emailSubject,
             html: emailBody,
           })
+
+          // Log the email
+          await logEmail({
+            organizationId: user.organizationId,
+            eventId: existingRegistration.event.id,
+            registrationId,
+            registrationType: 'individual',
+            recipientEmail: email,
+            recipientName: `${firstName} ${lastName}`,
+            emailType: 'registration_updated',
+            subject: emailSubject,
+            htmlContent: emailBody,
+            metadata: {
+              changesMade: emailChanges,
+              editedByUserId: user.id,
+            },
+          })
         }
       } catch (emailError) {
         console.error('Failed to send email:', emailError)
+
+        // Log email failure
+        if (emailChanges.length > 0) {
+          await logEmailFailure({
+            organizationId: user.organizationId,
+            eventId: existingRegistration.event.id,
+            registrationId,
+            registrationType: 'individual',
+            recipientEmail: email,
+            recipientName: `${firstName} ${lastName}`,
+            emailType: 'registration_updated',
+            subject: existingRegistration.event ? `Registration Updated - ${existingRegistration.event.name}` : 'Registration Updated',
+            htmlContent: '',
+          }, emailError instanceof Error ? emailError.message : 'Unknown error')
+        }
+
         // Don't fail the entire request if email fails
       }
     }
