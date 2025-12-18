@@ -17,7 +17,7 @@ import {
   LogOut,
   Plus,
   ChevronDown,
-  ExternalLink,
+  RefreshCw,
 } from 'lucide-react'
 import {
   Select,
@@ -56,12 +56,27 @@ function GroupLeaderLayoutContent({
   useEffect(() => {
     const checkAccess = async () => {
       try {
-        await refreshEvents()
+        const response = await fetch('/api/group-leader/settings')
 
-        if (linkedEvents.length === 0) {
+        if (response.status === 404 || !response.ok) {
           // No linked registration - redirect to link page
           router.push('/dashboard/group-leader/link-access-code')
           return
+        }
+
+        const data = await response.json()
+        setLinkedEvents(data.linkedEvents || [])
+
+        // Validate that the saved event ID still exists
+        const savedEventId = localStorage.getItem('selectedEventId')
+        const eventExists = data.linkedEvents?.some((e: any) => e.id === savedEventId)
+
+        if (savedEventId && eventExists) {
+          // Use the saved event if it still exists
+          setSelectedEventId(savedEventId)
+        } else if (data.linkedEvents && data.linkedEvents.length > 0) {
+          // Otherwise, select the first event
+          setSelectedEventId(data.linkedEvents[0].id)
         }
       } catch (error) {
         console.error('Error:', error)
@@ -85,6 +100,13 @@ function GroupLeaderLayoutContent({
     }
   }, [currentEvent])
 
+  const handleGoToEvent = () => {
+    // Navigate to dashboard and trigger a refresh
+    router.push('/dashboard/group-leader')
+    // Trigger event change to force refresh
+    window.dispatchEvent(new CustomEvent('eventChanged', { detail: { eventId: selectedEventId } }))
+  }
+
   const handleAddCode = async () => {
     if (!newAccessCode.trim()) {
       setAddCodeError('Please enter an access code')
@@ -104,12 +126,16 @@ function GroupLeaderLayoutContent({
       const data = await response.json()
 
       if (response.ok) {
-        // Refresh the linked events
-        await refreshEvents()
+        // Refresh the linked events using context
+        const settingsResponse = await fetch('/api/group-leader/settings')
+        if (settingsResponse.ok) {
+          const settingsData = await settingsResponse.json()
+          setLinkedEvents(settingsData.linkedEvents || [])
 
-        // Select the newly added event
-        if (data.registration) {
-          setSelectedEventId(data.registration.id)
+          // Select the newly added event
+          if (data.registration) {
+            setSelectedEventId(data.registration.id)
+          }
         }
 
         setNewAccessCode('')
@@ -221,20 +247,15 @@ function GroupLeaderLayoutContent({
                 </div>
 
                 {currentEvent && (
-                  <Link
-                    href={`/events/${currentEvent.eventId}`}
-                    target="_blank"
-                    className="w-full"
+                  <Button
+                    onClick={handleGoToEvent}
+                    className="w-full bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white text-sm border border-[#3A5A7F]"
+                    size="sm"
+                    variant="outline"
                   >
-                    <Button
-                      className="w-full bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white text-sm border border-[#3A5A7F]"
-                      size="sm"
-                      variant="outline"
-                    >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Go to Event Page
-                    </Button>
-                  </Link>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Go to Event Page
+                  </Button>
                 )}
 
                 <Button
