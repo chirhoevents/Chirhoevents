@@ -84,6 +84,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, registration })
     } else {
       // Create group registration
+      const youthCount = fields.youthCount ? parseInt(fields.youthCount) : 0
+      const chaperoneCount = fields.chaperoneCount ? parseInt(fields.chaperoneCount) : 0
+      const priestCount = fields.priestCount ? parseInt(fields.priestCount) : 0
+      const totalParticipants = youthCount + chaperoneCount + priestCount
+
       const registration = await prisma.groupRegistration.create({
         data: {
           eventId,
@@ -93,11 +98,18 @@ export async function POST(request: NextRequest) {
           groupLeaderName: fields.groupLeaderName || 'N/A',
           groupLeaderEmail: fields.groupLeaderEmail || `manual-group-${Date.now()}@placeholder.com`,
           groupLeaderPhone: fields.groupLeaderPhone || 'N/A',
+          groupLeaderStreet: fields.street || null,
+          groupLeaderCity: fields.city || null,
+          groupLeaderState: fields.state || null,
+          groupLeaderZip: fields.zip || null,
+          alternativeContact1Name: fields.alternativeContact1Name || null,
+          alternativeContact1Email: fields.alternativeContact1Email || null,
+          alternativeContact1Phone: fields.alternativeContact1Phone || null,
           housingType: fields.housingType || 'on_campus',
-          totalParticipants: 0,
-          youthCount: 0,
-          chaperoneCount: 0,
-          priestCount: 0,
+          totalParticipants,
+          youthCount,
+          chaperoneCount,
+          priestCount,
           accessCode: `MANUAL-${Date.now()}`,
           specialRequests: fields.specialRequests || null,
           registrationStatus: 'complete',
