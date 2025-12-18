@@ -202,7 +202,7 @@ export async function POST(request: NextRequest) {
                     ${youthCount > 0 ? `<p style="margin: 5px 0 5px 20px;">Youth: ${youthCount}</p>` : ''}
                     ${chaperoneCount > 0 ? `<p style="margin: 5px 0 5px 20px;">Chaperones: ${chaperoneCount}</p>` : ''}
                     ${priestCount > 0 ? `<p style="margin: 5px 0 5px 20px;">Priests: ${priestCount}</p>` : ''}
-                    <p style="margin: 5px 0;"><strong>Housing Type:</strong> ${housingType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
+                    <p style="margin: 5px 0;"><strong>Housing Type:</strong> ${housingType.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</p>
                     <p style="margin: 5px 0;"><strong>Total Amount Due:</strong> $${totalAmount.toFixed(2)}</p>
                   </div>
 
