@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { useEvent } from '@/contexts/EventContext'
 import {
   CheckCircle,
   AlertCircle,
@@ -14,8 +15,10 @@ import {
   Copy,
   Download,
   Share2,
-  Mail
+  Mail,
+  Edit,
 } from 'lucide-react'
+import EditRegistrationModal from '@/components/group-leader/EditRegistrationModal'
 
 interface DashboardData {
   groupName: string
@@ -46,14 +49,20 @@ interface DashboardData {
 }
 
 export default function GroupLeaderDashboard() {
+  const { selectedEventId } = useEvent()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [copySuccess, setCopySuccess] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
 
   useEffect(() => {
     const fetchDashboard = async () => {
+      if (!selectedEventId) return
+
+      setLoading(true)
       try {
-        const response = await fetch('/api/group-leader/dashboard')
+        const url = `/api/group-leader/dashboard?eventId=${selectedEventId}`
+        const response = await fetch(url)
         if (response.ok) {
           const dashboardData = await response.json()
           setData(dashboardData)
@@ -66,6 +75,16 @@ export default function GroupLeaderDashboard() {
     }
 
     fetchDashboard()
+  }, [selectedEventId])
+
+  // Listen for event changes from other components
+  useEffect(() => {
+    const handleEventChange = () => {
+      setLoading(true)
+    }
+
+    window.addEventListener('eventChanged', handleEventChange)
+    return () => window.removeEventListener('eventChanged', handleEventChange)
   }, [])
 
   const copyAccessCode = () => {
@@ -159,6 +178,15 @@ export default function GroupLeaderDashboard() {
                 {data.totalParticipants}
               </p>
             </div>
+
+            <Button
+              onClick={() => setShowEditModal(true)}
+              className="w-full bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white mt-4"
+              variant="outline"
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Registration Details
+            </Button>
           </div>
         </Card>
 
@@ -410,15 +438,6 @@ export default function GroupLeaderDashboard() {
               </Button>
             </div>
 
-            <Button
-              variant="outline"
-              className="w-full border-[#1E3A5F] text-[#1E3A5F]"
-              disabled
-              title="Coming soon"
-            >
-              Edit Registration Details
-            </Button>
-
             <a href="mailto:support@chirhoevents.com?subject=Event Question">
               <Button
                 variant="outline"
@@ -440,6 +459,32 @@ export default function GroupLeaderDashboard() {
           </div>
         </Card>
       </div>
+
+      {/* Edit Registration Modal */}
+      {showEditModal && (
+        <EditRegistrationModal
+          registrationId={selectedEventId}
+          onClose={() => setShowEditModal(false)}
+          onSaved={() => {
+            setShowEditModal(false)
+            // Refetch dashboard data
+            const fetchDashboard = async () => {
+              if (!selectedEventId) return
+              try {
+                const url = `/api/group-leader/dashboard?eventId=${selectedEventId}`
+                const response = await fetch(url)
+                if (response.ok) {
+                  const dashboardData = await response.json()
+                  setData(dashboardData)
+                }
+              } catch (error) {
+                console.error('Error fetching dashboard:', error)
+              }
+            }
+            fetchDashboard()
+          }}
+        />
+      )}
     </div>
   )
 }

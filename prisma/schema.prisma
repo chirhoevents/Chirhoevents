@@ -274,10 +274,12 @@ model GroupRegistration {
   organization   Organization    @relation(fields: [organizationId], references: [id])
   participants   Participant[]
   liabilityForms LiabilityForm[]
+  userPreferences UserPreferences[]
 
   @@index([eventId], name: "idx_group_event")
   @@index([organizationId], name: "idx_group_org")
   @@index([accessCode], name: "idx_group_access_code")
+  @@index([clerkUserId], name: "idx_group_clerk_user")
   @@map("group_registrations")
 }
 
@@ -726,10 +728,47 @@ enum RefundStatus {
   failed
 }
 
-enum EmailStatus {
-  sent
-  failed
-  bounced
+enum PreferredPaymentMethod {
+  card
+  check
+  no_preference
+}
+
+enum PreferredHousingType {
+  on_campus
+  off_campus
+  day_pass
+  no_default
+}
+
+enum NotificationFrequency {
+  realtime
+  daily
+  weekly
+}
+
+enum DashboardView {
+  cards
+  list
+  detailed
+}
+
+enum DateFormat {
+  mdy
+  dmy
+  ymd
+}
+
+enum TimeFormat {
+  h12
+  h24
+}
+
+enum ParticipantSortOrder {
+  name
+  age
+  type
+  form_status
 }
 
 // ===================================
@@ -880,5 +919,95 @@ model Refund {
   @@index([processedByUserId], name: "idx_refund_user")
   @@index([status], name: "idx_refund_status")
   @@map("refunds")
+}
+
+// ===================================
+// USER PREFERENCES TABLE
+// ===================================
+
+model UserPreferences {
+  id                           String   @id @default(uuid()) @db.Uuid
+  clerkUserId                  String   @unique @map("clerk_user_id") @db.VarChar(255)
+  groupRegistrationId          String?  @map("group_registration_id") @db.Uuid
+  createdAt                    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Account Settings
+  phone                        String?  @db.Text
+  profilePhotoUrl              String?  @map("profile_photo_url") @db.Text
+  groupNameDefault             String?  @map("group_name_default") @db.Text
+  parishNameDefault            String?  @map("parish_name_default") @db.Text
+  dioceseDefault               String?  @map("diocese_default") @db.Text
+  mailingAddress               Json?    @map("mailing_address")
+  billingAddress               Json?    @map("billing_address")
+
+  // Registration Preferences
+  primaryContactName           String?  @map("primary_contact_name") @db.Text
+  primaryContactPhone          String?  @map("primary_contact_phone") @db.Text
+  primaryContactEmail          String?  @map("primary_contact_email") @db.Text
+  secondaryContactName         String?  @map("secondary_contact_name") @db.Text
+  secondaryContactPhone        String?  @map("secondary_contact_phone") @db.Text
+  secondaryContactEmail        String?  @map("secondary_contact_email") @db.Text
+  preferredPaymentMethod       PreferredPaymentMethod? @default(no_preference) @map("preferred_payment_method")
+  preferredHousingType         PreferredHousingType? @default(no_default) @map("preferred_housing_type")
+  specialRequestsDefault       String?  @map("special_requests_default") @db.Text
+
+  // Notification Settings
+  emailRegistrationConfirmation Boolean @default(true) @map("email_registration_confirmation")
+  emailPaymentReceived         Boolean  @default(true) @map("email_payment_received")
+  emailPaymentReminders        Boolean  @default(true) @map("email_payment_reminders")
+  emailPaymentOverdue          Boolean  @default(true) @map("email_payment_overdue")
+  emailRegistrationUpdated     Boolean  @default(true) @map("email_registration_updated")
+  emailFormCompleted           Boolean  @default(true) @map("email_form_completed")
+  emailFormReminders           Boolean  @default(true) @map("email_form_reminders")
+  emailAllFormsComplete        Boolean  @default(true) @map("email_all_forms_complete")
+  emailFormEdited              Boolean  @default(true) @map("email_form_edited")
+  emailEventAnnouncements      Boolean  @default(true) @map("email_event_announcements")
+  emailScheduleChanges         Boolean  @default(true) @map("email_schedule_changes")
+  emailDeadlines               Boolean  @default(true) @map("email_deadlines")
+  emailWeeklyUpdates           Boolean  @default(false) @map("email_weekly_updates")
+  emailParticipantAdded        Boolean  @default(true) @map("email_participant_added")
+  emailParticipantRemoved      Boolean  @default(true) @map("email_participant_removed")
+  emailCertificateVerified     Boolean  @default(true) @map("email_certificate_verified")
+  emailNewsletter              Boolean  @default(false) @map("email_newsletter")
+  emailNewEvents               Boolean  @default(false) @map("email_new_events")
+  emailTips                    Boolean  @default(false) @map("email_tips")
+  notificationFrequency        NotificationFrequency @default(realtime) @map("notification_frequency")
+  quietHoursEnabled            Boolean  @default(false) @map("quiet_hours_enabled")
+  quietHoursStart              DateTime? @map("quiet_hours_start") @db.Time
+  quietHoursEnd                DateTime? @map("quiet_hours_end") @db.Time
+  smsEnabled                   Boolean  @default(false) @map("sms_enabled")
+  smsPaymentReminders          Boolean  @default(false) @map("sms_payment_reminders")
+  smsUrgentUpdates             Boolean  @default(false) @map("sms_urgent_updates")
+  smsPaymentReceived           Boolean  @default(false) @map("sms_payment_received")
+
+  // Display Preferences
+  dashboardView                DashboardView @default(cards) @map("dashboard_view")
+  dateFormat                   DateFormat @default(mdy) @map("date_format")
+  timeFormat                   TimeFormat @default(h12) @map("time_format")
+  timezone                     String   @default("America/Chicago") @db.Text
+  participantSortOrder         ParticipantSortOrder @default(name) @map("participant_sort_order")
+  itemsPerPage                 Int      @default(25) @map("items_per_page")
+  showAge                      Boolean  @default(true) @map("show_age")
+  showGender                   Boolean  @default(true) @map("show_gender")
+  showTshirt                   Boolean  @default(true) @map("show_tshirt")
+  showFormStatus               Boolean  @default(true) @map("show_form_status")
+  showDietary                  Boolean  @default(true) @map("show_dietary")
+  showAllergies                Boolean  @default(true) @map("show_allergies")
+  showEmergencyContact         Boolean  @default(false) @map("show_emergency_contact")
+  showMedical                  Boolean  @default(false) @map("show_medical")
+  sessionTimeoutMinutes        Int      @default(30) @map("session_timeout_minutes")
+  twoFactorEnabled             Boolean  @default(false) @map("two_factor_enabled")
+  highContrastMode             Boolean  @default(false) @map("high_contrast_mode")
+  largerText                   Boolean  @default(false) @map("larger_text")
+  screenReaderOptimized        Boolean  @default(false) @map("screen_reader_optimized")
+  language                     String   @default("en") @db.Text
+
+  // Relations
+  groupRegistration GroupRegistration? @relation(fields: [groupRegistrationId], references: [id])
+
+  @@index([clerkUserId], name: "idx_user_prefs_clerk_user_id")
+  @@index([groupRegistrationId], name: "idx_user_prefs_group_registration")
+  @@map("user_preferences")
 }
 
