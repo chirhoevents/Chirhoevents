@@ -51,6 +51,8 @@ export async function POST(request: NextRequest) {
           housingType: fields.housingType || 'on_campus',
           dietaryRestrictions: fields.dietaryRestrictions || null,
           adaAccommodations: fields.adaAccommodations || null,
+          emergencyContact1Name: 'N/A',
+          emergencyContact1Phone: 'N/A',
           registrationStatus: 'complete',
         },
       })
