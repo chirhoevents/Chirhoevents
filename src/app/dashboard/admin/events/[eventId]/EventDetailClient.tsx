@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -20,6 +21,7 @@ import {
   Activity,
   BarChart3,
   UserPlus,
+  Settings,
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -53,7 +55,33 @@ export default function EventDetailClient({
   stats,
   settings,
 }: EventDetailClientProps) {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState('overview')
+  const [updatingStatus, setUpdatingStatus] = useState(false)
+
+  const handleStatusUpdate = async (newStatus: string) => {
+    if (updatingStatus) return
+
+    try {
+      setUpdatingStatus(true)
+      const response = await fetch(`/api/admin/events/${event.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update status')
+      }
+
+      router.refresh()
+    } catch (error) {
+      console.error('Error updating event status:', error)
+      alert('Failed to update event status. Please try again.')
+    } finally {
+      setUpdatingStatus(false)
+    }
+  }
 
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<
@@ -216,6 +244,7 @@ export default function EventDetailClient({
             <TabsTrigger value="rapha">Rapha Medical</TabsTrigger>
           )}
           <TabsTrigger value="reports">Reports</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -469,6 +498,125 @@ export default function EventDetailClient({
                   View Reports
                 </Button>
               </Link>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Settings Tab */}
+        <TabsContent value="settings" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Registration Status */}
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardHeader>
+                <CardTitle className="text-lg text-[#1E3A5F]">
+                  Registration Status
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-sm text-[#6B7280] mb-3">
+                    Control whether participants can register for this event
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-[#1E3A5F]">
+                      Current Status:
+                    </span>
+                    {getStatusBadge(event.status)}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => handleStatusUpdate('registration_open')}
+                    className={event.status === 'registration_open'
+                      ? 'bg-green-600 hover:bg-green-700 text-white'
+                      : 'bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white'
+                    }
+                    disabled={event.status === 'registration_open' || updatingStatus}
+                  >
+                    {updatingStatus ? 'Updating...' : 'Open Registration'}
+                  </Button>
+                  <Button
+                    onClick={() => handleStatusUpdate('registration_closed')}
+                    variant="outline"
+                    className={event.status === 'registration_closed'
+                      ? 'border-orange-600 text-orange-600'
+                      : 'border-[#1E3A5F] text-[#1E3A5F]'
+                    }
+                    disabled={event.status === 'registration_closed' || event.status === 'draft' || updatingStatus}
+                  >
+                    {updatingStatus ? 'Updating...' : 'Close Registration'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Capacity & Waitlist */}
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardHeader>
+                <CardTitle className="text-lg text-[#1E3A5F]">
+                  Capacity & Waitlist
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-sm font-medium text-[#1E3A5F] mb-2">
+                    Event Capacity
+                  </p>
+                  <p className="text-sm text-[#6B7280]">
+                    {event.capacityTotal
+                      ? `${event.capacityTotal} total capacity`
+                      : 'No capacity limit set'}
+                  </p>
+                  {event.capacityTotal && (
+                    <p className="text-sm text-[#6B7280] mt-1">
+                      {event.capacityRemaining} spots remaining
+                    </p>
+                  )}
+                </div>
+                <div className="pt-4 border-t border-gray-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-[#1E3A5F]">
+                      Waitlist
+                    </span>
+                    <Badge className="bg-gray-500 text-white">Coming Soon</Badge>
+                  </div>
+                  <p className="text-sm text-[#6B7280]">
+                    Waitlist functionality will allow participants to join a waiting list when the event is full
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Additional Settings Placeholder */}
+          <Card className="bg-white border-[#D1D5DB]">
+            <CardHeader>
+              <CardTitle className="text-lg text-[#1E3A5F]">
+                Additional Settings
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-[#6B7280]">
+                More event settings will be available here in future updates, including:
+              </p>
+              <ul className="mt-3 space-y-2 text-sm text-[#6B7280]">
+                <li className="flex items-center gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#9C8466]"></div>
+                  Email notification preferences
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#9C8466]"></div>
+                  Custom registration form fields
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#9C8466]"></div>
+                  Payment deadline settings
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#9C8466]"></div>
+                  Automated reminder emails
+                </li>
+              </ul>
             </CardContent>
           </Card>
         </TabsContent>
