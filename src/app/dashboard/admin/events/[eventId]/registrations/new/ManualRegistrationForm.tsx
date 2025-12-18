@@ -56,6 +56,12 @@ export default function ManualRegistrationForm({
     groupLeaderName: '',
     groupLeaderEmail: '',
     groupLeaderPhone: '',
+    alternativeContact1Name: '',
+    alternativeContact1Email: '',
+    alternativeContact1Phone: '',
+    youthCount: '',
+    chaperoneCount: '',
+    priestCount: '',
 
     // Shared
     street: '',
@@ -324,6 +330,105 @@ export default function ManualRegistrationForm({
                         value={formData.groupLeaderPhone}
                         onChange={(e) => setFormData({ ...formData, groupLeaderPhone: e.target.value })}
                       />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Street Address</Label>
+                    <Input
+                      value={formData.street}
+                      onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+                      placeholder="Group leader's address"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label>City</Label>
+                      <Input
+                        value={formData.city}
+                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label>State</Label>
+                      <Input
+                        value={formData.state}
+                        onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                        maxLength={2}
+                        placeholder="CA"
+                      />
+                    </div>
+                    <div>
+                      <Label>ZIP</Label>
+                      <Input
+                        value={formData.zip}
+                        onChange={(e) => setFormData({ ...formData, zip: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-200 pt-4 mt-4">
+                    <h4 className="text-sm font-medium text-gray-900 mb-4">Alternative Contact</h4>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label>Contact Name</Label>
+                        <Input
+                          value={formData.alternativeContact1Name}
+                          onChange={(e) => setFormData({ ...formData, alternativeContact1Name: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label>Contact Email</Label>
+                        <Input
+                          type="email"
+                          value={formData.alternativeContact1Email}
+                          onChange={(e) => setFormData({ ...formData, alternativeContact1Email: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label>Contact Phone</Label>
+                        <Input
+                          value={formData.alternativeContact1Phone}
+                          onChange={(e) => setFormData({ ...formData, alternativeContact1Phone: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-200 pt-4 mt-4">
+                    <h4 className="text-sm font-medium text-gray-900 mb-4">Expected Participants</h4>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label>Youth Count</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={formData.youthCount}
+                          onChange={(e) => setFormData({ ...formData, youthCount: e.target.value })}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div>
+                        <Label>Chaperone Count</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={formData.chaperoneCount}
+                          onChange={(e) => setFormData({ ...formData, chaperoneCount: e.target.value })}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div>
+                        <Label>Priest Count</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={formData.priestCount}
+                          onChange={(e) => setFormData({ ...formData, priestCount: e.target.value })}
+                          placeholder="0"
+                        />
+                      </div>
                     </div>
                   </div>
 
