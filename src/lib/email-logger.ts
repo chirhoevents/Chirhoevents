@@ -30,7 +30,7 @@ export async function logEmail(data: EmailLogData): Promise<void> {
         subject: data.subject,
         htmlContent: data.htmlContent,
         sentStatus: 'sent',
-        metadata: data.metadata || null,
+        metadata: data.metadata || undefined,
       },
     })
   } catch (error) {
@@ -60,7 +60,7 @@ export async function logEmailFailure(
         htmlContent: data.htmlContent,
         sentStatus: 'failed',
         errorMessage,
-        metadata: data.metadata || null,
+        metadata: data.metadata || undefined,
       },
     })
   } catch (error) {
