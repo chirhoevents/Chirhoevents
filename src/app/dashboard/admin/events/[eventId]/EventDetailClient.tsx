@@ -656,7 +656,7 @@ export default function EventDetailClient({
                 />
                 <p className="text-xs text-[#6B7280] mt-2">
                   This message will be shown on the event landing page when registration is manually closed.
-                  Leave blank to use the default message: "Registration is closed"
+                  Leave blank to use the default message: &ldquo;Registration is closed&rdquo;
                 </p>
               </div>
               <div className="flex justify-end">
