@@ -44,11 +44,21 @@ export default function ManualRegistrationForm({
     // Individual fields
     firstName: '',
     lastName: '',
+    preferredName: '',
     email: '',
     phone: '',
     age: '',
     gender: '',
     housingType: 'on_campus',
+    roomType: 'double',
+    preferredRoommate: '',
+    tShirtSize: '',
+    emergencyContact1Name: '',
+    emergencyContact1Phone: '',
+    emergencyContact1Relation: '',
+    emergencyContact2Name: '',
+    emergencyContact2Phone: '',
+    emergencyContact2Relation: '',
 
     // Group fields
     groupName: '',
@@ -154,133 +164,276 @@ export default function ManualRegistrationForm({
 
             {/* Individual Registration Fields */}
             {registrationType === 'individual' && (
-              <Card className="mb-6">
-                <CardHeader>
-                  <CardTitle>Participant Information</CardTitle>
-                  <p className="text-sm text-gray-600">All fields are optional</p>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>First Name</Label>
-                      <Input
-                        value={formData.firstName}
-                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                      />
+              <>
+                {/* Personal Information */}
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle>Personal Information</CardTitle>
+                    <p className="text-sm text-gray-600">All fields are optional</p>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>First Name</Label>
+                        <Input
+                          value={formData.firstName}
+                          onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label>Last Name</Label>
+                        <Input
+                          value={formData.lastName}
+                          onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <Label>Last Name</Label>
-                      <Input
-                        value={formData.lastName}
-                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                      />
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Email</Label>
+                      <Label>Preferred Name</Label>
                       <Input
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        value={formData.preferredName}
+                        onChange={(e) => setFormData({ ...formData, preferredName: e.target.value })}
+                        placeholder="Optional"
                       />
                     </div>
-                    <div>
-                      <Label>Phone</Label>
-                      <Input
-                        value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      />
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Email</Label>
+                        <Input
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label>Phone</Label>
+                        <Input
+                          value={formData.phone}
+                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
                     <div>
-                      <Label>Age</Label>
+                      <Label>Street Address</Label>
                       <Input
-                        type="number"
-                        value={formData.age}
-                        onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+                        value={formData.street}
+                        onChange={(e) => setFormData({ ...formData, street: e.target.value })}
                       />
                     </div>
-                    <div>
-                      <Label>Gender</Label>
-                      <select
-                        value={formData.gender}
-                        onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <option value="">Select...</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                        <option value="other">Other</option>
-                      </select>
-                    </div>
-                    <div>
-                      <Label>Housing Type</Label>
-                      <select
-                        value={formData.housingType}
-                        onChange={(e) => setFormData({ ...formData, housingType: e.target.value })}
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <option value="on_campus">On Campus</option>
-                        <option value="off_campus">Off Campus</option>
-                        <option value="day_pass">Day Pass</option>
-                      </select>
-                    </div>
-                  </div>
 
-                  <div>
-                    <Label>Street Address</Label>
-                    <Input
-                      value={formData.street}
-                      onChange={(e) => setFormData({ ...formData, street: e.target.value })}
-                    />
-                  </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label>City</Label>
+                        <Input
+                          value={formData.city}
+                          onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label>State</Label>
+                        <Input
+                          value={formData.state}
+                          onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                          maxLength={2}
+                          placeholder="OK"
+                        />
+                      </div>
+                      <div>
+                        <Label>ZIP</Label>
+                        <Input
+                          value={formData.zip}
+                          onChange={(e) => setFormData({ ...formData, zip: e.target.value })}
+                          maxLength={5}
+                        />
+                      </div>
+                    </div>
 
-                  <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label>Age</Label>
+                        <Input
+                          type="number"
+                          value={formData.age}
+                          onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label>Gender</Label>
+                        <select
+                          value={formData.gender}
+                          onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <option value="">Select...</option>
+                          <option value="male">Male</option>
+                          <option value="female">Female</option>
+                        </select>
+                      </div>
+                      <div>
+                        <Label>T-Shirt Size</Label>
+                        <select
+                          value={formData.tShirtSize}
+                          onChange={(e) => setFormData({ ...formData, tShirtSize: e.target.value })}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <option value="">Select...</option>
+                          <option value="XS">XS</option>
+                          <option value="S">S</option>
+                          <option value="M">M</option>
+                          <option value="L">L</option>
+                          <option value="XL">XL</option>
+                          <option value="2XL">2XL</option>
+                          <option value="3XL">3XL</option>
+                        </select>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Housing & Room Preferences */}
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle>Housing & Room Preferences</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Housing Type</Label>
+                        <select
+                          value={formData.housingType}
+                          onChange={(e) => setFormData({ ...formData, housingType: e.target.value })}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <option value="on_campus">On Campus</option>
+                          <option value="off_campus">Off Campus</option>
+                          <option value="day_pass">Day Pass</option>
+                        </select>
+                      </div>
+                      {formData.housingType === 'on_campus' && (
+                        <div>
+                          <Label>Room Type</Label>
+                          <select
+                            value={formData.roomType}
+                            onChange={(e) => setFormData({ ...formData, roomType: e.target.value })}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <option value="single">Single Room</option>
+                            <option value="double">Double Room</option>
+                            <option value="triple">Triple Room</option>
+                            <option value="quad">Quad Room</option>
+                          </select>
+                        </div>
+                      )}
+                    </div>
+
+                    {formData.housingType === 'on_campus' && (
+                      <div>
+                        <Label>Preferred Roommate</Label>
+                        <Input
+                          value={formData.preferredRoommate}
+                          onChange={(e) => setFormData({ ...formData, preferredRoommate: e.target.value })}
+                          placeholder="Optional - enter name if they want to room with someone"
+                        />
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Dietary & Accommodations */}
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle>Dietary Restrictions & Accommodations</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
                     <div>
-                      <Label>City</Label>
-                      <Input
-                        value={formData.city}
-                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      <Label>Dietary Restrictions</Label>
+                      <Textarea
+                        value={formData.dietaryRestrictions}
+                        onChange={(e) => setFormData({ ...formData, dietaryRestrictions: e.target.value })}
+                        placeholder="Vegetarian, gluten-free, allergies, etc."
                       />
                     </div>
+
                     <div>
-                      <Label>State</Label>
-                      <Input
-                        value={formData.state}
-                        onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                        maxLength={2}
+                      <Label>ADA Accommodations</Label>
+                      <Textarea
+                        value={formData.adaAccommodations}
+                        onChange={(e) => setFormData({ ...formData, adaAccommodations: e.target.value })}
+                        placeholder="Wheelchair accessible, hearing assistance, etc."
                       />
                     </div>
-                    <div>
-                      <Label>ZIP</Label>
-                      <Input
-                        value={formData.zip}
-                        onChange={(e) => setFormData({ ...formData, zip: e.target.value })}
-                      />
+                  </CardContent>
+                </Card>
+
+                {/* Emergency Contacts */}
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle>Emergency Contacts</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* Primary Emergency Contact */}
+                    <div className="space-y-4">
+                      <h4 className="font-semibold text-sm">Primary Contact</h4>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <Label>Name</Label>
+                          <Input
+                            value={formData.emergencyContact1Name}
+                            onChange={(e) => setFormData({ ...formData, emergencyContact1Name: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label>Phone</Label>
+                          <Input
+                            value={formData.emergencyContact1Phone}
+                            onChange={(e) => setFormData({ ...formData, emergencyContact1Phone: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label>Relation</Label>
+                          <Input
+                            value={formData.emergencyContact1Relation}
+                            onChange={(e) => setFormData({ ...formData, emergencyContact1Relation: e.target.value })}
+                            placeholder="Mother, Father, etc."
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <Label>Dietary Restrictions</Label>
-                    <Textarea
-                      value={formData.dietaryRestrictions}
-                      onChange={(e) => setFormData({ ...formData, dietaryRestrictions: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <Label>ADA Accommodations</Label>
-                    <Textarea
-                      value={formData.adaAccommodations}
-                      onChange={(e) => setFormData({ ...formData, adaAccommodations: e.target.value })}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
+                    {/* Secondary Emergency Contact */}
+                    <div className="space-y-4 border-t border-gray-200 pt-4">
+                      <h4 className="font-semibold text-sm">Secondary Contact (Optional)</h4>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <Label>Name</Label>
+                          <Input
+                            value={formData.emergencyContact2Name}
+                            onChange={(e) => setFormData({ ...formData, emergencyContact2Name: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label>Phone</Label>
+                          <Input
+                            value={formData.emergencyContact2Phone}
+                            onChange={(e) => setFormData({ ...formData, emergencyContact2Phone: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label>Relation</Label>
+                          <Input
+                            value={formData.emergencyContact2Relation}
+                            onChange={(e) => setFormData({ ...formData, emergencyContact2Relation: e.target.value })}
+                            placeholder="Mother, Father, etc."
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
             )}
 
             {/* Group Registration Fields */}

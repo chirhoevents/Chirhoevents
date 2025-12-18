@@ -12,6 +12,8 @@ import {
   Eye,
   MoreVertical,
   Trash2,
+  Users,
+  FileText,
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -326,24 +328,24 @@ export default function EventsListClient({
                       </td>
                       <td className="py-4 px-6 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Link href={`/events/${event.slug}`}>
+                          <Link href={`/dashboard/admin/events/${event.id}/registrations`}>
                             <Button
                               variant="outline"
                               size="sm"
                               className="border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
                             >
-                              <Eye className="h-4 w-4 mr-1" />
-                              View
+                              <Users className="h-4 w-4 mr-1" />
+                              View Registrants
                             </Button>
                           </Link>
-                          <Link href={`/dashboard/admin/events/${event.id}/edit`}>
+                          <Link href={`/dashboard/admin/events/${event.id}`}>
                             <Button
                               variant="outline"
                               size="sm"
                               className="border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
                             >
-                              <Edit className="h-4 w-4 mr-1" />
-                              Edit
+                              <FileText className="h-4 w-4 mr-1" />
+                              Details
                             </Button>
                           </Link>
                           <DropdownMenu>
@@ -358,17 +360,15 @@ export default function EventsListClient({
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem asChild>
-                                <Link
-                                  href={`/dashboard/admin/events/${event.id}`}
-                                >
-                                  View Details
+                                <Link href={`/events/${event.slug}`}>
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  View Event
                                 </Link>
                               </DropdownMenuItem>
                               <DropdownMenuItem asChild>
-                                <Link
-                                  href={`/dashboard/admin/events/${event.id}/registrations`}
-                                >
-                                  Manage Registrations
+                                <Link href={`/dashboard/admin/events/${event.id}/edit`}>
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Edit
                                 </Link>
                               </DropdownMenuItem>
                               {event.totalRegistrations === 0 && (
