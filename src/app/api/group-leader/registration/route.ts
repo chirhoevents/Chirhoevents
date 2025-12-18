@@ -111,13 +111,10 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Calculate total participants
-    const totalParticipants =
-      (updateData.youthCount || 0) +
-      (updateData.chaperoneCount || 0) +
-      (updateData.priestCount || 0)
-
     // Update the registration
+    // Note: Participant counts (youthCount, chaperoneCount, priestCount, totalParticipants)
+    // are intentionally excluded from updates. These must be changed by administrators
+    // as they affect payment calculations and liability requirements.
     const updatedRegistration = await prisma.groupRegistration.update({
       where: { id },
       data: {
@@ -137,10 +134,6 @@ export async function PUT(request: NextRequest) {
         alternativeContact2Name: updateData.alternativeContact2Name,
         alternativeContact2Email: updateData.alternativeContact2Email,
         alternativeContact2Phone: updateData.alternativeContact2Phone,
-        youthCount: updateData.youthCount,
-        chaperoneCount: updateData.chaperoneCount,
-        priestCount: updateData.priestCount,
-        totalParticipants,
         housingType: updateData.housingType,
         specialRequests: updateData.specialRequests,
         dietaryRestrictionsSummary: updateData.dietaryRestrictionsSummary,
