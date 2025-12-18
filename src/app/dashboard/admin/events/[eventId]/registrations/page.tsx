@@ -83,7 +83,7 @@ export default async function EventRegistrationsPage({ params }: PageProps) {
       leaderName: reg.groupLeaderName,
       leaderEmail: reg.groupLeaderEmail,
       leaderPhone: reg.groupLeaderPhone,
-      participantCount: reg.totalParticipants,
+      participantCount: reg.participants.length,
       housingType: reg.housingType,
       registeredAt: reg.registeredAt.toISOString(),
       totalAmount: payment?.totalAmountDue ? Number(payment.totalAmountDue) : 0,
