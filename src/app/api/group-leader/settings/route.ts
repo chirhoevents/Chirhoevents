@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build linked events info
-    const linkedEvents = groupRegistrations.map((reg) => ({
+    const linkedEvents = groupRegistrations.map((reg: typeof groupRegistrations[0]) => ({
       id: reg.id,
       eventId: reg.eventId,
       accessCode: reg.accessCode,
