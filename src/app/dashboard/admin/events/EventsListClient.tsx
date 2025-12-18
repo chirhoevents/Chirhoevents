@@ -79,6 +79,29 @@ export default function EventsListClient({
     }
   }
 
+  const handleDeleteEvent = async (eventId: string, eventName: string) => {
+    if (!confirm(`Are you sure you want to delete "${eventName}"? This action cannot be undone.`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete event')
+      }
+
+      // Refresh events list
+      await fetchEvents()
+      alert('Event deleted successfully')
+    } catch (error) {
+      console.error('Error deleting event:', error)
+      alert('Failed to delete event. Please try again.')
+    }
+  }
+
   const filterEvents = () => {
     let filtered = [...events]
 
@@ -372,7 +395,10 @@ export default function EventsListClient({
                                 </Link>
                               </DropdownMenuItem>
                               {event.totalRegistrations === 0 && (
-                                <DropdownMenuItem className="text-red-600">
+                                <DropdownMenuItem
+                                  className="text-red-600"
+                                  onClick={() => handleDeleteEvent(event.id, event.name)}
+                                >
                                   <Trash2 className="h-4 w-4 mr-2" />
                                   Delete Event
                                 </DropdownMenuItem>

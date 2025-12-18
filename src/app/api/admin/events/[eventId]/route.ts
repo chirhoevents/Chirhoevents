@@ -362,3 +362,72 @@ export async function PUT(request: Request, { params }: RouteParams) {
     )
   }
 }
+
+export async function DELETE(request: Request, { params }: RouteParams) {
+  try {
+    const user = await getCurrentUser()
+
+    if (!user || !isAdmin(user)) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Admin access required' },
+        { status: 403 }
+      )
+    }
+
+    const { eventId } = params
+
+    // Verify event belongs to user's organization
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: {
+        organizationId: true,
+        _count: {
+          select: {
+            groupRegistrations: true,
+            individualRegistrations: true,
+          },
+        },
+      },
+    })
+
+    if (!event) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+    }
+
+    if (event.organizationId !== user.organizationId) {
+      return NextResponse.json(
+        { error: 'You do not have permission to delete this event' },
+        { status: 403 }
+      )
+    }
+
+    // Check if event has registrations
+    const totalRegistrations =
+      event._count.groupRegistrations + event._count.individualRegistrations
+
+    if (totalRegistrations > 0) {
+      return NextResponse.json(
+        {
+          error: `Cannot delete event with ${totalRegistrations} registration(s). Please contact support if you need to delete this event.`,
+        },
+        { status: 400 }
+      )
+    }
+
+    // Delete the event (cascade will handle related records)
+    await prisma.event.delete({
+      where: { id: eventId },
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: 'Event deleted successfully',
+    })
+  } catch (error) {
+    console.error('Error deleting event:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}

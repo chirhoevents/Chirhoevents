@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { registrationId: string } }
 ) {
   try {
     const { userId } = await auth()
@@ -22,7 +22,7 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const registrationId = params.id
+    const { registrationId } = params
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type') as 'group' | 'individual' | null
 

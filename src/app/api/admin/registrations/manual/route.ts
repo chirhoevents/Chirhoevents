@@ -2,6 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
+import { logEmail, logEmailFailure } from '@/lib/email-logger'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -92,6 +93,16 @@ export async function POST(request: NextRequest) {
         },
       })
 
+      // Update event capacity if capacity tracking is enabled (individual = 1 participant)
+      if (event.capacityTotal !== null && event.capacityRemaining !== null) {
+        await prisma.event.update({
+          where: { id: eventId },
+          data: {
+            capacityRemaining: Math.max(0, event.capacityRemaining - 1),
+          },
+        })
+      }
+
       return NextResponse.json({ success: true, registration })
     } else {
       // Create group registration
@@ -172,14 +183,20 @@ export async function POST(request: NextRequest) {
         },
       })
 
+      // Update event capacity if capacity tracking is enabled
+      if (event.capacityTotal !== null && event.capacityRemaining !== null) {
+        await prisma.event.update({
+          where: { id: eventId },
+          data: {
+            capacityRemaining: Math.max(0, event.capacityRemaining - totalParticipants),
+          },
+        })
+      }
+
       // Send email notification with access code if email is provided
       if (fields.groupLeaderEmail && !fields.groupLeaderEmail.includes('placeholder.com')) {
-        try {
-          await resend.emails.send({
-            from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
-            to: fields.groupLeaderEmail,
-            subject: `Manual Registration Created - ${event.name}`,
-            html: `
+        const emailSubject = `Manual Registration Created - ${event.name}`
+        const emailHtml = `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <!-- ChiRho Events Logo Header -->
                 <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
@@ -228,10 +245,50 @@ export async function POST(request: NextRequest) {
                   </p>
                 </div>
               </div>
-            `,
+            `
+
+        try {
+          await resend.emails.send({
+            from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+            to: fields.groupLeaderEmail,
+            subject: emailSubject,
+            html: emailHtml,
+          })
+
+          // Log the email
+          await logEmail({
+            organizationId: user.organizationId,
+            eventId,
+            registrationId: registration.id,
+            registrationType: 'group',
+            recipientEmail: fields.groupLeaderEmail,
+            recipientName: fields.groupLeaderName,
+            emailType: 'manual_group_registration_created',
+            subject: emailSubject,
+            htmlContent: emailHtml,
+            metadata: {
+              groupName: fields.groupName,
+              totalParticipants,
+              totalAmount,
+              accessCode: registration.accessCode,
+            },
           })
         } catch (emailError) {
           console.error('Error sending email notification:', emailError)
+          await logEmailFailure(
+            {
+              organizationId: user.organizationId,
+              eventId,
+              registrationId: registration.id,
+              registrationType: 'group',
+              recipientEmail: fields.groupLeaderEmail,
+              recipientName: fields.groupLeaderName,
+              emailType: 'manual_group_registration_created',
+              subject: emailSubject,
+              htmlContent: emailHtml,
+            },
+            emailError instanceof Error ? emailError.message : 'Unknown error'
+          )
           // Don't fail the registration if email fails
         }
       }

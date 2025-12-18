@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { generateAccessCode } from '@/lib/access-code'
 import Stripe from 'stripe'
 import { Resend } from 'resend'
+import { logEmail, logEmailFailure } from '@/lib/email-logger'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -213,6 +214,16 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Update event capacity if capacity tracking is enabled
+    if (event.capacityTotal !== null && event.capacityRemaining !== null) {
+      await prisma.event.update({
+        where: { id: event.id },
+        data: {
+          capacityRemaining: Math.max(0, event.capacityRemaining - totalParticipants),
+        },
+      })
+    }
+
     // Handle payment method
     if (paymentMethod === 'check') {
       // Check payment - create pending payment record
@@ -234,12 +245,9 @@ export async function POST(request: NextRequest) {
         where: { eventId: event.id },
       })
 
-      // Send confirmation email for check payment
-      await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
-        to: groupLeaderEmail,
-        subject: `Registration Received - ${event.name}`,
-        html: `
+      // Prepare email content
+      const emailSubject = `Registration Received - ${event.name}`
+      const emailHtml = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <!-- ChiRho Events Logo Header -->
             <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
@@ -311,8 +319,54 @@ export async function POST(request: NextRequest) {
             </p>
             </div>
           </div>
-        `,
-      })
+        `
+
+      // Send confirmation email for check payment
+      try {
+        await resend.emails.send({
+          from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+          to: groupLeaderEmail,
+          subject: emailSubject,
+          html: emailHtml,
+        })
+
+        // Log the email
+        await logEmail({
+          organizationId: event.organizationId,
+          eventId: event.id,
+          registrationId: registration.id,
+          registrationType: 'group',
+          recipientEmail: groupLeaderEmail,
+          recipientName: groupLeaderName,
+          emailType: 'group_check_payment_confirmation',
+          subject: emailSubject,
+          htmlContent: emailHtml,
+          metadata: {
+            groupName,
+            totalParticipants,
+            totalAmount,
+            depositAmount,
+            balanceRemaining,
+            housingType,
+          },
+        })
+      } catch (emailError) {
+        console.error('Error sending confirmation email:', emailError)
+        await logEmailFailure(
+          {
+            organizationId: event.organizationId,
+            eventId: event.id,
+            registrationId: registration.id,
+            registrationType: 'group',
+            recipientEmail: groupLeaderEmail,
+            recipientName: groupLeaderName,
+            emailType: 'group_check_payment_confirmation',
+            subject: emailSubject,
+            htmlContent: emailHtml,
+          },
+          emailError instanceof Error ? emailError.message : 'Unknown error'
+        )
+      }
 
       // Return without Stripe checkout URL
       return NextResponse.json({
