@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { generateFinancialCSV, generateFinancialPDF } from '@/lib/reports/generate-csv'
+import { generateFinancialCSV } from '@/lib/reports/generate-csv'
+import { generateFinancialPDF } from '@/lib/reports/generate-pdf'
 
 export async function POST(
   request: NextRequest,

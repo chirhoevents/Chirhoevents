@@ -47,7 +47,7 @@ export async function GET(
 
     const required = chaperones.length
     const uploaded = certificates.length
-    const verified = certificates.filter(c => c.verified).length
+    const verified = certificates.filter(c => c.verifiedAt !== null).length
     const missing = required - uploaded
     const uploadRate = required > 0 ? Math.round((uploaded / required) * 100) : 0
     const verifyRate = required > 0 ? Math.round((verified / required) * 100) : 0
@@ -65,7 +65,7 @@ export async function GET(
 
     // Pending verification
     const pending = certificates
-      .filter(c => !c.verified && !c.rejectedAt)
+      .filter(c => c.verifiedAt === null && c.rejectedAt === null)
       .map(c => ({
         name: `${c.participant?.firstName} ${c.participant?.lastName}`,
         uploadedDate: c.uploadedAt ? format(new Date(c.uploadedAt), 'M/d') : 'Unknown',
