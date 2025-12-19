@@ -76,6 +76,14 @@ interface EventFormData {
   allowOnCampus: boolean
   allowOffCampus: boolean
   allowDayPass: boolean
+  allowSingleRoom: boolean
+  allowDoubleRoom: boolean
+  allowTripleRoom: boolean
+  allowQuadRoom: boolean
+  singleRoomLabel: string
+  doubleRoomLabel: string
+  tripleRoomLabel: string
+  quadRoomLabel: string
 
   // Step 5: Contact & Instructions
   contactEmail: string
@@ -189,6 +197,14 @@ export default function CreateEventClient({
     allowOnCampus: true,
     allowOffCampus: true,
     allowDayPass: false,
+    allowSingleRoom: true,
+    allowDoubleRoom: true,
+    allowTripleRoom: true,
+    allowQuadRoom: true,
+    singleRoomLabel: '',
+    doubleRoomLabel: '',
+    tripleRoomLabel: '',
+    quadRoomLabel: '',
 
     // Step 5
     contactEmail: '',
@@ -1342,80 +1358,200 @@ export default function CreateEventClient({
                           🛏️ On-Campus Housing Add-On (Optional)
                         </h3>
                         <p className="text-sm text-indigo-800 mb-4">
-                          Additional cost if staying on-campus. Individuals can choose their room type.
+                          Additional cost if staying on-campus. Select which room types are available and optionally customize their labels.
                         </p>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="singleRoomPrice">Single Room Price</Label>
-                            <div className="relative mt-1">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
-                              <Input
-                                id="singleRoomPrice"
-                                type="number"
-                                value={formData.singleRoomPrice}
-                                onChange={(e) => updateFormData({ singleRoomPrice: e.target.value })}
-                                placeholder="100"
-                                className="pl-7"
+                        <div className="space-y-6">
+                          {/* Single Room */}
+                          <div className="border-l-4 border-indigo-400 pl-4">
+                            <div className="flex items-center gap-2 mb-3">
+                              <input
+                                type="checkbox"
+                                id="allowSingleRoom"
+                                checked={formData.allowSingleRoom}
+                                onChange={(e) => updateFormData({ allowSingleRoom: e.target.checked })}
+                                className="w-4 h-4 text-indigo-600 rounded"
                               />
+                              <Label htmlFor="allowSingleRoom" className="font-semibold text-base cursor-pointer">
+                                Enable Single Room
+                              </Label>
                             </div>
-                            <p className="text-xs text-gray-500 mt-1">
-                              Total: ${formData.individualBasePrice || '100'} + ${formData.singleRoomPrice || '100'} = <span className="font-semibold">${(parseFloat(formData.individualBasePrice || '100') + parseFloat(formData.singleRoomPrice || '100')).toFixed(2)}</span>
-                            </p>
+                            {formData.allowSingleRoom && (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ml-6">
+                                <div>
+                                  <Label htmlFor="singleRoomLabel" className="text-sm">Custom Label (optional)</Label>
+                                  <Input
+                                    id="singleRoomLabel"
+                                    type="text"
+                                    value={formData.singleRoomLabel}
+                                    onChange={(e) => updateFormData({ singleRoomLabel: e.target.value })}
+                                    placeholder="e.g., Single with A/C"
+                                    className="mt-1"
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="singleRoomPrice" className="text-sm">Price (add-on)</Label>
+                                  <div className="relative mt-1">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                                    <Input
+                                      id="singleRoomPrice"
+                                      type="number"
+                                      value={formData.singleRoomPrice}
+                                      onChange={(e) => updateFormData({ singleRoomPrice: e.target.value })}
+                                      placeholder="100"
+                                      className="pl-7"
+                                    />
+                                  </div>
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Total: ${formData.individualBasePrice || '100'} + ${formData.singleRoomPrice || '100'} = <span className="font-semibold">${(parseFloat(formData.individualBasePrice || '100') + parseFloat(formData.singleRoomPrice || '100')).toFixed(2)}</span>
+                                  </p>
+                                </div>
+                              </div>
+                            )}
                           </div>
 
-                          <div>
-                            <Label htmlFor="doubleRoomPrice">Double Room Price</Label>
-                            <div className="relative mt-1">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
-                              <Input
-                                id="doubleRoomPrice"
-                                type="number"
-                                value={formData.doubleRoomPrice}
-                                onChange={(e) => updateFormData({ doubleRoomPrice: e.target.value })}
-                                placeholder="50"
-                                className="pl-7"
+                          {/* Double Room */}
+                          <div className="border-l-4 border-indigo-400 pl-4">
+                            <div className="flex items-center gap-2 mb-3">
+                              <input
+                                type="checkbox"
+                                id="allowDoubleRoom"
+                                checked={formData.allowDoubleRoom}
+                                onChange={(e) => updateFormData({ allowDoubleRoom: e.target.checked })}
+                                className="w-4 h-4 text-indigo-600 rounded"
                               />
+                              <Label htmlFor="allowDoubleRoom" className="font-semibold text-base cursor-pointer">
+                                Enable Double Room
+                              </Label>
                             </div>
-                            <p className="text-xs text-gray-500 mt-1">
-                              Total: ${formData.individualBasePrice || '100'} + ${formData.doubleRoomPrice || '50'} = <span className="font-semibold">${(parseFloat(formData.individualBasePrice || '100') + parseFloat(formData.doubleRoomPrice || '50')).toFixed(2)}</span>
-                            </p>
+                            {formData.allowDoubleRoom && (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ml-6">
+                                <div>
+                                  <Label htmlFor="doubleRoomLabel" className="text-sm">Custom Label (optional)</Label>
+                                  <Input
+                                    id="doubleRoomLabel"
+                                    type="text"
+                                    value={formData.doubleRoomLabel}
+                                    onChange={(e) => updateFormData({ doubleRoomLabel: e.target.value })}
+                                    placeholder="e.g., Double without A/C"
+                                    className="mt-1"
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="doubleRoomPrice" className="text-sm">Price (add-on)</Label>
+                                  <div className="relative mt-1">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                                    <Input
+                                      id="doubleRoomPrice"
+                                      type="number"
+                                      value={formData.doubleRoomPrice}
+                                      onChange={(e) => updateFormData({ doubleRoomPrice: e.target.value })}
+                                      placeholder="50"
+                                      className="pl-7"
+                                    />
+                                  </div>
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Total: ${formData.individualBasePrice || '100'} + ${formData.doubleRoomPrice || '50'} = <span className="font-semibold">${(parseFloat(formData.individualBasePrice || '100') + parseFloat(formData.doubleRoomPrice || '50')).toFixed(2)}</span>
+                                  </p>
+                                </div>
+                              </div>
+                            )}
                           </div>
 
-                          <div>
-                            <Label htmlFor="tripleRoomPrice">Triple Room Price</Label>
-                            <div className="relative mt-1">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
-                              <Input
-                                id="tripleRoomPrice"
-                                type="number"
-                                value={formData.tripleRoomPrice}
-                                onChange={(e) => updateFormData({ tripleRoomPrice: e.target.value })}
-                                placeholder="40"
-                                className="pl-7"
+                          {/* Triple Room */}
+                          <div className="border-l-4 border-indigo-400 pl-4">
+                            <div className="flex items-center gap-2 mb-3">
+                              <input
+                                type="checkbox"
+                                id="allowTripleRoom"
+                                checked={formData.allowTripleRoom}
+                                onChange={(e) => updateFormData({ allowTripleRoom: e.target.checked })}
+                                className="w-4 h-4 text-indigo-600 rounded"
                               />
+                              <Label htmlFor="allowTripleRoom" className="font-semibold text-base cursor-pointer">
+                                Enable Triple Room
+                              </Label>
                             </div>
-                            <p className="text-xs text-gray-500 mt-1">
-                              Total: ${formData.individualBasePrice || '100'} + ${formData.tripleRoomPrice || '40'} = <span className="font-semibold">${(parseFloat(formData.individualBasePrice || '100') + parseFloat(formData.tripleRoomPrice || '40')).toFixed(2)}</span>
-                            </p>
+                            {formData.allowTripleRoom && (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ml-6">
+                                <div>
+                                  <Label htmlFor="tripleRoomLabel" className="text-sm">Custom Label (optional)</Label>
+                                  <Input
+                                    id="tripleRoomLabel"
+                                    type="text"
+                                    value={formData.tripleRoomLabel}
+                                    onChange={(e) => updateFormData({ tripleRoomLabel: e.target.value })}
+                                    placeholder="e.g., Triple shared"
+                                    className="mt-1"
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="tripleRoomPrice" className="text-sm">Price (add-on)</Label>
+                                  <div className="relative mt-1">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                                    <Input
+                                      id="tripleRoomPrice"
+                                      type="number"
+                                      value={formData.tripleRoomPrice}
+                                      onChange={(e) => updateFormData({ tripleRoomPrice: e.target.value })}
+                                      placeholder="40"
+                                      className="pl-7"
+                                    />
+                                  </div>
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Total: ${formData.individualBasePrice || '100'} + ${formData.tripleRoomPrice || '40'} = <span className="font-semibold">${(parseFloat(formData.individualBasePrice || '100') + parseFloat(formData.tripleRoomPrice || '40')).toFixed(2)}</span>
+                                  </p>
+                                </div>
+                              </div>
+                            )}
                           </div>
 
-                          <div>
-                            <Label htmlFor="quadRoomPrice">Quad Room Price</Label>
-                            <div className="relative mt-1">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
-                              <Input
-                                id="quadRoomPrice"
-                                type="number"
-                                value={formData.quadRoomPrice}
-                                onChange={(e) => updateFormData({ quadRoomPrice: e.target.value })}
-                                placeholder="30"
-                                className="pl-7"
+                          {/* Quad Room */}
+                          <div className="border-l-4 border-indigo-400 pl-4">
+                            <div className="flex items-center gap-2 mb-3">
+                              <input
+                                type="checkbox"
+                                id="allowQuadRoom"
+                                checked={formData.allowQuadRoom}
+                                onChange={(e) => updateFormData({ allowQuadRoom: e.target.checked })}
+                                className="w-4 h-4 text-indigo-600 rounded"
                               />
+                              <Label htmlFor="allowQuadRoom" className="font-semibold text-base cursor-pointer">
+                                Enable Quad Room
+                              </Label>
                             </div>
-                            <p className="text-xs text-gray-500 mt-1">
-                              Total: ${formData.individualBasePrice || '100'} + ${formData.quadRoomPrice || '30'} = <span className="font-semibold">${(parseFloat(formData.individualBasePrice || '100') + parseFloat(formData.quadRoomPrice || '30')).toFixed(2)}</span>
-                            </p>
+                            {formData.allowQuadRoom && (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ml-6">
+                                <div>
+                                  <Label htmlFor="quadRoomLabel" className="text-sm">Custom Label (optional)</Label>
+                                  <Input
+                                    id="quadRoomLabel"
+                                    type="text"
+                                    value={formData.quadRoomLabel}
+                                    onChange={(e) => updateFormData({ quadRoomLabel: e.target.value })}
+                                    placeholder="e.g., Quad shared"
+                                    className="mt-1"
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="quadRoomPrice" className="text-sm">Price (add-on)</Label>
+                                  <div className="relative mt-1">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                                    <Input
+                                      id="quadRoomPrice"
+                                      type="number"
+                                      value={formData.quadRoomPrice}
+                                      onChange={(e) => updateFormData({ quadRoomPrice: e.target.value })}
+                                      placeholder="30"
+                                      className="pl-7"
+                                    />
+                                  </div>
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Total: ${formData.individualBasePrice || '100'} + ${formData.quadRoomPrice || '30'} = <span className="font-semibold">${(parseFloat(formData.individualBasePrice || '100') + parseFloat(formData.quadRoomPrice || '30')).toFixed(2)}</span>
+                                  </p>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

@@ -89,6 +89,16 @@ export default function EditIndividualRegistrationModal({
     individualOffCampusPrice?: number | null
     individualDayPassPrice?: number | null
   } | null>(null)
+  const [eventSettings, setEventSettings] = useState<{
+    allowSingleRoom?: boolean
+    allowDoubleRoom?: boolean
+    allowTripleRoom?: boolean
+    allowQuadRoom?: boolean
+    singleRoomLabel?: string | null
+    doubleRoomLabel?: string | null
+    tripleRoomLabel?: string | null
+    quadRoomLabel?: string | null
+  } | null>(null)
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -210,6 +220,7 @@ export default function EditIndividualRegistrationModal({
       if (response.ok) {
         const data = await response.json()
         setEventPricing(data.pricing || null)
+        setEventSettings(data.settings || null)
       }
     } catch (error) {
       console.error('Error fetching event pricing:', error)
@@ -430,32 +441,32 @@ export default function EditIndividualRegistrationModal({
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       disabled={formData.housingType !== 'on_campus'}
                     >
-                      {eventPricing?.singleRoomPrice && (
+                      {eventSettings?.allowSingleRoom !== false && eventPricing?.singleRoomPrice && (
                         <option value="single">
-                          Single - ${(Number(eventPricing.individualBasePrice || 0) + Number(eventPricing.singleRoomPrice)).toFixed(2)}
+                          {eventSettings?.singleRoomLabel || 'Single'} - ${(Number(eventPricing.individualBasePrice || 0) + Number(eventPricing.singleRoomPrice)).toFixed(2)}
                         </option>
                       )}
-                      {eventPricing?.doubleRoomPrice && (
+                      {eventSettings?.allowDoubleRoom !== false && eventPricing?.doubleRoomPrice && (
                         <option value="double">
-                          Double - ${(Number(eventPricing.individualBasePrice || 0) + Number(eventPricing.doubleRoomPrice)).toFixed(2)}
+                          {eventSettings?.doubleRoomLabel || 'Double'} - ${(Number(eventPricing.individualBasePrice || 0) + Number(eventPricing.doubleRoomPrice)).toFixed(2)}
                         </option>
                       )}
-                      {eventPricing?.tripleRoomPrice && (
+                      {eventSettings?.allowTripleRoom !== false && eventPricing?.tripleRoomPrice && (
                         <option value="triple">
-                          Triple - ${(Number(eventPricing.individualBasePrice || 0) + Number(eventPricing.tripleRoomPrice)).toFixed(2)}
+                          {eventSettings?.tripleRoomLabel || 'Triple'} - ${(Number(eventPricing.individualBasePrice || 0) + Number(eventPricing.tripleRoomPrice)).toFixed(2)}
                         </option>
                       )}
-                      {eventPricing?.quadRoomPrice && (
+                      {eventSettings?.allowQuadRoom !== false && eventPricing?.quadRoomPrice && (
                         <option value="quad">
-                          Quad - ${(Number(eventPricing.individualBasePrice || 0) + Number(eventPricing.quadRoomPrice)).toFixed(2)}
+                          {eventSettings?.quadRoomLabel || 'Quad'} - ${(Number(eventPricing.individualBasePrice || 0) + Number(eventPricing.quadRoomPrice)).toFixed(2)}
                         </option>
                       )}
                       {!eventPricing && (
                         <>
-                          <option value="single">Single</option>
-                          <option value="double">Double</option>
-                          <option value="triple">Triple</option>
-                          <option value="quad">Quad</option>
+                          {eventSettings?.allowSingleRoom !== false && <option value="single">{eventSettings?.singleRoomLabel || 'Single'}</option>}
+                          {eventSettings?.allowDoubleRoom !== false && <option value="double">{eventSettings?.doubleRoomLabel || 'Double'}</option>}
+                          {eventSettings?.allowTripleRoom !== false && <option value="triple">{eventSettings?.tripleRoomLabel || 'Triple'}</option>}
+                          {eventSettings?.allowQuadRoom !== false && <option value="quad">{eventSettings?.quadRoomLabel || 'Quad'}</option>}
                         </>
                       )}
                     </select>
