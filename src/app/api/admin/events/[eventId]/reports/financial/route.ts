@@ -22,15 +22,29 @@ export async function GET(
     // Get payment balances
     const paymentBalances = await prisma.paymentBalance.findMany({
       where: eventFilter,
+    })
+
+    // Get registrations separately (PaymentBalance has no direct relations)
+    const registrationIds = paymentBalances.map(pb => pb.registrationId)
+
+    const groupRegistrations = await prisma.groupRegistration.findMany({
+      where: {
+        id: { in: registrationIds },
+      },
       include: {
-        groupRegistration: {
-          include: {
-            participants: true,
-          },
-        },
-        individualRegistration: true,
+        participants: true,
       },
     })
+
+    const individualRegistrations = await prisma.individualRegistration.findMany({
+      where: {
+        id: { in: registrationIds },
+      },
+    })
+
+    // Create lookup maps
+    const groupRegMap = new Map(groupRegistrations.map(gr => [gr.id, gr]))
+    const individualRegMap = new Map(individualRegistrations.map(ir => [ir.id, ir]))
 
     // Get payments
     const payments = await prisma.payment.findMany({
@@ -40,7 +54,7 @@ export async function GET(
     // Get refunds
     const refunds = await prisma.refund.findMany({
       where: {
-        ...(eventId === 'all' ? {} : { registrationId: { in: paymentBalances.map(pb => pb.registrationId) } }),
+        ...(eventId === 'all' ? {} : { registrationId: { in: registrationIds } }),
       },
     })
 
@@ -91,8 +105,11 @@ export async function GET(
 
     // Count participants from group registrations
     for (const pb of paymentBalances) {
-      if (pb.groupRegistration) {
-        const participants = pb.groupRegistration.participants
+      const groupReg = groupRegMap.get(pb.registrationId)
+      const individualReg = individualRegMap.get(pb.registrationId)
+
+      if (groupReg && pb.registrationType === 'group') {
+        const participants = groupReg.participants
         const totalAmount = Number(pb.totalAmountDue || 0)
         const perPerson = participants.length > 0 ? totalAmount / participants.length : 0
 
@@ -112,14 +129,14 @@ export async function GET(
             participantTypeStats.clergy.count++
           }
         }
-      } else if (pb.individualRegistration) {
+      } else if (individualReg && pb.registrationType === 'individual') {
         // Individual registrations - assume youth based on age
         const totalAmount = Number(pb.totalAmountDue || 0)
-        const age = pb.individualRegistration.age
-        if (age < 18) {
+        const age = individualReg.age
+        if (age && age < 18) {
           participantTypeStats.youthU18.revenue += totalAmount
           participantTypeStats.youthU18.count++
-        } else {
+        } else if (age) {
           participantTypeStats.youthO18.revenue += totalAmount
           participantTypeStats.youthO18.count++
         }
@@ -156,11 +173,14 @@ export async function GET(
       let housingType = 'on_campus'
       let participantCount = 1
 
-      if (pb.groupRegistration) {
-        housingType = pb.groupRegistration.housingType
-        participantCount = pb.groupRegistration.participants.length
-      } else if (pb.individualRegistration) {
-        housingType = pb.individualRegistration.housingType
+      const groupReg = groupRegMap.get(pb.registrationId)
+      const individualReg = individualRegMap.get(pb.registrationId)
+
+      if (groupReg && pb.registrationType === 'group') {
+        housingType = groupReg.housingType
+        participantCount = groupReg.participants.length
+      } else if (individualReg && pb.registrationType === 'individual') {
+        housingType = individualReg.housingType || 'on_campus'
       }
 
       if (housingType === 'on_campus') {
