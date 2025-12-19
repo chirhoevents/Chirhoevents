@@ -29,7 +29,7 @@ export async function PUT(
       include: {
         event: {
           include: {
-            individualPricing: true,
+            pricing: true,
           },
         },
       },
@@ -78,26 +78,34 @@ export async function PUT(
     let priceChanged = false
 
     if ((housingType !== existingRegistration.housingType || roomType !== existingRegistration.roomType) &&
-        existingRegistration.event.individualPricing) {
-      const pricing = existingRegistration.event.individualPricing
+        existingRegistration.event.pricing) {
+      const pricing = existingRegistration.event.pricing
 
       // Calculate price based on housing type
       if (housingType === 'on_campus') {
-        // Find the price for the selected room type
-        if (roomType === 'single' && pricing.onCampusSinglePrice) {
-          newTotalAmount = pricing.onCampusSinglePrice
-        } else if (roomType === 'double' && pricing.onCampusDoublePrice) {
-          newTotalAmount = pricing.onCampusDoublePrice
-        } else if (roomType === 'shared' && pricing.onCampusSharedPrice) {
-          newTotalAmount = pricing.onCampusSharedPrice
-        } else if (pricing.onCampusSinglePrice) {
-          // Default to single if specific room type price not available
-          newTotalAmount = pricing.onCampusSinglePrice
+        // Base price plus room price
+        const basePrice = pricing.individualBasePrice ? Number(pricing.individualBasePrice) : 0
+        let roomPrice = 0
+
+        if (roomType === 'single' && pricing.singleRoomPrice) {
+          roomPrice = Number(pricing.singleRoomPrice)
+        } else if (roomType === 'double' && pricing.doubleRoomPrice) {
+          roomPrice = Number(pricing.doubleRoomPrice)
+        } else if (roomType === 'triple' && pricing.tripleRoomPrice) {
+          roomPrice = Number(pricing.tripleRoomPrice)
+        } else if (roomType === 'quad' && pricing.quadRoomPrice) {
+          roomPrice = Number(pricing.quadRoomPrice)
+        } else if (roomType === 'shared') {
+          // Use triple price for shared if available
+          roomPrice = pricing.tripleRoomPrice ? Number(pricing.tripleRoomPrice) : 0
         }
-      } else if (housingType === 'off_campus' && pricing.offCampusPrice) {
-        newTotalAmount = pricing.offCampusPrice
-      } else if (housingType === 'day_pass' && pricing.dayPassPrice) {
-        newTotalAmount = pricing.dayPassPrice
+
+        newTotalAmount = basePrice + roomPrice
+      } else if (housingType === 'off_campus' && pricing.individualOffCampusPrice) {
+        newTotalAmount = Number(pricing.individualOffCampusPrice)
+      } else if (housingType === 'day_pass' && pricing.individualOffCampusPrice) {
+        // Use off-campus price for day pass if no specific day pass price
+        newTotalAmount = Number(pricing.individualOffCampusPrice)
       }
 
       priceChanged = newTotalAmount !== existingRegistration.totalAmount

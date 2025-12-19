@@ -81,11 +81,12 @@ export default function EditIndividualRegistrationModal({
   }>>([])
   const [loadingAuditTrail, setLoadingAuditTrail] = useState(false)
   const [eventPricing, setEventPricing] = useState<{
-    onCampusSinglePrice?: number | null
-    onCampusDoublePrice?: number | null
-    onCampusSharedPrice?: number | null
-    offCampusPrice?: number | null
-    dayPassPrice?: number | null
+    individualBasePrice?: number | null
+    singleRoomPrice?: number | null
+    doubleRoomPrice?: number | null
+    tripleRoomPrice?: number | null
+    quadRoomPrice?: number | null
+    individualOffCampusPrice?: number | null
   } | null>(null)
 
   const [formData, setFormData] = useState({
@@ -207,7 +208,7 @@ export default function EditIndividualRegistrationModal({
       const response = await fetch(`/api/admin/events/${eventId}/pricing`)
       if (response.ok) {
         const data = await response.json()
-        setEventPricing(data.individualPricing || null)
+        setEventPricing(data.pricing || null)
       }
     } catch (error) {
       console.error('Error fetching event pricing:', error)
@@ -399,16 +400,16 @@ export default function EditIndividualRegistrationModal({
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <option value="on_campus">On Campus (see room type for price)</option>
-                      {eventPricing?.offCampusPrice ? (
+                      {eventPricing?.individualOffCampusPrice ? (
                         <option value="off_campus">
-                          Off Campus - ${eventPricing.offCampusPrice.toFixed(2)}
+                          Off Campus - ${Number(eventPricing.individualOffCampusPrice).toFixed(2)}
                         </option>
                       ) : (
                         <option value="off_campus">Off Campus</option>
                       )}
-                      {eventPricing?.dayPassPrice ? (
+                      {eventPricing?.individualOffCampusPrice ? (
                         <option value="day_pass">
-                          Day Pass - ${eventPricing.dayPassPrice.toFixed(2)}
+                          Day Pass - ${Number(eventPricing.individualOffCampusPrice).toFixed(2)}
                         </option>
                       ) : (
                         <option value="day_pass">Day Pass</option>
@@ -424,26 +425,32 @@ export default function EditIndividualRegistrationModal({
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       disabled={formData.housingType !== 'on_campus'}
                     >
-                      {eventPricing?.onCampusSinglePrice && (
+                      {eventPricing?.singleRoomPrice && (
                         <option value="single">
-                          Single - ${eventPricing.onCampusSinglePrice.toFixed(2)}
+                          Single - ${(Number(eventPricing.individualBasePrice || 0) + Number(eventPricing.singleRoomPrice)).toFixed(2)}
                         </option>
                       )}
-                      {eventPricing?.onCampusDoublePrice && (
+                      {eventPricing?.doubleRoomPrice && (
                         <option value="double">
-                          Double - ${eventPricing.onCampusDoublePrice.toFixed(2)}
+                          Double - ${(Number(eventPricing.individualBasePrice || 0) + Number(eventPricing.doubleRoomPrice)).toFixed(2)}
                         </option>
                       )}
-                      {eventPricing?.onCampusSharedPrice && (
-                        <option value="shared">
-                          Shared - ${eventPricing.onCampusSharedPrice.toFixed(2)}
+                      {eventPricing?.tripleRoomPrice && (
+                        <option value="triple">
+                          Triple - ${(Number(eventPricing.individualBasePrice || 0) + Number(eventPricing.tripleRoomPrice)).toFixed(2)}
+                        </option>
+                      )}
+                      {eventPricing?.quadRoomPrice && (
+                        <option value="quad">
+                          Quad - ${(Number(eventPricing.individualBasePrice || 0) + Number(eventPricing.quadRoomPrice)).toFixed(2)}
                         </option>
                       )}
                       {!eventPricing && (
                         <>
                           <option value="single">Single</option>
                           <option value="double">Double</option>
-                          <option value="shared">Shared</option>
+                          <option value="triple">Triple</option>
+                          <option value="quad">Quad</option>
                         </>
                       )}
                     </select>

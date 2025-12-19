@@ -22,8 +22,7 @@ export async function GET(
     const event = await prisma.event.findUnique({
       where: { id: eventId },
       include: {
-        individualPricing: true,
-        groupPricing: true,
+        pricing: true,
       },
     })
 
@@ -41,8 +40,7 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      individualPricing: event.individualPricing,
-      groupPricing: event.groupPricing,
+      pricing: event.pricing,
     })
   } catch (error) {
     console.error('Error fetching event pricing:', error)
