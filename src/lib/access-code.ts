@@ -25,3 +25,20 @@ export function generateAccessCode(eventName: string, groupName: string): string
 
   return `${eventCode}${year}-${cleanGroupName}-${suffix}`
 }
+
+// Individual Confirmation Code Generation Utility
+// Format: IND-YYYY-XXXXXX (simpler format for searching and payments)
+// Example: IND-2026-A7B9C2
+
+export function generateIndividualConfirmationCode(eventYear?: string): string {
+  // Use provided year or extract from current date
+  const year = eventYear || new Date().getFullYear().toString()
+
+  // Generate random 6-character alphanumeric code
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  const code = Array.from({ length: 6 }, () =>
+    chars.charAt(Math.floor(Math.random() * chars.length))
+  ).join('')
+
+  return `IND-${year}-${code}`
+}

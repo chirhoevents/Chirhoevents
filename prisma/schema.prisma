@@ -313,6 +313,7 @@ model IndividualRegistration {
   emergencyContact2Relation String?  @map("emergency_contact_2_relation") @db.VarChar(100)
   registrationStatus        RegistrationStatus @default(incomplete) @map("registration_status")
   qrCode                    String?  @map("qr_code") @db.Text
+  confirmationCode          String?  @unique @map("confirmation_code") @db.VarChar(50)
   registeredAt              DateTime @default(now()) @map("registered_at") @db.Timestamptz(6)
   createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                 DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -322,6 +323,7 @@ model IndividualRegistration {
   organization Organization @relation(fields: [organizationId], references: [id])
   liabilityForms LiabilityForm[]
 
+  @@index([confirmationCode], name: "idx_individual_confirmation_code")
   @@map("individual_registrations")
 }
 

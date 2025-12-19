@@ -131,6 +131,7 @@ export default async function EventRegistrationsPage({ params }: PageProps) {
       balance: payment?.amountRemaining ? Number(payment.amountRemaining) : 0,
       paymentStatus: payment?.paymentStatus || 'pending',
       formCompleted: false, // TODO: Add liability form status for individuals
+      confirmationCode: reg.confirmationCode,
     }
   })
 
