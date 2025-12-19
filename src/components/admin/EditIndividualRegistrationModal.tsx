@@ -87,6 +87,7 @@ export default function EditIndividualRegistrationModal({
     tripleRoomPrice?: number | null
     quadRoomPrice?: number | null
     individualOffCampusPrice?: number | null
+    individualDayPassPrice?: number | null
   } | null>(null)
 
   const [formData, setFormData] = useState({
@@ -407,7 +408,11 @@ export default function EditIndividualRegistrationModal({
                       ) : (
                         <option value="off_campus">Off Campus</option>
                       )}
-                      {eventPricing?.individualOffCampusPrice ? (
+                      {eventPricing?.individualDayPassPrice ? (
+                        <option value="day_pass">
+                          Day Pass - ${Number(eventPricing.individualDayPassPrice).toFixed(2)}
+                        </option>
+                      ) : eventPricing?.individualOffCampusPrice ? (
                         <option value="day_pass">
                           Day Pass - ${Number(eventPricing.individualOffCampusPrice).toFixed(2)}
                         </option>

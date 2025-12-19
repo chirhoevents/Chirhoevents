@@ -120,9 +120,13 @@ export async function PUT(
         newTotalAmount = basePrice + roomPrice
       } else if (housingType === 'off_campus' && pricing.individualOffCampusPrice) {
         newTotalAmount = Number(pricing.individualOffCampusPrice)
-      } else if (housingType === 'day_pass' && pricing.individualOffCampusPrice) {
-        // Use off-campus price for day pass if no specific day pass price
-        newTotalAmount = Number(pricing.individualOffCampusPrice)
+      } else if (housingType === 'day_pass') {
+        // Use day pass price if available, otherwise fall back to off-campus price
+        if (pricing.individualDayPassPrice) {
+          newTotalAmount = Number(pricing.individualDayPassPrice)
+        } else if (pricing.individualOffCampusPrice) {
+          newTotalAmount = Number(pricing.individualOffCampusPrice)
+        }
       }
 
       priceChanged = newTotalAmount !== existingRegistration.totalAmount
