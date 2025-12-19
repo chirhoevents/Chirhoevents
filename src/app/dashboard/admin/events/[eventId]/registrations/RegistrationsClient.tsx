@@ -61,6 +61,7 @@ interface IndividualRegistration {
   balance: number
   paymentStatus: string
   formCompleted: boolean
+  confirmationCode: string | null
 }
 
 interface RegistrationsClientProps {
@@ -145,7 +146,8 @@ export default function RegistrationsClient({
         (reg) =>
           reg.firstName.toLowerCase().includes(query) ||
           reg.lastName.toLowerCase().includes(query) ||
-          reg.email.toLowerCase().includes(query)
+          reg.email.toLowerCase().includes(query) ||
+          (reg.confirmationCode && reg.confirmationCode.toLowerCase().includes(query))
       )
     }
 
@@ -215,7 +217,7 @@ export default function RegistrationsClient({
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Search by name, parish, or email..."
+                placeholder="Search by name, parish, email, or confirmation code..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -595,6 +597,9 @@ export default function RegistrationsClient({
                       Name
                     </th>
                     <th className="text-left p-3 text-sm font-semibold text-gray-600">
+                      Confirmation Code
+                    </th>
+                    <th className="text-left p-3 text-sm font-semibold text-gray-600">
                       Contact
                     </th>
                     <th className="text-center p-3 text-sm font-semibold text-gray-600">
@@ -627,6 +632,11 @@ export default function RegistrationsClient({
                         <p className="font-medium text-[#1E3A5F]">
                           {reg.firstName} {reg.lastName}
                         </p>
+                      </td>
+                      <td className="p-3">
+                        <span className="font-mono text-sm bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                          {reg.confirmationCode || 'N/A'}
+                        </span>
                       </td>
                       <td className="p-3">
                         <div>

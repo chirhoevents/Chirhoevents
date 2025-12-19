@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
+import { generateIndividualConfirmationCode } from '@/lib/access-code'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -37,6 +38,21 @@ export async function POST(request: NextRequest) {
     }
 
     if (registrationType === 'individual') {
+      // Generate unique confirmation code
+      const eventYear = event.name.match(/\d{4}/)?.[0] || new Date().getFullYear().toString()
+      let confirmationCode = generateIndividualConfirmationCode(eventYear)
+
+      // Ensure uniqueness (try up to 5 times)
+      let attempts = 0
+      while (attempts < 5) {
+        const existingCode = await prisma.individualRegistration.findUnique({
+          where: { confirmationCode },
+        })
+        if (!existingCode) break
+        confirmationCode = generateIndividualConfirmationCode(eventYear)
+        attempts++
+      }
+
       // Create individual registration
       const registration = await prisma.individualRegistration.create({
         data: {
@@ -66,6 +82,7 @@ export async function POST(request: NextRequest) {
           emergencyContact2Phone: fields.emergencyContact2Phone || null,
           emergencyContact2Relation: fields.emergencyContact2Relation || null,
           registrationStatus: 'complete',
+          confirmationCode,
         },
       })
 
@@ -118,6 +135,16 @@ export async function POST(request: NextRequest) {
 
               <p>A manual registration has been created for you for <strong>${event.name}</strong>.</p>
 
+              <div style="background-color: #E8F4F8; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px solid #1E3A5F;">
+                <h2 style="color: #1E3A5F; margin-top: 0;">Your Confirmation Code</h2>
+                <div style="background-color: white; padding: 15px; border-radius: 5px; display: inline-block; margin: 10px 0;">
+                  <span style="font-size: 28px; font-weight: bold; color: #1E3A5F; letter-spacing: 2px; font-family: 'Courier New', monospace;">${confirmationCode}</span>
+                </div>
+                <p style="font-size: 14px; color: #666; margin-top: 10px;">
+                  Keep this code safe! You'll need it for payments and to look up your registration.
+                </p>
+              </div>
+
               <h3 style="color: #1E3A5F;">Registration Summary</h3>
               <div style="background-color: #F5F5F5; padding: 15px; border-radius: 8px;">
                 <p style="margin: 5px 0;"><strong>Name:</strong> ${fields.firstName} ${fields.lastName}</p>
@@ -167,6 +194,7 @@ export async function POST(request: NextRequest) {
               lastName: fields.lastName,
               housingType: fields.housingType,
               totalAmount: price,
+              confirmationCode,
             },
           })
         } catch (emailError) {

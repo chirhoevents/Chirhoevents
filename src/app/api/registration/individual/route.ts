@@ -4,6 +4,7 @@ import Stripe from 'stripe'
 import { Resend } from 'resend'
 import QRCode from 'qrcode'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
+import { generateIndividualConfirmationCode } from '@/lib/access-code'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -93,6 +94,21 @@ export async function POST(request: NextRequest) {
     const registrationStatus =
       paymentMethod === 'check' ? 'pending_payment' : 'incomplete'
 
+    // Generate unique confirmation code
+    const eventYear = event.name.match(/\d{4}/)?.[0] || new Date().getFullYear().toString()
+    let confirmationCode = generateIndividualConfirmationCode(eventYear)
+
+    // Ensure uniqueness (try up to 5 times)
+    let attempts = 0
+    while (attempts < 5) {
+      const existingCode = await prisma.individualRegistration.findUnique({
+        where: { confirmationCode },
+      })
+      if (!existingCode) break
+      confirmationCode = generateIndividualConfirmationCode(eventYear)
+      attempts++
+    }
+
     // Create individual registration
     const registration = await prisma.individualRegistration.create({
       data: {
@@ -122,6 +138,7 @@ export async function POST(request: NextRequest) {
         emergencyContact2Phone: body.emergencyContact2Phone || null,
         emergencyContact2Relation: body.emergencyContact2Relation || null,
         registrationStatus,
+        confirmationCode,
       },
     })
 
@@ -208,6 +225,16 @@ export async function POST(request: NextRequest) {
 
               <p>Thank you for registering for ${event.name}, ${firstName}!</p>
 
+              <div style="background-color: #E8F4F8; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px solid #1E3A5F;">
+                <h2 style="color: #1E3A5F; margin-top: 0;">Your Confirmation Code</h2>
+                <div style="background-color: white; padding: 15px; border-radius: 5px; display: inline-block; margin: 10px 0;">
+                  <span style="font-size: 28px; font-weight: bold; color: #1E3A5F; letter-spacing: 2px; font-family: 'Courier New', monospace;">${confirmationCode}</span>
+                </div>
+                <p style="font-size: 14px; color: #666; margin-top: 10px;">
+                  Keep this code safe! You'll need it for payments and to look up your registration.
+                </p>
+              </div>
+
               <div style="background-color: #F5F1E8; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
                 <h2 style="color: #9C8466; margin-top: 0;">Your QR Code</h2>
                 <img src="${qrCodeDataUrl}" alt="Registration QR Code" style="max-width: 200px; height: auto;" />
@@ -227,7 +254,7 @@ export async function POST(request: NextRequest) {
                 <h3 style="color: #1E3A5F; margin-top: 0;">Check Payment Instructions</h3>
                 <p style="margin: 5px 0;"><strong>Make check payable to:</strong> ${eventSettings?.checkPaymentPayableTo || event.organization.name}</p>
                 <p style="margin: 5px 0;"><strong>Amount:</strong> $${totalAmount.toFixed(2)}</p>
-                <p style="margin: 5px 0;"><strong>Write on check memo:</strong> ${firstName} ${lastName}</p>
+                <p style="margin: 5px 0;"><strong>Write on check memo:</strong> ${confirmationCode} - ${firstName} ${lastName}</p>
                 ${eventSettings?.checkPaymentAddress ? `
                   <p style="margin: 10px 0 5px 0;"><strong>Mail to:</strong></p>
                   <p style="margin: 0; white-space: pre-line;">${eventSettings.checkPaymentAddress}</p>
@@ -290,6 +317,7 @@ export async function POST(request: NextRequest) {
           metadata: {
             totalAmount,
             housingType,
+            confirmationCode,
           },
         })
       } catch (emailError) {
@@ -314,6 +342,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         registrationId: registration.id,
+        confirmationCode,
         qrCode: qrCodeDataUrl,
         checkoutUrl: null,
         totalAmount,
@@ -366,6 +395,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         registrationId: registration.id,
+        confirmationCode,
         qrCode: qrCodeDataUrl,
         checkoutUrl: checkoutSession.url,
         totalAmount,

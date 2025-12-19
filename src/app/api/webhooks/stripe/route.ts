@@ -201,6 +201,16 @@ export async function POST(request: NextRequest) {
 
                 <p>Thank you for registering for <strong>${registration.event.name}</strong>! Your payment has been received and your registration is complete.</p>
 
+                <div style="background-color: #E8F4F8; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px solid #1E3A5F;">
+                  <h2 style="color: #1E3A5F; margin-top: 0;">Your Confirmation Code</h2>
+                  <div style="background-color: white; padding: 15px; border-radius: 5px; display: inline-block; margin: 10px 0;">
+                    <span style="font-size: 28px; font-weight: bold; color: #1E3A5F; letter-spacing: 2px; font-family: 'Courier New', monospace;">${registration.confirmationCode || 'N/A'}</span>
+                  </div>
+                  <p style="font-size: 14px; color: #666; margin-top: 10px;">
+                    Keep this code safe! You'll need it for payments and to look up your registration.
+                  </p>
+                </div>
+
                 <div style="background-color: #D4EDDA; padding: 20px; border-left: 4px solid #28A745; margin: 20px 0;">
                   <h3 style="color: #155724; margin-top: 0;">✓ Payment Confirmed</h3>
                   <p style="margin: 5px 0; color: #155724;"><strong>Status:</strong> Paid in Full</p>
