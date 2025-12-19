@@ -72,9 +72,9 @@ export async function GET(
       }
     }
 
-    // Special accommodations
-    const adaCount = [...groupRegs.flatMap(g => g.participants), ...individualRegs].filter(
-      p => p.adaAccommodations && p.adaAccommodations !== ''
+    // Special accommodations (only from individual registrations - participants don't have this field)
+    const adaCount = individualRegs.filter(
+      ind => ind.adaAccommodations && ind.adaAccommodations !== ''
     ).length
 
     return NextResponse.json({
