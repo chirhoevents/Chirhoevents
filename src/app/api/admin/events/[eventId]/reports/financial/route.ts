@@ -206,10 +206,12 @@ export async function GET(
     // Payment timeline (group by month)
     const paymentsByMonth: Record<string, number> = {}
     for (const payment of payments) {
-      const month = new Date(payment.processedAt).toLocaleDateString('en-US', {
-        month: 'short',
-      })
-      paymentsByMonth[month] = (paymentsByMonth[month] || 0) + Number(payment.amount)
+      if (payment.processedAt) {
+        const month = new Date(payment.processedAt).toLocaleDateString('en-US', {
+          month: 'short',
+        })
+        paymentsByMonth[month] = (paymentsByMonth[month] || 0) + Number(payment.amount)
+      }
     }
 
     const paymentTimeline = Object.entries(paymentsByMonth).map(([month, amount]) => ({
