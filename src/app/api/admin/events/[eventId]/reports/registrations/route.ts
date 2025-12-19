@@ -67,10 +67,12 @@ export async function GET(
     // Count from individual registrations
     for (const ind of individualRegistrations) {
       const age = ind.age
-      const type = age < 18 ? 'youth_u18' : 'youth_o18'
-      demographics[type].total++
-      if (ind.gender === 'male') demographics[type].male++
-      if (ind.gender === 'female') demographics[type].female++
+      if (age !== null) {
+        const type = age < 18 ? 'youth_u18' : 'youth_o18'
+        demographics[type].total++
+        if (ind.gender === 'male') demographics[type].male++
+        if (ind.gender === 'female') demographics[type].female++
+      }
     }
 
     // Housing breakdown
@@ -84,7 +86,9 @@ export async function GET(
       housingBreakdown[group.housingType] += group.participants.length
     }
     for (const ind of individualRegistrations) {
-      housingBreakdown[ind.housingType]++
+      if (ind.housingType && housingBreakdown[ind.housingType] !== undefined) {
+        housingBreakdown[ind.housingType]++
+      }
     }
 
     // Top groups
