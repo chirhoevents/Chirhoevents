@@ -21,7 +21,7 @@ export async function GET(
       },
       include: {
         groupRegistration: { select: { groupName: true, parishName: true } },
-        liabilityForm: true,
+        liabilityForms: true,
       },
     })
 
@@ -82,7 +82,7 @@ export async function GET(
     // Certificate stats
     const certsRequired = participants.filter(p => p.participantType === 'chaperone').length
     const certsUploaded = certificates.length
-    const certsVerified = certificates.filter(c => c.verified).length
+    const certsVerified = certificates.filter(c => c.verifiedAt !== null).length
     const certsMissing = certsRequired - certsUploaded
 
     return NextResponse.json({
