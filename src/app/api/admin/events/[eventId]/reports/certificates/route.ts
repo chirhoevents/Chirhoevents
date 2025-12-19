@@ -65,7 +65,7 @@ export async function GET(
 
     // Pending verification
     const pending = certificates
-      .filter(c => c.verifiedAt === null && c.rejectedAt === null)
+      .filter(c => c.status === 'pending')
       .map(c => ({
         name: `${c.participant?.firstName} ${c.participant?.lastName}`,
         uploadedDate: c.uploadedAt ? format(new Date(c.uploadedAt), 'M/d') : 'Unknown',
