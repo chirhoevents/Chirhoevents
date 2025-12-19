@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
+import { logEmail, logEmailFailure } from '@/lib/email-logger'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -25,8 +26,27 @@ export async function PUT(
     // Verify the registration belongs to the user's organization
     const existingRegistration = await prisma.individualRegistration.findUnique({
       where: { id: registrationId },
-      include: {
-        event: true,
+      select: {
+        id: true,
+        organizationId: true,
+        eventId: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        age: true,
+        housingType: true,
+        roomType: true,
+        emergencyContact1Name: true,
+        emergencyContact1Phone: true,
+        event: {
+          select: {
+            id: true,
+            name: true,
+            organizationId: true,
+            pricing: true,
+          },
+        },
       },
     })
 
@@ -40,6 +60,11 @@ export async function PUT(
     if (existingRegistration.organizationId !== user.organizationId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+
+    // Fetch payment balance separately
+    const paymentBalance = await prisma.paymentBalance.findUnique({
+      where: { registrationId: registrationId },
+    })
 
     const {
       firstName,
@@ -67,6 +92,55 @@ export async function PUT(
       emergencyContact2Relation,
       adminNotes,
     } = body
+
+    // Calculate new price if housing type or room type changed
+    const currentTotalAmount = paymentBalance ? Number(paymentBalance.totalAmountDue) : 0
+    const currentAmountPaid = paymentBalance ? Number(paymentBalance.amountPaid) : 0
+    let newTotalAmount = currentTotalAmount
+    let priceChanged = false
+
+    if ((housingType !== existingRegistration.housingType || roomType !== existingRegistration.roomType) &&
+        existingRegistration.event.pricing) {
+      const pricing = existingRegistration.event.pricing
+
+      // Calculate price based on housing type
+      if (housingType === 'on_campus') {
+        // Base price plus room price
+        const basePrice = pricing.individualBasePrice ? Number(pricing.individualBasePrice) : 0
+        let roomPrice = 0
+
+        if (roomType === 'single' && pricing.singleRoomPrice) {
+          roomPrice = Number(pricing.singleRoomPrice)
+        } else if (roomType === 'double' && pricing.doubleRoomPrice) {
+          roomPrice = Number(pricing.doubleRoomPrice)
+        } else if (roomType === 'triple' && pricing.tripleRoomPrice) {
+          roomPrice = Number(pricing.tripleRoomPrice)
+        } else if (roomType === 'quad' && pricing.quadRoomPrice) {
+          roomPrice = Number(pricing.quadRoomPrice)
+        } else if (roomType === 'shared') {
+          // Use triple price for shared if available
+          roomPrice = pricing.tripleRoomPrice ? Number(pricing.tripleRoomPrice) : 0
+        }
+
+        newTotalAmount = basePrice + roomPrice
+      } else if (housingType === 'off_campus' && pricing.individualOffCampusPrice) {
+        newTotalAmount = Number(pricing.individualOffCampusPrice)
+      } else if (housingType === 'day_pass') {
+        // Use day pass price if available, otherwise fall back to off-campus price
+        if (pricing.individualDayPassPrice) {
+          newTotalAmount = Number(pricing.individualDayPassPrice)
+        } else if (pricing.individualOffCampusPrice) {
+          newTotalAmount = Number(pricing.individualOffCampusPrice)
+        }
+      }
+
+      priceChanged = newTotalAmount !== currentTotalAmount
+    }
+
+    // Calculate new balance if price changed
+    const newAmountRemaining = priceChanged
+      ? newTotalAmount - currentAmountPaid
+      : (paymentBalance ? Number(paymentBalance.amountRemaining) : 0)
 
     // Update the individual registration
     const updatedRegistration = await prisma.individualRegistration.update({
@@ -99,6 +173,18 @@ export async function PUT(
       },
     })
 
+    // Update payment balance if price changed
+    if (priceChanged && paymentBalance) {
+      await prisma.paymentBalance.update({
+        where: { id: paymentBalance.id },
+        data: {
+          totalAmountDue: newTotalAmount,
+          amountRemaining: newAmountRemaining,
+          updatedAt: new Date(),
+        },
+      })
+    }
+
     // Track changes made
     const changesMade: Record<string, {old: unknown, new: unknown}> = {}
     if (existingRegistration.firstName !== firstName) {
@@ -121,14 +207,17 @@ export async function PUT(
     }
 
     // Create audit trail entry if changes were made
-    if (Object.keys(changesMade).length > 0) {
+    if (Object.keys(changesMade).length > 0 || priceChanged) {
       await prisma.registrationEdit.create({
         data: {
           registrationId,
           registrationType: 'individual',
           editedByUserId: user.id,
-          editType: 'info_updated',
+          editType: priceChanged ? 'payment_updated' : 'info_updated',
           changesMade: changesMade as any,
+          oldTotal: priceChanged ? currentTotalAmount : null,
+          newTotal: priceChanged ? newTotalAmount : null,
+          difference: priceChanged ? (newTotalAmount - currentTotalAmount) : null,
           adminNotes: adminNotes || null,
         },
       })
@@ -136,10 +225,10 @@ export async function PUT(
 
     // Send email notification
     if (email && existingRegistration.event) {
-      try {
-        // Build list of changes for email
-        const emailChanges: string[] = []
+      // Build list of changes for email
+      const emailChanges: string[] = []
 
+      try {
         if (existingRegistration.firstName !== firstName || existingRegistration.lastName !== lastName) {
           emailChanges.push(`Name: ${existingRegistration.firstName} ${existingRegistration.lastName} → ${firstName} ${lastName}`)
         }
@@ -148,6 +237,10 @@ export async function PUT(
         }
         if (existingRegistration.housingType !== housingType) {
           emailChanges.push(`Housing Type: ${existingRegistration.housingType || 'None'} → ${housingType || 'None'}`)
+        }
+        if (priceChanged) {
+          emailChanges.push(`Total Amount: $${currentTotalAmount.toFixed(2)} → $${newTotalAmount.toFixed(2)}`)
+          emailChanges.push(`New Balance: $${newAmountRemaining.toFixed(2)}`)
         }
 
         if (emailChanges.length > 0) {
@@ -211,9 +304,42 @@ export async function PUT(
             subject: emailSubject,
             html: emailBody,
           })
+
+          // Log the email
+          await logEmail({
+            organizationId: user.organizationId,
+            eventId: existingRegistration.event.id,
+            registrationId,
+            registrationType: 'individual',
+            recipientEmail: email,
+            recipientName: `${firstName} ${lastName}`,
+            emailType: 'registration_updated',
+            subject: emailSubject,
+            htmlContent: emailBody,
+            metadata: {
+              changesMade: emailChanges,
+              editedByUserId: user.id,
+            },
+          })
         }
       } catch (emailError) {
         console.error('Failed to send email:', emailError)
+
+        // Log email failure
+        if (emailChanges.length > 0) {
+          await logEmailFailure({
+            organizationId: user.organizationId,
+            eventId: existingRegistration.event.id,
+            registrationId,
+            registrationType: 'individual',
+            recipientEmail: email,
+            recipientName: `${firstName} ${lastName}`,
+            emailType: 'registration_updated',
+            subject: existingRegistration.event ? `Registration Updated - ${existingRegistration.event.name}` : 'Registration Updated',
+            htmlContent: '',
+          }, emailError instanceof Error ? emailError.message : 'Unknown error')
+        }
+
         // Don't fail the entire request if email fails
       }
     }

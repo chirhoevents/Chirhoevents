@@ -208,6 +208,7 @@ model EventPricing {
   tripleRoomPrice           Decimal? @map("triple_room_price") @db.Decimal(10, 2)
   quadRoomPrice             Decimal? @map("quad_room_price") @db.Decimal(10, 2)
   individualOffCampusPrice  Decimal? @map("individual_off_campus_price") @db.Decimal(10, 2)
+  individualDayPassPrice    Decimal? @map("individual_day_pass_price") @db.Decimal(10, 2)
   individualMealPackagePrice Decimal? @map("individual_meal_package_price") @db.Decimal(10, 2)
   depositAmount             Decimal? @map("deposit_amount") @db.Decimal(10, 2)
   depositPercentage         Decimal? @map("deposit_percentage") @db.Decimal(5, 2)
