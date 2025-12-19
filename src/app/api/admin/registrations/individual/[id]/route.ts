@@ -29,6 +29,7 @@ export async function PUT(
       select: {
         id: true,
         organizationId: true,
+        eventId: true,
         firstName: true,
         lastName: true,
         email: true,
@@ -36,9 +37,6 @@ export async function PUT(
         age: true,
         housingType: true,
         roomType: true,
-        totalAmount: true,
-        amountPaid: true,
-        balance: true,
         emergencyContact1Name: true,
         emergencyContact1Phone: true,
         event: {
@@ -62,6 +60,11 @@ export async function PUT(
     if (existingRegistration.organizationId !== user.organizationId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+
+    // Fetch payment balance separately
+    const paymentBalance = await prisma.paymentBalance.findUnique({
+      where: { registrationId: registrationId },
+    })
 
     const {
       firstName,
@@ -91,7 +94,9 @@ export async function PUT(
     } = body
 
     // Calculate new price if housing type or room type changed
-    let newTotalAmount = existingRegistration.totalAmount
+    const currentTotalAmount = paymentBalance ? Number(paymentBalance.totalAmountDue) : 0
+    const currentAmountPaid = paymentBalance ? Number(paymentBalance.amountPaid) : 0
+    let newTotalAmount = currentTotalAmount
     let priceChanged = false
 
     if ((housingType !== existingRegistration.housingType || roomType !== existingRegistration.roomType) &&
@@ -129,13 +134,13 @@ export async function PUT(
         }
       }
 
-      priceChanged = newTotalAmount !== existingRegistration.totalAmount
+      priceChanged = newTotalAmount !== currentTotalAmount
     }
 
     // Calculate new balance if price changed
-    const newBalance = priceChanged
-      ? newTotalAmount - existingRegistration.amountPaid
-      : existingRegistration.balance
+    const newAmountRemaining = priceChanged
+      ? newTotalAmount - currentAmountPaid
+      : (paymentBalance ? Number(paymentBalance.amountRemaining) : 0)
 
     // Update the individual registration
     const updatedRegistration = await prisma.individualRegistration.update({
@@ -164,11 +169,21 @@ export async function PUT(
         emergencyContact2Name: emergencyContact2Name || null,
         emergencyContact2Phone: emergencyContact2Phone || null,
         emergencyContact2Relation: emergencyContact2Relation || null,
-        totalAmount: newTotalAmount,
-        balance: newBalance,
         updatedAt: new Date(),
       },
     })
+
+    // Update payment balance if price changed
+    if (priceChanged && paymentBalance) {
+      await prisma.paymentBalance.update({
+        where: { id: paymentBalance.id },
+        data: {
+          totalAmountDue: newTotalAmount,
+          amountRemaining: newAmountRemaining,
+          updatedAt: new Date(),
+        },
+      })
+    }
 
     // Track changes made
     const changesMade: Record<string, {old: unknown, new: unknown}> = {}
@@ -198,11 +213,11 @@ export async function PUT(
           registrationId,
           registrationType: 'individual',
           editedByUserId: user.id,
-          editType: priceChanged ? 'price_updated' : 'info_updated',
+          editType: priceChanged ? 'payment_updated' : 'info_updated',
           changesMade: changesMade as any,
-          oldTotal: priceChanged ? existingRegistration.totalAmount : null,
+          oldTotal: priceChanged ? currentTotalAmount : null,
           newTotal: priceChanged ? newTotalAmount : null,
-          difference: priceChanged ? (newTotalAmount - existingRegistration.totalAmount) : null,
+          difference: priceChanged ? (newTotalAmount - currentTotalAmount) : null,
           adminNotes: adminNotes || null,
         },
       })
@@ -224,8 +239,8 @@ export async function PUT(
           emailChanges.push(`Housing Type: ${existingRegistration.housingType || 'None'} → ${housingType || 'None'}`)
         }
         if (priceChanged) {
-          emailChanges.push(`Total Amount: $${existingRegistration.totalAmount.toFixed(2)} → $${newTotalAmount.toFixed(2)}`)
-          emailChanges.push(`New Balance: $${newBalance.toFixed(2)}`)
+          emailChanges.push(`Total Amount: $${currentTotalAmount.toFixed(2)} → $${newTotalAmount.toFixed(2)}`)
+          emailChanges.push(`New Balance: $${newAmountRemaining.toFixed(2)}`)
         }
 
         if (emailChanges.length > 0) {
