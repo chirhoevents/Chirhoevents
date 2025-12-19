@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 import { generateRegistrationCSV } from '@/lib/reports/generate-csv'
 import { renderToBuffer } from '@react-pdf/renderer'
 import { RegistrationReportPDF } from '@/lib/reports/pdf-generator'
+import React from 'react'
 
 export async function POST(
   request: NextRequest,
@@ -51,7 +52,7 @@ export async function POST(
     } else if (format === 'pdf') {
       // Generate actual PDF using @react-pdf/renderer
       const pdfBuffer = await renderToBuffer(
-        <RegistrationReportPDF reportData={reportData} eventName={eventName} />
+        React.createElement(RegistrationReportPDF, { reportData, eventName })
       )
       return new NextResponse(pdfBuffer, {
         headers: {
