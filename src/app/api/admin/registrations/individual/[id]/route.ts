@@ -26,9 +26,26 @@ export async function PUT(
     // Verify the registration belongs to the user's organization
     const existingRegistration = await prisma.individualRegistration.findUnique({
       where: { id: registrationId },
-      include: {
+      select: {
+        id: true,
+        organizationId: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        age: true,
+        housingType: true,
+        roomType: true,
+        totalAmount: true,
+        amountPaid: true,
+        balance: true,
+        emergencyContact1Name: true,
+        emergencyContact1Phone: true,
         event: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            organizationId: true,
             pricing: true,
           },
         },
