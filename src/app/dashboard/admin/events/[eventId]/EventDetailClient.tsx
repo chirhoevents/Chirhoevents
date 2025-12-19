@@ -529,7 +529,7 @@ export default function EventDetailClient({
             <CardContent className="p-8 text-center">
               <BarChart3 className="h-16 w-16 text-[#9C8466] mx-auto mb-4" />
               <h3 className="font-semibold text-[#1E3A5F] mb-2">
-                Reports & Analytics
+                Event Reports & Analytics
               </h3>
               <p className="text-[#6B7280] mb-4">
                 View detailed reports and export data
