@@ -18,11 +18,7 @@ export async function POST(
     const groupRegs = await prisma.groupRegistration.findMany({
       where: eventFilter,
       include: {
-        participants: {
-          include: {
-            liabilityForm: true,
-          },
-        },
+        participants: true,
       },
     })
 
