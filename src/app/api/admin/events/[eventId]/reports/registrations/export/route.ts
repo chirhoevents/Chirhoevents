@@ -1,0 +1,53 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { auth } from '@clerk/nextjs/server'
+import { generateRegistrationCSV } from '@/lib/reports/generate-csv'
+import { generateRegistrationPDF } from '@/lib/reports/generate-pdf'
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { eventId: string } }
+) {
+  try {
+    const { userId } = await auth()
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { format } = await request.json()
+    const { eventId } = params
+
+    const reportResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/admin/events/${eventId}/reports/registrations`,
+      {
+        headers: {
+          Cookie: request.headers.get('cookie') || '',
+        },
+      }
+    )
+
+    if (!reportResponse.ok) throw new Error('Failed')
+
+    const reportData = await reportResponse.json()
+
+    if (format === 'csv') {
+      const csv = generateRegistrationCSV(reportData)
+      return new NextResponse(csv, {
+        headers: {
+          'Content-Type': 'text/csv',
+          'Content-Disposition': 'attachment; filename="registration_report.csv"',
+        },
+      })
+    } else if (format === 'pdf') {
+      const pdf = generateRegistrationPDF(reportData, 'Event')
+      return new NextResponse(pdf, {
+        headers: {
+          'Content-Type': 'text/plain',
+          'Content-Disposition': 'attachment; filename="registration_report.txt"',
+        },
+      })
+    }
+
+    return NextResponse.json({ error: 'Invalid format' }, { status: 400 })
+  } catch (error) {
+    console.error('Error:', error)
+    return NextResponse.json({ error: 'Export failed' }, { status: 500 })
+  }
+}
