@@ -72,9 +72,9 @@ export async function GET(
       0
     )
 
-    // Calculate overdue (simplified - payments where paymentStatus is 'overdue')
+    // Calculate overdue (unpaid balances - no explicit overdue status in schema)
     const overdueBalance = paymentBalances
-      .filter(pb => pb.paymentStatus === 'overdue')
+      .filter(pb => pb.paymentStatus === 'unpaid')
       .reduce((sum, pb) => sum + Number(pb.amountRemaining || 0), 0)
 
     // If preview, return summary stats only
