@@ -51,9 +51,8 @@ export async function POST(
       })
     } else if (format === 'pdf') {
       // Generate actual PDF using @react-pdf/renderer
-      const pdfBuffer = await renderToBuffer(
-        React.createElement(RegistrationReportPDF, { reportData, eventName })
-      )
+      const pdfElement = RegistrationReportPDF({ reportData, eventName })
+      const pdfBuffer = await renderToBuffer(pdfElement)
       return new NextResponse(pdfBuffer, {
         headers: {
           'Content-Type': 'application/pdf',
