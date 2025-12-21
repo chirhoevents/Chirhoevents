@@ -24,6 +24,7 @@ export default async function EventReportsPage({ params }: PageProps) {
       name: true,
       startDate: true,
       endDate: true,
+      organizationId: true,
     },
   })
 
@@ -45,6 +46,7 @@ export default async function EventReportsPage({ params }: PageProps) {
       <ReportsClient
         eventId={eventId}
         eventName={event.name}
+        organizationId={event.organizationId}
         startDate={event.startDate.toISOString()}
         endDate={event.endDate.toISOString()}
       />
