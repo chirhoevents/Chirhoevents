@@ -110,10 +110,14 @@ export function CustomReportBuilder({
       const response = await fetch(`/api/admin/report-templates?organizationId=${organizationId}`)
       if (response.ok) {
         const data = await response.json()
-        setTemplates(data)
+        setTemplates(Array.isArray(data) ? data : [])
+      } else {
+        console.error('Failed to load templates')
+        setTemplates([])
       }
     } catch (error) {
       console.error('Error loading templates:', error)
+      setTemplates([])
     }
   }
 
@@ -162,10 +166,15 @@ export function CustomReportBuilder({
       })
 
       if (response.ok) {
+        const savedTemplate = await response.json()
         alert('Template saved successfully!')
-        loadTemplates()
+        await loadTemplates()
+        if (savedTemplate && savedTemplate.id) {
+          setSelectedTemplate(savedTemplate.id)
+        }
       } else {
-        alert('Failed to save template')
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        alert(`Failed to save template: ${errorData.error || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Error saving template:', error)
@@ -327,15 +336,33 @@ export function CustomReportBuilder({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Custom Report Builder - {eventName}</DialogTitle>
-        </DialogHeader>
+    <>
+      <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #report-results,
+          #report-results * {
+            visibility: visible;
+          }
+          #report-results {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+        }
+      `}</style>
+      <Dialog open={open} onOpenChange={onClose}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto print:max-w-full print:max-h-full">
+          <DialogHeader className="print:hidden">
+            <DialogTitle>Custom Report Builder - {eventName}</DialogTitle>
+          </DialogHeader>
 
-        <div className="space-y-6">
+          <div className="space-y-6 print:space-y-0">
           {/* Load Template Section */}
-          <div className="space-y-2">
+          <div className="space-y-2 print:hidden">
             <Label>Load Saved Template</Label>
             <div className="flex gap-2">
               <Select value={selectedTemplate} onValueChange={handleLoadTemplate}>
@@ -365,7 +392,7 @@ export function CustomReportBuilder({
           </div>
 
           {/* Report Type Selection */}
-          <div className="space-y-2">
+          <div className="space-y-2 print:hidden">
             <Label>Report Type</Label>
             <Select value={reportType} onValueChange={setReportType}>
               <SelectTrigger>
@@ -381,7 +408,7 @@ export function CustomReportBuilder({
           </div>
 
           {/* Field Selection */}
-          <div className="space-y-2">
+          <div className="space-y-2 print:hidden">
             <Label>Select Fields to Include</Label>
             <div className="grid grid-cols-2 gap-2 border rounded-md p-4 max-h-64 overflow-y-auto">
               {fieldOptions[reportType]?.map(field => (
@@ -399,7 +426,7 @@ export function CustomReportBuilder({
           </div>
 
           {/* Save Template Section */}
-          <div className="space-y-4 border-t pt-4">
+          <div className="space-y-4 border-t pt-4 print:hidden">
             <div className="space-y-2">
               <Label>Template Name</Label>
               <input
@@ -431,7 +458,7 @@ export function CustomReportBuilder({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-2 border-t pt-4">
+          <div className="flex gap-2 border-t pt-4 print:hidden">
             <Button
               onClick={handleSaveTemplate}
               disabled={loading || !templateName}
@@ -461,11 +488,14 @@ export function CustomReportBuilder({
 
           {/* Report Results */}
           {reportData && (
-            <div className="space-y-4 border-t pt-4" id="report-results">
-              <div className="flex items-center justify-between print:mb-4">
+            <div className="space-y-4 border-t pt-4 print:border-0 print:pt-0" id="report-results">
+              <div className="flex items-center justify-between print:mb-6 print:block">
                 <div>
-                  <h3 className="font-semibold text-lg">{templateName || reportType} Report</h3>
-                  <p className="text-sm text-gray-600">
+                  <h3 className="font-semibold text-lg print:text-2xl">{templateName || reportType} Report</h3>
+                  <p className="text-sm text-gray-600 print:text-base">
+                    {eventName}
+                  </p>
+                  <p className="text-sm text-gray-600 print:text-sm">
                     Generated on {new Date(reportData.generatedAt).toLocaleString()}
                   </p>
                 </div>
@@ -683,5 +713,6 @@ export function CustomReportBuilder({
         </div>
       </DialogContent>
     </Dialog>
+    </>
   )
 }
