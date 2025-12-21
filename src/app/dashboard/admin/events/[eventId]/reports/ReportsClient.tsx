@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Download } from 'lucide-react'
+import { Download, Settings } from 'lucide-react'
 import ReportCard from '@/components/admin/reports/ReportCard'
 import FinancialReportModal from '@/components/admin/reports/FinancialReportModal'
 import RegistrationReportModal from '@/components/admin/reports/RegistrationReportModal'
@@ -10,10 +10,12 @@ import FormsReportModal from '@/components/admin/reports/FormsReportModal'
 import HousingReportModal from '@/components/admin/reports/HousingReportModal'
 import MedicalReportModal from '@/components/admin/reports/MedicalReportModal'
 import CertificatesReportModal from '@/components/admin/reports/CertificatesReportModal'
+import { CustomReportBuilder } from '@/components/admin/reports/CustomReportBuilder'
 
 interface ReportsClientProps {
   eventId: string
   eventName: string
+  organizationId: string
   startDate: string
   endDate: string
 }
@@ -21,11 +23,13 @@ interface ReportsClientProps {
 export default function ReportsClient({
   eventId,
   eventName,
+  organizationId,
   startDate,
   endDate,
 }: ReportsClientProps) {
   const [activeModal, setActiveModal] = useState<string | null>(null)
   const [isExporting, setIsExporting] = useState(false)
+  const [showCustomBuilder, setShowCustomBuilder] = useState(false)
 
   const handleExportAll = async () => {
     setIsExporting(true)
@@ -58,8 +62,16 @@ export default function ReportsClient({
 
   return (
     <>
-      {/* Export All Button */}
-      <div className="flex justify-end">
+      {/* Action Buttons */}
+      <div className="flex justify-end gap-2">
+        <Button
+          onClick={() => setShowCustomBuilder(true)}
+          variant="outline"
+          className="border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
+        >
+          <Settings className="h-4 w-4 mr-2" />
+          Custom Report Builder
+        </Button>
         <Button
           onClick={handleExportAll}
           disabled={isExporting}
@@ -156,6 +168,15 @@ export default function ReportsClient({
         onClose={() => setActiveModal(null)}
         eventId={eventId}
         eventName={eventName}
+      />
+
+      {/* Custom Report Builder */}
+      <CustomReportBuilder
+        open={showCustomBuilder}
+        onClose={() => setShowCustomBuilder(false)}
+        eventId={eventId}
+        eventName={eventName}
+        organizationId={organizationId}
       />
     </>
   )

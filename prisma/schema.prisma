@@ -77,6 +77,7 @@ model User {
   verifiedCertificates SafeEnvironmentCertificate[] @relation("VerifiedCertificates")
   registrationEdits RegistrationEdit[]
   refundsProcessed Refund[]
+  reportTemplates ReportTemplate[] @relation("ReportTemplatesCreated")
 
   @@index([organizationId], name: "idx_user_org")
   @@index([email], name: "idx_user_email")
@@ -1026,5 +1027,42 @@ model UserPreferences {
   @@index([clerkUserId], name: "idx_user_prefs_clerk_user_id")
   @@index([groupRegistrationId], name: "idx_user_prefs_group_registration")
   @@map("user_preferences")
+}
+
+// ===================================
+// REPORT TEMPLATES TABLE
+// ===================================
+
+model ReportTemplate {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+  name            String   @db.VarChar(255)
+  description     String?  @db.Text
+  reportType      ReportType @map("report_type")
+  configuration   Json     // Stores field selections, filters, sorting preferences
+  isPublic        Boolean  @default(false) @map("is_public") // Whether other users in org can use this template
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  createdBy User @relation("ReportTemplatesCreated", fields: [createdByUserId], references: [id])
+
+  @@index([organizationId], name: "idx_report_template_org")
+  @@index([createdByUserId], name: "idx_report_template_user")
+  @@index([reportType], name: "idx_report_template_type")
+  @@map("report_templates")
+}
+
+enum ReportType {
+  registration
+  financial
+  forms
+  housing
+  medical
+  certificates
+  tshirts
+  balances
+  custom
 }
 
