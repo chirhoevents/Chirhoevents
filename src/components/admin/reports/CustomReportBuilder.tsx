@@ -339,28 +339,73 @@ export function CustomReportBuilder({
     <>
       <style jsx global>{`
         @media print {
-          body * {
-            visibility: hidden;
+          /* Hide everything except the report */
+          body > *:not(#__next) {
+            display: none !important;
           }
-          #report-results,
-          #report-results * {
-            visibility: visible;
+
+          /* Hide all dialog overlays and backgrounds */
+          [role="dialog"],
+          [data-radix-portal] {
+            position: static !important;
+            background: white !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            overflow: visible !important;
           }
+
+          /* Ensure report results are visible and properly formatted */
           #report-results {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
+            display: block !important;
+            position: relative !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            page-break-inside: avoid;
+          }
+
+          /* Make tables fit on page */
+          #report-results table {
+            width: 100% !important;
+            font-size: 10pt !important;
+            page-break-inside: auto;
+          }
+
+          #report-results tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+          }
+
+          #report-results thead {
+            display: table-header-group;
+          }
+
+          #report-results td,
+          #report-results th {
+            padding: 4px 6px !important;
+            font-size: 9pt !important;
+          }
+
+          /* Remove backgrounds for print */
+          #report-results .bg-blue-50,
+          #report-results .bg-gray-100 {
+            background-color: white !important;
+            border: 1px solid #ccc !important;
+          }
+
+          /* Ensure proper page margins */
+          @page {
+            margin: 0.5in;
+            size: landscape;
           }
         }
       `}</style>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto print:max-w-full print:max-h-full">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="print:hidden">
             <DialogTitle>Custom Report Builder - {eventName}</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-6 print:space-y-0">
+          <div className="space-y-6">
           {/* Load Template Section */}
           <div className="space-y-2 print:hidden">
             <Label>Load Saved Template</Label>
@@ -488,15 +533,14 @@ export function CustomReportBuilder({
 
           {/* Report Results */}
           {reportData && (
-            <div className="space-y-4 border-t pt-4 print:border-0 print:pt-0" id="report-results">
-              <div className="flex items-center justify-between print:mb-6 print:block">
-                <div>
-                  <h3 className="font-semibold text-lg print:text-2xl">{templateName || reportType} Report</h3>
-                  <p className="text-sm text-gray-600 print:text-base">
-                    {eventName}
-                  </p>
+            <div className="space-y-4 border-t pt-4" id="report-results">
+              <div className="flex items-center justify-between mb-4 print:mb-6">
+                <div className="print:w-full">
+                  <h3 className="font-semibold text-lg print:text-xl print:mb-1">
+                    {templateName || reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report
+                  </h3>
                   <p className="text-sm text-gray-600 print:text-sm">
-                    Generated on {new Date(reportData.generatedAt).toLocaleString()}
+                    {eventName} • Generated {new Date(reportData.generatedAt).toLocaleString()}
                   </p>
                 </div>
                 <div className="flex gap-2 print:hidden">
@@ -515,62 +559,62 @@ export function CustomReportBuilder({
               {reportType === 'tshirts' && (
                 <div className="space-y-4">
                   {/* Size Summary */}
-                  <div className="bg-blue-50 p-4 rounded-lg print:bg-white print:border">
-                    <h4 className="font-semibold mb-2">T-Shirt Size Summary</h4>
-                    <div className="grid grid-cols-4 gap-4">
+                  <div className="bg-blue-50 p-4 rounded-lg mb-4 print:bg-white print:border print:border-gray-300 print:p-3 print:mb-4">
+                    <h4 className="font-semibold mb-3 print:text-base">T-Shirt Size Summary</h4>
+                    <div className="grid grid-cols-4 gap-4 print:grid-cols-6 print:gap-2">
                       {Object.entries(reportData.data.sizeCounts || {})
                         .sort(([a], [b]) => {
                           const order = ['YXS', 'YS', 'YM', 'YL', 'YXL', 'AS', 'AM', 'AL', 'AXL', 'A2XL', 'A3XL', 'A4XL', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL']
                           return order.indexOf(a) - order.indexOf(b)
                         })
                         .map(([size, count]: [string, any]) => (
-                          <div key={size} className="text-center">
-                            <div className="text-2xl font-bold text-blue-600">{Number(count)}</div>
-                            <div className="text-sm text-gray-600">{size}</div>
+                          <div key={size} className="text-center print:border print:border-gray-300 print:p-1">
+                            <div className="text-2xl font-bold text-blue-600 print:text-lg print:text-black">{Number(count)}</div>
+                            <div className="text-sm text-gray-600 print:text-xs">{size}</div>
                           </div>
                         ))}
                     </div>
-                    <div className="mt-4 pt-4 border-t">
-                      <div className="text-lg font-semibold">
+                    <div className="mt-4 pt-4 border-t print:mt-2 print:pt-2">
+                      <div className="text-lg font-semibold print:text-base">
                         Total: {reportData.data.totalCount || 0} shirts
                       </div>
                     </div>
                   </div>
 
                   {/* Participant Details */}
-                  <div className="overflow-auto">
-                    <table className="min-w-full border-collapse border">
+                  <div className="overflow-auto print:overflow-visible">
+                    <table className="min-w-full border-collapse border border-gray-300">
                       <thead>
-                        <tr className="bg-gray-100">
-                          <th className="border p-2 text-left">First Name</th>
-                          <th className="border p-2 text-left">Last Name</th>
-                          <th className="border p-2 text-left">T-Shirt Size</th>
-                          <th className="border p-2 text-left">Type</th>
-                          <th className="border p-2 text-left">Group</th>
-                          <th className="border p-2 text-left">Parish</th>
+                        <tr className="bg-gray-100 print:bg-gray-200">
+                          <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">First Name</th>
+                          <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">Last Name</th>
+                          <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">T-Shirt Size</th>
+                          <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">Type</th>
+                          <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">Group</th>
+                          <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">Parish</th>
                         </tr>
                       </thead>
                       <tbody>
                         {reportData.data.participants?.map((p: any, i: number) => (
-                          <tr key={i} className="hover:bg-gray-50">
-                            <td className="border p-2">{p.firstName}</td>
-                            <td className="border p-2">{p.lastName}</td>
-                            <td className="border p-2 font-semibold">{p.tShirtSize}</td>
-                            <td className="border p-2 text-sm">
+                          <tr key={i} className="hover:bg-gray-50 print:hover:bg-transparent">
+                            <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{p.firstName}</td>
+                            <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{p.lastName}</td>
+                            <td className="border border-gray-300 p-2 font-semibold print:p-1 print:text-xs">{p.tShirtSize}</td>
+                            <td className="border border-gray-300 p-2 text-sm print:p-1 print:text-xs">
                               {p.participantType?.replace(/_/g, ' ')}
                             </td>
-                            <td className="border p-2">{p.groupRegistration?.groupName}</td>
-                            <td className="border p-2">{p.groupRegistration?.parishName}</td>
+                            <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{p.groupRegistration?.groupName}</td>
+                            <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{p.groupRegistration?.parishName}</td>
                           </tr>
                         ))}
                         {reportData.data.individualRegs?.map((p: any, i: number) => (
-                          <tr key={`ind-${i}`} className="hover:bg-gray-50">
-                            <td className="border p-2">{p.firstName}</td>
-                            <td className="border p-2">{p.lastName}</td>
-                            <td className="border p-2 font-semibold">{p.tShirtSize}</td>
-                            <td className="border p-2 text-sm">Individual</td>
-                            <td className="border p-2">-</td>
-                            <td className="border p-2">-</td>
+                          <tr key={`ind-${i}`} className="hover:bg-gray-50 print:hover:bg-transparent">
+                            <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{p.firstName}</td>
+                            <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{p.lastName}</td>
+                            <td className="border border-gray-300 p-2 font-semibold print:p-1 print:text-xs">{p.tShirtSize}</td>
+                            <td className="border border-gray-300 p-2 text-sm print:p-1 print:text-xs">Individual</td>
+                            <td className="border border-gray-300 p-2 print:p-1 print:text-xs">-</td>
+                            <td className="border border-gray-300 p-2 print:p-1 print:text-xs">-</td>
                           </tr>
                         ))}
                       </tbody>
@@ -581,37 +625,37 @@ export function CustomReportBuilder({
 
               {/* Balances Report */}
               {reportType === 'balances' && (
-                <div className="overflow-auto">
-                  <table className="min-w-full border-collapse border">
+                <div className="overflow-auto print:overflow-visible">
+                  <table className="min-w-full border-collapse border border-gray-300">
                     <thead>
-                      <tr className="bg-gray-100">
-                        <th className="border p-2 text-left">Group Name</th>
-                        <th className="border p-2 text-left">Parish</th>
-                        <th className="border p-2 text-left">Contact</th>
-                        <th className="border p-2 text-left">Phone</th>
-                        <th className="border p-2 text-right">Total Due</th>
-                        <th className="border p-2 text-right">Amount Paid</th>
-                        <th className="border p-2 text-right">Remaining</th>
-                        <th className="border p-2 text-left">Status</th>
+                      <tr className="bg-gray-100 print:bg-gray-200">
+                        <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">Group Name</th>
+                        <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">Parish</th>
+                        <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">Contact</th>
+                        <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">Phone</th>
+                        <th className="border border-gray-300 p-2 text-right print:p-1 print:text-xs">Total Due</th>
+                        <th className="border border-gray-300 p-2 text-right print:p-1 print:text-xs">Amount Paid</th>
+                        <th className="border border-gray-300 p-2 text-right print:p-1 print:text-xs">Remaining</th>
+                        <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {reportData.data?.map((row: any, i: number) => (
-                        <tr key={i} className="hover:bg-gray-50">
-                          <td className="border p-2">{row.groupName}</td>
-                          <td className="border p-2">{row.parishName}</td>
-                          <td className="border p-2">{row.groupLeaderName || row.groupLeaderEmail}</td>
-                          <td className="border p-2">{row.groupLeaderPhone}</td>
-                          <td className="border p-2 text-right">${Number(row.totalDue || 0).toFixed(2)}</td>
-                          <td className="border p-2 text-right">${Number(row.amountPaid || 0).toFixed(2)}</td>
-                          <td className="border p-2 text-right font-semibold">
+                        <tr key={i} className="hover:bg-gray-50 print:hover:bg-transparent">
+                          <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{row.groupName}</td>
+                          <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{row.parishName}</td>
+                          <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{row.groupLeaderName || row.groupLeaderEmail}</td>
+                          <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{row.groupLeaderPhone}</td>
+                          <td className="border border-gray-300 p-2 text-right print:p-1 print:text-xs">${Number(row.totalDue || 0).toFixed(2)}</td>
+                          <td className="border border-gray-300 p-2 text-right print:p-1 print:text-xs">${Number(row.amountPaid || 0).toFixed(2)}</td>
+                          <td className="border border-gray-300 p-2 text-right font-semibold print:p-1 print:text-xs">
                             ${Number(row.amountRemaining || 0).toFixed(2)}
                           </td>
-                          <td className="border p-2">
-                            <span className={`px-2 py-1 rounded text-xs ${
-                              row.paymentStatus === 'paid_full' ? 'bg-green-100 text-green-800' :
-                              row.paymentStatus === 'partial' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-red-100 text-red-800'
+                          <td className="border border-gray-300 p-2 print:p-1 print:text-xs">
+                            <span className={`px-2 py-1 rounded text-xs print:px-1 print:py-0 ${
+                              row.paymentStatus === 'paid_full' ? 'bg-green-100 text-green-800 print:bg-transparent print:text-black' :
+                              row.paymentStatus === 'partial' ? 'bg-yellow-100 text-yellow-800 print:bg-transparent print:text-black' :
+                              'bg-red-100 text-red-800 print:bg-transparent print:text-black'
                             }`}>
                               {row.paymentStatus?.replace(/_/g, ' ')}
                             </span>
@@ -625,12 +669,12 @@ export function CustomReportBuilder({
 
               {/* Registration Report */}
               {reportType === 'registration' && (
-                <div className="overflow-auto">
-                  <table className="min-w-full border-collapse border">
+                <div className="overflow-auto print:overflow-visible">
+                  <table className="min-w-full border-collapse border border-gray-300">
                     <thead>
-                      <tr className="bg-gray-100">
+                      <tr className="bg-gray-100 print:bg-gray-200">
                         {selectedFields.map(field => (
-                          <th key={field} className="border p-2 text-left">
+                          <th key={field} className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">
                             {fieldOptions.registration?.find(f => f.value === field)?.label || field}
                           </th>
                         ))}
@@ -638,9 +682,9 @@ export function CustomReportBuilder({
                     </thead>
                     <tbody>
                       {reportData.data?.map((row: any, i: number) => (
-                        <tr key={i} className="hover:bg-gray-50">
+                        <tr key={i} className="hover:bg-gray-50 print:hover:bg-transparent">
                           {selectedFields.map(field => (
-                            <td key={field} className="border p-2">
+                            <td key={field} className="border border-gray-300 p-2 print:p-1 print:text-xs">
                               {typeof row[field] === 'object' ? JSON.stringify(row[field]) : row[field]}
                             </td>
                           ))}
@@ -653,29 +697,29 @@ export function CustomReportBuilder({
 
               {/* Medical Report */}
               {reportType === 'medical' && (
-                <div className="overflow-auto">
-                  <table className="min-w-full border-collapse border">
+                <div className="overflow-auto print:overflow-visible">
+                  <table className="min-w-full border-collapse border border-gray-300">
                     <thead>
-                      <tr className="bg-gray-100">
-                        <th className="border p-2 text-left">Name</th>
-                        <th className="border p-2 text-left">Group</th>
-                        <th className="border p-2 text-left">Allergies</th>
-                        <th className="border p-2 text-left">Medications</th>
-                        <th className="border p-2 text-left">Medical Conditions</th>
-                        <th className="border p-2 text-left">Dietary Restrictions</th>
+                      <tr className="bg-gray-100 print:bg-gray-200">
+                        <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">Name</th>
+                        <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">Group</th>
+                        <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">Allergies</th>
+                        <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">Medications</th>
+                        <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">Medical Conditions</th>
+                        <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">Dietary Restrictions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {reportData.data?.map((row: any, i: number) => (
-                        <tr key={i} className="hover:bg-gray-50">
-                          <td className="border p-2">
+                        <tr key={i} className="hover:bg-gray-50 print:hover:bg-transparent">
+                          <td className="border border-gray-300 p-2 print:p-1 print:text-xs">
                             {row.participant?.firstName} {row.participant?.lastName}
                           </td>
-                          <td className="border p-2">{row.participant?.groupRegistration?.groupName}</td>
-                          <td className="border p-2">{row.allergies || '-'}</td>
-                          <td className="border p-2">{row.medications || '-'}</td>
-                          <td className="border p-2">{row.medicalConditions || '-'}</td>
-                          <td className="border p-2">{row.dietaryRestrictions || '-'}</td>
+                          <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{row.participant?.groupRegistration?.groupName}</td>
+                          <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{row.allergies || '-'}</td>
+                          <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{row.medications || '-'}</td>
+                          <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{row.medicalConditions || '-'}</td>
+                          <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{row.dietaryRestrictions || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -685,20 +729,20 @@ export function CustomReportBuilder({
 
               {/* Generic table for other types */}
               {!['tshirts', 'balances', 'registration', 'medical'].includes(reportType) && Array.isArray(reportData.data) && (
-                <div className="overflow-auto">
-                  <table className="min-w-full border-collapse border">
+                <div className="overflow-auto print:overflow-visible">
+                  <table className="min-w-full border-collapse border border-gray-300">
                     <thead>
-                      <tr className="bg-gray-100">
+                      <tr className="bg-gray-100 print:bg-gray-200">
                         {Object.keys(reportData.data[0] || {}).map(key => (
-                          <th key={key} className="border p-2 text-left">{key}</th>
+                          <th key={key} className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">{key}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {reportData.data.map((row: any, i: number) => (
-                        <tr key={i} className="hover:bg-gray-50">
+                        <tr key={i} className="hover:bg-gray-50 print:hover:bg-transparent">
                           {Object.values(row).map((value: any, j: number) => (
-                            <td key={j} className="border p-2">
+                            <td key={j} className="border border-gray-300 p-2 print:p-1 print:text-xs">
                               {typeof value === 'object' ? JSON.stringify(value) : String(value)}
                             </td>
                           ))}
