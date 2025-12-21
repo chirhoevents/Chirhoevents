@@ -53,7 +53,9 @@ export async function POST(
       // Generate actual PDF using @react-pdf/renderer
       const pdfElement = RegistrationReportPDF({ reportData, eventName })
       const pdfBuffer = await renderToBuffer(pdfElement)
-      return new NextResponse(pdfBuffer, {
+      // Convert Buffer to Uint8Array for NextResponse
+      const pdfData = new Uint8Array(pdfBuffer)
+      return new NextResponse(pdfData, {
         headers: {
           'Content-Type': 'application/pdf',
           'Content-Disposition': 'attachment; filename="registration_report.pdf"',
