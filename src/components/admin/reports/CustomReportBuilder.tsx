@@ -237,22 +237,73 @@ export function CustomReportBuilder({
   const handleExport = (format: 'csv' | 'pdf') => {
     if (!reportData) return
 
-    // Convert report data to CSV or PDF
     if (format === 'csv') {
-      const csv = convertToCSV(reportData.data)
-      downloadCSV(csv, `${templateName || 'custom-report'}.csv`)
+      const csv = convertToCSV(reportData)
+      downloadCSV(csv, `${templateName || reportType || 'custom-report'}.csv`)
+    } else if (format === 'pdf') {
+      window.print()
     }
   }
 
   const convertToCSV = (data: any): string => {
-    if (!data || !Array.isArray(data) || data.length === 0) return ''
+    const reportType = data.reportType
+    let csvData: any[] = []
 
-    const headers = Object.keys(data[0])
-    const rows = data.map(row =>
-      headers.map(header => JSON.stringify(row[header] || '')).join(',')
+    // Handle different report types
+    if (reportType === 'tshirts') {
+      csvData = data.data.participants || []
+      // Add individual registrations if they exist
+      if (data.data.individualRegs && data.data.individualRegs.length > 0) {
+        csvData = [...csvData, ...data.data.individualRegs]
+      }
+    } else if (reportType === 'balances') {
+      csvData = data.data
+    } else if (reportType === 'registration') {
+      csvData = data.data
+    } else if (reportType === 'medical') {
+      csvData = data.data
+    } else if (Array.isArray(data.data)) {
+      csvData = data.data
+    } else if (data.data.participants) {
+      csvData = data.data.participants
+    } else {
+      csvData = [data.data]
+    }
+
+    if (!csvData || csvData.length === 0) return 'No data available'
+
+    // Flatten nested objects for CSV
+    const flattenedData = csvData.map(item => flattenObject(item))
+
+    const headers = Object.keys(flattenedData[0])
+    const rows = flattenedData.map(row =>
+      headers.map(header => {
+        const value = row[header]
+        if (value === null || value === undefined) return ''
+        if (typeof value === 'string' && value.includes(',')) {
+          return `"${value.replace(/"/g, '""')}"`
+        }
+        return value
+      }).join(',')
     )
 
     return [headers.join(','), ...rows].join('\n')
+  }
+
+  const flattenObject = (obj: any, prefix = ''): any => {
+    let flattened: any = {}
+
+    for (const key in obj) {
+      if (obj[key] === null || obj[key] === undefined) {
+        flattened[prefix + key] = ''
+      } else if (typeof obj[key] === 'object' && !Array.isArray(obj[key]) && !(obj[key] instanceof Date)) {
+        Object.assign(flattened, flattenObject(obj[key], prefix + key + '.'))
+      } else {
+        flattened[prefix + key] = obj[key]
+      }
+    }
+
+    return flattened
   }
 
   const downloadCSV = (csv: string, filename: string) => {
@@ -410,21 +461,223 @@ export function CustomReportBuilder({
 
           {/* Report Results */}
           {reportData && (
-            <div className="space-y-4 border-t pt-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold">Report Results</h3>
-                <div className="flex gap-2">
+            <div className="space-y-4 border-t pt-4" id="report-results">
+              <div className="flex items-center justify-between print:mb-4">
+                <div>
+                  <h3 className="font-semibold text-lg">{templateName || reportType} Report</h3>
+                  <p className="text-sm text-gray-600">
+                    Generated on {new Date(reportData.generatedAt).toLocaleString()}
+                  </p>
+                </div>
+                <div className="flex gap-2 print:hidden">
+                  <Button size="sm" variant="outline" onClick={() => handleExport('pdf')}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Print/PDF
+                  </Button>
                   <Button size="sm" onClick={() => handleExport('csv')}>
                     <Download className="h-4 w-4 mr-2" />
                     Export CSV
                   </Button>
                 </div>
               </div>
-              <div className="max-h-96 overflow-auto border rounded-md">
-                <pre className="p-4 text-xs">
-                  {JSON.stringify(reportData, null, 2)}
-                </pre>
-              </div>
+
+              {/* T-Shirt Report */}
+              {reportType === 'tshirts' && (
+                <div className="space-y-4">
+                  {/* Size Summary */}
+                  <div className="bg-blue-50 p-4 rounded-lg print:bg-white print:border">
+                    <h4 className="font-semibold mb-2">T-Shirt Size Summary</h4>
+                    <div className="grid grid-cols-4 gap-4">
+                      {Object.entries(reportData.data.sizeCounts || {})
+                        .sort(([a], [b]) => {
+                          const order = ['YXS', 'YS', 'YM', 'YL', 'YXL', 'AS', 'AM', 'AL', 'AXL', 'A2XL', 'A3XL', 'A4XL', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL']
+                          return order.indexOf(a) - order.indexOf(b)
+                        })
+                        .map(([size, count]) => (
+                          <div key={size} className="text-center">
+                            <div className="text-2xl font-bold text-blue-600">{count}</div>
+                            <div className="text-sm text-gray-600">{size}</div>
+                          </div>
+                        ))}
+                    </div>
+                    <div className="mt-4 pt-4 border-t">
+                      <div className="text-lg font-semibold">
+                        Total: {reportData.data.totalCount || 0} shirts
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Participant Details */}
+                  <div className="overflow-auto">
+                    <table className="min-w-full border-collapse border">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="border p-2 text-left">First Name</th>
+                          <th className="border p-2 text-left">Last Name</th>
+                          <th className="border p-2 text-left">T-Shirt Size</th>
+                          <th className="border p-2 text-left">Type</th>
+                          <th className="border p-2 text-left">Group</th>
+                          <th className="border p-2 text-left">Parish</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reportData.data.participants?.map((p: any, i: number) => (
+                          <tr key={i} className="hover:bg-gray-50">
+                            <td className="border p-2">{p.firstName}</td>
+                            <td className="border p-2">{p.lastName}</td>
+                            <td className="border p-2 font-semibold">{p.tShirtSize}</td>
+                            <td className="border p-2 text-sm">
+                              {p.participantType?.replace(/_/g, ' ')}
+                            </td>
+                            <td className="border p-2">{p.groupRegistration?.groupName}</td>
+                            <td className="border p-2">{p.groupRegistration?.parishName}</td>
+                          </tr>
+                        ))}
+                        {reportData.data.individualRegs?.map((p: any, i: number) => (
+                          <tr key={`ind-${i}`} className="hover:bg-gray-50">
+                            <td className="border p-2">{p.firstName}</td>
+                            <td className="border p-2">{p.lastName}</td>
+                            <td className="border p-2 font-semibold">{p.tShirtSize}</td>
+                            <td className="border p-2 text-sm">Individual</td>
+                            <td className="border p-2">-</td>
+                            <td className="border p-2">-</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Balances Report */}
+              {reportType === 'balances' && (
+                <div className="overflow-auto">
+                  <table className="min-w-full border-collapse border">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="border p-2 text-left">Group Name</th>
+                        <th className="border p-2 text-left">Parish</th>
+                        <th className="border p-2 text-left">Contact</th>
+                        <th className="border p-2 text-left">Phone</th>
+                        <th className="border p-2 text-right">Total Due</th>
+                        <th className="border p-2 text-right">Amount Paid</th>
+                        <th className="border p-2 text-right">Remaining</th>
+                        <th className="border p-2 text-left">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportData.data?.map((row: any, i: number) => (
+                        <tr key={i} className="hover:bg-gray-50">
+                          <td className="border p-2">{row.groupName}</td>
+                          <td className="border p-2">{row.parishName}</td>
+                          <td className="border p-2">{row.groupLeaderName || row.groupLeaderEmail}</td>
+                          <td className="border p-2">{row.groupLeaderPhone}</td>
+                          <td className="border p-2 text-right">${Number(row.totalDue || 0).toFixed(2)}</td>
+                          <td className="border p-2 text-right">${Number(row.amountPaid || 0).toFixed(2)}</td>
+                          <td className="border p-2 text-right font-semibold">
+                            ${Number(row.amountRemaining || 0).toFixed(2)}
+                          </td>
+                          <td className="border p-2">
+                            <span className={`px-2 py-1 rounded text-xs ${
+                              row.paymentStatus === 'paid_full' ? 'bg-green-100 text-green-800' :
+                              row.paymentStatus === 'partial' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {row.paymentStatus?.replace(/_/g, ' ')}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Registration Report */}
+              {reportType === 'registration' && (
+                <div className="overflow-auto">
+                  <table className="min-w-full border-collapse border">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        {selectedFields.map(field => (
+                          <th key={field} className="border p-2 text-left">
+                            {fieldOptions.registration?.find(f => f.value === field)?.label || field}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportData.data?.map((row: any, i: number) => (
+                        <tr key={i} className="hover:bg-gray-50">
+                          {selectedFields.map(field => (
+                            <td key={field} className="border p-2">
+                              {typeof row[field] === 'object' ? JSON.stringify(row[field]) : row[field]}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Medical Report */}
+              {reportType === 'medical' && (
+                <div className="overflow-auto">
+                  <table className="min-w-full border-collapse border">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="border p-2 text-left">Name</th>
+                        <th className="border p-2 text-left">Group</th>
+                        <th className="border p-2 text-left">Allergies</th>
+                        <th className="border p-2 text-left">Medications</th>
+                        <th className="border p-2 text-left">Medical Conditions</th>
+                        <th className="border p-2 text-left">Dietary Restrictions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportData.data?.map((row: any, i: number) => (
+                        <tr key={i} className="hover:bg-gray-50">
+                          <td className="border p-2">
+                            {row.participant?.firstName} {row.participant?.lastName}
+                          </td>
+                          <td className="border p-2">{row.participant?.groupRegistration?.groupName}</td>
+                          <td className="border p-2">{row.allergies || '-'}</td>
+                          <td className="border p-2">{row.medications || '-'}</td>
+                          <td className="border p-2">{row.medicalConditions || '-'}</td>
+                          <td className="border p-2">{row.dietaryRestrictions || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Generic table for other types */}
+              {!['tshirts', 'balances', 'registration', 'medical'].includes(reportType) && Array.isArray(reportData.data) && (
+                <div className="overflow-auto">
+                  <table className="min-w-full border-collapse border">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        {Object.keys(reportData.data[0] || {}).map(key => (
+                          <th key={key} className="border p-2 text-left">{key}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportData.data.map((row: any, i: number) => (
+                        <tr key={i} className="hover:bg-gray-50">
+                          {Object.values(row).map((value: any, j: number) => (
+                            <td key={j} className="border p-2">
+                              {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </div>
