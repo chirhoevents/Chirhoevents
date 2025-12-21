@@ -19,6 +19,7 @@ export default async function AllReportsPage() {
       <ReportsClient
         eventId="all"
         eventName="All Events"
+        organizationId={user.organizationId}
         startDate=""
         endDate=""
       />
