@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { generateFinancialCSV } from '@/lib/reports/generate-csv'
-import { generateFinancialPDF } from '@/lib/reports/generate-pdf'
+import { renderToBuffer } from '@react-pdf/renderer'
+import { FinancialReportPDF } from '@/lib/reports/pdf-generator'
+import React from 'react'
 
 export async function POST(
   request: NextRequest,
@@ -30,6 +32,18 @@ export async function POST(
 
     const reportData = await reportResponse.json()
 
+    // Get event name from the API
+    const eventResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/admin/events/${eventId}`,
+      {
+        headers: {
+          Cookie: request.headers.get('cookie') || '',
+        },
+      }
+    )
+    const event = eventResponse.ok ? await eventResponse.json() : { name: 'Event' }
+    const eventName = event.name || 'Event'
+
     if (format === 'csv') {
       const csv = generateFinancialCSV(reportData)
       return new NextResponse(csv, {
@@ -39,11 +53,15 @@ export async function POST(
         },
       })
     } else if (format === 'pdf') {
-      const pdf = generateFinancialPDF(reportData, 'Event')
-      return new NextResponse(pdf, {
+      // Generate actual PDF using @react-pdf/renderer
+      const pdfElement = FinancialReportPDF({ reportData, eventName })
+      const pdfBuffer = await renderToBuffer(pdfElement)
+      // Convert Buffer to Uint8Array for NextResponse
+      const pdfData = new Uint8Array(pdfBuffer)
+      return new NextResponse(pdfData, {
         headers: {
-          'Content-Type': 'text/plain',
-          'Content-Disposition': 'attachment; filename="financial_report.txt"',
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': 'attachment; filename="financial_report.pdf"',
         },
       })
     }

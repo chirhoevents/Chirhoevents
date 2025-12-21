@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Download, Loader2, X, Shield, Mail } from 'lucide-react'
+import { Download, Loader2, Shield, Mail } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 
 interface CertificatesReportModalProps {
@@ -62,13 +62,10 @@ export default function CertificatesReportModal({ isOpen, onClose, eventId, even
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-2xl text-[#1E3A5F] flex items-center gap-2">
-              <Shield className="h-6 w-6" />
-              Safe Environment Certificates - {eventName}
-            </DialogTitle>
-            <Button variant="ghost" size="sm" onClick={onClose} className="h-6 w-6 p-0"><X className="h-4 w-4" /></Button>
-          </div>
+          <DialogTitle className="text-2xl text-[#1E3A5F] flex items-center gap-2">
+            <Shield className="h-6 w-6" />
+            Safe Environment Certificates - {eventName}
+          </DialogTitle>
         </DialogHeader>
 
         {loading ? (

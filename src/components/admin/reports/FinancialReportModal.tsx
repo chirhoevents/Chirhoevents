@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Download, Loader2, X } from 'lucide-react'
+import { Download, Loader2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 
 interface FinancialReportModalProps {
@@ -134,19 +134,9 @@ export default function FinancialReportModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-2xl text-[#1E3A5F]">
-              Financial Report - {eventName}
-            </DialogTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className="h-6 w-6 p-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <DialogTitle className="text-2xl text-[#1E3A5F]">
+            Financial Report - {eventName}
+          </DialogTitle>
         </DialogHeader>
 
         {loading ? (
