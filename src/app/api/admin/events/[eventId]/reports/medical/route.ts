@@ -14,98 +14,236 @@ export async function GET(
     const isPreview = request.nextUrl.searchParams.get('preview') === 'true'
     const eventFilter = eventId === 'all' ? {} : { eventId }
 
-    // Get liability forms with medical info
+    // Get liability forms with medical info and participant details
     const forms = await prisma.liabilityForm.findMany({
       where: {
         participant: {
           groupRegistration: eventFilter,
         },
       },
+      include: {
+        participant: {
+          select: {
+            firstName: true,
+            lastName: true,
+            groupRegistration: {
+              select: {
+                groupName: true,
+                parishName: true,
+                groupLeaderEmail: true,
+                groupLeaderPhone: true,
+              },
+            },
+          },
+        },
+      },
     })
 
-    const allergiesCount = forms.filter(f => f.allergies && f.allergies !== '').length
-    const dietaryCount = forms.filter(f => f.dietaryRestrictions && f.dietaryRestrictions !== '').length
-    const medicalCount = forms.filter(f => f.medicalConditions && f.medicalConditions !== '').length
+    // Separate counting
+    const foodAllergiesCount = forms.filter(f => f.allergies && f.allergies !== '').length
+    const dietaryRestrictionsCount = forms.filter(f => f.dietaryRestrictions && f.dietaryRestrictions !== '').length
+    const medicalConditionsCount = forms.filter(f => f.medicalConditions && f.medicalConditions !== '').length
+    const medicationsCount = forms.filter(f => f.medications && f.medications !== '').length
 
     if (isPreview) {
-      return NextResponse.json({ allergiesCount, dietaryCount, medicalCount })
+      return NextResponse.json({
+        foodAllergiesCount,
+        dietaryRestrictionsCount,
+        medicalConditionsCount,
+        medicationsCount,
+      })
     }
 
-    // Parse allergies (severe ones - simplified detection)
-    const severeAllergies: Record<string, number> = {}
-    const severeKeywords = ['peanut', 'nut', 'shellfish', 'bee', 'wasp', 'epipen']
+    // FOOD ALLERGIES (Critical for meal planning)
+    const foodAllergies: any[] = []
+    const foodAllergyKeywords = ['peanut', 'nut', 'shellfish', 'fish', 'dairy', 'egg', 'soy', 'wheat', 'gluten']
 
     for (const form of forms) {
       if (form.allergies) {
         const lower = form.allergies.toLowerCase()
-        if (severeKeywords.some(keyword => lower.includes(keyword))) {
-          // Simplified - just count peanuts, nuts, shellfish
-          if (lower.includes('peanut')) severeAllergies['peanuts'] = (severeAllergies['peanuts'] || 0) + 1
-          if (lower.includes('nut') && !lower.includes('peanut')) severeAllergies['tree_nuts'] = (severeAllergies['tree_nuts'] || 0) + 1
-          if (lower.includes('shellfish')) severeAllergies['shellfish'] = (severeAllergies['shellfish'] || 0) + 1
+        const detectedAllergies: string[] = []
+
+        if (lower.includes('peanut')) detectedAllergies.push('Peanuts')
+        if (lower.includes('tree nut') || (lower.includes('nut') && !lower.includes('peanut'))) detectedAllergies.push('Tree Nuts')
+        if (lower.includes('shellfish')) detectedAllergies.push('Shellfish')
+        if (lower.includes('fish') && !lower.includes('shellfish')) detectedAllergies.push('Fish')
+        if (lower.includes('dairy') || lower.includes('milk')) detectedAllergies.push('Dairy')
+        if (lower.includes('egg')) detectedAllergies.push('Eggs')
+        if (lower.includes('soy')) detectedAllergies.push('Soy')
+        if (lower.includes('wheat') || lower.includes('gluten')) detectedAllergies.push('Wheat/Gluten')
+
+        if (foodAllergyKeywords.some(keyword => lower.includes(keyword))) {
+          foodAllergies.push({
+            name: `${form.participant?.firstName} ${form.participant?.lastName}`,
+            group: form.participant?.groupRegistration?.groupName || form.participant?.groupRegistration?.parishName || 'Individual',
+            groupLeaderEmail: form.participant?.groupRegistration?.groupLeaderEmail,
+            groupLeaderPhone: form.participant?.groupRegistration?.groupLeaderPhone,
+            allergies: detectedAllergies.length > 0 ? detectedAllergies : ['See notes'],
+            fullText: form.allergies,
+            severity: lower.includes('epipen') || lower.includes('anaphyl') ? 'SEVERE' : 'Moderate',
+          })
         }
       }
     }
 
-    // Parse dietary restrictions
-    const dietary: Record<string, number> = {}
-    const dietaryKeywords = ['vegetarian', 'vegan', 'gluten', 'lactose']
+    // DIETARY RESTRICTIONS (Preferences/lifestyle)
+    const dietaryRestrictions: any[] = []
+    const dietaryCounts: Record<string, number> = {}
+
     for (const form of forms) {
       if (form.dietaryRestrictions) {
         const lower = form.dietaryRestrictions.toLowerCase()
-        if (lower.includes('vegetarian')) dietary['vegetarian'] = (dietary['vegetarian'] || 0) + 1
-        if (lower.includes('vegan')) dietary['vegan'] = (dietary['vegan'] || 0) + 1
-        if (lower.includes('gluten')) dietary['gluten_free'] = (dietary['gluten_free'] || 0) + 1
-        if (lower.includes('lactose')) dietary['lactose_intolerant'] = (dietary['lactose_intolerant'] || 0) + 1
+        const restrictions: string[] = []
+
+        if (lower.includes('vegetarian')) {
+          restrictions.push('Vegetarian')
+          dietaryCounts['vegetarian'] = (dietaryCounts['vegetarian'] || 0) + 1
+        }
+        if (lower.includes('vegan')) {
+          restrictions.push('Vegan')
+          dietaryCounts['vegan'] = (dietaryCounts['vegan'] || 0) + 1
+        }
+        if (lower.includes('kosher')) {
+          restrictions.push('Kosher')
+          dietaryCounts['kosher'] = (dietaryCounts['kosher'] || 0) + 1
+        }
+        if (lower.includes('halal')) {
+          restrictions.push('Halal')
+          dietaryCounts['halal'] = (dietaryCounts['halal'] || 0) + 1
+        }
+        if (lower.includes('gluten')) {
+          restrictions.push('Gluten-Free')
+          dietaryCounts['gluten_free'] = (dietaryCounts['gluten_free'] || 0) + 1
+        }
+        if (lower.includes('lactose')) {
+          restrictions.push('Lactose Intolerant')
+          dietaryCounts['lactose_free'] = (dietaryCounts['lactose_free'] || 0) + 1
+        }
+
+        dietaryRestrictions.push({
+          name: `${form.participant?.firstName} ${form.participant?.lastName}`,
+          group: form.participant?.groupRegistration?.groupName || form.participant?.groupRegistration?.parishName || 'Individual',
+          restrictions: restrictions.length > 0 ? restrictions : ['See notes'],
+          fullText: form.dietaryRestrictions,
+        })
       }
     }
 
-    // Parse medical conditions
-    const medical: Record<string, number> = {}
-    const medicalKeywords = ['asthma', 'diabetes', 'seizure', 'adhd', 'epilepsy']
+    // MEDICAL CONDITIONS (Health issues)
+    const medicalConditions: any[] = []
+    const medicalCounts: Record<string, number> = {}
+
     for (const form of forms) {
       if (form.medicalConditions) {
         const lower = form.medicalConditions.toLowerCase()
-        if (lower.includes('asthma')) medical['asthma'] = (medical['asthma'] || 0) + 1
-        if (lower.includes('diabetes')) medical['diabetes'] = (medical['diabetes'] || 0) + 1
-        if (lower.includes('seizure') || lower.includes('epilepsy')) medical['seizure_disorder'] = (medical['seizure_disorder'] || 0) + 1
-        if (lower.includes('adhd')) medical['adhd'] = (medical['adhd'] || 0) + 1
+        const conditions: string[] = []
+
+        if (lower.includes('asthma')) {
+          conditions.push('Asthma')
+          medicalCounts['asthma'] = (medicalCounts['asthma'] || 0) + 1
+        }
+        if (lower.includes('diabetes')) {
+          conditions.push('Diabetes')
+          medicalCounts['diabetes'] = (medicalCounts['diabetes'] || 0) + 1
+        }
+        if (lower.includes('seizure') || lower.includes('epilepsy')) {
+          conditions.push('Seizure Disorder')
+          medicalCounts['seizure_disorder'] = (medicalCounts['seizure_disorder'] || 0) + 1
+        }
+        if (lower.includes('adhd') || lower.includes('add')) {
+          conditions.push('ADHD/ADD')
+          medicalCounts['adhd'] = (medicalCounts['adhd'] || 0) + 1
+        }
+        if (lower.includes('heart')) {
+          conditions.push('Heart Condition')
+          medicalCounts['heart'] = (medicalCounts['heart'] || 0) + 1
+        }
+
+        medicalConditions.push({
+          name: `${form.participant?.firstName} ${form.participant?.lastName}`,
+          group: form.participant?.groupRegistration?.groupName || form.participant?.groupRegistration?.parishName || 'Individual',
+          groupLeaderEmail: form.participant?.groupRegistration?.groupLeaderEmail,
+          groupLeaderPhone: form.participant?.groupRegistration?.groupLeaderPhone,
+          conditions: conditions.length > 0 ? conditions : ['See notes'],
+          fullText: form.medicalConditions,
+        })
       }
     }
 
-    // Medications
-    const medications: Record<string, number> = {}
+    // MEDICATIONS (Critical medications)
+    const criticalMedications: any[] = []
+    const medicationCounts: Record<string, number> = {}
+
     for (const form of forms) {
       if (form.medications) {
         const lower = form.medications.toLowerCase()
-        if (lower.includes('epipen')) medications['epipen'] = (medications['epipen'] || 0) + 1
-        if (lower.includes('inhaler')) medications['inhaler'] = (medications['inhaler'] || 0) + 1
-        if (lower.includes('insulin')) medications['insulin'] = (medications['insulin'] || 0) + 1
+        const meds: string[] = []
+
+        if (lower.includes('epipen')) {
+          meds.push('EpiPen')
+          medicationCounts['epipen'] = (medicationCounts['epipen'] || 0) + 1
+        }
+        if (lower.includes('inhaler')) {
+          meds.push('Inhaler')
+          medicationCounts['inhaler'] = (medicationCounts['inhaler'] || 0) + 1
+        }
+        if (lower.includes('insulin')) {
+          meds.push('Insulin')
+          medicationCounts['insulin'] = (medicationCounts['insulin'] || 0) + 1
+        }
+
+        criticalMedications.push({
+          name: `${form.participant?.firstName} ${form.participant?.lastName}`,
+          group: form.participant?.groupRegistration?.groupName || form.participant?.groupRegistration?.parishName || 'Individual',
+          groupLeaderEmail: form.participant?.groupRegistration?.groupLeaderEmail,
+          groupLeaderPhone: form.participant?.groupRegistration?.groupLeaderPhone,
+          medications: meds.length > 0 ? meds : ['See notes'],
+          fullText: form.medications,
+        })
       }
     }
 
-    // ADA
+    // ADA Accommodations
     const adaForms = forms.filter(f => f.adaAccommodations && f.adaAccommodations !== '')
-    const adaTotal = adaForms.length
-    const adaTypes: Record<string, number> = {}
-    for (const form of adaForms) {
-      const lower = (form.adaAccommodations || '').toLowerCase()
-      if (lower.includes('wheelchair')) adaTypes['wheelchair'] = (adaTypes['wheelchair'] || 0) + 1
-      if (lower.includes('hearing')) adaTypes['hearing'] = (adaTypes['hearing'] || 0) + 1
-      if (lower.includes('visual')) adaTypes['visual'] = (adaTypes['visual'] || 0) + 1
-    }
+    const adaDetails: any[] = adaForms.map(form => ({
+      name: `${form.participant?.firstName} ${form.participant?.lastName}`,
+      group: form.participant?.groupRegistration?.groupName || form.participant?.groupRegistration?.parishName || 'Individual',
+      groupLeaderEmail: form.participant?.groupRegistration?.groupLeaderEmail,
+      accommodations: form.adaAccommodations,
+    }))
 
     return NextResponse.json({
-      allergiesCount,
-      dietaryCount,
-      medicalCount,
-      allergies: {
-        severe: Object.entries(severeAllergies).map(([type, count]) => ({ type, count })),
+      summary: {
+        foodAllergiesCount,
+        dietaryRestrictionsCount,
+        medicalConditionsCount,
+        medicationsCount,
+        adaCount: adaForms.length,
       },
-      dietary,
-      medical,
-      medications,
-      ada: { total: adaTotal, types: adaTypes },
+      foodAllergies: {
+        total: foodAllergies.length,
+        severe: foodAllergies.filter(f => f.severity === 'SEVERE').length,
+        details: foodAllergies.sort((a, b) => a.severity === 'SEVERE' ? -1 : 1),
+      },
+      dietaryRestrictions: {
+        total: dietaryRestrictions.length,
+        counts: dietaryCounts,
+        details: dietaryRestrictions,
+      },
+      medicalConditions: {
+        total: medicalConditions.length,
+        counts: medicalCounts,
+        details: medicalConditions,
+      },
+      medications: {
+        total: criticalMedications.length,
+        counts: medicationCounts,
+        details: criticalMedications,
+      },
+      ada: {
+        total: adaDetails.length,
+        details: adaDetails,
+      },
     })
   } catch (error) {
     console.error('Error:', error)
