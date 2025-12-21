@@ -493,9 +493,9 @@ export function CustomReportBuilder({
                           const order = ['YXS', 'YS', 'YM', 'YL', 'YXL', 'AS', 'AM', 'AL', 'AXL', 'A2XL', 'A3XL', 'A4XL', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL']
                           return order.indexOf(a) - order.indexOf(b)
                         })
-                        .map(([size, count]) => (
+                        .map(([size, count]: [string, any]) => (
                           <div key={size} className="text-center">
-                            <div className="text-2xl font-bold text-blue-600">{count}</div>
+                            <div className="text-2xl font-bold text-blue-600">{Number(count)}</div>
                             <div className="text-sm text-gray-600">{size}</div>
                           </div>
                         ))}
