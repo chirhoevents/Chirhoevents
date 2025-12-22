@@ -918,6 +918,5 @@ export function CustomReportBuilder({
         </div>
       </DialogContent>
     </Dialog>
-    </>
   )
 }
