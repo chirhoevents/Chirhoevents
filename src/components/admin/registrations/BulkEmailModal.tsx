@@ -299,7 +299,7 @@ export default function BulkEmailModal({
                           htmlFor="custom-event-name"
                           className="text-sm text-gray-600"
                         >
-                          Event Name (leave blank to use each registration's
+                          Event Name (leave blank to use each registration&apos;s
                           event)
                         </Label>
                         <Input
@@ -342,7 +342,7 @@ export default function BulkEmailModal({
                           htmlFor="event-name"
                           className="text-sm text-gray-600"
                         >
-                          Event Name (leave blank to use each registration's
+                          Event Name (leave blank to use each registration&apos;s
                           event)
                         </Label>
                         <Input
@@ -366,8 +366,8 @@ export default function BulkEmailModal({
                               htmlFor="amount-due"
                               className="text-sm text-gray-600"
                             >
-                              Amount Due (optional - include text like "your
-                              remaining balance")
+                              Amount Due (optional - include text like &quot;your
+                              remaining balance&quot;)
                             </Label>
                             <Input
                               id="amount-due"
