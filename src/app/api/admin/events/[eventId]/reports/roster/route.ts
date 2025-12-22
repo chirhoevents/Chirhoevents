@@ -61,7 +61,7 @@ export async function POST(
     }
 
     // Fetch participants with all related data
-    const participants = await prisma.participant.findMany({
+    const participantsRaw = await prisma.participant.findMany({
       where: participantWhere,
       include: {
         groupRegistration: {
@@ -77,28 +77,29 @@ export async function POST(
             registrationStatus: true,
           },
         },
-        liabilityForm: {
+        liabilityForms: {
           select: {
             allergies: true,
             medications: true,
             medicalConditions: true,
             dietaryRestrictions: true,
-            emergencyContactName: true,
-            emergencyContactPhone: true,
-            emergencyContactRelationship: true,
+            emergencyContact1Name: true,
+            emergencyContact1Phone: true,
+            emergencyContact1Relation: true,
           },
-        },
-        housingAssignment: {
-          select: {
-            roomNumber: true,
-            buildingName: true,
-          },
+          take: 1,
         },
       },
       orderBy: filters.sortBy === 'firstName' ? { firstName: 'asc' } :
                 filters.sortBy === 'age' ? { age: 'asc' } :
                 { lastName: 'asc' }, // Default to lastName
     })
+
+    // Transform liabilityForms array to single liabilityForm object for easier access
+    const participants = participantsRaw.map(p => ({
+      ...p,
+      liabilityForm: p.liabilityForms?.[0] || null,
+    }))
 
     // Apply group filter
     let filteredParticipants = participants
