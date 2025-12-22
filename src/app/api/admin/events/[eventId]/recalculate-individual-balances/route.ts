@@ -33,6 +33,7 @@ export async function POST(
       select: {
         id: true,
         housingType: true,
+        roomType: true,
       },
     })
 
@@ -43,16 +44,36 @@ export async function POST(
     // Process each individual registration
     for (const reg of individualRegs) {
       try {
-        // Calculate correct amount based on housing type
-        let totalAmount = Number(event.pricing.individualBasePrice || event.pricing.youthRegularPrice || 0)
+        // Calculate correct amount based on housing type and add-ons
+        let totalAmount = 0
 
+        // Base price by housing type
         if (reg.housingType === 'on_campus' && event.pricing.individualBasePrice) {
           totalAmount = Number(event.pricing.individualBasePrice)
         } else if (reg.housingType === 'off_campus' && event.pricing.individualOffCampusPrice) {
           totalAmount = Number(event.pricing.individualOffCampusPrice)
         } else if (reg.housingType === 'day_pass' && event.pricing.individualDayPassPrice) {
           totalAmount = Number(event.pricing.individualDayPassPrice)
+        } else {
+          // Fallback to individual base price or youth price
+          totalAmount = Number(event.pricing.individualBasePrice || event.pricing.youthRegularPrice || 0)
         }
+
+        // Add room type pricing (for on-campus housing)
+        if (reg.housingType === 'on_campus' && reg.roomType) {
+          if (reg.roomType === 'single' && event.pricing.singleRoomPrice) {
+            totalAmount += Number(event.pricing.singleRoomPrice)
+          } else if (reg.roomType === 'double' && event.pricing.doubleRoomPrice) {
+            totalAmount += Number(event.pricing.doubleRoomPrice)
+          } else if (reg.roomType === 'triple' && event.pricing.tripleRoomPrice) {
+            totalAmount += Number(event.pricing.tripleRoomPrice)
+          } else if (reg.roomType === 'quad' && event.pricing.quadRoomPrice) {
+            totalAmount += Number(event.pricing.quadRoomPrice)
+          }
+        }
+
+        // Note: Meal package pricing would need to be tracked separately if it's an optional add-on
+        // since the IndividualRegistration model doesn't have an includeMealPackage field
 
         // Check if payment balance exists
         const existingBalance = await prisma.paymentBalance.findFirst({
