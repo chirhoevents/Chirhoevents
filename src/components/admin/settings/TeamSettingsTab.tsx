@@ -137,16 +137,25 @@ export default function TeamSettingsTab() {
         method: 'DELETE',
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        const data = await response.json()
         throw new Error(data.error || 'Failed to remove member')
       }
 
+      // Success - close modal and refresh
       setDeletingMember(null)
       fetchTeamMembers()
+
+      // Show success message if there's a note (e.g., user was demoted instead of deleted)
+      if (data.note) {
+        alert(data.note)
+      }
     } catch (err) {
       console.error('Error removing member:', err)
       alert(err instanceof Error ? err.message : 'Failed to remove member')
+      // Close modal on error too so user can try again
+      setDeletingMember(null)
     } finally {
       setIsDeleting(false)
     }

@@ -52,13 +52,23 @@ export async function DELETE(
     // Check if this is a pending invite (no clerkUserId)
     if (!targetUser.clerkUserId) {
       // For pending invites, we can safely delete the user record
-      await prisma.user.delete({
-        where: { id: userId },
-      })
+      try {
+        await prisma.user.delete({
+          where: { id: userId },
+        })
 
-      return NextResponse.json({
-        message: 'Invitation cancelled successfully',
-      })
+        return NextResponse.json({
+          message: 'Invitation cancelled successfully',
+        })
+      } catch (deleteError: unknown) {
+        console.error('Error deleting pending invite:', deleteError)
+        // If deletion fails, return a more specific error
+        const errorMessage = deleteError instanceof Error ? deleteError.message : 'Unknown error'
+        return NextResponse.json(
+          { error: `Failed to cancel invitation: ${errorMessage}` },
+          { status: 500 }
+        )
+      }
     }
 
     // For active users, check if they have any related records
