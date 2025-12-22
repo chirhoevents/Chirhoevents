@@ -148,8 +148,6 @@ export async function POST(request: NextRequest) {
         let computedPaymentStatus = 'Balance Due'
         if (balance === 0 && totalAmount > 0) {
           computedPaymentStatus = 'Paid in Full'
-        } else if (paymentBalance?.paymentStatus === 'overdue') {
-          computedPaymentStatus = 'Overdue'
         }
 
         // Determine forms status
@@ -161,8 +159,7 @@ export async function POST(request: NextRequest) {
         // Apply post-query filters
         if (paymentStatus) {
           if (paymentStatus === 'paid' && balance !== 0) continue
-          if (paymentStatus === 'balance' && (balance === 0 || paymentBalance?.paymentStatus === 'overdue')) continue
-          if (paymentStatus === 'overdue' && paymentBalance?.paymentStatus !== 'overdue') continue
+          if (paymentStatus === 'balance' && balance === 0) continue
         }
 
         if (formsStatus) {
@@ -238,8 +235,6 @@ export async function POST(request: NextRequest) {
         let computedPaymentStatus = 'Balance Due'
         if (balance === 0 && totalAmount > 0) {
           computedPaymentStatus = 'Paid in Full'
-        } else if (paymentBalance?.paymentStatus === 'overdue') {
-          computedPaymentStatus = 'Overdue'
         }
 
         // For individuals, check if registration is complete
@@ -249,8 +244,7 @@ export async function POST(request: NextRequest) {
         // Apply post-query filters
         if (paymentStatus) {
           if (paymentStatus === 'paid' && balance !== 0) continue
-          if (paymentStatus === 'balance' && (balance === 0 || paymentBalance?.paymentStatus === 'overdue')) continue
-          if (paymentStatus === 'overdue' && paymentBalance?.paymentStatus !== 'overdue') continue
+          if (paymentStatus === 'balance' && balance === 0) continue
         }
 
         if (formsStatus) {

@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const eventId = searchParams.get('eventId')
     const type = searchParams.get('type') // 'group' | 'individual' | null (all)
-    const paymentStatus = searchParams.get('paymentStatus') // 'paid' | 'balance' | 'overdue'
+    const paymentStatus = searchParams.get('paymentStatus') // 'paid' | 'balance'
     const formsStatus = searchParams.get('formsStatus') // 'complete' | 'pending'
     const housingType = searchParams.get('housingType') // 'on_campus' | 'off_campus' | 'day_pass'
     const search = searchParams.get('search')
@@ -129,8 +129,6 @@ export async function GET(request: NextRequest) {
         let computedPaymentStatus = 'balance_due'
         if (balance === 0 && totalAmount > 0) {
           computedPaymentStatus = 'paid_full'
-        } else if (paymentBalance?.paymentStatus === 'overdue') {
-          computedPaymentStatus = 'overdue'
         }
 
         // Determine forms status
@@ -167,9 +165,7 @@ export async function GET(request: NextRequest) {
       if (paymentStatus) {
         groupRegistrations = groupRegistrations.filter((reg) => {
           if (paymentStatus === 'paid') return reg.balance === 0
-          if (paymentStatus === 'balance')
-            return reg.balance > 0 && reg.paymentStatus !== 'overdue'
-          if (paymentStatus === 'overdue') return reg.paymentStatus === 'overdue'
+          if (paymentStatus === 'balance') return reg.balance > 0
           return true
         })
       }
@@ -235,8 +231,6 @@ export async function GET(request: NextRequest) {
         let computedPaymentStatus = 'balance_due'
         if (balance === 0 && totalAmount > 0) {
           computedPaymentStatus = 'paid_full'
-        } else if (paymentBalance?.paymentStatus === 'overdue') {
-          computedPaymentStatus = 'overdue'
         }
 
         // For individuals, check if registration is complete
@@ -272,9 +266,7 @@ export async function GET(request: NextRequest) {
       if (paymentStatus) {
         individualRegistrations = individualRegistrations.filter((reg) => {
           if (paymentStatus === 'paid') return reg.balance === 0
-          if (paymentStatus === 'balance')
-            return reg.balance > 0 && reg.paymentStatus !== 'overdue'
-          if (paymentStatus === 'overdue') return reg.paymentStatus === 'overdue'
+          if (paymentStatus === 'balance') return reg.balance > 0
           return true
         })
       }

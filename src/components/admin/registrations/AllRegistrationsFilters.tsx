@@ -13,7 +13,7 @@ import {
 import { Search, Filter, X, Download } from 'lucide-react'
 
 export type RegistrationType = 'all' | 'group' | 'individual'
-export type PaymentFilter = 'all' | 'paid' | 'balance' | 'overdue'
+export type PaymentFilter = 'all' | 'paid' | 'balance'
 export type FormsFilter = 'all' | 'complete' | 'pending'
 export type HousingFilter = 'all' | 'on_campus' | 'off_campus' | 'day_pass'
 
@@ -188,7 +188,6 @@ export default function AllRegistrationsFilters({
                 <SelectItem value="all">All</SelectItem>
                 <SelectItem value="paid">Paid in Full</SelectItem>
                 <SelectItem value="balance">Balance Due</SelectItem>
-                <SelectItem value="overdue">Overdue</SelectItem>
               </SelectContent>
             </Select>
           </div>

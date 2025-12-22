@@ -114,19 +114,12 @@ export default function AllRegistrationsTable({
     onSelectionChange(newSelection)
   }
 
-  const getPaymentStatusBadge = (status: string, balance: number) => {
+  const getPaymentStatusBadge = (balance: number) => {
     if (balance === 0) {
       return (
         <Badge className="bg-green-500 text-white">
           <CheckCircle className="h-3 w-3 mr-1" />
           Paid
-        </Badge>
-      )
-    } else if (status === 'overdue') {
-      return (
-        <Badge className="bg-red-500 text-white">
-          <XCircle className="h-3 w-3 mr-1" />
-          Overdue
         </Badge>
       )
     } else {
@@ -321,7 +314,7 @@ export default function AllRegistrationsTable({
                     </span>
                   </td>
                   <td className="p-3 text-center">
-                    {getPaymentStatusBadge(reg.paymentStatus, reg.balance)}
+                    {getPaymentStatusBadge(reg.balance)}
                   </td>
                   <td className="p-3 text-center">
                     <div className="flex gap-1 justify-center">
