@@ -79,15 +79,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Calculate price based on housing type
-    let totalAmount = Number(event.pricing.youthRegularPrice)
+    // Calculate price for individual registration based on housing type
+    let totalAmount = Number(event.pricing.individualBasePrice || event.pricing.youthRegularPrice)
 
-    if (housingType === 'on_campus' && event.pricing.onCampusYouthPrice) {
-      totalAmount = Number(event.pricing.onCampusYouthPrice)
-    } else if (housingType === 'off_campus' && event.pricing.offCampusYouthPrice) {
-      totalAmount = Number(event.pricing.offCampusYouthPrice)
-    } else if (housingType === 'day_pass' && event.pricing.dayPassYouthPrice) {
-      totalAmount = Number(event.pricing.dayPassYouthPrice)
+    if (housingType === 'on_campus' && event.pricing.individualBasePrice) {
+      totalAmount = Number(event.pricing.individualBasePrice)
+    } else if (housingType === 'off_campus' && event.pricing.individualOffCampusPrice) {
+      totalAmount = Number(event.pricing.individualOffCampusPrice)
+    } else if (housingType === 'day_pass' && event.pricing.individualDayPassPrice) {
+      totalAmount = Number(event.pricing.individualDayPassPrice)
     }
 
     // Determine registration status based on payment method
