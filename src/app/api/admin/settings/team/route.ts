@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
 
     // Send invitation email
     try {
-      const signUpUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/sign-up?invite=${newUser.id}&email=${encodeURIComponent(email)}`
+      const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/invite/${newUser.id}`
 
       await resend.emails.send({
         from: 'ChirhoEvents <noreply@chirhoevents.com>',
@@ -156,15 +156,15 @@ export async function POST(request: NextRequest) {
             </div>
             <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
               <p>Hi ${firstName},</p>
-              <p><strong>${user.firstName} ${user.lastName}</strong> has invited you to join <strong>${organization?.name || 'their organization'}</strong> on ChirhoEvents as an <strong>Administrator</strong>.</p>
-              <p>ChirhoEvents helps Catholic organizations manage retreats, conferences, and events with ease.</p>
+              <p><strong>${user.firstName} ${user.lastName}</strong> has invited you to join <strong>${organization?.name || 'their organization'}</strong> on ChiRho Events as an <strong>Administrator</strong>.</p>
+              <p>ChiRho Events helps Catholic organizations manage retreats, conferences, and events with ease.</p>
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${signUpUrl}" style="background: #9C8466; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Accept Invitation</a>
+                <a href="${inviteUrl}" style="background: #9C8466; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Accept Invitation</a>
               </div>
               <p style="color: #666; font-size: 14px;">This invitation will expire in 7 days. If you didn't expect this invitation, you can safely ignore this email.</p>
             </div>
             <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
-              <p>&copy; ${new Date().getFullYear()} ChirhoEvents. All rights reserved.</p>
+              <p>&copy; ${new Date().getFullYear()} ChiRho Events. All rights reserved.</p>
             </div>
           </body>
           </html>
