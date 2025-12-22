@@ -454,8 +454,9 @@ export default function AllRegistrationsClient() {
           onClose={() => setRefundModalReg(null)}
           registrationId={refundModalReg.id}
           registrationType={refundModalReg.type}
+          currentBalance={refundModalReg.balance}
           amountPaid={refundModalReg.amountPaid}
-          onRefundComplete={() => {
+          onRefundProcessed={() => {
             fetchRegistrations(pagination.page)
             setRefundModalReg(null)
           }}
