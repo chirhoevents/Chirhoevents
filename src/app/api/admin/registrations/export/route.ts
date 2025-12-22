@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
       })
 
       const paymentBalanceMap = new Map(
-        groupPaymentBalances.map((pb) => [pb.registrationId, pb])
+        groupPaymentBalances.map((pb) => [pb.registrationId, pb] as const)
       )
 
       for (const reg of groupRegistrations) {
@@ -216,7 +216,7 @@ export async function POST(request: NextRequest) {
       })
 
       const individualPaymentBalanceMap = new Map(
-        individualPaymentBalances.map((pb) => [pb.registrationId, pb])
+        individualPaymentBalances.map((pb) => [pb.registrationId, pb] as const)
       )
 
       for (const reg of individualRegistrations) {

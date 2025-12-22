@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
       })
 
       const paymentBalanceMap = new Map(
-        groupPaymentBalances.map((pb) => [pb.registrationId, pb])
+        groupPaymentBalances.map((pb) => [pb.registrationId, pb] as const)
       )
 
       // Transform group registrations
@@ -211,7 +211,7 @@ export async function GET(request: NextRequest) {
       })
 
       const individualPaymentBalanceMap = new Map(
-        individualPaymentBalances.map((pb) => [pb.registrationId, pb])
+        individualPaymentBalances.map((pb) => [pb.registrationId, pb] as const)
       )
 
       // Transform individual registrations
