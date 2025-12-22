@@ -60,7 +60,7 @@ interface IndividualRegistration {
   amountPaid: number
   balance: number
   paymentStatus: string
-  formCompleted: boolean
+  formStatus: 'complete' | 'pending' | 'not_required'
   confirmationCode: string | null
 }
 
@@ -158,8 +158,15 @@ export default function RegistrationsClient({
       filtered = filtered.filter((reg) => reg.balance > 0)
     }
 
+    // Forms filter
+    if (formsFilter === 'complete') {
+      filtered = filtered.filter((reg) => reg.formStatus === 'complete' || reg.formStatus === 'not_required')
+    } else if (formsFilter === 'pending') {
+      filtered = filtered.filter((reg) => reg.formStatus === 'pending')
+    }
+
     return filtered
-  }, [individualRegistrations, searchQuery, paymentFilter])
+  }, [individualRegistrations, searchQuery, paymentFilter, formsFilter])
 
   const showGroups =
     registrationTypeFilter === 'all' || registrationTypeFilter === 'group'
@@ -615,6 +622,9 @@ export default function RegistrationsClient({
                       Balance
                     </th>
                     <th className="text-center p-3 text-sm font-semibold text-gray-600">
+                      Forms
+                    </th>
+                    <th className="text-center p-3 text-sm font-semibold text-gray-600">
                       Status
                     </th>
                     <th className="text-center p-3 text-sm font-semibold text-gray-600">
@@ -655,6 +665,21 @@ export default function RegistrationsClient({
                       </td>
                       <td className="p-3 text-right font-mono text-orange-600">
                         ${reg.balance.toLocaleString()}
+                      </td>
+                      <td className="p-3 text-center">
+                        {reg.formStatus === 'complete' ? (
+                          <span className="text-sm text-green-600 font-semibold">
+                            ✓ Complete
+                          </span>
+                        ) : reg.formStatus === 'pending' ? (
+                          <span className="text-sm text-orange-600">
+                            ⚠ Pending
+                          </span>
+                        ) : (
+                          <span className="text-sm text-gray-400">
+                            — N/A
+                          </span>
+                        )}
                       </td>
                       <td className="p-3 text-center">
                         {getPaymentStatusBadge(reg.paymentStatus, reg.balance)}

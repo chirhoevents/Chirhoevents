@@ -14,7 +14,16 @@ export async function GET(
     const isPreview = request.nextUrl.searchParams.get('preview') === 'true'
     const eventFilter = eventId === 'all' ? {} : { eventId }
 
-    // Get all participants with form data
+    // Check if event requires liability forms for individuals
+    const eventSettings = eventId !== 'all'
+      ? await prisma.eventSettings.findUnique({
+          where: { eventId },
+          select: { liabilityFormsRequiredIndividual: true },
+        })
+      : null
+    const individualFormsRequired = eventSettings?.liabilityFormsRequiredIndividual ?? false
+
+    // Get all participants with form data (group registrations)
     const participants = await prisma.participant.findMany({
       where: {
         groupRegistration: eventFilter,
@@ -25,6 +34,18 @@ export async function GET(
       },
     })
 
+    // Get individual registrations with their liability forms (if required)
+    const individualRegistrations = individualFormsRequired
+      ? await prisma.individualRegistration.findMany({
+          where: eventFilter,
+          include: {
+            liabilityForms: {
+              select: { id: true, completed: true },
+            },
+          },
+        })
+      : []
+
     // Get safe environment certificates
     const certificates = await prisma.safeEnvironmentCertificate.findMany({
       where: {
@@ -34,8 +55,19 @@ export async function GET(
       },
     })
 
-    const formsRequired = participants.length
-    const formsCompleted = participants.filter((p: any) => p.liabilityFormCompleted).length
+    // Calculate group participants forms
+    const groupFormsRequired = participants.length
+    const groupFormsCompleted = participants.filter((p: any) => p.liabilityFormCompleted).length
+
+    // Calculate individual registration forms
+    const individualFormsCount = individualRegistrations.length
+    const individualFormsCompleted = individualRegistrations.filter(
+      (reg: any) => reg.liabilityForms.some((f: any) => f.completed)
+    ).length
+
+    // Totals
+    const formsRequired = groupFormsRequired + individualFormsCount
+    const formsCompleted = groupFormsCompleted + individualFormsCompleted
     const formsPending = formsRequired - formsCompleted
     const completionRate = formsRequired > 0 ? Math.round((formsCompleted / formsRequired) * 100) : 0
 
@@ -59,6 +91,14 @@ export async function GET(
       if (p.liabilityFormCompleted) byParticipantType[type].completed++
     }
 
+    // Add individual registrations to participant type breakdown
+    if (individualFormsRequired && individualRegistrations.length > 0) {
+      byParticipantType['individual_registration'] = {
+        total: individualFormsCount,
+        completed: individualFormsCompleted,
+      }
+    }
+
     // By group
     const groupStats: Record<string, any> = {}
     for (const p of participants) {
@@ -71,6 +111,18 @@ export async function GET(
         groupStats[groupName].completed++
       } else {
         groupStats[groupName].pending++
+      }
+    }
+
+    // Add individual registrations as a separate group
+    if (individualFormsRequired && individualFormsCount > 0) {
+      const individualPending = individualFormsCount - individualFormsCompleted
+      if (individualPending > 0) {
+        groupStats['Individual Registrations'] = {
+          total: individualFormsCount,
+          completed: individualFormsCompleted,
+          pending: individualPending,
+        }
       }
     }
 
