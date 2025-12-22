@@ -162,7 +162,7 @@ export async function PUT(
 
     const { userId } = await params
     const body = await request.json()
-    const { role } = body
+    const { role, permissions } = body
 
     // Validate role - must be an admin role (excluding master_admin)
     const validRoles = ADMIN_ROLES.filter(r => r !== 'master_admin')
@@ -204,21 +204,25 @@ export async function PUT(
       )
     }
 
-    // Update the role
+    // Update the role and permissions
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: { role },
+      data: {
+        role,
+        permissions: permissions || null,
+      },
       select: {
         id: true,
         email: true,
         firstName: true,
         lastName: true,
         role: true,
+        permissions: true,
       },
     })
 
     return NextResponse.json({
-      message: 'Role updated successfully',
+      message: 'Role and permissions updated successfully',
       user: updatedUser,
     })
   } catch (error) {
