@@ -105,6 +105,11 @@ export function CustomReportBuilder({
     }
   }, [open, organizationId])
 
+  // Clear report data when report type changes
+  useEffect(() => {
+    setReportData(null)
+  }, [reportType])
+
   const loadTemplates = async () => {
     try {
       const response = await fetch(`/api/admin/report-templates?organizationId=${organizationId}`)
@@ -131,6 +136,7 @@ export function CustomReportBuilder({
       setTemplateName(template.name)
       setTemplateDescription(template.description || '')
       setIsPublic(template.isPublic)
+      setReportData(null) // Clear previous report data
     }
   }
 
@@ -339,28 +345,24 @@ export function CustomReportBuilder({
     <>
       <style jsx global>{`
         @media print {
-          /* Hide everything except the report */
-          body > *:not(#__next) {
-            display: none !important;
+          /* Hide navigation and other page elements */
+          body * {
+            visibility: hidden;
           }
 
-          /* Hide all dialog overlays and backgrounds */
-          [role="dialog"],
-          [data-radix-portal] {
-            position: static !important;
-            background: white !important;
-            max-width: 100% !important;
-            max-height: 100% !important;
-            overflow: visible !important;
+          /* Show only the report results */
+          #report-results,
+          #report-results * {
+            visibility: visible;
           }
 
-          /* Ensure report results are visible and properly formatted */
+          /* Position report at top of page */
           #report-results {
-            display: block !important;
-            position: relative !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            page-break-inside: avoid;
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            max-width: 100%;
           }
 
           /* Make tables fit on page */
@@ -387,7 +389,8 @@ export function CustomReportBuilder({
 
           /* Remove backgrounds for print */
           #report-results .bg-blue-50,
-          #report-results .bg-gray-100 {
+          #report-results .bg-gray-100,
+          #report-results .bg-gray-200 {
             background-color: white !important;
             border: 1px solid #ccc !important;
           }
