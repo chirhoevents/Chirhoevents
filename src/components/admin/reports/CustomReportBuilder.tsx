@@ -102,7 +102,7 @@ export function CustomReportBuilder({
       { value: 'age', label: 'Age' },
       { value: 'participantType', label: 'Participant Type' },
       { value: 'tShirtSize', label: 'T-Shirt Size' },
-      { value: 'groupRegistration.registrationCode', label: 'Registration Code' },
+      { value: 'groupRegistration.accessCode', label: 'Access Code' },
       { value: 'groupRegistration.groupName', label: 'Group Name' },
       { value: 'groupRegistration.parishName', label: 'Parish Name' },
       { value: 'groupRegistration.dioceseName', label: 'Diocese Name' },
@@ -444,7 +444,7 @@ export function CustomReportBuilder({
               <h3 style="border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 12px;">
                 ${groupTitle}
               </h3>
-              ${group.registrationCode ? `<p><strong>Registration Code:</strong> ${group.registrationCode}</p>` : ''}
+              ${group.accessCode ? `<p><strong>Registration Code:</strong> ${group.accessCode}</p>` : ''}
               ${group.groupLeaderName ? `<p><strong>Leader:</strong> ${group.groupLeaderName} • ${group.groupLeaderEmail || ''}</p>` : ''}
               <p><strong>Participants:</strong> ${group.participants.length}</p>
 
@@ -485,7 +485,7 @@ export function CustomReportBuilder({
           <table>
             <thead>
               <tr>
-                ${selectedFields.includes('groupRegistration.registrationCode') ? '<th>Reg Code</th>' : ''}
+                ${selectedFields.includes('groupRegistration.accessCode') ? '<th>Reg Code</th>' : ''}
                 ${selectedFields.includes('firstName') ? '<th>First Name</th>' : ''}
                 ${selectedFields.includes('lastName') ? '<th>Last Name</th>' : ''}
                 ${selectedFields.includes('age') ? '<th>Age</th>' : ''}
@@ -502,7 +502,7 @@ export function CustomReportBuilder({
             <tbody>
               ${(reportData.data || []).map((p: any) => `
                 <tr>
-                  ${selectedFields.includes('groupRegistration.registrationCode') ? `<td style="font-family: monospace;">${p.groupRegistration?.registrationCode || ''}</td>` : ''}
+                  ${selectedFields.includes('groupRegistration.accessCode') ? `<td style="font-family: monospace;">${p.groupRegistration?.accessCode || ''}</td>` : ''}
                   ${selectedFields.includes('firstName') ? `<td>${p.firstName || ''}</td>` : ''}
                   ${selectedFields.includes('lastName') ? `<td>${p.lastName || ''}</td>` : ''}
                   ${selectedFields.includes('age') ? `<td>${p.age || ''}</td>` : ''}
@@ -625,7 +625,7 @@ export function CustomReportBuilder({
             ...p,
             _groupName: group.groupName,
             _groupLeader: group.groupLeaderName,
-            _registrationCode: group.registrationCode,
+            _accessCode: group.accessCode,
           }))
         )
       } else {
@@ -1143,8 +1143,8 @@ export function CustomReportBuilder({
                             {filters.groupBy === 'participantType' && (group.participantType?.replace(/_/g, ' ') || 'Unknown Type')}
                             {filters.groupBy === 'parish' && group.parishName}
                           </h4>
-                          {group.registrationCode && (
-                            <p className="text-sm text-gray-600">Registration Code: <strong>{group.registrationCode}</strong></p>
+                          {group.accessCode && (
+                            <p className="text-sm text-gray-600">Registration Code: <strong>{group.accessCode}</strong></p>
                           )}
                           {group.groupLeaderName && (
                             <p className="text-sm text-gray-600">Leader: {group.groupLeaderName} • {group.groupLeaderEmail}</p>
@@ -1190,7 +1190,7 @@ export function CustomReportBuilder({
                       <table className="min-w-full border-collapse border border-gray-300">
                         <thead>
                           <tr className="bg-gray-100">
-                            {selectedFields.includes('groupRegistration.registrationCode') && <th className="border border-gray-300 p-2 text-left text-xs">Reg Code</th>}
+                            {selectedFields.includes('groupRegistration.accessCode') && <th className="border border-gray-300 p-2 text-left text-xs">Reg Code</th>}
                             {selectedFields.includes('firstName') && <th className="border border-gray-300 p-2 text-left text-xs">First Name</th>}
                             {selectedFields.includes('lastName') && <th className="border border-gray-300 p-2 text-left text-xs">Last Name</th>}
                             {selectedFields.includes('age') && <th className="border border-gray-300 p-2 text-left text-xs">Age</th>}
@@ -1207,7 +1207,7 @@ export function CustomReportBuilder({
                         <tbody>
                           {Array.isArray(reportData.data) && reportData.data.map((p: any, i: number) => (
                             <tr key={i} className="hover:bg-gray-50">
-                              {selectedFields.includes('groupRegistration.registrationCode') && <td className="border border-gray-300 p-2 text-xs font-mono">{p.groupRegistration?.registrationCode}</td>}
+                              {selectedFields.includes('groupRegistration.accessCode') && <td className="border border-gray-300 p-2 text-xs font-mono">{p.groupRegistration?.accessCode}</td>}
                               {selectedFields.includes('firstName') && <td className="border border-gray-300 p-2 text-xs">{p.firstName}</td>}
                               {selectedFields.includes('lastName') && <td className="border border-gray-300 p-2 text-xs">{p.lastName}</td>}
                               {selectedFields.includes('age') && <td className="border border-gray-300 p-2 text-xs">{p.age}</td>}

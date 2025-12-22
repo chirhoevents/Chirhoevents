@@ -290,7 +290,7 @@ async function executeRosterReport(eventId: string, config: any) {
       groupRegistration: {
         select: {
           id: true,
-          registrationCode: true,
+          accessCode: true,
           groupName: true,
           parishName: true,
           dioceseName: true,
@@ -361,7 +361,7 @@ async function executeRosterReport(eventId: string, config: any) {
         groupedData.set(groupId, {
           groupId,
           groupName,
-          registrationCode: p.groupRegistration?.registrationCode,
+          accessCode: p.groupRegistration?.accessCode,
           parishName: p.groupRegistration?.parishName,
           groupLeaderName: p.groupRegistration?.groupLeaderName,
           groupLeaderEmail: p.groupRegistration?.groupLeaderEmail,
