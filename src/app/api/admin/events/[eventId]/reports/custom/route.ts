@@ -284,7 +284,7 @@ async function executeRosterReport(eventId: string, config: any) {
   }
 
   // Fetch participants with comprehensive data
-  const participants = await prisma.participant.findMany({
+  const participantsRaw = await prisma.participant.findMany({
     where: participantWhere,
     include: {
       groupRegistration: {
@@ -301,7 +301,7 @@ async function executeRosterReport(eventId: string, config: any) {
           registrationStatus: true,
         },
       },
-      liabilityForm: {
+      liabilityForms: {
         select: {
           allergies: true,
           medications: true,
@@ -311,6 +311,7 @@ async function executeRosterReport(eventId: string, config: any) {
           emergencyContactPhone: true,
           emergencyContactRelationship: true,
         },
+        take: 1, // Get only the first liability form
       },
       housingAssignment: {
         select: {
@@ -323,6 +324,12 @@ async function executeRosterReport(eventId: string, config: any) {
               config.filters?.sortBy === 'age' ? { age: 'asc' } :
               { lastName: 'asc' },
   })
+
+  // Transform liabilityForms array to single liabilityForm object for easier access
+  const participants = participantsRaw.map(p => ({
+    ...p,
+    liabilityForm: p.liabilityForms?.[0] || null,
+  }))
 
   // Apply additional filters
   let filtered = participants
