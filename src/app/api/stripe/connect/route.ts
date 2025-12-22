@@ -74,7 +74,14 @@ export async function POST() {
     // Save the Stripe account ID to the organization
     await prisma.organization.update({
       where: { id: organization.id },
-      data: { stripeAccountId: account.id },
+      data: {
+        stripeAccountId: account.id,
+        stripeAccountStatus: 'pending',
+        stripeOnboardingCompleted: false,
+        stripeChargesEnabled: false,
+        stripePayoutsEnabled: false,
+        stripeConnectedAt: new Date()
+      },
     })
 
     // Create an account link for onboarding

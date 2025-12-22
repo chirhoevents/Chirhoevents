@@ -23,6 +23,11 @@ model Organization {
   contactEmail            String   @unique @map("contact_email") @db.VarChar(255)
   contactPhone            String?  @map("contact_phone") @db.VarChar(20)
   stripeAccountId         String?  @unique @map("stripe_account_id") @db.VarChar(255)
+  stripeAccountStatus     StripeAccountStatus @default(not_connected) @map("stripe_account_status")
+  stripeOnboardingCompleted Boolean @default(false) @map("stripe_onboarding_completed")
+  stripeChargesEnabled    Boolean  @default(false) @map("stripe_charges_enabled")
+  stripePayoutsEnabled    Boolean  @default(false) @map("stripe_payouts_enabled")
+  stripeConnectedAt       DateTime? @map("stripe_connected_at") @db.Timestamptz(6)
   subscriptionTier        SubscriptionTier @map("subscription_tier")
   subscriptionStatus      SubscriptionStatus @map("subscription_status")
   monthlyFee              Decimal  @map("monthly_fee") @db.Decimal(10, 2)
@@ -79,6 +84,7 @@ model User {
   registrationEdits RegistrationEdit[]
   refundsProcessed Refund[]
   reportTemplates ReportTemplate[] @relation("ReportTemplatesCreated")
+  paymentsProcessed Payment[] @relation("PaymentsProcessed")
 
   @@index([organizationId], name: "idx_user_org")
   @@index([email], name: "idx_user_email")
@@ -386,22 +392,27 @@ model Payment {
   paymentStatus         PaymentStatus @map("payment_status")
   stripePaymentIntentId String?  @unique @map("stripe_payment_intent_id") @db.VarChar(255)
   stripeChargeId        String?  @map("stripe_charge_id") @db.VarChar(255)
+  stripePaymentMethodId String?  @map("stripe_payment_method_id") @db.VarChar(255)
   receiptUrl            String?  @map("receipt_url") @db.Text
   checkNumber           String?  @map("check_number") @db.VarChar(50)
   checkDate             DateTime? @map("check_date") @db.Date
   checkReceivedDate     DateTime? @map("check_received_date") @db.Date
   cardLast4             String?  @map("card_last_4") @db.VarChar(4)
+  cardBrand             String?  @map("card_brand") @db.VarChar(50)
   cardholderName        String?  @map("cardholder_name") @db.VarChar(255)
   authorizationCode     String?  @map("authorization_code") @db.VarChar(255)
   paymentMethodDetails  String?  @map("payment_method_details") @db.Text
   transactionReference  String?  @map("transaction_reference") @db.VarChar(255)
   notes                 String?  @db.Text
+  processedByUserId     String?  @map("processed_by_user_id") @db.Uuid
+  processedVia          ProcessedVia? @map("processed_via")
   processedAt           DateTime? @map("processed_at") @db.Timestamptz(6)
   createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   // Relations
   organization Organization @relation(fields: [organizationId], references: [id])
+  processedBy  User?        @relation("PaymentsProcessed", fields: [processedByUserId], references: [id])
 
   @@index([registrationId, registrationType], name: "idx_payment_registration")
   @@index([stripePaymentIntentId], name: "idx_payment_stripe")
@@ -575,6 +586,20 @@ enum SubscriptionStatus {
   trial
 }
 
+enum StripeAccountStatus {
+  not_connected
+  pending
+  active
+  restricted
+  disconnected
+}
+
+enum ProcessedVia {
+  online
+  virtual_terminal
+  manual
+}
+
 enum UserRole {
   master_admin
   org_admin
@@ -724,6 +749,7 @@ enum EditType {
   participant_added
   participant_removed
   payment_updated
+  payment_processed
   refund_processed
 }
 

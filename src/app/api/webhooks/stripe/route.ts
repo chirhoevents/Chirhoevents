@@ -423,5 +423,49 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Handle Stripe Connect account updates
+  if (event.type === 'account.updated') {
+    console.log('🏦 Processing account.updated event')
+    const account = event.data.object as Stripe.Account
+
+    try {
+      // Find organization with this Stripe account ID
+      const org = await prisma.organization.findFirst({
+        where: { stripeAccountId: account.id }
+      })
+
+      if (!org) {
+        console.log('⚠️ No organization found for Stripe account:', account.id)
+        return NextResponse.json({ received: true })
+      }
+
+      // Update organization Stripe status
+      await prisma.organization.update({
+        where: { id: org.id },
+        data: {
+          stripeChargesEnabled: account.charges_enabled || false,
+          stripePayoutsEnabled: account.payouts_enabled || false,
+          stripeOnboardingCompleted: account.details_submitted || false,
+          stripeAccountStatus: account.charges_enabled
+            ? 'active'
+            : account.details_submitted
+            ? 'restricted'
+            : 'pending'
+        }
+      })
+
+      console.log('✅ Updated organization Stripe status:', {
+        orgId: org.id,
+        chargesEnabled: account.charges_enabled,
+        payoutsEnabled: account.payouts_enabled,
+        detailsSubmitted: account.details_submitted
+      })
+    } catch (error) {
+      console.error('❌ Error processing account.updated:', error)
+    }
+
+    return NextResponse.json({ received: true })
+  }
+
   return NextResponse.json({ received: true })
 }

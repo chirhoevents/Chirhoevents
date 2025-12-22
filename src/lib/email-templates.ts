@@ -258,3 +258,158 @@ export function getTemplatesByCategory(category: EmailTemplate['category']): Ema
 export function processSubject(subject: string, data: any): string {
   return subject.replace(/\{\{(\w+)\}\}/g, (match, key) => data[key] || match)
 }
+
+/**
+ * Generate Virtual Terminal receipt email
+ */
+export function generateVirtualTerminalReceipt({
+  recipientName,
+  eventName,
+  amount,
+  paymentMethod,
+  cardLast4,
+  cardBrand,
+  processedBy,
+  notes,
+  newBalance,
+  organizationName
+}: {
+  recipientName: string
+  eventName: string
+  amount: number
+  paymentMethod: string
+  cardLast4?: string
+  cardBrand?: string
+  processedBy: string
+  notes?: string
+  newBalance: number
+  organizationName: string
+}): string {
+  const paymentMethodDisplay =
+    paymentMethod === 'card' && cardLast4
+      ? `${cardBrand || 'Card'} ending in ${cardLast4}`
+      : paymentMethod === 'check'
+      ? 'Check'
+      : paymentMethod === 'cash'
+      ? 'Cash'
+      : 'Credit Card'
+
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #1E3A5F; margin: 0; padding: 0; }
+          .container { max-width: 600px; margin: 0 auto; }
+          .header { background: #1E3A5F; color: white; padding: 30px; text-align: center; }
+          .header h1 { margin: 0; font-size: 24px; }
+          .header p { margin: 10px 0 0; opacity: 0.9; }
+          .content { background: #F5F1E8; padding: 30px; }
+          .receipt-box { background: white; border: 2px solid #9C8466; border-radius: 8px; padding: 20px; margin: 20px 0; }
+          .amount { font-size: 32px; font-weight: bold; color: #1E3A5F; margin: 10px 0; }
+          .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #E5E7EB; }
+          .detail-row:last-child { border-bottom: none; }
+          .detail-label { color: #6B7280; font-size: 14px; }
+          .detail-value { font-weight: 600; color: #1E3A5F; text-align: right; }
+          .footer { text-align: center; padding: 20px; color: #6B7280; font-size: 12px; }
+          .balance-box { margin-top: 15px; padding-top: 15px; border-top: 2px solid #9C8466; }
+          .success-box { background: #D1FAE5; border: 1px solid #059669; padding: 15px; border-radius: 6px; margin: 20px 0; }
+          .success-text { margin: 0; color: #065F46; }
+          .warning-box { background: #FEF3C7; border: 1px solid #F59E0B; padding: 15px; border-radius: 6px; margin: 20px 0; }
+          .warning-text { margin: 0; color: #92400E; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Payment Received</h1>
+            <p>Payment processed by ${organizationName} staff</p>
+          </div>
+
+          <div class="content">
+            <p>Dear ${recipientName},</p>
+
+            <p>This email confirms that a payment has been processed by our staff for your registration.</p>
+
+            <div class="receipt-box">
+              <h2 style="margin-top: 0; color: #1E3A5F;">Payment Details</h2>
+
+              <div style="text-align: center; margin: 20px 0;">
+                <div style="color: #6B7280; font-size: 14px;">Amount Paid</div>
+                <div class="amount">$${amount.toFixed(2)}</div>
+              </div>
+
+              <div class="detail-row">
+                <span class="detail-label">Event</span>
+                <span class="detail-value">${eventName}</span>
+              </div>
+
+              <div class="detail-row">
+                <span class="detail-label">Payment Method</span>
+                <span class="detail-value">${paymentMethodDisplay}</span>
+              </div>
+
+              <div class="detail-row">
+                <span class="detail-label">Processed By</span>
+                <span class="detail-value">${processedBy}</span>
+              </div>
+
+              <div class="detail-row">
+                <span class="detail-label">Date</span>
+                <span class="detail-value">${new Date().toLocaleDateString('en-US', {
+                  month: 'long',
+                  day: 'numeric',
+                  year: 'numeric'
+                })}</span>
+              </div>
+
+              ${notes ? `
+                <div class="detail-row">
+                  <span class="detail-label">Notes</span>
+                  <span class="detail-value">${notes}</span>
+                </div>
+              ` : ''}
+
+              <div class="balance-box">
+                <div class="detail-row" style="border-bottom: none;">
+                  <span class="detail-label" style="font-size: 16px;">Remaining Balance</span>
+                  <span class="detail-value" style="font-size: 20px; color: ${newBalance > 0 ? '#1E3A5F' : '#059669'};">
+                    $${newBalance.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            ${newBalance > 0 ? `
+              <div class="warning-box">
+                <p class="warning-text">
+                  <strong>Outstanding Balance:</strong> You still have a balance of $${newBalance.toFixed(2)}.
+                  Please make your final payment before the event.
+                </p>
+              </div>
+            ` : `
+              <div class="success-box">
+                <p class="success-text">
+                  <strong>Paid in Full!</strong> Your registration is fully paid. We look forward to seeing you at the event!
+                </p>
+              </div>
+            `}
+
+            <p>If you have any questions about this payment, please contact us.</p>
+
+            <p>
+              Thank you,<br>
+              <strong>${organizationName}</strong>
+            </p>
+          </div>
+
+          <div class="footer">
+            <p>This is an automated receipt. Please save this email for your records.</p>
+            <p>&copy; ${new Date().getFullYear()} ${organizationName}. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `
+}

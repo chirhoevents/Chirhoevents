@@ -17,6 +17,7 @@ import {
   Menu,
   X,
   LogOut,
+  CreditCard,
   LucideIcon
 } from 'lucide-react'
 import { hasPermission, getRoleName, type Permission, type UserRole } from '@/lib/permissions'
@@ -39,6 +40,7 @@ const allNavigation: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard/admin', icon: LayoutDashboard },
   { name: 'Events', href: '/dashboard/admin/events', icon: Calendar, permission: 'events.view' },
   { name: 'Registrations', href: '/dashboard/admin/registrations', icon: Users, permission: 'registrations.view' },
+  { name: 'Virtual Terminal', href: '/dashboard/admin/virtual-terminal', icon: CreditCard, permission: 'payments.process' },
   { name: 'Poros Portal', href: '/dashboard/admin/poros', icon: Home, permission: 'portals.poros.view' },
   { name: 'SALVE Check-In', href: '/dashboard/admin/salve', icon: CheckSquare, permission: 'portals.salve.view' },
   { name: 'Rapha Medical', href: '/dashboard/admin/rapha', icon: Activity, permission: 'portals.rapha.view' },
