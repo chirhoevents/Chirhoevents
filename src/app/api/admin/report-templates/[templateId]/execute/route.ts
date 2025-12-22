@@ -282,7 +282,7 @@ async function executeRosterReport(eventId: string, config: any, filters: any) {
     participantWhere.tShirtSize = { in: config.filters.tShirtSizes }
   }
 
-  // Fetch participants with comprehensive data
+  // Fetch group participants with comprehensive data
   const participantsRaw = await prisma.participant.findMany({
     where: participantWhere,
     include: {
@@ -318,11 +318,72 @@ async function executeRosterReport(eventId: string, config: any, filters: any) {
               { lastName: 'asc' },
   })
 
-  // Transform liabilityForms array to single liabilityForm object for easier access
-  const participants = participantsRaw.map(p => ({
+  // Build individual registration query filters
+  const individualWhere: any = { eventId }
+
+  if (config.filters?.minAge) {
+    individualWhere.age = { ...individualWhere.age, gte: config.filters.minAge }
+  }
+  if (config.filters?.maxAge) {
+    individualWhere.age = { ...individualWhere.age, lte: config.filters.maxAge }
+  }
+
+  if (config.filters?.tShirtSizes && config.filters.tShirtSizes.length > 0) {
+    individualWhere.tShirtSize = { in: config.filters.tShirtSizes }
+  }
+
+  // Fetch individual registrations
+  const individualRegs = await prisma.individualRegistration.findMany({
+    where: individualWhere,
+    include: {
+      liabilityForms: {
+        select: {
+          allergies: true,
+          medications: true,
+          medicalConditions: true,
+          dietaryRestrictions: true,
+        },
+        take: 1,
+      },
+    },
+    orderBy: config.filters?.sortBy === 'firstName' ? { firstName: 'asc' } :
+              config.filters?.sortBy === 'age' ? { age: 'asc' } :
+              { lastName: 'asc' },
+  })
+
+  // Transform group participants - liabilityForms array to single liabilityForm object
+  const groupParticipants = participantsRaw.map(p => ({
     ...p,
     liabilityForm: p.liabilityForms?.[0] || null,
   }))
+
+  // Transform individual registrations to match participant structure
+  const individualParticipants = individualRegs.map(ind => ({
+    id: ind.id,
+    firstName: ind.firstName,
+    lastName: ind.lastName,
+    preferredName: ind.preferredName,
+    age: ind.age,
+    gender: ind.gender,
+    tShirtSize: ind.tShirtSize,
+    participantType: null, // Individual registrations don't have participantType
+    groupRegistration: null, // No group for individual registrations
+    liabilityForm: {
+      // Emergency contacts are on IndividualRegistration model directly
+      emergencyContact1Name: ind.emergencyContact1Name,
+      emergencyContact1Phone: ind.emergencyContact1Phone,
+      emergencyContact1Relation: ind.emergencyContact1Relation,
+      // Medical info comes from their liability form if exists
+      allergies: ind.liabilityForms?.[0]?.allergies || null,
+      medications: ind.liabilityForms?.[0]?.medications || null,
+      medicalConditions: ind.liabilityForms?.[0]?.medicalConditions || null,
+      dietaryRestrictions: ind.liabilityForms?.[0]?.dietaryRestrictions || null,
+    },
+    _isIndividual: true, // Flag to identify individual registrations
+  }))
+
+  // Combine both arrays
+  const participants = [...groupParticipants, ...individualParticipants]
 
   // Apply additional filters
   let filtered = participants
