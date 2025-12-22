@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { UserButton, useClerk } from '@clerk/nextjs'
 import Link from 'next/link'
@@ -16,13 +16,35 @@ import {
   Settings,
   Menu,
   X,
-  LogOut
+  LogOut,
+  LucideIcon
 } from 'lucide-react'
+import { hasPermission, getRoleName, type Permission, type UserRole } from '@/lib/permissions'
 
-interface OrgInfo {
+interface UserInfo {
   organizationName: string
-  userRole: string
+  userRole: UserRole
+  permissions?: string[]
 }
+
+interface NavItem {
+  name: string
+  href: string
+  icon: LucideIcon
+  permission?: Permission
+}
+
+// Define all navigation items with their required permissions
+const allNavigation: NavItem[] = [
+  { name: 'Dashboard', href: '/dashboard/admin', icon: LayoutDashboard },
+  { name: 'Events', href: '/dashboard/admin/events', icon: Calendar, permission: 'events.view' },
+  { name: 'Registrations', href: '/dashboard/admin/registrations', icon: Users, permission: 'registrations.view' },
+  { name: 'Poros Portal', href: '/dashboard/admin/poros', icon: Home, permission: 'portals.poros.view' },
+  { name: 'SALVE Check-In', href: '/dashboard/admin/salve', icon: CheckSquare, permission: 'portals.salve.view' },
+  { name: 'Rapha Medical', href: '/dashboard/admin/rapha', icon: Activity, permission: 'portals.rapha.view' },
+  { name: 'Reports', href: '/dashboard/admin/reports', icon: BarChart3, permission: 'reports.view' },
+  { name: 'Settings', href: '/dashboard/admin/settings', icon: Settings, permission: 'settings.view' },
+]
 
 export default function AdminLayout({
   children,
@@ -31,7 +53,7 @@ export default function AdminLayout({
 }) {
   const router = useRouter()
   const { signOut } = useClerk()
-  const [orgInfo, setOrgInfo] = useState<OrgInfo | null>(null)
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -51,9 +73,10 @@ export default function AdminLayout({
         }
 
         const data = await response.json()
-        setOrgInfo({
+        setUserInfo({
           organizationName: data.organizationName,
-          userRole: data.userRole,
+          userRole: data.userRole as UserRole,
+          permissions: data.permissions,
         })
       } catch (error) {
         console.error('Error:', error)
@@ -66,16 +89,18 @@ export default function AdminLayout({
     checkAccess()
   }, [router])
 
-  const navigation = [
-    { name: 'Dashboard', href: '/dashboard/admin', icon: LayoutDashboard },
-    { name: 'Events', href: '/dashboard/admin/events', icon: Calendar },
-    { name: 'Registrations', href: '/dashboard/admin/registrations', icon: Users },
-    { name: 'Poros Portal', href: '/dashboard/admin/poros', icon: Home },
-    { name: 'SALVE Check-In', href: '/dashboard/admin/salve', icon: CheckSquare },
-    { name: 'Rapha Medical', href: '/dashboard/admin/rapha', icon: Activity },
-    { name: 'Reports', href: '/dashboard/admin/reports', icon: BarChart3 },
-    { name: 'Settings', href: '/dashboard/admin/settings', icon: Settings },
-  ]
+  // Filter navigation based on user permissions
+  const navigation = useMemo(() => {
+    if (!userInfo) return []
+
+    return allNavigation.filter(item => {
+      // Dashboard is always visible to all admins
+      if (!item.permission) return true
+
+      // Check if user has the required permission
+      return hasPermission(userInfo.userRole, item.permission, userInfo.permissions as Permission[] | undefined)
+    })
+  }, [userInfo])
 
   if (loading) {
     return (
@@ -122,14 +147,14 @@ export default function AdminLayout({
           </div>
 
           {/* Organization Info */}
-          {orgInfo && (
+          {userInfo && (
             <div className="px-6 py-4 border-b border-[#2A4A6F]">
               <p className="text-xs text-[#E8DCC8] mb-1">Organization</p>
               <p className="text-sm font-medium text-white truncate">
-                {orgInfo.organizationName}
+                {userInfo.organizationName}
               </p>
-              <p className="text-xs text-[#9C8466] mt-1 capitalize">
-                {orgInfo.userRole.replace('_', ' ')}
+              <p className="text-xs text-[#9C8466] mt-1">
+                {getRoleName(userInfo.userRole)}
               </p>
             </div>
           )}
@@ -180,13 +205,13 @@ export default function AdminLayout({
               <Menu className="h-6 w-6" />
             </button>
 
-            {orgInfo && (
+            {userInfo && (
               <div className="hidden lg:block">
                 <h2 className="text-lg font-semibold text-[#1E3A5F]">
-                  {orgInfo.organizationName}
+                  {userInfo.organizationName}
                 </h2>
-                <p className="text-sm text-[#6B7280] capitalize">
-                  {orgInfo.userRole.replace('_', ' ')} Portal
+                <p className="text-sm text-[#6B7280]">
+                  {getRoleName(userInfo.userRole)} Portal
                 </p>
               </div>
             )}

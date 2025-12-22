@@ -3,6 +3,29 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@clerk/nextjs/server'
 import { format } from 'date-fns'
 
+// Type for certificate data
+interface CertificateData {
+  id: string
+  verifiedAt: Date | null
+  status: string
+  programName: string | null
+  uploadedAt: Date | null
+  participantId: string
+  participant: {
+    firstName: string | null
+    lastName: string | null
+    groupRegistration: { groupName: string | null; parishName: string | null } | null
+  } | null
+}
+
+// Type for chaperone data
+interface ChaperoneData {
+  id: string
+  firstName: string | null
+  lastName: string | null
+  groupRegistration: { groupName: string | null; parishName: string | null } | null
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { eventId: string } }
@@ -24,7 +47,7 @@ export async function GET(
       include: {
         groupRegistration: { select: { groupName: true, parishName: true } },
       },
-    })
+    }) as ChaperoneData[]
 
     // Get certificates
     const certificates = await prisma.safeEnvironmentCertificate.findMany({
@@ -43,11 +66,11 @@ export async function GET(
           },
         },
       },
-    })
+    }) as CertificateData[]
 
     const required = chaperones.length
     const uploaded = certificates.length
-    const verified = certificates.filter(c => c.verifiedAt !== null).length
+    const verified = certificates.filter((c: CertificateData) => c.verifiedAt !== null).length
     const missing = required - uploaded
     const uploadRate = required > 0 ? Math.round((uploaded / required) * 100) : 0
     const verifyRate = required > 0 ? Math.round((verified / required) * 100) : 0
@@ -65,18 +88,18 @@ export async function GET(
 
     // Pending verification
     const pending = certificates
-      .filter(c => c.status === 'pending')
-      .map(c => ({
+      .filter((c: CertificateData) => c.status === 'pending')
+      .map((c: CertificateData) => ({
         name: `${c.participant?.firstName} ${c.participant?.lastName}`,
         uploadedDate: c.uploadedAt ? format(new Date(c.uploadedAt), 'M/d') : 'Unknown',
       }))
 
     // Missing certs - chaperones with no certificate
-    const chaperoneIds = chaperones.map(c => c.id)
-    const certParticipantIds = certificates.map(c => c.participantId)
-    const missingChaperones = chaperones.filter(c => !certParticipantIds.includes(c.id))
+    const chaperoneIds = chaperones.map((c: ChaperoneData) => c.id)
+    const certParticipantIds = certificates.map((c: CertificateData) => c.participantId)
+    const missingChaperones = chaperones.filter((c: ChaperoneData) => !certParticipantIds.includes(c.id))
 
-    const missingList = missingChaperones.map(c => ({
+    const missingList = missingChaperones.map((c: ChaperoneData) => ({
       name: `${c.firstName} ${c.lastName}`,
       group: c.groupRegistration?.groupName || c.groupRegistration?.parishName || 'Unknown',
     }))

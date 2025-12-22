@@ -125,7 +125,24 @@ async function executeFinancialReport(eventId: string, config: any) {
   }
 }
 
-async function executeTShirtReport(eventId: string, config: any) {
+interface ParticipantWithSize {
+  id: string
+  firstName: string | null
+  lastName: string | null
+  tShirtSize: string | null
+  participantType: string | null
+  groupRegistration: { groupName: string | null; parishName: string | null } | null
+}
+
+interface IndividualWithSize {
+  id: string
+  firstName: string | null
+  lastName: string | null
+  tShirtSize: string | null
+  age: number | null
+}
+
+async function executeTShirtReport(eventId: string, config: { filters?: { onlyWithSizes?: boolean }; fields?: { participants?: string[]; individuals?: string[] } }) {
   const participants = await prisma.participant.findMany({
     where: {
       groupRegistration: { eventId },
@@ -144,7 +161,7 @@ async function executeTShirtReport(eventId: string, config: any) {
         },
       },
     },
-  })
+  }) as ParticipantWithSize[]
 
   const individualRegs = await prisma.individualRegistration.findMany({
     where: {
@@ -158,16 +175,16 @@ async function executeTShirtReport(eventId: string, config: any) {
       tShirtSize: true,
       age: true,
     },
-  })
+  }) as IndividualWithSize[]
 
   // Aggregate by size
   const sizeCounts: Record<string, number> = {}
-  participants.forEach(p => {
+  participants.forEach((p: ParticipantWithSize) => {
     if (p.tShirtSize) {
       sizeCounts[p.tShirtSize] = (sizeCounts[p.tShirtSize] || 0) + 1
     }
   })
-  individualRegs.forEach(i => {
+  individualRegs.forEach((i: IndividualWithSize) => {
     if (i.tShirtSize) {
       sizeCounts[i.tShirtSize] = (sizeCounts[i.tShirtSize] || 0) + 1
     }

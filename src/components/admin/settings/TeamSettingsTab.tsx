@@ -37,8 +37,15 @@ import {
   Clock,
   Shield,
   ShieldCheck,
+  Calendar,
+  DollarSign,
+  Home,
+  CheckSquare,
+  Activity,
+  User,
 } from 'lucide-react'
 import { format } from 'date-fns'
+import { getRoleName, getRoleDescription, type UserRole } from '@/lib/permissions'
 
 interface TeamMember {
   id: string
@@ -51,8 +58,15 @@ interface TeamMember {
   clerkUserId?: string | null
 }
 
+// Available roles for invitation (excluding master_admin)
 const ROLES = [
-  { value: 'org_admin', label: 'Organization Admin', description: 'Full admin access' },
+  { value: 'org_admin', icon: ShieldCheck },
+  { value: 'event_manager', icon: Calendar },
+  { value: 'finance_manager', icon: DollarSign },
+  { value: 'poros_coordinator', icon: Home },
+  { value: 'salve_coordinator', icon: CheckSquare },
+  { value: 'rapha_coordinator', icon: Activity },
+  { value: 'staff', icon: User },
 ]
 
 export default function TeamSettingsTab() {
@@ -182,19 +196,30 @@ export default function TeamSettingsTab() {
     }
   }
 
-  const getRoleBadge = (role: string, isMasterAdmin: boolean) => {
-    if (role === 'master_admin' || isMasterAdmin) {
+  const getRoleBadge = (role: string) => {
+    const roleConfig = ROLES.find(r => r.value === role)
+    const Icon = roleConfig?.icon || Shield
+
+    if (role === 'master_admin') {
       return (
         <Badge className="bg-[#1E3A5F] text-white">
           <ShieldCheck className="h-3 w-3 mr-1" />
-          Master Admin
+          {getRoleName(role as UserRole)}
+        </Badge>
+      )
+    }
+    if (role === 'org_admin') {
+      return (
+        <Badge className="bg-[#9C8466] text-white">
+          <Icon className="h-3 w-3 mr-1" />
+          {getRoleName(role as UserRole)}
         </Badge>
       )
     }
     return (
       <Badge variant="outline" className="border-[#9C8466] text-[#9C8466]">
-        <Shield className="h-3 w-3 mr-1" />
-        Admin
+        <Icon className="h-3 w-3 mr-1" />
+        {getRoleName(role as UserRole)}
       </Badge>
     )
   }
@@ -285,7 +310,7 @@ export default function TeamSettingsTab() {
                         <span className="text-gray-600">{member.email}</span>
                       </td>
                       <td className="py-3 px-4">
-                        {getRoleBadge(member.role, member.role === 'master_admin')}
+                        {getRoleBadge(member.role)}
                       </td>
                       <td className="py-3 px-4">
                         <span className="text-sm text-gray-500">
@@ -486,14 +511,20 @@ export default function TeamSettingsTab() {
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
-                    {ROLES.map((role) => (
-                      <SelectItem key={role.value} value={role.value}>
-                        <div className="flex flex-col">
-                          <span>{role.label}</span>
-                          <span className="text-xs text-gray-500">{role.description}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
+                    {ROLES.map((role) => {
+                      const Icon = role.icon
+                      return (
+                        <SelectItem key={role.value} value={role.value}>
+                          <div className="flex items-start gap-2">
+                            <Icon className="h-4 w-4 mt-0.5 text-[#9C8466]" />
+                            <div className="flex flex-col">
+                              <span>{getRoleName(role.value as UserRole)}</span>
+                              <span className="text-xs text-gray-500">{getRoleDescription(role.value as UserRole)}</span>
+                            </div>
+                          </div>
+                        </SelectItem>
+                      )
+                    })}
                   </SelectContent>
                 </Select>
               </div>

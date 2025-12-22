@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
+import { getCurrentUser, isAdmin, userHasPermission } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
+import { ADMIN_ROLES } from '@/lib/permissions'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -23,6 +24,14 @@ export async function GET() {
     if (!user || !isAdmin(user)) {
       return NextResponse.json(
         { error: 'Unauthorized - Admin access required' },
+        { status: 403 }
+      )
+    }
+
+    // Anyone with admin access can view team members
+    if (!userHasPermission(user, 'settings.view')) {
+      return NextResponse.json(
+        { error: 'You do not have permission to view team members' },
         { status: 403 }
       )
     }
@@ -78,6 +87,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Only users with team.manage permission can invite new members
+    if (!userHasPermission(user, 'team.manage')) {
+      return NextResponse.json(
+        { error: 'You do not have permission to invite team members' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
     const { email, firstName, lastName, role } = body
 
@@ -88,11 +105,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate role
-    const validRoles = ['org_admin']
+    // Validate role - must be an admin role (excluding master_admin)
+    const validRoles = ADMIN_ROLES.filter(r => r !== 'master_admin')
     if (!validRoles.includes(role)) {
       return NextResponse.json(
-        { error: 'Invalid role. Must be org_admin.' },
+        { error: 'Invalid role. Must be a valid admin role.' },
         { status: 400 }
       )
     }
