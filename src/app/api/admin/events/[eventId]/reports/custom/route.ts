@@ -42,6 +42,7 @@ export async function POST(
     // Execute the report based on type
     const config = configuration
     const reportType = config.reportType || 'registration'
+    console.log('Executing report type:', reportType, 'with config:', JSON.stringify(config))
     let reportData: any
 
     switch (reportType) {
@@ -66,6 +67,8 @@ export async function POST(
       default:
         return NextResponse.json({ error: 'Unsupported report type' }, { status: 400 })
     }
+
+    console.log('Report data generated:', reportType, 'rows:', Array.isArray(reportData) ? reportData.length : typeof reportData)
 
     return NextResponse.json({
       reportType,

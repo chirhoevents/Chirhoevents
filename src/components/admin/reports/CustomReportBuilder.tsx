@@ -222,6 +222,8 @@ export function CustomReportBuilder({
         ? `/api/admin/report-templates/${selectedTemplate}/execute`
         : `/api/admin/events/${eventId}/reports/custom`
 
+      console.log('Executing report:', { url, reportType, selectedFields, selectedTemplate })
+
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -235,15 +237,20 @@ export function CustomReportBuilder({
         }),
       })
 
+      console.log('Response status:', response.status)
+
       if (response.ok) {
         const data = await response.json()
+        console.log('Report data received:', data)
         setReportData(data)
       } else {
-        alert('Failed to execute report')
+        const errorText = await response.text()
+        console.error('Report failed:', errorText)
+        alert(`Failed to execute report: ${errorText}`)
       }
     } catch (error) {
       console.error('Error executing report:', error)
-      alert('Error executing report')
+      alert(`Error executing report: ${error}`)
     } finally {
       setExecuting(false)
     }
