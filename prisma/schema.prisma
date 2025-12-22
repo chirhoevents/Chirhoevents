@@ -1063,6 +1063,7 @@ enum ReportType {
   certificates
   tshirts
   balances
+  roster
   custom
 }
 

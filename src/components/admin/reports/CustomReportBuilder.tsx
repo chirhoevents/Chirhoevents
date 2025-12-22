@@ -96,6 +96,30 @@ export function CustomReportBuilder({
       { value: 'participant.groupRegistration.groupName', label: 'Group Name' },
       { value: 'participant.groupRegistration.groupLeaderEmail', label: 'Group Leader Email' },
     ],
+    roster: [
+      { value: 'firstName', label: 'First Name' },
+      { value: 'lastName', label: 'Last Name' },
+      { value: 'age', label: 'Age' },
+      { value: 'participantType', label: 'Participant Type' },
+      { value: 'tShirtSize', label: 'T-Shirt Size' },
+      { value: 'groupRegistration.registrationCode', label: 'Registration Code' },
+      { value: 'groupRegistration.groupName', label: 'Group Name' },
+      { value: 'groupRegistration.parishName', label: 'Parish Name' },
+      { value: 'groupRegistration.dioceseName', label: 'Diocese Name' },
+      { value: 'groupRegistration.groupLeaderName', label: 'Group Leader' },
+      { value: 'groupRegistration.groupLeaderEmail', label: 'Leader Email' },
+      { value: 'groupRegistration.groupLeaderPhone', label: 'Leader Phone' },
+      { value: 'groupRegistration.housingType', label: 'Housing Type' },
+      { value: 'housingAssignment.roomNumber', label: 'Room Number' },
+      { value: 'housingAssignment.buildingName', label: 'Building' },
+      { value: 'liabilityForm.allergies', label: 'Allergies' },
+      { value: 'liabilityForm.medications', label: 'Medications' },
+      { value: 'liabilityForm.medicalConditions', label: 'Medical Conditions' },
+      { value: 'liabilityForm.dietaryRestrictions', label: 'Dietary Restrictions' },
+      { value: 'liabilityForm.emergencyContactName', label: 'Emergency Contact' },
+      { value: 'liabilityForm.emergencyContactPhone', label: 'Emergency Phone' },
+      { value: 'liabilityForm.emergencyContactRelationship', label: 'Contact Relationship' },
+    ],
   }
 
   // Load templates on mount
@@ -406,6 +430,96 @@ export function CustomReportBuilder({
           </tbody>
         </table>
       `
+    } else if (reportType === 'roster' && reportData) {
+      // Check if data is grouped
+      if (filters.groupBy && Array.isArray(reportData.data) && reportData.data[0]?.participants) {
+        // Grouped roster
+        tableHTML = reportData.data.map((group: any) => {
+          const groupTitle = filters.groupBy === 'group' ? group.groupName :
+                           filters.groupBy === 'participantType' ? (group.participantType?.replace(/_/g, ' ') || 'Unknown Type') :
+                           filters.groupBy === 'parish' ? group.parishName : 'Group'
+
+          return `
+            <div style="margin-bottom: 30px; page-break-inside: avoid;">
+              <h3 style="border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 12px;">
+                ${groupTitle}
+              </h3>
+              ${group.registrationCode ? `<p><strong>Registration Code:</strong> ${group.registrationCode}</p>` : ''}
+              ${group.groupLeaderName ? `<p><strong>Leader:</strong> ${group.groupLeaderName} • ${group.groupLeaderEmail || ''}</p>` : ''}
+              <p><strong>Participants:</strong> ${group.participants.length}</p>
+
+              <table style="margin-top: 12px;">
+                <thead>
+                  <tr>
+                    ${selectedFields.includes('firstName') ? '<th>First Name</th>' : ''}
+                    ${selectedFields.includes('lastName') ? '<th>Last Name</th>' : ''}
+                    ${selectedFields.includes('age') ? '<th>Age</th>' : ''}
+                    ${selectedFields.includes('participantType') ? '<th>Type</th>' : ''}
+                    ${selectedFields.includes('tShirtSize') ? '<th>T-Shirt</th>' : ''}
+                    ${selectedFields.includes('housingAssignment.roomNumber') ? '<th>Room</th>' : ''}
+                    ${selectedFields.includes('liabilityForm.emergencyContactName') ? '<th>Emergency Contact</th>' : ''}
+                    ${selectedFields.includes('liabilityForm.allergies') ? '<th>Allergies</th>' : ''}
+                  </tr>
+                </thead>
+                <tbody>
+                  ${group.participants.map((p: any) => `
+                    <tr>
+                      ${selectedFields.includes('firstName') ? `<td>${p.firstName || ''}</td>` : ''}
+                      ${selectedFields.includes('lastName') ? `<td>${p.lastName || ''}</td>` : ''}
+                      ${selectedFields.includes('age') ? `<td>${p.age || ''}</td>` : ''}
+                      ${selectedFields.includes('participantType') ? `<td>${p.participantType?.replace(/_/g, ' ') || ''}</td>` : ''}
+                      ${selectedFields.includes('tShirtSize') ? `<td>${p.tShirtSize || '-'}</td>` : ''}
+                      ${selectedFields.includes('housingAssignment.roomNumber') ? `<td>${p.housingAssignment?.roomNumber || '-'}</td>` : ''}
+                      ${selectedFields.includes('liabilityForm.emergencyContactName') ? `<td>${p.liabilityForm?.emergencyContactName || '-'}</td>` : ''}
+                      ${selectedFields.includes('liabilityForm.allergies') ? `<td>${p.liabilityForm?.allergies || '-'}</td>` : ''}
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `
+        }).join('')
+      } else {
+        // Flat roster
+        tableHTML = `
+          <table>
+            <thead>
+              <tr>
+                ${selectedFields.includes('groupRegistration.registrationCode') ? '<th>Reg Code</th>' : ''}
+                ${selectedFields.includes('firstName') ? '<th>First Name</th>' : ''}
+                ${selectedFields.includes('lastName') ? '<th>Last Name</th>' : ''}
+                ${selectedFields.includes('age') ? '<th>Age</th>' : ''}
+                ${selectedFields.includes('participantType') ? '<th>Type</th>' : ''}
+                ${selectedFields.includes('tShirtSize') ? '<th>T-Shirt</th>' : ''}
+                ${selectedFields.includes('groupRegistration.groupName') ? '<th>Group</th>' : ''}
+                ${selectedFields.includes('groupRegistration.parishName') ? '<th>Parish</th>' : ''}
+                ${selectedFields.includes('housingAssignment.roomNumber') ? '<th>Room</th>' : ''}
+                ${selectedFields.includes('liabilityForm.emergencyContactName') ? '<th>Emergency Contact</th>' : ''}
+                ${selectedFields.includes('liabilityForm.emergencyContactPhone') ? '<th>Emergency Phone</th>' : ''}
+                ${selectedFields.includes('liabilityForm.allergies') ? '<th>Allergies</th>' : ''}
+              </tr>
+            </thead>
+            <tbody>
+              ${(reportData.data || []).map((p: any) => `
+                <tr>
+                  ${selectedFields.includes('groupRegistration.registrationCode') ? `<td style="font-family: monospace;">${p.groupRegistration?.registrationCode || ''}</td>` : ''}
+                  ${selectedFields.includes('firstName') ? `<td>${p.firstName || ''}</td>` : ''}
+                  ${selectedFields.includes('lastName') ? `<td>${p.lastName || ''}</td>` : ''}
+                  ${selectedFields.includes('age') ? `<td>${p.age || ''}</td>` : ''}
+                  ${selectedFields.includes('participantType') ? `<td>${p.participantType?.replace(/_/g, ' ') || ''}</td>` : ''}
+                  ${selectedFields.includes('tShirtSize') ? `<td>${p.tShirtSize || '-'}</td>` : ''}
+                  ${selectedFields.includes('groupRegistration.groupName') ? `<td>${p.groupRegistration?.groupName || ''}</td>` : ''}
+                  ${selectedFields.includes('groupRegistration.parishName') ? `<td>${p.groupRegistration?.parishName || ''}</td>` : ''}
+                  ${selectedFields.includes('housingAssignment.roomNumber') ? `<td>${p.housingAssignment?.roomNumber || '-'}</td>` : ''}
+                  ${selectedFields.includes('liabilityForm.emergencyContactName') ? `<td>${p.liabilityForm?.emergencyContactName || '-'}</td>` : ''}
+                  ${selectedFields.includes('liabilityForm.emergencyContactPhone') ? `<td>${p.liabilityForm?.emergencyContactPhone || '-'}</td>` : ''}
+                  ${selectedFields.includes('liabilityForm.allergies') ? `<td>${p.liabilityForm?.allergies || '-'}</td>` : ''}
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `
+      }
     } else if (reportData && Array.isArray(reportData.data)) {
       const headers = Object.keys(reportData.data[0] || {})
       tableHTML = `
@@ -502,6 +616,21 @@ export function CustomReportBuilder({
       csvData = data.data
     } else if (reportType === 'medical') {
       csvData = data.data
+    } else if (reportType === 'roster') {
+      // Handle grouped or flat roster data
+      if (filters.groupBy && Array.isArray(data.data) && data.data[0]?.participants) {
+        // Flatten grouped data
+        csvData = data.data.flatMap((group: any) =>
+          group.participants.map((p: any) => ({
+            ...p,
+            _groupName: group.groupName,
+            _groupLeader: group.groupLeaderName,
+            _registrationCode: group.registrationCode,
+          }))
+        )
+      } else {
+        csvData = data.data
+      }
     } else if (Array.isArray(data.data)) {
       csvData = data.data
     } else if (data.data.participants) {
@@ -616,6 +745,7 @@ export function CustomReportBuilder({
                 <SelectItem value="tshirts">T-Shirt Report</SelectItem>
                 <SelectItem value="balances">Balances Report</SelectItem>
                 <SelectItem value="medical">Medical/Dietary Report</SelectItem>
+                <SelectItem value="roster">Roster Report</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -637,6 +767,110 @@ export function CustomReportBuilder({
               ))}
             </div>
           </div>
+
+          {/* Roster Filters */}
+          {reportType === 'roster' && (
+            <div className="space-y-4 border-t pt-4">
+              <h4 className="font-semibold">Roster Filters</h4>
+
+              {/* Participant Types */}
+              <div className="space-y-2">
+                <Label>Participant Types</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: 'youth_u18', label: 'Youth (Under 18)' },
+                    { value: 'youth_o18', label: 'Youth (Over 18)' },
+                    { value: 'chaperone', label: 'Chaperone' },
+                    { value: 'priest', label: 'Priest' },
+                  ].map(type => (
+                    <label key={type.value} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={filters.participantTypes?.includes(type.value) || false}
+                        onChange={(e) => {
+                          const current = filters.participantTypes || []
+                          setFilters({
+                            ...filters,
+                            participantTypes: e.target.checked
+                              ? [...current, type.value]
+                              : current.filter((t: string) => t !== type.value)
+                          })
+                        }}
+                        className="rounded"
+                      />
+                      <span className="text-sm">{type.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Age Range */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Min Age</Label>
+                  <input
+                    type="number"
+                    value={filters.minAge || ''}
+                    onChange={(e) => setFilters({ ...filters, minAge: e.target.value ? parseInt(e.target.value) : undefined })}
+                    placeholder="e.g., 13"
+                    className="w-full p-2 border rounded-md"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Max Age</Label>
+                  <input
+                    type="number"
+                    value={filters.maxAge || ''}
+                    onChange={(e) => setFilters({ ...filters, maxAge: e.target.value ? parseInt(e.target.value) : undefined })}
+                    placeholder="e.g., 18"
+                    className="w-full p-2 border rounded-md"
+                  />
+                </div>
+              </div>
+
+              {/* Group By */}
+              <div className="space-y-2">
+                <Label>Group Results By</Label>
+                <Select value={filters.groupBy || 'none'} onValueChange={(value) => setFilters({ ...filters, groupBy: value === 'none' ? undefined : value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Grouping (Flat List)</SelectItem>
+                    <SelectItem value="group">By Group/Parish</SelectItem>
+                    <SelectItem value="participantType">By Participant Type</SelectItem>
+                    <SelectItem value="parish">By Parish Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Sort By */}
+              <div className="space-y-2">
+                <Label>Sort By</Label>
+                <Select value={filters.sortBy || 'lastName'} onValueChange={(value) => setFilters({ ...filters, sortBy: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="lastName">Last Name</SelectItem>
+                    <SelectItem value="firstName">First Name</SelectItem>
+                    <SelectItem value="age">Age</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Medical Needs Filter */}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filters.onlyWithMedicalNeeds || false}
+                  onChange={(e) => setFilters({ ...filters, onlyWithMedicalNeeds: e.target.checked })}
+                  className="rounded"
+                />
+                <span className="text-sm">Only show participants with medical needs (allergies, medications, or conditions)</span>
+              </label>
+            </div>
+          )}
 
           {/* Save Template Section */}
           <div className="space-y-4 border-t pt-4">
@@ -895,8 +1129,107 @@ export function CustomReportBuilder({
                 </div>
               )}
 
+              {/* Roster Report */}
+              {reportType === 'roster' && (
+                <div className="space-y-4">
+                  {/* Show grouped or flat roster */}
+                  {filters.groupBy && Array.isArray(reportData.data) && reportData.data[0]?.participants ? (
+                    // Grouped display
+                    reportData.data.map((group: any, groupIndex: number) => (
+                      <div key={groupIndex} className="border rounded-lg p-4 mb-4">
+                        <div className="mb-3 pb-2 border-b">
+                          <h4 className="font-semibold text-lg">
+                            {filters.groupBy === 'group' && group.groupName}
+                            {filters.groupBy === 'participantType' && (group.participantType?.replace(/_/g, ' ') || 'Unknown Type')}
+                            {filters.groupBy === 'parish' && group.parishName}
+                          </h4>
+                          {group.registrationCode && (
+                            <p className="text-sm text-gray-600">Registration Code: <strong>{group.registrationCode}</strong></p>
+                          )}
+                          {group.groupLeaderName && (
+                            <p className="text-sm text-gray-600">Leader: {group.groupLeaderName} • {group.groupLeaderEmail}</p>
+                          )}
+                          <p className="text-sm text-gray-600 mt-1">
+                            <strong>{group.participants.length}</strong> participants
+                          </p>
+                        </div>
+
+                        <table className="min-w-full border-collapse border border-gray-300 mt-3">
+                          <thead>
+                            <tr className="bg-gray-100">
+                              {selectedFields.includes('firstName') && <th className="border border-gray-300 p-2 text-left text-xs">First Name</th>}
+                              {selectedFields.includes('lastName') && <th className="border border-gray-300 p-2 text-left text-xs">Last Name</th>}
+                              {selectedFields.includes('age') && <th className="border border-gray-300 p-2 text-left text-xs">Age</th>}
+                              {selectedFields.includes('participantType') && <th className="border border-gray-300 p-2 text-left text-xs">Type</th>}
+                              {selectedFields.includes('tShirtSize') && <th className="border border-gray-300 p-2 text-left text-xs">T-Shirt</th>}
+                              {selectedFields.includes('housingAssignment.roomNumber') && <th className="border border-gray-300 p-2 text-left text-xs">Room</th>}
+                              {selectedFields.includes('liabilityForm.emergencyContactName') && <th className="border border-gray-300 p-2 text-left text-xs">Emergency Contact</th>}
+                              {selectedFields.includes('liabilityForm.allergies') && <th className="border border-gray-300 p-2 text-left text-xs">Allergies</th>}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {group.participants.map((p: any, i: number) => (
+                              <tr key={i} className="hover:bg-gray-50">
+                                {selectedFields.includes('firstName') && <td className="border border-gray-300 p-2 text-xs">{p.firstName}</td>}
+                                {selectedFields.includes('lastName') && <td className="border border-gray-300 p-2 text-xs">{p.lastName}</td>}
+                                {selectedFields.includes('age') && <td className="border border-gray-300 p-2 text-xs">{p.age}</td>}
+                                {selectedFields.includes('participantType') && <td className="border border-gray-300 p-2 text-xs">{p.participantType?.replace(/_/g, ' ')}</td>}
+                                {selectedFields.includes('tShirtSize') && <td className="border border-gray-300 p-2 text-xs">{p.tShirtSize || '-'}</td>}
+                                {selectedFields.includes('housingAssignment.roomNumber') && <td className="border border-gray-300 p-2 text-xs">{p.housingAssignment?.roomNumber || '-'}</td>}
+                                {selectedFields.includes('liabilityForm.emergencyContactName') && <td className="border border-gray-300 p-2 text-xs">{p.liabilityForm?.emergencyContactName || '-'}</td>}
+                                {selectedFields.includes('liabilityForm.allergies') && <td className="border border-gray-300 p-2 text-xs">{p.liabilityForm?.allergies || '-'}</td>}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ))
+                  ) : (
+                    // Flat list display
+                    <div className="overflow-auto">
+                      <table className="min-w-full border-collapse border border-gray-300">
+                        <thead>
+                          <tr className="bg-gray-100">
+                            {selectedFields.includes('groupRegistration.registrationCode') && <th className="border border-gray-300 p-2 text-left text-xs">Reg Code</th>}
+                            {selectedFields.includes('firstName') && <th className="border border-gray-300 p-2 text-left text-xs">First Name</th>}
+                            {selectedFields.includes('lastName') && <th className="border border-gray-300 p-2 text-left text-xs">Last Name</th>}
+                            {selectedFields.includes('age') && <th className="border border-gray-300 p-2 text-left text-xs">Age</th>}
+                            {selectedFields.includes('participantType') && <th className="border border-gray-300 p-2 text-left text-xs">Type</th>}
+                            {selectedFields.includes('tShirtSize') && <th className="border border-gray-300 p-2 text-left text-xs">T-Shirt</th>}
+                            {selectedFields.includes('groupRegistration.groupName') && <th className="border border-gray-300 p-2 text-left text-xs">Group</th>}
+                            {selectedFields.includes('groupRegistration.parishName') && <th className="border border-gray-300 p-2 text-left text-xs">Parish</th>}
+                            {selectedFields.includes('housingAssignment.roomNumber') && <th className="border border-gray-300 p-2 text-left text-xs">Room</th>}
+                            {selectedFields.includes('liabilityForm.emergencyContactName') && <th className="border border-gray-300 p-2 text-left text-xs">Emergency Contact</th>}
+                            {selectedFields.includes('liabilityForm.emergencyContactPhone') && <th className="border border-gray-300 p-2 text-left text-xs">Emergency Phone</th>}
+                            {selectedFields.includes('liabilityForm.allergies') && <th className="border border-gray-300 p-2 text-left text-xs">Allergies</th>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Array.isArray(reportData.data) && reportData.data.map((p: any, i: number) => (
+                            <tr key={i} className="hover:bg-gray-50">
+                              {selectedFields.includes('groupRegistration.registrationCode') && <td className="border border-gray-300 p-2 text-xs font-mono">{p.groupRegistration?.registrationCode}</td>}
+                              {selectedFields.includes('firstName') && <td className="border border-gray-300 p-2 text-xs">{p.firstName}</td>}
+                              {selectedFields.includes('lastName') && <td className="border border-gray-300 p-2 text-xs">{p.lastName}</td>}
+                              {selectedFields.includes('age') && <td className="border border-gray-300 p-2 text-xs">{p.age}</td>}
+                              {selectedFields.includes('participantType') && <td className="border border-gray-300 p-2 text-xs">{p.participantType?.replace(/_/g, ' ')}</td>}
+                              {selectedFields.includes('tShirtSize') && <td className="border border-gray-300 p-2 text-xs">{p.tShirtSize || '-'}</td>}
+                              {selectedFields.includes('groupRegistration.groupName') && <td className="border border-gray-300 p-2 text-xs">{p.groupRegistration?.groupName}</td>}
+                              {selectedFields.includes('groupRegistration.parishName') && <td className="border border-gray-300 p-2 text-xs">{p.groupRegistration?.parishName}</td>}
+                              {selectedFields.includes('housingAssignment.roomNumber') && <td className="border border-gray-300 p-2 text-xs">{p.housingAssignment?.roomNumber || '-'}</td>}
+                              {selectedFields.includes('liabilityForm.emergencyContactName') && <td className="border border-gray-300 p-2 text-xs">{p.liabilityForm?.emergencyContactName || '-'}</td>}
+                              {selectedFields.includes('liabilityForm.emergencyContactPhone') && <td className="border border-gray-300 p-2 text-xs">{p.liabilityForm?.emergencyContactPhone || '-'}</td>}
+                              {selectedFields.includes('liabilityForm.allergies') && <td className="border border-gray-300 p-2 text-xs">{p.liabilityForm?.allergies || '-'}</td>}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Generic table for other types */}
-              {!['tshirts', 'balances', 'registration', 'medical'].includes(reportType) && Array.isArray(reportData.data) && (
+              {!['tshirts', 'balances', 'registration', 'medical', 'roster'].includes(reportType) && Array.isArray(reportData.data) && (
                 <div className="overflow-auto print:overflow-visible">
                   <table className="min-w-full border-collapse border border-gray-300">
                     <thead>
