@@ -65,6 +65,7 @@ export async function POST(
     }
 
     return NextResponse.json({
+      reportType: template.reportType, // Add at root level for conditional rendering
       template: {
         id: template.id,
         name: template.name,
