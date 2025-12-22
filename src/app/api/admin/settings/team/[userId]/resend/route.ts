@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
+import { getCurrentUser, isAdmin, userHasPermission } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 
@@ -15,6 +15,14 @@ export async function POST(
     if (!user || !isAdmin(user)) {
       return NextResponse.json(
         { error: 'Unauthorized - Admin access required' },
+        { status: 403 }
+      )
+    }
+
+    // Only users with team.manage permission can resend invites
+    if (!userHasPermission(user, 'team.manage')) {
+      return NextResponse.json(
+        { error: 'You do not have permission to manage team invitations' },
         { status: 403 }
       )
     }

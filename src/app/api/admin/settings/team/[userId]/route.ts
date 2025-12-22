@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
+import { getCurrentUser, isAdmin, userHasPermission } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { ADMIN_ROLES } from '@/lib/permissions'
 
 export async function DELETE(
   request: NextRequest,
@@ -12,6 +13,14 @@ export async function DELETE(
     if (!user || !isAdmin(user)) {
       return NextResponse.json(
         { error: 'Unauthorized - Admin access required' },
+        { status: 403 }
+      )
+    }
+
+    // Only users with team.manage permission can remove team members
+    if (!userHasPermission(user, 'team.manage')) {
+      return NextResponse.json(
+        { error: 'You do not have permission to manage team members' },
         { status: 403 }
       )
     }
@@ -143,15 +152,23 @@ export async function PUT(
       )
     }
 
+    // Only users with team.manage permission can update roles
+    if (!userHasPermission(user, 'team.manage')) {
+      return NextResponse.json(
+        { error: 'You do not have permission to manage team members' },
+        { status: 403 }
+      )
+    }
+
     const { userId } = await params
     const body = await request.json()
     const { role } = body
 
-    // Validate role
-    const validRoles = ['org_admin']
+    // Validate role - must be an admin role (excluding master_admin)
+    const validRoles = ADMIN_ROLES.filter(r => r !== 'master_admin')
     if (!validRoles.includes(role)) {
       return NextResponse.json(
-        { error: 'Invalid role' },
+        { error: 'Invalid role. Must be a valid admin role.' },
         { status: 400 }
       )
     }

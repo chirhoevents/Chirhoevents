@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
+import { getCurrentUser, isFullAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import Stripe from 'stripe'
 
@@ -11,9 +11,10 @@ export async function POST() {
   try {
     const user = await getCurrentUser()
 
-    if (!user || !isAdmin(user)) {
+    // Only org_admin or master_admin can configure Stripe
+    if (!user || !isFullAdmin(user)) {
       return NextResponse.json(
-        { error: 'Unauthorized - Admin access required' },
+        { error: 'Unauthorized - Only organization admins can configure Stripe' },
         { status: 403 }
       )
     }

@@ -62,6 +62,7 @@ model User {
   lastName        String   @map("last_name") @db.VarChar(255)
   preferredName   String?  @map("preferred_name") @db.VarChar(255)
   role            UserRole
+  permissions     Json?    @db.JsonB // Custom permission overrides
   phone           String?  @db.VarChar(20)
   createdBy       String?  @map("created_by") @db.Uuid
   lastLogin       DateTime? @map("last_login") @db.Timestamptz(6)
@@ -577,6 +578,12 @@ enum SubscriptionStatus {
 enum UserRole {
   master_admin
   org_admin
+  event_manager
+  finance_manager
+  poros_coordinator
+  salve_coordinator
+  rapha_coordinator
+  staff
   group_leader
   individual
   parent

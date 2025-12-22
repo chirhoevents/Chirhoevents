@@ -1,8 +1,17 @@
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
+import {
+  type UserRole,
+  type Permission,
+  hasPermission,
+  hasAnyPermission,
+  isAdminRole,
+  ADMIN_ROLES
+} from '@/lib/permissions'
 
-export type UserRole = 'master_admin' | 'org_admin' | 'group_leader' | 'individual' | 'parent' | 'salve_user' | 'rapha_user'
+// Re-export UserRole from permissions
+export type { UserRole } from '@/lib/permissions'
 
 export interface AuthUser {
   id: string
@@ -12,6 +21,7 @@ export interface AuthUser {
   firstName: string
   lastName: string
   role: UserRole
+  permissions?: Record<string, boolean> | null // Custom permission overrides
   organization: {
     id: string
     name: string
@@ -57,6 +67,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role as UserRole,
+      permissions: user.permissions as Record<string, boolean> | null,
       organization: user.organization,
     }
   } catch (error) {
@@ -66,7 +77,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 }
 
 /**
- * Require admin role (org_admin or master_admin)
+ * Require any admin role (roles with dashboard access)
  * Redirects to appropriate page if not authorized
  */
 export async function requireAdmin(): Promise<AuthUser> {
@@ -76,7 +87,7 @@ export async function requireAdmin(): Promise<AuthUser> {
     redirect('/sign-in')
   }
 
-  if (user.role !== 'org_admin' && user.role !== 'master_admin') {
+  if (!isAdminRole(user.role)) {
     // If they're a group leader, redirect to group leader portal
     if (user.role === 'group_leader') {
       redirect('/dashboard/group-leader')
@@ -106,6 +117,66 @@ export async function requireMasterAdmin(): Promise<AuthUser> {
 }
 
 /**
+ * Require org admin or master admin role
+ */
+export async function requireOrgAdmin(): Promise<AuthUser> {
+  const user = await getCurrentUser()
+
+  if (!user) {
+    redirect('/sign-in')
+  }
+
+  if (user.role !== 'org_admin' && user.role !== 'master_admin') {
+    redirect('/dashboard/admin')
+  }
+
+  return user
+}
+
+/**
+ * Require a specific permission
+ * Redirects to admin dashboard if user lacks permission
+ */
+export async function requirePermission(permission: Permission): Promise<AuthUser> {
+  const user = await getCurrentUser()
+
+  if (!user) {
+    redirect('/sign-in')
+  }
+
+  if (!isAdminRole(user.role)) {
+    redirect('/')
+  }
+
+  if (!hasPermission(user.role, permission)) {
+    redirect('/dashboard/admin?error=unauthorized')
+  }
+
+  return user
+}
+
+/**
+ * Require any of the specified permissions
+ */
+export async function requireAnyPermission(permissions: Permission[]): Promise<AuthUser> {
+  const user = await getCurrentUser()
+
+  if (!user) {
+    redirect('/sign-in')
+  }
+
+  if (!isAdminRole(user.role)) {
+    redirect('/')
+  }
+
+  if (!hasAnyPermission(user.role, permissions)) {
+    redirect('/dashboard/admin?error=unauthorized')
+  }
+
+  return user
+}
+
+/**
  * Check if user has a specific role
  */
 export function hasRole(user: AuthUser | null, role: UserRole): boolean {
@@ -114,9 +185,17 @@ export function hasRole(user: AuthUser | null, role: UserRole): boolean {
 }
 
 /**
- * Check if user is any type of admin
+ * Check if user is any type of admin (has dashboard access)
  */
 export function isAdmin(user: AuthUser | null): boolean {
+  if (!user) return false
+  return isAdminRole(user.role)
+}
+
+/**
+ * Check if user is org_admin or master_admin (full access)
+ */
+export function isFullAdmin(user: AuthUser | null): boolean {
   if (!user) return false
   return user.role === 'org_admin' || user.role === 'master_admin'
 }
@@ -130,4 +209,20 @@ export function canAccessOrganization(user: AuthUser | null, organizationId: str
   if (user.role === 'master_admin') return true
   // Others can only access their own organization
   return user.organizationId === organizationId
+}
+
+/**
+ * Check if user has a specific permission (for use in components)
+ */
+export function userHasPermission(user: AuthUser | null, permission: Permission): boolean {
+  if (!user) return false
+  return hasPermission(user.role, permission)
+}
+
+/**
+ * Check if user has any of the specified permissions
+ */
+export function userHasAnyPermission(user: AuthUser | null, permissions: Permission[]): boolean {
+  if (!user) return false
+  return hasAnyPermission(user.role, permissions)
 }

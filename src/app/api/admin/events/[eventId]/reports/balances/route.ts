@@ -2,6 +2,37 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@clerk/nextjs/server'
 
+// Define interface for payment balance data
+interface PaymentBalanceData {
+  id: string
+  registrationId: string
+  registrationType: string
+  totalAmountDue: number | bigint | { toNumber: () => number }
+  amountPaid: number | bigint | { toNumber: () => number }
+  amountRemaining: number | bigint | { toNumber: () => number }
+  paymentStatus: string
+  lastPaymentDate: Date | null
+}
+
+// Define interfaces for the Prisma query results
+interface GroupReg {
+  id: string
+  groupName: string
+  parishName: string | null
+  groupLeaderName: string | null
+  groupLeaderEmail: string | null
+  groupLeaderPhone: string | null
+  participants: unknown[]
+}
+
+interface IndividualReg {
+  id: string
+  firstName: string | null
+  lastName: string | null
+  email: string
+  phone: string | null
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { eventId: string } }
@@ -19,10 +50,10 @@ export async function GET(
       include: {
         participants: true,
       },
-    })
+    }) as GroupReg[]
 
     // Get payment balances for all groups
-    const groupIds = groupRegs.map(g => g.id)
+    const groupIds = groupRegs.map((g: GroupReg) => g.id)
     const groupPaymentBalances = await prisma.paymentBalance.findMany({
       where: {
         registrationId: { in: groupIds },
@@ -31,10 +62,13 @@ export async function GET(
     })
 
     // Create lookup map for group balances
-    const groupBalanceMap = new Map(groupPaymentBalances.map(pb => [pb.registrationId, pb]))
+    const groupBalanceMap = new Map<string, PaymentBalanceData>()
+    for (const pb of groupPaymentBalances) {
+      groupBalanceMap.set(pb.registrationId, pb as PaymentBalanceData)
+    }
 
     // Build group balance details
-    const groupBalances = groupRegs.map(group => {
+    const groupBalances = groupRegs.map((group: GroupReg) => {
       const balance = groupBalanceMap.get(group.id)
 
       return {
@@ -64,10 +98,10 @@ export async function GET(
         email: true,
         phone: true,
       },
-    })
+    }) as IndividualReg[]
 
     // Get payment balances for all individual registrations
-    const individualIds = individualRegs.map(i => i.id)
+    const individualIds = individualRegs.map((i: IndividualReg) => i.id)
     const individualPaymentBalances = await prisma.paymentBalance.findMany({
       where: {
         registrationId: { in: individualIds },
@@ -76,10 +110,13 @@ export async function GET(
     })
 
     // Create lookup map for individual balances
-    const individualBalanceMap = new Map(individualPaymentBalances.map(pb => [pb.registrationId, pb]))
+    const individualBalanceMap = new Map<string, PaymentBalanceData>()
+    for (const pb of individualPaymentBalances) {
+      individualBalanceMap.set(pb.registrationId, pb as PaymentBalanceData)
+    }
 
     // Build individual balance details
-    const individualBalances = individualRegs.map(individual => {
+    const individualBalances = individualRegs.map((individual: IndividualReg) => {
       const balance = individualBalanceMap.get(individual.id)
 
       return {

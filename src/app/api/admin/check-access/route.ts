@@ -19,6 +19,7 @@ export async function GET() {
       userRole: user.role,
       email: user.email,
       name: `${user.firstName} ${user.lastName}`,
+      permissions: user.permissions,
     })
   } catch (error) {
     console.error('Error checking admin access:', error)
