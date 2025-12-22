@@ -103,11 +103,11 @@ export async function GET(
     }
 
     // Calculate totals
-    const totalShirts = Object.values(sizeCounts).reduce((sum, s) => sum + s.total, 0)
-    const totalYouth = Object.values(sizeCounts).reduce((sum, s) => sum + s.youth, 0)
-    const totalAdult = Object.values(sizeCounts).reduce((sum, s) => sum + s.adult, 0)
-    const missingCount = participants.filter(p => !p.tShirtSize).length +
-                        individualRegs.filter(i => !i.tShirtSize).length
+    const totalShirts = Object.values(sizeCounts).reduce((sum: number, s: any) => sum + s.total, 0)
+    const totalYouth = Object.values(sizeCounts).reduce((sum: number, s: any) => sum + s.youth, 0)
+    const totalAdult = Object.values(sizeCounts).reduce((sum: number, s: any) => sum + s.adult, 0)
+    const missingCount = participants.filter((p: any) => !p.tShirtSize).length +
+                        individualRegs.filter((i: any) => !i.tShirtSize).length
 
     if (isPreview) {
       return NextResponse.json({

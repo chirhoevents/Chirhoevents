@@ -75,6 +75,11 @@ interface AllRegistrationsTableProps {
   onMarkPayment: (registration: Registration) => void
   onRefund: (registration: Registration) => void
   isLoading: boolean
+  canViewPayments?: boolean
+  canEdit?: boolean
+  canProcessPayments?: boolean
+  canProcessRefunds?: boolean
+  canApplyLateFees?: boolean
 }
 
 export default function AllRegistrationsTable({
@@ -90,6 +95,11 @@ export default function AllRegistrationsTable({
   onMarkPayment,
   onRefund,
   isLoading,
+  canViewPayments = true,
+  canEdit = true,
+  canProcessPayments = true,
+  canProcessRefunds = true,
+  canApplyLateFees = true,
 }: AllRegistrationsTableProps) {
   const allSelected =
     registrations.length > 0 &&
@@ -207,21 +217,27 @@ export default function AllRegistrationsTable({
                 <th className="text-center p-3 text-sm font-semibold text-gray-600">
                   Participants
                 </th>
-                <th className="text-right p-3 text-sm font-semibold text-gray-600">
-                  Total
-                </th>
-                <th className="text-right p-3 text-sm font-semibold text-gray-600">
-                  Paid
-                </th>
-                <th className="text-right p-3 text-sm font-semibold text-gray-600">
-                  Balance
-                </th>
+                {canViewPayments && (
+                  <>
+                    <th className="text-right p-3 text-sm font-semibold text-gray-600">
+                      Total
+                    </th>
+                    <th className="text-right p-3 text-sm font-semibold text-gray-600">
+                      Paid
+                    </th>
+                    <th className="text-right p-3 text-sm font-semibold text-gray-600">
+                      Balance
+                    </th>
+                  </>
+                )}
                 <th className="text-center p-3 text-sm font-semibold text-gray-600">
                   Forms
                 </th>
-                <th className="text-center p-3 text-sm font-semibold text-gray-600">
-                  Status
-                </th>
+                {canViewPayments && (
+                  <th className="text-center p-3 text-sm font-semibold text-gray-600">
+                    Status
+                  </th>
+                )}
                 <th className="text-center p-3 text-sm font-semibold text-gray-600">
                   Actions
                 </th>
@@ -293,15 +309,19 @@ export default function AllRegistrationsTable({
                       {reg.participantCount}
                     </Badge>
                   </td>
-                  <td className="p-3 text-right font-mono text-sm">
-                    {formatCurrency(reg.totalAmount)}
-                  </td>
-                  <td className="p-3 text-right font-mono text-sm text-green-600">
-                    {formatCurrency(reg.amountPaid)}
-                  </td>
-                  <td className="p-3 text-right font-mono text-sm text-orange-600">
-                    {formatCurrency(reg.balance)}
-                  </td>
+                  {canViewPayments && (
+                    <>
+                      <td className="p-3 text-right font-mono text-sm">
+                        {formatCurrency(reg.totalAmount)}
+                      </td>
+                      <td className="p-3 text-right font-mono text-sm text-green-600">
+                        {formatCurrency(reg.amountPaid)}
+                      </td>
+                      <td className="p-3 text-right font-mono text-sm text-orange-600">
+                        {formatCurrency(reg.balance)}
+                      </td>
+                    </>
+                  )}
                   <td className="p-3 text-center">
                     <span
                       className={`text-sm ${
@@ -313,23 +333,27 @@ export default function AllRegistrationsTable({
                       {reg.formsCompleted}/{reg.formsTotal}
                     </span>
                   </td>
-                  <td className="p-3 text-center">
-                    {getPaymentStatusBadge(reg.balance)}
-                  </td>
+                  {canViewPayments && (
+                    <td className="p-3 text-center">
+                      {getPaymentStatusBadge(reg.balance)}
+                    </td>
+                  )}
                   <td className="p-3 text-center">
                     <div className="flex gap-1 justify-center">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() =>
-                          reg.type === 'group'
-                            ? onEditGroup(reg)
-                            : onEditIndividual(reg)
-                        }
-                        title="Quick Edit"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
+                      {canEdit && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() =>
+                            reg.type === 'group'
+                              ? onEditGroup(reg)
+                              : onEditIndividual(reg)
+                          }
+                          title="Quick Edit"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Link
                         href={`/dashboard/admin/events/${reg.eventId}/registrations/${reg.id}`}
                       >
@@ -349,37 +373,47 @@ export default function AllRegistrationsTable({
                       >
                         <Mail className="h-4 w-4" />
                       </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button size="sm" variant="ghost" title="More Actions">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => onMarkPayment(reg)}
-                            className="cursor-pointer"
-                          >
-                            <DollarSign className="h-4 w-4 mr-2" />
-                            Record Payment
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => onApplyLateFee(reg)}
-                            className="cursor-pointer"
-                          >
-                            <AlertTriangle className="h-4 w-4 mr-2" />
-                            Apply Late Fee
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => onRefund(reg)}
-                            className="cursor-pointer text-red-600"
-                          >
-                            <XCircle className="h-4 w-4 mr-2" />
-                            Process Refund
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      {(canProcessPayments || canApplyLateFees || canProcessRefunds) && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="ghost" title="More Actions">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {canProcessPayments && (
+                              <DropdownMenuItem
+                                onClick={() => onMarkPayment(reg)}
+                                className="cursor-pointer"
+                              >
+                                <DollarSign className="h-4 w-4 mr-2" />
+                                Record Payment
+                              </DropdownMenuItem>
+                            )}
+                            {canApplyLateFees && (
+                              <DropdownMenuItem
+                                onClick={() => onApplyLateFee(reg)}
+                                className="cursor-pointer"
+                              >
+                                <AlertTriangle className="h-4 w-4 mr-2" />
+                                Apply Late Fee
+                              </DropdownMenuItem>
+                            )}
+                            {canProcessRefunds && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => onRefund(reg)}
+                                  className="cursor-pointer text-red-600"
+                                >
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                  Process Refund
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                   </td>
                 </tr>

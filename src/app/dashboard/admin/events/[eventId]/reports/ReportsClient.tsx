@@ -11,6 +11,7 @@ import HousingReportModal from '@/components/admin/reports/HousingReportModal'
 import MedicalReportModal from '@/components/admin/reports/MedicalReportModal'
 import CertificatesReportModal from '@/components/admin/reports/CertificatesReportModal'
 import { CustomReportBuilder } from '@/components/admin/reports/CustomReportBuilder'
+import { usePermissions } from '@/hooks/usePermissions'
 
 interface ReportsClientProps {
   eventId: string
@@ -27,6 +28,9 @@ export default function ReportsClient({
   startDate,
   endDate,
 }: ReportsClientProps) {
+  const { canViewFinancial } = usePermissions()
+  const canViewFinancialReports = canViewFinancial()
+
   const [activeModal, setActiveModal] = useState<string | null>(null)
   const [isExporting, setIsExporting] = useState(false)
   const [showCustomBuilder, setShowCustomBuilder] = useState(false)
@@ -84,12 +88,15 @@ export default function ReportsClient({
 
       {/* Report Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <ReportCard
-          title="Financial Report"
-          reportType="financial"
-          eventId={eventId}
-          onViewReport={() => setActiveModal('financial')}
-        />
+        {/* Financial Report - only visible for users with financial permissions */}
+        {canViewFinancialReports && (
+          <ReportCard
+            title="Financial Report"
+            reportType="financial"
+            eventId={eventId}
+            onViewReport={() => setActiveModal('financial')}
+          />
+        )}
 
         <ReportCard
           title="Registration Report"
@@ -128,12 +135,14 @@ export default function ReportsClient({
       </div>
 
       {/* Report Modals */}
-      <FinancialReportModal
-        isOpen={activeModal === 'financial'}
-        onClose={() => setActiveModal(null)}
-        eventId={eventId}
-        eventName={eventName}
-      />
+      {canViewFinancialReports && (
+        <FinancialReportModal
+          isOpen={activeModal === 'financial'}
+          onClose={() => setActiveModal(null)}
+          eventId={eventId}
+          eventName={eventName}
+        />
+      )}
 
       <RegistrationReportModal
         isOpen={activeModal === 'registrations'}

@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
       })
 
       // Get payment balances for group registrations
-      const groupRegIds = groupRegistrations.map((r) => r.id)
+      const groupRegIds = groupRegistrations.map((r: any) => r.id)
       const groupPaymentBalances = await prisma.paymentBalance.findMany({
         where: {
           registrationId: { in: groupRegIds },
@@ -124,8 +124,8 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      const paymentBalanceMap = new Map(
-        groupPaymentBalances.map((pb) => [pb.registrationId, pb] as const)
+      const paymentBalanceMap = new Map<string, any>(
+        groupPaymentBalances.map((pb: any) => [pb.registrationId, pb])
       )
 
       for (const reg of groupRegistrations) {
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
           ? Number(paymentBalance.amountRemaining)
           : 0
         const formsCompleted = reg.participants.filter(
-          (p) => p.liabilityFormCompleted
+          (p: any) => p.liabilityFormCompleted
         ).length
         const formsTotal = reg.participants.length
 
@@ -207,7 +207,7 @@ export async function POST(request: NextRequest) {
       })
 
       // Get payment balances for individual registrations
-      const individualRegIds = individualRegistrations.map((r) => r.id)
+      const individualRegIds = individualRegistrations.map((r: any) => r.id)
       const individualPaymentBalances = await prisma.paymentBalance.findMany({
         where: {
           registrationId: { in: individualRegIds },
@@ -215,8 +215,8 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      const individualPaymentBalanceMap = new Map(
-        individualPaymentBalances.map((pb) => [pb.registrationId, pb] as const)
+      const individualPaymentBalanceMap = new Map<string, any>(
+        individualPaymentBalances.map((pb: any) => [pb.registrationId, pb])
       )
 
       for (const reg of individualRegistrations) {

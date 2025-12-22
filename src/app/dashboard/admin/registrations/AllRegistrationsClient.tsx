@@ -18,6 +18,7 @@ import EditGroupRegistrationModal from '@/components/admin/EditGroupRegistration
 import EditIndividualRegistrationModal from '@/components/admin/EditIndividualRegistrationModal'
 import RefundModal from '@/components/admin/RefundModal'
 import EmailResendModal from '@/components/admin/EmailResendModal'
+import { usePermissions } from '@/hooks/usePermissions'
 
 interface Event {
   id: string
@@ -41,6 +42,14 @@ interface Pagination {
 }
 
 export default function AllRegistrationsClient() {
+  // Permission checks
+  const { can, canViewPayments } = usePermissions()
+  const canViewPaymentInfo = canViewPayments()
+  const canEditRegistrations = can('registrations.edit')
+  const canProcessPayments = can('payments.process')
+  const canProcessRefunds = can('payments.refund')
+  const canApplyLateFees = can('payments.late_fees')
+
   // Filter states
   const [events, setEvents] = useState<Event[]>([])
   const [selectedEventId, setSelectedEventId] = useState('all')
@@ -312,21 +321,23 @@ export default function AllRegistrationsClient() {
           </CardContent>
         </Card>
 
-        <Card className="bg-white border-[#D1D5DB]">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <DollarSign className="h-5 w-5 text-green-600" />
+        {canViewPaymentInfo && (
+          <Card className="bg-white border-[#D1D5DB]">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <DollarSign className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Total Revenue</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {formatCurrency(stats.totalRevenue)}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Total Revenue</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {formatCurrency(stats.totalRevenue)}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Bulk Actions Bar */}
@@ -358,6 +369,7 @@ export default function AllRegistrationsClient() {
         onClearFilters={handleClearFilters}
         onExport={handleExport}
         isExporting={isExporting}
+        canViewPayments={canViewPaymentInfo}
       />
 
       {/* Table */}
@@ -374,6 +386,11 @@ export default function AllRegistrationsClient() {
         onMarkPayment={handleMarkPayment}
         onRefund={setRefundModalReg}
         isLoading={isLoading}
+        canViewPayments={canViewPaymentInfo}
+        canEdit={canEditRegistrations}
+        canProcessPayments={canProcessPayments}
+        canProcessRefunds={canProcessRefunds}
+        canApplyLateFees={canApplyLateFees}
       />
 
       {/* Edit Group Registration Modal */}

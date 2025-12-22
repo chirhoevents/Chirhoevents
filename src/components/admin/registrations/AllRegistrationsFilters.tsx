@@ -40,6 +40,7 @@ interface AllRegistrationsFiltersProps {
   onClearFilters: () => void
   onExport: () => void
   isExporting: boolean
+  canViewPayments?: boolean
 }
 
 export default function AllRegistrationsFilters({
@@ -59,6 +60,7 @@ export default function AllRegistrationsFilters({
   onClearFilters,
   onExport,
   isExporting,
+  canViewPayments = true,
 }: AllRegistrationsFiltersProps) {
   const hasActiveFilters =
     selectedEventId !== 'all' ||
@@ -174,23 +176,25 @@ export default function AllRegistrationsFilters({
             </div>
           </div>
 
-          {/* Payment Status Filter */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-500">Payment Status</label>
-            <Select
-              value={paymentFilter}
-              onValueChange={(v) => onPaymentFilterChange(v as PaymentFilter)}
-            >
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="paid">Paid in Full</SelectItem>
-                <SelectItem value="balance">Balance Due</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Payment Status Filter - only visible for users with payment permissions */}
+          {canViewPayments && (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-gray-500">Payment Status</label>
+              <Select
+                value={paymentFilter}
+                onValueChange={(v) => onPaymentFilterChange(v as PaymentFilter)}
+              >
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="paid">Paid in Full</SelectItem>
+                  <SelectItem value="balance">Balance Due</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Forms Status Filter */}
           <div className="flex flex-col gap-1">

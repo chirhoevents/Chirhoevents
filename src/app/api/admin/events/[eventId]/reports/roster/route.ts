@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@clerk/nextjs/server'
-import { ParticipantType } from '@prisma/client'
 
 export async function POST(
   request: NextRequest,
@@ -129,13 +128,13 @@ export async function POST(
     })
 
     // Transform group participants - liabilityForms array to single liabilityForm object
-    const groupParticipants = participantsRaw.map(p => ({
+    const groupParticipants = participantsRaw.map((p: any) => ({
       ...p,
       liabilityForm: p.liabilityForms?.[0] || null,
     }))
 
     // Transform individual registrations to match participant structure
-    const individualParticipants = individualRegs.map(ind => ({
+    const individualParticipants = individualRegs.map((ind: any) => ({
       id: ind.id,
       firstName: ind.firstName,
       lastName: ind.lastName,
@@ -165,14 +164,14 @@ export async function POST(
     // Apply group filter
     let filteredParticipants = participants
     if (filters.groupIds && filters.groupIds.length > 0) {
-      filteredParticipants = participants.filter(p =>
+      filteredParticipants = participants.filter((p: any) =>
         filters.groupIds.includes(p.groupRegistration?.id)
       )
     }
 
     // Apply parish filter
     if (filters.parishes && filters.parishes.length > 0) {
-      filteredParticipants = filteredParticipants.filter(p =>
+      filteredParticipants = filteredParticipants.filter((p: any) =>
         filters.parishes.includes(p.groupRegistration?.parishName)
       )
     }
