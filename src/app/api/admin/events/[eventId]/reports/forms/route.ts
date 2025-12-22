@@ -35,7 +35,7 @@ export async function GET(
     })
 
     const formsRequired = participants.length
-    const formsCompleted = participants.filter(p => p.liabilityFormCompleted).length
+    const formsCompleted = participants.filter((p: any) => p.liabilityFormCompleted).length
     const formsPending = formsRequired - formsCompleted
     const completionRate = formsRequired > 0 ? Math.round((formsCompleted / formsRequired) * 100) : 0
 
@@ -80,9 +80,9 @@ export async function GET(
       .sort((a, b) => b.pending - a.pending)
 
     // Certificate stats
-    const certsRequired = participants.filter(p => p.participantType === 'chaperone').length
+    const certsRequired = participants.filter((p: any) => p.participantType === 'chaperone').length
     const certsUploaded = certificates.length
-    const certsVerified = certificates.filter(c => c.verifiedAt !== null).length
+    const certsVerified = certificates.filter((c: any) => c.verifiedAt !== null).length
     const certsMissing = certsRequired - certsUploaded
 
     return NextResponse.json({

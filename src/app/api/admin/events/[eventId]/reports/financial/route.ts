@@ -25,7 +25,7 @@ export async function GET(
     })
 
     // Get registrations separately (PaymentBalance has no direct relations)
-    const registrationIds = paymentBalances.map(pb => pb.registrationId)
+    const registrationIds = paymentBalances.map((pb: any) => pb.registrationId)
 
     const groupRegistrations = await prisma.groupRegistration.findMany({
       where: {
@@ -43,8 +43,8 @@ export async function GET(
     })
 
     // Create lookup maps
-    const groupRegMap = new Map(groupRegistrations.map(gr => [gr.id, gr]))
-    const individualRegMap = new Map(individualRegistrations.map(ir => [ir.id, ir]))
+    const groupRegMap = new Map<string, any>(groupRegistrations.map((gr: any) => [gr.id, gr]))
+    const individualRegMap = new Map<string, any>(individualRegistrations.map((ir: any) => [ir.id, ir]))
 
     // Get payments
     const payments = await prisma.payment.findMany({
@@ -60,22 +60,22 @@ export async function GET(
 
     // Calculate totals
     const totalRevenue = paymentBalances.reduce(
-      (sum, pb) => sum + Number(pb.totalAmountDue || 0),
+      (sum: number, pb: any) => sum + Number(pb.totalAmountDue || 0),
       0
     )
     const amountPaid = paymentBalances.reduce(
-      (sum, pb) => sum + Number(pb.amountPaid || 0),
+      (sum: number, pb: any) => sum + Number(pb.amountPaid || 0),
       0
     )
     const balanceDue = paymentBalances.reduce(
-      (sum, pb) => sum + Number(pb.amountRemaining || 0),
+      (sum: number, pb: any) => sum + Number(pb.amountRemaining || 0),
       0
     )
 
     // Calculate overdue (unpaid balances - no explicit overdue status in schema)
     const overdueBalance = paymentBalances
-      .filter(pb => pb.paymentStatus === 'unpaid')
-      .reduce((sum, pb) => sum + Number(pb.amountRemaining || 0), 0)
+      .filter((pb: any) => pb.paymentStatus === 'unpaid')
+      .reduce((sum: number, pb: any) => sum + Number(pb.amountRemaining || 0), 0)
 
     // If preview, return summary stats only
     if (isPreview) {
@@ -89,11 +89,11 @@ export async function GET(
 
     // Payment methods breakdown
     const stripePayments = payments
-      .filter(p => p.paymentMethod === 'card')
-      .reduce((sum, p) => sum + Number(p.amount || 0), 0)
+      .filter((p: any) => p.paymentMethod === 'card')
+      .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0)
     const checkPayments = payments
-      .filter(p => p.paymentMethod === 'check')
-      .reduce((sum, p) => sum + Number(p.amount || 0), 0)
+      .filter((p: any) => p.paymentMethod === 'check')
+      .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0)
 
     // Revenue by participant type
     const participantTypeStats = {
@@ -197,11 +197,11 @@ export async function GET(
 
     // Revenue by registration type
     const groupRevenue = paymentBalances
-      .filter(pb => pb.registrationType === 'group')
-      .reduce((sum, pb) => sum + Number(pb.totalAmountDue || 0), 0)
+      .filter((pb: any) => pb.registrationType === 'group')
+      .reduce((sum: number, pb: any) => sum + Number(pb.totalAmountDue || 0), 0)
     const individualRevenue = paymentBalances
-      .filter(pb => pb.registrationType === 'individual')
-      .reduce((sum, pb) => sum + Number(pb.totalAmountDue || 0), 0)
+      .filter((pb: any) => pb.registrationType === 'individual')
+      .reduce((sum: number, pb: any) => sum + Number(pb.totalAmountDue || 0), 0)
 
     // Payment timeline (group by month)
     const paymentsByMonth: Record<string, number> = {}
@@ -220,7 +220,7 @@ export async function GET(
     }))
 
     // Refunds summary
-    const totalRefunded = refunds.reduce((sum, r) => sum + Number(r.refundAmount || 0), 0)
+    const totalRefunded = refunds.reduce((sum: number, r: any) => sum + Number(r.refundAmount || 0), 0)
     const refundReasons: Record<string, number> = {}
     for (const refund of refunds) {
       refundReasons[refund.refundReason] = (refundReasons[refund.refundReason] || 0) + 1

@@ -21,6 +21,7 @@ import {
 import Link from 'next/link'
 import { format } from 'date-fns'
 import RecordAdditionalPaymentModal from '@/components/admin/RecordAdditionalPaymentModal'
+import { usePermissions } from '@/hooks/usePermissions'
 
 interface Event {
   id: string
@@ -118,6 +119,13 @@ export default function RegistrationDetailClient({
   payments: initialPayments,
 }: RegistrationDetailClientProps) {
   const router = useRouter()
+
+  // Permission checks
+  const { can, canViewPayments } = usePermissions()
+  const canViewPaymentInfo = canViewPayments()
+  const canEditRegistration = can('registrations.edit')
+  const canProcessPayments = can('payments.process')
+
   const [saving, setSaving] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [paymentBalance, setPaymentBalance] = useState(initialPaymentBalance)
@@ -346,147 +354,155 @@ export default function RegistrationDetailClient({
                   </Card>
                 )}
 
-                {/* Payment History */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Calendar className="h-5 w-5" />
-                      Payment History
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {payments.length > 0 ? (
-                      <div className="space-y-3">
-                        {payments.map((payment) => (
-                          <div
-                            key={payment.id}
-                            className="p-4 border border-gray-200 rounded-lg"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="font-medium text-gray-900">
-                                  ${payment.amount.toFixed(2)}
-                                </p>
-                                <p className="text-sm text-gray-600 mt-1">
-                                  {format(new Date(payment.processedAt), 'MMM d, yyyy')}
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <Badge variant="outline" className="capitalize">
-                                  {payment.paymentMethod.replace(/_/g, ' ')}
-                                </Badge>
-                                {payment.checkNumber && (
-                                  <p className="text-sm text-gray-600 mt-1">
-                                    Check #{payment.checkNumber}
+                {/* Payment History - only visible for users with payment permissions */}
+                {canViewPaymentInfo && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Calendar className="h-5 w-5" />
+                        Payment History
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {payments.length > 0 ? (
+                        <div className="space-y-3">
+                          {payments.map((payment) => (
+                            <div
+                              key={payment.id}
+                              className="p-4 border border-gray-200 rounded-lg"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-medium text-gray-900">
+                                    ${payment.amount.toFixed(2)}
                                   </p>
-                                )}
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    {format(new Date(payment.processedAt), 'MMM d, yyyy')}
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <Badge variant="outline" className="capitalize">
+                                    {payment.paymentMethod.replace(/_/g, ' ')}
+                                  </Badge>
+                                  {payment.checkNumber && (
+                                    <p className="text-sm text-gray-600 mt-1">
+                                      Check #{payment.checkNumber}
+                                    </p>
+                                  )}
+                                </div>
                               </div>
+                              {payment.notes && (
+                                <p className="text-sm text-gray-600 mt-2 pt-2 border-t border-gray-100">
+                                  {payment.notes}
+                                </p>
+                              )}
                             </div>
-                            {payment.notes && (
-                              <p className="text-sm text-gray-600 mt-2 pt-2 border-t border-gray-100">
-                                {payment.notes}
-                              </p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-gray-500 text-center py-4">No payments recorded yet</p>
-                    )}
-                  </CardContent>
-                </Card>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 text-center py-4">No payments recorded yet</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
               </div>
 
               {/* Sidebar - Right Side */}
               <div className="space-y-6">
-                {/* Payment Summary */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <DollarSign className="h-5 w-5" />
-                      Payment Summary
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {paymentBalance ? (
-                      <>
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">Total Amount Due</span>
-                            <span className="font-medium text-gray-900">
-                              ${paymentBalance.totalAmountDue.toFixed(2)}
-                            </span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">Amount Paid</span>
-                            <span className="font-medium text-green-600">
-                              ${paymentBalance.amountPaid.toFixed(2)}
-                            </span>
-                          </div>
-                          {paymentBalance.lateFeesApplied > 0 && (
+                {/* Payment Summary - only visible for users with payment permissions */}
+                {canViewPaymentInfo && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <DollarSign className="h-5 w-5" />
+                        Payment Summary
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {paymentBalance ? (
+                        <>
+                          <div className="space-y-2">
                             <div className="flex justify-between text-sm">
-                              <span className="text-gray-600">Late Fees</span>
-                              <span className="font-medium text-red-600">
-                                ${paymentBalance.lateFeesApplied.toFixed(2)}
+                              <span className="text-gray-600">Total Amount Due</span>
+                              <span className="font-medium text-gray-900">
+                                ${paymentBalance.totalAmountDue.toFixed(2)}
                               </span>
                             </div>
-                          )}
-                          <div className="pt-2 border-t border-gray-200">
-                            <div className="flex justify-between">
-                              <span className="font-medium text-gray-900">Amount Remaining</span>
-                              <span className="font-bold text-lg text-gray-900">
-                                ${paymentBalance.amountRemaining.toFixed(2)}
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600">Amount Paid</span>
+                              <span className="font-medium text-green-600">
+                                ${paymentBalance.amountPaid.toFixed(2)}
                               </span>
+                            </div>
+                            {paymentBalance.lateFeesApplied > 0 && (
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-600">Late Fees</span>
+                                <span className="font-medium text-red-600">
+                                  ${paymentBalance.lateFeesApplied.toFixed(2)}
+                                </span>
+                              </div>
+                            )}
+                            <div className="pt-2 border-t border-gray-200">
+                              <div className="flex justify-between">
+                                <span className="font-medium text-gray-900">Amount Remaining</span>
+                                <span className="font-bold text-lg text-gray-900">
+                                  ${paymentBalance.amountRemaining.toFixed(2)}
+                                </span>
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        <div>
-                          <Badge
-                            variant={
-                              paymentBalance.paymentStatus === 'paid_full'
-                                ? 'default'
-                                : paymentBalance.paymentStatus === 'partial'
-                                ? 'secondary'
-                                : 'destructive'
-                            }
-                            className="w-full justify-center py-1"
-                          >
-                            {paymentBalance.paymentStatus.replace(/_/g, ' ').toUpperCase()}
-                          </Badge>
-                        </div>
+                          <div>
+                            <Badge
+                              variant={
+                                paymentBalance.paymentStatus === 'paid_full'
+                                  ? 'default'
+                                  : paymentBalance.paymentStatus === 'partial'
+                                  ? 'secondary'
+                                  : 'destructive'
+                              }
+                              className="w-full justify-center py-1"
+                            >
+                              {paymentBalance.paymentStatus.replace(/_/g, ' ').toUpperCase()}
+                            </Badge>
+                          </div>
 
-                        <Button
-                          onClick={() => setShowPaymentModal(true)}
-                          className="w-full bg-[#9C8466] hover:bg-[#8a7559]"
-                        >
-                          <DollarSign className="h-4 w-4 mr-2" />
-                          Record Payment
-                        </Button>
-                      </>
-                    ) : (
-                      <p className="text-gray-500 text-sm">No payment balance found</p>
-                    )}
-                  </CardContent>
-                </Card>
+                          {canProcessPayments && (
+                            <Button
+                              onClick={() => setShowPaymentModal(true)}
+                              className="w-full bg-[#9C8466] hover:bg-[#8a7559]"
+                            >
+                              <DollarSign className="h-4 w-4 mr-2" />
+                              Record Payment
+                            </Button>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-gray-500 text-sm">No payment balance found</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Payment Modal */}
-        <RecordAdditionalPaymentModal
-          isOpen={showPaymentModal}
-          registrationId={registration.id}
-          registrationType="group"
-          registrationName={registration.groupName}
-          balanceRemaining={paymentBalance?.amountRemaining || 0}
-          onClose={() => setShowPaymentModal(false)}
-          onSuccess={() => {
-            setShowPaymentModal(false)
-            window.location.reload()
-          }}
-        />
+        {/* Payment Modal - only for users with payment permissions */}
+        {canProcessPayments && (
+          <RecordAdditionalPaymentModal
+            isOpen={showPaymentModal}
+            registrationId={registration.id}
+            registrationType="group"
+            registrationName={registration.groupName}
+            balanceRemaining={paymentBalance?.amountRemaining || 0}
+            onClose={() => setShowPaymentModal(false)}
+            onSuccess={() => {
+              setShowPaymentModal(false)
+              window.location.reload()
+            }}
+          />
+        )}
       </div>
     )
   }
@@ -516,10 +532,12 @@ export default function RegistrationDetailClient({
                   Registered on {format(new Date(registration.registeredAt), 'MMMM d, yyyy')}
                 </p>
               </div>
-              <Badge variant={paymentBalance?.paymentStatus === 'paid_full' ? 'default' : 'secondary'}>
-                {paymentBalance?.paymentStatus === 'paid_full' ? 'Paid in Full' :
-                 paymentBalance?.paymentStatus === 'partial' ? 'Partial Payment' : 'Unpaid'}
-              </Badge>
+              {canViewPaymentInfo && (
+                <Badge variant={paymentBalance?.paymentStatus === 'paid_full' ? 'default' : 'secondary'}>
+                  {paymentBalance?.paymentStatus === 'paid_full' ? 'Paid in Full' :
+                   paymentBalance?.paymentStatus === 'partial' ? 'Partial Payment' : 'Unpaid'}
+                </Badge>
+              )}
             </div>
           </div>
 
@@ -835,175 +853,181 @@ export default function RegistrationDetailClient({
                 </CardContent>
               </Card>
 
-              {/* Save Button */}
+              {/* Save Button - only visible for users with edit permissions */}
               <div className="flex justify-end gap-3">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => router.back()}
                 >
-                  Cancel
+                  {canEditRegistration ? 'Cancel' : 'Back'}
                 </Button>
-                <Button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90"
-                >
-                  {saving ? (
-                    <>Saving...</>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4 mr-2" />
-                      Save Changes
-                    </>
-                  )}
-                </Button>
+                {canEditRegistration && (
+                  <Button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90"
+                  >
+                    {saving ? (
+                      <>Saving...</>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        Save Changes
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
             </div>
 
-            {/* Sidebar - Pricing & Payment */}
-            <div className="lg:col-span-1 space-y-6">
-              {/* Pricing Summary */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <DollarSign className="h-5 w-5" />
-                    Pricing Summary
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Current Price:</span>
-                      <span className="font-mono font-semibold">
-                        ${currentPrice.toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Original Price:</span>
-                      <span className="font-mono">
-                        ${originalPrice.toFixed(2)}
-                      </span>
-                    </div>
-                    {priceDifference !== 0 && (
-                      <div className={`flex justify-between text-sm font-semibold ${priceDifference > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        <span>Price Difference:</span>
-                        <span className="font-mono">
-                          {priceDifference > 0 ? '+' : ''}${priceDifference.toFixed(2)}
+            {/* Sidebar - Pricing & Payment (only visible for users with payment permissions) */}
+            {canViewPaymentInfo && (
+              <div className="lg:col-span-1 space-y-6">
+                {/* Pricing Summary */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <DollarSign className="h-5 w-5" />
+                      Pricing Summary
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Current Price:</span>
+                        <span className="font-mono font-semibold">
+                          ${currentPrice.toFixed(2)}
                         </span>
                       </div>
-                    )}
-                  </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Original Price:</span>
+                        <span className="font-mono">
+                          ${originalPrice.toFixed(2)}
+                        </span>
+                      </div>
+                      {priceDifference !== 0 && (
+                        <div className={`flex justify-between text-sm font-semibold ${priceDifference > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          <span>Price Difference:</span>
+                          <span className="font-mono">
+                            {priceDifference > 0 ? '+' : ''}${priceDifference.toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
 
-                  {priceDifference !== 0 && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
-                      <div className="flex gap-2">
-                        <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                        <div className="text-sm">
-                          <p className="font-semibold text-amber-900">Price Change</p>
-                          <p className="text-amber-700 mt-1">
-                            {priceDifference > 0
-                              ? `This participant owes an additional $${priceDifference.toFixed(2)} due to housing change.`
-                              : `This participant is entitled to a $${Math.abs(priceDifference).toFixed(2)} refund.`
-                            }
-                          </p>
+                    {priceDifference !== 0 && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
+                        <div className="flex gap-2">
+                          <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                          <div className="text-sm">
+                            <p className="font-semibold text-amber-900">Price Change</p>
+                            <p className="text-amber-700 mt-1">
+                              {priceDifference > 0
+                                ? `This participant owes an additional $${priceDifference.toFixed(2)} due to housing change.`
+                                : `This participant is entitled to a $${Math.abs(priceDifference).toFixed(2)} refund.`
+                              }
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                    )}
+                  </CardContent>
+                </Card>
 
-              {/* Payment Status */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Payment Status</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Total Due:</span>
-                      <span className="font-mono font-semibold">
-                        ${paymentBalance?.totalAmountDue.toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Amount Paid:</span>
-                      <span className="font-mono text-green-600 font-semibold">
-                        ${paymentBalance?.amountPaid.toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between border-t pt-3">
-                      <span className="font-semibold">Balance Remaining:</span>
-                      <span className="font-mono text-orange-600 font-semibold">
-                        ${paymentBalance?.amountRemaining.toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <Button
-                    onClick={() => setShowPaymentModal(true)}
-                    className="w-full bg-[#10B981] hover:bg-[#059669]"
-                  >
-                    <DollarSign className="h-4 w-4 mr-2" />
-                    Record Payment
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Payment History */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Payment History</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {payments.length === 0 ? (
-                    <p className="text-sm text-gray-500 text-center py-4">
-                      No payments recorded yet
-                    </p>
-                  ) : (
+                {/* Payment Status */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Payment Status</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
                     <div className="space-y-3">
-                      {payments.map((payment) => (
-                        <div key={payment.id} className="border-b border-gray-200 pb-3 last:border-0">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <p className="font-semibold text-sm">
-                                ${payment.amount.toFixed(2)}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {payment.paymentMethod} • {payment.paymentType}
-                              </p>
-                              <p className="text-xs text-gray-400">
-                                {format(new Date(payment.processedAt), 'MMM d, yyyy')}
-                              </p>
-                            </div>
-                            <Badge variant="outline" className="text-xs">
-                              {payment.paymentStatus}
-                            </Badge>
-                          </div>
-                          {payment.checkNumber && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              Check #{payment.checkNumber}
-                            </p>
-                          )}
-                          {payment.notes && (
-                            <p className="text-xs text-gray-600 mt-1">
-                              {payment.notes}
-                            </p>
-                          )}
-                        </div>
-                      ))}
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Total Due:</span>
+                        <span className="font-mono font-semibold">
+                          ${paymentBalance?.totalAmountDue.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Amount Paid:</span>
+                        <span className="font-mono text-green-600 font-semibold">
+                          ${paymentBalance?.amountPaid.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t pt-3">
+                        <span className="font-semibold">Balance Remaining:</span>
+                        <span className="font-mono text-orange-600 font-semibold">
+                          ${paymentBalance?.amountRemaining.toFixed(2)}
+                        </span>
+                      </div>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+
+                    {canProcessPayments && (
+                      <Button
+                        onClick={() => setShowPaymentModal(true)}
+                        className="w-full bg-[#10B981] hover:bg-[#059669]"
+                      >
+                        <DollarSign className="h-4 w-4 mr-2" />
+                        Record Payment
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Payment History */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Payment History</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {payments.length === 0 ? (
+                      <p className="text-sm text-gray-500 text-center py-4">
+                        No payments recorded yet
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {payments.map((payment) => (
+                          <div key={payment.id} className="border-b border-gray-200 pb-3 last:border-0">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-semibold text-sm">
+                                  ${payment.amount.toFixed(2)}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {payment.paymentMethod} • {payment.paymentType}
+                                </p>
+                                <p className="text-xs text-gray-400">
+                                  {format(new Date(payment.processedAt), 'MMM d, yyyy')}
+                                </p>
+                              </div>
+                              <Badge variant="outline" className="text-xs">
+                                {payment.paymentStatus}
+                              </Badge>
+                            </div>
+                            {payment.checkNumber && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                Check #{payment.checkNumber}
+                              </p>
+                            )}
+                            {payment.notes && (
+                              <p className="text-xs text-gray-600 mt-1">
+                                {payment.notes}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Payment Modal */}
-      {showPaymentModal && paymentBalance && (
+      {/* Payment Modal - only for users with payment permissions */}
+      {canProcessPayments && showPaymentModal && paymentBalance && (
         <RecordAdditionalPaymentModal
           isOpen={showPaymentModal}
           onClose={() => setShowPaymentModal(false)}

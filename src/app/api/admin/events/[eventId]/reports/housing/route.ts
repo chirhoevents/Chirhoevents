@@ -53,7 +53,7 @@ export async function GET(
       chaperones: { total: 0, male: 0, female: 0 },
     }
 
-    for (const group of groupRegs.filter(g => g.housingType === 'on_campus')) {
+    for (const group of groupRegs.filter((g: any) => g.housingType === 'on_campus')) {
       for (const p of group.participants) {
         const type = p.participantType === 'chaperone' ? 'chaperones' : p.participantType
         if (onCampusDetails[type]) {
@@ -66,7 +66,7 @@ export async function GET(
 
     // Room types from individuals
     const roomTypes: any = { single: 0, double: 0, triple: 0, quad: 0 }
-    for (const ind of individualRegs.filter(i => i.housingType === 'on_campus')) {
+    for (const ind of individualRegs.filter((i: any) => i.housingType === 'on_campus')) {
       if (ind.roomType && roomTypes[ind.roomType] !== undefined) {
         roomTypes[ind.roomType]++
       }
@@ -74,7 +74,7 @@ export async function GET(
 
     // Special accommodations (only from individual registrations - participants don't have this field)
     const adaCount = individualRegs.filter(
-      ind => ind.adaAccommodations && ind.adaAccommodations !== ''
+      (ind: any) => ind.adaAccommodations && ind.adaAccommodations !== ''
     ).length
 
     return NextResponse.json({

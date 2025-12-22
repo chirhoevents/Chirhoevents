@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
       })
 
       // Get payment balances for group registrations
-      const groupRegIds = rawGroupRegistrations.map((r) => r.id)
+      const groupRegIds = rawGroupRegistrations.map((r: any) => r.id)
       const groupPaymentBalances = await prisma.paymentBalance.findMany({
         where: {
           registrationId: { in: groupRegIds },
@@ -104,12 +104,12 @@ export async function GET(request: NextRequest) {
         },
       })
 
-      const paymentBalanceMap = new Map(
-        groupPaymentBalances.map((pb) => [pb.registrationId, pb] as const)
+      const paymentBalanceMap = new Map<string, any>(
+        groupPaymentBalances.map((pb: any) => [pb.registrationId, pb])
       )
 
       // Transform group registrations
-      groupRegistrations = rawGroupRegistrations.map((reg) => {
+      groupRegistrations = rawGroupRegistrations.map((reg: any) => {
         const paymentBalance = paymentBalanceMap.get(reg.id)
         const totalAmount = paymentBalance
           ? Number(paymentBalance.totalAmountDue)
@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
           ? Number(paymentBalance.amountRemaining)
           : 0
         const formsCompleted = reg.participants.filter(
-          (p) => p.liabilityFormCompleted
+          (p: any) => p.liabilityFormCompleted
         ).length
         const formsTotal = reg.participants.length
 
@@ -202,7 +202,7 @@ export async function GET(request: NextRequest) {
         })
 
       // Get payment balances for individual registrations
-      const individualRegIds = rawIndividualRegistrations.map((r) => r.id)
+      const individualRegIds = rawIndividualRegistrations.map((r: any) => r.id)
       const individualPaymentBalances = await prisma.paymentBalance.findMany({
         where: {
           registrationId: { in: individualRegIds },
@@ -210,12 +210,12 @@ export async function GET(request: NextRequest) {
         },
       })
 
-      const individualPaymentBalanceMap = new Map(
-        individualPaymentBalances.map((pb) => [pb.registrationId, pb] as const)
+      const individualPaymentBalanceMap = new Map<string, any>(
+        individualPaymentBalances.map((pb: any) => [pb.registrationId, pb])
       )
 
       // Transform individual registrations
-      individualRegistrations = rawIndividualRegistrations.map((reg) => {
+      individualRegistrations = rawIndividualRegistrations.map((reg: any) => {
         const paymentBalance = individualPaymentBalanceMap.get(reg.id)
         const totalAmount = paymentBalance
           ? Number(paymentBalance.totalAmountDue)

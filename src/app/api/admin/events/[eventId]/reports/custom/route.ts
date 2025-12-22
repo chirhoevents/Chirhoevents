@@ -207,7 +207,7 @@ async function executeBalancesReport(eventId: string, config: any) {
     },
   })
 
-  const groupIds = groupRegs.map(g => g.id)
+  const groupIds = groupRegs.map((g: { id: string }) => g.id)
   const groupPaymentBalances = await prisma.paymentBalance.findMany({
     where: {
       registrationId: { in: groupIds },
@@ -215,10 +215,10 @@ async function executeBalancesReport(eventId: string, config: any) {
     },
   })
 
-  const groupBalanceMap = new Map(groupPaymentBalances.map(pb => [pb.registrationId, pb]))
+  const groupBalanceMap = new Map(groupPaymentBalances.map((pb: { registrationId: string }) => [pb.registrationId, pb]))
 
-  const groupBalances = groupRegs.map(group => {
-    const balance = groupBalanceMap.get(group.id)
+  const groupBalances = groupRegs.map((group: any) => {
+    const balance: any = groupBalanceMap.get(group.id)
     return {
       groupId: group.id,
       groupName: group.groupName,
@@ -248,7 +248,7 @@ async function executeBalancesReport(eventId: string, config: any) {
     },
   })
 
-  const individualIds = individualRegs.map(i => i.id)
+  const individualIds = individualRegs.map((i: { id: string }) => i.id)
   const individualPaymentBalances = await prisma.paymentBalance.findMany({
     where: {
       registrationId: { in: individualIds },
@@ -256,10 +256,10 @@ async function executeBalancesReport(eventId: string, config: any) {
     },
   })
 
-  const individualBalanceMap = new Map(individualPaymentBalances.map(pb => [pb.registrationId, pb]))
+  const individualBalanceMap = new Map(individualPaymentBalances.map((pb: { registrationId: string }) => [pb.registrationId, pb]))
 
-  const individualBalances = individualRegs.map(individual => {
-    const balance = individualBalanceMap.get(individual.id)
+  const individualBalances = individualRegs.map((individual: any) => {
+    const balance: any = individualBalanceMap.get(individual.id)
     return {
       groupId: individual.id,
       groupName: `${individual.firstName} ${individual.lastName}`,
@@ -314,7 +314,7 @@ async function executeMedicalReport(eventId: string, config: any) {
   })
 
   // Filter based on what medical info is requested
-  const filtered = forms.filter(f => {
+  const filtered = forms.filter((f: any) => {
     if (config.filters?.onlyAllergies && (!f.allergies || f.allergies === '')) return false
     if (config.filters?.onlyMedications && (!f.medications || f.medications === '')) return false
     if (config.filters?.onlyConditions && (!f.medicalConditions || f.medicalConditions === '')) return false
@@ -416,13 +416,13 @@ async function executeRosterReport(eventId: string, config: any) {
   })
 
   // Transform group participants - liabilityForms array to single liabilityForm object
-  const groupParticipants = participantsRaw.map(p => ({
+  const groupParticipants = participantsRaw.map((p: any) => ({
     ...p,
     liabilityForm: p.liabilityForms?.[0] || null,
   }))
 
   // Transform individual registrations to match participant structure
-  const individualParticipants = individualRegs.map(ind => ({
+  const individualParticipants = individualRegs.map((ind: any) => ({
     id: ind.id,
     firstName: ind.firstName,
     lastName: ind.lastName,
@@ -453,19 +453,19 @@ async function executeRosterReport(eventId: string, config: any) {
   let filtered = participants
 
   if (config.filters?.groupIds && config.filters.groupIds.length > 0) {
-    filtered = filtered.filter(p => config.filters.groupIds.includes(p.groupRegistration?.id))
+    filtered = filtered.filter((p: any) => config.filters.groupIds.includes(p.groupRegistration?.id))
   }
 
   if (config.filters?.parishes && config.filters.parishes.length > 0) {
-    filtered = filtered.filter(p => config.filters.parishes.includes(p.groupRegistration?.parishName))
+    filtered = filtered.filter((p: any) => config.filters.parishes.includes(p.groupRegistration?.parishName))
   }
 
   if (config.filters?.housingTypes && config.filters.housingTypes.length > 0) {
-    filtered = filtered.filter(p => config.filters.housingTypes.includes(p.groupRegistration?.housingType))
+    filtered = filtered.filter((p: any) => config.filters.housingTypes.includes(p.groupRegistration?.housingType))
   }
 
   if (config.filters?.onlyWithMedicalNeeds) {
-    filtered = filtered.filter(p =>
+    filtered = filtered.filter((p: any) =>
       p.liabilityForm && (
         (p.liabilityForm.allergies && p.liabilityForm.allergies !== '') ||
         (p.liabilityForm.medications && p.liabilityForm.medications !== '') ||
@@ -478,7 +478,7 @@ async function executeRosterReport(eventId: string, config: any) {
   if (config.filters?.groupBy === 'group') {
     const groupedData = new Map<string, any>()
 
-    filtered.forEach(p => {
+    filtered.forEach((p: any) => {
       const groupId = p.groupRegistration?.id || 'no-group'
       const groupName = p.groupRegistration?.groupName || 'Individual Registrations'
 
@@ -502,7 +502,7 @@ async function executeRosterReport(eventId: string, config: any) {
   } else if (config.filters?.groupBy === 'participantType') {
     const typeGroups = new Map<string, any>()
 
-    filtered.forEach(p => {
+    filtered.forEach((p: any) => {
       const type = p.participantType || 'unknown'
 
       if (!typeGroups.has(type)) {

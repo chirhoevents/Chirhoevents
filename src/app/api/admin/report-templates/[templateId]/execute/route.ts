@@ -162,12 +162,12 @@ async function executeTShirtReport(eventId: string, config: any, filters: any) {
 
   // Aggregate by size
   const sizeCounts: Record<string, number> = {}
-  participants.forEach(p => {
+  participants.forEach((p: any) => {
     if (p.tShirtSize) {
       sizeCounts[p.tShirtSize] = (sizeCounts[p.tShirtSize] || 0) + 1
     }
   })
-  individualRegs.forEach(i => {
+  individualRegs.forEach((i: any) => {
     if (i.tShirtSize) {
       sizeCounts[i.tShirtSize] = (sizeCounts[i.tShirtSize] || 0) + 1
     }
@@ -189,7 +189,7 @@ async function executeBalancesReport(eventId: string, config: any, filters: any)
     },
   })
 
-  const groupIds = groupRegs.map(g => g.id)
+  const groupIds = groupRegs.map((g: any) => g.id)
   const groupPaymentBalances = await prisma.paymentBalance.findMany({
     where: {
       registrationId: { in: groupIds },
@@ -197,10 +197,10 @@ async function executeBalancesReport(eventId: string, config: any, filters: any)
     },
   })
 
-  const groupBalanceMap = new Map(groupPaymentBalances.map(pb => [pb.registrationId, pb]))
+  const groupBalanceMap = new Map(groupPaymentBalances.map((pb: any) => [pb.registrationId, pb]))
 
-  const groupBalances = groupRegs.map(group => {
-    const balance = groupBalanceMap.get(group.id)
+  const groupBalances = groupRegs.map((group: any) => {
+    const balance: any = groupBalanceMap.get(group.id)
     return {
       groupId: group.id,
       groupName: group.groupName,
@@ -230,7 +230,7 @@ async function executeBalancesReport(eventId: string, config: any, filters: any)
     },
   })
 
-  const individualIds = individualRegs.map(i => i.id)
+  const individualIds = individualRegs.map((i: any) => i.id)
   const individualPaymentBalances = await prisma.paymentBalance.findMany({
     where: {
       registrationId: { in: individualIds },
@@ -238,10 +238,10 @@ async function executeBalancesReport(eventId: string, config: any, filters: any)
     },
   })
 
-  const individualBalanceMap = new Map(individualPaymentBalances.map(pb => [pb.registrationId, pb]))
+  const individualBalanceMap = new Map(individualPaymentBalances.map((pb: any) => [pb.registrationId, pb]))
 
-  const individualBalances = individualRegs.map(individual => {
-    const balance = individualBalanceMap.get(individual.id)
+  const individualBalances = individualRegs.map((individual: any) => {
+    const balance: any = individualBalanceMap.get(individual.id)
     return {
       groupId: individual.id,
       groupName: `${individual.firstName} ${individual.lastName}`,
@@ -296,7 +296,7 @@ async function executeMedicalReport(eventId: string, config: any, filters: any) 
   })
 
   // Filter based on what medical info is requested
-  const filtered = forms.filter(f => {
+  const filtered = forms.filter((f: any) => {
     if (config.filters?.onlyAllergies && (!f.allergies || f.allergies === '')) return false
     if (config.filters?.onlyMedications && (!f.medications || f.medications === '')) return false
     if (config.filters?.onlyConditions && (!f.medicalConditions || f.medicalConditions === '')) return false
@@ -398,13 +398,13 @@ async function executeRosterReport(eventId: string, config: any, filters: any) {
   })
 
   // Transform group participants - liabilityForms array to single liabilityForm object
-  const groupParticipants = participantsRaw.map(p => ({
+  const groupParticipants = participantsRaw.map((p: any) => ({
     ...p,
     liabilityForm: p.liabilityForms?.[0] || null,
   }))
 
   // Transform individual registrations to match participant structure
-  const individualParticipants = individualRegs.map(ind => ({
+  const individualParticipants = individualRegs.map((ind: any) => ({
     id: ind.id,
     firstName: ind.firstName,
     lastName: ind.lastName,

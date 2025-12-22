@@ -35,7 +35,7 @@ export async function POST(
 
     // Add group registrations
     for (const group of groupRegs) {
-      const payment = paymentBalances.find(pb => pb.registrationId === group.id)
+      const payment = paymentBalances.find((pb: any) => pb.registrationId === group.id)
       rows.push({
         'Registration Type': 'Group',
         'Group Name': group.groupName,
@@ -55,7 +55,7 @@ export async function POST(
 
     // Add individual registrations
     for (const ind of individualRegs) {
-      const payment = paymentBalances.find(pb => pb.registrationId === ind.id)
+      const payment = paymentBalances.find((pb: any) => pb.registrationId === ind.id)
       rows.push({
         'Registration Type': 'Individual',
         'Group Name': '',

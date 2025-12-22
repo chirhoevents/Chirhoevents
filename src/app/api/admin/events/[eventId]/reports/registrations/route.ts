@@ -28,7 +28,7 @@ export async function GET(
 
     const groupCount = groupRegistrations.length
     const groupParticipants = groupRegistrations.reduce(
-      (sum, g) => sum + g.participants.length,
+      (sum: number, g: any) => sum + g.participants.length,
       0
     )
     const individualCount = individualRegistrations.length
@@ -93,11 +93,11 @@ export async function GET(
 
     // Top groups
     const topGroups = groupRegistrations
-      .map(g => ({
+      .map((g: any) => ({
         name: g.groupName || g.parishName,
         count: g.participants.length,
       }))
-      .sort((a, b) => b.count - a.count)
+      .sort((a: { count: number }, b: { count: number }) => b.count - a.count)
 
     return NextResponse.json({
       totalRegistrations,

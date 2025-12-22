@@ -40,10 +40,10 @@ export async function GET(
     })
 
     // Separate counting
-    const foodAllergiesCount = forms.filter(f => f.allergies && f.allergies !== '').length
-    const dietaryRestrictionsCount = forms.filter(f => f.dietaryRestrictions && f.dietaryRestrictions !== '').length
-    const medicalConditionsCount = forms.filter(f => f.medicalConditions && f.medicalConditions !== '').length
-    const medicationsCount = forms.filter(f => f.medications && f.medications !== '').length
+    const foodAllergiesCount = forms.filter((f: any) => f.allergies && f.allergies !== '').length
+    const dietaryRestrictionsCount = forms.filter((f: any) => f.dietaryRestrictions && f.dietaryRestrictions !== '').length
+    const medicalConditionsCount = forms.filter((f: any) => f.medicalConditions && f.medicalConditions !== '').length
+    const medicationsCount = forms.filter((f: any) => f.medications && f.medications !== '').length
 
     if (isPreview) {
       return NextResponse.json({
@@ -204,8 +204,8 @@ export async function GET(
     }
 
     // ADA Accommodations
-    const adaForms = forms.filter(f => f.adaAccommodations && f.adaAccommodations !== '')
-    const adaDetails: any[] = adaForms.map(form => ({
+    const adaForms = forms.filter((f: any) => f.adaAccommodations && f.adaAccommodations !== '')
+    const adaDetails: any[] = adaForms.map((form: any) => ({
       name: `${form.participant?.firstName} ${form.participant?.lastName}`,
       group: form.participant?.groupRegistration?.groupName || form.participant?.groupRegistration?.parishName || 'Individual',
       groupLeaderEmail: form.participant?.groupRegistration?.groupLeaderEmail,
@@ -222,7 +222,7 @@ export async function GET(
       },
       foodAllergies: {
         total: foodAllergies.length,
-        severe: foodAllergies.filter(f => f.severity === 'SEVERE').length,
+        severe: foodAllergies.filter((f: any) => f.severity === 'SEVERE').length,
         details: foodAllergies.sort((a, b) => a.severity === 'SEVERE' ? -1 : 1),
       },
       dietaryRestrictions: {
