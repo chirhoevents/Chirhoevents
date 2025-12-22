@@ -49,14 +49,67 @@ export async function DELETE(
       )
     }
 
-    // Delete the user
-    await prisma.user.delete({
-      where: { id: userId },
+    // Check if this is a pending invite (no clerkUserId)
+    if (!targetUser.clerkUserId) {
+      // For pending invites, we can safely delete the user record
+      await prisma.user.delete({
+        where: { id: userId },
+      })
+
+      return NextResponse.json({
+        message: 'Invitation cancelled successfully',
+      })
+    }
+
+    // For active users, check if they have any related records
+    const hasEvents = await prisma.event.count({
+      where: { createdBy: userId },
     })
 
-    return NextResponse.json({
-      message: 'Team member removed successfully',
+    const hasCreatedUsers = await prisma.user.count({
+      where: { createdBy: userId },
     })
+
+    if (hasEvents > 0 || hasCreatedUsers > 0) {
+      // Instead of deleting, we should deactivate/demote the user
+      // For now, change their role to remove admin access
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          role: 'individual', // Demote to non-admin role
+        },
+      })
+
+      return NextResponse.json({
+        message: 'User has been removed from the admin team',
+        note: 'User account was demoted instead of deleted due to existing records',
+      })
+    }
+
+    // Try to delete - if it fails due to constraints, demote instead
+    try {
+      await prisma.user.delete({
+        where: { id: userId },
+      })
+
+      return NextResponse.json({
+        message: 'Team member removed successfully',
+      })
+    } catch (deleteError: unknown) {
+      // Foreign key constraint - demote instead
+      console.log('Could not delete user due to constraints, demoting instead:', deleteError)
+
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          role: 'individual',
+        },
+      })
+
+      return NextResponse.json({
+        message: 'User has been removed from the admin team',
+      })
+    }
   } catch (error) {
     console.error('Error removing team member:', error)
     return NextResponse.json(
