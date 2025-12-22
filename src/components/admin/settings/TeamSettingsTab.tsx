@@ -76,6 +76,9 @@ export default function TeamSettingsTab() {
   const [deletingMember, setDeletingMember] = useState<TeamMember | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
+  // Resend invitation
+  const [isResending, setIsResending] = useState<string | null>(null)
+
   useEffect(() => {
     fetchTeamMembers()
   }, [])
@@ -146,6 +149,27 @@ export default function TeamSettingsTab() {
       alert(err instanceof Error ? err.message : 'Failed to remove member')
     } finally {
       setIsDeleting(false)
+    }
+  }
+
+  const handleResendInvite = async (inviteId: string) => {
+    setIsResending(inviteId)
+    try {
+      const response = await fetch(`/api/admin/settings/team/${inviteId}/resend`, {
+        method: 'POST',
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to resend invitation')
+      }
+
+      alert('Invitation resent successfully!')
+    } catch (err) {
+      console.error('Error resending invite:', err)
+      alert(err instanceof Error ? err.message : 'Failed to resend invitation')
+    } finally {
+      setIsResending(null)
     }
   }
 
@@ -349,9 +373,17 @@ export default function TeamSettingsTab() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem className="cursor-pointer">
-                              <Mail className="h-4 w-4 mr-2" />
-                              Resend Invitation
+                            <DropdownMenuItem
+                              onClick={() => handleResendInvite(invite.id)}
+                              disabled={isResending === invite.id}
+                              className="cursor-pointer"
+                            >
+                              {isResending === invite.id ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <Mail className="h-4 w-4 mr-2" />
+                              )}
+                              {isResending === invite.id ? 'Sending...' : 'Resend Invitation'}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => setDeletingMember(invite)}
