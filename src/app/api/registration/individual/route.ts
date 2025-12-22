@@ -79,15 +79,38 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Calculate price based on housing type
-    let totalAmount = Number(event.pricing.youthRegularPrice)
+    // Calculate price for individual registration based on housing type and add-ons
+    let totalAmount = 0
 
-    if (housingType === 'on_campus' && event.pricing.onCampusYouthPrice) {
-      totalAmount = Number(event.pricing.onCampusYouthPrice)
-    } else if (housingType === 'off_campus' && event.pricing.offCampusYouthPrice) {
-      totalAmount = Number(event.pricing.offCampusYouthPrice)
-    } else if (housingType === 'day_pass' && event.pricing.dayPassYouthPrice) {
-      totalAmount = Number(event.pricing.dayPassYouthPrice)
+    // Base price by housing type
+    if (housingType === 'on_campus' && event.pricing.individualBasePrice) {
+      totalAmount = Number(event.pricing.individualBasePrice)
+    } else if (housingType === 'off_campus' && event.pricing.individualOffCampusPrice) {
+      totalAmount = Number(event.pricing.individualOffCampusPrice)
+    } else if (housingType === 'day_pass' && event.pricing.individualDayPassPrice) {
+      totalAmount = Number(event.pricing.individualDayPassPrice)
+    } else {
+      // Fallback to individual base price or youth price
+      totalAmount = Number(event.pricing.individualBasePrice || event.pricing.youthRegularPrice)
+    }
+
+    // Add room type pricing (for on-campus housing)
+    if (housingType === 'on_campus' && body.roomType) {
+      const roomType = body.roomType as string
+      if (roomType === 'single' && event.pricing.singleRoomPrice) {
+        totalAmount += Number(event.pricing.singleRoomPrice)
+      } else if (roomType === 'double' && event.pricing.doubleRoomPrice) {
+        totalAmount += Number(event.pricing.doubleRoomPrice)
+      } else if (roomType === 'triple' && event.pricing.tripleRoomPrice) {
+        totalAmount += Number(event.pricing.tripleRoomPrice)
+      } else if (roomType === 'quad' && event.pricing.quadRoomPrice) {
+        totalAmount += Number(event.pricing.quadRoomPrice)
+      }
+    }
+
+    // Add meal package if included
+    if (body.includeMealPackage && event.pricing.individualMealPackagePrice) {
+      totalAmount += Number(event.pricing.individualMealPackagePrice)
     }
 
     // Determine registration status based on payment method
