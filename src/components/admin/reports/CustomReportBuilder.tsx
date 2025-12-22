@@ -110,8 +110,6 @@ export function CustomReportBuilder({
       { value: 'groupRegistration.groupLeaderEmail', label: 'Leader Email' },
       { value: 'groupRegistration.groupLeaderPhone', label: 'Leader Phone' },
       { value: 'groupRegistration.housingType', label: 'Housing Type' },
-      { value: 'housingAssignment.roomNumber', label: 'Room Number' },
-      { value: 'housingAssignment.buildingName', label: 'Building' },
       { value: 'liabilityForm.allergies', label: 'Allergies' },
       { value: 'liabilityForm.medications', label: 'Medications' },
       { value: 'liabilityForm.medicalConditions', label: 'Medical Conditions' },
@@ -456,7 +454,6 @@ export function CustomReportBuilder({
                     ${selectedFields.includes('age') ? '<th>Age</th>' : ''}
                     ${selectedFields.includes('participantType') ? '<th>Type</th>' : ''}
                     ${selectedFields.includes('tShirtSize') ? '<th>T-Shirt</th>' : ''}
-                    ${selectedFields.includes('housingAssignment.roomNumber') ? '<th>Room</th>' : ''}
                     ${selectedFields.includes('liabilityForm.emergencyContact1Name') ? '<th>Emergency Contact</th>' : ''}
                     ${selectedFields.includes('liabilityForm.allergies') ? '<th>Allergies</th>' : ''}
                   </tr>
@@ -469,7 +466,6 @@ export function CustomReportBuilder({
                       ${selectedFields.includes('age') ? `<td>${p.age || ''}</td>` : ''}
                       ${selectedFields.includes('participantType') ? `<td>${p.participantType?.replace(/_/g, ' ') || ''}</td>` : ''}
                       ${selectedFields.includes('tShirtSize') ? `<td>${p.tShirtSize || '-'}</td>` : ''}
-                      ${selectedFields.includes('housingAssignment.roomNumber') ? `<td>${p.housingAssignment?.roomNumber || '-'}</td>` : ''}
                       ${selectedFields.includes('liabilityForm.emergencyContact1Name') ? `<td>${p.liabilityForm?.emergencyContact1Name || '-'}</td>` : ''}
                       ${selectedFields.includes('liabilityForm.allergies') ? `<td>${p.liabilityForm?.allergies || '-'}</td>` : ''}
                     </tr>
@@ -493,7 +489,6 @@ export function CustomReportBuilder({
                 ${selectedFields.includes('tShirtSize') ? '<th>T-Shirt</th>' : ''}
                 ${selectedFields.includes('groupRegistration.groupName') ? '<th>Group</th>' : ''}
                 ${selectedFields.includes('groupRegistration.parishName') ? '<th>Parish</th>' : ''}
-                ${selectedFields.includes('housingAssignment.roomNumber') ? '<th>Room</th>' : ''}
                 ${selectedFields.includes('liabilityForm.emergencyContact1Name') ? '<th>Emergency Contact</th>' : ''}
                 ${selectedFields.includes('liabilityForm.emergencyContact1Phone') ? '<th>Emergency Phone</th>' : ''}
                 ${selectedFields.includes('liabilityForm.allergies') ? '<th>Allergies</th>' : ''}
@@ -510,7 +505,6 @@ export function CustomReportBuilder({
                   ${selectedFields.includes('tShirtSize') ? `<td>${p.tShirtSize || '-'}</td>` : ''}
                   ${selectedFields.includes('groupRegistration.groupName') ? `<td>${p.groupRegistration?.groupName || ''}</td>` : ''}
                   ${selectedFields.includes('groupRegistration.parishName') ? `<td>${p.groupRegistration?.parishName || ''}</td>` : ''}
-                  ${selectedFields.includes('housingAssignment.roomNumber') ? `<td>${p.housingAssignment?.roomNumber || '-'}</td>` : ''}
                   ${selectedFields.includes('liabilityForm.emergencyContact1Name') ? `<td>${p.liabilityForm?.emergencyContact1Name || '-'}</td>` : ''}
                   ${selectedFields.includes('liabilityForm.emergencyContact1Phone') ? `<td>${p.liabilityForm?.emergencyContact1Phone || '-'}</td>` : ''}
                   ${selectedFields.includes('liabilityForm.allergies') ? `<td>${p.liabilityForm?.allergies || '-'}</td>` : ''}
@@ -1162,7 +1156,6 @@ export function CustomReportBuilder({
                               {selectedFields.includes('age') && <th className="border border-gray-300 p-2 text-left text-xs">Age</th>}
                               {selectedFields.includes('participantType') && <th className="border border-gray-300 p-2 text-left text-xs">Type</th>}
                               {selectedFields.includes('tShirtSize') && <th className="border border-gray-300 p-2 text-left text-xs">T-Shirt</th>}
-                              {selectedFields.includes('housingAssignment.roomNumber') && <th className="border border-gray-300 p-2 text-left text-xs">Room</th>}
                               {selectedFields.includes('liabilityForm.emergencyContact1Name') && <th className="border border-gray-300 p-2 text-left text-xs">Emergency Contact</th>}
                               {selectedFields.includes('liabilityForm.allergies') && <th className="border border-gray-300 p-2 text-left text-xs">Allergies</th>}
                             </tr>
@@ -1175,7 +1168,6 @@ export function CustomReportBuilder({
                                 {selectedFields.includes('age') && <td className="border border-gray-300 p-2 text-xs">{p.age}</td>}
                                 {selectedFields.includes('participantType') && <td className="border border-gray-300 p-2 text-xs">{p.participantType?.replace(/_/g, ' ')}</td>}
                                 {selectedFields.includes('tShirtSize') && <td className="border border-gray-300 p-2 text-xs">{p.tShirtSize || '-'}</td>}
-                                {selectedFields.includes('housingAssignment.roomNumber') && <td className="border border-gray-300 p-2 text-xs">{p.housingAssignment?.roomNumber || '-'}</td>}
                                 {selectedFields.includes('liabilityForm.emergencyContact1Name') && <td className="border border-gray-300 p-2 text-xs">{p.liabilityForm?.emergencyContact1Name || '-'}</td>}
                                 {selectedFields.includes('liabilityForm.allergies') && <td className="border border-gray-300 p-2 text-xs">{p.liabilityForm?.allergies || '-'}</td>}
                               </tr>
@@ -1198,7 +1190,6 @@ export function CustomReportBuilder({
                             {selectedFields.includes('tShirtSize') && <th className="border border-gray-300 p-2 text-left text-xs">T-Shirt</th>}
                             {selectedFields.includes('groupRegistration.groupName') && <th className="border border-gray-300 p-2 text-left text-xs">Group</th>}
                             {selectedFields.includes('groupRegistration.parishName') && <th className="border border-gray-300 p-2 text-left text-xs">Parish</th>}
-                            {selectedFields.includes('housingAssignment.roomNumber') && <th className="border border-gray-300 p-2 text-left text-xs">Room</th>}
                             {selectedFields.includes('liabilityForm.emergencyContact1Name') && <th className="border border-gray-300 p-2 text-left text-xs">Emergency Contact</th>}
                             {selectedFields.includes('liabilityForm.emergencyContact1Phone') && <th className="border border-gray-300 p-2 text-left text-xs">Emergency Phone</th>}
                             {selectedFields.includes('liabilityForm.allergies') && <th className="border border-gray-300 p-2 text-left text-xs">Allergies</th>}
@@ -1215,7 +1206,6 @@ export function CustomReportBuilder({
                               {selectedFields.includes('tShirtSize') && <td className="border border-gray-300 p-2 text-xs">{p.tShirtSize || '-'}</td>}
                               {selectedFields.includes('groupRegistration.groupName') && <td className="border border-gray-300 p-2 text-xs">{p.groupRegistration?.groupName}</td>}
                               {selectedFields.includes('groupRegistration.parishName') && <td className="border border-gray-300 p-2 text-xs">{p.groupRegistration?.parishName}</td>}
-                              {selectedFields.includes('housingAssignment.roomNumber') && <td className="border border-gray-300 p-2 text-xs">{p.housingAssignment?.roomNumber || '-'}</td>}
                               {selectedFields.includes('liabilityForm.emergencyContact1Name') && <td className="border border-gray-300 p-2 text-xs">{p.liabilityForm?.emergencyContact1Name || '-'}</td>}
                               {selectedFields.includes('liabilityForm.emergencyContact1Phone') && <td className="border border-gray-300 p-2 text-xs">{p.liabilityForm?.emergencyContact1Phone || '-'}</td>}
                               {selectedFields.includes('liabilityForm.allergies') && <td className="border border-gray-300 p-2 text-xs">{p.liabilityForm?.allergies || '-'}</td>}

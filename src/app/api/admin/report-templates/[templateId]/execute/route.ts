@@ -312,12 +312,6 @@ async function executeRosterReport(eventId: string, config: any, filters: any) {
         },
         take: 1, // Get only the first liability form
       },
-      housingAssignment: {
-        select: {
-          roomNumber: true,
-          buildingName: true,
-        },
-      },
     },
     orderBy: config.filters?.sortBy === 'firstName' ? { firstName: 'asc' } :
               config.filters?.sortBy === 'age' ? { age: 'asc' } :
