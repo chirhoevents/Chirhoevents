@@ -14,6 +14,9 @@ import {
   Trash2,
   Users,
   FileText,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -32,6 +35,7 @@ interface Event {
   startDate: string
   endDate: string
   status: string
+  locationName: string | null
   totalRegistrations: number
   totalParticipants: number
   revenue: number
@@ -43,6 +47,8 @@ interface EventsListClientProps {
 }
 
 type FilterTab = 'all' | 'upcoming' | 'past' | 'draft'
+type SortField = 'date' | 'name' | 'registrations'
+type SortOrder = 'asc' | 'desc'
 
 export default function EventsListClient({
   organizationId,
@@ -52,19 +58,28 @@ export default function EventsListClient({
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<FilterTab>('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [sortBy, setSortBy] = useState<SortField>('date')
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
 
   useEffect(() => {
     fetchEvents()
-  }, [])
+  }, [activeTab, sortBy, sortOrder])
 
   useEffect(() => {
     filterEvents()
-  }, [events, activeTab, searchQuery])
+  }, [events, searchQuery])
 
   const fetchEvents = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/admin/events')
+      const params = new URLSearchParams()
+      if (activeTab !== 'all') {
+        params.set('status', activeTab)
+      }
+      params.set('sortBy', sortBy)
+      params.set('sortOrder', sortOrder)
+
+      const response = await fetch(`/api/admin/events?${params.toString()}`)
 
       if (!response.ok) {
         throw new Error('Failed to fetch events')
@@ -105,33 +120,40 @@ export default function EventsListClient({
   const filterEvents = () => {
     let filtered = [...events]
 
-    // Apply tab filter
-    const now = new Date()
-    switch (activeTab) {
-      case 'upcoming':
-        filtered = filtered.filter(
-          (event) => new Date(event.startDate) >= now && event.status !== 'draft'
-        )
-        break
-      case 'past':
-        filtered = filtered.filter(
-          (event) => new Date(event.endDate) < now && event.status !== 'draft'
-        )
-        break
-      case 'draft':
-        filtered = filtered.filter((event) => event.status === 'draft')
-        break
-      // 'all' shows everything
-    }
-
-    // Apply search filter
+    // Apply search filter (client-side for instant feedback)
     if (searchQuery) {
-      filtered = filtered.filter((event) =>
-        event.name.toLowerCase().includes(searchQuery.toLowerCase())
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(
+        (event) =>
+          event.name.toLowerCase().includes(query) ||
+          event.slug.toLowerCase().includes(query) ||
+          (event.locationName && event.locationName.toLowerCase().includes(query))
       )
     }
 
     setFilteredEvents(filtered)
+  }
+
+  const handleSort = (field: SortField) => {
+    if (sortBy === field) {
+      // Toggle sort order if clicking the same field
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      // Set new field with default order
+      setSortBy(field)
+      setSortOrder(field === 'name' ? 'asc' : 'desc')
+    }
+  }
+
+  const getSortIcon = (field: SortField) => {
+    if (sortBy !== field) {
+      return <ArrowUpDown className="h-4 w-4" />
+    }
+    return sortOrder === 'asc' ? (
+      <ArrowUp className="h-4 w-4" />
+    ) : (
+      <ArrowDown className="h-4 w-4" />
+    )
   }
 
   const getStatusBadge = (status: string) => {
@@ -268,6 +290,47 @@ export default function EventsListClient({
             </span>
           </button>
         ))}
+      </div>
+
+      {/* Sort Controls */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-[#6B7280]">Sort by:</span>
+        <Button
+          variant={sortBy === 'date' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => handleSort('date')}
+          className={
+            sortBy === 'date'
+              ? 'bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white'
+              : 'border-[#D1D5DB] text-[#6B7280] hover:text-[#1E3A5F]'
+          }
+        >
+          Date {getSortIcon('date')}
+        </Button>
+        <Button
+          variant={sortBy === 'name' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => handleSort('name')}
+          className={
+            sortBy === 'name'
+              ? 'bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white'
+              : 'border-[#D1D5DB] text-[#6B7280] hover:text-[#1E3A5F]'
+          }
+        >
+          Name {getSortIcon('name')}
+        </Button>
+        <Button
+          variant={sortBy === 'registrations' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => handleSort('registrations')}
+          className={
+            sortBy === 'registrations'
+              ? 'bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white'
+              : 'border-[#D1D5DB] text-[#6B7280] hover:text-[#1E3A5F]'
+          }
+        >
+          Registrations {getSortIcon('registrations')}
+        </Button>
       </div>
 
       {/* Events Table */}
