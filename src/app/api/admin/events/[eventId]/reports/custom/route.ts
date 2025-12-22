@@ -182,6 +182,7 @@ async function executeTShirtReport(eventId: string, config: any) {
 }
 
 async function executeBalancesReport(eventId: string, config: any) {
+  // Get group registrations
   const groupRegs = await prisma.groupRegistration.findMany({
     where: { eventId },
     include: {
@@ -190,17 +191,17 @@ async function executeBalancesReport(eventId: string, config: any) {
   })
 
   const groupIds = groupRegs.map(g => g.id)
-  const paymentBalances = await prisma.paymentBalance.findMany({
+  const groupPaymentBalances = await prisma.paymentBalance.findMany({
     where: {
       registrationId: { in: groupIds },
       registrationType: 'group',
     },
   })
 
-  const balanceMap = new Map(paymentBalances.map(pb => [pb.registrationId, pb]))
+  const groupBalanceMap = new Map(groupPaymentBalances.map(pb => [pb.registrationId, pb]))
 
   const groupBalances = groupRegs.map(group => {
-    const balance = balanceMap.get(group.id)
+    const balance = groupBalanceMap.get(group.id)
     return {
       groupId: group.id,
       groupName: group.groupName,
@@ -214,13 +215,58 @@ async function executeBalancesReport(eventId: string, config: any) {
       amountRemaining: balance ? Number(balance.amountRemaining) : 0,
       paymentStatus: balance?.paymentStatus || 'unpaid',
       lastPaymentDate: balance?.lastPaymentDate,
+      _type: 'group',
     }
   })
 
+  // Get individual registrations
+  const individualRegs = await prisma.individualRegistration.findMany({
+    where: { eventId },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      phone: true,
+    },
+  })
+
+  const individualIds = individualRegs.map(i => i.id)
+  const individualPaymentBalances = await prisma.paymentBalance.findMany({
+    where: {
+      registrationId: { in: individualIds },
+      registrationType: 'individual',
+    },
+  })
+
+  const individualBalanceMap = new Map(individualPaymentBalances.map(pb => [pb.registrationId, pb]))
+
+  const individualBalances = individualRegs.map(individual => {
+    const balance = individualBalanceMap.get(individual.id)
+    return {
+      groupId: individual.id,
+      groupName: `${individual.firstName} ${individual.lastName}`,
+      parishName: 'Individual Registration',
+      groupLeaderName: `${individual.firstName} ${individual.lastName}`,
+      groupLeaderEmail: individual.email,
+      groupLeaderPhone: individual.phone,
+      participantCount: 1,
+      totalDue: balance ? Number(balance.totalAmountDue) : 0,
+      amountPaid: balance ? Number(balance.amountPaid) : 0,
+      amountRemaining: balance ? Number(balance.amountRemaining) : 0,
+      paymentStatus: balance?.paymentStatus || 'unpaid',
+      lastPaymentDate: balance?.lastPaymentDate,
+      _type: 'individual',
+    }
+  })
+
+  // Combine both arrays
+  const allBalances = [...groupBalances, ...individualBalances]
+
   // Filter by payment status if specified
   const filtered = config.filters?.paymentStatus
-    ? groupBalances.filter(g => g.paymentStatus === config.filters.paymentStatus)
-    : groupBalances
+    ? allBalances.filter(g => g.paymentStatus === config.filters.paymentStatus)
+    : allBalances
 
   return filterFields(filtered, config.fields)
 }

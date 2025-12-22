@@ -338,33 +338,33 @@ export function CustomReportBuilder({
         <table>
           <thead>
             <tr>
-              <th>First Name</th>
-              <th>Last Name</th>
-              <th>T-Shirt Size</th>
-              <th>Type</th>
-              <th>Group</th>
-              <th>Parish</th>
+              ${selectedFields.includes('firstName') ? '<th>First Name</th>' : ''}
+              ${selectedFields.includes('lastName') ? '<th>Last Name</th>' : ''}
+              ${selectedFields.includes('tShirtSize') ? '<th>T-Shirt Size</th>' : ''}
+              ${selectedFields.includes('participantType') ? '<th>Type</th>' : ''}
+              ${selectedFields.includes('groupRegistration.groupName') ? '<th>Group</th>' : ''}
+              ${selectedFields.includes('groupRegistration.parishName') ? '<th>Parish</th>' : ''}
             </tr>
           </thead>
           <tbody>
             ${(reportData.data.participants || []).map((p: any) => `
               <tr>
-                <td>${p.firstName}</td>
-                <td>${p.lastName}</td>
-                <td><strong>${p.tShirtSize}</strong></td>
-                <td>${p.participantType?.replace(/_/g, ' ') || ''}</td>
-                <td>${p.groupRegistration?.groupName || ''}</td>
-                <td>${p.groupRegistration?.parishName || ''}</td>
+                ${selectedFields.includes('firstName') ? `<td>${p.firstName}</td>` : ''}
+                ${selectedFields.includes('lastName') ? `<td>${p.lastName}</td>` : ''}
+                ${selectedFields.includes('tShirtSize') ? `<td><strong>${p.tShirtSize}</strong></td>` : ''}
+                ${selectedFields.includes('participantType') ? `<td>${p.participantType?.replace(/_/g, ' ') || ''}</td>` : ''}
+                ${selectedFields.includes('groupRegistration.groupName') ? `<td>${p.groupRegistration?.groupName || ''}</td>` : ''}
+                ${selectedFields.includes('groupRegistration.parishName') ? `<td>${p.groupRegistration?.parishName || ''}</td>` : ''}
               </tr>
             `).join('')}
             ${(reportData.data.individualRegs || []).map((p: any) => `
               <tr>
-                <td>${p.firstName}</td>
-                <td>${p.lastName}</td>
-                <td><strong>${p.tShirtSize}</strong></td>
-                <td>Individual</td>
-                <td>-</td>
-                <td>-</td>
+                ${selectedFields.includes('firstName') ? `<td>${p.firstName}</td>` : ''}
+                ${selectedFields.includes('lastName') ? `<td>${p.lastName}</td>` : ''}
+                ${selectedFields.includes('tShirtSize') ? `<td><strong>${p.tShirtSize}</strong></td>` : ''}
+                ${selectedFields.includes('participantType') ? '<td>Individual</td>' : ''}
+                ${selectedFields.includes('groupRegistration.groupName') ? '<td>-</td>' : ''}
+                ${selectedFields.includes('groupRegistration.parishName') ? '<td>-</td>' : ''}
               </tr>
             `).join('')}
           </tbody>
@@ -982,35 +982,35 @@ export function CustomReportBuilder({
                     <table className="min-w-full border-collapse border border-gray-300">
                       <thead>
                         <tr className="bg-gray-100 print:bg-gray-200">
-                          <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">First Name</th>
-                          <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">Last Name</th>
-                          <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">T-Shirt Size</th>
-                          <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">Type</th>
-                          <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">Group</th>
-                          <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">Parish</th>
+                          {selectedFields.includes('firstName') && <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">First Name</th>}
+                          {selectedFields.includes('lastName') && <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">Last Name</th>}
+                          {selectedFields.includes('tShirtSize') && <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">T-Shirt Size</th>}
+                          {selectedFields.includes('participantType') && <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">Type</th>}
+                          {selectedFields.includes('groupRegistration.groupName') && <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">Group</th>}
+                          {selectedFields.includes('groupRegistration.parishName') && <th className="border border-gray-300 p-2 text-left print:p-1 print:text-xs">Parish</th>}
                         </tr>
                       </thead>
                       <tbody>
                         {reportData.data.participants?.map((p: any, i: number) => (
                           <tr key={i} className="hover:bg-gray-50 print:hover:bg-transparent">
-                            <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{p.firstName}</td>
-                            <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{p.lastName}</td>
-                            <td className="border border-gray-300 p-2 font-semibold print:p-1 print:text-xs">{p.tShirtSize}</td>
-                            <td className="border border-gray-300 p-2 text-sm print:p-1 print:text-xs">
+                            {selectedFields.includes('firstName') && <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{p.firstName}</td>}
+                            {selectedFields.includes('lastName') && <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{p.lastName}</td>}
+                            {selectedFields.includes('tShirtSize') && <td className="border border-gray-300 p-2 font-semibold print:p-1 print:text-xs">{p.tShirtSize}</td>}
+                            {selectedFields.includes('participantType') && <td className="border border-gray-300 p-2 text-sm print:p-1 print:text-xs">
                               {p.participantType?.replace(/_/g, ' ')}
-                            </td>
-                            <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{p.groupRegistration?.groupName}</td>
-                            <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{p.groupRegistration?.parishName}</td>
+                            </td>}
+                            {selectedFields.includes('groupRegistration.groupName') && <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{p.groupRegistration?.groupName}</td>}
+                            {selectedFields.includes('groupRegistration.parishName') && <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{p.groupRegistration?.parishName}</td>}
                           </tr>
                         ))}
                         {reportData.data.individualRegs?.map((p: any, i: number) => (
                           <tr key={`ind-${i}`} className="hover:bg-gray-50 print:hover:bg-transparent">
-                            <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{p.firstName}</td>
-                            <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{p.lastName}</td>
-                            <td className="border border-gray-300 p-2 font-semibold print:p-1 print:text-xs">{p.tShirtSize}</td>
-                            <td className="border border-gray-300 p-2 text-sm print:p-1 print:text-xs">Individual</td>
-                            <td className="border border-gray-300 p-2 print:p-1 print:text-xs">-</td>
-                            <td className="border border-gray-300 p-2 print:p-1 print:text-xs">-</td>
+                            {selectedFields.includes('firstName') && <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{p.firstName}</td>}
+                            {selectedFields.includes('lastName') && <td className="border border-gray-300 p-2 print:p-1 print:text-xs">{p.lastName}</td>}
+                            {selectedFields.includes('tShirtSize') && <td className="border border-gray-300 p-2 font-semibold print:p-1 print:text-xs">{p.tShirtSize}</td>}
+                            {selectedFields.includes('participantType') && <td className="border border-gray-300 p-2 text-sm print:p-1 print:text-xs">Individual</td>}
+                            {selectedFields.includes('groupRegistration.groupName') && <td className="border border-gray-300 p-2 print:p-1 print:text-xs">-</td>}
+                            {selectedFields.includes('groupRegistration.parishName') && <td className="border border-gray-300 p-2 print:p-1 print:text-xs">-</td>}
                           </tr>
                         ))}
                       </tbody>
