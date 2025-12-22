@@ -167,7 +167,7 @@ export async function POST() {
       const event = eventMap.get(individual.eventId)
       const balance = paymentBalanceMap.get(individual.id)
       const individualForms = liabilityForms.filter(
-        (f) => f.registrationId === individual.id && f.registrationType === 'individual'
+        (f) => f.individualRegistrationId === individual.id
       )
       const formsComplete = individualForms.length > 0
 
