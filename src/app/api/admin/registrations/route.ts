@@ -1,6 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { Decimal } from '@prisma/client/runtime/library'
+
+interface PaymentBalanceRecord {
+  id: string
+  registrationId: string
+  registrationType: string
+  totalAmountDue: Decimal
+  amountPaid: Decimal
+  amountRemaining: Decimal
+  paymentStatus: string
+  lastPaymentDate: Date | null
+}
+
+interface GroupRegistrationRaw {
+  id: string
+  eventId: string
+  groupName: string
+  parishName: string | null
+  groupLeaderName: string
+  groupLeaderEmail: string
+  groupLeaderPhone: string | null
+  housingType: string | null
+  roomType: string | null
+  confirmationCode: string | null
+  registeredAt: Date
+  totalParticipants: number
+  event: { name: string; slug: string }
+  participants: { liabilityFormCompleted: boolean }[]
+}
+
+interface IndividualRegistrationRaw {
+  id: string
+  eventId: string
+  firstName: string
+  lastName: string
+  email: string
+  phone: string | null
+  housingType: string | null
+  roomType: string | null
+  confirmationCode: string | null
+  registeredAt: Date
+  event: { id: string; name: string; slug: string }
+  liabilityFormCompleted: boolean
+  registrationStatus: string | null
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -96,7 +141,7 @@ export async function GET(request: NextRequest) {
       })
 
       // Get payment balances for group registrations
-      const groupRegIds = rawGroupRegistrations.map((r) => r.id)
+      const groupRegIds = rawGroupRegistrations.map((r: GroupRegistrationRaw) => r.id)
       const groupPaymentBalances = await prisma.paymentBalance.findMany({
         where: {
           registrationId: { in: groupRegIds },
@@ -104,12 +149,12 @@ export async function GET(request: NextRequest) {
         },
       })
 
-      const paymentBalanceMap = new Map(
-        groupPaymentBalances.map((pb) => [pb.registrationId, pb])
+      const paymentBalanceMap = new Map<string, PaymentBalanceRecord>(
+        groupPaymentBalances.map((pb: PaymentBalanceRecord) => [pb.registrationId, pb])
       )
 
       // Transform group registrations
-      groupRegistrations = rawGroupRegistrations.map((reg) => {
+      groupRegistrations = rawGroupRegistrations.map((reg: GroupRegistrationRaw) => {
         const paymentBalance = paymentBalanceMap.get(reg.id)
         const totalAmount = paymentBalance
           ? Number(paymentBalance.totalAmountDue)
@@ -121,7 +166,7 @@ export async function GET(request: NextRequest) {
           ? Number(paymentBalance.amountRemaining)
           : 0
         const formsCompleted = reg.participants.filter(
-          (p) => p.liabilityFormCompleted
+          (p: { liabilityFormCompleted: boolean }) => p.liabilityFormCompleted
         ).length
         const formsTotal = reg.participants.length
 
@@ -202,7 +247,7 @@ export async function GET(request: NextRequest) {
         })
 
       // Get payment balances for individual registrations
-      const individualRegIds = rawIndividualRegistrations.map((r) => r.id)
+      const individualRegIds = rawIndividualRegistrations.map((r: IndividualRegistrationRaw) => r.id)
       const individualPaymentBalances = await prisma.paymentBalance.findMany({
         where: {
           registrationId: { in: individualRegIds },
@@ -210,12 +255,12 @@ export async function GET(request: NextRequest) {
         },
       })
 
-      const individualPaymentBalanceMap = new Map(
-        individualPaymentBalances.map((pb) => [pb.registrationId, pb])
+      const individualPaymentBalanceMap = new Map<string, PaymentBalanceRecord>(
+        individualPaymentBalances.map((pb: PaymentBalanceRecord) => [pb.registrationId, pb])
       )
 
       // Transform individual registrations
-      individualRegistrations = rawIndividualRegistrations.map((reg) => {
+      individualRegistrations = rawIndividualRegistrations.map((reg: IndividualRegistrationRaw) => {
         const paymentBalance = individualPaymentBalanceMap.get(reg.id)
         const totalAmount = paymentBalance
           ? Number(paymentBalance.totalAmountDue)
