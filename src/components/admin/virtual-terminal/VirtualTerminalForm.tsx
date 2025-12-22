@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2, CreditCard, CheckCircle, DollarSign, Banknote, ArrowLeft } from 'lucide-react'
 import { loadStripe } from '@stripe/stripe-js'
@@ -192,6 +191,41 @@ function VirtualTerminalFormInner({ registration, onSuccess, onCancel }: Virtual
 
   const amount = getAmount()
 
+  // Radio option component for cleaner rendering
+  const RadioOption = ({
+    id,
+    value,
+    checked,
+    onChange,
+    children
+  }: {
+    id: string
+    value: string
+    checked: boolean
+    onChange: () => void
+    children: React.ReactNode
+  }) => (
+    <div
+      className={`flex items-center space-x-3 border rounded-lg p-3 cursor-pointer transition-colors ${
+        checked ? 'border-[#1E3A5F] bg-blue-50' : 'hover:bg-gray-50'
+      }`}
+      onClick={onChange}
+    >
+      <input
+        type="radio"
+        id={id}
+        name={id.split('-')[0]}
+        value={value}
+        checked={checked}
+        onChange={onChange}
+        className="h-4 w-4 text-[#1E3A5F] border-gray-300 focus:ring-[#1E3A5F]"
+      />
+      <label htmlFor={id} className="flex-1 cursor-pointer">
+        {children}
+      </label>
+    </div>
+  )
+
   return (
     <form onSubmit={handleSubmit}>
       <Card className="bg-white">
@@ -254,38 +288,42 @@ function VirtualTerminalFormInner({ registration, onSuccess, onCancel }: Virtual
           {/* Amount Selection */}
           <div>
             <Label className="text-base font-semibold mb-3 block text-[#1E3A5F]">Payment Amount</Label>
-            <RadioGroup value={amountType} onValueChange={(v) => setAmountType(v as 'full' | 'deposit' | 'custom')}>
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-gray-50 cursor-pointer">
-                  <RadioGroupItem value="full" id="full" />
-                  <Label htmlFor="full" className="flex-1 cursor-pointer">
-                    Pay Full Balance
-                    <span className="ml-2 font-semibold text-[#1E3A5F]">
-                      ${registration.balance.toFixed(2)}
-                    </span>
-                  </Label>
-                </div>
+            <div className="space-y-2">
+              <RadioOption
+                id="amount-full"
+                value="full"
+                checked={amountType === 'full'}
+                onChange={() => setAmountType('full')}
+              >
+                <span>Pay Full Balance</span>
+                <span className="ml-2 font-semibold text-[#1E3A5F]">
+                  ${registration.balance.toFixed(2)}
+                </span>
+              </RadioOption>
 
-                {registration.type === 'group' && registration.depositAmount && registration.depositAmount > 0 && (
-                  <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-gray-50 cursor-pointer">
-                    <RadioGroupItem value="deposit" id="deposit" />
-                    <Label htmlFor="deposit" className="flex-1 cursor-pointer">
-                      Pay Deposit Only
-                      <span className="ml-2 font-semibold text-[#1E3A5F]">
-                        ${Math.min(registration.depositAmount, registration.balance).toFixed(2)}
-                      </span>
-                    </Label>
-                  </div>
-                )}
+              {registration.type === 'group' && registration.depositAmount && registration.depositAmount > 0 && (
+                <RadioOption
+                  id="amount-deposit"
+                  value="deposit"
+                  checked={amountType === 'deposit'}
+                  onChange={() => setAmountType('deposit')}
+                >
+                  <span>Pay Deposit Only</span>
+                  <span className="ml-2 font-semibold text-[#1E3A5F]">
+                    ${Math.min(registration.depositAmount, registration.balance).toFixed(2)}
+                  </span>
+                </RadioOption>
+              )}
 
-                <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-gray-50 cursor-pointer">
-                  <RadioGroupItem value="custom" id="custom" />
-                  <Label htmlFor="custom" className="flex-1 cursor-pointer">
-                    Custom Amount
-                  </Label>
-                </div>
-              </div>
-            </RadioGroup>
+              <RadioOption
+                id="amount-custom"
+                value="custom"
+                checked={amountType === 'custom'}
+                onChange={() => setAmountType('custom')}
+              >
+                <span>Custom Amount</span>
+              </RadioOption>
+            </div>
 
             {amountType === 'custom' && (
               <div className="mt-3">
@@ -320,54 +358,60 @@ function VirtualTerminalFormInner({ registration, onSuccess, onCancel }: Virtual
           {/* Payment Method */}
           <div>
             <Label className="text-base font-semibold mb-3 block text-[#1E3A5F]">Payment Method</Label>
-            <RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as 'new_card' | 'saved_card' | 'check' | 'cash')}>
-              <div className="space-y-2">
-                {hasCardOnFile && lastCardLast4 && (
-                  <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-gray-50 cursor-pointer">
-                    <RadioGroupItem value="saved_card" id="saved_card" />
-                    <Label htmlFor="saved_card" className="flex-1 cursor-pointer">
-                      <div className="flex items-center gap-2">
-                        <CreditCard className="w-4 h-4" />
-                        <span>Charge card on file</span>
-                        <span className="text-gray-600">
-                          ({lastCardBrand} ****{lastCardLast4})
-                        </span>
-                      </div>
-                    </Label>
+            <div className="space-y-2">
+              {hasCardOnFile && lastCardLast4 && (
+                <RadioOption
+                  id="method-saved_card"
+                  value="saved_card"
+                  checked={paymentMethod === 'saved_card'}
+                  onChange={() => setPaymentMethod('saved_card')}
+                >
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="w-4 h-4" />
+                    <span>Charge card on file</span>
+                    <span className="text-gray-600">
+                      ({lastCardBrand} ****{lastCardLast4})
+                    </span>
                   </div>
-                )}
+                </RadioOption>
+              )}
 
-                <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-gray-50 cursor-pointer">
-                  <RadioGroupItem value="new_card" id="new_card" />
-                  <Label htmlFor="new_card" className="flex-1 cursor-pointer">
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="w-4 h-4" />
-                      <span>Enter new card</span>
-                    </div>
-                  </Label>
+              <RadioOption
+                id="method-new_card"
+                value="new_card"
+                checked={paymentMethod === 'new_card'}
+                onChange={() => setPaymentMethod('new_card')}
+              >
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4" />
+                  <span>Enter new card</span>
                 </div>
+              </RadioOption>
 
-                <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-gray-50 cursor-pointer">
-                  <RadioGroupItem value="check" id="check" />
-                  <Label htmlFor="check" className="flex-1 cursor-pointer">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4" />
-                      <span>Record check payment</span>
-                    </div>
-                  </Label>
+              <RadioOption
+                id="method-check"
+                value="check"
+                checked={paymentMethod === 'check'}
+                onChange={() => setPaymentMethod('check')}
+              >
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Record check payment</span>
                 </div>
+              </RadioOption>
 
-                <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-gray-50 cursor-pointer">
-                  <RadioGroupItem value="cash" id="cash" />
-                  <Label htmlFor="cash" className="flex-1 cursor-pointer">
-                    <div className="flex items-center gap-2">
-                      <Banknote className="w-4 h-4" />
-                      <span>Record cash payment</span>
-                    </div>
-                  </Label>
+              <RadioOption
+                id="method-cash"
+                value="cash"
+                checked={paymentMethod === 'cash'}
+                onChange={() => setPaymentMethod('cash')}
+              >
+                <div className="flex items-center gap-2">
+                  <Banknote className="w-4 h-4" />
+                  <span>Record cash payment</span>
                 </div>
-              </div>
-            </RadioGroup>
+              </RadioOption>
+            </div>
 
             {paymentMethod === 'new_card' && (
               <div className="mt-4 p-4 border rounded-lg">
