@@ -16,6 +16,8 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
+import ExportAllDataModal from '@/components/admin/ExportAllDataModal'
+import DashboardBulkEmailModal from '@/components/admin/DashboardBulkEmailModal'
 
 interface DashboardStats {
   activeEvents: number
@@ -58,6 +60,8 @@ interface DashboardData {
 export default function DashboardClient({ userName }: { userName: string }) {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showExportModal, setShowExportModal] = useState(false)
+  const [showBulkEmailModal, setShowBulkEmailModal] = useState(false)
 
   useEffect(() => {
     fetchDashboardData()
@@ -352,16 +356,16 @@ export default function DashboardClient({ userName }: { userName: string }) {
               </Link>
               <Button
                 variant="outline"
-                className="w-full border-[#1E3A5F] text-[#1E3A5F] justify-start"
-                disabled
+                className="w-full border-[#1E3A5F] text-[#1E3A5F] justify-start hover:bg-[#1E3A5F] hover:text-white"
+                onClick={() => setShowExportModal(true)}
               >
                 <Download className="h-4 w-4 mr-2" />
                 Export All Data
               </Button>
               <Button
                 variant="outline"
-                className="w-full border-[#1E3A5F] text-[#1E3A5F] justify-start"
-                disabled
+                className="w-full border-[#1E3A5F] text-[#1E3A5F] justify-start hover:bg-[#1E3A5F] hover:text-white"
+                onClick={() => setShowBulkEmailModal(true)}
               >
                 <Mail className="h-4 w-4 mr-2" />
                 Email All Group Leaders
@@ -402,6 +406,16 @@ export default function DashboardClient({ userName }: { userName: string }) {
           </CardContent>
         </Card>
       )}
+
+      {/* Modals */}
+      <ExportAllDataModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+      />
+      <DashboardBulkEmailModal
+        isOpen={showBulkEmailModal}
+        onClose={() => setShowBulkEmailModal(false)}
+      />
     </div>
   )
 }
