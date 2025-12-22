@@ -51,10 +51,25 @@ export default async function EventRegistrationsPage({ params }: PageProps) {
     where: {
       eventId: eventId,
     },
+    include: {
+      liabilityForms: {
+        select: {
+          id: true,
+          completed: true,
+        },
+      },
+    },
     orderBy: {
       registeredAt: 'desc',
     },
   })
+
+  // Check if event requires liability forms for individuals
+  const eventSettings = await prisma.eventSettings.findUnique({
+    where: { eventId },
+    select: { liabilityFormsRequiredIndividual: true },
+  })
+  const individualFormsRequired = eventSettings?.liabilityFormsRequiredIndividual ?? false
 
   // Fetch payment balances
   const paymentBalances = await prisma.paymentBalance.findMany({
@@ -99,6 +114,20 @@ export default async function EventRegistrationsPage({ params }: PageProps) {
   const individualRegs = individualRegistrations.map((reg: any) => {
     const payment: any = paymentMap.get(reg.id)
 
+    // Determine form status for individual
+    // 'complete' = form exists and is completed
+    // 'pending' = form exists but not completed
+    // 'not_required' = no form needed for this event
+    let formStatus: 'complete' | 'pending' | 'not_required' = 'not_required'
+    if (individualFormsRequired) {
+      if (reg.liabilityForms && reg.liabilityForms.length > 0) {
+        const hasCompletedForm = reg.liabilityForms.some((f: any) => f.completed)
+        formStatus = hasCompletedForm ? 'complete' : 'pending'
+      } else {
+        formStatus = 'pending' // Forms required but not created yet
+      }
+    }
+
     return {
       id: reg.id,
       type: 'individual' as const,
@@ -130,7 +159,7 @@ export default async function EventRegistrationsPage({ params }: PageProps) {
       amountPaid: payment?.amountPaid ? Number(payment.amountPaid) : 0,
       balance: payment?.amountRemaining ? Number(payment.amountRemaining) : 0,
       paymentStatus: payment?.paymentStatus || 'pending',
-      formCompleted: false, // TODO: Add liability form status for individuals
+      formStatus,
       confirmationCode: reg.confirmationCode,
     }
   })

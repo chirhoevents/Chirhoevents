@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
       include: {
         pricing: true,
         organization: true,
+        settings: true,
       },
     })
 
@@ -184,6 +185,37 @@ export async function POST(request: NextRequest) {
       where: { id: registration.id },
       data: { qrCode: qrCodeDataUrl },
     })
+
+    // Create liability form if required for individuals
+    const liabilityFormsRequired = event.settings?.liabilityFormsRequiredIndividual ?? false
+    if (liabilityFormsRequired) {
+      // Determine form type based on age (if provided)
+      let formType: 'youth_u18' | 'youth_o18_chaperone' | 'clergy' = 'youth_o18_chaperone' // Default for adults
+      if (body.age && body.age < 18) {
+        formType = 'youth_u18'
+      }
+
+      await prisma.liabilityForm.create({
+        data: {
+          organizationId: event.organizationId,
+          eventId: event.id,
+          individualRegistrationId: registration.id,
+          formType: formType,
+          participantFirstName: firstName,
+          participantLastName: lastName,
+          participantPreferredName: body.preferredName || null,
+          participantAge: body.age || null,
+          participantGender: body.gender || null,
+          participantEmail: email,
+          participantPhone: phone,
+          tShirtSize: body.tShirtSize || null,
+          dietaryRestrictions: body.dietaryRestrictions || null,
+          adaAccommodations: body.adaAccommodations || null,
+          signatureData: {},
+          completed: false,
+        },
+      })
+    }
 
     // Create payment balance record
     const paymentBalanceStatus =
