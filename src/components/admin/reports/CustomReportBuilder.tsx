@@ -116,9 +116,9 @@ export function CustomReportBuilder({
       { value: 'liabilityForm.medications', label: 'Medications' },
       { value: 'liabilityForm.medicalConditions', label: 'Medical Conditions' },
       { value: 'liabilityForm.dietaryRestrictions', label: 'Dietary Restrictions' },
-      { value: 'liabilityForm.emergencyContactName', label: 'Emergency Contact' },
-      { value: 'liabilityForm.emergencyContactPhone', label: 'Emergency Phone' },
-      { value: 'liabilityForm.emergencyContactRelationship', label: 'Contact Relationship' },
+      { value: 'liabilityForm.emergencyContact1Name', label: 'Emergency Contact' },
+      { value: 'liabilityForm.emergencyContact1Phone', label: 'Emergency Phone' },
+      { value: 'liabilityForm.emergencyContact1Relation', label: 'Contact Relationship' },
     ],
   }
 
@@ -457,7 +457,7 @@ export function CustomReportBuilder({
                     ${selectedFields.includes('participantType') ? '<th>Type</th>' : ''}
                     ${selectedFields.includes('tShirtSize') ? '<th>T-Shirt</th>' : ''}
                     ${selectedFields.includes('housingAssignment.roomNumber') ? '<th>Room</th>' : ''}
-                    ${selectedFields.includes('liabilityForm.emergencyContactName') ? '<th>Emergency Contact</th>' : ''}
+                    ${selectedFields.includes('liabilityForm.emergencyContact1Name') ? '<th>Emergency Contact</th>' : ''}
                     ${selectedFields.includes('liabilityForm.allergies') ? '<th>Allergies</th>' : ''}
                   </tr>
                 </thead>
@@ -470,7 +470,7 @@ export function CustomReportBuilder({
                       ${selectedFields.includes('participantType') ? `<td>${p.participantType?.replace(/_/g, ' ') || ''}</td>` : ''}
                       ${selectedFields.includes('tShirtSize') ? `<td>${p.tShirtSize || '-'}</td>` : ''}
                       ${selectedFields.includes('housingAssignment.roomNumber') ? `<td>${p.housingAssignment?.roomNumber || '-'}</td>` : ''}
-                      ${selectedFields.includes('liabilityForm.emergencyContactName') ? `<td>${p.liabilityForm?.emergencyContactName || '-'}</td>` : ''}
+                      ${selectedFields.includes('liabilityForm.emergencyContact1Name') ? `<td>${p.liabilityForm?.emergencyContact1Name || '-'}</td>` : ''}
                       ${selectedFields.includes('liabilityForm.allergies') ? `<td>${p.liabilityForm?.allergies || '-'}</td>` : ''}
                     </tr>
                   `).join('')}
@@ -494,8 +494,8 @@ export function CustomReportBuilder({
                 ${selectedFields.includes('groupRegistration.groupName') ? '<th>Group</th>' : ''}
                 ${selectedFields.includes('groupRegistration.parishName') ? '<th>Parish</th>' : ''}
                 ${selectedFields.includes('housingAssignment.roomNumber') ? '<th>Room</th>' : ''}
-                ${selectedFields.includes('liabilityForm.emergencyContactName') ? '<th>Emergency Contact</th>' : ''}
-                ${selectedFields.includes('liabilityForm.emergencyContactPhone') ? '<th>Emergency Phone</th>' : ''}
+                ${selectedFields.includes('liabilityForm.emergencyContact1Name') ? '<th>Emergency Contact</th>' : ''}
+                ${selectedFields.includes('liabilityForm.emergencyContact1Phone') ? '<th>Emergency Phone</th>' : ''}
                 ${selectedFields.includes('liabilityForm.allergies') ? '<th>Allergies</th>' : ''}
               </tr>
             </thead>
@@ -511,8 +511,8 @@ export function CustomReportBuilder({
                   ${selectedFields.includes('groupRegistration.groupName') ? `<td>${p.groupRegistration?.groupName || ''}</td>` : ''}
                   ${selectedFields.includes('groupRegistration.parishName') ? `<td>${p.groupRegistration?.parishName || ''}</td>` : ''}
                   ${selectedFields.includes('housingAssignment.roomNumber') ? `<td>${p.housingAssignment?.roomNumber || '-'}</td>` : ''}
-                  ${selectedFields.includes('liabilityForm.emergencyContactName') ? `<td>${p.liabilityForm?.emergencyContactName || '-'}</td>` : ''}
-                  ${selectedFields.includes('liabilityForm.emergencyContactPhone') ? `<td>${p.liabilityForm?.emergencyContactPhone || '-'}</td>` : ''}
+                  ${selectedFields.includes('liabilityForm.emergencyContact1Name') ? `<td>${p.liabilityForm?.emergencyContact1Name || '-'}</td>` : ''}
+                  ${selectedFields.includes('liabilityForm.emergencyContact1Phone') ? `<td>${p.liabilityForm?.emergencyContact1Phone || '-'}</td>` : ''}
                   ${selectedFields.includes('liabilityForm.allergies') ? `<td>${p.liabilityForm?.allergies || '-'}</td>` : ''}
                 </tr>
               `).join('')}
@@ -1163,7 +1163,7 @@ export function CustomReportBuilder({
                               {selectedFields.includes('participantType') && <th className="border border-gray-300 p-2 text-left text-xs">Type</th>}
                               {selectedFields.includes('tShirtSize') && <th className="border border-gray-300 p-2 text-left text-xs">T-Shirt</th>}
                               {selectedFields.includes('housingAssignment.roomNumber') && <th className="border border-gray-300 p-2 text-left text-xs">Room</th>}
-                              {selectedFields.includes('liabilityForm.emergencyContactName') && <th className="border border-gray-300 p-2 text-left text-xs">Emergency Contact</th>}
+                              {selectedFields.includes('liabilityForm.emergencyContact1Name') && <th className="border border-gray-300 p-2 text-left text-xs">Emergency Contact</th>}
                               {selectedFields.includes('liabilityForm.allergies') && <th className="border border-gray-300 p-2 text-left text-xs">Allergies</th>}
                             </tr>
                           </thead>
@@ -1176,7 +1176,7 @@ export function CustomReportBuilder({
                                 {selectedFields.includes('participantType') && <td className="border border-gray-300 p-2 text-xs">{p.participantType?.replace(/_/g, ' ')}</td>}
                                 {selectedFields.includes('tShirtSize') && <td className="border border-gray-300 p-2 text-xs">{p.tShirtSize || '-'}</td>}
                                 {selectedFields.includes('housingAssignment.roomNumber') && <td className="border border-gray-300 p-2 text-xs">{p.housingAssignment?.roomNumber || '-'}</td>}
-                                {selectedFields.includes('liabilityForm.emergencyContactName') && <td className="border border-gray-300 p-2 text-xs">{p.liabilityForm?.emergencyContactName || '-'}</td>}
+                                {selectedFields.includes('liabilityForm.emergencyContact1Name') && <td className="border border-gray-300 p-2 text-xs">{p.liabilityForm?.emergencyContact1Name || '-'}</td>}
                                 {selectedFields.includes('liabilityForm.allergies') && <td className="border border-gray-300 p-2 text-xs">{p.liabilityForm?.allergies || '-'}</td>}
                               </tr>
                             ))}
@@ -1199,8 +1199,8 @@ export function CustomReportBuilder({
                             {selectedFields.includes('groupRegistration.groupName') && <th className="border border-gray-300 p-2 text-left text-xs">Group</th>}
                             {selectedFields.includes('groupRegistration.parishName') && <th className="border border-gray-300 p-2 text-left text-xs">Parish</th>}
                             {selectedFields.includes('housingAssignment.roomNumber') && <th className="border border-gray-300 p-2 text-left text-xs">Room</th>}
-                            {selectedFields.includes('liabilityForm.emergencyContactName') && <th className="border border-gray-300 p-2 text-left text-xs">Emergency Contact</th>}
-                            {selectedFields.includes('liabilityForm.emergencyContactPhone') && <th className="border border-gray-300 p-2 text-left text-xs">Emergency Phone</th>}
+                            {selectedFields.includes('liabilityForm.emergencyContact1Name') && <th className="border border-gray-300 p-2 text-left text-xs">Emergency Contact</th>}
+                            {selectedFields.includes('liabilityForm.emergencyContact1Phone') && <th className="border border-gray-300 p-2 text-left text-xs">Emergency Phone</th>}
                             {selectedFields.includes('liabilityForm.allergies') && <th className="border border-gray-300 p-2 text-left text-xs">Allergies</th>}
                           </tr>
                         </thead>
@@ -1216,8 +1216,8 @@ export function CustomReportBuilder({
                               {selectedFields.includes('groupRegistration.groupName') && <td className="border border-gray-300 p-2 text-xs">{p.groupRegistration?.groupName}</td>}
                               {selectedFields.includes('groupRegistration.parishName') && <td className="border border-gray-300 p-2 text-xs">{p.groupRegistration?.parishName}</td>}
                               {selectedFields.includes('housingAssignment.roomNumber') && <td className="border border-gray-300 p-2 text-xs">{p.housingAssignment?.roomNumber || '-'}</td>}
-                              {selectedFields.includes('liabilityForm.emergencyContactName') && <td className="border border-gray-300 p-2 text-xs">{p.liabilityForm?.emergencyContactName || '-'}</td>}
-                              {selectedFields.includes('liabilityForm.emergencyContactPhone') && <td className="border border-gray-300 p-2 text-xs">{p.liabilityForm?.emergencyContactPhone || '-'}</td>}
+                              {selectedFields.includes('liabilityForm.emergencyContact1Name') && <td className="border border-gray-300 p-2 text-xs">{p.liabilityForm?.emergencyContact1Name || '-'}</td>}
+                              {selectedFields.includes('liabilityForm.emergencyContact1Phone') && <td className="border border-gray-300 p-2 text-xs">{p.liabilityForm?.emergencyContact1Phone || '-'}</td>}
                               {selectedFields.includes('liabilityForm.allergies') && <td className="border border-gray-300 p-2 text-xs">{p.liabilityForm?.allergies || '-'}</td>}
                             </tr>
                           ))}

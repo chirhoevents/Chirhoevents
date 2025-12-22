@@ -306,9 +306,9 @@ async function executeRosterReport(eventId: string, config: any, filters: any) {
           medications: true,
           medicalConditions: true,
           dietaryRestrictions: true,
-          emergencyContactName: true,
-          emergencyContactPhone: true,
-          emergencyContactRelationship: true,
+          emergencyContact1Name: true,
+          emergencyContact1Phone: true,
+          emergencyContact1Relation: true,
         },
         take: 1, // Get only the first liability form
       },
