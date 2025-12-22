@@ -61,6 +61,9 @@ export async function POST(
       case 'medical':
         reportData = await executeMedicalReport(eventId, config)
         break
+      case 'roster':
+        reportData = await executeRosterReport(eventId, config)
+        break
       case 'custom':
         reportData = await executeCustomReport(eventId, config)
         break
@@ -254,6 +257,159 @@ async function executeMedicalReport(eventId: string, config: any) {
     if (config.filters?.onlyConditions && (!f.medicalConditions || f.medicalConditions === '')) return false
     return true
   })
+
+  return filterFields(filtered, config.fields)
+}
+
+async function executeRosterReport(eventId: string, config: any) {
+  // Build participant query filters
+  const participantWhere: any = {
+    groupRegistration: { eventId },
+  }
+
+  // Apply filters
+  if (config.filters?.participantTypes && config.filters.participantTypes.length > 0) {
+    participantWhere.participantType = { in: config.filters.participantTypes }
+  }
+
+  if (config.filters?.minAge) {
+    participantWhere.age = { ...participantWhere.age, gte: config.filters.minAge }
+  }
+  if (config.filters?.maxAge) {
+    participantWhere.age = { ...participantWhere.age, lte: config.filters.maxAge }
+  }
+
+  if (config.filters?.tShirtSizes && config.filters.tShirtSizes.length > 0) {
+    participantWhere.tShirtSize = { in: config.filters.tShirtSizes }
+  }
+
+  // Fetch participants with comprehensive data
+  const participantsRaw = await prisma.participant.findMany({
+    where: participantWhere,
+    include: {
+      groupRegistration: {
+        select: {
+          id: true,
+          accessCode: true,
+          groupName: true,
+          parishName: true,
+          dioceseName: true,
+          groupLeaderName: true,
+          groupLeaderEmail: true,
+          groupLeaderPhone: true,
+          housingType: true,
+          registrationStatus: true,
+        },
+      },
+      liabilityForms: {
+        select: {
+          allergies: true,
+          medications: true,
+          medicalConditions: true,
+          dietaryRestrictions: true,
+          emergencyContact1Name: true,
+          emergencyContact1Phone: true,
+          emergencyContact1Relation: true,
+        },
+        take: 1, // Get only the first liability form
+      },
+    },
+    orderBy: config.filters?.sortBy === 'firstName' ? { firstName: 'asc' } :
+              config.filters?.sortBy === 'age' ? { age: 'asc' } :
+              { lastName: 'asc' },
+  })
+
+  // Transform liabilityForms array to single liabilityForm object for easier access
+  const participants = participantsRaw.map(p => ({
+    ...p,
+    liabilityForm: p.liabilityForms?.[0] || null,
+  }))
+
+  // Apply additional filters
+  let filtered = participants
+
+  if (config.filters?.groupIds && config.filters.groupIds.length > 0) {
+    filtered = filtered.filter(p => config.filters.groupIds.includes(p.groupRegistration?.id))
+  }
+
+  if (config.filters?.parishes && config.filters.parishes.length > 0) {
+    filtered = filtered.filter(p => config.filters.parishes.includes(p.groupRegistration?.parishName))
+  }
+
+  if (config.filters?.housingTypes && config.filters.housingTypes.length > 0) {
+    filtered = filtered.filter(p => config.filters.housingTypes.includes(p.groupRegistration?.housingType))
+  }
+
+  if (config.filters?.onlyWithMedicalNeeds) {
+    filtered = filtered.filter(p =>
+      p.liabilityForm && (
+        (p.liabilityForm.allergies && p.liabilityForm.allergies !== '') ||
+        (p.liabilityForm.medications && p.liabilityForm.medications !== '') ||
+        (p.liabilityForm.medicalConditions && p.liabilityForm.medicalConditions !== '')
+      )
+    )
+  }
+
+  // Group data if requested
+  if (config.filters?.groupBy === 'group') {
+    const groupedData = new Map<string, any>()
+
+    filtered.forEach(p => {
+      const groupId = p.groupRegistration?.id || 'no-group'
+      const groupName = p.groupRegistration?.groupName || 'Individual Registrations'
+
+      if (!groupedData.has(groupId)) {
+        groupedData.set(groupId, {
+          groupId,
+          groupName,
+          accessCode: p.groupRegistration?.accessCode,
+          parishName: p.groupRegistration?.parishName,
+          groupLeaderName: p.groupRegistration?.groupLeaderName,
+          groupLeaderEmail: p.groupRegistration?.groupLeaderEmail,
+          groupLeaderPhone: p.groupRegistration?.groupLeaderPhone,
+          participants: [],
+        })
+      }
+
+      groupedData.get(groupId).participants.push(p)
+    })
+
+    return Array.from(groupedData.values())
+  } else if (config.filters?.groupBy === 'participantType') {
+    const typeGroups = new Map<string, any>()
+
+    filtered.forEach(p => {
+      const type = p.participantType || 'unknown'
+
+      if (!typeGroups.has(type)) {
+        typeGroups.set(type, {
+          participantType: type,
+          participants: [],
+        })
+      }
+
+      typeGroups.get(type).participants.push(p)
+    })
+
+    return Array.from(typeGroups.values())
+  } else if (config.filters?.groupBy === 'parish') {
+    const parishGroups = new Map<string, any>()
+
+    filtered.forEach(p => {
+      const parish = p.groupRegistration?.parishName || 'Unknown Parish'
+
+      if (!parishGroups.has(parish)) {
+        parishGroups.set(parish, {
+          parishName: parish,
+          participants: [],
+        })
+      }
+
+      parishGroups.get(parish).participants.push(p)
+    })
+
+    return Array.from(parishGroups.values())
+  }
 
   return filterFields(filtered, config.fields)
 }
