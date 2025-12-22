@@ -256,8 +256,226 @@ export function CustomReportBuilder({
       const csv = convertToCSV(reportData)
       downloadCSV(csv, `${templateName || reportType || 'custom-report'}.csv`)
     } else if (format === 'pdf') {
-      window.print()
+      // Open report in new window for printing
+      const printWindow = window.open('', '_blank')
+      if (!printWindow) {
+        alert('Please allow popups to print reports')
+        return
+      }
+
+      const reportHtml = generatePrintHTML()
+      printWindow.document.write(reportHtml)
+      printWindow.document.close()
+
+      // Wait for content to load, then trigger print
+      printWindow.onload = () => {
+        printWindow.focus()
+        printWindow.print()
+      }
     }
+  }
+
+  const generatePrintHTML = (): string => {
+    const reportTitle = templateName || reportType.charAt(0).toUpperCase() + reportType.slice(1)
+
+    let tableHTML = ''
+
+    if (reportType === 'tshirts' && reportData) {
+      // Size Summary
+      const sizeCounts = reportData.data.sizeCounts || {}
+      const sizeEntries = Object.entries(sizeCounts).sort(([a], [b]) => {
+        const order = ['YXS', 'YS', 'YM', 'YL', 'YXL', 'AS', 'AM', 'AL', 'AXL', 'A2XL', 'A3XL', 'A4XL', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL']
+        return order.indexOf(a) - order.indexOf(b)
+      })
+
+      const sizeBoxes = sizeEntries.map(([size, count]) =>
+        `<div style="border: 1px solid #ccc; padding: 8px; text-align: center; min-width: 60px;">
+          <div style="font-size: 18px; font-weight: bold;">${count}</div>
+          <div style="font-size: 12px; color: #666;">${size}</div>
+        </div>`
+      ).join('')
+
+      tableHTML = `
+        <div style="border: 1px solid #ccc; padding: 16px; margin-bottom: 20px;">
+          <h4 style="margin-top: 0; margin-bottom: 12px;">T-Shirt Size Summary</h4>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+            ${sizeBoxes}
+          </div>
+          <div style="border-top: 1px solid #ccc; padding-top: 12px; margin-top: 12px;">
+            <strong>Total: ${reportData.data.totalCount || 0} shirts</strong>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>First Name</th>
+              <th>Last Name</th>
+              <th>T-Shirt Size</th>
+              <th>Type</th>
+              <th>Group</th>
+              <th>Parish</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(reportData.data.participants || []).map((p: any) => `
+              <tr>
+                <td>${p.firstName}</td>
+                <td>${p.lastName}</td>
+                <td><strong>${p.tShirtSize}</strong></td>
+                <td>${p.participantType?.replace(/_/g, ' ') || ''}</td>
+                <td>${p.groupRegistration?.groupName || ''}</td>
+                <td>${p.groupRegistration?.parishName || ''}</td>
+              </tr>
+            `).join('')}
+            ${(reportData.data.individualRegs || []).map((p: any) => `
+              <tr>
+                <td>${p.firstName}</td>
+                <td>${p.lastName}</td>
+                <td><strong>${p.tShirtSize}</strong></td>
+                <td>Individual</td>
+                <td>-</td>
+                <td>-</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `
+    } else if (reportType === 'balances' && reportData) {
+      tableHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Group Name</th>
+              <th>Parish</th>
+              <th>Contact</th>
+              <th>Phone</th>
+              <th style="text-align: right;">Total Due</th>
+              <th style="text-align: right;">Amount Paid</th>
+              <th style="text-align: right;">Remaining</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(reportData.data || []).map((row: any) => `
+              <tr>
+                <td>${row.groupName || ''}</td>
+                <td>${row.parishName || ''}</td>
+                <td>${row.groupLeaderName || row.groupLeaderEmail || ''}</td>
+                <td>${row.groupLeaderPhone || ''}</td>
+                <td style="text-align: right;">$${Number(row.totalDue || 0).toFixed(2)}</td>
+                <td style="text-align: right;">$${Number(row.amountPaid || 0).toFixed(2)}</td>
+                <td style="text-align: right;"><strong>$${Number(row.amountRemaining || 0).toFixed(2)}</strong></td>
+                <td>${row.paymentStatus?.replace(/_/g, ' ') || ''}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `
+    } else if (reportType === 'medical' && reportData) {
+      tableHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Group</th>
+              <th>Allergies</th>
+              <th>Medications</th>
+              <th>Medical Conditions</th>
+              <th>Dietary Restrictions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(reportData.data || []).map((row: any) => `
+              <tr>
+                <td>${row.participant?.firstName || ''} ${row.participant?.lastName || ''}</td>
+                <td>${row.participant?.groupRegistration?.groupName || ''}</td>
+                <td>${row.allergies || '-'}</td>
+                <td>${row.medications || '-'}</td>
+                <td>${row.medicalConditions || '-'}</td>
+                <td>${row.dietaryRestrictions || '-'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `
+    } else if (reportData && Array.isArray(reportData.data)) {
+      const headers = Object.keys(reportData.data[0] || {})
+      tableHTML = `
+        <table>
+          <thead>
+            <tr>
+              ${headers.map(h => `<th>${h}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${reportData.data.map((row: any) => `
+              <tr>
+                ${headers.map(h => `<td>${typeof row[h] === 'object' ? JSON.stringify(row[h]) : (row[h] || '')}</td>`).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `
+    }
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${reportTitle} Report - ${eventName}</title>
+        <style>
+          @page {
+            size: landscape;
+            margin: 0.5in;
+          }
+
+          body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+          }
+
+          h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+          }
+
+          .subtitle {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 14px;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10pt;
+          }
+
+          th, td {
+            border: 1px solid #333;
+            padding: 6px 8px;
+            text-align: left;
+          }
+
+          th {
+            background-color: #e5e7eb;
+            font-weight: bold;
+          }
+
+          tbody tr:nth-child(even) {
+            background-color: #f9fafb;
+          }
+        </style>
+      </head>
+      <body>
+        <h1>${reportTitle} Report</h1>
+        <div class="subtitle">${eventName} • Generated ${new Date(reportData?.generatedAt || new Date()).toLocaleString()}</div>
+        ${tableHTML}
+      </body>
+      </html>
+    `
   }
 
   const convertToCSV = (data: any): string => {
@@ -342,75 +560,15 @@ export function CustomReportBuilder({
   }
 
   return (
-    <>
-      <style jsx global>{`
-        @media print {
-          /* Hide navigation and other page elements */
-          body * {
-            visibility: hidden;
-          }
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Custom Report Builder - {eventName}</DialogTitle>
+        </DialogHeader>
 
-          /* Show only the report results */
-          #report-results,
-          #report-results * {
-            visibility: visible;
-          }
-
-          /* Position report at top of page */
-          #report-results {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            max-width: 100%;
-          }
-
-          /* Make tables fit on page */
-          #report-results table {
-            width: 100% !important;
-            font-size: 10pt !important;
-            page-break-inside: auto;
-          }
-
-          #report-results tr {
-            page-break-inside: avoid;
-            page-break-after: auto;
-          }
-
-          #report-results thead {
-            display: table-header-group;
-          }
-
-          #report-results td,
-          #report-results th {
-            padding: 4px 6px !important;
-            font-size: 9pt !important;
-          }
-
-          /* Remove backgrounds for print */
-          #report-results .bg-blue-50,
-          #report-results .bg-gray-100,
-          #report-results .bg-gray-200 {
-            background-color: white !important;
-            border: 1px solid #ccc !important;
-          }
-
-          /* Ensure proper page margins */
-          @page {
-            margin: 0.5in;
-            size: landscape;
-          }
-        }
-      `}</style>
-      <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="print:hidden">
-            <DialogTitle>Custom Report Builder - {eventName}</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-6">
+        <div className="space-y-6">
           {/* Load Template Section */}
-          <div className="space-y-2 print:hidden">
+          <div className="space-y-2">
             <Label>Load Saved Template</Label>
             <div className="flex gap-2">
               <Select value={selectedTemplate} onValueChange={handleLoadTemplate}>
@@ -440,7 +598,7 @@ export function CustomReportBuilder({
           </div>
 
           {/* Report Type Selection */}
-          <div className="space-y-2 print:hidden">
+          <div className="space-y-2">
             <Label>Report Type</Label>
             <Select value={reportType} onValueChange={setReportType}>
               <SelectTrigger>
@@ -456,7 +614,7 @@ export function CustomReportBuilder({
           </div>
 
           {/* Field Selection */}
-          <div className="space-y-2 print:hidden">
+          <div className="space-y-2">
             <Label>Select Fields to Include</Label>
             <div className="grid grid-cols-2 gap-2 border rounded-md p-4 max-h-64 overflow-y-auto">
               {fieldOptions[reportType]?.map(field => (
@@ -474,7 +632,7 @@ export function CustomReportBuilder({
           </div>
 
           {/* Save Template Section */}
-          <div className="space-y-4 border-t pt-4 print:hidden">
+          <div className="space-y-4 border-t pt-4">
             <div className="space-y-2">
               <Label>Template Name</Label>
               <input
@@ -506,7 +664,7 @@ export function CustomReportBuilder({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-2 border-t pt-4 print:hidden">
+          <div className="flex gap-2 border-t pt-4">
             <Button
               onClick={handleSaveTemplate}
               disabled={loading || !templateName}
@@ -535,18 +693,18 @@ export function CustomReportBuilder({
           </div>
 
           {/* Report Results */}
-          {reportData && (
-            <div className="space-y-4 border-t pt-4" id="report-results">
-              <div className="flex items-center justify-between mb-4 print:mb-6">
-                <div className="print:w-full">
-                  <h3 className="font-semibold text-lg print:text-xl print:mb-1">
+          {reportData && reportData.reportType === reportType && (
+            <div className="space-y-4 border-t pt-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-semibold text-lg">
                     {templateName || reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report
                   </h3>
-                  <p className="text-sm text-gray-600 print:text-sm">
+                  <p className="text-sm text-gray-600">
                     {eventName} • Generated {new Date(reportData.generatedAt).toLocaleString()}
                   </p>
                 </div>
-                <div className="flex gap-2 print:hidden">
+                <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => handleExport('pdf')}>
                     <Download className="h-4 w-4 mr-2" />
                     Print/PDF
@@ -760,6 +918,5 @@ export function CustomReportBuilder({
         </div>
       </DialogContent>
     </Dialog>
-    </>
   )
 }
