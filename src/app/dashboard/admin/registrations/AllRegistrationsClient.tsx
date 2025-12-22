@@ -415,7 +415,6 @@ export default function AllRegistrationsClient() {
           onClose={() => setEditingIndividualReg(null)}
           registration={{
             id: editingIndividualReg.id,
-            type: 'individual',
             firstName: editingIndividualReg.groupName.split(' ')[0] || '',
             lastName: editingIndividualReg.groupName.split(' ').slice(1).join(' ') || '',
             email: editingIndividualReg.leaderEmail,
