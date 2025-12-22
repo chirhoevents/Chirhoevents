@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
         balance: Number(balance),
         participantCount,
         depositAmount,
-        payments: payments.map(p => ({
+        payments: payments.map((p: typeof payments[number]) => ({
           id: p.id,
           amount: Number(p.amount),
           paymentMethod: p.paymentMethod,
@@ -194,7 +194,7 @@ export async function GET(request: NextRequest) {
         balance: Number(balance),
         roomType: individualReg.roomType,
         housingType: individualReg.housingType,
-        payments: payments.map(p => ({
+        payments: payments.map((p: typeof payments[number]) => ({
           id: p.id,
           amount: Number(p.amount),
           paymentMethod: p.paymentMethod,

@@ -258,10 +258,7 @@ export async function POST(request: Request) {
 
     await prisma.paymentBalance.update({
       where: {
-        registrationId_registrationType: {
-          registrationId: registration.id,
-          registrationType: registrationType as 'group' | 'individual'
-        }
+        registrationId: registration.id
       },
       data: {
         amountPaid: newAmountPaid,
