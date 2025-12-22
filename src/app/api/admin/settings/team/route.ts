@@ -12,6 +12,7 @@ interface TeamMember {
   firstName: string | null
   lastName: string | null
   role: string
+  permissions: unknown
   lastLogin: Date | null
   createdAt: Date
   clerkUserId: string | null
@@ -36,12 +37,12 @@ export async function GET() {
       )
     }
 
-    // Get all team members (org_admin role)
+    // Get all team members with admin roles
     const teamMembers = await prisma.user.findMany({
       where: {
         organizationId: user.organizationId,
         role: {
-          in: ['org_admin', 'master_admin'],
+          in: ADMIN_ROLES,
         },
       },
       select: {
@@ -50,6 +51,7 @@ export async function GET() {
         firstName: true,
         lastName: true,
         role: true,
+        permissions: true,
         lastLogin: true,
         createdAt: true,
         clerkUserId: true,
@@ -96,7 +98,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { email, firstName, lastName, role } = body
+    const { email, firstName, lastName, role, permissions } = body
 
     if (!email || !firstName || !lastName || !role) {
       return NextResponse.json(
@@ -139,6 +141,7 @@ export async function POST(request: NextRequest) {
         firstName,
         lastName,
         role,
+        permissions: permissions || null,
         organizationId: user.organizationId,
         createdBy: user.id,
       },
@@ -148,6 +151,7 @@ export async function POST(request: NextRequest) {
         firstName: true,
         lastName: true,
         role: true,
+        permissions: true,
         createdAt: true,
       },
     })

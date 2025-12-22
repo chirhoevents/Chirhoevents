@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -25,6 +26,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
@@ -43,9 +45,10 @@ import {
   CheckSquare,
   Activity,
   User,
+  Pencil,
 } from 'lucide-react'
 import { format } from 'date-fns'
-import { getRoleName, getRoleDescription, type UserRole } from '@/lib/permissions'
+import { getRoleName, getRoleDescription, type UserRole, type Permission } from '@/lib/permissions'
 
 interface TeamMember {
   id: string
@@ -53,6 +56,7 @@ interface TeamMember {
   firstName: string | null
   lastName: string | null
   role: string
+  permissions: Permission[] | null
   lastLogin: string | null
   createdAt: string
   clerkUserId?: string | null
@@ -69,6 +73,28 @@ const ROLES = [
   { value: 'staff', icon: User },
 ]
 
+// Portal access options that can be added to any role
+const PORTAL_ACCESS_OPTIONS = [
+  {
+    value: 'portals.poros.view' as Permission,
+    label: 'Poros Portal',
+    description: 'Housing assignments',
+    icon: Home
+  },
+  {
+    value: 'portals.salve.view' as Permission,
+    label: 'SALVE Check-In',
+    description: 'Event check-in',
+    icon: CheckSquare
+  },
+  {
+    value: 'portals.rapha.view' as Permission,
+    label: 'Rapha Medical',
+    description: 'Medical information',
+    icon: Activity
+  },
+]
+
 export default function TeamSettingsTab() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [pendingInvites, setPendingInvites] = useState<TeamMember[]>([])
@@ -82,9 +108,19 @@ export default function TeamSettingsTab() {
     email: '',
     firstName: '',
     lastName: '',
-    role: 'org_admin',
+    role: 'staff',
+    additionalPermissions: [] as Permission[],
   })
   const [inviteError, setInviteError] = useState<string | null>(null)
+
+  // Edit modal state
+  const [editingMember, setEditingMember] = useState<TeamMember | null>(null)
+  const [editData, setEditData] = useState({
+    role: '',
+    additionalPermissions: [] as Permission[],
+  })
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
 
   // Delete confirmation
   const [deletingMember, setDeletingMember] = useState<TeamMember | null>(null)
@@ -122,7 +158,13 @@ export default function TeamSettingsTab() {
       const response = await fetch('/api/admin/settings/team', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(inviteData),
+        body: JSON.stringify({
+          email: inviteData.email,
+          firstName: inviteData.firstName,
+          lastName: inviteData.lastName,
+          role: inviteData.role,
+          permissions: inviteData.additionalPermissions.length > 0 ? inviteData.additionalPermissions : undefined,
+        }),
       })
 
       if (!response.ok) {
@@ -131,7 +173,7 @@ export default function TeamSettingsTab() {
       }
 
       // Reset form and close modal
-      setInviteData({ email: '', firstName: '', lastName: '', role: 'org_admin' })
+      setInviteData({ email: '', firstName: '', lastName: '', role: 'staff', additionalPermissions: [] })
       setShowInviteModal(false)
       fetchTeamMembers()
     } catch (err) {
@@ -139,6 +181,46 @@ export default function TeamSettingsTab() {
       setInviteError(err instanceof Error ? err.message : 'Failed to send invitation')
     } finally {
       setIsInviting(false)
+    }
+  }
+
+  const handleEditMember = (member: TeamMember) => {
+    setEditingMember(member)
+    setEditData({
+      role: member.role,
+      additionalPermissions: (member.permissions || []) as Permission[],
+    })
+    setEditError(null)
+  }
+
+  const handleUpdateMember = async () => {
+    if (!editingMember) return
+
+    setIsUpdating(true)
+    setEditError(null)
+
+    try {
+      const response = await fetch(`/api/admin/settings/team/${editingMember.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: editData.role,
+          permissions: editData.additionalPermissions.length > 0 ? editData.additionalPermissions : null,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to update member')
+      }
+
+      setEditingMember(null)
+      fetchTeamMembers()
+    } catch (err) {
+      console.error('Error updating member:', err)
+      setEditError(err instanceof Error ? err.message : 'Failed to update member')
+    } finally {
+      setIsUpdating(false)
     }
   }
 
@@ -157,18 +239,15 @@ export default function TeamSettingsTab() {
         throw new Error(data.error || 'Failed to remove member')
       }
 
-      // Success - close modal and refresh
       setDeletingMember(null)
       fetchTeamMembers()
 
-      // Show success message if there's a note (e.g., user was demoted instead of deleted)
       if (data.note) {
         alert(data.note)
       }
     } catch (err) {
       console.error('Error removing member:', err)
       alert(err instanceof Error ? err.message : 'Failed to remove member')
-      // Close modal on error too so user can try again
       setDeletingMember(null)
     } finally {
       setIsDeleting(false)
@@ -193,6 +272,24 @@ export default function TeamSettingsTab() {
       alert(err instanceof Error ? err.message : 'Failed to resend invitation')
     } finally {
       setIsResending(null)
+    }
+  }
+
+  const togglePermission = (permission: Permission, isInvite: boolean) => {
+    if (isInvite) {
+      setInviteData(prev => ({
+        ...prev,
+        additionalPermissions: prev.additionalPermissions.includes(permission)
+          ? prev.additionalPermissions.filter(p => p !== permission)
+          : [...prev.additionalPermissions, permission]
+      }))
+    } else {
+      setEditData(prev => ({
+        ...prev,
+        additionalPermissions: prev.additionalPermissions.includes(permission)
+          ? prev.additionalPermissions.filter(p => p !== permission)
+          : [...prev.additionalPermissions, permission]
+      }))
     }
   }
 
@@ -221,6 +318,26 @@ export default function TeamSettingsTab() {
         <Icon className="h-3 w-3 mr-1" />
         {getRoleName(role as UserRole)}
       </Badge>
+    )
+  }
+
+  const getPermissionBadges = (permissions: Permission[] | null) => {
+    if (!permissions || permissions.length === 0) return null
+
+    return (
+      <div className="flex flex-wrap gap-1 mt-1">
+        {permissions.map(p => {
+          const option = PORTAL_ACCESS_OPTIONS.find(opt => opt.value === p)
+          if (!option) return null
+          const Icon = option.icon
+          return (
+            <Badge key={p} variant="secondary" className="text-xs py-0">
+              <Icon className="h-3 w-3 mr-1" />
+              {option.label}
+            </Badge>
+          )
+        })}
+      </div>
     )
   }
 
@@ -288,7 +405,7 @@ export default function TeamSettingsTab() {
                       Email
                     </th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
-                      Role
+                      Role & Access
                     </th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
                       Last Login
@@ -311,6 +428,7 @@ export default function TeamSettingsTab() {
                       </td>
                       <td className="py-3 px-4">
                         {getRoleBadge(member.role)}
+                        {getPermissionBadges(member.permissions)}
                       </td>
                       <td className="py-3 px-4">
                         <span className="text-sm text-gray-500">
@@ -326,6 +444,14 @@ export default function TeamSettingsTab() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => handleEditMember(member)}
+                                className="cursor-pointer"
+                              >
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Edit Role & Access
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 onClick={() => setDeletingMember(member)}
                                 className="text-red-600 cursor-pointer"
@@ -440,11 +566,11 @@ export default function TeamSettingsTab() {
 
       {/* Invite Modal */}
       <Dialog open={showInviteModal} onOpenChange={setShowInviteModal}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="text-[#1E3A5F]">Invite Team Member</DialogTitle>
             <DialogDescription>
-              Send an invitation to join your organization as an administrator.
+              Send an invitation to join your organization. You can customize their access.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleInvite}>
@@ -500,7 +626,7 @@ export default function TeamSettingsTab() {
               </div>
 
               <div>
-                <Label htmlFor="role">Role *</Label>
+                <Label htmlFor="role">Base Role *</Label>
                 <Select
                   value={inviteData.role}
                   onValueChange={(value) =>
@@ -527,6 +653,40 @@ export default function TeamSettingsTab() {
                     })}
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Additional Portal Access */}
+              <div className="border rounded-lg p-4 bg-gray-50">
+                <Label className="text-sm font-medium">Additional Portal Access</Label>
+                <p className="text-xs text-gray-500 mb-3">
+                  Grant access to additional portals beyond what the base role provides
+                </p>
+                <div className="space-y-3">
+                  {PORTAL_ACCESS_OPTIONS.map((option) => {
+                    const Icon = option.icon
+                    return (
+                      <div key={option.value} className="flex items-start space-x-3">
+                        <Checkbox
+                          id={`invite-${option.value}`}
+                          checked={inviteData.additionalPermissions.includes(option.value)}
+                          onCheckedChange={() => togglePermission(option.value, true)}
+                        />
+                        <div className="flex items-start gap-2">
+                          <Icon className="h-4 w-4 mt-0.5 text-[#9C8466]" />
+                          <div>
+                            <label
+                              htmlFor={`invite-${option.value}`}
+                              className="text-sm font-medium cursor-pointer"
+                            >
+                              {option.label}
+                            </label>
+                            <p className="text-xs text-gray-500">{option.description}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             </div>
             <DialogFooter>
@@ -557,6 +717,113 @@ export default function TeamSettingsTab() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Role Modal */}
+      <Dialog open={!!editingMember} onOpenChange={() => setEditingMember(null)}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-[#1E3A5F]">Edit Role & Access</DialogTitle>
+            <DialogDescription>
+              Update role and portal access for{' '}
+              <strong>{editingMember?.firstName} {editingMember?.lastName}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {editError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">
+                {editError}
+              </div>
+            )}
+
+            <div>
+              <Label htmlFor="editRole">Base Role *</Label>
+              <Select
+                value={editData.role}
+                onValueChange={(value) =>
+                  setEditData({ ...editData, role: value })
+                }
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLES.map((role) => {
+                    const Icon = role.icon
+                    return (
+                      <SelectItem key={role.value} value={role.value}>
+                        <div className="flex items-start gap-2">
+                          <Icon className="h-4 w-4 mt-0.5 text-[#9C8466]" />
+                          <div className="flex flex-col">
+                            <span>{getRoleName(role.value as UserRole)}</span>
+                            <span className="text-xs text-gray-500">{getRoleDescription(role.value as UserRole)}</span>
+                          </div>
+                        </div>
+                      </SelectItem>
+                    )
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Additional Portal Access */}
+            <div className="border rounded-lg p-4 bg-gray-50">
+              <Label className="text-sm font-medium">Additional Portal Access</Label>
+              <p className="text-xs text-gray-500 mb-3">
+                Grant access to additional portals beyond what the base role provides
+              </p>
+              <div className="space-y-3">
+                {PORTAL_ACCESS_OPTIONS.map((option) => {
+                  const Icon = option.icon
+                  return (
+                    <div key={option.value} className="flex items-start space-x-3">
+                      <Checkbox
+                        id={`edit-${option.value}`}
+                        checked={editData.additionalPermissions.includes(option.value)}
+                        onCheckedChange={() => togglePermission(option.value, false)}
+                      />
+                      <div className="flex items-start gap-2">
+                        <Icon className="h-4 w-4 mt-0.5 text-[#9C8466]" />
+                        <div>
+                          <label
+                            htmlFor={`edit-${option.value}`}
+                            className="text-sm font-medium cursor-pointer"
+                          >
+                            {option.label}
+                          </label>
+                          <p className="text-xs text-gray-500">{option.description}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditingMember(null)}
+              disabled={isUpdating}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateMember}
+              disabled={isUpdating}
+              className="bg-[#9C8466] hover:bg-[#8a7559] text-white"
+            >
+              {isUpdating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
