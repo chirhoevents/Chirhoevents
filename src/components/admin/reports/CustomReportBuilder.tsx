@@ -679,7 +679,7 @@ export function CustomReportBuilder({
             </Button>
             <Button
               onClick={handleExecuteReport}
-              disabled={executing || selectedFields.length === 0}
+              disabled={executing || (reportType === 'registration' && selectedFields.length === 0)}
               className="flex-1"
               variant="secondary"
             >
