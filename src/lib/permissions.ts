@@ -37,6 +37,7 @@ export type Permission =
   | 'payments.refund'
   | 'payments.late_fees'
   // Reports
+  | 'reports.view'
   | 'reports.view_basic'
   | 'reports.view_financial'
   | 'reports.export'
@@ -44,6 +45,9 @@ export type Permission =
   | 'poros.access'
   | 'salve.access'
   | 'rapha.access'
+  | 'portals.poros.view'
+  | 'portals.salve.view'
+  | 'portals.rapha.view'
   // Settings
   | 'settings.view'
   | 'settings.edit'
@@ -71,8 +75,9 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     'events.view', 'events.create', 'events.edit', 'events.delete',
     'registrations.view', 'registrations.view_payments', 'registrations.edit', 'registrations.delete',
     'payments.view', 'payments.process', 'payments.refund', 'payments.late_fees',
-    'reports.view_basic', 'reports.view_financial', 'reports.export',
+    'reports.view', 'reports.view_basic', 'reports.view_financial', 'reports.export',
     'poros.access', 'salve.access', 'rapha.access',
+    'portals.poros.view', 'portals.salve.view', 'portals.rapha.view',
     'settings.view', 'settings.edit', 'team.manage',
     'forms.view', 'forms.edit'
   ],
@@ -82,8 +87,9 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     'events.view', 'events.create', 'events.edit', 'events.delete',
     'registrations.view', 'registrations.view_payments', 'registrations.edit', 'registrations.delete',
     'payments.view', 'payments.process', 'payments.refund', 'payments.late_fees',
-    'reports.view_basic', 'reports.view_financial', 'reports.export',
+    'reports.view', 'reports.view_basic', 'reports.view_financial', 'reports.export',
     'poros.access', 'salve.access', 'rapha.access',
+    'portals.poros.view', 'portals.salve.view', 'portals.rapha.view',
     'settings.view', 'settings.edit', 'team.manage',
     'forms.view', 'forms.edit'
   ],
@@ -91,8 +97,9 @@ const rolePermissions: Record<UserRole, Permission[]> = {
   event_manager: [
     'events.view', 'events.create', 'events.edit', // cannot delete
     'registrations.view', 'registrations.edit', // cannot view payments
-    'reports.view_basic', // cannot view financial
+    'reports.view', 'reports.view_basic', // cannot view financial
     'poros.access', 'salve.access', // can access housing & check-in
+    'portals.poros.view', 'portals.salve.view', // can view portals
     'forms.view', // can view forms
     'settings.view' // can view settings but not edit
   ],
@@ -101,7 +108,7 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     'events.view', // can view events
     'registrations.view', 'registrations.view_payments', // view with payments
     'payments.view', 'payments.process', 'payments.refund', 'payments.late_fees',
-    'reports.view_basic', 'reports.view_financial', 'reports.export',
+    'reports.view', 'reports.view_basic', 'reports.view_financial', 'reports.export',
     'settings.view' // can view settings but not edit
   ],
 
@@ -109,7 +116,8 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     'events.view', // can view events
     'registrations.view', // view names only
     'poros.access', // full Poros access
-    'reports.view_basic', // can view housing reports
+    'portals.poros.view', // can view Poros portal
+    'reports.view', 'reports.view_basic', // can view housing reports
     'settings.view'
   ],
 
@@ -117,7 +125,8 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     'events.view', // can view events
     'registrations.view', // view names only
     'salve.access', // full SALVE access
-    'reports.view_basic',
+    'portals.salve.view', // can view SALVE portal
+    'reports.view', 'reports.view_basic',
     'settings.view'
   ],
 
@@ -125,7 +134,8 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     'events.view', // can view events
     'registrations.view', // view names only
     'rapha.access', // full Rapha access
-    'reports.view_basic', // medical reports
+    'portals.rapha.view', // can view Rapha portal
+    'reports.view', 'reports.view_basic', // medical reports
     'forms.view', // need to see medical info from forms
     'settings.view'
   ],
@@ -133,7 +143,7 @@ const rolePermissions: Record<UserRole, Permission[]> = {
   staff: [
     'events.view', // read-only
     'registrations.view', // names only, no payments
-    'reports.view_basic', // basic reports only
+    'reports.view', 'reports.view_basic', // basic reports only
     'settings.view'
   ],
 
@@ -147,8 +157,16 @@ const rolePermissions: Record<UserRole, Permission[]> = {
 
 /**
  * Check if user has a specific permission
+ * @param userRole - The user's role
+ * @param permission - The permission to check
+ * @param customPermissions - Optional custom permission overrides
  */
-export function hasPermission(userRole: UserRole, permission: Permission): boolean {
+export function hasPermission(userRole: UserRole, permission: Permission, customPermissions?: Permission[]): boolean {
+  // Check custom permissions first if provided
+  if (customPermissions && customPermissions.includes(permission)) {
+    return true
+  }
+  // Fall back to role-based permissions
   return rolePermissions[userRole]?.includes(permission) || false
 }
 
