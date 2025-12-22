@@ -1,8 +1,9 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser()
 
@@ -13,11 +14,51 @@ export async function GET() {
       )
     }
 
+    // Parse query parameters
+    const searchParams = request.nextUrl.searchParams
+    const status = searchParams.get('status') // 'all' | 'upcoming' | 'past' | 'draft'
+    const search = searchParams.get('search')
+    const sortBy = searchParams.get('sortBy') // 'date' | 'name' | 'registrations'
+    const sortOrder = searchParams.get('sortOrder') as 'asc' | 'desc' || 'desc'
+
+    // Build where clause
+    const now = new Date()
+    const whereClause: Prisma.EventWhereInput = {
+      organizationId: user.organizationId,
+    }
+
+    // Apply status filter
+    if (status === 'upcoming') {
+      whereClause.startDate = { gte: now }
+      whereClause.status = { not: 'draft' }
+    } else if (status === 'past') {
+      whereClause.endDate = { lt: now }
+      whereClause.status = { not: 'draft' }
+    } else if (status === 'draft') {
+      whereClause.status = 'draft'
+    }
+
+    // Apply search filter
+    if (search) {
+      whereClause.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { slug: { contains: search, mode: 'insensitive' } },
+        { locationName: { contains: search, mode: 'insensitive' } },
+      ]
+    }
+
+    // Build order by clause
+    let orderByClause: Prisma.EventOrderByWithRelationInput = { startDate: 'desc' }
+    if (sortBy === 'name') {
+      orderByClause = { name: sortOrder }
+    } else if (sortBy === 'date') {
+      orderByClause = { startDate: sortOrder }
+    }
+    // Note: registrations sort is handled after fetching since it's a computed field
+
     // Fetch all events for this organization
     const events = await prisma.event.findMany({
-      where: {
-        organizationId: user.organizationId,
-      },
+      where: whereClause,
       include: {
         settings: true,
         pricing: true,
@@ -39,9 +80,7 @@ export async function GET() {
           },
         },
       },
-      orderBy: {
-        startDate: 'desc',
-      },
+      orderBy: orderByClause,
     })
 
     // Calculate stats for each event
@@ -97,6 +136,7 @@ export async function GET() {
           startDate: event.startDate,
           endDate: event.endDate,
           status: event.status,
+          locationName: event.locationName,
           capacityTotal: event.capacityTotal,
           capacityRemaining: event.capacityRemaining,
           registrationOpenDate: event.registrationOpenDate,
@@ -111,7 +151,17 @@ export async function GET() {
       })
     )
 
-    return NextResponse.json({ events: eventsWithStats })
+    // Handle registrations sort (computed field, so done post-fetch)
+    let sortedEvents = eventsWithStats
+    if (sortBy === 'registrations') {
+      sortedEvents = eventsWithStats.sort((a: { totalRegistrations: number }, b: { totalRegistrations: number }) => {
+        return sortOrder === 'asc'
+          ? a.totalRegistrations - b.totalRegistrations
+          : b.totalRegistrations - a.totalRegistrations
+      })
+    }
+
+    return NextResponse.json({ events: sortedEvents })
   } catch (error) {
     console.error('Error fetching events:', error)
     return NextResponse.json(
