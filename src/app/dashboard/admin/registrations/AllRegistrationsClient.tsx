@@ -426,8 +426,6 @@ export default function AllRegistrationsClient() {
             amountPaid: editingIndividualReg.amountPaid,
             balance: editingIndividualReg.balance,
             paymentStatus: editingIndividualReg.paymentStatus,
-            formCompleted: editingIndividualReg.formsCompleted === editingIndividualReg.formsTotal,
-            confirmationCode: (editingIndividualReg as any).confirmationCode || null,
           }}
           eventId={editingIndividualReg.eventId}
           onUpdate={() => {
