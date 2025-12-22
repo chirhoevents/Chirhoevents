@@ -23,19 +23,19 @@ export async function GET(
 
     // Get payment balances for all groups
     const groupIds = groupRegs.map(g => g.id)
-    const paymentBalances = await prisma.paymentBalance.findMany({
+    const groupPaymentBalances = await prisma.paymentBalance.findMany({
       where: {
         registrationId: { in: groupIds },
         registrationType: 'group',
       },
     })
 
-    // Create lookup map
-    const balanceMap = new Map(paymentBalances.map(pb => [pb.registrationId, pb]))
+    // Create lookup map for group balances
+    const groupBalanceMap = new Map(groupPaymentBalances.map(pb => [pb.registrationId, pb]))
 
     // Build group balance details
     const groupBalances = groupRegs.map(group => {
-      const balance = balanceMap.get(group.id)
+      const balance = groupBalanceMap.get(group.id)
 
       return {
         groupId: group.id,
@@ -50,19 +50,68 @@ export async function GET(
         amountRemaining: balance ? Number(balance.amountRemaining) : 0,
         paymentStatus: balance?.paymentStatus || 'unpaid',
         lastPaymentDate: balance?.lastPaymentDate,
+        _type: 'group',
       }
     })
 
+    // Get all individual registrations
+    const individualRegs = await prisma.individualRegistration.findMany({
+      where: { eventId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+      },
+    })
+
+    // Get payment balances for all individual registrations
+    const individualIds = individualRegs.map(i => i.id)
+    const individualPaymentBalances = await prisma.paymentBalance.findMany({
+      where: {
+        registrationId: { in: individualIds },
+        registrationType: 'individual',
+      },
+    })
+
+    // Create lookup map for individual balances
+    const individualBalanceMap = new Map(individualPaymentBalances.map(pb => [pb.registrationId, pb]))
+
+    // Build individual balance details
+    const individualBalances = individualRegs.map(individual => {
+      const balance = individualBalanceMap.get(individual.id)
+
+      return {
+        groupId: individual.id,
+        groupName: `${individual.firstName} ${individual.lastName}`,
+        parishName: 'Individual Registration',
+        groupLeaderName: `${individual.firstName} ${individual.lastName}`,
+        groupLeaderEmail: individual.email,
+        groupLeaderPhone: individual.phone,
+        participantCount: 1,
+        totalDue: balance ? Number(balance.totalAmountDue) : 0,
+        amountPaid: balance ? Number(balance.amountPaid) : 0,
+        amountRemaining: balance ? Number(balance.amountRemaining) : 0,
+        paymentStatus: balance?.paymentStatus || 'unpaid',
+        lastPaymentDate: balance?.lastPaymentDate,
+        _type: 'individual',
+      }
+    })
+
+    // Combine both arrays
+    const allBalances = [...groupBalances, ...individualBalances]
+
     // Sort by amount remaining (descending)
-    groupBalances.sort((a, b) => b.amountRemaining - a.amountRemaining)
+    allBalances.sort((a, b) => b.amountRemaining - a.amountRemaining)
 
     // Calculate totals
-    const totalDue = groupBalances.reduce((sum, g) => sum + g.totalDue, 0)
-    const totalPaid = groupBalances.reduce((sum, g) => sum + g.amountPaid, 0)
-    const totalRemaining = groupBalances.reduce((sum, g) => sum + g.amountRemaining, 0)
-    const groupsFullyPaid = groupBalances.filter(g => g.amountRemaining === 0).length
-    const groupsWithBalance = groupBalances.filter(g => g.amountRemaining > 0).length
-    const groupsOverdue = groupBalances.filter(g => g.paymentStatus === 'unpaid' && g.amountRemaining > 0).length
+    const totalDue = allBalances.reduce((sum, g) => sum + g.totalDue, 0)
+    const totalPaid = allBalances.reduce((sum, g) => sum + g.amountPaid, 0)
+    const totalRemaining = allBalances.reduce((sum, g) => sum + g.amountRemaining, 0)
+    const groupsFullyPaid = allBalances.filter(g => g.amountRemaining === 0).length
+    const groupsWithBalance = allBalances.filter(g => g.amountRemaining > 0).length
+    const groupsOverdue = allBalances.filter(g => g.paymentStatus === 'unpaid' && g.amountRemaining > 0).length
 
     if (isPreview) {
       return NextResponse.json({
@@ -76,10 +125,10 @@ export async function GET(
     }
 
     // Separate into categories
-    const overdueGroups = groupBalances.filter(g => g.paymentStatus === 'unpaid' && g.amountRemaining > 0)
-    const partiallyPaidGroups = groupBalances.filter(g => g.paymentStatus === 'partial' && g.amountRemaining > 0)
-    const fullyPaidGroups = groupBalances.filter(g => g.amountRemaining === 0)
-    const unpaidGroups = groupBalances.filter(g => g.amountPaid === 0 && g.totalDue > 0)
+    const overdueGroups = allBalances.filter(g => g.paymentStatus === 'unpaid' && g.amountRemaining > 0)
+    const partiallyPaidGroups = allBalances.filter(g => g.paymentStatus === 'partial' && g.amountRemaining > 0)
+    const fullyPaidGroups = allBalances.filter(g => g.amountRemaining === 0)
+    const unpaidGroups = allBalances.filter(g => g.amountPaid === 0 && g.totalDue > 0)
 
     return NextResponse.json({
       totalDue,
@@ -88,7 +137,7 @@ export async function GET(
       groupsFullyPaid,
       groupsWithBalance,
       groupsOverdue,
-      allGroups: groupBalances,
+      allGroups: allBalances,
       categories: {
         overdue: overdueGroups,
         partiallyPaid: partiallyPaidGroups,
