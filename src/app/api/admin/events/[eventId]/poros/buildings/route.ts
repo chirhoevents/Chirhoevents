@@ -1,0 +1,57 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { requireAdmin } from '@/lib/auth-utils'
+import { prisma } from '@/lib/prisma'
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { eventId: string } }
+) {
+  try {
+    const user = await requireAdmin()
+    const { eventId } = params
+
+    const buildings = await prisma.building.findMany({
+      where: { eventId },
+      orderBy: { displayOrder: 'asc' },
+    })
+
+    return NextResponse.json(buildings)
+  } catch (error) {
+    console.error('Failed to fetch buildings:', error)
+    return NextResponse.json(
+      { message: 'Failed to fetch buildings' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { eventId: string } }
+) {
+  try {
+    const user = await requireAdmin()
+    const { eventId } = params
+    const body = await request.json()
+
+    const building = await prisma.building.create({
+      data: {
+        eventId,
+        name: body.name,
+        gender: body.gender,
+        housingType: body.housingType,
+        totalFloors: body.totalFloors || 1,
+        notes: body.notes || null,
+        displayOrder: body.displayOrder || 0,
+      },
+    })
+
+    return NextResponse.json(building, { status: 201 })
+  } catch (error) {
+    console.error('Failed to create building:', error)
+    return NextResponse.json(
+      { message: 'Failed to create building' },
+      { status: 500 }
+    )
+  }
+}

@@ -1,0 +1,70 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { requireAdmin } from '@/lib/auth-utils'
+import { prisma } from '@/lib/prisma'
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { eventId: string } }
+) {
+  try {
+    const user = await requireAdmin()
+    const body = await request.json()
+
+    const { sectionId, groupRegistrationId, individualRegistrationId } = body
+
+    // Check if already assigned
+    if (groupRegistrationId) {
+      const existing = await prisma.seatingAssignment.findFirst({
+        where: { groupRegistrationId },
+      })
+      if (existing) {
+        // Update existing
+        await prisma.seatingAssignment.update({
+          where: { id: existing.id },
+          data: { sectionId },
+        })
+        return NextResponse.json({ updated: true })
+      }
+    }
+
+    if (individualRegistrationId) {
+      const existing = await prisma.seatingAssignment.findFirst({
+        where: { individualRegistrationId },
+      })
+      if (existing) {
+        await prisma.seatingAssignment.update({
+          where: { id: existing.id },
+          data: { sectionId },
+        })
+        return NextResponse.json({ updated: true })
+      }
+    }
+
+    // Create assignment
+    const assignment = await prisma.seatingAssignment.create({
+      data: {
+        sectionId,
+        groupRegistrationId: groupRegistrationId || null,
+        individualRegistrationId: individualRegistrationId || null,
+        assignedBy: user.id,
+      },
+    })
+
+    // Update section occupancy
+    const count = await prisma.seatingAssignment.count({
+      where: { sectionId },
+    })
+    await prisma.seatingSection.update({
+      where: { id: sectionId },
+      data: { currentOccupancy: count },
+    })
+
+    return NextResponse.json(assignment, { status: 201 })
+  } catch (error) {
+    console.error('Failed to create seating assignment:', error)
+    return NextResponse.json(
+      { message: 'Failed to create seating assignment' },
+      { status: 500 }
+    )
+  }
+}
