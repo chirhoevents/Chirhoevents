@@ -10,52 +10,75 @@ export async function GET(
     const user = await requireAdmin()
     const { eventId } = params
 
-    // Get group registrations with seating assignments
+    // Get group registrations
     const groupRegs = await prisma.groupRegistration.findMany({
       where: { eventId },
       include: {
-        seatingAssignment: {
-          include: { section: true },
-        },
         _count: { select: { participants: true } },
       },
     })
 
-    // Get individual registrations with seating assignments
+    // Get individual registrations
     const individualRegs = await prisma.individualRegistration.findMany({
       where: { eventId },
+    })
+
+    // Get all seating assignments for this event's registrations
+    const seatingAssignments = await prisma.seatingAssignment.findMany({
+      where: {
+        OR: [
+          { groupRegistrationId: { in: groupRegs.map(r => r.id) } },
+          { individualRegistrationId: { in: individualRegs.map(r => r.id) } },
+        ],
+      },
       include: {
-        seatingAssignment: {
-          include: { section: true },
-        },
+        section: true,
       },
     })
 
+    // Create lookup maps
+    const groupAssignmentMap = new Map(
+      seatingAssignments
+        .filter(a => a.groupRegistrationId)
+        .map(a => [a.groupRegistrationId, a])
+    )
+    const individualAssignmentMap = new Map(
+      seatingAssignments
+        .filter(a => a.individualRegistrationId)
+        .map(a => [a.individualRegistrationId, a])
+    )
+
     const registrations = [
-      ...groupRegs.map(r => ({
-        id: r.id,
-        type: 'group' as const,
-        name: r.parishName,
-        participantCount: r._count.participants,
-        seatingAssignment: r.seatingAssignment
-          ? {
-              sectionId: r.seatingAssignment.sectionId,
-              sectionName: r.seatingAssignment.section.name,
-            }
-          : null,
-      })),
-      ...individualRegs.map(r => ({
-        id: r.id,
-        type: 'individual' as const,
-        name: `${r.firstName} ${r.lastName}`,
-        participantCount: 1,
-        seatingAssignment: r.seatingAssignment
-          ? {
-              sectionId: r.seatingAssignment.sectionId,
-              sectionName: r.seatingAssignment.section.name,
-            }
-          : null,
-      })),
+      ...groupRegs.map(r => {
+        const assignment = groupAssignmentMap.get(r.id)
+        return {
+          id: r.id,
+          type: 'group' as const,
+          name: r.parishName,
+          participantCount: r._count.participants,
+          seatingAssignment: assignment
+            ? {
+                sectionId: assignment.sectionId,
+                sectionName: assignment.section.name,
+              }
+            : null,
+        }
+      }),
+      ...individualRegs.map(r => {
+        const assignment = individualAssignmentMap.get(r.id)
+        return {
+          id: r.id,
+          type: 'individual' as const,
+          name: `${r.firstName} ${r.lastName}`,
+          participantCount: 1,
+          seatingAssignment: assignment
+            ? {
+                sectionId: assignment.sectionId,
+                sectionName: assignment.section.name,
+              }
+            : null,
+        }
+      }),
     ]
 
     return NextResponse.json(registrations)
