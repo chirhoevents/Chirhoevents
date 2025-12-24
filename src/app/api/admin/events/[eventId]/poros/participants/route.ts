@@ -10,11 +10,13 @@ export async function GET(
     const user = await requireAdmin()
     const { eventId } = params
 
-    // Get participants from group registrations
+    // Get participants from group registrations (on_campus only)
     const groupParticipants = await prisma.participant.findMany({
       where: {
-        groupRegistration: { eventId },
-        accommodationType: { in: ['on_campus', 'ON_CAMPUS'] },
+        groupRegistration: {
+          eventId,
+          housingType: 'on_campus',
+        },
       },
       include: {
         groupRegistration: {
@@ -30,11 +32,11 @@ export async function GET(
       },
     })
 
-    // Get individual registrations
+    // Get individual registrations (on_campus only)
     const individualRegistrations = await prisma.individualRegistration.findMany({
       where: {
         eventId,
-        accommodationType: { in: ['on_campus', 'ON_CAMPUS'] },
+        housingType: 'on_campus',
       },
       include: {
         roomAssignment: {
@@ -55,7 +57,7 @@ export async function GET(
         firstName: p.firstName,
         lastName: p.lastName,
         gender: p.gender,
-        isMinor: p.isMinor,
+        isMinor: p.age !== null && p.age !== undefined ? p.age < 18 : false,
         parishName: p.groupRegistration?.parishName,
         groupRegistrationId: p.groupRegistrationId,
         roomAssignment: p.roomAssignment

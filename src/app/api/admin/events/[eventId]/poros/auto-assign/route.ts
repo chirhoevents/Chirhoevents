@@ -24,15 +24,17 @@ export async function POST(
     let skipped = 0
     const errors: string[] = []
 
-    // Get unassigned participants
+    // Get unassigned participants (only on_campus housing)
     const participants = await prisma.participant.findMany({
       where: {
-        groupRegistration: { eventId },
-        accommodationType: { in: ['on_campus', 'ON_CAMPUS'] },
+        groupRegistration: {
+          eventId,
+          housingType: 'on_campus',
+        },
         roomAssignment: onlyUnassigned ? null : undefined,
-        ...(genderFilter !== 'all' ? { gender: genderFilter } : {}),
-        ...(typeFilter === 'youth' ? { isMinor: true } : {}),
-        ...(typeFilter === 'chaperone' ? { isMinor: false } : {}),
+        ...(genderFilter !== 'all' ? { gender: genderFilter as any } : {}),
+        ...(typeFilter === 'youth' ? { age: { lt: 18 } } : {}),
+        ...(typeFilter === 'chaperone' ? { age: { gte: 18 } } : {}),
       },
       include: {
         groupRegistration: true,
@@ -57,10 +59,10 @@ export async function POST(
 
     // Group participants by gender and type for matching
     const groupedParticipants = {
-      male_youth: participants.filter(p => p.gender?.toLowerCase() === 'male' && p.isMinor),
-      male_adult: participants.filter(p => p.gender?.toLowerCase() === 'male' && !p.isMinor),
-      female_youth: participants.filter(p => p.gender?.toLowerCase() === 'female' && p.isMinor),
-      female_adult: participants.filter(p => p.gender?.toLowerCase() === 'female' && !p.isMinor),
+      male_youth: participants.filter(p => p.gender === 'male' && p.age < 18),
+      male_adult: participants.filter(p => p.gender === 'male' && p.age >= 18),
+      female_youth: participants.filter(p => p.gender === 'female' && p.age < 18),
+      female_adult: participants.filter(p => p.gender === 'female' && p.age >= 18),
     }
 
     // Filter rooms by gender/type
