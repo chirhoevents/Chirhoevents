@@ -16,12 +16,7 @@ export async function GET(
       },
       include: {
         building: true,
-        assignments: {
-          include: {
-            participant: true,
-            individualRegistration: true,
-          },
-        },
+        roomAssignments: true,
       },
       orderBy: [{ buildingId: 'asc' }, { floor: 'asc' }, { roomNumber: 'asc' }],
     })
