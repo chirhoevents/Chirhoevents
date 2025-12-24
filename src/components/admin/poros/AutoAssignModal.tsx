@@ -199,7 +199,7 @@ export function AutoAssignModal({
               <Label className="text-base font-medium">Assignment Strategy</Label>
               <RadioGroup
                 value={strategy}
-                onValueChange={(v: AssignmentStrategy) => setStrategy(v)}
+                onValueChange={(v) => setStrategy(v as AssignmentStrategy)}
                 className="space-y-2"
               >
                 <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50">
@@ -244,7 +244,7 @@ export function AutoAssignModal({
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Gender</Label>
-                  <Select value={genderFilter} onValueChange={(v: 'all' | 'male' | 'female') => setGenderFilter(v)}>
+                  <Select value={genderFilter} onValueChange={(v) => setGenderFilter(v as 'all' | 'male' | 'female')}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -257,7 +257,7 @@ export function AutoAssignModal({
                 </div>
                 <div className="space-y-2">
                   <Label>Type</Label>
-                  <Select value={typeFilter} onValueChange={(v: 'all' | 'youth' | 'chaperone') => setTypeFilter(v)}>
+                  <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as 'all' | 'youth' | 'chaperone')}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
