@@ -86,14 +86,14 @@ export async function POST(
     }
 
     // Assignment function
-    async function assignParticipants(
-      participants: typeof groupedParticipants.male_youth,
+    const assignParticipants = async (
+      participantsList: typeof groupedParticipants.male_youth,
       availableRooms: typeof rooms
-    ) {
+    ) => {
       if (strategy === 'parish_together') {
         // Group by parish
-        const byParish: Record<string, typeof participants> = {}
-        for (const p of participants) {
+        const byParish: Record<string, typeof participantsList> = {}
+        for (const p of participantsList) {
           const parish = p.groupRegistration?.parishName || 'Unknown'
           if (!byParish[parish]) byParish[parish] = []
           byParish[parish].push(p)
@@ -128,7 +128,7 @@ export async function POST(
         }
       } else {
         // Simple fill or balance
-        for (const p of participants) {
+        for (const p of participantsList) {
           let room
           if (strategy === 'fill_rooms') {
             room = availableRooms.find(r => r.currentOccupancy < r.capacity)
