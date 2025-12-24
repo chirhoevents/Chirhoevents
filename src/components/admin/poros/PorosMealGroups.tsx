@@ -379,6 +379,94 @@ export function PorosMealGroups({ eventId }: PorosMealGroupsProps) {
         </Card>
       </div>
 
+      {/* Balance Dashboard */}
+      {mealGroups.filter(g => g.isActive).length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Utensils className="w-5 h-5" />
+              Meal Group Balance
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {(() => {
+              const activeGroups = mealGroups.filter(g => g.isActive)
+              const totalAssigned = activeGroups.reduce((sum, g) => sum + g.currentSize, 0)
+              const maxSize = Math.max(...activeGroups.map(g => g.currentSize), 1)
+              const avgSize = totalAssigned / (activeGroups.length || 1)
+
+              return (
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    {activeGroups.map(group => {
+                      const percentage = totalAssigned > 0
+                        ? Math.round((group.currentSize / totalAssigned) * 100)
+                        : 0
+                      const isUnbalanced = group.currentSize < avgSize * 0.7
+
+                      return (
+                        <div key={group.id}>
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-4 h-4 rounded"
+                                style={{ backgroundColor: group.colorHex }}
+                              />
+                              <span className="font-medium">{group.name}</span>
+                              {isUnbalanced && (
+                                <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">
+                                  Low
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="text-sm text-muted-foreground">
+                              {group.currentSize} people ({percentage}%)
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-3">
+                            <div
+                              className="h-3 rounded-full transition-all"
+                              style={{
+                                width: `${(group.currentSize / maxSize) * 100}%`,
+                                backgroundColor: group.colorHex,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  <div className="pt-4 border-t space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Total Assigned:</span>
+                      <span className="font-semibold">{totalAssigned} people</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Average per group:</span>
+                      <span className="font-semibold">{Math.round(avgSize)} people</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Unassigned:</span>
+                      <span className={`font-semibold ${unassignedCount > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+                        {unassignedCount} groups
+                      </span>
+                    </div>
+                  </div>
+
+                  {activeGroups.some(g => g.currentSize < avgSize * 0.7) && (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
+                      💡 <strong>Tip:</strong> Some meal groups are significantly smaller than others.
+                      Consider redistributing for more balanced dining times.
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Tab Buttons */}
       <div className="flex gap-2">
         <Button

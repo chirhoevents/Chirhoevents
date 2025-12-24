@@ -1,12 +1,23 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import { BuildingsManager } from './housing/BuildingsManager'
 import { RoomsManager } from './housing/RoomsManager'
 import { ParticipantAssignments } from './housing/ParticipantAssignments'
-import { Building2, DoorOpen, Users, Loader2 } from 'lucide-react'
+import { Building2, DoorOpen, Users, Loader2, Download, Upload, FileSpreadsheet } from 'lucide-react'
+import { toast } from '@/lib/toast'
 
 interface PorosHousingProps {
   eventId: string
@@ -81,6 +92,13 @@ export function PorosHousing({ eventId, settings }: PorosHousingProps) {
   const [activeTab, setActiveTab] = useState('assignments')
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null)
 
+  // Import/Export state
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importPreview, setImportPreview] = useState<{ headers: string[]; rows: string[][] } | null>(null)
+  const [importing, setImporting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     fetchData()
   }, [eventId])
@@ -112,6 +130,97 @@ export function PorosHousing({ eventId, settings }: PorosHousingProps) {
     }
   }
 
+  // Download CSV template
+  function handleDownloadTemplate() {
+    const template = `Building Name,Gender,Housing Type,Total Floors,Room Number,Floor,Room Type,Capacity,Is ADA Accessible,ADA Features,Notes
+St. Joseph Hall,male,youth_u18,3,201,2,double,2,false,,Corner room
+St. Joseph Hall,male,youth_u18,3,202,2,triple,3,false,,
+St. Joseph Hall,male,youth_u18,3,203,2,quad,4,true,Wheelchair accessible,Near elevator
+Marian Hall,female,youth_u18,2,101,1,double,2,true,Ground floor - wheelchair accessible,Ground floor
+Marian Hall,female,youth_u18,2,102,1,triple,3,false,,`
+
+    const blob = new Blob([template], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `housing-template-${eventId}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+  }
+
+  // Export current data
+  async function handleExportData() {
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}/poros/buildings/export`)
+      if (!response.ok) throw new Error('Export failed')
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `housing-export-${eventId}-${Date.now()}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+      toast.success('Housing data exported')
+    } catch (error) {
+      toast.error('Failed to export data')
+    }
+  }
+
+  // Handle file selection for import
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const selectedFile = e.target.files?.[0]
+    if (!selectedFile) return
+
+    setImportFile(selectedFile)
+
+    // Parse CSV for preview
+    const text = await selectedFile.text()
+    const lines = text.split('\n').filter(line => line.trim())
+    const headers = lines[0].split(',').map(h => h.trim())
+    const rows = lines.slice(1, 6).map(line =>
+      line.split(',').map(cell => cell.trim())
+    )
+
+    setImportPreview({ headers, rows })
+  }
+
+  // Handle import submission
+  async function handleImport() {
+    if (!importFile) return
+
+    setImporting(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', importFile)
+
+      const response = await fetch(`/api/admin/events/${eventId}/poros/buildings/import`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Import failed')
+      }
+
+      const result = await response.json()
+      toast.success(`Imported ${result.buildingsCreated} buildings and ${result.roomsCreated} rooms`)
+      setShowImportModal(false)
+      setImportFile(null)
+      setImportPreview(null)
+      fetchData()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Import failed')
+    } finally {
+      setImporting(false)
+    }
+  }
+
   // Calculate stats
   const totalBeds = rooms.reduce((sum, r) => sum + r.capacity, 0)
   const occupiedBeds = rooms.reduce((sum, r) => sum + r.currentOccupancy, 0)
@@ -132,6 +241,24 @@ export function PorosHousing({ eventId, settings }: PorosHousingProps) {
 
   return (
     <div className="space-y-6">
+      {/* Import/Export Actions */}
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={handleDownloadTemplate}>
+          <FileSpreadsheet className="w-4 h-4 mr-2" />
+          Download Template
+        </Button>
+        <Button variant="outline" onClick={() => setShowImportModal(true)}>
+          <Upload className="w-4 h-4 mr-2" />
+          Import Buildings/Rooms
+        </Button>
+        {buildings.length > 0 && (
+          <Button variant="outline" onClick={handleExportData}>
+            <Download className="w-4 h-4 mr-2" />
+            Export Data
+          </Button>
+        )}
+      </div>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -252,6 +379,89 @@ export function PorosHousing({ eventId, settings }: PorosHousingProps) {
           />
         </TabsContent>
       </Tabs>
+
+      {/* Import Modal */}
+      <Dialog open={showImportModal} onOpenChange={setShowImportModal}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Import Buildings & Rooms</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Instructions */}
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded">
+              <h4 className="font-semibold text-blue-900 mb-2">Instructions:</h4>
+              <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                <li>Download the CSV template using the &quot;Download Template&quot; button</li>
+                <li>Open the template in Excel or Google Sheets</li>
+                <li>Fill in your building and room information</li>
+                <li>Save as CSV file</li>
+                <li>Upload the filled template below</li>
+              </ol>
+            </div>
+
+            {/* File upload */}
+            <div>
+              <Label>Select CSV File</Label>
+              <Input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                onChange={handleFileChange}
+                className="mt-1"
+              />
+            </div>
+
+            {/* Preview */}
+            {importPreview && (
+              <div>
+                <Label>Preview (first 5 rows):</Label>
+                <div className="mt-2 overflow-x-auto border rounded">
+                  <table className="min-w-full text-xs">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        {importPreview.headers.map((header, i) => (
+                          <th key={i} className="border-b px-2 py-1 text-left font-medium">
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {importPreview.rows.map((row, i) => (
+                        <tr key={i}>
+                          {row.map((cell, j) => (
+                            <td key={j} className="border-b px-2 py-1">
+                              {cell}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowImportModal(false)
+              setImportFile(null)
+              setImportPreview(null)
+            }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleImport}
+              disabled={!importFile || importing}
+            >
+              {importing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Import Buildings & Rooms
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

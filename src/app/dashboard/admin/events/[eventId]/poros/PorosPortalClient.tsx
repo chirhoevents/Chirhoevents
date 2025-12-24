@@ -9,6 +9,7 @@ import { PorosSmallGroups } from '@/components/admin/poros/PorosSmallGroups'
 import { PorosMealGroups } from '@/components/admin/poros/PorosMealGroups'
 import { PorosStaff } from '@/components/admin/poros/PorosStaff'
 import { PorosSettings } from '@/components/admin/poros/PorosSettings'
+import { PorosADA } from '@/components/admin/poros/PorosADA'
 import {
   LayoutDashboard,
   Home,
@@ -156,6 +157,12 @@ export default function PorosPortalClient({
         <TabsContent value="staff">
           <PorosStaff eventId={eventId} />
         </TabsContent>
+
+        {adaEnabled && (
+          <TabsContent value="ada">
+            <PorosADA eventId={eventId} />
+          </TabsContent>
+        )}
 
         <TabsContent value="settings">
           <PorosSettings

@@ -34,6 +34,7 @@ interface ResourcePortalClientProps {
 }
 
 interface AssignmentData {
+  publishedAt?: string
   participant: {
     firstName: string
     lastName: string
@@ -409,6 +410,22 @@ export default function ResourcePortalClient({
               <p>Enter your name above to find your assignments.</p>
             </CardContent>
           </Card>
+        )}
+
+        {/* Last Updated Footer */}
+        {data?.publishedAt && (
+          <div className="text-center text-xs text-muted-foreground pt-6 mt-8 border-t">
+            <p>
+              Assignments last updated:{' '}
+              {new Date(data.publishedAt).toLocaleString('en-US', {
+                dateStyle: 'long',
+                timeStyle: 'short',
+              })}
+            </p>
+            <p className="mt-1">
+              Check back regularly - assignments may be updated closer to the event
+            </p>
+          </div>
         )}
       </div>
     </div>

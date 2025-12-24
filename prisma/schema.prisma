@@ -1139,6 +1139,7 @@ model Room {
   notes           String?  @db.Text
   isAvailable     Boolean  @default(true) @map("is_available")
   isAdaAccessible Boolean  @default(false) @map("is_ada_accessible")
+  adaFeatures     String?  @map("ada_features") @db.Text
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -1202,6 +1203,8 @@ model SeatingAssignment {
   sectionId                 String   @map("section_id") @db.Uuid
   groupRegistrationId       String?  @map("group_registration_id") @db.Uuid
   individualRegistrationId  String?  @map("individual_registration_id") @db.Uuid
+  participantCountOverride  Int?     @map("participant_count_override")
+  overrideNotes             String?  @map("override_notes") @db.Text
   assignedAt                DateTime @default(now()) @map("assigned_at") @db.Timestamptz(6)
   assignedBy                String?  @map("assigned_by") @db.Uuid
 
@@ -1309,6 +1312,8 @@ model MealGroupAssignment {
   mealGroupId               String   @map("meal_group_id") @db.Uuid
   groupRegistrationId       String?  @map("group_registration_id") @db.Uuid
   individualRegistrationId  String?  @map("individual_registration_id") @db.Uuid
+  participantCountOverride  Int?     @map("participant_count_override")
+  overrideNotes             String?  @map("override_notes") @db.Text
   assignedAt                DateTime @default(now()) @map("assigned_at") @db.Timestamptz(6)
   assignedBy                String?  @map("assigned_by") @db.Uuid
 
