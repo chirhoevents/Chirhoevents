@@ -31,7 +31,7 @@ export async function POST(
           eventId,
           housingType: 'on_campus',
         },
-        roomAssignment: onlyUnassigned ? null : undefined,
+        ...(onlyUnassigned ? { roomAssignment: { is: null } } : {}),
         ...(genderFilter !== 'all' ? { gender: genderFilter as any } : {}),
         ...(typeFilter === 'youth' ? { age: { lt: 18 } } : {}),
         ...(typeFilter === 'chaperone' ? { age: { gte: 18 } } : {}),
