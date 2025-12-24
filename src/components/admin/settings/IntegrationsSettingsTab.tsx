@@ -15,6 +15,14 @@ import {
   Mail as MailIcon,
   Calculator,
   RefreshCw,
+  ChevronDown,
+  ChevronUp,
+  HelpCircle,
+  Building,
+  CreditCard,
+  User,
+  FileText,
+  Link as LinkIcon,
 } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -40,11 +48,54 @@ interface Integrations {
   quickbooks: { connected: boolean; comingSoon: boolean }
 }
 
+// Setup instruction component
+function SetupInstructionItem({
+  icon: Icon,
+  title,
+  isOpen,
+  onToggle,
+  children
+}: {
+  icon: React.ElementType
+  title: string
+  isOpen: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-[#1E3A5F]/10 rounded-lg">
+            <Icon className="h-5 w-5 text-[#1E3A5F]" />
+          </div>
+          <span className="font-medium text-[#1E3A5F]">{title}</span>
+        </div>
+        {isOpen ? (
+          <ChevronUp className="h-5 w-5 text-gray-500" />
+        ) : (
+          <ChevronDown className="h-5 w-5 text-gray-500" />
+        )}
+      </button>
+      {isOpen && (
+        <div className="p-4 bg-white border-t border-gray-200">
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function IntegrationsSettingsTab() {
   const [integrations, setIntegrations] = useState<Integrations | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isConnecting, setIsConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showSetupHelp, setShowSetupHelp] = useState(false)
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     fetchIntegrations()
@@ -92,6 +143,10 @@ export default function IntegrationsSettingsTab() {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount)
+  }
+
+  const toggleSection = (section: string) => {
+    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }))
   }
 
   if (isLoading) {
@@ -264,6 +319,151 @@ export default function IntegrationsSettingsTab() {
                 </div>
               </div>
 
+              {/* Setup Help Section - Show when setup is incomplete */}
+              {(!stripe.chargesEnabled || !stripe.payoutsEnabled) && (
+                <div className="mt-4 border border-amber-200 bg-amber-50 rounded-lg p-4">
+                  <button
+                    onClick={() => setShowSetupHelp(!showSetupHelp)}
+                    className="w-full flex items-center justify-between text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <HelpCircle className="h-5 w-5 text-amber-600" />
+                      <span className="font-medium text-amber-800">
+                        Need help completing your Stripe setup?
+                      </span>
+                    </div>
+                    {showSetupHelp ? (
+                      <ChevronUp className="h-5 w-5 text-amber-600" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-amber-600" />
+                    )}
+                  </button>
+
+                  {showSetupHelp && (
+                    <div className="mt-4 space-y-3">
+                      <p className="text-sm text-amber-700 mb-4">
+                        Complete the following steps in your Stripe Dashboard to enable payments:
+                      </p>
+
+                      <SetupInstructionItem
+                        icon={Building}
+                        title="Business Information"
+                        isOpen={openSections['business'] || false}
+                        onToggle={() => toggleSection('business')}
+                      >
+                        <div className="space-y-3 text-sm text-gray-600">
+                          <p><strong>What Stripe needs:</strong> Basic information about your organization.</p>
+                          <ol className="list-decimal list-inside space-y-2 ml-2">
+                            <li>Go to <a href="https://dashboard.stripe.com/settings/account" target="_blank" rel="noopener noreferrer" className="text-[#635bff] hover:underline">Stripe Dashboard → Settings → Account details</a></li>
+                            <li>Enter your organization&apos;s legal name</li>
+                            <li>Select business type (likely &quot;Non-profit&quot; or &quot;Company&quot;)</li>
+                            <li>Enter your EIN (Tax ID number) - for churches/non-profits, this is your 501(c)(3) number</li>
+                            <li>Add your organization&apos;s address and phone number</li>
+                          </ol>
+                          <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                            <p className="text-blue-700"><strong>Tip:</strong> If you don&apos;t have an EIN, you can apply for one free at <a href="https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online" target="_blank" rel="noopener noreferrer" className="underline">IRS.gov</a></p>
+                          </div>
+                        </div>
+                      </SetupInstructionItem>
+
+                      <SetupInstructionItem
+                        icon={CreditCard}
+                        title="Bank Account for Payouts"
+                        isOpen={openSections['bank'] || false}
+                        onToggle={() => toggleSection('bank')}
+                      >
+                        <div className="space-y-3 text-sm text-gray-600">
+                          <p><strong>What Stripe needs:</strong> A bank account to deposit your payments into.</p>
+                          <ol className="list-decimal list-inside space-y-2 ml-2">
+                            <li>Go to <a href="https://dashboard.stripe.com/settings/payouts" target="_blank" rel="noopener noreferrer" className="text-[#635bff] hover:underline">Stripe Dashboard → Settings → Payouts</a></li>
+                            <li>Click &quot;Add bank account&quot;</li>
+                            <li>Enter your bank&apos;s routing number (9 digits)</li>
+                            <li>Enter your account number</li>
+                            <li>Confirm the account type (Checking or Savings)</li>
+                          </ol>
+                          <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                            <p className="text-blue-700"><strong>Tip:</strong> Use your organization&apos;s bank account, not a personal account. You can find routing/account numbers on a check or in your online banking.</p>
+                          </div>
+                        </div>
+                      </SetupInstructionItem>
+
+                      <SetupInstructionItem
+                        icon={User}
+                        title="Identity Verification"
+                        isOpen={openSections['identity'] || false}
+                        onToggle={() => toggleSection('identity')}
+                      >
+                        <div className="space-y-3 text-sm text-gray-600">
+                          <p><strong>What Stripe needs:</strong> Verification of the account representative (you).</p>
+                          <ol className="list-decimal list-inside space-y-2 ml-2">
+                            <li>Stripe will prompt you to verify your identity</li>
+                            <li>Have a valid government ID ready (driver&apos;s license, passport, or state ID)</li>
+                            <li>You may need to take a photo of your ID and a selfie</li>
+                            <li>Enter your personal details (name, DOB, last 4 of SSN)</li>
+                          </ol>
+                          <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                            <p className="text-blue-700"><strong>Why this is needed:</strong> This is required by law to prevent fraud. Your personal info is kept secure and separate from your organization.</p>
+                          </div>
+                        </div>
+                      </SetupInstructionItem>
+
+                      <SetupInstructionItem
+                        icon={FileText}
+                        title="Product Description"
+                        isOpen={openSections['product'] || false}
+                        onToggle={() => toggleSection('product')}
+                      >
+                        <div className="space-y-3 text-sm text-gray-600">
+                          <p><strong>What Stripe needs:</strong> A description of what you&apos;re selling/charging for.</p>
+                          <ol className="list-decimal list-inside space-y-2 ml-2">
+                            <li>Go to <a href="https://dashboard.stripe.com/settings/public" target="_blank" rel="noopener noreferrer" className="text-[#635bff] hover:underline">Stripe Dashboard → Settings → Public details</a></li>
+                            <li>For &quot;Product description&quot;, enter something like:</li>
+                          </ol>
+                          <div className="mt-2 p-3 bg-gray-100 rounded-lg font-mono text-xs">
+                            &quot;Event registration fees for religious retreats, conferences, and youth ministry programs.&quot;
+                          </div>
+                          <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                            <p className="text-blue-700"><strong>Keep it simple:</strong> Just describe that you collect registration fees for events. This helps Stripe understand your business.</p>
+                          </div>
+                        </div>
+                      </SetupInstructionItem>
+
+                      <SetupInstructionItem
+                        icon={LinkIcon}
+                        title="Website & Support Info"
+                        isOpen={openSections['website'] || false}
+                        onToggle={() => toggleSection('website')}
+                      >
+                        <div className="space-y-3 text-sm text-gray-600">
+                          <p><strong>What Stripe needs:</strong> Your website and customer support contact info.</p>
+                          <ol className="list-decimal list-inside space-y-2 ml-2">
+                            <li>Go to <a href="https://dashboard.stripe.com/settings/public" target="_blank" rel="noopener noreferrer" className="text-[#635bff] hover:underline">Stripe Dashboard → Settings → Public details</a></li>
+                            <li><strong>Website URL:</strong> Enter your organization&apos;s website (e.g., your church website)</li>
+                            <li><strong>Support phone:</strong> Enter a phone number where customers can reach you</li>
+                            <li><strong>Support email:</strong> Enter an email for payment questions</li>
+                          </ol>
+                          <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                            <p className="text-amber-800"><strong>For the confirmation/redirect page:</strong> If Stripe asks for a &quot;confirmation page URL&quot; or &quot;success URL&quot;, you can enter:</p>
+                            <code className="block mt-2 p-2 bg-white rounded text-xs break-all">
+                              {typeof window !== 'undefined' ? window.location.origin : 'https://chirhoevents.com'}/registration/success
+                            </code>
+                          </div>
+                        </div>
+                      </SetupInstructionItem>
+
+                      <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <p className="text-green-800 font-medium">After completing these steps:</p>
+                        <ul className="mt-2 text-sm text-green-700 list-disc list-inside">
+                          <li>Stripe typically reviews and approves within a few minutes</li>
+                          <li>You&apos;ll receive an email when your account is fully activated</li>
+                          <li>Refresh this page to see updated status</li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex gap-2 pt-2">
                 <Button
                   variant="outline"
@@ -271,6 +471,13 @@ export default function IntegrationsSettingsTab() {
                 >
                   <ExternalLink className="h-4 w-4 mr-2" />
                   Stripe Dashboard
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={fetchIntegrations}
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh Status
                 </Button>
               </div>
             </>
