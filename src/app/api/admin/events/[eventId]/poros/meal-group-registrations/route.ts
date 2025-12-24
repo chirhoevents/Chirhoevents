@@ -10,54 +10,77 @@ export async function GET(
     const user = await requireAdmin()
     const { eventId } = params
 
-    // Get group registrations with meal group assignments
+    // Get group registrations
     const groupRegs = await prisma.groupRegistration.findMany({
       where: { eventId },
       include: {
-        mealGroupAssignment: {
-          include: { mealGroup: true },
-        },
         _count: { select: { participants: true } },
       },
     })
 
-    // Get individual registrations with meal group assignments
+    // Get individual registrations
     const individualRegs = await prisma.individualRegistration.findMany({
       where: { eventId },
+    })
+
+    // Get all meal group assignments for this event's registrations
+    const mealGroupAssignments = await prisma.mealGroupAssignment.findMany({
+      where: {
+        OR: [
+          { groupRegistrationId: { in: groupRegs.map(r => r.id) } },
+          { individualRegistrationId: { in: individualRegs.map(r => r.id) } },
+        ],
+      },
       include: {
-        mealGroupAssignment: {
-          include: { mealGroup: true },
-        },
+        mealGroup: true,
       },
     })
 
+    // Create lookup maps
+    const groupAssignmentMap = new Map(
+      mealGroupAssignments
+        .filter(a => a.groupRegistrationId)
+        .map(a => [a.groupRegistrationId, a])
+    )
+    const individualAssignmentMap = new Map(
+      mealGroupAssignments
+        .filter(a => a.individualRegistrationId)
+        .map(a => [a.individualRegistrationId, a])
+    )
+
     const registrations = [
-      ...groupRegs.map(r => ({
-        id: r.id,
-        type: 'group' as const,
-        name: r.parishName,
-        participantCount: r._count.participants,
-        mealGroupAssignment: r.mealGroupAssignment
-          ? {
-              groupId: r.mealGroupAssignment.mealGroupId,
-              groupName: r.mealGroupAssignment.mealGroup.name,
-              colorHex: r.mealGroupAssignment.mealGroup.colorHex,
-            }
-          : null,
-      })),
-      ...individualRegs.map(r => ({
-        id: r.id,
-        type: 'individual' as const,
-        name: `${r.firstName} ${r.lastName}`,
-        participantCount: 1,
-        mealGroupAssignment: r.mealGroupAssignment
-          ? {
-              groupId: r.mealGroupAssignment.mealGroupId,
-              groupName: r.mealGroupAssignment.mealGroup.name,
-              colorHex: r.mealGroupAssignment.mealGroup.colorHex,
-            }
-          : null,
-      })),
+      ...groupRegs.map(r => {
+        const assignment = groupAssignmentMap.get(r.id)
+        return {
+          id: r.id,
+          type: 'group' as const,
+          name: r.parishName,
+          participantCount: r._count.participants,
+          mealGroupAssignment: assignment
+            ? {
+                groupId: assignment.mealGroupId,
+                groupName: assignment.mealGroup.name,
+                colorHex: assignment.mealGroup.colorHex,
+              }
+            : null,
+        }
+      }),
+      ...individualRegs.map(r => {
+        const assignment = individualAssignmentMap.get(r.id)
+        return {
+          id: r.id,
+          type: 'individual' as const,
+          name: `${r.firstName} ${r.lastName}`,
+          participantCount: 1,
+          mealGroupAssignment: assignment
+            ? {
+                groupId: assignment.mealGroupId,
+                groupName: assignment.mealGroup.name,
+                colorHex: assignment.mealGroup.colorHex,
+              }
+            : null,
+        }
+      }),
     ]
 
     return NextResponse.json(registrations)
