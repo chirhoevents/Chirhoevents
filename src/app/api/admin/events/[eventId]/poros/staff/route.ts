@@ -15,7 +15,7 @@ export async function GET(
     const staff = await prisma.porosStaff.findMany({
       where: {
         eventId,
-        ...(types ? { staffType: { in: types } } : {}),
+        ...(types ? { staffType: { in: types as any } } : {}),
       },
       orderBy: [{ staffType: 'asc' }, { lastName: 'asc' }],
     })
