@@ -10,58 +10,81 @@ export async function GET(
     const user = await requireAdmin()
     const { eventId } = params
 
-    // Get participants with small group assignments
+    // Get participants
     const participants = await prisma.participant.findMany({
       where: {
         groupRegistration: { eventId },
       },
       include: {
         groupRegistration: true,
-        smallGroupAssignment: {
-          include: { smallGroup: true },
-        },
       },
     })
 
-    // Get individual registrations with small group assignments
+    // Get individual registrations
     const individuals = await prisma.individualRegistration.findMany({
       where: { eventId },
+    })
+
+    // Get all small group assignments
+    const smallGroupAssignments = await prisma.smallGroupAssignment.findMany({
+      where: {
+        OR: [
+          { participantId: { in: participants.map(p => p.id) } },
+          { individualRegistrationId: { in: individuals.map(r => r.id) } },
+        ],
+      },
       include: {
-        smallGroupAssignment: {
-          include: { smallGroup: true },
-        },
+        smallGroup: true,
       },
     })
 
+    // Create lookup maps
+    const participantAssignmentMap = new Map(
+      smallGroupAssignments
+        .filter(a => a.participantId)
+        .map(a => [a.participantId, a])
+    )
+    const individualAssignmentMap = new Map(
+      smallGroupAssignments
+        .filter(a => a.individualRegistrationId)
+        .map(a => [a.individualRegistrationId, a])
+    )
+
     const result = [
-      ...participants.map(p => ({
-        id: p.id,
-        type: 'group' as const,
-        firstName: p.firstName,
-        lastName: p.lastName,
-        gender: p.gender,
-        parishName: p.groupRegistration?.parishName,
-        smallGroupAssignment: p.smallGroupAssignment
-          ? {
-              groupId: p.smallGroupAssignment.smallGroupId,
-              groupName: p.smallGroupAssignment.smallGroup.name,
-            }
-          : null,
-      })),
-      ...individuals.map(r => ({
-        id: r.id,
-        type: 'individual' as const,
-        firstName: r.firstName,
-        lastName: r.lastName,
-        gender: r.gender,
-        parishName: null,
-        smallGroupAssignment: r.smallGroupAssignment
-          ? {
-              groupId: r.smallGroupAssignment.smallGroupId,
-              groupName: r.smallGroupAssignment.smallGroup.name,
-            }
-          : null,
-      })),
+      ...participants.map(p => {
+        const assignment = participantAssignmentMap.get(p.id)
+        return {
+          id: p.id,
+          type: 'group' as const,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          gender: p.gender,
+          parishName: p.groupRegistration?.parishName,
+          smallGroupAssignment: assignment
+            ? {
+                groupId: assignment.smallGroupId,
+                groupName: assignment.smallGroup.name,
+              }
+            : null,
+        }
+      }),
+      ...individuals.map(r => {
+        const assignment = individualAssignmentMap.get(r.id)
+        return {
+          id: r.id,
+          type: 'individual' as const,
+          firstName: r.firstName,
+          lastName: r.lastName,
+          gender: r.gender,
+          parishName: null,
+          smallGroupAssignment: assignment
+            ? {
+                groupId: assignment.smallGroupId,
+                groupName: assignment.smallGroup.name,
+              }
+            : null,
+        }
+      }),
     ]
 
     return NextResponse.json(result)
