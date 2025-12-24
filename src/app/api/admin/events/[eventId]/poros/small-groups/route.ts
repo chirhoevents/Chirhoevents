@@ -15,12 +15,7 @@ export async function GET(
       include: {
         sgl: true,
         coSgl: true,
-        assignments: {
-          include: {
-            participant: true,
-            individualRegistration: true,
-          },
-        },
+        assignments: true,
       },
       orderBy: { groupNumber: 'asc' },
     })
