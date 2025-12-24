@@ -189,7 +189,15 @@ export async function POST(request: Request) {
       }
 
       try {
-        // For Stripe Connect, we need to create a PaymentIntent on the connected account
+        // For Stripe Connect, payment methods created with Elements are owned by the platform
+        // Use destination charges model - charge on platform, transfer to connected account
+
+        // Get card details from the payment method for receipts
+        const originalPm = await stripe.paymentMethods.retrieve(stripePaymentMethodId)
+        const cardBrand = originalPm.card?.brand || ''
+        const cardLast4 = originalPm.card?.last4 || ''
+
+        // Create PaymentIntent on platform with transfer to connected account
         const paymentIntent = await stripe.paymentIntents.create({
           amount: amountCents,
           currency: 'usd',
@@ -204,34 +212,21 @@ export async function POST(request: Request) {
             processedBy: user.id,
             processedVia: 'virtual_terminal'
           },
+          // Use destination charges - funds go to connected account
+          transfer_data: {
+            destination: org.stripeAccountId
+          },
           // Enable automatic payment methods for better compatibility
           automatic_payment_methods: {
             enabled: true,
             allow_redirects: 'never'
           }
-        }, {
-          stripeAccount: org.stripeAccountId // Route to org's Stripe Connect account
         })
 
         if (paymentIntent.status !== 'succeeded') {
           return NextResponse.json({
             error: `Payment failed with status: ${paymentIntent.status}`
           }, { status: 400 })
-        }
-
-        // Get card details for receipt
-        let cardBrand = ''
-        let cardLast4 = ''
-
-        try {
-          const pm = await stripe.paymentMethods.retrieve(
-            stripePaymentMethodId,
-            { stripeAccount: org.stripeAccountId }
-          )
-          cardBrand = pm.card?.brand || ''
-          cardLast4 = pm.card?.last4 || ''
-        } catch {
-          // Card details not critical, continue without them
         }
 
         paymentData.stripePaymentIntentId = paymentIntent.id
