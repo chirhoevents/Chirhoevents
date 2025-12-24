@@ -43,7 +43,11 @@ export async function PUT(request: Request, { params }: RouteParams) {
     // Verify event belongs to user's organization
     const existingEvent = await prisma.event.findUnique({
       where: { id: eventId },
-      select: { organizationId: true },
+      select: {
+        organizationId: true,
+        capacityTotal: true,
+        capacityRemaining: true,
+      },
     })
 
     if (!existingEvent) {
@@ -55,6 +59,23 @@ export async function PUT(request: Request, { params }: RouteParams) {
         { error: 'You do not have permission to edit this event' },
         { status: 403 }
       )
+    }
+
+    // Calculate new capacity values
+    // Only adjust capacityRemaining if capacityTotal has changed
+    const newCapacityTotal = data.capacityTotal ? parseInt(data.capacityTotal) : null
+    let newCapacityRemaining: number | null = null
+
+    if (newCapacityTotal !== null) {
+      if (existingEvent.capacityTotal !== null && existingEvent.capacityRemaining !== null) {
+        // Calculate how many spots are taken
+        const spotsTaken = existingEvent.capacityTotal - existingEvent.capacityRemaining
+        // Adjust remaining capacity based on new total
+        newCapacityRemaining = Math.max(0, newCapacityTotal - spotsTaken)
+      } else {
+        // No previous capacity set, so remaining = total
+        newCapacityRemaining = newCapacityTotal
+      }
     }
 
     // Update event with all related data
@@ -69,8 +90,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
         timezone: data.timezone || 'America/New_York',
         locationName: data.locationName || null,
         locationAddress: data.locationAddress || null,
-        capacityTotal: parseInt(data.capacityTotal) || null,
-        capacityRemaining: parseInt(data.capacityTotal) || null,
+        capacityTotal: newCapacityTotal,
+        capacityRemaining: newCapacityRemaining,
         registrationOpenDate: data.registrationOpenDate
           ? new Date(data.registrationOpenDate)
           : null,
