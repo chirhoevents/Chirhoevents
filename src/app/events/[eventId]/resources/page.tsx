@@ -25,9 +25,9 @@ export default async function ResourcePortalPage({ params, searchParams }: PageP
     notFound()
   }
 
-  // Check if portal is enabled and published
+  // Check if portal is enabled
   const settings = event.settings
-  if (!settings?.porosPublicPortalEnabled || !settings?.porosPublicPortalPublished) {
+  if (!settings?.publicPortalEnabled) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center p-8">
@@ -48,9 +48,9 @@ export default async function ResourcePortalPage({ params, searchParams }: PageP
       eventName={event.name}
       organizationName={event.organization.name}
       settings={{
-        showRoommateNames: settings.porosShowRoommateNames ?? true,
-        showSmallGroupMembers: settings.porosShowSmallGroupMembers ?? false,
-        showSglContact: settings.porosShowSglContact ?? true,
+        showRoommateNames: true,
+        showSmallGroupMembers: false,
+        showSglContact: true,
       }}
     />
   )
