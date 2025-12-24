@@ -36,7 +36,7 @@ export async function POST(
     })
 
     // Update building counts
-    const buildingIds = [...new Set(rooms.map((r: any) => r.buildingId))]
+    const buildingIds = Array.from(new Set(rooms.map((r: any) => r.buildingId)))
     for (const buildingId of buildingIds) {
       const buildingRooms = await prisma.room.findMany({
         where: { buildingId },
