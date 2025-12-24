@@ -22,13 +22,6 @@ export async function GET(
         groupRegistration: {
           select: { parishName: true },
         },
-        roomAssignment: {
-          include: {
-            room: {
-              include: { building: true },
-            },
-          },
-        },
       },
     })
 
@@ -38,57 +31,79 @@ export async function GET(
         eventId,
         housingType: 'on_campus',
       },
+    })
+
+    // Get room assignments for all participants and individuals
+    const roomAssignments = await prisma.roomAssignment.findMany({
+      where: {
+        OR: [
+          { participantId: { in: groupParticipants.map(p => p.id) } },
+          { individualRegistrationId: { in: individualRegistrations.map(r => r.id) } },
+        ],
+      },
       include: {
-        roomAssignment: {
-          include: {
-            room: {
-              include: { building: true },
-            },
-          },
+        room: {
+          include: { building: true },
         },
       },
     })
 
+    // Create lookup maps
+    const participantAssignmentMap = new Map(
+      roomAssignments
+        .filter(a => a.participantId)
+        .map(a => [a.participantId, a])
+    )
+    const individualAssignmentMap = new Map(
+      roomAssignments
+        .filter(a => a.individualRegistrationId)
+        .map(a => [a.individualRegistrationId, a])
+    )
+
     // Format response
     const participants = [
-      ...groupParticipants.map((p) => ({
-        id: p.id,
-        type: 'group' as const,
-        firstName: p.firstName,
-        lastName: p.lastName,
-        gender: p.gender,
-        isMinor: p.age !== null && p.age !== undefined ? p.age < 18 : false,
-        parishName: p.groupRegistration?.parishName,
-        groupRegistrationId: p.groupRegistrationId,
-        roomAssignment: p.roomAssignment
-          ? {
-              roomId: p.roomAssignment.roomId,
-              roomNumber: p.roomAssignment.room.roomNumber,
-              buildingName: p.roomAssignment.room.building.name,
-            }
-          : null,
-        roommatePreference: null,
-      })),
-      ...individualRegistrations.map((r) => ({
-        id: r.id,
-        type: 'individual' as const,
-        firstName: r.firstName,
-        lastName: r.lastName,
-        gender: r.gender,
-        isMinor: r.dateOfBirth
-          ? new Date().getFullYear() - new Date(r.dateOfBirth).getFullYear() < 18
-          : false,
-        parishName: null,
-        groupRegistrationId: null,
-        roomAssignment: r.roomAssignment
-          ? {
-              roomId: r.roomAssignment.roomId,
-              roomNumber: r.roomAssignment.room.roomNumber,
-              buildingName: r.roomAssignment.room.building.name,
-            }
-          : null,
-        roommatePreference: r.preferredRoommateName,
-      })),
+      ...groupParticipants.map((p) => {
+        const assignment = participantAssignmentMap.get(p.id)
+        return {
+          id: p.id,
+          type: 'group' as const,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          gender: p.gender,
+          isMinor: p.age !== null && p.age !== undefined ? p.age < 18 : false,
+          parishName: p.groupRegistration?.parishName,
+          groupRegistrationId: p.groupRegistrationId,
+          roomAssignment: assignment
+            ? {
+                roomId: assignment.roomId,
+                roomNumber: assignment.room.roomNumber,
+                buildingName: assignment.room.building.name,
+              }
+            : null,
+          roommatePreference: null,
+        }
+      }),
+      ...individualRegistrations.map((r) => {
+        const assignment = individualAssignmentMap.get(r.id)
+        return {
+          id: r.id,
+          type: 'individual' as const,
+          firstName: r.firstName,
+          lastName: r.lastName,
+          gender: r.gender,
+          isMinor: r.age !== null && r.age !== undefined ? r.age < 18 : false,
+          parishName: null,
+          groupRegistrationId: null,
+          roomAssignment: assignment
+            ? {
+                roomId: assignment.roomId,
+                roomNumber: assignment.room.roomNumber,
+                buildingName: assignment.room.building.name,
+              }
+            : null,
+          roommatePreference: r.preferredRoommate || null,
+        }
+      }),
     ]
 
     return NextResponse.json(participants)

@@ -24,14 +24,13 @@ export async function POST(
     let skipped = 0
     const errors: string[] = []
 
-    // Get unassigned participants (only on_campus housing)
-    const participants = await prisma.participant.findMany({
+    // Get all participants (only on_campus housing)
+    const allParticipants = await prisma.participant.findMany({
       where: {
         groupRegistration: {
           eventId,
           housingType: 'on_campus',
         },
-        ...(onlyUnassigned ? { roomAssignment: { is: null } } : {}),
         ...(genderFilter !== 'all' ? { gender: genderFilter as any } : {}),
         ...(typeFilter === 'youth' ? { age: { lt: 18 } } : {}),
         ...(typeFilter === 'chaperone' ? { age: { gte: 18 } } : {}),
@@ -44,6 +43,22 @@ export async function POST(
         { lastName: 'asc' },
       ],
     })
+
+    // Get existing room assignments to filter out already assigned participants
+    const existingAssignments = await prisma.roomAssignment.findMany({
+      where: {
+        participantId: { in: allParticipants.map(p => p.id) },
+      },
+      select: { participantId: true },
+    })
+    const assignedParticipantIds = new Set(
+      existingAssignments.map(a => a.participantId).filter(Boolean)
+    )
+
+    // Filter participants based on onlyUnassigned option
+    const participants = onlyUnassigned
+      ? allParticipants.filter(p => !assignedParticipantIds.has(p.id))
+      : allParticipants
 
     // Get available rooms
     const rooms = await prisma.room.findMany({
