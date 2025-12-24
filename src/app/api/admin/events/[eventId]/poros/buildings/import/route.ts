@@ -104,7 +104,7 @@ export async function POST(
     let buildingsCreated = 0
     let roomsCreated = 0
 
-    for (const [, buildingData] of buildingsMap) {
+    for (const buildingData of Array.from(buildingsMap.values())) {
       // Get the max display order for the event
       const maxOrder = await prisma.building.aggregate({
         where: { eventId: params.eventId },
@@ -120,7 +120,7 @@ export async function POST(
           housingType: buildingData.housingType as any,
           totalFloors: buildingData.totalFloors,
           totalRooms: buildingData.rooms.length,
-          totalBeds: buildingData.rooms.reduce((sum, r) => sum + r.capacity, 0),
+          totalBeds: buildingData.rooms.reduce((sum: number, r: { capacity: number }) => sum + r.capacity, 0),
           displayOrder: (maxOrder._max.displayOrder || 0) + 1
         }
       })

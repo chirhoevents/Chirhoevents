@@ -2,6 +2,17 @@ import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+interface RoomWithBuilding {
+  id: string
+  buildingId: string
+  roomNumber: string
+  floor: number
+  capacity: number
+  currentOccupancy: number
+  adaFeatures: string | null
+  building: { name: string }
+}
+
 // GET - List all ADA accessible rooms
 export async function GET(
   request: NextRequest,
@@ -30,7 +41,7 @@ export async function GET(
       ]
     })
 
-    return NextResponse.json(adaRooms.map(room => ({
+    return NextResponse.json(adaRooms.map((room: RoomWithBuilding) => ({
       id: room.id,
       buildingId: room.buildingId,
       buildingName: room.building.name,
