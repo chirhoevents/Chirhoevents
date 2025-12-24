@@ -23,7 +23,7 @@ import {
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Badge } from '@/components/ui/badge'
 import { Wand2, Loader2, AlertCircle, CheckCircle2, Info } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 
 interface Building {
   id: string

@@ -47,7 +47,7 @@ import {
   Accessibility,
   Users
 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 
 interface RoomsManagerProps {
   eventId: string

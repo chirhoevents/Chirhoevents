@@ -41,7 +41,7 @@ import {
   Wand2,
   Clock,
 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 
 interface PorosMealGroupsProps {
   eventId: string

@@ -42,7 +42,7 @@ import {
   AlertCircle,
   Check
 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 
 interface ParticipantAssignmentsProps {
   eventId: string

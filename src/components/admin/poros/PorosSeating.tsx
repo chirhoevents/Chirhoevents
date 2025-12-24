@@ -49,7 +49,7 @@ import {
   UserPlus,
   UserMinus,
 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 
 interface PorosSeatingProps {
   eventId: string

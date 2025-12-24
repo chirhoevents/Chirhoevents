@@ -37,7 +37,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Building } from '../PorosHousing'
 import { Plus, MoreHorizontal, Pencil, Trash2, Building2, Loader2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 
 interface BuildingsManagerProps {
   eventId: string
