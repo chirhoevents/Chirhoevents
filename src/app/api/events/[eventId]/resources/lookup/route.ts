@@ -20,11 +20,9 @@ export async function GET(
       include: { settings: true },
     })
 
-    if (!event?.settings?.porosPublicPortalEnabled || !event?.settings?.porosPublicPortalPublished) {
+    if (!event?.settings?.publicPortalEnabled) {
       return NextResponse.json({ message: 'Portal not available' }, { status: 403 })
     }
-
-    const settings = event.settings
 
     // Parse name into first/last
     const nameParts = query.split(' ').filter(Boolean)
@@ -36,7 +34,7 @@ export async function GET(
     const lastName = nameParts.slice(1).join(' ')
 
     // Search in participants (group registrations)
-    let participant = await prisma.participant.findFirst({
+    const participant = await prisma.participant.findFirst({
       where: {
         groupRegistration: { eventId },
         firstName: { equals: firstName, mode: 'insensitive' },
@@ -44,30 +42,6 @@ export async function GET(
       },
       include: {
         groupRegistration: true,
-        roomAssignment: {
-          include: {
-            room: {
-              include: {
-                building: true,
-                assignments: {
-                  include: { participant: true },
-                },
-              },
-            },
-          },
-        },
-        smallGroupAssignment: {
-          include: {
-            smallGroup: {
-              include: {
-                sgl: true,
-                assignments: {
-                  include: { participant: true },
-                },
-              },
-            },
-          },
-        },
       },
     })
 
@@ -80,77 +54,11 @@ export async function GET(
           firstName: { equals: firstName, mode: 'insensitive' },
           lastName: { equals: lastName, mode: 'insensitive' },
         },
-        include: {
-          roomAssignment: {
-            include: {
-              room: {
-                include: {
-                  building: true,
-                  assignments: {
-                    include: { individualRegistration: true },
-                  },
-                },
-              },
-            },
-          },
-          smallGroupAssignment: {
-            include: {
-              smallGroup: {
-                include: {
-                  sgl: true,
-                  assignments: {
-                    include: { individualRegistration: true },
-                  },
-                },
-              },
-            },
-          },
-          seatingAssignment: {
-            include: { section: true },
-          },
-          mealGroupAssignment: {
-            include: { mealGroup: true },
-          },
-        },
       })
     }
 
     if (!participant && !individual) {
       return NextResponse.json({ message: 'Participant not found' }, { status: 404 })
-    }
-
-    // Get seating and meal group for participant via group registration
-    let seating = null
-    let mealGroup = null
-
-    if (participant) {
-      const groupSeating = await prisma.seatingAssignment.findFirst({
-        where: { groupRegistrationId: participant.groupRegistrationId },
-        include: { section: true },
-      })
-      if (groupSeating) {
-        seating = {
-          sectionName: groupSeating.section.name,
-          sectionCode: groupSeating.section.sectionCode,
-          color: groupSeating.section.color,
-          locationDescription: groupSeating.section.locationDescription,
-        }
-      }
-
-      const groupMeal = await prisma.mealGroupAssignment.findFirst({
-        where: { groupRegistrationId: participant.groupRegistrationId },
-        include: { mealGroup: true },
-      })
-      if (groupMeal) {
-        mealGroup = {
-          name: groupMeal.mealGroup.name,
-          color: groupMeal.mealGroup.color,
-          colorHex: groupMeal.mealGroup.colorHex,
-          breakfastTime: groupMeal.mealGroup.breakfastTime,
-          lunchTime: groupMeal.mealGroup.lunchTime,
-          dinnerTime: groupMeal.mealGroup.dinnerTime,
-        }
-      }
     }
 
     // Build response
@@ -163,83 +71,118 @@ export async function GET(
       },
     }
 
-    // Housing
-    const roomAssignment = participant?.roomAssignment || individual?.roomAssignment
+    // Get room assignment
+    const roomAssignment = await prisma.roomAssignment.findFirst({
+      where: participant
+        ? { participantId: participant.id }
+        : { individualRegistrationId: individual?.id },
+      include: {
+        room: {
+          include: { building: true },
+        },
+      },
+    })
+
     if (roomAssignment) {
-      const roommates = roomAssignment.room.assignments
-        .filter((a: any) => {
+      // Get roommates
+      const allRoomAssignments = await prisma.roomAssignment.findMany({
+        where: { roomId: roomAssignment.roomId },
+      })
+
+      const roommateIds = allRoomAssignments
+        .filter(a => {
           if (participant && a.participantId !== participant.id) return true
           if (individual && a.individualRegistrationId !== individual.id) return true
           return false
         })
-        .map((a: any) => ({
-          firstName: a.participant?.firstName || a.individualRegistration?.firstName,
-          lastName: a.participant?.lastName || a.individualRegistration?.lastName,
-        }))
+
+      // Get roommate names
+      const roommates: any[] = []
+      for (const a of roommateIds) {
+        if (a.participantId) {
+          const p = await prisma.participant.findUnique({
+            where: { id: a.participantId },
+            select: { firstName: true, lastName: true },
+          })
+          if (p) roommates.push(p)
+        } else if (a.individualRegistrationId) {
+          const i = await prisma.individualRegistration.findUnique({
+            where: { id: a.individualRegistrationId },
+            select: { firstName: true, lastName: true },
+          })
+          if (i) roommates.push(i)
+        }
+      }
 
       response.housing = {
         buildingName: roomAssignment.room.building.name,
         roomNumber: roomAssignment.room.roomNumber,
         floor: roomAssignment.room.floor,
-        roommates: settings.porosShowRoommateNames ? roommates : [],
+        roommates,
       }
     }
 
-    // Small Group
-    const sgAssignment = participant?.smallGroupAssignment || individual?.smallGroupAssignment
-    if (sgAssignment) {
-      const members = sgAssignment.smallGroup.assignments
-        .filter((a: any) => {
-          if (participant && a.participantId !== participant.id) return true
-          if (individual && a.individualRegistrationId !== individual.id) return true
-          return false
-        })
-        .map((a: any) => ({
-          firstName: a.participant?.firstName || a.individualRegistration?.firstName,
-          lastName: a.participant?.lastName || a.individualRegistration?.lastName,
-        }))
+    // Get small group assignment
+    const sgAssignment = await prisma.smallGroupAssignment.findFirst({
+      where: participant
+        ? { participantId: participant.id }
+        : { individualRegistrationId: individual?.id },
+      include: {
+        smallGroup: {
+          include: { sgl: true },
+        },
+      },
+    })
 
+    if (sgAssignment) {
       response.smallGroup = {
         name: sgAssignment.smallGroup.name,
         groupNumber: sgAssignment.smallGroup.groupNumber,
         meetingTime: sgAssignment.smallGroup.meetingTime,
         meetingPlace: sgAssignment.smallGroup.meetingPlace,
-        sgl: sgAssignment.smallGroup.sgl && settings.porosShowSglContact
+        sgl: sgAssignment.smallGroup.sgl
           ? {
               firstName: sgAssignment.smallGroup.sgl.firstName,
               lastName: sgAssignment.smallGroup.sgl.lastName,
-              email: sgAssignment.smallGroup.sgl.email,
-              phone: sgAssignment.smallGroup.sgl.phone,
             }
           : null,
-        members: settings.porosShowSmallGroupMembers ? members : [],
       }
     }
 
-    // Seating (from individual or computed for participant)
-    if (individual?.seatingAssignment) {
+    // Get seating assignment
+    const seatingAssignment = await prisma.seatingAssignment.findFirst({
+      where: participant
+        ? { groupRegistrationId: participant.groupRegistrationId }
+        : { individualRegistrationId: individual?.id },
+      include: { section: true },
+    })
+
+    if (seatingAssignment) {
       response.seating = {
-        sectionName: individual.seatingAssignment.section.name,
-        sectionCode: individual.seatingAssignment.section.sectionCode,
-        color: individual.seatingAssignment.section.color,
-        locationDescription: individual.seatingAssignment.section.locationDescription,
+        sectionName: seatingAssignment.section.name,
+        sectionCode: seatingAssignment.section.sectionCode,
+        color: seatingAssignment.section.color,
+        locationDescription: seatingAssignment.section.locationDescription,
       }
-    } else if (seating) {
-      response.seating = seating
     }
 
-    // Meal Group (from individual or computed for participant)
-    if (individual?.mealGroupAssignment) {
+    // Get meal group assignment
+    const mealAssignment = await prisma.mealGroupAssignment.findFirst({
+      where: participant
+        ? { groupRegistrationId: participant.groupRegistrationId }
+        : { individualRegistrationId: individual?.id },
+      include: { mealGroup: true },
+    })
+
+    if (mealAssignment) {
       response.mealGroup = {
-        name: individual.mealGroupAssignment.mealGroup.name,
-        color: individual.mealGroupAssignment.mealGroup.color,
-        colorHex: individual.mealGroupAssignment.mealGroup.colorHex,
-        breakfastTime: individual.mealGroupAssignment.mealGroup.breakfastTime,
-        lunchTime: individual.mealGroupAssignment.mealGroup.lunchTime,
-        dinnerTime: individual.mealGroupAssignment.mealGroup.dinnerTime,
+        name: mealAssignment.mealGroup.name,
+        color: mealAssignment.mealGroup.color,
+        colorHex: mealAssignment.mealGroup.colorHex,
+        breakfastTime: mealAssignment.mealGroup.breakfastTime,
+        lunchTime: mealAssignment.mealGroup.lunchTime,
+        dinnerTime: mealAssignment.mealGroup.dinnerTime,
       }
-    } else if (mealGroup) {
-      response.mealGroup = mealGroup
     }
 
     return NextResponse.json(response)
