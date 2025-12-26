@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Home,
   Users,
@@ -12,12 +14,49 @@ import {
   AlertTriangle,
   CheckCircle,
   Search,
-  MapPin
+  MapPin,
+  Phone,
+  Mail,
+  Loader2
 } from 'lucide-react'
 
 interface PorosOverviewProps {
   eventId: string
   settings: any
+}
+
+interface SearchResult {
+  id: string
+  type: 'group'
+  groupName: string
+  leaderName: string
+  leaderEmail: string | null
+  leaderPhone: string | null
+  diocese: string | null
+  housingType: string | null
+  participantCount: number
+  maleCount: number
+  femaleCount: number
+  roomAssignments: { building: string; room: string; gender: string }[]
+  seating: { section: string; row: number | null } | null
+  smallGroup: { id: string; name: string } | null
+  mealColor: string | null
+}
+
+// Helper function for meal color hex values
+function getMealColorHex(color: string): string {
+  const colors: Record<string, string> = {
+    blue: '#3498db',
+    red: '#e74c3c',
+    orange: '#e67e22',
+    yellow: '#f1c40f',
+    green: '#27ae60',
+    purple: '#9b59b6',
+    brown: '#8b4513',
+    grey: '#95a5a6',
+    gray: '#95a5a6',
+  }
+  return colors[color.toLowerCase()] || '#6b7280'
 }
 
 interface PorosStats {
@@ -65,10 +104,43 @@ export function PorosOverview({ eventId, settings }: PorosOverviewProps) {
   const [stats, setStats] = useState<PorosStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
+  const [searching, setSearching] = useState(false)
 
   useEffect(() => {
     fetchStats()
   }, [eventId])
+
+  // Debounced search
+  useEffect(() => {
+    if (searchTerm.length < 2) {
+      setSearchResults([])
+      return
+    }
+
+    const timer = setTimeout(() => {
+      performSearch(searchTerm)
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [searchTerm, eventId])
+
+  async function performSearch(query: string) {
+    setSearching(true)
+    try {
+      const response = await fetch(
+        `/api/admin/events/${eventId}/poros/search?q=${encodeURIComponent(query)}`
+      )
+      if (response.ok) {
+        const data = await response.json()
+        setSearchResults(data)
+      }
+    } catch (error) {
+      console.error('Search failed:', error)
+    } finally {
+      setSearching(false)
+    }
+  }
 
   async function fetchStats() {
     try {
@@ -405,13 +477,126 @@ export function PorosOverview({ eventId, settings }: PorosOverviewProps) {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
             />
+            {searching && (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+            )}
           </div>
-          {searchTerm && (
-            <div className="mt-4 p-4 bg-muted/50 rounded-lg">
-              <p className="text-sm text-muted-foreground">
-                Search functionality will display matching groups here...
-              </p>
-            </div>
+
+          {searchTerm.length >= 2 && (
+            <ScrollArea className="mt-4 max-h-[500px]">
+              {searchResults.length === 0 && !searching ? (
+                <div className="p-4 bg-muted/50 rounded-lg text-center">
+                  <p className="text-sm text-muted-foreground">
+                    No groups found matching &quot;{searchTerm}&quot;
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {searchResults.map((result) => (
+                    <div
+                      key={result.id}
+                      className="p-4 border rounded-lg bg-white hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <h4 className="font-semibold text-navy">{result.groupName}</h4>
+                          {result.diocese && (
+                            <p className="text-sm text-muted-foreground">{result.diocese}</p>
+                          )}
+                        </div>
+                        <div className="flex gap-1">
+                          {result.housingType && (
+                            <Badge variant="outline" className="text-xs">
+                              {result.housingType === 'on_campus' ? 'On-Campus' :
+                               result.housingType === 'off_campus' ? 'Off-Campus' : 'Day Pass'}
+                            </Badge>
+                          )}
+                          {result.mealColor && (
+                            <Badge
+                              className="text-xs text-white"
+                              style={{
+                                backgroundColor: getMealColorHex(result.mealColor)
+                              }}
+                            >
+                              {result.mealColor}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                        <div className="flex items-center gap-1">
+                          <Users className="w-3 h-3 text-muted-foreground" />
+                          <span>{result.participantCount} participants</span>
+                          <span className="text-blue-600">({result.maleCount}M</span>
+                          <span className="text-pink-600">{result.femaleCount}F)</span>
+                        </div>
+                        {result.leaderName && (
+                          <div className="text-muted-foreground">
+                            Leader: {result.leaderName}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        {result.leaderPhone && (
+                          <a
+                            href={`tel:${result.leaderPhone}`}
+                            className="flex items-center gap-1 text-navy hover:underline"
+                          >
+                            <Phone className="w-3 h-3" />
+                            {result.leaderPhone}
+                          </a>
+                        )}
+                        {result.leaderEmail && (
+                          <a
+                            href={`mailto:${result.leaderEmail}`}
+                            className="flex items-center gap-1 text-navy hover:underline"
+                          >
+                            <Mail className="w-3 h-3" />
+                            {result.leaderEmail}
+                          </a>
+                        )}
+                      </div>
+
+                      {/* Assignments Summary */}
+                      <div className="mt-3 pt-3 border-t flex flex-wrap gap-2 text-xs">
+                        {result.roomAssignments.length > 0 && (
+                          <div className="flex items-center gap-1 bg-green-50 text-green-700 px-2 py-1 rounded">
+                            <Home className="w-3 h-3" />
+                            {result.roomAssignments.map((r, i) => (
+                              <span key={i}>
+                                {r.building} {r.room}
+                                {i < result.roomAssignments.length - 1 ? ', ' : ''}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {result.seating && (
+                          <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                            <Grid3X3 className="w-3 h-3" />
+                            {result.seating.section}
+                            {result.seating.row && ` Row ${result.seating.row}`}
+                          </div>
+                        )}
+                        {result.smallGroup && (
+                          <div className="flex items-center gap-1 bg-purple-50 text-purple-700 px-2 py-1 rounded">
+                            <Users className="w-3 h-3" />
+                            {result.smallGroup.name}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          )}
+
+          {searchTerm.length > 0 && searchTerm.length < 2 && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Type at least 2 characters to search...
+            </p>
           )}
         </CardContent>
       </Card>
