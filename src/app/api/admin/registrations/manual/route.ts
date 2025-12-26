@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { generateIndividualConfirmationCode } from '@/lib/access-code'
+import { isAdminRole } from '@/lib/permissions'
+import { UserRole } from '@prisma/client'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -14,13 +16,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user from database to verify org admin role
+    // Get user from database to verify admin role
     const user = await prisma.user.findFirst({
       where: { clerkUserId: userId },
       include: { organization: true },
     })
 
-    if (!user || user.role !== 'org_admin') {
+    if (!user || !isAdminRole(user.role as UserRole)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
