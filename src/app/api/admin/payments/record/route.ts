@@ -82,6 +82,30 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check for duplicate payment (same amount within last 30 seconds)
+    const thirtySecondsAgo = new Date(Date.now() - 30000)
+    const duplicatePayment = await prisma.payment.findFirst({
+      where: {
+        registrationId,
+        registrationType: registrationType as 'individual' | 'group',
+        amount: paymentAmount,
+        paymentMethod: paymentMethod as 'card' | 'check' | 'cash' | 'bank_transfer' | 'other',
+        createdAt: { gte: thirtySecondsAgo },
+      },
+    })
+
+    if (duplicatePayment) {
+      console.warn('Duplicate payment detected:', {
+        registrationId,
+        amount: paymentAmount,
+        existingPaymentId: duplicatePayment.id,
+      })
+      return NextResponse.json(
+        { error: 'Duplicate payment detected. This payment was already recorded.' },
+        { status: 409 }
+      )
+    }
+
     // Verify the registration belongs to the user's organization
     if (paymentBalance.organizationId !== user.organizationId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
