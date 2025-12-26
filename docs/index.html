@@ -1,0 +1,1812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mount 2000 Dashboard</title>
+    <link rel="icon" type="image/png" href="/favicon/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg" />
+    <link rel="shortcut icon" href="/favicon/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="M2K Portal" />
+    <link rel="manifest" href="/favicon/site.webmanifest" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: #f3f4f6;
+            min-height: 100vh;
+            color: #1f2937;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Modern Top Navigation */
+        .top-nav {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            color: white;
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .top-nav-left {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .top-nav-title {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .top-nav-subtitle {
+            font-size: 13px;
+            font-weight: 500;
+            opacity: 0.9;
+        }
+
+        .top-nav-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .top-nav-btn {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .top-nav-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .header {
+            display: none;
+        }
+
+        /* Loading and Error States */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .loading-content {
+            text-align: center;
+            padding: 40px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #061d28;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #fee;
+            border: 2px solid #fcc;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            margin: 50px auto;
+            max-width: 600px;
+        }
+
+        .error-message h2 {
+            color: #c00;
+            margin-bottom: 15px;
+            font-size: 1.8em;
+        }
+
+        .error-message p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        /* Tab System */
+        .tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 0;
+            flex-wrap: wrap;
+            background: white;
+            padding: 0;
+            border-radius: 0;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            border-bottom: 2px solid #e5e7eb;
+            position: sticky;
+            top: 60px;
+            z-index: 99;
+        }
+
+        .tab-button {
+            padding: 16px 24px;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            font-size: 14px;
+            color: #6b7280;
+            white-space: nowrap;
+            flex-shrink: 0;
+            border-radius: 0;
+        }
+
+        .tab-button.active {
+            background: transparent;
+            color: #3b82f6;
+            border-bottom-color: #3b82f6;
+            box-shadow: none;
+        }
+
+        .tab-button:hover {
+            background: #f9fafb;
+            color: #1e40af;
+        }
+
+        .tab-button.active:hover {
+            background: #f9fafb;
+            color: #3b82f6;
+        }
+
+        /* Content Area */
+        .content-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .tab-content {
+            display: none;
+            background: transparent;
+            padding: 0;
+            border-radius: 0;
+            box-shadow: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .tab-content h2 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        /* Dashboard Statistics */
+        .dashboard-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+        }
+
+        .stat-card:hover {
+            box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+            border-color: #3b82f6;
+        }
+
+        .stat-card h3 {
+            font-size: 1.8em;
+            margin-bottom: 6px;
+            color: #1f2937;
+            font-weight: 700;
+        }
+
+        .stat-card p {
+            color: #6b7280;
+            font-size: 0.85em;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        /* Resource Cards */
+        .resource-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .resource-card {
+            background: white;
+            border-left: 4px solid #1b2937;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+
+        .resource-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .resource-card h3 {
+            color: #1b2937;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .resource-card .icon {
+            font-size: 1.8em;
+        }
+
+        .resource-link-box {
+            background: white;
+            border: 2px dashed #bdc3c7;
+            border-radius: 6px;
+            padding: 15px;
+            min-height: 80px;
+            color: #6c757d;
+            font-style: italic;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Search */
+        .search-bar {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 15px;
+            margin-bottom: 20px;
+            transition: all 0.2s ease;
+        }
+
+        .search-bar:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        /* Room Cards */
+        .room-card {
+            background: white;
+            padding: 16px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .room-card:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transform: translateY(-2px);
+            border-left-color: #2563eb;
+        }
+
+        /* Status Indicators */
+        .section-id {
+            background: #3b82f6;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .assignment-status {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .status-assigned {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-unassigned {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Gender Color Coding */
+        .male-section {
+            background: #dbeafe;
+            border-left: 4px solid #3b82f6;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 8px 0;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .female-section {
+            background: #fce7f3;
+            border-left: 4px solid #ec4899;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 8px 0;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            margin: 5px;
+            font-size: 14px;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #059669;
+        }
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+        }
+        .btn-warning:hover {
+            background: #d97706;
+        }
+
+        /* Tables */
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            overflow: hidden;
+            border-radius: 8px;
+        }
+
+        .table th, .table td {
+            padding: 14px 16px;
+            text-align: left;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 14px;
+        }
+
+        .table th {
+            background: #f9fafb;
+            color: #6b7280;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.75em;
+            letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+        }
+
+        .table tr:hover {
+            background: #f9fafb;
+        }
+
+        .table tbody tr {
+            transition: all 0.2s ease;
+        }
+
+        /* Capacity Displays */
+        .capacity-display {
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.875em;
+        }
+
+        .capacity-positive { background: #d1fae5; color: #065f46; }
+        .capacity-negative { background: #fee2e2; color: #991b1b; }
+        .capacity-zero { background: #fef3c7; color: #92400e; }
+
+        /* Table Containers */
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        /* Management Sections */
+        .management-section {
+            margin-top: 30px;
+            padding: 24px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+
+        /* Notifications */
+        .notification {
+            padding: 16px;
+            margin: 12px 0;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .notification.warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+
+        .notification.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .notification.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        /* Data Version Badge */
+        .version-badge {
+            display: inline-block;
+            background: #27ae60;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-left: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .version-badge:hover {
+            background: #229954;
+            transform: scale(1.05);
+        }
+
+        /* Favorite Star */
+        .favorite-star {
+            cursor: pointer;
+            font-size: 20px;
+            transition: all 0.3s ease;
+            user-select: none;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+        }
+
+        .favorite-star:hover {
+            transform: scale(1.2);
+        }
+
+        .favorite-star.favorited {
+            color: #f1c40f;
+        }
+
+        /* Login Button */
+        .header {
+            position: relative;
+        }
+
+        .login-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.75em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .login-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 8px;
+            }
+
+            .header {
+                padding: 12px;
+                margin-bottom: 12px;
+            }
+
+            .header h1 {
+                font-size: 1.1em;
+                margin-bottom: 4px;
+            }
+
+            .header h2 {
+                font-size: 0.75em;
+            }
+
+            .login-btn {
+                top: 10px;
+                right: 10px;
+                padding: 4px 8px;
+                font-size: 0.7em;
+            }
+            
+            .dashboard-stats {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+            
+            .stat-card {
+                padding: 10px;
+            }
+            
+            .stat-card h3 {
+                font-size: 1.2em;
+                margin-bottom: 5px;
+            }
+            
+            .stat-card p {
+                font-size: 0.8em;
+            }
+            
+            .tabs {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 4px;
+            }
+            
+            .tab-button {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+            
+            .search-bar {
+                padding: 12px;
+                font-size: 14px;
+                margin-bottom: 15px;
+            }
+            
+            .room-card {
+                padding: 12px;
+                margin: 8px 0;
+            }
+            
+            .table {
+                font-size: 11px;
+            }
+            
+            .table th, .table td {
+                padding: 6px;
+            }
+
+            .resource-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <h2>Loading Mount 2K Data...</h2>
+            <p id="loading-status">Searching for the latest data file...</p>
+        </div>
+    </div>
+
+    <div class="container" id="main-container" style="display: none;">
+        <!-- Modern Top Navigation -->
+        <div class="top-nav">
+            <div class="top-nav-left">
+                <div class="top-nav-title">Mount 2K Portal</div>
+                <div class="top-nav-subtitle">Housing and Small Group Assignments - 2026 <span id="data-version-badge" class="version-badge" style="display: inline-block; margin-left: 8px; cursor: pointer;" onclick="location.reload()" title="Click to refresh"></span></div>
+            </div>
+            <div class="top-nav-right">
+                <a href="/master.html" class="top-nav-btn" onclick="ensureHTTPS(event, '/master.html')">🔐 Admin Login</a>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-button active" onclick="switchTab('dashboard')">Assignment Dashboard</button>
+            <button class="tab-button" onclick="switchTab('info')">Meal Times</button>
+            <button class="tab-button" onclick="switchTab('schedule')">Schedule</button>
+            <button class="tab-button" onclick="switchTab('resources')">Resources</button>
+        </div>
+
+        <!-- Content Wrapper -->
+        <div class="content-wrapper">
+
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab-content active">
+            <h2>Assignment Dashboard</h2>
+            
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <h3 id="total-groups">0</h3>
+                    <p>Total Youth Groups</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="total-participants">0</h3>
+                    <p>Total Participants</p>
+                </div>
+            </div>
+
+            <h3 style="margin-bottom: 10px; color: #061d28;">🔍 Quick Parish Assignment Search</h3>
+            <input type="text" class="search-bar" id="parish-search" placeholder="🔍 Search by Parish, Group ID, Leader, Phone, Seminarian SGL, or Religious..." oninput="performSearch()" autocomplete="off">
+
+            <div id="search-results"></div>
+
+            <!-- Favorites Section -->
+            <div id="favorites-section" style="background: #fffef0; padding: 15px; border-radius: 8px; margin-top: 20px; border: 2px solid #f1c40f; display: none;">
+                <h3 style="color: #061d28; margin-bottom: 15px;">⭐ Your Favorited Groups</h3>
+                <div id="favorites-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;"></div>
+            </div>
+
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 20px;">
+                <h3>Complete Assignment Overview</h3>
+                <div id="assignment-overview"></div>
+            </div>
+        </div>
+
+        <!-- Info Tab -->
+        <div id="info" class="tab-content">
+            <h2>🍽️ Meal Times</h2>
+            <p style="color: #6c757d; margin-bottom: 20px;">View your group's meal schedule based on your assigned color. Each color group has designated times for breakfast, lunch, and dinner to ensure smooth service for all participants.</p>
+
+            <div class="resource-card" style="border-left: 4px solid #1b2937; border-radius: 12px; padding: 20px; background: white; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06); margin-bottom: 20px;">
+                <h3 style="color: #1b2937; margin-bottom: 15px; font-size: 1.4em; font-weight: 700; display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.8em;">📅</span> Your Group's Meal Schedule
+                </h3>
+                <p style="color: #666; margin-bottom: 15px;">Select your assigned meal color to view your specific meal times:</p>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;" id="info-meal-color-buttons">
+                    <!-- Meal color buttons will be loaded here -->
+                </div>
+                <div id="info-meal-schedule-display" style="background: #f8f9fa; border-radius: 8px; padding: 15px; display: none;">
+                    <!-- Meal schedule appears here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Schedule Tab -->
+        <div id="schedule" class="tab-content">
+            <h2>Mount 2K Schedule</h2>
+            <p style="color: #6c757d; margin-bottom: 20px;">Complete event schedule for the retreat weekend. Click on each day to expand/collapse.</p>
+
+            <div id="schedule-container">
+                <!-- Schedule will be loaded dynamically from JSON -->
+            </div>
+        </div>
+
+        <!-- Resources Tab -->
+        <div id="resources" class="tab-content">
+            <h2>Mount 2K Resources</h2>
+            <p style="color: #6c757d; margin-bottom: 20px;">Quick access to important resources and information for the retreat.</p>
+
+            <div class="resource-grid" id="resource-grid">
+                <!-- Resources loaded dynamically from JSON -->
+            </div>
+        </div>
+
+        </div> <!-- End of content-wrapper -->
+    </div>
+
+    <script>
+        // ===== GLOBAL VARIABLES =====
+        let appData = {
+            youthGroups: [],
+            rooms: [],  // Unified rooms array
+            housingRooms: [],  // Filtered view for backward compatibility
+            smallGroupRooms: [],  // Filtered view for backward compatibility
+            housingAssignments: {
+                male: {},
+                female: {}
+            },
+            smallGroupAssignments: {},
+            mealColorAssignments: {},
+            mealTimes: {},
+            adaIndividuals: [],
+            resources: []
+        };
+
+        let currentDataVersion = 0;
+        let dataTimestamp = null;
+
+        // PWA Install prompt
+        let deferredInstallPrompt = null;
+
+        // ===== HTTPS ENFORCEMENT =====
+        function ensureHTTPS(event, path) {
+            // Only enforce HTTPS on production (not localhost)
+            if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                event.preventDefault();
+                const httpsUrl = 'https://' + window.location.host + path;
+                window.location.href = httpsUrl;
+            }
+        }
+
+        // ===== FAVORITE FUNCTIONS =====
+        function getFavorites() {
+            const favorites = localStorage.getItem('m2k_favorites');
+            return favorites ? JSON.parse(favorites) : [];
+        }
+
+        function saveFavorites(favorites) {
+            localStorage.setItem('m2k_favorites', JSON.stringify(favorites));
+        }
+
+        function toggleFavorite(groupId) {
+            let favorites = getFavorites();
+            const index = favorites.indexOf(groupId);
+
+            if (index > -1) {
+                // Remove from favorites
+                favorites.splice(index, 1);
+            } else {
+                // Add to favorites
+                favorites.push(groupId);
+            }
+
+            saveFavorites(favorites);
+
+            // Refresh the display
+            displayFavoritesSection();
+            updateAssignmentOverview();
+            performSearch();
+        }
+
+        function displayFavoritesSection() {
+            const favorites = getFavorites();
+            const favoritesSection = document.getElementById('favorites-section');
+            const favoritesList = document.getElementById('favorites-list');
+
+            if (!favoritesSection || !favoritesList) return;
+
+            if (favorites.length === 0) {
+                favoritesSection.style.display = 'none';
+                return;
+            }
+
+            // Show the section
+            favoritesSection.style.display = 'block';
+
+            // Get favorited groups
+            const favoritedGroups = appData.youthGroups.filter(g => favorites.includes(g.id));
+
+            // Generate cards
+            let html = '';
+            favoritedGroups.forEach(group => {
+                html += createGroupCard(group, true);
+            });
+
+            favoritesList.innerHTML = html;
+        }
+
+        function isFavorited(groupId) {
+            return getFavorites().includes(groupId);
+        }
+
+        function sortGroupsByFavorites(groups) {
+            const favorites = getFavorites();
+            return groups.sort((a, b) => {
+                const aFavorited = favorites.includes(a.id);
+                const bFavorited = favorites.includes(b.id);
+
+                if (aFavorited && !bFavorited) return -1;
+                if (!aFavorited && bFavorited) return 1;
+                return 0;
+            });
+        }
+
+        // ===== UTILITY FUNCTIONS =====
+        function formatRelativeTime(timestamp) {
+            if (!timestamp) return '';
+
+            const now = new Date();
+            const updateTime = new Date(timestamp);
+            const diffMs = now - updateTime;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+
+            // Same day - show relative time
+            if (diffDays === 0) {
+                if (diffMins < 1) return 'just now';
+                if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+                if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+            }
+
+            // Different day - show full date
+            const options = {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            };
+            return updateTime.toLocaleDateString('en-US', options);
+        }
+
+        // ===== SYSTEM INITIALIZATION =====
+        async function initializeSystem() {
+            try {
+                await findAndLoadLatestData();
+                
+                document.getElementById('loading-overlay').style.display = 'none';
+                document.getElementById('main-container').style.display = 'block';
+                
+                const versionBadge = document.getElementById('data-version-badge');
+                if (versionBadge && dataTimestamp) {
+                    const timeText = formatRelativeTime(dataTimestamp);
+                    versionBadge.textContent = `🔄 Last Updated: ${timeText}`;
+                }
+                
+                updateAllDisplays();
+                displayFavoritesSection();
+                displayInfoTab();
+                displaySchedule();
+                displayResources();
+                setupKeyboardShortcuts();
+                
+                setTimeout(() => {
+                    const searchInput = document.getElementById('parish-search');
+                    if (searchInput) {
+                        searchInput.addEventListener('input', performSearch);
+                        searchInput.addEventListener('keyup', performSearch);
+                    }
+                }, 100);
+            } catch (error) {
+                showErrorMessage();
+            }
+        }
+
+        async function findAndLoadLatestData() {
+            const loadingStatus = document.getElementById('loading-status');
+            let foundVersion = 0;
+            
+            for (let version = 1; version <= 100; version++) {
+                const filename = `m2k_2026_housing_data (${version}).json`;
+                
+                if (loadingStatus) {
+                    loadingStatus.textContent = `Checking for version ${version}...`;
+                }
+                
+                try {
+                    const response = await fetch(filename);
+                    
+                    if (response.ok) {
+                        foundVersion = version;
+                    } else {
+                        break;
+                    }
+                } catch (error) {
+                    break;
+                }
+            }
+            
+            if (foundVersion > 0) {
+                const filename = `m2k_2026_housing_data (${foundVersion}).json`;
+                
+                if (loadingStatus) {
+                    loadingStatus.textContent = `Loading version ${foundVersion}...`;
+                }
+                
+                const response = await fetch(filename);
+                const data = await response.json();
+
+                currentDataVersion = foundVersion;
+                dataTimestamp = data.timestamp || new Date().toISOString();
+
+                appData.youthGroups = data.youthGroups || [];
+
+                // Load rooms - support both old and new formats
+                if (data.rooms) {
+                    // New unified format
+                    appData.rooms = data.rooms;
+                } else {
+                    // Old format - migrate to new format
+                    appData.rooms = [];
+                    if (data.housingRooms) {
+                        appData.rooms.push(...data.housingRooms.map(r => ({ ...r, type: 'housing' })));
+                    }
+                    if (data.smallGroupRooms) {
+                        appData.rooms.push(...data.smallGroupRooms.map(r => ({ ...r, type: 'smallGroup' })));
+                    }
+                }
+
+                // Create filtered views for backward compatibility
+                appData.housingRooms = appData.rooms ? appData.rooms.filter(r => r.type === 'housing') : [];
+                appData.smallGroupRooms = appData.rooms ? appData.rooms.filter(r => r.type === 'smallGroup') : [];
+
+                appData.housingAssignments = data.housingAssignments || { male: {}, female: {} };
+                appData.smallGroupAssignments = data.smallGroupAssignments || {};
+                appData.mealColorAssignments = data.mealColorAssignments || {};
+                appData.mealTimes = data.mealTimes || {};
+                appData.adaIndividuals = data.adaIndividuals || [];
+                appData.activeColors = data.activeColors || Object.keys(data.mealTimes || {});
+                appData.resources = data.resources || [];
+                appData.schedule = data.schedule || { friday: [], saturday: [], sunday: [] };
+
+                // Update dashboard subtitle if available
+                if (data.dashboardSubtitle) {
+                    const subtitleElement = document.querySelector('.top-nav-subtitle');
+                    if (subtitleElement) {
+                        // Keep the version badge
+                        const versionBadge = subtitleElement.querySelector('#data-version-badge');
+                        const versionBadgeHTML = versionBadge ? versionBadge.outerHTML : '';
+                        subtitleElement.innerHTML = data.dashboardSubtitle + ' ' + versionBadgeHTML;
+                    }
+                }
+
+                if (loadingStatus) {
+                    loadingStatus.textContent = `Successfully loaded version ${foundVersion}!`;
+                }
+            } else {
+                throw new Error('No data files found');
+            }
+        }
+
+        function showErrorMessage() {
+            const loadingOverlay = document.getElementById('loading-overlay');
+            loadingOverlay.innerHTML = `
+                <div class="error-message">
+                    <h2>🤔 Whoops!</h2>
+                    <p>Looks like we can't find the data right now! Please check back later.</p>
+                    <p style="font-size: 0.9em; color: #999; margin-top: 15px;">
+                        (Make sure a JSON file named "m2k_2026_housing_data (1).json" or similar is in the same folder)
+                    </p>
+                </div>
+            `;
+        }
+
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', function(event) {
+                if ((event.metaKey || event.ctrlKey) && event.key === 'f') {
+                    event.preventDefault();
+                    document.getElementById('parish-search').focus();
+                }
+            });
+        }
+
+        // ===== TAB MANAGEMENT =====
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // ===== UTILITY FUNCTIONS =====
+        function getMealColorStyle(color) {
+            if (!color) return { background: '#f8f9fa', color: '#6c757d', text: 'No Color' };
+            
+            const colorMap = {
+                'Red': { background: '#e74c3c', color: 'white', text: 'Red' },
+                'Blue': { background: '#3498db', color: 'white', text: 'Blue' },
+                'Green': { background: '#27ae60', color: 'white', text: 'Green' },
+                'Yellow': { background: '#f1c40f', color: '#212529', text: 'Yellow' },
+                'Orange': { background: '#e67e22', color: 'white', text: 'Orange' },
+                'Purple': { background: '#9b59b6', color: 'white', text: 'Purple' },
+                'Pink': { background: '#e83e8c', color: 'white', text: 'Pink' },
+                'Brown': { background: '#8b4513', color: 'white', text: 'Brown' },
+                'Grey': { background: '#95a5a6', color: 'white', text: 'Grey' },
+                'Black': { background: '#343a40', color: 'white', text: 'Black' },
+                'White': { background: '#f8f9fa', color: '#212529', text: 'White' }
+            };
+            
+            return colorMap[color] || { background: '#f8f9fa', color: '#6c757d', text: color };
+        }
+
+        function isGroupHousingAssigned(groupId) {
+            const maleAssignments = appData.housingAssignments.male[groupId];
+            const femaleAssignments = appData.housingAssignments.female[groupId];
+            return (Array.isArray(maleAssignments) && maleAssignments.length > 0) ||
+                   (Array.isArray(femaleAssignments) && femaleAssignments.length > 0);
+        }
+
+        function isGroupSmallGroupAssigned(groupId) {
+            const assignments = appData.smallGroupAssignments[groupId];
+            return Array.isArray(assignments) && assignments.length > 0;
+        }
+
+        function getHousingRoomOccupancy(roomKey) {
+            let total = 0;
+            
+            Object.keys(appData.housingAssignments.male).forEach(groupId => {
+                const assignments = appData.housingAssignments.male[groupId];
+                if (Array.isArray(assignments) && assignments.includes(roomKey)) {
+                    const group = appData.youthGroups.find(g => g.id === groupId);
+                    if (group) {
+                        total += group.maleTeens + group.maleChaperones;
+                    }
+                }
+            });
+            
+            Object.keys(appData.housingAssignments.female).forEach(groupId => {
+                const assignments = appData.housingAssignments.female[groupId];
+                if (Array.isArray(assignments) && assignments.includes(roomKey)) {
+                    const group = appData.youthGroups.find(g => g.id === groupId);
+                    if (group) {
+                        total += group.femaleTeens + group.femaleChaperones;
+                    }
+                }
+            });
+            
+            return total;
+        }
+
+        function getSmallGroupRoomOccupancy(roomKey) {
+            let total = 0;
+            
+            Object.keys(appData.smallGroupAssignments).forEach(groupId => {
+                const assignments = appData.smallGroupAssignments[groupId];
+                if (Array.isArray(assignments) && assignments.includes(roomKey)) {
+                    const group = appData.youthGroups.find(g => g.id === groupId);
+                    if (group) {
+                        total += group.maleTeens + group.femaleTeens + group.maleChaperones + group.femaleChaperones;
+                    }
+                }
+            });
+            
+            return total;
+        }
+
+        function getHousingRoomAssignedGroupsDisplay(roomKey) {
+            const assignedGroups = [];
+
+            Object.keys(appData.housingAssignments.male).forEach(groupId => {
+                const assignments = appData.housingAssignments.male[groupId];
+                if (Array.isArray(assignments) && assignments.includes(roomKey)) {
+                    assignedGroups.push(`${groupId}(M)`);
+                }
+            });
+
+            Object.keys(appData.housingAssignments.female).forEach(groupId => {
+                const assignments = appData.housingAssignments.female[groupId];
+                if (Array.isArray(assignments) && assignments.includes(roomKey)) {
+                    assignedGroups.push(`${groupId}(F)`);
+                }
+            });
+
+            // Check if room has ADA assignments (show icon only, no personal info)
+            const hasADA = appData.adaIndividuals && appData.adaIndividuals.some(ada => ada.roomAssignment === roomKey);
+            if (hasADA) {
+                assignedGroups.push('♿ ADA');
+            }
+
+            return assignedGroups.join(', ') || 'None';
+        }
+
+        function getSmallGroupRoomAssignedGroupsDisplay(roomKey) {
+            const assignedGroups = [];
+            
+            Object.keys(appData.smallGroupAssignments).forEach(groupId => {
+                const assignments = appData.smallGroupAssignments[groupId];
+                if (Array.isArray(assignments) && assignments.includes(roomKey)) {
+                    assignedGroups.push(groupId);
+                }
+            });
+            
+            return assignedGroups.join(', ') || 'None';
+        }
+
+        // ===== CREATE GROUP CARD FUNCTION =====
+        function createGroupCard(group, isSearch = false) {
+            const isHousingAssigned = isGroupHousingAssigned(group.id);
+            const isSmallGroupAssigned = isGroupSmallGroupAssigned(group.id);
+            const maleTotal = group.maleTeens + group.maleChaperones;
+            const femaleTotal = group.femaleTeens + group.femaleChaperones;
+            const totalGroup = maleTotal + femaleTotal;
+            
+            // Get housing assignments
+            const maleHousingRooms = appData.housingAssignments.male[group.id] || [];
+            const femaleHousingRooms = appData.housingAssignments.female[group.id] || [];
+            
+            const maleHousingRoomNames = maleHousingRooms.map(roomKey => {
+                const room = appData.housingRooms.find(r => `${r.building}-${r.roomId}` === roomKey);
+                return room ? `${room.building}-${room.roomId}` : roomKey;
+            });
+            
+            const femaleHousingRoomNames = femaleHousingRooms.map(roomKey => {
+                const room = appData.housingRooms.find(r => `${r.building}-${r.roomId}` === roomKey);
+                return room ? `${room.building}-${room.roomId}` : roomKey;
+            });
+            
+            // Get small group assignments with features
+            const groupSmallGroupRooms = appData.smallGroupAssignments[group.id] || [];
+            
+            const groupSmallGroupRoomNames = groupSmallGroupRooms.map(roomKey => {
+                const room = appData.smallGroupRooms.find(r => `${r.building}-${r.roomId}` === roomKey);
+                if (room) {
+                    const roomName = `${room.building}-${room.roomId}`;
+                    return room.features ? `${roomName} (${room.features})` : roomName;
+                }
+                return roomKey;
+            });
+            
+            const overallAssigned = isHousingAssigned || isSmallGroupAssigned;
+            
+            // Get meal color, seminarian, and religious info
+            const mealColor = appData.mealColorAssignments[group.id];
+            const mealColorStyle = getMealColorStyle(mealColor);
+            const seminarian = group.seminarianSgl || '';
+            const religious = group.religious || '';
+            const isOffCampus = group.stayingOffCampus || false;
+            
+            const backgroundStyle = isSearch ? (overallAssigned ? '#f0fff4' : '#fff5f5') : '';
+            const borderColor = overallAssigned ? '#27ae60' : '#e74c3c';
+            const favorited = isFavorited(group.id);
+
+            return `
+                <div class="room-card" style="border-left-color: ${borderColor}; background: ${backgroundStyle}; position: relative; padding-left: 35px;">
+                    <!-- FAVORITE STAR -->
+                    <span class="favorite-star ${favorited ? 'favorited' : ''}" onclick="toggleFavorite('${group.id}')" title="${favorited ? 'Remove from favorites' : 'Add to favorites'}">
+                        ${favorited ? '⭐' : '☆'}
+                    </span>
+
+                    <!-- HEADER ROW -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <strong style="font-size: 16px;">${group.parish}</strong>
+                        
+                        <!-- STATUS BADGES CONTAINER -->
+                        <div style="display: flex; gap: 5px; align-items: center;">
+                            ${mealColor ? `<span style="padding: 2px 6px; border-radius: 4px; background: ${mealColorStyle.background}; color: ${mealColorStyle.color}; font-size: 10px; font-weight: bold;">🍽️ ${mealColorStyle.text}</span>` : ''}
+                        </div>
+                    </div>
+                    
+                    <!-- GROUP INFO ROW -->
+                    <p><span class="section-id">${group.id}</span> | ${totalGroup} people total</p>
+                    
+                    ${isSearch ? `
+                        <!-- DETAILED INFO FOR SEARCH RESULTS -->
+                        <p style="margin-top: 6px; font-size: 13px;"><strong>Leader:</strong> ${group.leader} | <strong>Phone:</strong> ${group.phone}</p>
+                        <p style="margin-top: 6px; font-size: 12px; color: #555;">
+                            <strong>Male:</strong> ${group.maleTeens} teens + ${group.maleChaperones} chaperones | 
+                            <strong>Female:</strong> ${group.femaleTeens} teens + ${group.femaleChaperones} chaperones
+                        </p>
+                        ${group.specialAccommodations ? `<p style="margin-top: 8px; font-size: 12px; background: #fff3cd; padding: 6px; border-radius: 4px;"><strong>⚠️ Special Accommodations:</strong> ${group.specialAccommodations}</p>` : ''}
+                    ` : ''}
+                    
+                    <!-- SEMINARIAN SGL -->
+                    ${seminarian ? `<p style="font-size: 12px; color: #2c3e50; margin-top: 8px;"><strong>Seminarian SGL:</strong> ${seminarian}</p>` : ''}
+
+                    <!-- RELIGIOUS -->
+                    ${religious ? `<p style="font-size: 12px; color: #2c3e50; margin-top: 6px;"><strong>Religious:</strong> ${religious}</p>` : ''}
+
+                    <!-- HOUSING ASSIGNMENTS SECTION -->
+                    ${isOffCampus ? `
+                        <div style="background: #fff3cd; padding: 8px; border-radius: 6px; margin: 8px 0; border-left: 4px solid #e67e22;">
+                            <strong style="font-size: 14px;">🏕️ OFF-CAMPUS HOUSING</strong>
+                            <p style="font-size: 12px; margin-top: 4px;">This group is staying off-campus</p>
+                        </div>
+                    ` : `
+                        <div style="background: #f8f9fa; padding: 8px; border-radius: 6px; margin: 8px 0;">
+                            <strong style="font-size: 14px;">🏠 Housing Assignments</strong>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 5px;">
+                                ${maleTotal > 0 ? `
+                                    <div class="male-section" style="padding: 6px;">
+                                        <strong style="font-size: 12px;">🔵 Males: ${maleTotal}</strong>
+                                        ${maleHousingRoomNames.length > 0 ? `<p style="font-size: 10px; margin: 2px 0 0 0; font-weight: bold; color: #2e7d32;">${maleHousingRoomNames.join(', ')}</p>` : '<p style="font-size: 10px; color: #e67e22; margin: 2px 0 0 0; font-weight: bold;">❌ Not assigned</p>'}
+                                    </div>
+                                ` : '<div></div>'}
+                                
+                                ${femaleTotal > 0 ? `
+                                    <div class="female-section" style="padding: 6px;">
+                                        <strong style="font-size: 12px;">🟣 Females: ${femaleTotal}</strong>
+                                        ${femaleHousingRoomNames.length > 0 ? `<p style="font-size: 10px; margin: 2px 0 0 0; font-weight: bold; color: #2e7d32;">${femaleHousingRoomNames.join(', ')}</p>` : '<p style="font-size: 10px; color: #e67e22; margin: 2px 0 0 0; font-weight: bold;">❌ Not assigned</p>'}
+                                    </div>
+                                ` : '<div></div>'}
+                            </div>
+                        </div>
+                    `}
+
+                    <!-- ADA ACCOMMODATIONS (Public View - No Personal Info) -->
+                    ${appData.adaIndividuals && appData.adaIndividuals.filter(ada => ada.groupId === group.id).length > 0 ? `
+                        <div style="background: #f3e5f5; padding: 8px; border-radius: 6px; margin: 8px 0; border-left: 4px solid #9c27b0; text-align: center;">
+                            <strong style="font-size: 12px; color: #6a1b9a;">♿ ADA Accommodations Assigned</strong>
+                        </div>
+                    ` : ''}
+
+                    <!-- SMALL GROUP SECTION -->
+                    <div style="background: #f0f8ff; padding: 8px; border-radius: 6px; margin: 8px 0;">
+                        <strong style="font-size: 14px;">👥 Small Group Location</strong>
+                        ${groupSmallGroupRoomNames.length > 0 ? `
+                            <div style="background: linear-gradient(45deg, #e8f4f8, #fdf2f2); padding: 6px; border-radius: 4px; margin-top: 5px;">
+                                <strong style="font-size: 12px;">🟡 Group Location:</strong>
+                                <p style="font-size: 10px; margin: 2px 0 0 0; font-weight: bold; color: #2e7d32;">${groupSmallGroupRoomNames.join(', ')}</p>
+                            </div>
+                        ` : `<div style="background: #fff3cd; padding: 4px; border-radius: 4px; margin-top: 5px; text-align: center;">
+                            <p style="font-size: 10px; color: #856404; margin: 0; font-weight: bold;">❌ No small group location assigned</p>
+                        </div>`}
+                    </div>
+
+                    <!-- MEAL TIMES SECTION - Only show in search results -->
+                    ${isSearch && mealColor ? `
+                        <div style="background: ${mealColorStyle.background}15; padding: 8px; border-radius: 6px; margin: 8px 0; border-left: 4px solid ${mealColorStyle.background};">
+                            <strong style="font-size: 14px;">🍽️ Meal Times - ${mealColorStyle.text} Group</strong>
+                            ${appData.mealTimes[mealColor] ? `
+                                <div style="margin-top: 5px; font-size: 11px; line-height: 1.6;">
+                                    <div style="background: white; padding: 5px; border-radius: 4px; margin-bottom: 3px;">
+                                        <strong>Saturday Breakfast:</strong> ${appData.mealTimes[mealColor].satBreakfast || 'TBA'}
+                                    </div>
+                                    <div style="background: white; padding: 5px; border-radius: 4px; margin-bottom: 3px;">
+                                        <strong>Saturday Lunch:</strong> ${appData.mealTimes[mealColor].satLunch || 'TBA'}
+                                    </div>
+                                    <div style="background: white; padding: 5px; border-radius: 4px; margin-bottom: 3px;">
+                                        <strong>Saturday Dinner:</strong> ${appData.mealTimes[mealColor].satDinner || 'TBA'}
+                                    </div>
+                                    <div style="background: white; padding: 5px; border-radius: 4px;">
+                                        <strong>Sunday Breakfast:</strong> ${appData.mealTimes[mealColor].sunBreakfast || 'TBA'}
+                                    </div>
+                                </div>
+                            ` : `<p style="font-size: 10px; color: #856404; margin-top: 5px;">Meal times not yet available</p>`}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // ===== DISPLAY UPDATE FUNCTIONS =====
+        function updateAllDisplays() {
+            updateYouthGroupsTable();
+            updateMealColorTable();
+            updateHousingRoomsTable();
+            updateSmallGroupRoomsTable();
+            updateDashboard();
+            updateAssignmentOverview();
+        }
+
+        function updateDashboard() {
+            const totalGroupsElement = document.getElementById('total-groups');
+            const totalParticipantsElement = document.getElementById('total-participants');
+            
+            if (totalGroupsElement) totalGroupsElement.textContent = appData.youthGroups.length;
+            if (totalParticipantsElement) totalParticipantsElement.textContent = appData.youthGroups.reduce((total, group) => 
+                total + group.maleTeens + group.femaleTeens + group.maleChaperones + group.femaleChaperones, 0);
+        }
+
+        function updateAssignmentOverview() {
+            const overviewDiv = document.getElementById('assignment-overview');
+            if (!overviewDiv) return;
+
+            if (appData.youthGroups.length === 0) {
+                overviewDiv.innerHTML = '<p>No youth groups added yet.</p>';
+                return;
+            }
+
+            // Get favorites list
+            const favorites = getFavorites();
+
+            // Filter out favorited groups from the overview (they'll show in the favorites section instead)
+            const nonFavoritedGroups = appData.youthGroups.filter(group => !favorites.includes(group.id));
+
+            if (nonFavoritedGroups.length === 0) {
+                overviewDiv.innerHTML = '<p style="color: #666; font-style: italic;">All groups are in your favorites section above.</p>';
+                return;
+            }
+
+            let html = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;">';
+
+            nonFavoritedGroups.forEach(group => {
+                html += createGroupCard(group, false);
+            });
+
+            html += '</div>';
+            overviewDiv.innerHTML = html;
+        }
+
+        function updateYouthGroupsTable() {
+            const tbody = document.getElementById('youth-groups-table');
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
+
+            appData.youthGroups.forEach((group, index) => {
+                const total = group.maleTeens + group.femaleTeens + group.maleChaperones + group.femaleChaperones;
+                const isAssigned = isGroupHousingAssigned(group.id);
+                const mealColor = appData.mealColorAssignments[group.id];
+                const mealColorStyle = getMealColorStyle(mealColor);
+                const seminarian = group.seminarianSgl || '';
+                const isOffCampus = group.stayingOffCampus || false;
+                
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td><span class="section-id">${group.id}</span></td>
+                    <td>${group.parish}</td>
+                    <td>${group.leader}</td>
+                    <td>${group.phone}</td>
+                    <td><strong>${total}</strong></td>
+                    <td>${isOffCampus ? '<span style="background: #e67e22; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold;">🏕️ YES</span>' : '<span style="color: #6c757d; font-size: 11px;">No</span>'}</td>
+                    <td style="font-size: 11px; font-style: italic;">${seminarian || 'Not assigned'}</td>
+                    <td>${mealColor ? `<span style="background: ${mealColorStyle.background}; color: ${mealColorStyle.color}; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">${mealColorStyle.text}</span>` : '<span style="color: #6c757d;">No Color</span>'}</td>
+                    <td><span class="assignment-status ${isAssigned ? 'status-assigned' : 'status-unassigned'}">${isAssigned ? '✅ Assigned' : '❌ Unassigned'}</span></td>
+                `;
+            });
+        }
+
+        function updateMealColorTable() {
+            const tbody = document.getElementById('meal-color-table');
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
+
+            appData.youthGroups.forEach(group => {
+                const totalPeople = group.maleTeens + group.femaleTeens + group.maleChaperones + group.femaleChaperones;
+                const mealColor = appData.mealColorAssignments[group.id];
+                const mealColorStyle = getMealColorStyle(mealColor);
+                const seminarian = group.seminarianSgl || '';
+                
+                const row = tbody.insertRow();
+                
+                row.innerHTML = `
+                    <td><span class="section-id">${group.id}</span></td>
+                    <td>${group.parish}</td>
+                    <td>${group.leader}</td>
+                    <td><strong>${totalPeople}</strong></td>
+                    <td>${mealColor ? `<span style="background: ${mealColorStyle.background}; color: ${mealColorStyle.color}; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">${mealColorStyle.text}</span>` : '<span style="color: #6c757d;">No Color</span>'}</td>
+                    <td style="font-size: 11px; font-style: italic;">${seminarian || 'Not assigned'}</td>
+                `;
+            });
+        }
+
+        function updateHousingRoomsTable() {
+            const tbody = document.getElementById('housing-rooms-table');
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
+
+            appData.housingRooms.forEach((room, index) => {
+                const roomKey = `${room.building}-${room.roomId}`;
+                const occupiedCount = getHousingRoomOccupancy(roomKey);
+                const availableSpace = room.capacity - occupiedCount;
+                const assignedGroups = getHousingRoomAssignedGroupsDisplay(roomKey);
+                
+                const row = tbody.insertRow();
+                
+                row.innerHTML = `
+                    <td>${room.building}</td>
+                    <td>${room.roomId}</td>
+                    <td>${room.gender.charAt(0).toUpperCase() + room.gender.slice(1)}</td>
+                    <td>${room.capacity}</td>
+                    <td class="capacity-display ${availableSpace < 0 ? 'capacity-negative' : availableSpace === 0 ? 'capacity-zero' : 'capacity-positive'}">${availableSpace}</td>
+                    <td style="font-size: 12px;">${assignedGroups}</td>
+                `;
+            });
+        }
+
+        function updateSmallGroupRoomsTable() {
+            const tbody = document.getElementById('small-group-rooms-table');
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
+
+            appData.smallGroupRooms.forEach((room, index) => {
+                const roomKey = `${room.building}-${room.roomId}`;
+                const occupiedCount = getSmallGroupRoomOccupancy(roomKey);
+                const availableSpace = room.capacity - occupiedCount;
+                const assignedGroups = getSmallGroupRoomAssignedGroupsDisplay(roomKey);
+                
+                const row = tbody.insertRow();
+                
+                row.innerHTML = `
+                    <td>${room.building}</td>
+                    <td>${room.roomId}</td>
+                    <td>${room.gender === 'mixed' ? 'Mixed/Co-ed' : room.gender.charAt(0).toUpperCase() + room.gender.slice(1)}</td>
+                    <td>${room.capacity}</td>
+                    <td class="capacity-display ${availableSpace < 0 ? 'capacity-negative' : availableSpace === 0 ? 'capacity-zero' : 'capacity-positive'}">${availableSpace}</td>
+                    <td style="font-size: 12px;">${assignedGroups}</td>
+                `;
+            });
+        }
+
+        // ===== SEARCH FUNCTIONALITY =====
+        function performSearch() {
+            const searchInput = document.getElementById('parish-search');
+            const resultsDiv = document.getElementById('search-results');
+            
+            if (!searchInput || !resultsDiv) return;
+            
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            
+            if (!searchTerm) {
+                resultsDiv.innerHTML = '';
+                return;
+            }
+            
+            const matchingGroups = appData.youthGroups.filter(group =>
+                group.parish.toLowerCase().includes(searchTerm) ||
+                group.id.toLowerCase().includes(searchTerm) ||
+                group.leader.toLowerCase().includes(searchTerm) ||
+                group.phone.toLowerCase().includes(searchTerm) ||
+                (group.seminarianSgl && group.seminarianSgl.toLowerCase().includes(searchTerm)) ||
+                (group.religious && group.religious.toLowerCase().includes(searchTerm))
+            );
+
+            if (matchingGroups.length === 0) {
+                resultsDiv.innerHTML = '<div class="notification warning">🔍 No groups found matching your search.</div>';
+                return;
+            }
+
+            // Sort matching groups with favorites at the top
+            const sortedMatches = sortGroupsByFavorites(matchingGroups);
+
+            let html = `<h3 style="color: #061d28; margin-bottom: 15px;">🔍 Search Results (${sortedMatches.length} found)</h3><div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;">`;
+
+            sortedMatches.forEach(group => {
+                html += createGroupCard(group, true);
+            });
+            
+            html += '</div>';
+            resultsDiv.innerHTML = html;
+        }
+
+        // ===== RESOURCES DISPLAY =====
+        function displayInfoTab() {
+            const buttonContainer = document.getElementById('info-meal-color-buttons');
+            if (!buttonContainer) return;
+
+            const activeColors = appData.activeColors || Object.keys(appData.mealTimes || {});
+            const colorStyles = {
+                'Blue': 'background: #3498db; color: white;',
+                'Red': 'background: #e74c3c; color: white;',
+                'Orange': 'background: #e67e22; color: white;',
+                'Yellow': 'background: #f1c40f; color: #333;',
+                'Green': 'background: #27ae60; color: white;',
+                'Purple': 'background: #9b59b6; color: white;',
+                'Brown': 'background: #8B4513; color: white;',
+                'Grey': 'background: #95a5a6; color: white;'
+            };
+
+            let buttonsHtml = activeColors.map(color => `
+                <button onclick="showInfoMealTimes('${color}')"
+                        style="${colorStyles[color]} border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; transition: transform 0.2s;">
+                    ${color}
+                </button>
+            `).join('');
+
+            buttonContainer.innerHTML = buttonsHtml;
+        }
+
+        function showInfoMealTimes(color) {
+            const display = document.getElementById('info-meal-schedule-display');
+            const times = appData.mealTimes[color];
+
+            if (!times) {
+                display.innerHTML = '<p style="color: #999;">Meal times not available for this color.</p>';
+                display.style.display = 'block';
+                return;
+            }
+
+            let html = `
+                <h4 style="color: #061d28; margin: 0 0 15px 0; font-size: 1.3em;">${color} Team Schedule</h4>
+                <div style="display: grid; gap: 10px;">
+                    <div style="background: white; padding: 12px; border-radius: 6px; border-left: 4px solid #27ae60;">
+                        <strong style="color: #061d28;">Saturday Breakfast:</strong> ${times.satBreakfast}
+                    </div>
+                    <div style="background: white; padding: 12px; border-radius: 6px; border-left: 4px solid #3498db;">
+                        <strong style="color: #061d28;">Saturday Lunch:</strong> ${times.satLunch}
+                    </div>
+                    <div style="background: white; padding: 12px; border-radius: 6px; border-left: 4px solid #e67e22;">
+                        <strong style="color: #061d28;">Saturday Dinner:</strong> ${times.satDinner}
+                    </div>
+                    <div style="background: white; padding: 12px; border-radius: 6px; border-left: 4px solid #f39c12;">
+                        <strong style="color: #061d28;">Sunday Breakfast:</strong> ${times.sunBreakfast}
+                    </div>
+                </div>
+            `;
+
+            display.innerHTML = html;
+            display.style.display = 'block';
+        }
+
+        // ===== SCHEDULE DISPLAY =====
+        function toggleScheduleDay(day) {
+            const content = document.getElementById(`schedule-${day}-content`);
+            const arrow = document.getElementById(`schedule-${day}-arrow`);
+
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                arrow.textContent = '▼';
+            } else {
+                content.style.display = 'none';
+                arrow.textContent = '▶';
+            }
+        }
+
+        function displaySchedule() {
+            const container = document.getElementById('schedule-container');
+            if (!container) return;
+
+            const schedule = appData.schedule || { friday: [], saturday: [], sunday: [] };
+
+            // Calculate dates from conferenceStartDate
+            const startDate = new Date(appData.conferenceStartDate || '2026-02-07');
+            const friday = new Date(startDate);
+            const saturday = new Date(startDate);
+            saturday.setDate(saturday.getDate() + 1);
+            const sunday = new Date(startDate);
+            sunday.setDate(sunday.getDate() + 2);
+
+            const options = { weekday: 'long', month: 'long', day: 'numeric' };
+
+            const days = [
+                { key: 'friday', name: friday.toLocaleDateString('en-US', options), color: '#3b82f6' },
+                { key: 'saturday', name: saturday.toLocaleDateString('en-US', options), color: '#10b981' },
+                { key: 'sunday', name: sunday.toLocaleDateString('en-US', options), color: '#f59e0b' }
+            ];
+
+            let html = '';
+
+            days.forEach(day => {
+                const events = schedule[day.key] || [];
+
+                html += `
+                    <div style="background: white; border-left: 4px solid ${day.color}; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
+                        <h3 onclick="toggleScheduleDay('${day.key}')" style="color: #1f2937; margin-bottom: 20px; font-size: 1.6em; font-weight: 700; border-bottom: 2px solid #e5e7eb; padding-bottom: 12px; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 10px;">
+                            <span id="schedule-${day.key}-arrow">▼</span>
+                            📅 ${day.name}
+                        </h3>
+                        <div id="schedule-${day.key}-content" style="display: block;">
+                            ${events.length === 0 ? '<p style="color: #999; font-style: italic;">No events scheduled for this day.</p>' : `
+                                <table class="table" style="margin-top: 0;">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 15%;">Start</th>
+                                            <th style="width: 15%;">End</th>
+                                            <th style="width: 40%;">Event</th>
+                                            <th style="width: 30%;">Location</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${events.map(event => `
+                                            <tr>
+                                                <td>${event.startTime || ''}</td>
+                                                <td>${event.endTime || ''}</td>
+                                                <td>${event.event || ''}</td>
+                                                <td>${event.location || ''}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            `}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function displayResources() {
+            const container = document.getElementById('resource-grid');
+            if (!container) return;
+
+            let html = '';
+
+            // Add Install App button as first resource card (only if install is available)
+            html += `
+                <div id="install-app-card" class="resource-card" style="display: none; border-left-color: #10b981; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);">
+                    <h3><span class="icon">📱</span> Install App</h3>
+                    <div style="text-align: center; padding: 10px;">
+                        <p style="color: #065f46; margin-bottom: 15px; font-size: 14px;">Install M2K Portal on your device for quick access!</p>
+                        <button id="install-button" onclick="installApp()" class="btn btn-success" style="width: 100%; font-size: 16px;">
+                            ⬇️ Install to Home Screen
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            if (!appData.resources || appData.resources.length === 0) {
+                html += '<p style="color: #666; text-align: center;">No additional resources available at this time.</p>';
+            } else {
+                appData.resources.forEach(resource => {
+                    // Skip the Meal Times resource since it's now in the Info tab
+                    if (resource.name === 'Meal Times') return;
+
+                    // Skip the Event Schedule resource since it will be managed separately
+                    if (resource.name === 'Event Schedule') return;
+
+                    const hasLink = resource.url && resource.url.trim() !== '';
+
+                    html += `
+                        <div class="resource-card">
+                            <h3><span class="icon">${resource.emoji}</span> ${resource.name || 'Resource'}</h3>
+                            <div class="resource-link-box">
+                                ${hasLink ?
+                                    `<a href="${resource.url}" target="_blank" style="color: #061d28; text-decoration: none; font-weight: 600;">
+                                        ${resource.name || 'Click here'} →
+                                    </a>`
+                                    :
+                                    '<p style="color: #999; font-style: italic;">Link coming soon</p>'
+                                }
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            container.innerHTML = html;
+        }
+
+        // ===== PWA INSTALL FUNCTIONALITY =====
+        async function installApp() {
+            if (!deferredInstallPrompt) {
+                console.log('Install prompt not available');
+                return;
+            }
+
+            // Show the install prompt
+            deferredInstallPrompt.prompt();
+
+            // Wait for the user to respond to the prompt
+            const { outcome } = await deferredInstallPrompt.userChoice;
+            console.log(`User response to install prompt: ${outcome}`);
+
+            // Clear the deferred prompt since it can only be used once
+            deferredInstallPrompt = null;
+
+            // Hide the install button
+            const installCard = document.getElementById('install-app-card');
+            if (installCard) {
+                installCard.style.display = 'none';
+            }
+        }
+
+        function setupPWAInstall() {
+            // Listen for the beforeinstallprompt event
+            window.addEventListener('beforeinstallprompt', (e) => {
+                // Prevent the default mini-infobar from appearing
+                e.preventDefault();
+
+                // Save the event so it can be triggered later
+                deferredInstallPrompt = e;
+
+                // Show the install button
+                const installCard = document.getElementById('install-app-card');
+                if (installCard) {
+                    installCard.style.display = 'block';
+                }
+
+                console.log('Install prompt is ready');
+            });
+
+            // Listen for the appinstalled event
+            window.addEventListener('appinstalled', () => {
+                console.log('PWA was installed');
+
+                // Clear the deferred prompt
+                deferredInstallPrompt = null;
+
+                // Hide the install button
+                const installCard = document.getElementById('install-app-card');
+                if (installCard) {
+                    installCard.style.display = 'none';
+                }
+            });
+        }
+
+        // ===== SYSTEM INITIALIZATION =====
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing system...');
+            initializeSystem();
+            setupPWAInstall();
+        });
+    </script>
+</body>
+</html>
