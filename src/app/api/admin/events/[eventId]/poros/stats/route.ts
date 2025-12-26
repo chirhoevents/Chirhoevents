@@ -65,7 +65,7 @@ export async function GET(
       }),
       // Seating assignments
       prisma.seatingAssignment.findMany({
-        where: { seatingSection: { eventId } }
+        where: { section: { eventId } }
       }),
       // Small groups
       prisma.smallGroup.findMany({
