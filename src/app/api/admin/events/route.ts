@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build order by clause
-    let orderByClause: Prisma.EventOrderByWithRelationInput = { startDate: 'desc' }
+    let orderByClause: any = { startDate: 'desc' }
     if (sortBy === 'name') {
       orderByClause = { name: sortOrder }
     } else if (sortBy === 'date') {
