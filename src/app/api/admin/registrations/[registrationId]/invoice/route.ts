@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { RegistrationType } from '@prisma/client'
 import { format } from 'date-fns'
 
 export async function GET(
@@ -133,7 +134,7 @@ export async function GET(
     const payments = await prisma.payment.findMany({
       where: {
         registrationId,
-        registrationType,
+        registrationType: registrationType as RegistrationType,
         paymentStatus: { in: ['completed', 'received', 'succeeded'] },
       },
       orderBy: { createdAt: 'asc' },
@@ -143,7 +144,7 @@ export async function GET(
     const refunds = await prisma.refund.findMany({
       where: {
         registrationId,
-        registrationType,
+        registrationType: registrationType as RegistrationType,
         status: 'completed',
       },
       orderBy: { createdAt: 'asc' },
