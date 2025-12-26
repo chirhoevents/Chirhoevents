@@ -26,6 +26,8 @@ import Link from 'next/link'
 import EditGroupRegistrationModal from '@/components/admin/EditGroupRegistrationModal'
 import EditIndividualRegistrationModal from '@/components/admin/EditIndividualRegistrationModal'
 import EmailResendModal from '@/components/admin/EmailResendModal'
+import ViewRegistrationModal from '@/components/admin/registrations/ViewRegistrationModal'
+import PaymentsModal from '@/components/admin/registrations/PaymentsModal'
 
 interface GroupRegistration {
   id: string
@@ -98,6 +100,21 @@ export default function RegistrationsClient({
     id: string
     type: 'group' | 'individual'
     email: string
+    name: string
+  } | null>(null)
+
+  // View modal state
+  const [viewModalOpen, setViewModalOpen] = useState(false)
+  const [selectedViewRegistration, setSelectedViewRegistration] = useState<{
+    id: string
+    type: 'group' | 'individual'
+  } | null>(null)
+
+  // Payments modal state
+  const [paymentsModalOpen, setPaymentsModalOpen] = useState(false)
+  const [selectedPaymentsRegistration, setSelectedPaymentsRegistration] = useState<{
+    id: string
+    type: 'group' | 'individual'
     name: string
   } | null>(null)
 
@@ -494,22 +511,42 @@ export default function RegistrationsClient({
                             size="sm"
                             variant="ghost"
                             onClick={() => {
+                              setSelectedViewRegistration({
+                                id: reg.id,
+                                type: 'group',
+                              })
+                              setViewModalOpen(true)
+                            }}
+                            title="View Details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
                               setEditingRegistration(reg)
                               setShowEditModal(true)
                             }}
-                            title="Quick Edit"
+                            title="Edit Registration"
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Link href={`/dashboard/admin/events/${eventId}/registrations/${reg.id}`}>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              title="View Full Registration"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </Link>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setSelectedPaymentsRegistration({
+                                id: reg.id,
+                                type: 'group',
+                                name: reg.groupName,
+                              })
+                              setPaymentsModalOpen(true)
+                            }}
+                            title="Manage Payments"
+                          >
+                            <DollarSign className="h-4 w-4" />
+                          </Button>
                           <Button
                             size="sm"
                             variant="ghost"
@@ -689,20 +726,40 @@ export default function RegistrationsClient({
                           <Button
                             size="sm"
                             variant="ghost"
+                            onClick={() => {
+                              setSelectedViewRegistration({
+                                id: reg.id,
+                                type: 'individual',
+                              })
+                              setViewModalOpen(true)
+                            }}
+                            title="View Details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
                             onClick={() => setEditingIndividualRegistration(reg)}
-                            title="Quick Edit"
+                            title="Edit Registration"
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Link href={`/dashboard/admin/events/${eventId}/registrations/${reg.id}`}>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              title="View Full Registration"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </Link>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setSelectedPaymentsRegistration({
+                                id: reg.id,
+                                type: 'individual',
+                                name: `${reg.firstName} ${reg.lastName}`,
+                              })
+                              setPaymentsModalOpen(true)
+                            }}
+                            title="Manage Payments"
+                          >
+                            <DollarSign className="h-4 w-4" />
+                          </Button>
                           <Button
                             size="sm"
                             variant="ghost"
@@ -759,6 +816,92 @@ export default function RegistrationsClient({
           registrationType={selectedEmailRegistration.type}
           defaultRecipientEmail={selectedEmailRegistration.email}
           defaultRecipientName={selectedEmailRegistration.name}
+        />
+      )}
+
+      {/* View Registration Modal */}
+      {selectedViewRegistration && (
+        <ViewRegistrationModal
+          isOpen={viewModalOpen}
+          onClose={() => {
+            setViewModalOpen(false)
+            setSelectedViewRegistration(null)
+          }}
+          registrationId={selectedViewRegistration.id}
+          registrationType={selectedViewRegistration.type}
+          onOpenEmail={() => {
+            // Close view modal and open email modal with registration context
+            setViewModalOpen(false)
+            // Find the registration to get email info
+            if (selectedViewRegistration.type === 'group') {
+              const reg = groupRegistrations.find(r => r.id === selectedViewRegistration.id)
+              if (reg) {
+                setSelectedEmailRegistration({
+                  id: reg.id,
+                  type: 'group',
+                  email: reg.leaderEmail,
+                  name: reg.leaderName,
+                })
+                setEmailModalOpen(true)
+              }
+            } else {
+              const reg = individualRegistrations.find(r => r.id === selectedViewRegistration.id)
+              if (reg) {
+                setSelectedEmailRegistration({
+                  id: reg.id,
+                  type: 'individual',
+                  email: reg.email,
+                  name: `${reg.firstName} ${reg.lastName}`,
+                })
+                setEmailModalOpen(true)
+              }
+            }
+          }}
+        />
+      )}
+
+      {/* Payments Modal */}
+      {selectedPaymentsRegistration && (
+        <PaymentsModal
+          isOpen={paymentsModalOpen}
+          onClose={() => {
+            setPaymentsModalOpen(false)
+            setSelectedPaymentsRegistration(null)
+          }}
+          registrationId={selectedPaymentsRegistration.id}
+          registrationType={selectedPaymentsRegistration.type}
+          registrationName={selectedPaymentsRegistration.name}
+          onUpdate={() => {
+            // Refresh the page data after payment update
+            window.location.reload()
+          }}
+          onSendPaymentReminder={() => {
+            // Open email modal with payment reminder context
+            setPaymentsModalOpen(false)
+            if (selectedPaymentsRegistration.type === 'group') {
+              const reg = groupRegistrations.find(r => r.id === selectedPaymentsRegistration.id)
+              if (reg) {
+                setSelectedEmailRegistration({
+                  id: reg.id,
+                  type: 'group',
+                  email: reg.leaderEmail,
+                  name: reg.leaderName,
+                })
+                setEmailModalOpen(true)
+              }
+            } else {
+              const reg = individualRegistrations.find(r => r.id === selectedPaymentsRegistration.id)
+              if (reg) {
+                setSelectedEmailRegistration({
+                  id: reg.id,
+                  type: 'individual',
+                  email: reg.email,
+                  name: `${reg.firstName} ${reg.lastName}`,
+                })
+                setEmailModalOpen(true)
+              }
+            }
+          }}
         />
       )}
     </div>
