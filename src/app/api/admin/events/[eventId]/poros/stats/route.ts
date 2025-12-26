@@ -102,16 +102,16 @@ export async function GET(
     const totalParticipants = allParticipants.length + individualRegistrations.length
 
     // Count by housing type from group registrations
-    const onCampusGroups = groupRegistrations.filter((gr: { housingType: string }) => gr.housingType === 'on_campus')
-    const offCampusGroups = groupRegistrations.filter((gr: { housingType: string }) => gr.housingType === 'off_campus')
-    const dayPassGroups = groupRegistrations.filter((gr: { housingType: string }) => gr.housingType === 'day_pass')
+    const onCampusGroups = groupRegistrations.filter((gr: { housingType: string | null }) => gr.housingType === 'on_campus')
+    const offCampusGroups = groupRegistrations.filter((gr: { housingType: string | null }) => gr.housingType === 'off_campus')
+    const dayPassGroups = groupRegistrations.filter((gr: { housingType: string | null }) => gr.housingType === 'day_pass')
 
     const onCampusCount = onCampusGroups.reduce((sum: number, gr: { participants: unknown[] }) => sum + gr.participants.length, 0) +
-      individualRegistrations.filter((ir: { housingType: string }) => ir.housingType === 'on_campus').length
+      individualRegistrations.filter((ir: { housingType: string | null }) => ir.housingType === 'on_campus').length
     const offCampusCount = offCampusGroups.reduce((sum: number, gr: { participants: unknown[] }) => sum + gr.participants.length, 0) +
-      individualRegistrations.filter((ir: { housingType: string }) => ir.housingType === 'off_campus').length
+      individualRegistrations.filter((ir: { housingType: string | null }) => ir.housingType === 'off_campus').length
     const dayPassCount = dayPassGroups.reduce((sum: number, gr: { participants: unknown[] }) => sum + gr.participants.length, 0) +
-      individualRegistrations.filter((ir: { housingType: string }) => ir.housingType === 'day_pass').length
+      individualRegistrations.filter((ir: { housingType: string | null }) => ir.housingType === 'day_pass').length
 
     // Housing stats
     const totalBuildings = buildings.length
@@ -121,8 +121,8 @@ export async function GET(
     const unassignedHousing = onCampusCount - assignedToRooms
 
     // Gender-based capacity
-    const maleRooms = rooms.filter((r: { building: { gender: string } }) => r.building.gender === 'male')
-    const femaleRooms = rooms.filter((r: { building: { gender: string } }) => r.building.gender === 'female')
+    const maleRooms = rooms.filter((r: { building: { gender: string | null } }) => r.building.gender === 'male')
+    const femaleRooms = rooms.filter((r: { building: { gender: string | null } }) => r.building.gender === 'female')
     const maleCapacity = maleRooms.reduce((sum: number, r: { capacity: number }) => sum + r.capacity, 0)
     const femaleCapacity = femaleRooms.reduce((sum: number, r: { capacity: number }) => sum + r.capacity, 0)
     const maleUsed = maleRooms.reduce((sum: number, r: { currentOccupancy: number }) => sum + r.currentOccupancy, 0)
