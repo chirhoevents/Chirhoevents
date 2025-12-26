@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,6 +29,8 @@ export default function RecordAdditionalPaymentModal({
   onSuccess,
 }: RecordAdditionalPaymentModalProps) {
   const [saving, setSaving] = useState(false)
+  // Use ref for synchronous double-submit protection
+  const isSubmittingRef = useRef(false)
   const [paymentMethod, setPaymentMethod] = useState<'check' | 'card' | 'cash' | 'bank_transfer' | 'other'>('check')
   const [formData, setFormData] = useState({
     amount: '',
@@ -55,17 +57,23 @@ export default function RecordAdditionalPaymentModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Prevent double submission
-    if (saving) return
+    // Prevent double submission using ref (synchronous check)
+    if (isSubmittingRef.current || saving) {
+      console.warn('Payment submission blocked - already in progress')
+      return
+    }
 
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
       alert('Please enter a valid payment amount')
       return
     }
 
+    // Set both ref and state immediately
+    isSubmittingRef.current = true
     setSaving(true)
 
     try {
+      console.log('Submitting payment:', { registrationId, amount: formData.amount })
       const res = await fetch('/api/admin/payments/record', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -119,6 +127,7 @@ export default function RecordAdditionalPaymentModal({
       console.error('Error recording payment:', error)
       alert('Failed to record payment')
     } finally {
+      isSubmittingRef.current = false
       setSaving(false)
     }
   }
