@@ -96,7 +96,7 @@ export default function ExportAllDataModal({
             <p className="text-gray-600 text-center mb-6">
               Your data has been exported and the download should start automatically.
             </p>
-            <Button onClick={handleClose} className="bg-[#1E3A5F] hover:bg-[#2A4A6F]">
+            <Button onClick={handleClose} className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
               Close
             </Button>
           </div>
@@ -113,7 +113,7 @@ export default function ExportAllDataModal({
               </Button>
               <Button
                 onClick={handleExport}
-                className="bg-[#1E3A5F] hover:bg-[#2A4A6F]"
+                className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
               >
                 Try Again
               </Button>

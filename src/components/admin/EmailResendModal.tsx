@@ -241,7 +241,7 @@ export default function EmailResendModal({
               variant={mode === 'templates' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setMode('templates')}
-              className={mode === 'templates' ? 'bg-[#1E3A5F]' : ''}
+              className={mode === 'templates' ? 'bg-[#1E3A5F] text-white' : ''}
             >
               <FileText className="h-4 w-4 mr-2" />
               Email Templates
@@ -250,7 +250,7 @@ export default function EmailResendModal({
               variant={mode === 'history' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setMode('history')}
-              className={mode === 'history' ? 'bg-[#1E3A5F]' : ''}
+              className={mode === 'history' ? 'bg-[#1E3A5F] text-white' : ''}
             >
               <History className="h-4 w-4 mr-2" />
               Email History

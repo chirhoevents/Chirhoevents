@@ -345,7 +345,7 @@ export default function RecordCheckPaymentModal({
             <Button
               type="submit"
               disabled={processing}
-              className="bg-[#1E3A5F] hover:bg-[#2A4A6F]"
+              className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
             >
               {processing ? (
                 <>

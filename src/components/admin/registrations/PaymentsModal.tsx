@@ -216,7 +216,7 @@ export default function PaymentsModal({
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <Button
                   onClick={() => setShowRecordPaymentModal(true)}
-                  className="bg-[#1E3A5F] hover:bg-[#2A4A6F]"
+                  className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
                 >
                   <CreditCard className="w-4 h-4 mr-2" />
                   Record Payment
@@ -241,7 +241,15 @@ export default function PaymentsModal({
                   <Mail className="w-4 h-4 mr-2" />
                   Send Reminder
                 </Button>
-                <Button variant="outline" disabled>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    window.open(
+                      `/api/admin/registrations/${registrationId}/invoice?type=${registrationType}`,
+                      '_blank'
+                    )
+                  }}
+                >
                   <FileText className="w-4 h-4 mr-2" />
                   Generate Invoice
                 </Button>

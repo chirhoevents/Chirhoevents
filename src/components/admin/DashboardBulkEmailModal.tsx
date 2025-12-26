@@ -251,7 +251,7 @@ export default function DashboardBulkEmailModal({
             )}
             <Button
               onClick={handleClose}
-              className="mt-6 bg-[#1E3A5F] hover:bg-[#2A4A6F]"
+              className="mt-6 bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
             >
               Close
             </Button>
