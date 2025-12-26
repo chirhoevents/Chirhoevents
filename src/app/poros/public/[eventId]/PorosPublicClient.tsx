@@ -74,7 +74,7 @@ export default function PorosPublicClient({
   }, {} as Record<string, MealTime[]>)
 
   // Get unique colors
-  const uniqueColors = [...new Set(mealTimes.map(mt => mt.color))]
+  const uniqueColors = Array.from(new Set(mealTimes.map(mt => mt.color)))
 
   const closeModal = () => setActiveModal(null)
 
