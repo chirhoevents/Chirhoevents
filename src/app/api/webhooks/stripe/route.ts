@@ -81,10 +81,24 @@ export async function POST(request: NextRequest) {
         } : 'NOT FOUND')
 
         if (balance) {
-          const newAmountPaid = Number(balance.amountPaid) + Number(paymentRecord.amount)
+          // RECALCULATE from all succeeded payments instead of incrementing
+          // This makes the webhook idempotent - safe to call multiple times
+          const allSucceededPayments = await prisma.payment.findMany({
+            where: {
+              registrationId: registrationId,
+              paymentStatus: 'succeeded',
+            },
+            select: { id: true, amount: true },
+          })
+
+          const newAmountPaid = allSucceededPayments.reduce(
+            (sum, p) => sum + Number(p.amount),
+            0
+          )
           const newAmountRemaining = Number(balance.totalAmountDue) - newAmountPaid
 
-          console.log('🔄 Updating balance:', {
+          console.log('🔄 Recalculating balance from', allSucceededPayments.length, 'payments:', {
+            payments: allSucceededPayments.map(p => Number(p.amount)),
             newAmountPaid,
             newAmountRemaining,
             status: newAmountRemaining <= 0 ? 'paid_full' : 'partial'
@@ -302,8 +316,26 @@ export async function POST(request: NextRequest) {
         })
 
         if (balance) {
-          const newAmountPaid = Number(balance.amountPaid) + Number(paymentAmount.amount)
+          // RECALCULATE from all succeeded payments instead of incrementing
+          // This makes the webhook idempotent - safe to call multiple times
+          const allSucceededPayments = await prisma.payment.findMany({
+            where: {
+              registrationId: registrationId,
+              paymentStatus: 'succeeded',
+            },
+            select: { amount: true },
+          })
+
+          const newAmountPaid = allSucceededPayments.reduce(
+            (sum, p) => sum + Number(p.amount),
+            0
+          )
           const newAmountRemaining = Number(balance.totalAmountDue) - newAmountPaid
+
+          console.log('🔄 Group checkout: Recalculating balance from', allSucceededPayments.length, 'payments:', {
+            newAmountPaid,
+            newAmountRemaining,
+          })
 
           await prisma.paymentBalance.update({
             where: { registrationId: registrationId },

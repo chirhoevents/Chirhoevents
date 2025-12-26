@@ -95,13 +95,25 @@ export async function POST(
       },
     })
 
-    // Update payment balance
+    // Update payment balance - RECALCULATE from all succeeded payments for idempotency
     const paymentBalance = await prisma.paymentBalance.findUnique({
       where: { registrationId: payment.registrationId },
     })
 
     if (paymentBalance) {
-      const newAmountPaid = Number(paymentBalance.amountPaid) + actualAmount
+      // Get all succeeded payments for this registration
+      const allSucceededPayments = await prisma.payment.findMany({
+        where: {
+          registrationId: payment.registrationId,
+          paymentStatus: 'succeeded',
+        },
+        select: { amount: true },
+      })
+
+      const newAmountPaid = allSucceededPayments.reduce(
+        (sum, p) => sum + Number(p.amount),
+        0
+      )
       const newBalanceRemaining = Number(paymentBalance.totalAmountDue) - newAmountPaid
 
       // Determine new payment status
