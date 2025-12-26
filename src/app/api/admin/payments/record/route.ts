@@ -70,48 +70,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get payment balance
-    const paymentBalance = await prisma.paymentBalance.findUnique({
-      where: { registrationId },
-    })
-
-    if (!paymentBalance) {
-      return NextResponse.json(
-        { error: 'Payment balance not found for this registration' },
-        { status: 404 }
-      )
-    }
-
-    // Check for duplicate payment (same amount within last 30 seconds)
-    const thirtySecondsAgo = new Date(Date.now() - 30000)
-    const duplicatePayment = await prisma.payment.findFirst({
-      where: {
-        registrationId,
-        registrationType: registrationType as 'individual' | 'group',
-        amount: paymentAmount,
-        paymentMethod: paymentMethod as 'card' | 'check' | 'cash' | 'bank_transfer' | 'other',
-        createdAt: { gte: thirtySecondsAgo },
-      },
-    })
-
-    if (duplicatePayment) {
-      console.warn('Duplicate payment detected:', {
-        registrationId,
-        amount: paymentAmount,
-        existingPaymentId: duplicatePayment.id,
-      })
-      return NextResponse.json(
-        { error: 'Duplicate payment detected. This payment was already recorded.' },
-        { status: 409 }
-      )
-    }
-
-    // Verify the registration belongs to the user's organization
-    if (paymentBalance.organizationId !== user.organizationId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
-    // Get registration details for email
+    // Get registration details for email (outside transaction)
     let registration: any = null
     let recipientEmail = ''
     let recipientName = ''
@@ -139,58 +98,103 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create payment record
-    const payment = await prisma.payment.create({
-      data: {
-        organizationId: paymentBalance.organizationId,
-        eventId: paymentBalance.eventId,
-        registrationId,
-        registrationType: registrationType as 'individual' | 'group',
-        amount: paymentAmount,
-        paymentType: 'balance', // Admin recorded payments
-        paymentMethod: paymentMethod as 'card' | 'check' | 'cash' | 'bank_transfer' | 'other',
-        paymentStatus: 'succeeded', // Manual payments are immediately completed
-        checkNumber: checkNumber || null,
-        checkDate: checkDate ? new Date(checkDate) : null,
-        checkReceivedDate: paymentMethod === 'check' ? new Date(paymentDate) : null,
-        cardLast4: cardLast4 || null,
-        cardholderName: cardholderName || null,
-        authorizationCode: authorizationCode || null,
-        paymentMethodDetails: paymentMethodDetails || null,
-        transactionReference: transactionReference || null,
-        notes: notes || null,
-        processedAt: new Date(paymentDate),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
+    // Use a transaction to ensure atomicity and prevent race conditions
+    const result = await prisma.$transaction(async (tx) => {
+      // Get fresh payment balance inside transaction
+      const paymentBalance = await tx.paymentBalance.findUnique({
+        where: { registrationId },
+      })
+
+      if (!paymentBalance) {
+        throw new Error('Payment balance not found')
+      }
+
+      // Verify the registration belongs to the user's organization
+      if (paymentBalance.organizationId !== user.organizationId) {
+        throw new Error('Forbidden')
+      }
+
+      // Check for duplicate payment inside transaction (same amount within last 30 seconds)
+      const thirtySecondsAgo = new Date(Date.now() - 30000)
+      const duplicatePayment = await tx.payment.findFirst({
+        where: {
+          registrationId,
+          registrationType: registrationType as 'individual' | 'group',
+          amount: paymentAmount,
+          paymentMethod: paymentMethod as 'card' | 'check' | 'cash' | 'bank_transfer' | 'other',
+          createdAt: { gte: thirtySecondsAgo },
+        },
+      })
+
+      if (duplicatePayment) {
+        console.warn('Duplicate payment detected in transaction:', {
+          registrationId,
+          amount: paymentAmount,
+          existingPaymentId: duplicatePayment.id,
+        })
+        throw new Error('Duplicate payment')
+      }
+
+      // Create payment record
+      const payment = await tx.payment.create({
+        data: {
+          organizationId: paymentBalance.organizationId,
+          eventId: paymentBalance.eventId,
+          registrationId,
+          registrationType: registrationType as 'individual' | 'group',
+          amount: paymentAmount,
+          paymentType: 'balance',
+          paymentMethod: paymentMethod as 'card' | 'check' | 'cash' | 'bank_transfer' | 'other',
+          paymentStatus: 'succeeded',
+          checkNumber: checkNumber || null,
+          checkDate: checkDate ? new Date(checkDate) : null,
+          checkReceivedDate: paymentMethod === 'check' ? new Date(paymentDate) : null,
+          cardLast4: cardLast4 || null,
+          cardholderName: cardholderName || null,
+          authorizationCode: authorizationCode || null,
+          paymentMethodDetails: paymentMethodDetails || null,
+          transactionReference: transactionReference || null,
+          notes: notes || null,
+          processedAt: new Date(paymentDate),
+          processedByUserId: user.id,
+        },
+      })
+
+      // Calculate new balance using fresh data from transaction
+      const newAmountPaid = Number(paymentBalance.amountPaid) + paymentAmount
+      const newAmountRemaining = Number(paymentBalance.totalAmountDue) - newAmountPaid
+
+      // Determine new payment status
+      let newPaymentStatus: 'unpaid' | 'partial' | 'paid_full' | 'overpaid' = 'unpaid'
+      if (newAmountRemaining === 0) {
+        newPaymentStatus = 'paid_full'
+      } else if (newAmountRemaining < 0) {
+        newPaymentStatus = 'overpaid'
+      } else if (newAmountPaid > 0) {
+        newPaymentStatus = 'partial'
+      }
+
+      // Update payment balance
+      await tx.paymentBalance.update({
+        where: { registrationId },
+        data: {
+          amountPaid: newAmountPaid,
+          amountRemaining: newAmountRemaining,
+          paymentStatus: newPaymentStatus,
+          lastPaymentDate: new Date(),
+        },
+      })
+
+      return {
+        payment,
+        newAmountPaid,
+        newAmountRemaining,
+        newPaymentStatus,
+        totalAmountDue: Number(paymentBalance.totalAmountDue),
+      }
     })
 
-    // Update payment balance
-    const newAmountPaid = Number(paymentBalance.amountPaid) + paymentAmount
-    const newAmountRemaining = Number(paymentBalance.totalAmountDue) - newAmountPaid
-
-    // Determine new payment status
-    let newPaymentStatus: 'unpaid' | 'partial' | 'paid_full' | 'overpaid' = 'unpaid'
-    if (newAmountRemaining === 0) {
-      newPaymentStatus = 'paid_full'
-    } else if (newAmountRemaining < 0) {
-      newPaymentStatus = 'overpaid'
-    } else if (newAmountPaid > 0) {
-      newPaymentStatus = 'partial'
-    }
-
-    await prisma.paymentBalance.update({
-      where: { registrationId },
-      data: {
-        amountPaid: newAmountPaid,
-        amountRemaining: newAmountRemaining,
-        paymentStatus: newPaymentStatus,
-        lastPaymentDate: new Date(),
-        updatedAt: new Date(),
-      },
-    })
-
-    // Send email notification if requested
+    // Send email notification if requested (outside transaction)
     if (sendEmail && recipientEmail && registration.event) {
       try {
         const paymentMethodLabel = paymentMethod === 'card'
@@ -212,7 +216,7 @@ export async function POST(request: NextRequest) {
           referenceInfo = transactionReference
         }
 
-        const emailSubject = newPaymentStatus === 'paid_full'
+        const emailSubject = result.newPaymentStatus === 'paid_full'
           ? `Payment Received - PAID IN FULL! - ${registration.event.name}`
           : `Payment Received - ${registration.event.name}`
 
@@ -226,7 +230,7 @@ export async function POST(request: NextRequest) {
               .header { background-color: #1E3A5F; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
               .content { background-color: #f9f9f9; padding: 30px; border: 1px solid #ddd; border-top: none; }
               .payment-box { background-color: white; border-left: 4px solid #10B981; padding: 20px; margin: 20px 0; border-radius: 4px; }
-              .balance-box { background-color: ${newPaymentStatus === 'paid_full' ? '#D1FAE5' : '#FEF3C7'}; border-left: 4px solid ${newPaymentStatus === 'paid_full' ? '#10B981' : '#F59E0B'}; padding: 15px; margin: 20px 0; }
+              .balance-box { background-color: ${result.newPaymentStatus === 'paid_full' ? '#D1FAE5' : '#FEF3C7'}; border-left: 4px solid ${result.newPaymentStatus === 'paid_full' ? '#10B981' : '#F59E0B'}; padding: 15px; margin: 20px 0; }
               .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
               .paid-full { color: #10B981; font-weight: bold; font-size: 24px; }
             </style>
@@ -250,11 +254,11 @@ export async function POST(request: NextRequest) {
                 </div>
 
                 <div class="balance-box">
-                  <h3 style="margin-top: 0; color: ${newPaymentStatus === 'paid_full' ? '#10B981' : '#F59E0B'};">Updated Balance</h3>
-                  <p style="margin: 5px 0;"><strong>Total Amount Due:</strong> $${Number(paymentBalance.totalAmountDue).toFixed(2)}</p>
-                  <p style="margin: 5px 0;"><strong>Total Paid:</strong> $${newAmountPaid.toFixed(2)}</p>
-                  <p style="margin: 5px 0;"><strong>Balance Remaining:</strong> $${newAmountRemaining.toFixed(2)}</p>
-                  ${newPaymentStatus === 'paid_full' ? `
+                  <h3 style="margin-top: 0; color: ${result.newPaymentStatus === 'paid_full' ? '#10B981' : '#F59E0B'};">Updated Balance</h3>
+                  <p style="margin: 5px 0;"><strong>Total Amount Due:</strong> $${result.totalAmountDue.toFixed(2)}</p>
+                  <p style="margin: 5px 0;"><strong>Total Paid:</strong> $${result.newAmountPaid.toFixed(2)}</p>
+                  <p style="margin: 5px 0;"><strong>Balance Remaining:</strong> $${result.newAmountRemaining.toFixed(2)}</p>
+                  ${result.newPaymentStatus === 'paid_full' ? `
                     <p class="paid-full" style="margin-top: 15px;">✅ PAID IN FULL!</p>
                     <p style="margin: 5px 0; color: #10B981;">Your registration is now fully paid. Thank you!</p>
                   ` : ''}
@@ -295,19 +299,39 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       payment: {
-        id: payment.id,
-        amount: Number(payment.amount),
-        paymentMethod: payment.paymentMethod,
-        paymentStatus: payment.paymentStatus,
+        id: result.payment.id,
+        amount: Number(result.payment.amount),
+        paymentMethod: result.payment.paymentMethod,
+        paymentStatus: result.payment.paymentStatus,
       },
       updatedBalance: {
-        amountPaid: newAmountPaid,
-        amountRemaining: newAmountRemaining,
-        paymentStatus: newPaymentStatus,
+        amountPaid: result.newAmountPaid,
+        amountRemaining: result.newAmountRemaining,
+        paymentStatus: result.newPaymentStatus,
       },
     })
   } catch (error) {
     console.error('Error recording payment:', error)
+
+    // Handle specific error messages
+    if (error instanceof Error) {
+      if (error.message === 'Duplicate payment') {
+        return NextResponse.json(
+          { error: 'Duplicate payment detected. This payment was already recorded.' },
+          { status: 409 }
+        )
+      }
+      if (error.message === 'Payment balance not found') {
+        return NextResponse.json(
+          { error: 'Payment balance not found for this registration' },
+          { status: 404 }
+        )
+      }
+      if (error.message === 'Forbidden') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+    }
+
     return NextResponse.json(
       { error: 'Failed to record payment' },
       { status: 500 }
