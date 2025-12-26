@@ -78,9 +78,9 @@ export async function GET(
       registrationData = {
         type: 'group',
         name: registration.groupName,
-        contactName: `${registration.leaderFirstName} ${registration.leaderLastName}`,
-        email: registration.leaderEmail,
-        phone: registration.leaderPhone,
+        contactName: registration.groupLeaderName,
+        email: registration.groupLeaderEmail,
+        phone: registration.groupLeaderPhone,
         parish: registration.parishName,
         diocese: registration.dioceseName,
         participantCount: registration.participants.length,
