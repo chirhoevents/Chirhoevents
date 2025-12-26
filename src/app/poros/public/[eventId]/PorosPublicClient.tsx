@@ -19,6 +19,7 @@ interface MealTime {
   day: string
   meal: string
   color: string
+  colorHex?: string
   time: string
 }
 
@@ -66,15 +67,15 @@ export default function PorosPublicClient({
 }: Props) {
   const [activeModal, setActiveModal] = useState<string | null>(null)
 
-  // Organize meal times by day
-  const mealTimesByDay = mealTimes.reduce((acc, mt) => {
-    if (!acc[mt.day]) acc[mt.day] = []
-    acc[mt.day].push(mt)
+  // Organize meal times by meal type (breakfast, lunch, dinner)
+  const mealTimesByMeal = mealTimes.reduce((acc, mt) => {
+    if (!acc[mt.meal]) acc[mt.meal] = []
+    acc[mt.meal].push(mt)
     return acc
   }, {} as Record<string, MealTime[]>)
 
-  // Get unique colors
-  const uniqueColors = Array.from(new Set(mealTimes.map(mt => mt.color)))
+  // Order for meal types
+  const mealOrder = ['breakfast', 'lunch', 'dinner']
 
   const closeModal = () => setActiveModal(null)
 
@@ -276,34 +277,50 @@ export default function PorosPublicClient({
       {activeModal === 'meals' && (
         <Modal onClose={closeModal} title="Meal Times">
           {mealTimes.length > 0 ? (
-            <div className="space-y-6">
-              {Object.entries(mealTimesByDay).map(([day, times]) => (
-                <div key={day}>
-                  <h4 className="font-bold text-lg mb-3 capitalize text-[#1E3A5F]">{day}</h4>
-                  <div className="space-y-2">
-                    {['breakfast', 'lunch', 'dinner'].map((meal) => {
-                      const mealEntries = times.filter(t => t.meal === meal)
-                      if (mealEntries.length === 0) return null
-                      return (
-                        <div key={meal} className="p-3 bg-gray-50 rounded-lg">
-                          <div className="font-semibold capitalize mb-2">{meal}</div>
-                          <div className="flex flex-wrap gap-2">
-                            {mealEntries.map((entry) => (
-                              <div
-                                key={entry.id}
-                                className="px-3 py-1 rounded-full text-white text-sm font-medium"
-                                style={{ backgroundColor: MEAL_COLORS[entry.color.toLowerCase()] || '#6b7280' }}
-                              >
-                                {entry.color}: {entry.time}
-                              </div>
-                            ))}
-                          </div>
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600 text-center mb-4">
+                Find your color group for your meal time
+              </p>
+              {mealOrder.map((meal) => {
+                const entries = mealTimesByMeal[meal] || []
+                if (entries.length === 0) return null
+                return (
+                  <div key={meal} className="p-4 bg-gray-50 rounded-xl">
+                    <div className="font-bold text-lg capitalize text-[#1E3A5F] mb-3 flex items-center gap-2">
+                      {meal === 'breakfast' && (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707" />
+                        </svg>
+                      )}
+                      {meal === 'lunch' && (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707" />
+                        </svg>
+                      )}
+                      {meal === 'dinner' && (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                        </svg>
+                      )}
+                      {meal.charAt(0).toUpperCase() + meal.slice(1)}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {entries
+                        .sort((a, b) => a.time.localeCompare(b.time))
+                        .map((entry) => (
+                        <div
+                          key={entry.id}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg text-white font-medium"
+                          style={{ backgroundColor: entry.colorHex || MEAL_COLORS[entry.color.toLowerCase()] || '#6b7280' }}
+                        >
+                          <span className="flex-1">{entry.color}</span>
+                          <span className="font-bold">{entry.time}</span>
                         </div>
-                      )
-                    })}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           ) : (
             <p className="text-center text-gray-500 py-8">
