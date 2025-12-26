@@ -361,7 +361,7 @@ async function getIndividualRegistration(registrationId: string, organizationId:
     },
     select: {
       id: true,
-      status: true,
+      completed: true,
       completedAt: true,
     },
   })
@@ -369,7 +369,7 @@ async function getIndividualRegistration(registrationId: string, organizationId:
   const liabilityForms = liabilityFormsDb.length > 0
     ? liabilityFormsDb.map((form) => ({
         id: form.id,
-        completed: form.status === 'completed',
+        completed: form.completed,
         completedAt: form.completedAt?.toISOString() || null,
       }))
     : [
