@@ -53,7 +53,7 @@ export async function GET(
               name: true,
               startDate: true,
               endDate: true,
-              location: true,
+              locationName: true,
             },
           },
           participants: {
@@ -98,7 +98,7 @@ export async function GET(
               name: true,
               startDate: true,
               endDate: true,
-              location: true,
+              locationName: true,
             },
           },
         },
@@ -568,7 +568,7 @@ function generateInvoiceHTML(data: InvoiceData): string {
         <h3>Event Details</h3>
         <p class="primary">${event?.name || 'Event'}</p>
         ${event?.startDate ? `<p>${formatDate(event.startDate)}${event.endDate ? ` - ${formatDate(event.endDate)}` : ''}</p>` : ''}
-        ${event?.location ? `<p>${event.location}</p>` : ''}
+        ${event?.locationName ? `<p>${event.locationName}</p>` : ''}
       </div>
       <div class="info-box">
         <h3>Registration Info</h3>
