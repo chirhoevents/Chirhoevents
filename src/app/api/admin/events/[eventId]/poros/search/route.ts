@@ -36,25 +36,37 @@ export async function GET(
       include: {
         participants: {
           select: { id: true, firstName: true, lastName: true, gender: true }
-        },
-        roomAssignments: {
-          include: {
-            room: {
-              include: { building: true }
-            }
-          }
-        },
-        seatingAssignment: {
-          include: { section: true }
         }
       },
       take: 10,
       orderBy: { groupName: 'asc' }
     })
 
-    // Get small group and meal color assignments
     const groupIds = groupRegistrations.map(g => g.id)
 
+    // Get room assignments for these groups
+    const roomAssignments = await prisma.roomAssignment.findMany({
+      where: {
+        groupRegistrationId: { in: groupIds }
+      },
+      include: {
+        room: {
+          include: { building: true }
+        }
+      }
+    })
+
+    // Get seating assignments
+    const seatingAssignments = await prisma.seatingAssignment.findMany({
+      where: {
+        groupRegistrationId: { in: groupIds }
+      },
+      include: {
+        section: true
+      }
+    })
+
+    // Get small group assignments
     const smallGroupAssignments = await prisma.smallGroupAssignment.findMany({
       where: {
         groupRegistrationId: { in: groupIds }
@@ -64,18 +76,51 @@ export async function GET(
       }
     })
 
-    const mealColorAssignments = await prisma.mealColorAssignment.findMany({
-      where: {
-        groupRegistrationId: { in: groupIds }
+    // Get meal color assignments
+    let mealColorAssignments: any[] = []
+    try {
+      mealColorAssignments = await prisma.mealColorAssignment.findMany({
+        where: {
+          groupRegistrationId: { in: groupIds }
+        }
+      })
+    } catch {
+      // Table might not exist yet
+    }
+
+    // Create lookup maps
+    const roomMap = new Map<string, any[]>()
+    roomAssignments.forEach(ra => {
+      const grId = ra.groupRegistrationId
+      if (grId) {
+        if (!roomMap.has(grId)) roomMap.set(grId, [])
+        roomMap.get(grId)!.push({
+          building: ra.room.building.name,
+          room: ra.room.roomNumber
+        })
       }
     })
 
-    // Create lookup maps
+    const seatingMap = new Map<string, any>()
+    seatingAssignments.forEach(sa => {
+      if (sa.groupRegistrationId) {
+        seatingMap.set(sa.groupRegistrationId, {
+          section: sa.section.name,
+          row: sa.rowNumber
+        })
+      }
+    })
+
     const smallGroupMap = new Map(
-      smallGroupAssignments.map(a => [a.groupRegistrationId, a.smallGroup])
+      smallGroupAssignments
+        .filter(a => a.groupRegistrationId)
+        .map(a => [a.groupRegistrationId, a.smallGroup])
     )
+
     const mealColorMap = new Map(
-      mealColorAssignments.map(a => [a.groupRegistrationId, a.color])
+      mealColorAssignments
+        .filter(a => a.groupRegistrationId)
+        .map(a => [a.groupRegistrationId, a.color])
     )
 
     // Format response
@@ -91,15 +136,8 @@ export async function GET(
       participantCount: gr.participants.length,
       maleCount: gr.participants.filter(p => p.gender?.toLowerCase() === 'male').length,
       femaleCount: gr.participants.filter(p => p.gender?.toLowerCase() === 'female').length,
-      roomAssignments: gr.roomAssignments.map(ra => ({
-        building: ra.room.building.name,
-        room: ra.room.roomNumber,
-        gender: ra.gender
-      })),
-      seating: gr.seatingAssignment ? {
-        section: gr.seatingAssignment.section.name,
-        row: gr.seatingAssignment.rowNumber
-      } : null,
+      roomAssignments: roomMap.get(gr.id) || [],
+      seating: seatingMap.get(gr.id) || null,
       smallGroup: smallGroupMap.get(gr.id) || null,
       mealColor: mealColorMap.get(gr.id) || null
     }))
