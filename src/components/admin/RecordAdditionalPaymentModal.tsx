@@ -102,7 +102,21 @@ export default function RecordAdditionalPaymentModal({
         }),
       })
 
+      const responseData = await res.json()
+
       if (res.ok) {
+        // Log debug info from API response
+        console.log('=== PAYMENT RECORDED SUCCESSFULLY ===')
+        console.log('Response:', responseData)
+        if (responseData._debug) {
+          console.log('Debug Info:')
+          console.log('  Payments count after create:', responseData._debug.paymentsCountAfterCreate)
+          console.log('  Payment IDs:', responseData._debug.paymentIds)
+          console.log('  Payment amounts:', responseData._debug.paymentAmounts)
+          console.log('  Sum calculation:', responseData._debug.sumCalculation)
+        }
+        console.log('=====================================')
+
         onSuccess()
         onClose()
         // Reset form
@@ -120,8 +134,8 @@ export default function RecordAdditionalPaymentModal({
           sendEmail: true,
         })
       } else {
-        const error = await res.json()
-        alert(`Error: ${error.error || 'Failed to record payment'}`)
+        console.error('Payment recording failed:', responseData)
+        alert(`Error: ${responseData.error || 'Failed to record payment'}`)
       }
     } catch (error) {
       console.error('Error recording payment:', error)
