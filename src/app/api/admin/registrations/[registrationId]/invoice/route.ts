@@ -34,12 +34,10 @@ export async function GET(
       where: { id: user.organizationId! },
       select: {
         name: true,
-        email: true,
-        phone: true,
+        contactEmail: true,
+        contactPhone: true,
+        contactName: true,
         address: true,
-        city: true,
-        state: true,
-        zipCode: true,
       },
     })
 
@@ -531,10 +529,19 @@ function generateInvoiceHTML(data: InvoiceData): string {
     <div class="header">
       <div class="header-left">
         <h1>${organization?.name || 'Organization'}</h1>
-        ${organization?.email ? `<p>${organization.email}</p>` : ''}
-        ${organization?.phone ? `<p>${organization.phone}</p>` : ''}
-        ${organization?.address ? `<p>${organization.address}</p>` : ''}
-        ${organization?.city ? `<p>${organization.city}${organization.state ? `, ${organization.state}` : ''} ${organization.zipCode || ''}</p>` : ''}
+        ${organization?.contactEmail ? `<p>${organization.contactEmail}</p>` : ''}
+        ${organization?.contactPhone ? `<p>${organization.contactPhone}</p>` : ''}
+        ${(() => {
+          if (organization?.address && typeof organization.address === 'object') {
+            const addr = organization.address as Record<string, string>
+            const parts = []
+            if (addr.street) parts.push(`<p>${addr.street}</p>`)
+            const cityLine = [addr.city, addr.state].filter(Boolean).join(', ')
+            if (cityLine || addr.zip) parts.push(`<p>${cityLine} ${addr.zip || ''}</p>`)
+            return parts.join('')
+          }
+          return ''
+        })()}
       </div>
       <div class="header-right">
         <h2>INVOICE</h2>
@@ -631,7 +638,7 @@ function generateInvoiceHTML(data: InvoiceData): string {
 
     <div class="footer">
       <p>Thank you for your registration!</p>
-      <p>If you have any questions, please contact us at ${organization?.email || 'our office'}.</p>
+      <p>If you have any questions, please contact us at ${organization?.contactEmail || 'our office'}.</p>
       <p style="margin-top: 10px;">Generated on ${invoiceDate}</p>
     </div>
   </div>
