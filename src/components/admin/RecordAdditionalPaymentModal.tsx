@@ -55,6 +55,9 @@ export default function RecordAdditionalPaymentModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Prevent double submission
+    if (saving) return
+
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
       alert('Please enter a valid payment amount')
       return
