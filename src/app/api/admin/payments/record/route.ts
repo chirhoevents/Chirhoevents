@@ -160,13 +160,14 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // Recalculate balance from ALL succeeded payments (more robust than incrementing)
+      // Recalculate balance from ALL succeeded payments for this registration type
       const allPayments = await tx.payment.findMany({
         where: {
           registrationId,
+          registrationType: registrationType as 'individual' | 'group',
           paymentStatus: 'succeeded',
         },
-        select: { amount: true },
+        select: { id: true, amount: true, createdAt: true },
       })
 
       // Sum up all succeeded payments
@@ -184,13 +185,20 @@ export async function POST(request: NextRequest) {
         newPaymentStatus = 'partial'
       }
 
-      console.log('Balance update:', {
-        registrationId,
-        paymentCount: allPayments.length,
-        calculatedTotal: newAmountPaid,
-        totalDue,
-        remaining: newAmountRemaining,
-      })
+      // Detailed logging for debugging
+      console.log('=== PAYMENT RECORDING DEBUG ===')
+      console.log('Registration ID:', registrationId)
+      console.log('Registration Type:', registrationType)
+      console.log('New payment amount:', paymentAmount)
+      console.log('All payments found:', allPayments.map(p => ({
+        id: p.id,
+        amount: Number(p.amount),
+        createdAt: p.createdAt,
+      })))
+      console.log('Total from payments:', newAmountPaid)
+      console.log('Total due:', totalDue)
+      console.log('Remaining:', newAmountRemaining)
+      console.log('================================')
 
       // Update payment balance with recalculated amount
       await tx.paymentBalance.update({
