@@ -154,10 +154,10 @@ export async function GET(
     // Check which ADA individuals have room assignments
     const adaParticipantIds = adaIndividuals
       .filter((a: { participantId: string | null }) => a.participantId)
-      .map((a: { participantId: string }) => a.participantId)
+      .map((a: { participantId: string | null }) => a.participantId as string)
     const adaIndividualRegIds = adaIndividuals
       .filter((a: { individualRegistrationId: string | null }) => a.individualRegistrationId)
-      .map((a: { individualRegistrationId: string }) => a.individualRegistrationId)
+      .map((a: { individualRegistrationId: string | null }) => a.individualRegistrationId as string)
 
     const adaAssignedCount = roomAssignments.filter((ra: { participantId: string | null; individualRegistrationId: string | null }) =>
       (ra.participantId && adaParticipantIds.includes(ra.participantId)) ||
