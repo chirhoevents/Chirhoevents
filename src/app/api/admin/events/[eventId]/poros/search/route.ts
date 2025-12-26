@@ -26,10 +26,11 @@ export async function GET(
         eventId: params.eventId,
         OR: [
           { groupName: { contains: query, mode: 'insensitive' } },
+          { parishName: { contains: query, mode: 'insensitive' } },
           { groupLeaderName: { contains: query, mode: 'insensitive' } },
           { groupLeaderEmail: { contains: query, mode: 'insensitive' } },
           { groupLeaderPhone: { contains: query, mode: 'insensitive' } },
-          { diocese: { contains: query, mode: 'insensitive' } },
+          { dioceseName: { contains: query, mode: 'insensitive' } },
         ]
       },
       include: {
@@ -85,7 +86,7 @@ export async function GET(
       leaderName: gr.groupLeaderName,
       leaderEmail: gr.groupLeaderEmail,
       leaderPhone: gr.groupLeaderPhone,
-      diocese: gr.diocese,
+      diocese: gr.dioceseName || gr.parishName,
       housingType: gr.housingType,
       participantCount: gr.participants.length,
       maleCount: gr.participants.filter(p => p.gender?.toLowerCase() === 'male').length,
