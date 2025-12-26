@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser()
