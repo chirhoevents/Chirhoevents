@@ -56,31 +56,51 @@ export async function GET(request: NextRequest) {
     // Note: registrations sort is handled after fetching since it's a computed field
 
     // Fetch all events for this organization
-    const events = await prisma.event.findMany({
-      where: whereClause,
-      include: {
-        settings: true,
-        pricing: true,
-        groupRegistrations: {
-          select: {
-            id: true,
-            totalParticipants: true,
+    // Use try-catch to handle potential schema migration issues
+    let events: any[] = []
+    try {
+      events = await prisma.event.findMany({
+        where: whereClause,
+        include: {
+          settings: true,
+          pricing: true,
+          groupRegistrations: {
+            select: {
+              id: true,
+              totalParticipants: true,
+            },
+          },
+          individualRegistrations: {
+            select: {
+              id: true,
+            },
+          },
+          _count: {
+            select: {
+              groupRegistrations: true,
+              individualRegistrations: true,
+            },
           },
         },
-        individualRegistrations: {
-          select: {
-            id: true,
-          },
-        },
-        _count: {
-          select: {
-            groupRegistrations: true,
-            individualRegistrations: true,
-          },
-        },
-      },
-      orderBy: orderByClause,
-    })
+        orderBy: orderByClause,
+      })
+    } catch (queryError) {
+      // If include fails (possibly due to schema migration), try without includes
+      console.error('Error with full query, trying basic query:', queryError)
+      const basicEvents = await prisma.event.findMany({
+        where: whereClause,
+        orderBy: orderByClause,
+      })
+      // Convert to expected format
+      events = basicEvents.map(e => ({
+        ...e,
+        settings: null,
+        pricing: null,
+        groupRegistrations: [],
+        individualRegistrations: [],
+        _count: { groupRegistrations: 0, individualRegistrations: 0 }
+      }))
+    }
 
     // Calculate stats for each event
     const eventsWithStats = await Promise.all(

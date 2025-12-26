@@ -11,36 +11,59 @@ interface PageProps {
 
 export default async function EventDetailPage({ params }: PageProps) {
   const user = await requireAdmin()
-  const { eventId } = params
+  const { eventId } = await Promise.resolve(params)
 
   // Fetch event with all related data
-  const event = await prisma.event.findUnique({
-    where: {
-      id: eventId,
-      organizationId: user.organizationId, // Ensure user can only see their org's events
-    },
-    include: {
-      settings: true,
-      pricing: true,
-      groupRegistrations: {
-        include: {
-          participants: true,
-        },
+  let event: any = null
+  try {
+    event = await prisma.event.findUnique({
+      where: {
+        id: eventId,
+        organizationId: user.organizationId, // Ensure user can only see their org's events
       },
-      individualRegistrations: true,
-    },
-  })
+      include: {
+        settings: true,
+        pricing: true,
+        groupRegistrations: {
+          include: {
+            participants: true,
+          },
+        },
+        individualRegistrations: true,
+      },
+    })
+  } catch (error) {
+    console.error('Error fetching event with includes:', error)
+    // Try without includes if there's a schema issue
+    event = await prisma.event.findUnique({
+      where: {
+        id: eventId,
+        organizationId: user.organizationId,
+      },
+    })
+    if (event) {
+      event.settings = null
+      event.pricing = null
+      event.groupRegistrations = []
+      event.individualRegistrations = []
+    }
+  }
 
   if (!event) {
     notFound()
   }
 
   // Fetch payment balances for this event
-  const paymentBalances = await prisma.paymentBalance.findMany({
-    where: {
-      eventId: eventId,
-    },
-  })
+  let paymentBalances: any[] = []
+  try {
+    paymentBalances = await prisma.paymentBalance.findMany({
+      where: {
+        eventId: eventId,
+      },
+    })
+  } catch (error) {
+    console.error('Error fetching payment balances:', error)
+  }
 
   // Calculate stats
   const totalRegistrations =

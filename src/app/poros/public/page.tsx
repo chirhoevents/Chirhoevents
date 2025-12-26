@@ -9,22 +9,47 @@ export const metadata = {
 }
 
 export default async function PorosPublicLandingPage() {
-  // Fetch events that have public portal enabled
-  const events = await prisma.event.findMany({
-    where: {
-      status: { in: ['registration_open', 'registration_closed', 'in_progress'] },
-      settings: {
-        porosPublicPortalEnabled: true
-      }
-    },
-    include: {
-      settings: true,
-      organization: {
-        select: { name: true }
-      }
-    },
-    orderBy: { startDate: 'asc' }
-  })
+  // Fetch events that have public portal enabled - with defensive error handling
+  let events: any[] = []
+  try {
+    events = await prisma.event.findMany({
+      where: {
+        status: { in: ['registration_open', 'registration_closed', 'in_progress'] },
+        settings: {
+          porosPublicPortalEnabled: true
+        }
+      },
+      include: {
+        settings: true,
+        organization: {
+          select: { name: true }
+        }
+      },
+      orderBy: { startDate: 'asc' }
+    })
+  } catch (error) {
+    console.error('Error fetching events with settings filter:', error)
+    // Fallback: just get active events without filtering on settings
+    try {
+      events = await prisma.event.findMany({
+        where: {
+          status: { in: ['registration_open', 'registration_closed', 'in_progress'] }
+        },
+        include: {
+          settings: true,
+          organization: {
+            select: { name: true }
+          }
+        },
+        orderBy: { startDate: 'asc' }
+      })
+      // Filter in memory if settings exist
+      events = events.filter(e => e.settings?.porosPublicPortalEnabled === true)
+    } catch (innerError) {
+      console.error('Error with fallback query:', innerError)
+      events = []
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#1E3A5F] to-[#0f1f33]">
