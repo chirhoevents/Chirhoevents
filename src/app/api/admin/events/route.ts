@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser()
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const now = new Date()
-    const whereClause: Prisma.EventWhereInput = {
+    const whereClause: any = {
       organizationId: user.organizationId,
     }
 

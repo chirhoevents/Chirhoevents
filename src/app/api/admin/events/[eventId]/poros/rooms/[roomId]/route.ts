@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 
+interface RoomRecord {
+  id: string
+  capacity: number
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: { eventId: string; roomId: string } }
@@ -63,7 +68,7 @@ export async function DELETE(
         where: { id: room.buildingId },
         data: {
           totalRooms: rooms.length,
-          totalBeds: rooms.reduce((sum, r) => sum + r.capacity, 0),
+          totalBeds: rooms.reduce((sum: number, r: RoomRecord) => sum + r.capacity, 0),
         },
       })
     }

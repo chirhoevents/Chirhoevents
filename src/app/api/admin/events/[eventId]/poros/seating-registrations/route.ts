@@ -2,6 +2,27 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 
+interface GroupRegistrationRecord {
+  id: string
+  parishName: string | null
+  _count: { participants: number }
+}
+
+interface IndividualRegistrationRecord {
+  id: string
+  firstName: string
+  lastName: string
+}
+
+interface SeatingAssignmentRecord {
+  groupRegistrationId: string | null
+  individualRegistrationId: string | null
+  sectionId: string
+  section: {
+    name: string
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { eventId: string } }
@@ -27,8 +48,8 @@ export async function GET(
     const seatingAssignments = await prisma.seatingAssignment.findMany({
       where: {
         OR: [
-          { groupRegistrationId: { in: groupRegs.map(r => r.id) } },
-          { individualRegistrationId: { in: individualRegs.map(r => r.id) } },
+          { groupRegistrationId: { in: groupRegs.map((r: GroupRegistrationRecord) => r.id) } },
+          { individualRegistrationId: { in: individualRegs.map((r: IndividualRegistrationRecord) => r.id) } },
         ],
       },
       include: {
@@ -39,18 +60,18 @@ export async function GET(
     // Create lookup maps
     const groupAssignmentMap = new Map(
       seatingAssignments
-        .filter(a => a.groupRegistrationId)
-        .map(a => [a.groupRegistrationId, a])
+        .filter((a: SeatingAssignmentRecord) => a.groupRegistrationId)
+        .map((a: SeatingAssignmentRecord) => [a.groupRegistrationId, a])
     )
     const individualAssignmentMap = new Map(
       seatingAssignments
-        .filter(a => a.individualRegistrationId)
-        .map(a => [a.individualRegistrationId, a])
+        .filter((a: SeatingAssignmentRecord) => a.individualRegistrationId)
+        .map((a: SeatingAssignmentRecord) => [a.individualRegistrationId, a])
     )
 
     const registrations = [
-      ...groupRegs.map(r => {
-        const assignment = groupAssignmentMap.get(r.id)
+      ...groupRegs.map((r: GroupRegistrationRecord) => {
+        const assignment = groupAssignmentMap.get(r.id) as SeatingAssignmentRecord | undefined
         return {
           id: r.id,
           type: 'group' as const,
@@ -64,8 +85,8 @@ export async function GET(
             : null,
         }
       }),
-      ...individualRegs.map(r => {
-        const assignment = individualAssignmentMap.get(r.id)
+      ...individualRegs.map((r: IndividualRegistrationRecord) => {
+        const assignment = individualAssignmentMap.get(r.id) as SeatingAssignmentRecord | undefined
         return {
           id: r.id,
           type: 'individual' as const,

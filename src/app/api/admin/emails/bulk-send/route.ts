@@ -14,6 +14,32 @@ interface BulkEmailRequest {
   selectedRecipients?: string[] // registration IDs for selected recipients
 }
 
+interface GroupRegistrationWithEvent {
+  id: string
+  groupLeaderName: string
+  groupLeaderEmail: string
+  groupName: string
+  eventId: string
+  event: {
+    id: string
+    name: string
+    status: string
+  }
+}
+
+interface IndividualRegistrationWithEvent {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  eventId: string
+  event: {
+    id: string
+    name: string
+    status: string
+  }
+}
+
 export async function GET() {
   try {
     const user = await getCurrentUser()
@@ -62,7 +88,7 @@ export async function GET() {
     })
 
     const recipients = [
-      ...groupRegistrations.map((reg) => ({
+      ...groupRegistrations.map((reg: GroupRegistrationWithEvent) => ({
         id: reg.id,
         type: 'group' as const,
         name: reg.groupLeaderName,
@@ -72,7 +98,7 @@ export async function GET() {
         eventName: reg.event.name,
         eventStatus: reg.event.status,
       })),
-      ...individualRegistrations.map((reg) => ({
+      ...individualRegistrations.map((reg: IndividualRegistrationWithEvent) => ({
         id: reg.id,
         type: 'individual' as const,
         name: `${reg.firstName} ${reg.lastName}`,
@@ -86,7 +112,7 @@ export async function GET() {
 
     // Count unique group leaders
     const uniqueGroupLeaders = new Set(
-      groupRegistrations.map((r) => r.groupLeaderEmail.toLowerCase())
+      groupRegistrations.map((r: GroupRegistrationWithEvent) => r.groupLeaderEmail.toLowerCase())
     ).size
 
     return NextResponse.json({

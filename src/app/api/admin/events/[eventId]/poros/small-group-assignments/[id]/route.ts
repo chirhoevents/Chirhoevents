@@ -13,18 +13,31 @@ export async function DELETE(
     const { type } = body
 
     let assignment
-    if (type === 'group') {
+    if (type === 'group_registration' || type === 'youth_group') {
+      // Find assignment by groupRegistrationId (youth group)
       assignment = await prisma.smallGroupAssignment.findFirst({
-        where: { participantId: id },
+        where: { groupRegistrationId: id },
       })
     } else if (type === 'individual') {
+      // Find assignment by individualRegistrationId
       assignment = await prisma.smallGroupAssignment.findFirst({
         where: { individualRegistrationId: id },
       })
+    } else if (type === 'participant') {
+      // Legacy: find by participantId
+      assignment = await prisma.smallGroupAssignment.findFirst({
+        where: { participantId: id },
+      })
     } else {
+      // Try all options including direct assignment ID
       assignment = await prisma.smallGroupAssignment.findFirst({
         where: {
-          OR: [{ participantId: id }, { individualRegistrationId: id }, { id }],
+          OR: [
+            { id },
+            { groupRegistrationId: id },
+            { individualRegistrationId: id },
+            { participantId: id },
+          ],
         },
       })
     }
@@ -34,16 +47,19 @@ export async function DELETE(
     }
 
     const groupId = assignment.smallGroupId
+    const isIndividualAssignment = assignment.participantId || assignment.individualRegistrationId
 
     await prisma.smallGroupAssignment.delete({
       where: { id: assignment.id },
     })
 
-    // Update group size
-    await prisma.smallGroup.update({
-      where: { id: groupId },
-      data: { currentSize: { decrement: 1 } },
-    })
+    // Update group size only for individual assignments (not youth groups)
+    if (isIndividualAssignment) {
+      await prisma.smallGroup.update({
+        where: { id: groupId },
+        data: { currentSize: { decrement: 1 } },
+      })
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {
