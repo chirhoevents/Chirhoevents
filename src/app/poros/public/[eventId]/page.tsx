@@ -72,16 +72,53 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
     // Table might not exist yet
   }
 
-  // Get meal times configuration
-  let mealTimes: any[] = []
+  // Get meal groups with times (meal times are per-color in MealGroups)
+  let mealGroups: any[] = []
   try {
-    mealTimes = await prisma.porosMealTime.findMany({
-      where: { eventId: params.eventId },
-      orderBy: [{ day: 'asc' }, { meal: 'asc' }]
+    mealGroups = await prisma.mealGroup.findMany({
+      where: { eventId: params.eventId, isActive: true },
+      orderBy: { displayOrder: 'asc' }
     })
   } catch {
     // Table might not exist yet
   }
+
+  // Transform meal groups to mealTimes format for the client
+  // Each color has breakfast, lunch, dinner times
+  const mealTimes = mealGroups.flatMap(group => {
+    const times: any[] = []
+    if (group.breakfastTime) {
+      times.push({
+        id: `${group.id}-breakfast`,
+        day: 'all', // times apply to all days
+        meal: 'breakfast',
+        color: group.name,
+        colorHex: group.colorHex,
+        time: group.breakfastTime
+      })
+    }
+    if (group.lunchTime) {
+      times.push({
+        id: `${group.id}-lunch`,
+        day: 'all',
+        meal: 'lunch',
+        color: group.name,
+        colorHex: group.colorHex,
+        time: group.lunchTime
+      })
+    }
+    if (group.dinnerTime) {
+      times.push({
+        id: `${group.id}-dinner`,
+        day: 'all',
+        meal: 'dinner',
+        color: group.name,
+        colorHex: group.colorHex,
+        time: group.dinnerTime
+      })
+    }
+    return times
+  })
 
   // Get schedule entries
   let scheduleEntries: any[] = []

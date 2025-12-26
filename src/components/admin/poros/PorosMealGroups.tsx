@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -40,6 +40,9 @@ import {
   UserMinus,
   Wand2,
   Clock,
+  Download,
+  Upload,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
@@ -113,6 +116,13 @@ export function PorosMealGroups({ eventId }: PorosMealGroupsProps) {
   const [selectedRegistration, setSelectedRegistration] = useState<Registration | null>(null)
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
   const [assignLoading, setAssignLoading] = useState(false)
+
+  // Import/Export state
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importPreview, setImportPreview] = useState<{ headers: string[]; rows: string[][] } | null>(null)
+  const [importing, setImporting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     fetchData()
@@ -307,6 +317,107 @@ export function PorosMealGroups({ eventId }: PorosMealGroupsProps) {
     }
   }
 
+  // Download CSV template
+  function handleDownloadTemplate() {
+    const template = `Color Name,Color Hex,Breakfast Time,Lunch Time,Dinner Time,Capacity,Active
+Red,#DC2626,7:00 AM,12:00 PM,5:30 PM,100,true
+Orange,#EA580C,7:15 AM,12:15 PM,5:45 PM,100,true
+Yellow,#CA8A04,7:30 AM,12:30 PM,6:00 PM,100,true
+Green,#16A34A,7:45 AM,12:45 PM,6:15 PM,100,true
+Blue,#2563EB,8:00 AM,1:00 PM,6:30 PM,100,true`
+
+    const blob = new Blob([template], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `meal-groups-template-${eventId}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+  }
+
+  // Export current data
+  async function handleExportData() {
+    try {
+      // Create CSV from current meal groups
+      const headers = ['Color Name', 'Color Hex', 'Breakfast Time', 'Lunch Time', 'Dinner Time', 'Capacity', 'Active']
+      const rows = mealGroups.map(g => [
+        g.name,
+        g.colorHex,
+        g.breakfastTime || '',
+        g.lunchTime || '',
+        g.dinnerTime || '',
+        g.capacity.toString(),
+        g.isActive.toString()
+      ])
+
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+      const blob = new Blob([csv], { type: 'text/csv' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `meal-groups-export-${eventId}-${Date.now()}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+      toast.success('Meal groups exported')
+    } catch (error) {
+      toast.error('Failed to export data')
+    }
+  }
+
+  // Handle file selection for import
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const selectedFile = e.target.files?.[0]
+    if (!selectedFile) return
+
+    setImportFile(selectedFile)
+
+    // Parse CSV for preview
+    const text = await selectedFile.text()
+    const lines = text.split('\n').filter(line => line.trim())
+    const headers = lines[0].split(',').map(h => h.trim())
+    const rows = lines.slice(1, 6).map(line =>
+      line.split(',').map(cell => cell.trim())
+    )
+
+    setImportPreview({ headers, rows })
+  }
+
+  // Handle import submission
+  async function handleImport() {
+    if (!importFile) return
+
+    setImporting(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', importFile)
+
+      const response = await fetch(`/api/admin/events/${eventId}/poros/meal-groups/import`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Import failed')
+      }
+
+      const result = await response.json()
+      toast.success(`Imported ${result.created} meal groups`)
+      setShowImportModal(false)
+      setImportFile(null)
+      setImportPreview(null)
+      fetchData()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Import failed')
+    } finally {
+      setImporting(false)
+    }
+  }
+
   // Filter registrations
   const filteredRegistrations = registrations.filter(r => {
     if (searchQuery && !r.name.toLowerCase().includes(searchQuery.toLowerCase())) {
@@ -330,6 +441,24 @@ export function PorosMealGroups({ eventId }: PorosMealGroupsProps) {
 
   return (
     <div className="space-y-6">
+      {/* Import/Export Actions */}
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={handleDownloadTemplate}>
+          <FileSpreadsheet className="w-4 h-4 mr-2" />
+          Download Template
+        </Button>
+        <Button variant="outline" onClick={() => setShowImportModal(true)}>
+          <Upload className="w-4 h-4 mr-2" />
+          Import Colors
+        </Button>
+        {mealGroups.length > 0 && (
+          <Button variant="outline" onClick={handleExportData}>
+            <Download className="w-4 h-4 mr-2" />
+            Export Data
+          </Button>
+        )}
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -882,6 +1011,89 @@ export function PorosMealGroups({ eventId }: PorosMealGroupsProps) {
             >
               {formLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Modal */}
+      <Dialog open={showImportModal} onOpenChange={setShowImportModal}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Import Meal Colors</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Instructions */}
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded">
+              <h4 className="font-semibold text-blue-900 mb-2">Instructions:</h4>
+              <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                <li>Download the CSV template using the &quot;Download Template&quot; button</li>
+                <li>Open the template in Excel or Google Sheets</li>
+                <li>Fill in your meal colors and times (e.g., 7:00 AM, 12:30 PM)</li>
+                <li>Save as CSV file</li>
+                <li>Upload the filled template below</li>
+              </ol>
+            </div>
+
+            {/* File upload */}
+            <div>
+              <Label>Select CSV File</Label>
+              <Input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                onChange={handleFileChange}
+                className="mt-1"
+              />
+            </div>
+
+            {/* Preview */}
+            {importPreview && (
+              <div>
+                <Label>Preview (first 5 rows):</Label>
+                <div className="mt-2 overflow-x-auto border rounded">
+                  <table className="min-w-full text-xs">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        {importPreview.headers.map((header, i) => (
+                          <th key={i} className="border-b px-2 py-1 text-left font-medium">
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {importPreview.rows.map((row, i) => (
+                        <tr key={i}>
+                          {row.map((cell, j) => (
+                            <td key={j} className="border-b px-2 py-1">
+                              {cell}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowImportModal(false)
+              setImportFile(null)
+              setImportPreview(null)
+            }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleImport}
+              disabled={!importFile || importing}
+            >
+              {importing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Import Meal Colors
             </Button>
           </DialogFooter>
         </DialogContent>
