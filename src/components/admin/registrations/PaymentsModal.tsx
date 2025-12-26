@@ -224,7 +224,10 @@ export default function PaymentsModal({
                 <Button
                   variant="outline"
                   onClick={() => setShowRefundModal(true)}
-                  disabled={!data.paymentBalance || data.paymentBalance.amountPaid <= 0}
+                  disabled={
+                    (!data.paymentBalance || data.paymentBalance.amountPaid <= 0) &&
+                    (!data.payments || data.payments.length === 0)
+                  }
                 >
                   <ArrowLeftRight className="w-4 h-4 mr-2" />
                   Issue Refund
@@ -435,7 +438,13 @@ export default function PaymentsModal({
           registrationId={registrationId}
           registrationType={registrationType}
           currentBalance={data.paymentBalance?.amountRemaining || 0}
-          amountPaid={data.paymentBalance?.amountPaid || 0}
+          amountPaid={
+            data.paymentBalance?.amountPaid ||
+            data.payments
+              ?.filter((p) => p.paymentStatus === 'succeeded')
+              .reduce((sum, p) => sum + p.amount, 0) ||
+            0
+          }
           onRefundProcessed={handleRefundProcessed}
         />
       )}
