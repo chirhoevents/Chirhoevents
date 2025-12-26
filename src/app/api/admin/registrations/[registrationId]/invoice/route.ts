@@ -135,7 +135,7 @@ export async function GET(
       where: {
         registrationId,
         registrationType: registrationType as RegistrationType,
-        paymentStatus: { in: ['completed', 'received', 'succeeded'] },
+        paymentStatus: 'succeeded',
       },
       orderBy: { createdAt: 'asc' },
     })
