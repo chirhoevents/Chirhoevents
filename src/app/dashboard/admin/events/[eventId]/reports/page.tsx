@@ -11,7 +11,7 @@ interface PageProps {
 
 export default async function EventReportsPage({ params }: PageProps) {
   const user = await requireAdmin()
-  const { eventId } = params
+  const { eventId } = await Promise.resolve(params)
 
   // Verify event exists and belongs to user's organization
   const event = await prisma.event.findUnique({

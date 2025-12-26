@@ -7,6 +7,7 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import {
   Dialog,
   DialogContent,
@@ -22,11 +23,14 @@ import {
   Users,
   Utensils,
   Globe,
-  Bell,
   Trash2,
   Loader2,
   AlertTriangle,
   RefreshCw,
+  Link as LinkIcon,
+  Copy,
+  Check,
+  Mail,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
@@ -42,6 +46,24 @@ export function PorosSettings({ eventId, settings: initialSettings, onUpdate }: 
   const [resetDialogOpen, setResetDialogOpen] = useState(false)
   const [resetType, setResetType] = useState<string | null>(null)
   const [resetting, setResetting] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false)
+
+  // Generate the public portal URL
+  const publicPortalUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/poros/public/${eventId}`
+    : `/poros/public/${eventId}`
+
+  async function copyToClipboard() {
+    try {
+      await navigator.clipboard.writeText(publicPortalUrl)
+      setCopied(true)
+      toast.success('Link copied to clipboard!')
+      setTimeout(() => setCopied(false), 2000)
+    } catch (error) {
+      toast.error('Failed to copy link')
+    }
+  }
 
   async function updateSetting(key: string, value: boolean) {
     const newSettings = { ...settings, [key]: value }
@@ -219,206 +241,84 @@ export function PorosSettings({ eventId, settings: initialSettings, onUpdate }: 
             <div>
               <Label className="text-base font-medium">Enable Public Portal</Label>
               <p className="text-sm text-muted-foreground">
-                Allow participants to view their assignments
-              </p>
-            </div>
-            <Switch
-              checked={settings.porosPublicPortalEnabled ?? true}
-              onCheckedChange={(checked) => updateSetting('porosPublicPortalEnabled', checked)}
-              disabled={saving}
-            />
-          </div>
-
-          <Separator />
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-base font-medium">Publish Portal</Label>
-              <p className="text-sm text-muted-foreground">
-                Make the portal live for participants
+                Allow participants to access the public resource portal
               </p>
             </div>
             <div className="flex items-center gap-2">
-              {settings.porosPublicPortalPublished ? (
-                <Badge className="bg-green-100 text-green-800">Published</Badge>
+              {settings.porosPublicPortalEnabled ? (
+                <Badge className="bg-green-100 text-green-800">Enabled</Badge>
               ) : (
-                <Badge variant="secondary">Draft</Badge>
+                <Badge variant="secondary">Disabled</Badge>
               )}
               <Switch
-                checked={settings.porosPublicPortalPublished ?? false}
-                onCheckedChange={(checked) => updateSetting('porosPublicPortalPublished', checked)}
-                disabled={saving || !settings.porosPublicPortalEnabled}
+                checked={settings.porosPublicPortalEnabled ?? false}
+                onCheckedChange={(checked) => updateSetting('porosPublicPortalEnabled', checked)}
+                disabled={saving}
               />
             </div>
           </div>
 
-          <Separator />
+          {settings.porosPublicPortalEnabled && (
+            <>
+              <Separator />
 
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-base font-medium">Show Roommate Names</Label>
-              <p className="text-sm text-muted-foreground">
-                Display roommate names on the public portal
-              </p>
-            </div>
-            <Switch
-              checked={settings.porosShowRoommateNames ?? true}
-              onCheckedChange={(checked) => updateSetting('porosShowRoommateNames', checked)}
-              disabled={saving}
-            />
-          </div>
+              {/* Shareable Link Section */}
+              <div className="space-y-3">
+                <Label className="text-base font-medium flex items-center gap-2">
+                  <LinkIcon className="w-4 h-4" />
+                  Shareable Link
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Share this link with participants to access the public portal
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    value={publicPortalUrl}
+                    readOnly
+                    className="flex-1 bg-gray-50 font-mono text-sm"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={copyToClipboard}
+                    className="flex-shrink-0"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-4 h-4 mr-2 text-green-600" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4 mr-2" />
+                        Copy
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
 
-          <Separator />
+              <Separator />
 
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-base font-medium">Show Small Group Members</Label>
-              <p className="text-sm text-muted-foreground">
-                Display other small group members
-              </p>
-            </div>
-            <Switch
-              checked={settings.porosShowSmallGroupMembers ?? false}
-              onCheckedChange={(checked) => updateSetting('porosShowSmallGroupMembers', checked)}
-              disabled={saving}
-            />
-          </div>
-
-          <Separator />
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-base font-medium">Show SGL Contact Info</Label>
-              <p className="text-sm text-muted-foreground">
-                Display SGL email/phone on the portal
-              </p>
-            </div>
-            <Switch
-              checked={settings.porosShowSglContact ?? true}
-              onCheckedChange={(checked) => updateSetting('porosShowSglContact', checked)}
-              disabled={saving}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Notification Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bell className="w-5 h-5" />
-            Notifications
-          </CardTitle>
-          <CardDescription>
-            Email notification settings for assignments
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-base font-medium">Notify on Assignment</Label>
-              <p className="text-sm text-muted-foreground">
-                Send email when a participant is assigned
-              </p>
-            </div>
-            <Switch
-              checked={settings.porosNotifyOnAssignment ?? false}
-              onCheckedChange={(checked) => updateSetting('porosNotifyOnAssignment', checked)}
-              disabled={saving}
-            />
-          </div>
-
-          <Separator />
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-base font-medium">Notify on Changes</Label>
-              <p className="text-sm text-muted-foreground">
-                Send email when assignments change
-              </p>
-            </div>
-            <Switch
-              checked={settings.porosNotifyOnChange ?? true}
-              onCheckedChange={(checked) => updateSetting('porosNotifyOnChange', checked)}
-              disabled={saving}
-            />
-          </div>
-
-          <Separator />
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-base font-medium">Send Welcome Email</Label>
-              <p className="text-sm text-muted-foreground">
-                Send welcome email with all assignments
-              </p>
-            </div>
-            <Switch
-              checked={settings.porosSendWelcomeEmail ?? false}
-              onCheckedChange={(checked) => updateSetting('porosSendWelcomeEmail', checked)}
-              disabled={saving}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Housing Options */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Home className="w-5 h-5" />
-            Housing Options
-          </CardTitle>
-          <CardDescription>
-            Additional housing configuration
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-base font-medium">Allow Capacity Override</Label>
-              <p className="text-sm text-muted-foreground">
-                Allow assigning beyond room capacity
-              </p>
-            </div>
-            <Switch
-              checked={settings.porosCapacityOverrideAllowed ?? false}
-              onCheckedChange={(checked) => updateSetting('porosCapacityOverrideAllowed', checked)}
-              disabled={saving}
-            />
-          </div>
-
-          <Separator />
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-base font-medium">Allow Partial Room Fills</Label>
-              <p className="text-sm text-muted-foreground">
-                Allow rooms with empty beds
-              </p>
-            </div>
-            <Switch
-              checked={settings.porosAllowPartialRoomFills ?? true}
-              onCheckedChange={(checked) => updateSetting('porosAllowPartialRoomFills', checked)}
-              disabled={saving}
-            />
-          </div>
-
-          <Separator />
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-base font-medium">Auto-Balance Rooms</Label>
-              <p className="text-sm text-muted-foreground">
-                Distribute participants evenly across rooms
-              </p>
-            </div>
-            <Switch
-              checked={settings.porosAutoBalanceRooms ?? true}
-              onCheckedChange={(checked) => updateSetting('porosAutoBalanceRooms', checked)}
-              disabled={saving}
-            />
-          </div>
+              {/* Email Template Button */}
+              <div className="space-y-3">
+                <Label className="text-base font-medium flex items-center gap-2">
+                  <Mail className="w-4 h-4" />
+                  Send to Participants
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Get an email template to send to your participants
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={() => setEmailDialogOpen(true)}
+                  className="w-full sm:w-auto"
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  View Email Template
+                </Button>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -547,6 +447,74 @@ export function PorosSettings({ eventId, settings: initialSettings, onUpdate }: 
             >
               {resetting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Reset
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Email Template Dialog */}
+      <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="w-5 h-5" />
+              Email Template
+            </DialogTitle>
+            <DialogDescription>
+              Copy this email template to send to your participants
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-medium text-gray-700">Subject Line</Label>
+              <div className="mt-1 p-3 bg-gray-50 rounded-lg border text-sm">
+                Event Resources Now Available - Access Your Portal
+              </div>
+            </div>
+            <div>
+              <Label className="text-sm font-medium text-gray-700">Email Body</Label>
+              <div className="mt-1 p-4 bg-gray-50 rounded-lg border text-sm space-y-3 whitespace-pre-line">
+                <p>Hello!</p>
+                <p>We&apos;re excited to share that the event resource portal is now available. You can access schedules, meal times, campus maps, and other important information all in one place.</p>
+                <p><strong>Access the portal here:</strong></p>
+                <p className="text-blue-600 break-all">{publicPortalUrl}</p>
+                <p><strong>Tip:</strong> Add this page to your home screen for quick access during the event! Just tap the share button on your phone and select &quot;Add to Home Screen.&quot;</p>
+                <p>If you have any questions, please don&apos;t hesitate to reach out.</p>
+                <p>See you soon!</p>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={async () => {
+                const emailText = `Subject: Event Resources Now Available - Access Your Portal
+
+Hello!
+
+We're excited to share that the event resource portal is now available. You can access schedules, meal times, campus maps, and other important information all in one place.
+
+Access the portal here:
+${publicPortalUrl}
+
+Tip: Add this page to your home screen for quick access during the event! Just tap the share button on your phone and select "Add to Home Screen."
+
+If you have any questions, please don't hesitate to reach out.
+
+See you soon!`
+                try {
+                  await navigator.clipboard.writeText(emailText)
+                  toast.success('Email template copied!')
+                } catch {
+                  toast.error('Failed to copy')
+                }
+              }}
+            >
+              <Copy className="w-4 h-4 mr-2" />
+              Copy Email
+            </Button>
+            <Button onClick={() => setEmailDialogOpen(false)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -11,19 +11,34 @@ interface PageProps {
 
 export default async function EditEventPage({ params }: PageProps) {
   const user = await requireAdmin()
-  const { eventId } = params
+  const { eventId } = await Promise.resolve(params)
 
   // Fetch event with all related data
-  const event = await prisma.event.findUnique({
-    where: {
-      id: eventId,
-      organizationId: user.organizationId,
-    },
-    include: {
-      settings: true,
-      pricing: true,
-    },
-  })
+  let event: any = null
+  try {
+    event = await prisma.event.findUnique({
+      where: {
+        id: eventId,
+        organizationId: user.organizationId,
+      },
+      include: {
+        settings: true,
+        pricing: true,
+      },
+    })
+  } catch (error) {
+    console.error('Error fetching event with includes:', error)
+    event = await prisma.event.findUnique({
+      where: {
+        id: eventId,
+        organizationId: user.organizationId,
+      },
+    })
+    if (event) {
+      event.settings = null
+      event.pricing = null
+    }
+  }
 
   if (!event) {
     notFound()
