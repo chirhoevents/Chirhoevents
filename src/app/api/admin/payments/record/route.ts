@@ -160,9 +160,19 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // Calculate new balance using fresh data from transaction
-      const newAmountPaid = Number(paymentBalance.amountPaid) + paymentAmount
-      const newAmountRemaining = Number(paymentBalance.totalAmountDue) - newAmountPaid
+      // Recalculate balance from ALL succeeded payments (more robust than incrementing)
+      const allPayments = await tx.payment.findMany({
+        where: {
+          registrationId,
+          paymentStatus: 'succeeded',
+        },
+        select: { amount: true },
+      })
+
+      // Sum up all succeeded payments
+      const newAmountPaid = allPayments.reduce((sum, p) => sum + Number(p.amount), 0)
+      const totalDue = Number(paymentBalance.totalAmountDue)
+      const newAmountRemaining = totalDue - newAmountPaid
 
       // Determine new payment status
       let newPaymentStatus: 'unpaid' | 'partial' | 'paid_full' | 'overpaid' = 'unpaid'
@@ -174,7 +184,15 @@ export async function POST(request: NextRequest) {
         newPaymentStatus = 'partial'
       }
 
-      // Update payment balance
+      console.log('Balance update:', {
+        registrationId,
+        paymentCount: allPayments.length,
+        calculatedTotal: newAmountPaid,
+        totalDue,
+        remaining: newAmountRemaining,
+      })
+
+      // Update payment balance with recalculated amount
       await tx.paymentBalance.update({
         where: { registrationId },
         data: {
