@@ -246,8 +246,19 @@ export async function POST(request: Request) {
       data: paymentData
     })
 
-    // Update payment balance
-    const newAmountPaid = registration.amountPaid + amount
+    // Update payment balance - RECALCULATE from all payments for idempotency
+    const allSucceededPayments = await prisma.payment.findMany({
+      where: {
+        registrationId: registration.id,
+        paymentStatus: 'succeeded',
+      },
+      select: { amount: true },
+    })
+
+    const newAmountPaid = allSucceededPayments.reduce(
+      (sum, p) => sum + Number(p.amount),
+      0
+    )
     const newBalance = registration.totalAmount - newAmountPaid
     const paymentStatus = newBalance <= 0 ? 'paid_full' : 'partial'
 
