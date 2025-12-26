@@ -772,14 +772,14 @@ export function PorosSmallGroups({ eventId }: PorosSmallGroupsProps) {
               <div className="space-y-2">
                 <Label htmlFor="sglId">SGL (Staff Leader)</Label>
                 <Select
-                  value={groupForm.sglId}
-                  onValueChange={(v) => setGroupForm({ ...groupForm, sglId: v })}
+                  value={groupForm.sglId || 'none'}
+                  onValueChange={(v) => setGroupForm({ ...groupForm, sglId: v === 'none' ? '' : v })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select SGL" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {sglStaff.map((s) => (
                       <SelectItem key={s.id} value={s.id}>
                         {s.firstName} {s.lastName}
@@ -791,14 +791,14 @@ export function PorosSmallGroups({ eventId }: PorosSmallGroupsProps) {
               <div className="space-y-2">
                 <Label htmlFor="coSglId">Co-SGL</Label>
                 <Select
-                  value={groupForm.coSglId}
-                  onValueChange={(v) => setGroupForm({ ...groupForm, coSglId: v })}
+                  value={groupForm.coSglId || 'none'}
+                  onValueChange={(v) => setGroupForm({ ...groupForm, coSglId: v === 'none' ? '' : v })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select Co-SGL" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {sglStaff.map((s) => (
                       <SelectItem key={s.id} value={s.id}>
                         {s.firstName} {s.lastName}
