@@ -13,16 +13,28 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const mealTimes = await prisma.porosMealTime.findMany({
-      where: { eventId: params.eventId },
-      orderBy: [{ day: 'asc' }, { meal: 'asc' }, { color: 'asc' }]
-    })
+    const { eventId } = await Promise.resolve(params)
+
+    let mealTimes: any[] = []
+    try {
+      mealTimes = await prisma.porosMealTime.findMany({
+        where: { eventId },
+        orderBy: [{ day: 'asc' }, { meal: 'asc' }, { color: 'asc' }]
+      })
+    } catch (error) {
+      console.error('Meal times table might not exist:', error)
+    }
 
     // Get active meal groups/colors
-    const mealGroups = await prisma.mealGroup.findMany({
-      where: { eventId: params.eventId, isActive: true },
-      orderBy: { displayOrder: 'asc' }
-    })
+    let mealGroups: any[] = []
+    try {
+      mealGroups = await prisma.mealGroup.findMany({
+        where: { eventId, isActive: true },
+        orderBy: { displayOrder: 'asc' }
+      })
+    } catch (error) {
+      console.error('Meal groups table might not exist:', error)
+    }
 
     return NextResponse.json({ mealTimes, mealGroups })
   } catch (error) {
