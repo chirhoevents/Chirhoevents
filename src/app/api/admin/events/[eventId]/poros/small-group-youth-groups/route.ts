@@ -9,7 +9,7 @@ interface GroupRegistrationRecord {
 }
 
 interface SmallGroupAssignmentRecord {
-  groupRegistrationId: string
+  groupRegistrationId: string | null
   smallGroup: {
     id: string
     name: string
