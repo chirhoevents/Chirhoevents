@@ -79,17 +79,23 @@ export async function PATCH(
       where: { clerkUserId: userId },
     })
 
-    if (!user || !['org_admin', 'master_admin', 'event_manager', 'poros_coordinator'].includes(user.role)) {
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Check if user has permission - allow all admin roles
+    const adminRoles = ['org_admin', 'master_admin', 'event_manager', 'poros_coordinator', 'registration_manager']
+    if (!adminRoles.includes(user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const { eventId } = await Promise.resolve(params)
     const body = await request.json()
 
-    // Verify event belongs to user's organization
+    // Verify event belongs to user's organization (without including settings to avoid schema issues)
     const event = await prisma.event.findUnique({
       where: { id: eventId, organizationId: user.organizationId },
-      include: { settings: true },
+      select: { id: true },
     })
 
     if (!event) {
@@ -109,14 +115,35 @@ export async function PATCH(
     }
 
     // Update or create event settings
-    const settings = await prisma.eventSettings.upsert({
-      where: { eventId },
-      update: updateData,
-      create: {
-        eventId,
-        ...updateData,
-      },
-    })
+    let settings
+    try {
+      settings = await prisma.eventSettings.upsert({
+        where: { eventId },
+        update: updateData,
+        create: {
+          eventId,
+          ...updateData,
+        },
+      })
+    } catch (upsertError) {
+      console.error('Error upserting settings:', upsertError)
+      // Try a simple update if upsert fails
+      try {
+        settings = await prisma.eventSettings.update({
+          where: { eventId },
+          data: updateData,
+        })
+      } catch (updateError) {
+        // Settings might not exist, try creating
+        console.error('Update failed, trying create:', updateError)
+        settings = await prisma.eventSettings.create({
+          data: {
+            eventId,
+            ...updateData,
+          },
+        })
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -125,7 +152,7 @@ export async function PATCH(
   } catch (error) {
     console.error('Error updating event settings:', error)
     return NextResponse.json(
-      { error: 'Failed to update event settings' },
+      { error: 'Failed to update event settings', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }

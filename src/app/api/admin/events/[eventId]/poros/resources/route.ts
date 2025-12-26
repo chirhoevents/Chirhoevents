@@ -13,12 +13,20 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const resources = await prisma.porosResource.findMany({
-      where: { eventId: params.eventId },
-      orderBy: { order: 'asc' }
-    })
+    const { eventId } = await Promise.resolve(params)
 
-    return NextResponse.json(resources)
+    let resources: any[] = []
+    try {
+      resources = await prisma.porosResource.findMany({
+        where: { eventId },
+        orderBy: { order: 'asc' }
+      })
+    } catch (error) {
+      // Table might not exist yet
+      console.error('Resources table might not exist:', error)
+    }
+
+    return NextResponse.json({ resources })
   } catch (error) {
     console.error('Failed to fetch resources:', error)
     return NextResponse.json({ error: 'Failed to fetch resources' }, { status: 500 })
@@ -36,6 +44,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { eventId } = await Promise.resolve(params)
     const body = await request.json()
     const { name, type, url, order, isActive } = body
 
@@ -47,18 +56,24 @@ export async function POST(
     }
 
     // Get the max order for new resources
-    const maxOrder = await prisma.porosResource.aggregate({
-      where: { eventId: params.eventId },
-      _max: { order: true }
-    })
+    let maxOrderValue = 0
+    try {
+      const maxOrder = await prisma.porosResource.aggregate({
+        where: { eventId },
+        _max: { order: true }
+      })
+      maxOrderValue = maxOrder._max.order ?? 0
+    } catch {
+      // Table might not exist
+    }
 
     const resource = await prisma.porosResource.create({
       data: {
-        eventId: params.eventId,
+        eventId,
         name,
         type,
         url,
-        order: order ?? (maxOrder._max.order ?? 0) + 1,
+        order: order ?? maxOrderValue + 1,
         isActive: isActive ?? true
       }
     })

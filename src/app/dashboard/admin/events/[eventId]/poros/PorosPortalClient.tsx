@@ -10,6 +10,7 @@ import { PorosMealGroups } from '@/components/admin/poros/PorosMealGroups'
 import { PorosStaff } from '@/components/admin/poros/PorosStaff'
 import { PorosSettings } from '@/components/admin/poros/PorosSettings'
 import { PorosADA } from '@/components/admin/poros/PorosADA'
+import { PorosResources } from '@/components/admin/poros/PorosResources'
 import {
   LayoutDashboard,
   Home,
@@ -18,7 +19,8 @@ import {
   Utensils,
   UserCheck,
   Settings,
-  Accessibility
+  Accessibility,
+  FileText
 } from 'lucide-react'
 
 interface PorosPortalClientProps {
@@ -120,6 +122,11 @@ export default function PorosPortalClient({
             </TabsTrigger>
           )}
 
+          <TabsTrigger value="resources" className="flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            Resources
+          </TabsTrigger>
+
           <TabsTrigger value="settings" className="flex items-center gap-2">
             <Settings className="w-4 h-4" />
             Settings
@@ -163,6 +170,10 @@ export default function PorosPortalClient({
             <PorosADA eventId={eventId} />
           </TabsContent>
         )}
+
+        <TabsContent value="resources">
+          <PorosResources eventId={eventId} />
+        </TabsContent>
 
         <TabsContent value="settings">
           <PorosSettings

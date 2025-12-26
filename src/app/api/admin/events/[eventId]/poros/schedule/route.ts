@@ -13,22 +13,29 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const entries = await prisma.porosScheduleEntry.findMany({
-      where: { eventId: params.eventId },
-      orderBy: [{ day: 'asc' }, { order: 'asc' }, { startTime: 'asc' }]
-    })
+    const { eventId } = await Promise.resolve(params)
+
+    let schedule: any[] = []
+    try {
+      schedule = await prisma.porosScheduleEntry.findMany({
+        where: { eventId },
+        orderBy: [{ day: 'asc' }, { order: 'asc' }, { startTime: 'asc' }]
+      })
+    } catch (error) {
+      console.error('Schedule table might not exist:', error)
+    }
 
     // Also get the PDF if it exists
     let pdf = null
     try {
       pdf = await prisma.porosSchedulePdf.findUnique({
-        where: { eventId: params.eventId }
+        where: { eventId }
       })
     } catch {
       // Table might not exist
     }
 
-    return NextResponse.json({ entries, pdf })
+    return NextResponse.json({ schedule, pdf })
   } catch (error) {
     console.error('Failed to fetch schedule:', error)
     return NextResponse.json({ error: 'Failed to fetch schedule' }, { status: 500 })
