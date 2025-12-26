@@ -574,14 +574,14 @@ export function PorosStaff({ eventId }: PorosStaffProps) {
               <div className="space-y-2">
                 <Label htmlFor="gender">Gender</Label>
                 <Select
-                  value={formData.gender}
-                  onValueChange={(v) => setFormData({ ...formData, gender: v })}
+                  value={formData.gender || 'not_specified'}
+                  onValueChange={(v) => setFormData({ ...formData, gender: v === 'not_specified' ? '' : v })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Not specified</SelectItem>
+                    <SelectItem value="not_specified">Not specified</SelectItem>
                     <SelectItem value="male">Male</SelectItem>
                     <SelectItem value="female">Female</SelectItem>
                   </SelectContent>
