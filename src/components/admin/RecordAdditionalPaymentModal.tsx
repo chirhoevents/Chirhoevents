@@ -399,7 +399,7 @@ export default function RecordAdditionalPaymentModal({
             <Button
               type="submit"
               disabled={saving}
-              className="bg-[#1E3A5F] hover:bg-[#2A4A6F]"
+              className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
             >
               {saving ? (
                 <>

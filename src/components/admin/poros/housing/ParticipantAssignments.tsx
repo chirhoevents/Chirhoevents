@@ -259,7 +259,7 @@ export function ParticipantAssignments({
             {assignedCount} assigned
           </Badge>
         </div>
-        <Button onClick={() => setIsAutoAssignOpen(true)} className="bg-navy hover:bg-navy/90">
+        <Button onClick={() => setIsAutoAssignOpen(true)} className="bg-navy hover:bg-navy/90 text-white">
           <Wand2 className="w-4 h-4 mr-2" />
           Auto-Assign
         </Button>
