@@ -105,8 +105,7 @@ export async function GET(
     seatingAssignments.forEach(sa => {
       if (sa.groupRegistrationId) {
         seatingMap.set(sa.groupRegistrationId, {
-          section: sa.section.name,
-          row: sa.rowNumber
+          section: sa.section.name
         })
       }
     })

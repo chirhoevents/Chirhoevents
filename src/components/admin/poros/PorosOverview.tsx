@@ -37,8 +37,8 @@ interface SearchResult {
   participantCount: number
   maleCount: number
   femaleCount: number
-  roomAssignments: { building: string; room: string; gender: string }[]
-  seating: { section: string; row: number | null } | null
+  roomAssignments: { building: string; room: string }[]
+  seating: { section: string } | null
   smallGroup: { id: string; name: string } | null
   mealColor: string | null
 }
@@ -576,7 +576,6 @@ export function PorosOverview({ eventId, settings }: PorosOverviewProps) {
                           <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded">
                             <Grid3X3 className="w-3 h-3" />
                             {result.seating.section}
-                            {result.seating.row && ` Row ${result.seating.row}`}
                           </div>
                         )}
                         {result.smallGroup && (
