@@ -48,6 +48,8 @@ import {
   Search,
   UserPlus,
   UserMinus,
+  Upload,
+  Download,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
@@ -116,6 +118,11 @@ export function PorosSeating({ eventId }: PorosSeatingProps) {
   const [selectedRegistration, setSelectedRegistration] = useState<Registration | null>(null)
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
   const [assignLoading, setAssignLoading] = useState(false)
+
+  // Import state
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importLoading, setImportLoading] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -275,6 +282,86 @@ export function PorosSeating({ eventId }: PorosSeatingProps) {
     }
   }
 
+  function handleDownloadTemplate() {
+    const headers = ['Name', 'Section Code', 'Color', 'Capacity', 'Location Description', 'Public Visible', 'Display Order']
+    const exampleRow = ['Section A', 'A', '#1E3A5F', '100', 'Left side of the church', 'Yes', '1']
+
+    const csvContent = [
+      '# Seating Sections Import Template',
+      '# Required columns: Name',
+      '# Color must be in hex format (e.g., #1E3A5F)',
+      '# Public Visible: Yes/No',
+      '',
+      headers.join(','),
+      exampleRow.map(cell => `"${cell}"`).join(',')
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'seating-sections-import-template.csv'
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(a)
+  }
+
+  async function handleExport() {
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}/poros/seating-sections/export`)
+      if (!response.ok) throw new Error('Export failed')
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `seating-sections-${eventId}.csv`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      toast.success('Seating sections exported successfully')
+    } catch (error) {
+      toast.error('Failed to export seating sections')
+    }
+  }
+
+  async function handleImport() {
+    if (!importFile) return
+
+    setImportLoading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', importFile)
+
+      const response = await fetch(`/api/admin/events/${eventId}/poros/seating-sections/import`, {
+        method: 'POST',
+        body: formData
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Import failed')
+      }
+
+      toast.success(`Imported ${result.sectionsCreated} seating section(s)`)
+      if (result.errors && result.errors.length > 0) {
+        console.warn('Import warnings:', result.errors)
+      }
+
+      setIsImportDialogOpen(false)
+      setImportFile(null)
+      fetchData()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to import seating sections')
+    } finally {
+      setImportLoading(false)
+    }
+  }
+
   // Filter registrations
   const filteredRegistrations = registrations.filter(r => {
     if (searchQuery) {
@@ -376,10 +463,24 @@ export function PorosSeating({ eventId }: PorosSeatingProps) {
                 Define sections for Mass, sessions, or other gatherings
               </p>
             </div>
-            <Button onClick={openCreateSectionDialog}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Section
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleDownloadTemplate}>
+                <Download className="w-4 h-4 mr-2" />
+                Template
+              </Button>
+              <Button variant="outline" onClick={() => setIsImportDialogOpen(true)}>
+                <Upload className="w-4 h-4 mr-2" />
+                Import
+              </Button>
+              <Button variant="outline" onClick={handleExport}>
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+              <Button onClick={openCreateSectionDialog}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Section
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {sections.length === 0 ? (
@@ -734,6 +835,45 @@ export function PorosSeating({ eventId }: PorosSeatingProps) {
             >
               {sectionLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Dialog */}
+      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Import Seating Sections from CSV</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Upload a CSV file with seating section information. Required column: Name.
+            </p>
+            <div className="space-y-2">
+              <Label>Select CSV File</Label>
+              <Input
+                type="file"
+                accept=".csv"
+                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+              />
+            </div>
+            {importFile && (
+              <p className="text-sm text-muted-foreground">
+                Selected: {importFile.name}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsImportDialogOpen(false)
+              setImportFile(null)
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={handleImport} disabled={!importFile || importLoading}>
+              {importLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Import
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 
+interface RoomRecord {
+  id: string
+  capacity: number
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { eventId: string } }
@@ -78,7 +83,7 @@ async function updateBuildingCounts(buildingId: string) {
     where: { id: buildingId },
     data: {
       totalRooms: rooms.length,
-      totalBeds: rooms.reduce((sum, r) => sum + r.capacity, 0),
+      totalBeds: rooms.reduce((sum: number, r: RoomRecord) => sum + r.capacity, 0),
     },
   })
 }

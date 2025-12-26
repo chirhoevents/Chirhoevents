@@ -92,6 +92,11 @@ export function PorosStaff({ eventId }: PorosStaffProps) {
   const [formLoading, setFormLoading] = useState(false)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
+  // Import state
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importLoading, setImportLoading] = useState(false)
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -233,6 +238,66 @@ export function PorosStaff({ eventId }: PorosStaffProps) {
     }
   }
 
+  function handleDownloadTemplate() {
+    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Staff Type', 'Gender', 'Diocese', 'Notes']
+    const exampleRow = ['John', 'Doe', 'john.doe@example.com', '555-123-4567', 'sgl', 'male', 'Diocese of Austin', 'Group leader for youth']
+    const validTypes = ['sgl', 'co_sgl', 'seminarian', 'priest', 'deacon', 'religious', 'counselor', 'volunteer', 'other']
+
+    const csvContent = [
+      '# Staff Import Template',
+      '# Required columns: First Name, Last Name, Staff Type',
+      `# Valid Staff Types: ${validTypes.join(', ')}`,
+      '# Valid Genders: male, female',
+      '',
+      headers.join(','),
+      exampleRow.map(cell => `"${cell}"`).join(',')
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'staff-import-template.csv'
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(a)
+  }
+
+  async function handleImport() {
+    if (!importFile) return
+
+    setImportLoading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', importFile)
+
+      const response = await fetch(`/api/admin/events/${eventId}/poros/staff/import`, {
+        method: 'POST',
+        body: formData
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Import failed')
+      }
+
+      toast.success(`Imported ${result.staffCreated} staff member(s)`)
+      if (result.errors && result.errors.length > 0) {
+        console.warn('Import warnings:', result.errors)
+      }
+
+      setIsImportDialogOpen(false)
+      setImportFile(null)
+      fetchStaff()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to import staff')
+    } finally {
+      setImportLoading(false)
+    }
+  }
+
   // Filter staff
   const filteredStaff = staff.filter((s) => {
     if (searchQuery) {
@@ -322,6 +387,14 @@ export function PorosStaff({ eventId }: PorosStaffProps) {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={handleDownloadTemplate}>
+              <Download className="w-4 h-4 mr-2" />
+              Template
+            </Button>
+            <Button variant="outline" onClick={() => setIsImportDialogOpen(true)}>
+              <Upload className="w-4 h-4 mr-2" />
+              Import
+            </Button>
             <Button variant="outline" onClick={handleExport}>
               <Download className="w-4 h-4 mr-2" />
               Export
@@ -590,6 +663,49 @@ export function PorosStaff({ eventId }: PorosStaffProps) {
             >
               {formLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Dialog */}
+      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Import Staff from CSV</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Upload a CSV file with staff information. Required columns: First Name, Last Name, Staff Type.
+            </p>
+            <div className="space-y-2">
+              <Label>Select CSV File</Label>
+              <Input
+                type="file"
+                accept=".csv"
+                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+              />
+            </div>
+            {importFile && (
+              <p className="text-sm text-muted-foreground">
+                Selected: {importFile.name}
+              </p>
+            )}
+            <div className="text-sm text-muted-foreground">
+              <p className="font-medium mb-1">Valid Staff Types:</p>
+              <p>sgl, co_sgl, seminarian, priest, deacon, religious, counselor, volunteer, other</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsImportDialogOpen(false)
+              setImportFile(null)
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={handleImport} disabled={!importFile || importLoading}>
+              {importLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Import
             </Button>
           </DialogFooter>
         </DialogContent>

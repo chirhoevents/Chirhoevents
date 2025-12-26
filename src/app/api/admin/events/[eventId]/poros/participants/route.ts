@@ -2,6 +2,35 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 
+interface ParticipantRecord {
+  id: string
+  firstName: string
+  lastName: string
+  gender: string | null
+  age: number | null
+  groupRegistrationId: string
+  groupRegistration: { parishName: string | null } | null
+}
+
+interface IndividualRecord {
+  id: string
+  firstName: string
+  lastName: string
+  gender: string | null
+  age: number | null
+  preferredRoommate: string | null
+}
+
+interface RoomAssignmentRecord {
+  participantId: string | null
+  individualRegistrationId: string | null
+  roomId: string
+  room: {
+    roomNumber: string
+    building: { name: string }
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { eventId: string } }
@@ -37,8 +66,8 @@ export async function GET(
     const roomAssignments = await prisma.roomAssignment.findMany({
       where: {
         OR: [
-          { participantId: { in: groupParticipants.map(p => p.id) } },
-          { individualRegistrationId: { in: individualRegistrations.map(r => r.id) } },
+          { participantId: { in: groupParticipants.map((p: ParticipantRecord) => p.id) } },
+          { individualRegistrationId: { in: individualRegistrations.map((r: IndividualRecord) => r.id) } },
         ],
       },
       include: {
@@ -51,19 +80,19 @@ export async function GET(
     // Create lookup maps
     const participantAssignmentMap = new Map(
       roomAssignments
-        .filter(a => a.participantId)
-        .map(a => [a.participantId, a])
+        .filter((a: RoomAssignmentRecord) => a.participantId)
+        .map((a: RoomAssignmentRecord) => [a.participantId, a])
     )
     const individualAssignmentMap = new Map(
       roomAssignments
-        .filter(a => a.individualRegistrationId)
-        .map(a => [a.individualRegistrationId, a])
+        .filter((a: RoomAssignmentRecord) => a.individualRegistrationId)
+        .map((a: RoomAssignmentRecord) => [a.individualRegistrationId, a])
     )
 
     // Format response
     const participants = [
-      ...groupParticipants.map((p) => {
-        const assignment = participantAssignmentMap.get(p.id)
+      ...groupParticipants.map((p: ParticipantRecord) => {
+        const assignment = participantAssignmentMap.get(p.id) as RoomAssignmentRecord | undefined
         return {
           id: p.id,
           type: 'group' as const,
@@ -83,8 +112,8 @@ export async function GET(
           roommatePreference: null,
         }
       }),
-      ...individualRegistrations.map((r) => {
-        const assignment = individualAssignmentMap.get(r.id)
+      ...individualRegistrations.map((r: IndividualRecord) => {
+        const assignment = individualAssignmentMap.get(r.id) as RoomAssignmentRecord | undefined
         return {
           id: r.id,
           type: 'individual' as const,

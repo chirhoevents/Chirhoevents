@@ -2,6 +2,32 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 
+interface ParticipantWithGroup {
+  id: string
+  firstName: string
+  lastName: string
+  gender: string | null
+  age: number
+  groupRegistrationId: string
+  groupRegistration: {
+    id: string
+    groupName: string
+    parishName?: string | null
+  } | null
+}
+
+interface RoomRecord {
+  id: string
+  buildingId: string
+  floor: number | null
+  roomNumber: string
+  capacity: number
+  currentOccupancy: number
+  gender: string | null
+  housingType: string | null
+  isAvailable: boolean
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { eventId: string } }
@@ -47,17 +73,17 @@ export async function POST(
     // Get existing room assignments to filter out already assigned participants
     const existingAssignments = await prisma.roomAssignment.findMany({
       where: {
-        participantId: { in: allParticipants.map(p => p.id) },
+        participantId: { in: allParticipants.map((p: ParticipantWithGroup) => p.id) },
       },
       select: { participantId: true },
     })
     const assignedParticipantIds = new Set(
-      existingAssignments.map(a => a.participantId).filter(Boolean)
+      existingAssignments.map((a: { participantId: string | null }) => a.participantId).filter(Boolean)
     )
 
     // Filter participants based on onlyUnassigned option
     const participants = onlyUnassigned
-      ? allParticipants.filter(p => !assignedParticipantIds.has(p.id))
+      ? allParticipants.filter((p: ParticipantWithGroup) => !assignedParticipantIds.has(p.id))
       : allParticipants
 
     // Get available rooms
@@ -74,27 +100,27 @@ export async function POST(
 
     // Group participants by gender and type for matching
     const groupedParticipants = {
-      male_youth: participants.filter(p => p.gender === 'male' && p.age < 18),
-      male_adult: participants.filter(p => p.gender === 'male' && p.age >= 18),
-      female_youth: participants.filter(p => p.gender === 'female' && p.age < 18),
-      female_adult: participants.filter(p => p.gender === 'female' && p.age >= 18),
+      male_youth: participants.filter((p: ParticipantWithGroup) => p.gender === 'male' && p.age < 18),
+      male_adult: participants.filter((p: ParticipantWithGroup) => p.gender === 'male' && p.age >= 18),
+      female_youth: participants.filter((p: ParticipantWithGroup) => p.gender === 'female' && p.age < 18),
+      female_adult: participants.filter((p: ParticipantWithGroup) => p.gender === 'female' && p.age >= 18),
     }
 
     // Filter rooms by gender/type
     const groupedRooms = {
-      male_youth: rooms.filter(r =>
+      male_youth: rooms.filter((r: RoomRecord) =>
         (r.gender === 'male' || !r.gender) &&
         (r.housingType === 'youth_u18' || !r.housingType)
       ),
-      male_adult: rooms.filter(r =>
+      male_adult: rooms.filter((r: RoomRecord) =>
         (r.gender === 'male' || !r.gender) &&
         (r.housingType !== 'youth_u18' || !r.housingType)
       ),
-      female_youth: rooms.filter(r =>
+      female_youth: rooms.filter((r: RoomRecord) =>
         (r.gender === 'female' || !r.gender) &&
         (r.housingType === 'youth_u18' || !r.housingType)
       ),
-      female_adult: rooms.filter(r =>
+      female_adult: rooms.filter((r: RoomRecord) =>
         (r.gender === 'female' || !r.gender) &&
         (r.housingType !== 'youth_u18' || !r.housingType)
       ),
@@ -102,12 +128,12 @@ export async function POST(
 
     // Assignment function
     const assignParticipants = async (
-      participantsList: typeof groupedParticipants.male_youth,
-      availableRooms: typeof rooms
+      participantsList: ParticipantWithGroup[],
+      availableRooms: RoomRecord[]
     ) => {
       if (strategy === 'parish_together') {
         // Group by parish
-        const byParish: Record<string, typeof participantsList> = {}
+        const byParish: Record<string, ParticipantWithGroup[]> = {}
         for (const p of participantsList) {
           const parish = p.groupRegistration?.parishName || 'Unknown'
           if (!byParish[parish]) byParish[parish] = []
@@ -116,7 +142,7 @@ export async function POST(
 
         for (const [parish, parishParticipants] of Object.entries(byParish)) {
           for (const p of parishParticipants) {
-            const room = availableRooms.find(r => r.currentOccupancy < r.capacity)
+            const room = availableRooms.find((r: RoomRecord) => r.currentOccupancy < r.capacity)
             if (room) {
               try {
                 await prisma.roomAssignment.create({
@@ -146,12 +172,12 @@ export async function POST(
         for (const p of participantsList) {
           let room
           if (strategy === 'fill_rooms') {
-            room = availableRooms.find(r => r.currentOccupancy < r.capacity)
+            room = availableRooms.find((r: RoomRecord) => r.currentOccupancy < r.capacity)
           } else {
             // Balance: find room with lowest occupancy
             room = availableRooms
-              .filter(r => r.currentOccupancy < r.capacity)
-              .sort((a, b) => a.currentOccupancy - b.currentOccupancy)[0]
+              .filter((r: RoomRecord) => r.currentOccupancy < r.capacity)
+              .sort((a: RoomRecord, b: RoomRecord) => a.currentOccupancy - b.currentOccupancy)[0]
           }
 
           if (room) {

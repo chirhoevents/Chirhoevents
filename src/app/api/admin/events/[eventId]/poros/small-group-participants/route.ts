@@ -2,6 +2,28 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 
+interface ParticipantRecord {
+  id: string
+  firstName: string
+  lastName: string
+  gender: string | null
+  groupRegistration: { parishName: string | null } | null
+}
+
+interface IndividualRecord {
+  id: string
+  firstName: string
+  lastName: string
+  gender: string | null
+}
+
+interface SmallGroupAssignmentRecord {
+  participantId: string | null
+  individualRegistrationId: string | null
+  smallGroupId: string
+  smallGroup: { name: string }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { eventId: string } }
@@ -29,8 +51,8 @@ export async function GET(
     const smallGroupAssignments = await prisma.smallGroupAssignment.findMany({
       where: {
         OR: [
-          { participantId: { in: participants.map(p => p.id) } },
-          { individualRegistrationId: { in: individuals.map(r => r.id) } },
+          { participantId: { in: participants.map((p: ParticipantRecord) => p.id) } },
+          { individualRegistrationId: { in: individuals.map((r: IndividualRecord) => r.id) } },
         ],
       },
       include: {
@@ -41,18 +63,18 @@ export async function GET(
     // Create lookup maps
     const participantAssignmentMap = new Map(
       smallGroupAssignments
-        .filter(a => a.participantId)
-        .map(a => [a.participantId, a])
+        .filter((a: SmallGroupAssignmentRecord) => a.participantId)
+        .map((a: SmallGroupAssignmentRecord) => [a.participantId, a])
     )
     const individualAssignmentMap = new Map(
       smallGroupAssignments
-        .filter(a => a.individualRegistrationId)
-        .map(a => [a.individualRegistrationId, a])
+        .filter((a: SmallGroupAssignmentRecord) => a.individualRegistrationId)
+        .map((a: SmallGroupAssignmentRecord) => [a.individualRegistrationId, a])
     )
 
     const result = [
-      ...participants.map(p => {
-        const assignment = participantAssignmentMap.get(p.id)
+      ...participants.map((p: ParticipantRecord) => {
+        const assignment = participantAssignmentMap.get(p.id) as SmallGroupAssignmentRecord | undefined
         return {
           id: p.id,
           type: 'group' as const,
@@ -68,8 +90,8 @@ export async function GET(
             : null,
         }
       }),
-      ...individuals.map(r => {
-        const assignment = individualAssignmentMap.get(r.id)
+      ...individuals.map((r: IndividualRecord) => {
+        const assignment = individualAssignmentMap.get(r.id) as SmallGroupAssignmentRecord | undefined
         return {
           id: r.id,
           type: 'individual' as const,

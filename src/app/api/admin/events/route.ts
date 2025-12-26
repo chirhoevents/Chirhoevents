@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const now = new Date()
-    const whereClause: Prisma.EventWhereInput = {
+    const whereClause: any = {
       organizationId: user.organizationId,
     }
 
@@ -48,7 +47,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build order by clause
-    let orderByClause: Prisma.EventOrderByWithRelationInput = { startDate: 'desc' }
+    let orderByClause: any = { startDate: 'desc' }
     if (sortBy === 'name') {
       orderByClause = { name: sortOrder }
     } else if (sortBy === 'date') {
