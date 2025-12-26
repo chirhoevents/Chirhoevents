@@ -2,6 +2,26 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 
+interface SmallGroupWithAssignments {
+  id: string
+  eventId: string
+  name: string
+  groupNumber: number | null
+  sglId: string | null
+  coSglId: string | null
+  meetingTime: string | null
+  meetingPlace: string | null
+  capacity: number
+  currentSize: number
+  notes: string | null
+  sgl: { firstName: string; lastName: string } | null
+  coSgl: { firstName: string; lastName: string } | null
+  assignments: {
+    groupRegistrationId: string | null
+    individualRegistrationId: string | null
+  }[]
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { eventId: string } }
@@ -13,14 +33,30 @@ export async function GET(
     const groups = await prisma.smallGroup.findMany({
       where: { eventId },
       include: {
-        sgl: true,
-        coSgl: true,
-        assignments: true,
+        sgl: {
+          select: { firstName: true, lastName: true }
+        },
+        coSgl: {
+          select: { firstName: true, lastName: true }
+        },
+        assignments: {
+          select: {
+            groupRegistrationId: true,
+            individualRegistrationId: true
+          }
+        },
       },
       orderBy: { groupNumber: 'asc' },
     })
 
-    return NextResponse.json(groups)
+    // Calculate counts for each group
+    const result = groups.map((group: SmallGroupWithAssignments) => ({
+      ...group,
+      youthGroupCount: group.assignments.filter(a => a.groupRegistrationId !== null).length,
+      individualCount: group.assignments.filter(a => a.individualRegistrationId !== null).length,
+    }))
+
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Failed to fetch small groups:', error)
     return NextResponse.json(

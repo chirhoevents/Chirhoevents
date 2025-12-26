@@ -1272,6 +1272,7 @@ model SmallGroupAssignment {
   smallGroupId              String   @map("small_group_id") @db.Uuid
   participantId             String?  @map("participant_id") @db.Uuid
   individualRegistrationId  String?  @map("individual_registration_id") @db.Uuid
+  groupRegistrationId       String?  @map("group_registration_id") @db.Uuid
   assignedAt                DateTime @default(now()) @map("assigned_at") @db.Timestamptz(6)
   assignedBy                String?  @map("assigned_by") @db.Uuid
 
@@ -1281,6 +1282,7 @@ model SmallGroupAssignment {
   @@index([smallGroupId], name: "idx_small_group_assignments_group")
   @@index([participantId], name: "idx_small_group_assignments_participant")
   @@index([individualRegistrationId], name: "idx_small_group_assignments_individual")
+  @@index([groupRegistrationId], name: "idx_small_group_assignments_group_reg")
   @@map("small_group_assignments")
 }
 

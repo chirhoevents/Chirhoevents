@@ -38,7 +38,8 @@ import {
   Search,
   UserPlus,
   UserMinus,
-  Wand2,
+  Building2,
+  User,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
@@ -60,23 +61,8 @@ interface SmallGroup {
   notes: string | null
   sgl?: { firstName: string; lastName: string } | null
   coSgl?: { firstName: string; lastName: string } | null
-  assignments?: SmallGroupAssignment[]
-}
-
-interface SmallGroupAssignment {
-  id: string
-  participantId: string | null
-  individualRegistrationId: string | null
-  participant?: {
-    firstName: string
-    lastName: string
-    gender: string
-  }
-  individualRegistration?: {
-    firstName: string
-    lastName: string
-    gender: string
-  }
+  youthGroupCount?: number
+  individualCount?: number
 }
 
 interface Staff {
@@ -86,13 +72,21 @@ interface Staff {
   staffType: string
 }
 
-interface Participant {
+interface YouthGroup {
   id: string
-  type: 'group' | 'individual'
+  groupName: string
+  participantCount: number
+  smallGroupAssignment?: {
+    groupId: string
+    groupName: string
+  } | null
+}
+
+interface Individual {
+  id: string
   firstName: string
   lastName: string
   gender: string
-  parishName?: string
   smallGroupAssignment?: {
     groupId: string
     groupName: string
@@ -102,9 +96,10 @@ interface Participant {
 export function PorosSmallGroups({ eventId }: PorosSmallGroupsProps) {
   const [groups, setGroups] = useState<SmallGroup[]>([])
   const [staff, setStaff] = useState<Staff[]>([])
-  const [participants, setParticipants] = useState<Participant[]>([])
+  const [youthGroups, setYouthGroups] = useState<YouthGroup[]>([])
+  const [individuals, setIndividuals] = useState<Individual[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'groups' | 'assignments'>('groups')
+  const [activeTab, setActiveTab] = useState<'groups' | 'youth-groups' | 'individuals'>('groups')
 
   // Group dialog
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false)
@@ -125,12 +120,10 @@ export function PorosSmallGroups({ eventId }: PorosSmallGroupsProps) {
   // Assignment state
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'assigned' | 'unassigned'>('all')
-  const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null)
+  const [selectedItem, setSelectedItem] = useState<YouthGroup | Individual | null>(null)
+  const [selectedType, setSelectedType] = useState<'youth-group' | 'individual'>('youth-group')
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
   const [assignLoading, setAssignLoading] = useState(false)
-
-  // Expanded group view
-  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchData()
@@ -139,15 +132,17 @@ export function PorosSmallGroups({ eventId }: PorosSmallGroupsProps) {
   async function fetchData() {
     setLoading(true)
     try {
-      const [groupsRes, staffRes, participantsRes] = await Promise.all([
+      const [groupsRes, staffRes, youthGroupsRes, individualsRes] = await Promise.all([
         fetch(`/api/admin/events/${eventId}/poros/small-groups`),
         fetch(`/api/admin/events/${eventId}/poros/staff?type=sgl,co_sgl`),
-        fetch(`/api/admin/events/${eventId}/poros/small-group-participants`),
+        fetch(`/api/admin/events/${eventId}/poros/small-group-youth-groups`),
+        fetch(`/api/admin/events/${eventId}/poros/small-group-individuals`),
       ])
 
       if (groupsRes.ok) setGroups(await groupsRes.json())
       if (staffRes.ok) setStaff(await staffRes.json())
-      if (participantsRes.ok) setParticipants(await participantsRes.json())
+      if (youthGroupsRes.ok) setYouthGroups(await youthGroupsRes.json())
+      if (individualsRes.ok) setIndividuals(await individualsRes.json())
     } catch (error) {
       console.error('Failed to fetch small groups data:', error)
     } finally {
@@ -245,45 +240,45 @@ export function PorosSmallGroups({ eventId }: PorosSmallGroupsProps) {
     }
   }
 
-  async function handleAssign(participantId: string, groupId: string) {
+  async function handleAssign(itemId: string, groupId: string, type: 'youth-group' | 'individual') {
     setAssignLoading(true)
     try {
-      const participant = participants.find(p => p.id === participantId)
       const response = await fetch(`/api/admin/events/${eventId}/poros/small-group-assignments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           smallGroupId: groupId,
-          participantId: participant?.type === 'group' ? participantId : null,
-          individualRegistrationId: participant?.type === 'individual' ? participantId : null,
+          groupRegistrationId: type === 'youth-group' ? itemId : null,
+          individualRegistrationId: type === 'individual' ? itemId : null,
         }),
       })
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.message || 'Failed to assign group')
+        throw new Error(error.message || 'Failed to assign')
       }
 
-      toast.success('Participant assigned to small group')
+      toast.success(type === 'youth-group' ? 'Youth group assigned' : 'Individual assigned')
       setIsAssignDialogOpen(false)
-      setSelectedParticipant(null)
+      setSelectedItem(null)
       fetchData()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to assign group')
+      toast.error(error instanceof Error ? error.message : 'Failed to assign')
     } finally {
       setAssignLoading(false)
     }
   }
 
-  async function handleUnassign(participantId: string) {
+  async function handleUnassign(itemId: string, type: 'youth-group' | 'individual') {
     try {
-      const participant = participants.find(p => p.id === participantId)
       const response = await fetch(
-        `/api/admin/events/${eventId}/poros/small-group-assignments/${participantId}`,
+        `/api/admin/events/${eventId}/poros/small-group-assignments/${itemId}`,
         {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: participant?.type }),
+          body: JSON.stringify({
+            type: type === 'youth-group' ? 'group_registration' : 'individual'
+          }),
         }
       )
 
@@ -292,52 +287,39 @@ export function PorosSmallGroups({ eventId }: PorosSmallGroupsProps) {
         throw new Error(error.message || 'Failed to remove assignment')
       }
 
-      toast.success('Small group assignment removed')
+      toast.success('Assignment removed')
       fetchData()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to remove assignment')
     }
   }
 
-  async function handleAutoAssign() {
-    setFormLoading(true)
-    try {
-      const response = await fetch(
-        `/api/admin/events/${eventId}/poros/small-groups/auto-assign`,
-        { method: 'POST' }
-      )
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || 'Auto-assign failed')
-      }
-
-      const result = await response.json()
-      toast.success(`Assigned ${result.assigned} participants to small groups`)
-      fetchData()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Auto-assign failed')
-    } finally {
-      setFormLoading(false)
+  // Filter youth groups
+  const filteredYouthGroups = youthGroups.filter(g => {
+    if (searchQuery && !g.groupName.toLowerCase().includes(searchQuery.toLowerCase())) {
+      return false
     }
-  }
-
-  // Filter participants
-  const filteredParticipants = participants.filter(p => {
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      const fullName = `${p.firstName} ${p.lastName}`.toLowerCase()
-      if (!fullName.includes(query) && !p.parishName?.toLowerCase().includes(query)) {
-        return false
-      }
-    }
-    if (statusFilter === 'assigned' && !p.smallGroupAssignment) return false
-    if (statusFilter === 'unassigned' && p.smallGroupAssignment) return false
+    if (statusFilter === 'assigned' && !g.smallGroupAssignment) return false
+    if (statusFilter === 'unassigned' && g.smallGroupAssignment) return false
     return true
   })
 
-  const unassignedCount = participants.filter(p => !p.smallGroupAssignment).length
-  const assignedCount = participants.filter(p => p.smallGroupAssignment).length
+  // Filter individuals
+  const filteredIndividuals = individuals.filter(i => {
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      const fullName = `${i.firstName} ${i.lastName}`.toLowerCase()
+      if (!fullName.includes(query)) return false
+    }
+    if (statusFilter === 'assigned' && !i.smallGroupAssignment) return false
+    if (statusFilter === 'unassigned' && i.smallGroupAssignment) return false
+    return true
+  })
+
+  const unassignedYouthGroups = youthGroups.filter(g => !g.smallGroupAssignment).length
+  const assignedYouthGroups = youthGroups.filter(g => g.smallGroupAssignment).length
+  const unassignedIndividuals = individuals.filter(i => !i.smallGroupAssignment).length
+  const assignedIndividuals = individuals.filter(i => i.smallGroupAssignment).length
   const sglStaff = staff.filter(s => s.staffType === 'sgl' || s.staffType === 'co_sgl')
 
   if (loading) {
@@ -351,11 +333,11 @@ export function PorosSmallGroups({ eventId }: PorosSmallGroupsProps) {
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Groups
+              Small Groups
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -366,35 +348,44 @@ export function PorosSmallGroups({ eventId }: PorosSmallGroupsProps) {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Capacity
+              Youth Groups Assigned
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {groups.reduce((sum, g) => sum + g.capacity, 0)}
-            </div>
+            <div className="text-2xl font-bold text-green-600">{assignedYouthGroups}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Participants Assigned
+              Youth Groups Unassigned
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{assignedCount}</div>
+            <div className="text-2xl font-bold text-amber-600">{unassignedYouthGroups}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Unassigned
+              Individuals Assigned
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-600">{unassignedCount}</div>
+            <div className="text-2xl font-bold text-green-600">{assignedIndividuals}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Individuals Unassigned
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-amber-600">{unassignedIndividuals}</div>
           </CardContent>
         </Card>
       </div>
@@ -406,37 +397,38 @@ export function PorosSmallGroups({ eventId }: PorosSmallGroupsProps) {
           onClick={() => setActiveTab('groups')}
         >
           <Users className="w-4 h-4 mr-2" />
-          Groups
+          Manage Groups
         </Button>
         <Button
-          variant={activeTab === 'assignments' ? 'default' : 'outline'}
-          onClick={() => setActiveTab('assignments')}
+          variant={activeTab === 'youth-groups' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('youth-groups')}
         >
-          <UserPlus className="w-4 h-4 mr-2" />
-          Assignments
+          <Building2 className="w-4 h-4 mr-2" />
+          Youth Groups ({youthGroups.length})
+        </Button>
+        <Button
+          variant={activeTab === 'individuals' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('individuals')}
+        >
+          <User className="w-4 h-4 mr-2" />
+          Individuals ({individuals.length})
         </Button>
       </div>
 
-      {/* Groups View */}
+      {/* Groups Management View */}
       {activeTab === 'groups' && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Small Groups</CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
-                Manage small groups and their SGLs
+                Create small groups and assign staff leaders
               </p>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handleAutoAssign} disabled={formLoading}>
-                <Wand2 className="w-4 h-4 mr-2" />
-                Auto-Assign
-              </Button>
-              <Button onClick={openCreateGroupDialog}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Group
-              </Button>
-            </div>
+            <Button onClick={openCreateGroupDialog}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Group
+            </Button>
           </CardHeader>
           <CardContent>
             {groups.length === 0 ? (
@@ -459,9 +451,6 @@ export function PorosSmallGroups({ eventId }: PorosSmallGroupsProps) {
                               </Badge>
                             )}
                           </CardTitle>
-                          <div className="text-sm text-muted-foreground mt-1">
-                            {group.currentSize}/{group.capacity} members
-                          </div>
                         </div>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -486,12 +475,16 @@ export function PorosSmallGroups({ eventId }: PorosSmallGroupsProps) {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-2">
-                      {group.sgl && (
+                      {group.sgl ? (
                         <div className="text-sm">
                           <span className="text-muted-foreground">SGL:</span>{' '}
                           <span className="font-medium">
                             {group.sgl.firstName} {group.sgl.lastName}
                           </span>
+                        </div>
+                      ) : (
+                        <div className="text-sm text-amber-600">
+                          No SGL assigned
                         </div>
                       )}
                       {group.coSgl && (
@@ -502,6 +495,16 @@ export function PorosSmallGroups({ eventId }: PorosSmallGroupsProps) {
                           </span>
                         </div>
                       )}
+                      <div className="pt-2 border-t mt-2 space-y-1">
+                        <div className="text-sm flex justify-between">
+                          <span className="text-muted-foreground">Youth Groups:</span>
+                          <span className="font-medium">{group.youthGroupCount || 0}</span>
+                        </div>
+                        <div className="text-sm flex justify-between">
+                          <span className="text-muted-foreground">Individuals:</span>
+                          <span className="font-medium">{group.individualCount || 0}</span>
+                        </div>
+                      </div>
                       {group.meetingTime && (
                         <div className="text-sm">
                           <span className="text-muted-foreground">Time:</span>{' '}
@@ -514,14 +517,6 @@ export function PorosSmallGroups({ eventId }: PorosSmallGroupsProps) {
                           {group.meetingPlace}
                         </div>
                       )}
-                      <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                        <div
-                          className="bg-navy rounded-full h-2"
-                          style={{
-                            width: `${(group.currentSize / group.capacity) * 100}%`,
-                          }}
-                        />
-                      </div>
                     </CardContent>
                   </Card>
                 ))}
@@ -531,8 +526,8 @@ export function PorosSmallGroups({ eventId }: PorosSmallGroupsProps) {
         </Card>
       )}
 
-      {/* Assignments View */}
-      {activeTab === 'assignments' && (
+      {/* Youth Groups Assignments View */}
+      {activeTab === 'youth-groups' && (
         <>
           {/* Filters */}
           <Card>
@@ -542,7 +537,7 @@ export function PorosSmallGroups({ eventId }: PorosSmallGroupsProps) {
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
-                      placeholder="Search by name or parish..."
+                      placeholder="Search by parish name..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-10"
@@ -566,55 +561,46 @@ export function PorosSmallGroups({ eventId }: PorosSmallGroupsProps) {
             </CardContent>
           </Card>
 
-          {/* Participants List */}
+          {/* Youth Groups List */}
           <Card>
             <CardHeader>
-              <CardTitle>Participants ({filteredParticipants.length})</CardTitle>
+              <CardTitle>Youth Groups / Parishes ({filteredYouthGroups.length})</CardTitle>
             </CardHeader>
             <CardContent>
-              {filteredParticipants.length === 0 ? (
+              {filteredYouthGroups.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No participants match your filters</p>
+                  <Building2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No youth groups match your filters</p>
                 </div>
               ) : (
                 <ScrollArea className="h-[400px]">
                   <div className="space-y-2">
-                    {filteredParticipants.map((p) => (
+                    {filteredYouthGroups.map((yg) => (
                       <div
-                        key={p.id}
+                        key={yg.id}
                         className={`flex items-center justify-between p-3 rounded-lg border ${
-                          p.smallGroupAssignment
+                          yg.smallGroupAssignment
                             ? 'bg-green-50 border-green-200'
                             : 'bg-white border-gray-200'
                         }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`w-2 h-2 rounded-full ${
-                              p.gender?.toLowerCase() === 'male' ? 'bg-blue-500' : 'bg-pink-500'
-                            }`}
-                          />
-                          <div>
-                            <div className="font-medium">
-                              {p.firstName} {p.lastName}
-                            </div>
-                            {p.parishName && (
-                              <div className="text-sm text-muted-foreground">{p.parishName}</div>
-                            )}
+                        <div>
+                          <div className="font-medium">{yg.groupName}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {yg.participantCount} participants
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          {p.smallGroupAssignment ? (
+                          {yg.smallGroupAssignment ? (
                             <>
                               <Badge variant="outline">
-                                {p.smallGroupAssignment.groupName}
+                                {yg.smallGroupAssignment.groupName}
                               </Badge>
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 className="text-red-600"
-                                onClick={() => handleUnassign(p.id)}
+                                onClick={() => handleUnassign(yg.id, 'youth-group')}
                               >
                                 <UserMinus className="w-4 h-4" />
                               </Button>
@@ -624,7 +610,116 @@ export function PorosSmallGroups({ eventId }: PorosSmallGroupsProps) {
                               variant="outline"
                               size="sm"
                               onClick={() => {
-                                setSelectedParticipant(p)
+                                setSelectedItem(yg)
+                                setSelectedType('youth-group')
+                                setIsAssignDialogOpen(true)
+                              }}
+                            >
+                              <UserPlus className="w-4 h-4 mr-2" />
+                              Assign
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {/* Individuals Assignments View */}
+      {activeTab === 'individuals' && (
+        <>
+          {/* Filters */}
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex flex-wrap gap-4">
+                <div className="flex-1 min-w-[200px]">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by name..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+                <Select
+                  value={statusFilter}
+                  onValueChange={(v: 'all' | 'assigned' | 'unassigned') => setStatusFilter(v)}
+                >
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="assigned">Assigned</SelectItem>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Individuals List */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Individual Registrations ({filteredIndividuals.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {filteredIndividuals.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <User className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No individuals match your filters</p>
+                </div>
+              ) : (
+                <ScrollArea className="h-[400px]">
+                  <div className="space-y-2">
+                    {filteredIndividuals.map((ind) => (
+                      <div
+                        key={ind.id}
+                        className={`flex items-center justify-between p-3 rounded-lg border ${
+                          ind.smallGroupAssignment
+                            ? 'bg-green-50 border-green-200'
+                            : 'bg-white border-gray-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-2 h-2 rounded-full ${
+                              ind.gender?.toLowerCase() === 'male' ? 'bg-blue-500' : 'bg-pink-500'
+                            }`}
+                          />
+                          <div className="font-medium">
+                            {ind.firstName} {ind.lastName}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {ind.smallGroupAssignment ? (
+                            <>
+                              <Badge variant="outline">
+                                {ind.smallGroupAssignment.groupName}
+                              </Badge>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-red-600"
+                                onClick={() => handleUnassign(ind.id, 'individual')}
+                              >
+                                <UserMinus className="w-4 h-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedItem(ind)
+                                setSelectedType('individual')
                                 setIsAssignDialogOpen(true)
                               }}
                             >
@@ -675,7 +770,7 @@ export function PorosSmallGroups({ eventId }: PorosSmallGroupsProps) {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="sglId">SGL</Label>
+                <Label htmlFor="sglId">SGL (Staff Leader)</Label>
                 <Select
                   value={groupForm.sglId}
                   onValueChange={(v) => setGroupForm({ ...groupForm, sglId: v })}
@@ -771,12 +866,16 @@ export function PorosSmallGroups({ eventId }: PorosSmallGroupsProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Assign Group Dialog */}
+      {/* Assign Dialog */}
       <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              Assign to Small Group - {selectedParticipant?.firstName} {selectedParticipant?.lastName}
+              Assign to Small Group - {
+                selectedType === 'youth-group'
+                  ? (selectedItem as YouthGroup)?.groupName
+                  : `${(selectedItem as Individual)?.firstName} ${(selectedItem as Individual)?.lastName}`
+              }
             </DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[400px]">
@@ -792,9 +891,9 @@ export function PorosSmallGroups({ eventId }: PorosSmallGroupsProps) {
                     variant="outline"
                     className="w-full justify-start h-auto py-3"
                     onClick={() =>
-                      selectedParticipant && handleAssign(selectedParticipant.id, group.id)
+                      selectedItem && handleAssign(selectedItem.id, group.id, selectedType)
                     }
-                    disabled={assignLoading || group.currentSize >= group.capacity}
+                    disabled={assignLoading}
                   >
                     <div className="text-left flex-1">
                       <div className="font-medium">
@@ -806,13 +905,10 @@ export function PorosSmallGroups({ eventId }: PorosSmallGroupsProps) {
                         )}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {group.currentSize}/{group.capacity} members
+                        {group.youthGroupCount || 0} youth groups, {group.individualCount || 0} individuals
                         {group.sgl && ` • SGL: ${group.sgl.firstName} ${group.sgl.lastName}`}
                       </div>
                     </div>
-                    {group.currentSize >= group.capacity && (
-                      <Badge variant="secondary">Full</Badge>
-                    )}
                   </Button>
                 ))
               )}

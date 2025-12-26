@@ -10,19 +10,15 @@ export async function POST(
     const user = await requireAdmin()
     const body = await request.json()
 
-    const { smallGroupId, participantId, individualRegistrationId } = body
+    const { smallGroupId, participantId, individualRegistrationId, groupRegistrationId } = body
 
-    // Check group capacity
+    // Check group exists
     const group = await prisma.smallGroup.findUnique({
       where: { id: smallGroupId },
     })
 
     if (!group) {
       return NextResponse.json({ message: 'Group not found' }, { status: 404 })
-    }
-
-    if (group.currentSize >= group.capacity) {
-      return NextResponse.json({ message: 'Group is at capacity' }, { status: 400 })
     }
 
     // Check if already assigned
@@ -50,21 +46,36 @@ export async function POST(
       }
     }
 
+    if (groupRegistrationId) {
+      const existing = await prisma.smallGroupAssignment.findFirst({
+        where: { groupRegistrationId },
+      })
+      if (existing) {
+        return NextResponse.json(
+          { message: 'Youth group already assigned to a small group' },
+          { status: 400 }
+        )
+      }
+    }
+
     // Create assignment
     const assignment = await prisma.smallGroupAssignment.create({
       data: {
         smallGroupId,
         participantId: participantId || null,
         individualRegistrationId: individualRegistrationId || null,
+        groupRegistrationId: groupRegistrationId || null,
         assignedBy: user.id,
       },
     })
 
-    // Update group size
-    await prisma.smallGroup.update({
-      where: { id: smallGroupId },
-      data: { currentSize: { increment: 1 } },
-    })
+    // Update group size (only for individual assignments, not group registrations)
+    if (participantId || individualRegistrationId) {
+      await prisma.smallGroup.update({
+        where: { id: smallGroupId },
+        data: { currentSize: { increment: 1 } },
+      })
+    }
 
     return NextResponse.json(assignment, { status: 201 })
   } catch (error) {
