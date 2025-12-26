@@ -11,18 +11,33 @@ interface PageProps {
 
 export default async function PorosPortalPage({ params }: PageProps) {
   const user = await requireAdmin()
-  const { eventId } = params
+  const { eventId } = await Promise.resolve(params)
 
-  // Fetch event with settings
-  const event = await prisma.event.findUnique({
-    where: {
-      id: eventId,
-      organizationId: user.organizationId,
-    },
-    include: {
-      settings: true,
-    },
-  })
+  // Fetch event with settings - with defensive error handling
+  let event: any = null
+  try {
+    event = await prisma.event.findUnique({
+      where: {
+        id: eventId,
+        organizationId: user.organizationId,
+      },
+      include: {
+        settings: true,
+      },
+    })
+  } catch (error) {
+    console.error('Error fetching event with settings:', error)
+    // Try without includes
+    event = await prisma.event.findUnique({
+      where: {
+        id: eventId,
+        organizationId: user.organizationId,
+      },
+    })
+    if (event) {
+      event.settings = null
+    }
+  }
 
   if (!event) {
     notFound()
