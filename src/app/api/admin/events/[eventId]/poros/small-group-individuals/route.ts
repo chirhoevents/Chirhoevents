@@ -10,7 +10,7 @@ interface IndividualRegistrationRecord {
 }
 
 interface SmallGroupAssignmentRecord {
-  individualRegistrationId: string
+  individualRegistrationId: string | null
   smallGroup: {
     id: string
     name: string
