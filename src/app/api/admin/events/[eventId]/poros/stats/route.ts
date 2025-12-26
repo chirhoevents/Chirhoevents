@@ -92,7 +92,7 @@ export async function GET(
         where: { eventId }
       }),
       // Staff
-      prisma.staff.findMany({
+      prisma.porosStaff.findMany({
         where: { eventId }
       })
     ])
