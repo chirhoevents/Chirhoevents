@@ -9,23 +9,41 @@ import { format } from 'date-fns'
 export default async function PorosSelectEventPage() {
   const user = await requireAdmin()
 
-  // Fetch all events for the organization
-  const events = await prisma.event.findMany({
-    where: {
-      organizationId: user.organizationId,
-    },
-    include: {
-      _count: {
-        select: {
-          groupRegistrations: true,
-          individualRegistrations: true,
+  // Fetch all events for the organization with defensive error handling
+  let events: any[] = []
+  try {
+    events = await prisma.event.findMany({
+      where: {
+        organizationId: user.organizationId,
+      },
+      include: {
+        _count: {
+          select: {
+            groupRegistrations: true,
+            individualRegistrations: true,
+          },
         },
       },
-    },
-    orderBy: {
-      startDate: 'desc',
-    },
-  })
+      orderBy: {
+        startDate: 'desc',
+      },
+    })
+  } catch (error) {
+    console.error('Error fetching events:', error)
+    // Try without include if there's a schema issue
+    const basicEvents = await prisma.event.findMany({
+      where: {
+        organizationId: user.organizationId,
+      },
+      orderBy: {
+        startDate: 'desc',
+      },
+    })
+    events = basicEvents.map(e => ({
+      ...e,
+      _count: { groupRegistrations: 0, individualRegistrations: 0 }
+    }))
+  }
 
   const activeEvents = events.filter(e => e.status === 'registration_open' || e.status === 'registration_closed' || e.status === 'in_progress')
   const pastEvents = events.filter(e => e.status === 'completed')

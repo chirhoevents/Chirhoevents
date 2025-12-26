@@ -7,10 +7,16 @@ interface PageProps {
 }
 
 export async function generateMetadata({ params }: PageProps) {
-  const event = await prisma.event.findUnique({
-    where: { id: params.eventId },
-    select: { name: true }
-  })
+  const { eventId } = await Promise.resolve(params)
+  let event: { name: string } | null = null
+  try {
+    event = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: { name: true }
+    })
+  } catch {
+    // If there's an error, we'll use a default title
+  }
 
   return {
     title: event ? `${event.name} - Poros Portal` : 'Poros Portal',
@@ -26,13 +32,28 @@ export async function generateMetadata({ params }: PageProps) {
 }
 
 export default async function PorosPublicEventPage({ params }: PageProps) {
-  const event = await prisma.event.findUnique({
-    where: { id: params.eventId },
-    include: {
-      settings: true,
-      organization: { select: { name: true } }
+  const { eventId } = await Promise.resolve(params)
+
+  let event: any = null
+  try {
+    event = await prisma.event.findUnique({
+      where: { id: eventId },
+      include: {
+        settings: true,
+        organization: { select: { name: true } }
+      }
+    })
+  } catch (error) {
+    console.error('Error fetching event with settings:', error)
+    // Try without includes
+    event = await prisma.event.findUnique({
+      where: { id: eventId }
+    })
+    if (event) {
+      event.settings = null
+      event.organization = { name: 'Event' }
     }
-  })
+  }
 
   if (!event || !event.settings?.porosPublicPortalEnabled) {
     notFound()
