@@ -47,7 +47,7 @@ export default async function PorosPortalPage({ params }: PageProps) {
     <PorosPortalClient
       eventId={eventId}
       eventName={event.name}
-      settings={event.settings}
+      settings={event.settings || {}}
     />
   )
 }

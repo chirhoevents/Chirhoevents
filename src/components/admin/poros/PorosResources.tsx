@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
@@ -25,7 +24,6 @@ import {
 import {
   Calendar,
   Clock,
-  Utensils,
   FileText,
   Link as LinkIcon,
   Plus,
@@ -34,6 +32,7 @@ import {
   Edit,
   ExternalLink,
   MapPin,
+  Info,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
@@ -59,48 +58,23 @@ interface ScheduleEntry {
   location: string | null
 }
 
-interface MealTime {
-  id: string
-  day: string
-  meal: string
-  color: string
-  time: string
-}
-
-const MEAL_COLORS = [
-  { value: 'blue', label: 'Blue', hex: '#3498db' },
-  { value: 'red', label: 'Red', hex: '#e74c3c' },
-  { value: 'orange', label: 'Orange', hex: '#e67e22' },
-  { value: 'yellow', label: 'Yellow', hex: '#f1c40f' },
-  { value: 'green', label: 'Green', hex: '#27ae60' },
-  { value: 'purple', label: 'Purple', hex: '#9b59b6' },
-  { value: 'brown', label: 'Brown', hex: '#8b4513' },
-  { value: 'grey', label: 'Grey', hex: '#95a5a6' },
-]
-
-const MEALS = ['breakfast', 'lunch', 'dinner']
-
 export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosResourcesProps) {
   const [resources, setResources] = useState<Resource[]>([])
   const [scheduleEntries, setScheduleEntries] = useState<ScheduleEntry[]>([])
-  const [mealTimes, setMealTimes] = useState<MealTime[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
   // Dialog states
   const [resourceDialogOpen, setResourceDialogOpen] = useState(false)
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
-  const [mealTimeDialogOpen, setMealTimeDialogOpen] = useState(false)
 
   // Form states
   const [editingResource, setEditingResource] = useState<Resource | null>(null)
   const [editingSchedule, setEditingSchedule] = useState<ScheduleEntry | null>(null)
-  const [editingMealTime, setEditingMealTime] = useState<MealTime | null>(null)
 
   // New item form data
   const [newResource, setNewResource] = useState({ name: '', type: 'link', url: '' })
   const [newSchedule, setNewSchedule] = useState({ day: 'day1', startTime: '', endTime: '', title: '', location: '' })
-  const [newMealTime, setNewMealTime] = useState({ day: 'day1', meal: 'breakfast', color: 'blue', time: '' })
 
   // Generate days based on event dates
   const getDays = () => {
@@ -129,10 +103,9 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
   async function fetchData() {
     setLoading(true)
     try {
-      const [resourcesRes, scheduleRes, mealTimesRes] = await Promise.all([
+      const [resourcesRes, scheduleRes] = await Promise.all([
         fetch(`/api/admin/events/${eventId}/poros/resources`),
         fetch(`/api/admin/events/${eventId}/poros/schedule`),
-        fetch(`/api/admin/events/${eventId}/poros/meal-times`),
       ])
 
       if (resourcesRes.ok) {
@@ -143,11 +116,6 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
       if (scheduleRes.ok) {
         const data = await scheduleRes.json()
         setScheduleEntries(data.schedule || [])
-      }
-
-      if (mealTimesRes.ok) {
-        const data = await mealTimesRes.json()
-        setMealTimes(data.mealTimes || [])
       }
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -242,49 +210,6 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
     }
   }
 
-  // Meal time functions
-  async function saveMealTime() {
-    setSaving(true)
-    try {
-      const data = editingMealTime || newMealTime
-      const method = editingMealTime ? 'PUT' : 'POST'
-      const url = editingMealTime
-        ? `/api/admin/events/${eventId}/poros/meal-times/${editingMealTime.id}`
-        : `/api/admin/events/${eventId}/poros/meal-times`
-
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      })
-
-      if (!response.ok) throw new Error('Failed to save meal time')
-
-      toast.success(editingMealTime ? 'Meal time updated' : 'Meal time added')
-      setMealTimeDialogOpen(false)
-      setEditingMealTime(null)
-      setNewMealTime({ day: 'day1', meal: 'breakfast', color: 'blue', time: '' })
-      fetchData()
-    } catch (error) {
-      toast.error('Failed to save meal time')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function deleteMealTime(id: string) {
-    try {
-      const response = await fetch(`/api/admin/events/${eventId}/poros/meal-times/${id}`, {
-        method: 'DELETE',
-      })
-      if (!response.ok) throw new Error('Failed to delete')
-      toast.success('Meal time deleted')
-      fetchData()
-    } catch (error) {
-      toast.error('Failed to delete meal time')
-    }
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center p-12">
@@ -295,6 +220,20 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
 
   return (
     <div className="space-y-6">
+      {/* Info Card */}
+      <Card className="bg-blue-50 border-blue-200">
+        <CardContent className="pt-4">
+          <div className="flex items-start gap-3">
+            <Info className="w-5 h-5 text-blue-600 mt-0.5" />
+            <div className="text-sm text-blue-800">
+              <p className="font-medium">About Resources</p>
+              <p>Resources and schedule entries you add here will be visible on the public portal for participants.</p>
+              <p className="mt-1"><strong>Meal Times:</strong> Configure meal times in the <strong>Meal Groups</strong> tab - each color group has its own breakfast, lunch, and dinner times.</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Resources Section */}
       <Card>
         <CardHeader>
@@ -426,90 +365,6 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
                           </div>
                         </div>
                       ))}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Meal Times Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Utensils className="w-5 h-5" />
-                Meal Times
-              </CardTitle>
-              <CardDescription>
-                Configure meal times by color group for each day
-              </CardDescription>
-            </div>
-            <Button onClick={() => {
-              setEditingMealTime(null)
-              setNewMealTime({ day: days[0] || 'day1', meal: 'breakfast', color: 'blue', time: '' })
-              setMealTimeDialogOpen(true)
-            }}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Meal Time
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {mealTimes.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
-              No meal times configured yet. Add meal times for different color groups.
-            </p>
-          ) : (
-            <div className="space-y-6">
-              {days.map((day) => {
-                const dayMeals = mealTimes.filter(m => m.day === day)
-                if (dayMeals.length === 0) return null
-                return (
-                  <div key={day}>
-                    <h4 className="font-semibold text-lg mb-3 capitalize">{day.replace('day', 'Day ')}</h4>
-                    <div className="space-y-4">
-                      {MEALS.map((meal) => {
-                        const mealEntries = dayMeals.filter(m => m.meal === meal)
-                        if (mealEntries.length === 0) return null
-                        return (
-                          <div key={meal} className="p-3 bg-gray-50 rounded-lg">
-                            <p className="font-medium capitalize mb-2">{meal}</p>
-                            <div className="flex flex-wrap gap-2">
-                              {mealEntries.map((entry) => {
-                                const colorData = MEAL_COLORS.find(c => c.value === entry.color.toLowerCase())
-                                return (
-                                  <div
-                                    key={entry.id}
-                                    className="flex items-center gap-2 px-3 py-1.5 rounded-full text-white text-sm group"
-                                    style={{ backgroundColor: colorData?.hex || '#6b7280' }}
-                                  >
-                                    <span className="capitalize">{entry.color}: {entry.time}</span>
-                                    <button
-                                      onClick={() => {
-                                        setEditingMealTime(entry)
-                                        setMealTimeDialogOpen(true)
-                                      }}
-                                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                      <Edit className="w-3 h-3" />
-                                    </button>
-                                    <button
-                                      onClick={() => deleteMealTime(entry.id)}
-                                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </button>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        )
-                      })}
                     </div>
                   </div>
                 )
@@ -660,100 +515,6 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
           <DialogFooter>
             <Button variant="outline" onClick={() => setScheduleDialogOpen(false)}>Cancel</Button>
             <Button onClick={saveScheduleEntry} disabled={saving}>
-              {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Save
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Meal Time Dialog */}
-      <Dialog open={mealTimeDialogOpen} onOpenChange={setMealTimeDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editingMealTime ? 'Edit Meal Time' : 'Add Meal Time'}</DialogTitle>
-            <DialogDescription>
-              Configure meal time for a color group
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Day</Label>
-              <Select
-                value={editingMealTime?.day || newMealTime.day}
-                onValueChange={(value) => editingMealTime
-                  ? setEditingMealTime({ ...editingMealTime, day: value })
-                  : setNewMealTime({ ...newMealTime, day: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {days.map((day) => (
-                    <SelectItem key={day} value={day}>{day.replace('day', 'Day ')}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Meal</Label>
-              <Select
-                value={editingMealTime?.meal || newMealTime.meal}
-                onValueChange={(value) => editingMealTime
-                  ? setEditingMealTime({ ...editingMealTime, meal: value })
-                  : setNewMealTime({ ...newMealTime, meal: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MEALS.map((meal) => (
-                    <SelectItem key={meal} value={meal} className="capitalize">{meal}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Color Group</Label>
-              <Select
-                value={editingMealTime?.color?.toLowerCase() || newMealTime.color}
-                onValueChange={(value) => editingMealTime
-                  ? setEditingMealTime({ ...editingMealTime, color: value })
-                  : setNewMealTime({ ...newMealTime, color: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MEAL_COLORS.map((color) => (
-                    <SelectItem key={color.value} value={color.value}>
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: color.hex }} />
-                        {color.label}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Time</Label>
-              <Input
-                type="time"
-                value={editingMealTime?.time || newMealTime.time}
-                onChange={(e) => editingMealTime
-                  ? setEditingMealTime({ ...editingMealTime, time: e.target.value })
-                  : setNewMealTime({ ...newMealTime, time: e.target.value })
-                }
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setMealTimeDialogOpen(false)}>Cancel</Button>
-            <Button onClick={saveMealTime} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Save
             </Button>

@@ -84,8 +84,8 @@ export function PorosSettings({ eventId, settings: initialSettings, onUpdate }: 
       toast.success('Setting updated')
       onUpdate()
     } catch (error) {
-      // Revert on error
-      setSettings(initialSettings)
+      // Revert on error - ensure settings is never null
+      setSettings(initialSettings || {})
       toast.error('Failed to update setting')
     } finally {
       setSaving(false)
