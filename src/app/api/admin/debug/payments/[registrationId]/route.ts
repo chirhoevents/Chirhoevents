@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 
 // Debug endpoint to see ALL payments for a registration
+// Accepts either registration UUID or access code/confirmation code
 export async function GET(
   request: NextRequest,
   { params }: { params: { registrationId: string } }
@@ -14,7 +15,64 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const registrationId = params.registrationId
+    let registrationId = params.registrationId
+    let registrationType: 'group' | 'individual' | null = null
+    let registrationInfo: any = null
+
+    // Check if this is a UUID or an access code
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(registrationId)
+
+    if (!isUUID) {
+      // Try to find by access code (group) or confirmation code (individual)
+      const groupReg = await prisma.groupRegistration.findFirst({
+        where: { accessCode: registrationId },
+        select: { id: true, groupName: true, accessCode: true },
+      })
+
+      if (groupReg) {
+        registrationId = groupReg.id
+        registrationType = 'group'
+        registrationInfo = { type: 'group', name: groupReg.groupName, accessCode: groupReg.accessCode }
+      } else {
+        const indivReg = await prisma.individualRegistration.findFirst({
+          where: { confirmationCode: registrationId },
+          select: { id: true, firstName: true, lastName: true, confirmationCode: true },
+        })
+
+        if (indivReg) {
+          registrationId = indivReg.id
+          registrationType = 'individual'
+          registrationInfo = { type: 'individual', name: `${indivReg.firstName} ${indivReg.lastName}`, confirmationCode: indivReg.confirmationCode }
+        } else {
+          return NextResponse.json({
+            error: 'Registration not found',
+            searchedFor: params.registrationId,
+            hint: 'Provide either a UUID or a valid access code/confirmation code',
+          }, { status: 404 })
+        }
+      }
+    } else {
+      // UUID provided, try to find the registration
+      const groupReg = await prisma.groupRegistration.findUnique({
+        where: { id: registrationId },
+        select: { id: true, groupName: true, accessCode: true },
+      })
+
+      if (groupReg) {
+        registrationType = 'group'
+        registrationInfo = { type: 'group', name: groupReg.groupName, accessCode: groupReg.accessCode }
+      } else {
+        const indivReg = await prisma.individualRegistration.findUnique({
+          where: { id: registrationId },
+          select: { id: true, firstName: true, lastName: true, confirmationCode: true },
+        })
+
+        if (indivReg) {
+          registrationType = 'individual'
+          registrationInfo = { type: 'individual', name: `${indivReg.firstName} ${indivReg.lastName}`, confirmationCode: indivReg.confirmationCode }
+        }
+      }
+    }
 
     // Get ALL payments for this registration, no filters
     const allPayments = await prisma.payment.findMany({
@@ -46,6 +104,8 @@ export async function GET(
 
     return NextResponse.json({
       registrationId,
+      registrationInfo,
+      hasPaymentBalance: !!paymentBalance,
       totalPaymentsInDB: allPayments.length,
       succeededPaymentsCount: succeededPayments.length,
       calculatedTotalFromSucceeded: calculatedTotal,
@@ -58,11 +118,13 @@ export async function GET(
       })),
       paymentBalance: paymentBalance ? {
         id: paymentBalance.id,
+        registrationType: paymentBalance.registrationType,
         totalAmountDue: Number(paymentBalance.totalAmountDue),
         amountPaid: Number(paymentBalance.amountPaid),
         amountRemaining: Number(paymentBalance.amountRemaining),
         paymentStatus: paymentBalance.paymentStatus,
       } : null,
+      warning: !paymentBalance ? 'NO PAYMENT BALANCE FOUND - payments cannot be recorded without a PaymentBalance record!' : null,
     })
   } catch (error) {
     console.error('Debug payments error:', error)

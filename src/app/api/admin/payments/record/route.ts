@@ -217,6 +217,13 @@ export async function POST(request: NextRequest) {
         newAmountRemaining,
         newPaymentStatus,
         totalAmountDue: Number(paymentBalance.totalAmountDue),
+        // Debug info
+        _debug: {
+          paymentsCountAfterCreate: allPayments.length,
+          paymentIds: allPayments.map(p => p.id),
+          paymentAmounts: allPayments.map(p => Number(p.amount)),
+          sumCalculation: `${allPayments.map(p => Number(p.amount)).join(' + ')} = ${newAmountPaid}`,
+        },
       }
     })
 
