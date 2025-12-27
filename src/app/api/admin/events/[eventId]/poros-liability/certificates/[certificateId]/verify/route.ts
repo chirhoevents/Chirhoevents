@@ -16,18 +16,13 @@ export async function POST(
       )
     }
 
-    const { eventId, certificateId } = await Promise.resolve(params)
+    const { certificateId } = await Promise.resolve(params)
     const body = await request.json()
     const { notes } = body
 
-    // Verify certificate belongs to this event and organization
+    // Verify certificate belongs to user's organization
     const certificate = await prisma.safeEnvironmentCertificate.findUnique({
       where: { id: certificateId },
-      include: {
-        event: {
-          select: { organizationId: true },
-        },
-      },
     })
 
     if (!certificate) {
@@ -37,14 +32,7 @@ export async function POST(
       )
     }
 
-    if (certificate.eventId !== eventId) {
-      return NextResponse.json(
-        { error: 'Certificate does not belong to this event' },
-        { status: 400 }
-      )
-    }
-
-    if (certificate.event.organizationId !== user.organizationId) {
+    if (certificate.organizationId !== user.organizationId) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
@@ -53,7 +41,7 @@ export async function POST(
       where: { id: certificateId },
       data: {
         status: 'verified',
-        verifiedById: user.id,
+        verifiedByUserId: user.id,
         verifiedAt: new Date(),
       },
     })

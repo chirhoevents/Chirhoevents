@@ -33,9 +33,14 @@ export async function GET(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 
-    // Build where clause
+    // Build where clause - filter by organization and participants in this event
     const whereClause: any = {
-      eventId,
+      organizationId: user.organizationId,
+      participant: {
+        groupRegistration: {
+          eventId: eventId,
+        },
+      },
     }
 
     if (status !== 'all') {
@@ -70,12 +75,12 @@ export async function GET(
             id: true,
             firstName: true,
             lastName: true,
-          },
-        },
-        groupRegistration: {
-          select: {
-            groupName: true,
-            parishName: true,
+            groupRegistration: {
+              select: {
+                groupName: true,
+                parishName: true,
+              },
+            },
           },
         },
       },
@@ -91,8 +96,8 @@ export async function GET(
       participantName: cert.participant
         ? `${cert.participant.firstName} ${cert.participant.lastName}`
         : 'Unknown',
-      groupName: cert.groupRegistration?.groupName || 'Unknown Group',
-      parishName: cert.groupRegistration?.parishName || null,
+      groupName: cert.participant?.groupRegistration?.groupName || 'Unknown Group',
+      parishName: cert.participant?.groupRegistration?.parishName || null,
       certificateType: cert.programName?.toLowerCase().includes('virtus')
         ? 'virtus_training'
         : cert.programName?.toLowerCase().includes('background')

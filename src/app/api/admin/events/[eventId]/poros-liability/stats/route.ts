@@ -62,23 +62,38 @@ export async function GET(
       },
     })
 
-    // Get safe environment certificates stats
+    // Get safe environment certificates stats - filter through participant's group registration
     const totalCertificates = await prisma.safeEnvironmentCertificate.count({
       where: {
-        eventId,
+        organizationId: user.organizationId,
+        participant: {
+          groupRegistration: {
+            eventId,
+          },
+        },
       },
     })
 
     const verifiedCertificates = await prisma.safeEnvironmentCertificate.count({
       where: {
-        eventId,
+        organizationId: user.organizationId,
+        participant: {
+          groupRegistration: {
+            eventId,
+          },
+        },
         status: 'verified',
       },
     })
 
     const pendingCertificates = await prisma.safeEnvironmentCertificate.count({
       where: {
-        eventId,
+        organizationId: user.organizationId,
+        participant: {
+          groupRegistration: {
+            eventId,
+          },
+        },
         status: 'pending',
       },
     })
