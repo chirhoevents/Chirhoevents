@@ -314,13 +314,15 @@ function CertificateCard({
             <Eye className="w-4 h-4" />
           </Button>
 
+          {/* Prominent View Certificate button */}
           <Button
             size="sm"
-            variant="ghost"
+            className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white"
             onClick={() => window.open(certificate.fileUrl, '_blank')}
-            title="Download Certificate"
+            title="View Certificate File"
           >
-            <Download className="w-4 h-4" />
+            <Download className="w-4 h-4 mr-1" />
+            View File
           </Button>
 
           {certificate.verificationStatus === 'pending' && (
@@ -352,6 +354,26 @@ function CertificateCard({
       {/* Details Panel */}
       {showDetails && (
         <div className="p-4 bg-gray-50 border-t">
+          {/* Certificate File Preview Section */}
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-medium text-blue-900">Uploaded Certificate</h4>
+                <p className="text-sm text-blue-700">
+                  {certificate.originalFilename || 'Certificate file'}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white"
+                onClick={() => window.open(certificate.fileUrl, '_blank')}
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                View Certificate
+              </Button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-gray-600">Program Name:</span>
