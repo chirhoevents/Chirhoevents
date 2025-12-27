@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Home, Calendar, MapPin, Users, ArrowRight } from 'lucide-react'
+import { Home, Calendar, MapPin, Users, ArrowRight, FileText, Shield } from 'lucide-react'
 import { format } from 'date-fns'
 
 export default async function PorosSelectEventPage() {
@@ -71,41 +71,59 @@ export default async function PorosSelectEventPage() {
     const totalRegistrations = event._count.groupRegistrations + event._count.individualRegistrations
 
     return (
-      <Link href={`/dashboard/admin/events/${event.id}/poros`}>
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-          <CardHeader className="pb-2">
-            <div className="flex items-start justify-between">
-              <CardTitle className="text-lg group-hover:text-navy transition-colors">
-                {event.name}
-              </CardTitle>
-              {getStatusBadge(event.status)}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
+      <Card className="hover:shadow-lg transition-shadow">
+        <CardHeader className="pb-2">
+          <div className="flex items-start justify-between">
+            <CardTitle className="text-lg">
+              {event.name}
+            </CardTitle>
+            {getStatusBadge(event.status)}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Calendar className="w-4 h-4" />
+            <span>
+              {format(new Date(event.startDate), 'MMM d, yyyy')}
+              {event.endDate && ` - ${format(new Date(event.endDate), 'MMM d, yyyy')}`}
+            </span>
+          </div>
+          {event.locationName && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Calendar className="w-4 h-4" />
-              <span>
-                {format(new Date(event.startDate), 'MMM d, yyyy')}
-                {event.endDate && ` - ${format(new Date(event.endDate), 'MMM d, yyyy')}`}
+              <MapPin className="w-4 h-4" />
+              <span>{event.locationName}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Users className="w-4 h-4" />
+            <span>{totalRegistrations} registration{totalRegistrations !== 1 ? 's' : ''}</span>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-col gap-2 pt-3 border-t">
+            <Link
+              href={`/dashboard/admin/events/${event.id}/poros`}
+              className="flex items-center justify-between px-3 py-2 bg-[#1E3A5F] text-white rounded-lg hover:bg-[#1E3A5F]/90 transition-colors text-sm font-medium group"
+            >
+              <span className="flex items-center gap-2">
+                <Home className="w-4 h-4" />
+                Open Poros Assignments
               </span>
-            </div>
-            {event.locationName && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <MapPin className="w-4 h-4" />
-                <span>{event.locationName}</span>
-              </div>
-            )}
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Users className="w-4 h-4" />
-              <span>{totalRegistrations} registration{totalRegistrations !== 1 ? 's' : ''}</span>
-            </div>
-            <div className="flex items-center justify-end pt-2 text-sm font-medium text-navy group-hover:text-navy/80">
-              Open Poros Portal
-              <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </CardContent>
-        </Card>
-      </Link>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+            <Link
+              href={`/dashboard/admin/events/${event.id}/poros-liability`}
+              className="flex items-center justify-between px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium group"
+            >
+              <span className="flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                Open Poros Liability Platform
+              </span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
     )
   }
 
