@@ -78,13 +78,7 @@ export async function GET(
 
     // Format response with stats
     const formattedGroups = groups.map((group) => {
-      const totalSpots =
-        group.youthMaleU18Count +
-        group.youthFemaleU18Count +
-        (group.youthMaleO18Count || 0) +
-        (group.youthFemaleO18Count || 0) +
-        group.chaperoneCount +
-        (group.priestCount || 0)
+      const totalSpots = group.totalParticipants
 
       const allCompletedForms = group.liabilityForms
       const submittedCount = allCompletedForms.length
