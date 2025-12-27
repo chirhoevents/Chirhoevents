@@ -79,20 +79,27 @@ export async function GET(
         },
       })
     } else if (exportType === 'certificates') {
-      // Export Safe Environment certificates
+      // Export Safe Environment certificates - filter through participant's group registration
       const certs = await prisma.safeEnvironmentCertificate.findMany({
-        where: { eventId },
-        include: {
-          groupRegistration: {
-            select: {
-              groupName: true,
-              parishName: true,
+        where: {
+          organizationId: user.organizationId,
+          participant: {
+            groupRegistration: {
+              eventId,
             },
           },
+        },
+        include: {
           participant: {
             select: {
               firstName: true,
               lastName: true,
+              groupRegistration: {
+                select: {
+                  groupName: true,
+                  parishName: true,
+                },
+              },
             },
           },
           verifiedBy: {
@@ -112,7 +119,9 @@ export async function GET(
         const holderName = c.participant
           ? `${c.participant.firstName} ${c.participant.lastName}`
           : 'Unknown'
-        csv += `${escapeCSV(holderName)},${escapeCSV(c.groupRegistration?.groupName)},${escapeCSV(c.groupRegistration?.parishName)},${escapeCSV(c.programName)},${c.completionDate ? c.completionDate.toISOString().split('T')[0] : ''},${c.expirationDate ? c.expirationDate.toISOString().split('T')[0] : ''},${escapeCSV(c.status)},${c.verifiedBy ? `${c.verifiedBy.firstName} ${c.verifiedBy.lastName}` : ''},${c.verifiedAt ? c.verifiedAt.toISOString().split('T')[0] : ''}\n`
+        const groupName = c.participant?.groupRegistration?.groupName || ''
+        const parishName = c.participant?.groupRegistration?.parishName || ''
+        csv += `${escapeCSV(holderName)},${escapeCSV(groupName)},${escapeCSV(parishName)},${escapeCSV(c.programName)},${c.completionDate ? c.completionDate.toISOString().split('T')[0] : ''},${c.expirationDate ? c.expirationDate.toISOString().split('T')[0] : ''},${escapeCSV(c.status)},${c.verifiedBy ? `${c.verifiedBy.firstName} ${c.verifiedBy.lastName}` : ''},${c.verifiedAt ? c.verifiedAt.toISOString().split('T')[0] : ''}\n`
       }
 
       return new NextResponse(csv, {
