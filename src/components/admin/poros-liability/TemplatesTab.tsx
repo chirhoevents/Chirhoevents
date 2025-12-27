@@ -122,7 +122,7 @@ export function TemplatesTab({ eventId, organizationId }: TemplatesTabProps) {
     }
   }
 
-  function useDefaultText(field: keyof typeof DEFAULT_WAIVER_TEXTS) {
+  function applyDefaultText(field: keyof typeof DEFAULT_WAIVER_TEXTS) {
     if (currentTemplate) {
       setCurrentTemplate({
         ...currentTemplate,
@@ -267,7 +267,7 @@ export function TemplatesTab({ eventId, organizationId }: TemplatesTabProps) {
                 size="sm"
                 variant="outline"
                 className="mt-2"
-                onClick={() => useDefaultText('generalWaiverText')}
+                onClick={() => applyDefaultText('generalWaiverText')}
               >
                 Use Default Template
               </Button>
@@ -295,7 +295,7 @@ export function TemplatesTab({ eventId, organizationId }: TemplatesTabProps) {
                 size="sm"
                 variant="outline"
                 className="mt-2"
-                onClick={() => useDefaultText('medicalReleaseText')}
+                onClick={() => applyDefaultText('medicalReleaseText')}
               >
                 Use Default Template
               </Button>
@@ -306,7 +306,7 @@ export function TemplatesTab({ eventId, organizationId }: TemplatesTabProps) {
           <Card className="p-6 bg-white border-[#D1D5DB]">
             <h4 className="font-semibold text-[#1E3A5F] mb-3">Photo & Video Consent</h4>
             <p className="text-sm text-gray-600 mb-3">
-              Permission to use participant's image in promotional materials.
+              Permission to use participant&apos;s image in promotional materials.
             </p>
             <Textarea
               value={currentTemplate.photoVideoConsentText || ''}
@@ -323,7 +323,7 @@ export function TemplatesTab({ eventId, organizationId }: TemplatesTabProps) {
                 size="sm"
                 variant="outline"
                 className="mt-2"
-                onClick={() => useDefaultText('photoVideoConsentText')}
+                onClick={() => applyDefaultText('photoVideoConsentText')}
               >
                 Use Default Template
               </Button>
@@ -351,7 +351,7 @@ export function TemplatesTab({ eventId, organizationId }: TemplatesTabProps) {
                 size="sm"
                 variant="outline"
                 className="mt-2"
-                onClick={() => useDefaultText('transportationConsentText')}
+                onClick={() => applyDefaultText('transportationConsentText')}
               >
                 Use Default Template
               </Button>
@@ -379,7 +379,7 @@ export function TemplatesTab({ eventId, organizationId }: TemplatesTabProps) {
                 size="sm"
                 variant="outline"
                 className="mt-2"
-                onClick={() => useDefaultText('emergencyTreatmentText')}
+                onClick={() => applyDefaultText('emergencyTreatmentText')}
               >
                 Use Default Template
               </Button>
