@@ -17,7 +17,9 @@ import {
   MapPin,
   Phone,
   Mail,
-  Loader2
+  Loader2,
+  FileText,
+  Shield
 } from 'lucide-react'
 
 interface PorosOverviewProps {
@@ -607,6 +609,21 @@ export function PorosOverview({ eventId, settings }: PorosOverviewProps) {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Liability Platform Link */}
+            <Button
+              variant="outline"
+              className="h-auto p-4 flex flex-col items-start text-left border-2 border-navy hover:bg-navy/5"
+              onClick={() => window.location.href = `/dashboard/admin/events/${eventId}/poros-liability`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <FileText className="w-5 h-5 text-navy" />
+                <span className="font-semibold text-navy">Liability Platform</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Manage liability forms & certificates
+              </p>
+            </Button>
+
             {housingEnabled && stats?.housing?.unassigned && stats.housing.unassigned > 0 && (
               <Button
                 variant="outline"
