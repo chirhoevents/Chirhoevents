@@ -1,15 +1,31 @@
 /**
  * Upload PDF to Cloudflare R2 storage
  *
- * NOTE: This is currently a PLACEHOLDER function.
- * In production, this should be replaced with actual Cloudflare R2 integration.
- *
- * Expected R2 path structure: /{orgId}/{eventId}/liability-forms/{formId}.pdf
- *
- * TODO: Implement actual Cloudflare R2 upload using:
- * - @aws-sdk/client-s3 (R2 is S3-compatible)
- * - Environment variables: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME
+ * R2 path structure: /{orgId}/{eventId}/liability-forms/{formId}.pdf
  */
+
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
+
+// Initialize S3 client for R2
+function getR2Client() {
+  const accountId = process.env.R2_ACCOUNT_ID
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY
+
+  if (!accountId || !accessKeyId || !secretAccessKey) {
+    console.warn('R2 credentials not configured - uploads will fail')
+    return null
+  }
+
+  return new S3Client({
+    region: 'auto',
+    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+    credentials: {
+      accessKeyId,
+      secretAccessKey,
+    },
+  })
+}
 
 export async function uploadLiabilityFormPDF(
   pdfBuffer: Buffer,
@@ -18,61 +34,61 @@ export async function uploadLiabilityFormPDF(
   eventId: string
 ): Promise<string> {
   const filename = `${formId}.pdf`
-  const path = `${orgId}/${eventId}/liability-forms/${filename}`
+  const key = `${orgId}/${eventId}/liability-forms/${filename}`
 
-  // PLACEHOLDER: In production, upload to Cloudflare R2
-  // For now, return a placeholder URL
-  const placeholderUrl = `https://r2.chirhoevents.com/${path}`
+  const client = getR2Client()
+  const bucketName = process.env.R2_BUCKET_NAME
+  const publicUrl = process.env.R2_PUBLIC_URL
 
-  console.log(`[PLACEHOLDER] Would upload PDF to R2: ${path}`)
-  console.log(`[PLACEHOLDER] PDF Buffer size: ${pdfBuffer.length} bytes`)
-  console.log(`[PLACEHOLDER] Returning placeholder URL: ${placeholderUrl}`)
+  if (!client || !bucketName) {
+    console.error('R2 not configured - cannot upload PDF')
+    throw new Error('File storage not configured. Please contact administrator.')
+  }
 
-  // TODO: Replace with actual R2 upload
-  /*
-  const s3Client = new S3Client({
-    region: 'auto',
-    endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-    credentials: {
-      accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-    },
-  })
+  try {
+    await client.send(
+      new PutObjectCommand({
+        Bucket: bucketName,
+        Key: key,
+        Body: pdfBuffer,
+        ContentType: 'application/pdf',
+      })
+    )
 
-  await s3Client.send(
-    new PutObjectCommand({
-      Bucket: process.env.R2_BUCKET_NAME!,
-      Key: path,
-      Body: pdfBuffer,
-      ContentType: 'application/pdf',
-    })
-  )
-
-  const publicUrl = `https://${process.env.R2_PUBLIC_DOMAIN}/${path}`
-  return publicUrl
-  */
-
-  return placeholderUrl
+    const fileUrl = `${publicUrl}/${key}`
+    console.log(`PDF uploaded to R2: ${fileUrl}`)
+    return fileUrl
+  } catch (error) {
+    console.error('Failed to upload PDF to R2:', error)
+    throw new Error('Failed to upload PDF. Please try again.')
+  }
 }
 
 /**
  * Delete PDF from Cloudflare R2 storage
- *
- * NOTE: This is currently a PLACEHOLDER function.
  */
 export async function deleteLiabilityFormPDF(pdfUrl: string): Promise<void> {
-  console.log(`[PLACEHOLDER] Would delete PDF from R2: ${pdfUrl}`)
+  const client = getR2Client()
+  const bucketName = process.env.R2_BUCKET_NAME
+  const publicUrl = process.env.R2_PUBLIC_URL
 
-  // TODO: Implement R2 deletion
-  /*
-  const s3Client = new S3Client({ ... })
-  const key = extractKeyFromUrl(pdfUrl)
+  if (!client || !bucketName || !publicUrl) {
+    console.warn('R2 not configured - cannot delete PDF')
+    return
+  }
 
-  await s3Client.send(
-    new DeleteObjectCommand({
-      Bucket: process.env.R2_BUCKET_NAME!,
-      Key: key,
-    })
-  )
-  */
+  // Extract key from URL
+  const key = pdfUrl.replace(`${publicUrl}/`, '')
+
+  try {
+    await client.send(
+      new DeleteObjectCommand({
+        Bucket: bucketName,
+        Key: key,
+      })
+    )
+    console.log(`PDF deleted from R2: ${key}`)
+  } catch (error) {
+    console.error('Failed to delete PDF from R2:', error)
+  }
 }

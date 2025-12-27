@@ -1,15 +1,31 @@
 /**
  * Upload Safe Environment Certificate to Cloudflare R2 storage
  *
- * NOTE: This is currently a PLACEHOLDER function.
- * In production, this should be replaced with actual Cloudflare R2 integration.
- *
- * Expected R2 path structure: /{orgId}/{eventId}/certificates/{participantId}/{timestamp}_{filename}
- *
- * TODO: Implement actual Cloudflare R2 upload using:
- * - @aws-sdk/client-s3 (R2 is S3-compatible)
- * - Environment variables: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME
+ * R2 path structure: /{orgId}/certificates/{participantId}/{timestamp}_{filename}
  */
+
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
+
+// Initialize S3 client for R2
+function getR2Client() {
+  const accountId = process.env.R2_ACCOUNT_ID
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY
+
+  if (!accountId || !accessKeyId || !secretAccessKey) {
+    console.warn('R2 credentials not configured - uploads will fail')
+    return null
+  }
+
+  return new S3Client({
+    region: 'auto',
+    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+    credentials: {
+      accessKeyId,
+      secretAccessKey,
+    },
+  })
+}
 
 export async function uploadCertificate(
   fileBuffer: Buffer,
@@ -20,50 +36,70 @@ export async function uploadCertificate(
 ): Promise<string> {
   const timestamp = Date.now()
   const sanitizedFilename = filename.replace(/[^a-zA-Z0-9.-]/g, '_')
-  const path = `${orgId}/${eventId}/certificates/${participantId}/${timestamp}_${sanitizedFilename}`
+  const key = `${orgId}/certificates/${participantId}/${timestamp}_${sanitizedFilename}`
 
-  // PLACEHOLDER: In production, upload to Cloudflare R2
-  // For now, return a placeholder URL
-  const placeholderUrl = `https://r2.chirhoevents.com/${path}`
+  const client = getR2Client()
+  const bucketName = process.env.R2_BUCKET_NAME
+  const publicUrl = process.env.R2_PUBLIC_URL
 
-  console.log(`[PLACEHOLDER] Would upload certificate to R2: ${path}`)
-  console.log(`[PLACEHOLDER] File Buffer size: ${fileBuffer.length} bytes`)
-  console.log(`[PLACEHOLDER] Returning placeholder URL: ${placeholderUrl}`)
+  if (!client || !bucketName) {
+    console.error('R2 not configured - cannot upload certificate')
+    throw new Error('File storage not configured. Please contact administrator.')
+  }
 
-  // TODO: Replace with actual R2 upload
-  /*
-  const s3Client = new S3Client({
-    region: 'auto',
-    endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-    credentials: {
-      accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-    },
-  })
+  // Determine content type based on file extension
+  const ext = filename.toLowerCase().split('.').pop()
+  let contentType = 'application/octet-stream'
+  if (ext === 'pdf') contentType = 'application/pdf'
+  else if (ext === 'png') contentType = 'image/png'
+  else if (ext === 'jpg' || ext === 'jpeg') contentType = 'image/jpeg'
+  else if (ext === 'gif') contentType = 'image/gif'
+  else if (ext === 'webp') contentType = 'image/webp'
 
-  await s3Client.send(
-    new PutObjectCommand({
-      Bucket: process.env.R2_BUCKET_NAME!,
-      Key: path,
-      Body: fileBuffer,
-      ContentType: 'application/pdf',
-    })
-  )
+  try {
+    await client.send(
+      new PutObjectCommand({
+        Bucket: bucketName,
+        Key: key,
+        Body: fileBuffer,
+        ContentType: contentType,
+      })
+    )
 
-  const publicUrl = `https://${process.env.R2_PUBLIC_DOMAIN}/${path}`
-  return publicUrl
-  */
-
-  return placeholderUrl
+    const fileUrl = `${publicUrl}/${key}`
+    console.log(`Certificate uploaded to R2: ${fileUrl}`)
+    return fileUrl
+  } catch (error) {
+    console.error('Failed to upload certificate to R2:', error)
+    throw new Error('Failed to upload certificate. Please try again.')
+  }
 }
 
 /**
  * Delete certificate from Cloudflare R2 storage
- *
- * NOTE: This is currently a PLACEHOLDER function.
  */
 export async function deleteCertificate(certificateUrl: string): Promise<void> {
-  console.log(`[PLACEHOLDER] Would delete certificate from R2: ${certificateUrl}`)
+  const client = getR2Client()
+  const bucketName = process.env.R2_BUCKET_NAME
+  const publicUrl = process.env.R2_PUBLIC_URL
 
-  // TODO: Implement R2 deletion
+  if (!client || !bucketName || !publicUrl) {
+    console.warn('R2 not configured - cannot delete certificate')
+    return
+  }
+
+  // Extract key from URL
+  const key = certificateUrl.replace(`${publicUrl}/`, '')
+
+  try {
+    await client.send(
+      new DeleteObjectCommand({
+        Bucket: bucketName,
+        Key: key,
+      })
+    )
+    console.log(`Certificate deleted from R2: ${key}`)
+  } catch (error) {
+    console.error('Failed to delete certificate from R2:', error)
+  }
 }
