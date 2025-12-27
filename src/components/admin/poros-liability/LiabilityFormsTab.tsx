@@ -341,7 +341,9 @@ function ParticipantRow({
           <div className="flex items-center gap-3">
             {/* Status Icon */}
             {isYouth ? (
-              <CheckCircle className="w-5 h-5 text-green-600" title="Youth - No approval required" />
+              <span title="Youth - No approval required">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              </span>
             ) : participant.formStatus === 'approved' ? (
               <CheckCircle className="w-5 h-5 text-green-600" />
             ) : participant.formStatus === 'pending' ? (
