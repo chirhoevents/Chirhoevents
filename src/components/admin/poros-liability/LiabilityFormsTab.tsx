@@ -331,21 +331,24 @@ function ParticipantRow({
 
   const hasMedicalInfo = participant.allergies || participant.medications || participant.medicalConditions
 
+  // Youth (under 18) forms don't require admin approval
+  const isYouth = participant.participantType === 'youth' || (participant.age !== null && participant.age < 18)
+
   return (
     <div className="border rounded-lg overflow-hidden">
       <div className="p-3 flex items-center justify-between bg-white hover:bg-gray-50">
         <div className="flex-1">
           <div className="flex items-center gap-3">
             {/* Status Icon */}
-            {participant.formStatus === 'approved' && (
+            {isYouth ? (
+              <CheckCircle className="w-5 h-5 text-green-600" title="Youth - No approval required" />
+            ) : participant.formStatus === 'approved' ? (
               <CheckCircle className="w-5 h-5 text-green-600" />
-            )}
-            {participant.formStatus === 'pending' && (
+            ) : participant.formStatus === 'pending' ? (
               <Clock className="w-5 h-5 text-yellow-600" />
-            )}
-            {participant.formStatus === 'denied' && (
+            ) : participant.formStatus === 'denied' ? (
               <XCircle className="w-5 h-5 text-red-600" />
-            )}
+            ) : null}
 
             {/* Name & Info */}
             <div className="flex-1">
@@ -398,7 +401,8 @@ function ParticipantRow({
             </Button>
           )}
 
-          {participant.formStatus === 'pending' && (
+          {/* Only show approve/deny for adults (chaperones, priests) - youth forms don't require approval */}
+          {!isYouth && participant.formStatus === 'pending' && (
             <>
               <Button
                 size="sm"
@@ -420,6 +424,9 @@ function ParticipantRow({
                 Deny
               </Button>
             </>
+          )}
+          {isYouth && (
+            <span className="text-xs text-gray-500 px-2">No approval needed</span>
           )}
         </div>
       </div>

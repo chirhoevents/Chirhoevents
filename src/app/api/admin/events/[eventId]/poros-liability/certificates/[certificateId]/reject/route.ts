@@ -16,7 +16,9 @@ export async function POST(
       )
     }
 
-    const { certificateId } = await Promise.resolve(params)
+    const resolvedParams = await Promise.resolve(params)
+    const { certificateId } = resolvedParams
+
     const body = await request.json()
     const { reason } = body
 

@@ -16,9 +16,17 @@ export async function POST(
       )
     }
 
-    const { certificateId } = await Promise.resolve(params)
-    const body = await request.json()
-    const { notes } = body
+    const resolvedParams = await Promise.resolve(params)
+    const { certificateId } = resolvedParams
+
+    // Parse body safely - notes is optional
+    let notes: string | null = null
+    try {
+      const body = await request.json()
+      notes = body?.notes || null
+    } catch {
+      // Body might be empty or invalid, that's ok
+    }
 
     // Verify certificate belongs to user's organization
     const certificate = await prisma.safeEnvironmentCertificate.findUnique({

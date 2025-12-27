@@ -104,7 +104,7 @@ export default function PorosLiabilityClient({
               Back to Poros Portal
             </Button>
             <div className="relative group">
-              <Button className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90">
+              <Button className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white">
                 <Download className="w-4 h-4 mr-2" />
                 Export Data
               </Button>
