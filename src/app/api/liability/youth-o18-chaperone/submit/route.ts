@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { generateLiabilityFormPDF } from '@/lib/pdf/generate-liability-form-pdf'
 import { uploadLiabilityFormPDF } from '@/lib/r2/upload-pdf'
+import { uploadCertificate } from '@/lib/r2/upload-certificate'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -161,25 +162,37 @@ export async function POST(request: NextRequest) {
 
     // Handle safe environment certificate if chaperone and uploaded
     if (participant_type === 'chaperone' && safe_env_cert_file && !safe_env_cert_upload_later) {
-      // TODO: Upload to Cloudflare R2 or other storage
-      // For now, we'll store a placeholder URL
-      // const fileUrl = await uploadToR2(safe_env_cert_file, safe_env_cert_filename)
+      try {
+        // Decode base64 file data and upload to R2
+        const base64Data = safe_env_cert_file.replace(/^data:[^;]+;base64,/, '')
+        const fileBuffer = Buffer.from(base64Data, 'base64')
 
-      const fileUrl = `placeholder://certificates/${liabilityForm.id}/${safe_env_cert_filename}`
+        const fileUrl = await uploadCertificate(
+          fileBuffer,
+          safe_env_cert_filename || 'certificate.pdf',
+          participant.id,
+          groupRegistration.organizationId,
+          groupRegistration.eventId
+        )
 
-      await prisma.safeEnvironmentCertificate.create({
-        data: {
-          participantId: participant.id,
-          liabilityFormId: liabilityForm.id,
-          organizationId: groupRegistration.organizationId,
-          fileUrl: fileUrl,
-          originalFilename: safe_env_cert_filename,
-          programName: safe_env_cert_program,
-          completionDate: safe_env_cert_completion_date ? new Date(safe_env_cert_completion_date) : null,
-          expirationDate: safe_env_cert_expiration_date ? new Date(safe_env_cert_expiration_date) : null,
-          status: 'pending',
-        },
-      })
+        await prisma.safeEnvironmentCertificate.create({
+          data: {
+            participantId: participant.id,
+            liabilityFormId: liabilityForm.id,
+            organizationId: groupRegistration.organizationId,
+            fileUrl: fileUrl,
+            originalFilename: safe_env_cert_filename,
+            programName: safe_env_cert_program,
+            completionDate: safe_env_cert_completion_date ? new Date(safe_env_cert_completion_date) : null,
+            expirationDate: safe_env_cert_expiration_date ? new Date(safe_env_cert_expiration_date) : null,
+            status: 'pending',
+          },
+        })
+      } catch (uploadError) {
+        console.error('Failed to upload certificate to R2:', uploadError)
+        // Continue without failing the whole form submission
+        // The certificate can be uploaded later through the group leader portal
+      }
     }
 
     // Generate PDF URL (using API endpoint for now until R2 is set up)
