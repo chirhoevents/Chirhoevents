@@ -85,6 +85,7 @@ model User {
   refundsProcessed Refund[]
   reportTemplates ReportTemplate[] @relation("ReportTemplatesCreated")
   paymentsProcessed Payment[] @relation("PaymentsProcessed")
+  liabilityFormsApproved LiabilityForm[] @relation("LiabilityFormsApproved")
 
   @@index([organizationId], name: "idx_user_org")
   @@index([email], name: "idx_user_email")
@@ -490,11 +491,20 @@ model LiabilityForm {
   completedByEmail          String?  @map("completed_by_email") @db.VarChar(255)
   completedAt               DateTime? @map("completed_at") @db.Timestamptz(6)
   pdfUrl                    String?  @map("pdf_url") @db.Text
+
+  // Approval workflow
+  formStatus                String   @default("pending") @map("form_status") @db.VarChar(50)  // pending, approved, denied, needs_revision
+  approvalNotes             String?  @map("approval_notes") @db.Text
+  approvedByUserId          String?  @map("approved_by_user_id") @db.Uuid
+  approvedAt                DateTime? @map("approved_at") @db.Timestamptz(6)
+  deniedReason              String?  @map("denied_reason") @db.Text
+
   createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                 DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   // Relations
   organization           Organization            @relation(fields: [organizationId], references: [id])
+  approvedBy             User?                   @relation("LiabilityFormsApproved", fields: [approvedByUserId], references: [id])
   event                  Event                   @relation(fields: [eventId], references: [id])
   groupRegistration      GroupRegistration?      @relation(fields: [groupRegistrationId], references: [id])
   participant            Participant?            @relation(fields: [participantId], references: [id])
@@ -544,9 +554,26 @@ model LiabilityFormTemplate {
   organizationId    String   @map("organization_id") @db.Uuid
   eventId           String?  @map("event_id") @db.Uuid
   formType          LiabilityFormType @map("form_type")
+
+  // Template info
+  templateName      String?  @map("template_name") @db.VarChar(255)
+  description       String?  @db.Text
+
+  // Waiver text sections
+  generalWaiverText        String?  @map("general_waiver_text") @db.Text
+  medicalReleaseText       String?  @map("medical_release_text") @db.Text
+  photoVideoConsentText    String?  @map("photo_video_consent_text") @db.Text
+  transportationConsentText String? @map("transportation_consent_text") @db.Text
+  emergencyTreatmentText   String?  @map("emergency_treatment_text") @db.Text
+
   customQuestions   Json?    @map("custom_questions")
   customSections    Json?    @map("custom_sections")
+
+  // Version tracking
+  version           Int      @default(1)
   active            Boolean  @default(true)
+
+  createdByUserId   String?  @map("created_by_user_id") @db.Uuid
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -556,6 +583,7 @@ model LiabilityFormTemplate {
 
   @@index([organizationId], name: "idx_template_org")
   @@index([eventId], name: "idx_template_event")
+  @@index([active], name: "idx_template_active")
   @@map("liability_form_templates")
 }
 
