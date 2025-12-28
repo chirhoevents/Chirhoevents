@@ -130,10 +130,10 @@ export async function POST(
       group: {
         id: group.id,
         name: group.groupName,
-        diocese: group.diocese,
+        diocese: group.dioceseName,
         accessCode: group.accessCode,
-        contactEmail: group.contactEmail,
-        contactPhone: group.contactPhone,
+        contactEmail: group.groupLeaderEmail,
+        contactPhone: group.groupLeaderPhone,
       },
       participants: {
         total: group.participants.length,

@@ -24,12 +24,11 @@ export async function POST(
       })
     }
 
-    // If no template specified, get the default
+    // If no template specified, get the event's template (eventId is unique)
     if (!template) {
-      template = await prisma.nameTagTemplate.findFirst({
+      template = await prisma.nameTagTemplate.findUnique({
         where: {
           eventId,
-          isDefault: true,
         },
       })
     }
@@ -60,7 +59,7 @@ export async function POST(
           groupRegistration: {
             select: {
               groupName: true,
-              diocese: true,
+              dioceseName: true,
             },
           },
           housingAssignment: {
@@ -87,7 +86,7 @@ export async function POST(
           groupRegistration: {
             select: {
               groupName: true,
-              diocese: true,
+              dioceseName: true,
             },
           },
           housingAssignment: {
@@ -126,7 +125,7 @@ export async function POST(
         lastName: p.lastName,
         fullName: `${p.firstName} ${p.lastName}`,
         groupName: p.groupRegistration.groupName,
-        diocese: p.groupRegistration.diocese,
+        diocese: p.groupRegistration.dioceseName,
         participantType: p.participantType,
         isChaperone: p.isChaperone,
         isClergy: p.isClergy,
