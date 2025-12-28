@@ -145,20 +145,55 @@ export default function SalveCheckInPage() {
     setGroupData(null)
 
     try {
-      const response = await fetch(`/api/admin/events/${eventId}/salve/lookup?q=${encodeURIComponent(searchQuery.trim())}`)
+      const query = searchQuery.trim()
+      // Check if this looks like an access code (alphanumeric, 4-8 chars)
+      const isAccessCode = /^[A-Za-z0-9]{4,8}$/.test(query)
+
+      const url = isAccessCode
+        ? `/api/admin/events/${eventId}/salve/lookup?accessCode=${encodeURIComponent(query)}`
+        : `/api/admin/events/${eventId}/salve/lookup?search=${encodeURIComponent(query)}`
+
+      const response = await fetch(url)
 
       if (response.ok) {
         const data = await response.json()
-        setGroupData(data)
-        setStatus('found')
 
-        // Pre-select all participants who aren't already checked in
-        const notCheckedIn = new Set<string>(
-          data.participants
-            .filter((p: ParticipantData) => !p.checkedIn)
-            .map((p: ParticipantData) => p.id)
-        )
-        setSelectedParticipants(notCheckedIn)
+        // Handle different response formats
+        let group: GroupData | null = null
+
+        if (data.results) {
+          // Search response with multiple results
+          if (data.results.length === 0) {
+            setStatus('not_found')
+            return
+          } else if (data.results.length === 1) {
+            // Single result - use it directly
+            group = data.results[0]
+          } else {
+            // Multiple results - use the first one for now
+            // TODO: Could show a selection modal
+            group = data.results[0]
+            toast.info(`Found ${data.results.length} matching groups. Showing first result.`)
+          }
+        } else if (data.id) {
+          // Direct group response (access code or groupId lookup)
+          group = data
+        }
+
+        if (group) {
+          setGroupData(group)
+          setStatus('found')
+
+          // Pre-select all participants who aren't already checked in
+          const notCheckedIn = new Set<string>(
+            group.participants
+              .filter((p: ParticipantData) => !p.checkedIn)
+              .map((p: ParticipantData) => p.id)
+          )
+          setSelectedParticipants(notCheckedIn)
+        } else {
+          setStatus('not_found')
+        }
       } else if (response.status === 404) {
         setStatus('not_found')
       } else {

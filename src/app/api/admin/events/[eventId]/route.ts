@@ -8,6 +8,54 @@ interface RouteParams {
   }
 }
 
+export async function GET(request: Request, { params }: RouteParams) {
+  try {
+    const user = await getCurrentUser()
+
+    if (!user || !isAdmin(user)) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Admin access required' },
+        { status: 403 }
+      )
+    }
+
+    const { eventId } = params
+
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      include: {
+        settings: true,
+        pricing: true,
+        _count: {
+          select: {
+            groupRegistrations: true,
+            individualRegistrations: true,
+          },
+        },
+      },
+    })
+
+    if (!event) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+    }
+
+    if (event.organizationId !== user.organizationId) {
+      return NextResponse.json(
+        { error: 'You do not have permission to view this event' },
+        { status: 403 }
+      )
+    }
+
+    return NextResponse.json(event)
+  } catch (error) {
+    console.error('Error fetching event:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function PUT(request: Request, { params }: RouteParams) {
   try {
     const user = await getCurrentUser()
