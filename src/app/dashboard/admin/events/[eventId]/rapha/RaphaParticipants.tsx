@@ -8,12 +8,14 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import {
   Select,
@@ -109,6 +111,13 @@ export default function RaphaParticipants({ eventId, onCreateIncident }: RaphaPa
   const [participantIncidents, setParticipantIncidents] = useState<any[]>([])
   const [loadingIncidents, setLoadingIncidents] = useState(false)
 
+  // Email modal state
+  const [showEmailModal, setShowEmailModal] = useState(false)
+  const [emailParticipant, setEmailParticipant] = useState<Participant | null>(null)
+  const [emailSubject, setEmailSubject] = useState('')
+  const [emailMessage, setEmailMessage] = useState('')
+  const [sendingEmail, setSendingEmail] = useState(false)
+
   // Watch for URL search params changes
   useEffect(() => {
     const urlSearch = searchParams.get('search') || ''
@@ -183,11 +192,69 @@ export default function RaphaParticipants({ eventId, onCreateIncident }: RaphaPa
       toast.error('No email address available')
       return
     }
-    const subject = encodeURIComponent(`Regarding ${participant.firstName} ${participant.lastName} - Medical Update`)
-    const body = encodeURIComponent(
-      `Dear Parent/Guardian,\n\nThis is regarding ${participant.firstName} ${participant.lastName}.\n\n[Please add your message here]\n\nBest regards,\nMedical Staff`
-    )
-    window.open(`mailto:${email}?subject=${subject}&body=${body}`, '_blank')
+    // Open email modal instead of mailto
+    setEmailParticipant(participant)
+    setEmailSubject(`Regarding ${participant.firstName} ${participant.lastName} - Medical Update`)
+    setEmailMessage(`Dear Parent/Guardian,
+
+This is regarding ${participant.firstName} ${participant.lastName}.
+
+[Please add your message here]
+
+`)
+    setShowEmailModal(true)
+  }
+
+  async function handleSendEmail() {
+    if (!emailParticipant) return
+
+    const email = emailParticipant.parentEmail || emailParticipant.email
+    if (!email) {
+      toast.error('No email address available')
+      return
+    }
+
+    if (!emailSubject.trim()) {
+      toast.error('Please enter a subject')
+      return
+    }
+
+    if (!emailMessage.trim()) {
+      toast.error('Please enter a message')
+      return
+    }
+
+    setSendingEmail(true)
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}/rapha/email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipientEmail: email,
+          recipientName: emailParticipant.emergency.contact1Name || 'Parent/Guardian',
+          participantName: `${emailParticipant.firstName} ${emailParticipant.lastName}`,
+          subject: emailSubject,
+          message: emailMessage,
+          liabilityFormId: emailParticipant.id,
+        }),
+      })
+
+      if (response.ok) {
+        toast.success('Email sent successfully')
+        setShowEmailModal(false)
+        setEmailParticipant(null)
+        setEmailSubject('')
+        setEmailMessage('')
+      } else {
+        const data = await response.json()
+        toast.error(data.message || 'Failed to send email')
+      }
+    } catch (error) {
+      console.error('Failed to send email:', error)
+      toast.error('Failed to send email')
+    } finally {
+      setSendingEmail(false)
+    }
   }
 
   function handlePrintProfile(participant: Participant) {
@@ -813,6 +880,83 @@ export default function RaphaParticipants({ eventId, onCreateIncident }: RaphaPa
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Email Parent Modal */}
+      <Dialog open={showEmailModal} onOpenChange={setShowEmailModal}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="w-5 h-5 text-[#0077BE]" />
+              Email Parent/Guardian
+            </DialogTitle>
+          </DialogHeader>
+          {emailParticipant && (
+            <div className="space-y-4">
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <p className="text-sm font-medium">
+                  Regarding: {emailParticipant.firstName} {emailParticipant.lastName}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  To: {emailParticipant.parentEmail || emailParticipant.email}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email-subject">Subject</Label>
+                <Input
+                  id="email-subject"
+                  value={emailSubject}
+                  onChange={(e) => setEmailSubject(e.target.value)}
+                  placeholder="Email subject"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email-message">Message</Label>
+                <Textarea
+                  id="email-message"
+                  value={emailMessage}
+                  onChange={(e) => setEmailMessage(e.target.value)}
+                  placeholder="Write your message here..."
+                  rows={10}
+                  className="resize-none"
+                />
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                This email will be sent from your organization&apos;s email address via Rapha Medical Platform.
+                Your name will be included as the sender.
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowEmailModal(false)}
+              disabled={sendingEmail}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-[#0077BE] hover:bg-[#0077BE]/90"
+              onClick={handleSendEmail}
+              disabled={sendingEmail}
+            >
+              {sendingEmail ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Mail className="w-4 h-4 mr-2" />
+                  Send Email
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
