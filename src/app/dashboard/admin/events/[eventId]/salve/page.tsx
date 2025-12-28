@@ -459,7 +459,7 @@ export default function SalveCheckInPage() {
                 <Button
                   onClick={() => setStatus('scanning')}
                   size="lg"
-                  className="h-14 px-8 text-lg bg-navy hover:bg-navy/90"
+                  className="h-14 px-8 text-lg bg-navy text-white hover:bg-navy/90"
                 >
                   <Camera className="w-6 h-6 mr-3" />
                   Scan QR Code

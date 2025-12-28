@@ -545,7 +545,7 @@ export default function IndividualInvoiceReviewPage() {
                 <Button
                   onClick={handleCheckPayment}
                   disabled={!checkAcknowledged || submitting}
-                  className="flex-1 bg-navy hover:bg-navy/90"
+                  className="flex-1 bg-navy text-white hover:bg-navy/90"
                 >
                   {submitting ? (
                     <>
