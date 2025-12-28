@@ -111,7 +111,7 @@ export async function POST(
         name: true,
         startDate: true,
         endDate: true,
-        location: true,
+        locationName: true,
         organization: {
           select: {
             name: true,
@@ -161,7 +161,7 @@ export async function POST(
         logoUrl: event?.organization?.logoUrl,
         startDate: event?.startDate,
         endDate: event?.endDate,
-        location: event?.location,
+        location: event?.locationName,
       },
       group: {
         id: group.id,
