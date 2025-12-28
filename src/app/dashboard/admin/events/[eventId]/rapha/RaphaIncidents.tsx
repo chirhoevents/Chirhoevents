@@ -72,12 +72,31 @@ interface Incident {
   updatedAt: string
 }
 
+interface PreSelectedParticipant {
+  id: string
+  participantId: string | null
+  firstName: string
+  lastName: string
+  groupName: string
+  allergies?: string | null
+  hasSevereAllergy?: boolean
+}
+
 interface RaphaIncidentsProps {
   eventId: string
   onStatsChange?: () => void
+  preSelectedParticipant?: PreSelectedParticipant | null
+  openNewIncidentModal?: boolean
+  onModalClose?: () => void
 }
 
-export default function RaphaIncidents({ eventId, onStatsChange }: RaphaIncidentsProps) {
+export default function RaphaIncidents({
+  eventId,
+  onStatsChange,
+  preSelectedParticipant,
+  openNewIncidentModal,
+  onModalClose,
+}: RaphaIncidentsProps) {
   const searchParams = useSearchParams()
   const showNewModal = searchParams.get('action') === 'new'
   const viewIncidentId = searchParams.get('incident')
@@ -134,6 +153,24 @@ export default function RaphaIncidents({ eventId, onStatsChange }: RaphaIncident
       loadIncident(viewIncidentId)
     }
   }, [viewIncidentId])
+
+  // Handle opening new incident modal from parent with pre-selected participant
+  useEffect(() => {
+    if (openNewIncidentModal) {
+      if (preSelectedParticipant) {
+        setSelectedParticipant({
+          id: preSelectedParticipant.participantId || preSelectedParticipant.id,
+          firstName: preSelectedParticipant.firstName,
+          lastName: preSelectedParticipant.lastName,
+          groupName: preSelectedParticipant.groupName,
+          allergies: preSelectedParticipant.allergies,
+          hasSevereAllergy: preSelectedParticipant.hasSevereAllergy,
+        })
+        setParticipantQuery(`${preSelectedParticipant.firstName} ${preSelectedParticipant.lastName}`)
+      }
+      setShowNewIncidentModal(true)
+    }
+  }, [openNewIncidentModal, preSelectedParticipant])
 
   async function fetchIncidents() {
     setLoading(true)
@@ -226,6 +263,7 @@ export default function RaphaIncidents({ eventId, onStatsChange }: RaphaIncident
         toast.success('Incident recorded successfully')
         setShowNewIncidentModal(false)
         resetNewIncidentForm()
+        onModalClose?.()
         fetchIncidents()
         onStatsChange?.()
       } else {
@@ -831,6 +869,7 @@ export default function RaphaIncidents({ eventId, onStatsChange }: RaphaIncident
               onClick={() => {
                 setShowNewIncidentModal(false)
                 resetNewIncidentForm()
+                onModalClose?.()
               }}
             >
               Cancel
