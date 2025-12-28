@@ -217,6 +217,12 @@ export default function WelcomePacketsPage() {
   const [newInsertName, setNewInsertName] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isDraggingFile, setIsDraggingFile] = useState(false)
+  const [missingResources, setMissingResources] = useState<MissingResources>({
+    campusMap: true,
+    mealSchedule: true,
+    eventSchedule: true,
+    emergencyProcedures: true,
+  })
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -234,10 +240,11 @@ export default function WelcomePacketsPage() {
   async function fetchData() {
     setLoading(true)
     try {
-      const [eventRes, groupsRes, insertsRes] = await Promise.all([
+      const [eventRes, groupsRes, insertsRes, packetRes] = await Promise.all([
         fetch(`/api/admin/events/${eventId}`),
         fetch(`/api/admin/events/${eventId}/groups`),
         fetch(`/api/admin/events/${eventId}/salve/inserts`),
+        fetch(`/api/admin/events/${eventId}/salve/generate-packet`),
       ])
 
       if (eventRes.ok) {
@@ -258,6 +265,13 @@ export default function WelcomePacketsPage() {
       if (insertsRes.ok) {
         const insertsData = await insertsRes.json()
         setInserts(insertsData.inserts || [])
+      }
+
+      if (packetRes.ok) {
+        const packetData = await packetRes.json()
+        if (packetData.missingResources) {
+          setMissingResources(packetData.missingResources)
+        }
       }
     } catch (error) {
       console.error('Failed to fetch data:', error)
