@@ -73,8 +73,8 @@ export async function GET(
         form.allergies?.toLowerCase().includes('severe')
 
       return {
-        id: form.participantId || form.id,
-        liabilityFormId: form.id,
+        id: form.participantId || null, // Participant table ID (may be null)
+        liabilityFormId: form.id, // LiabilityForm ID (always exists)
         firstName: form.participantFirstName,
         lastName: form.participantLastName,
         age: form.participantAge,

@@ -84,41 +84,43 @@ export async function GET(
       ],
     })
 
-    // Get participant names
-    const participantIds = incidents
-      .map((i) => i.participantId)
-      .filter((id): id is string => id !== null)
+    // Transform incidents - use stored participant info, fall back to lookup for legacy data
+    const incidentsWithNames = await Promise.all(
+      incidents.map(async (incident) => {
+        let participantName = incident.participantName
+        let groupName = incident.groupName
 
-    const participants = await prisma.participant.findMany({
-      where: { id: { in: participantIds } },
-      include: {
-        groupRegistration: {
-          select: { groupName: true },
-        },
-      },
-    })
+        // For legacy incidents without stored names, try to look up
+        if (!participantName && incident.participantId) {
+          const participant = await prisma.participant.findUnique({
+            where: { id: incident.participantId },
+            include: { groupRegistration: { select: { groupName: true } } },
+          })
+          if (participant) {
+            participantName = `${participant.firstName} ${participant.lastName}`
+            groupName = participant.groupRegistration.groupName
+          }
+        }
 
-    const participantMap = new Map(
-      participants.map((p) => [
-        p.id,
-        {
-          name: `${p.firstName} ${p.lastName}`,
-          groupName: p.groupRegistration.groupName,
-        },
-      ])
-    )
+        // Also try LiabilityForm for legacy data
+        if (!participantName && incident.liabilityFormId) {
+          const form = await prisma.liabilityForm.findUnique({
+            where: { id: incident.liabilityFormId },
+            include: { groupRegistration: { select: { groupName: true } } },
+          })
+          if (form) {
+            participantName = `${form.participantFirstName} ${form.participantLastName}`
+            groupName = form.groupRegistration?.groupName || 'Individual'
+          }
+        }
 
-    // Transform incidents
-    const incidentsWithNames = incidents.map((incident) => {
-      const participantInfo = incident.participantId
-        ? participantMap.get(incident.participantId)
-        : null
-
-      return {
-        id: incident.id,
-        participantId: incident.participantId,
-        participantName: participantInfo?.name || 'Unknown',
-        groupName: participantInfo?.groupName || 'Unknown',
+        return {
+          id: incident.id,
+          participantId: incident.participantId,
+          liabilityFormId: incident.liabilityFormId,
+          participantName: participantName || 'Unknown',
+          participantAge: incident.participantAge,
+          groupName: groupName || 'Unknown',
         type: incident.incidentType,
         severity: incident.severity,
         status: incident.status,
@@ -207,6 +209,7 @@ export async function POST(
     // Validate required fields
     const {
       participantId,
+      liabilityFormId,
       incidentType,
       severity,
       description,
@@ -235,6 +238,51 @@ export async function POST(
       )
     }
 
+    // Get participant info - prefer LiabilityForm, fall back to Participant table
+    let participantName: string | null = null
+    let participantAge: number | null = null
+    let groupName: string | null = null
+    let resolvedParticipantId: string | null = participantId || null
+    let resolvedLiabilityFormId: string | null = liabilityFormId || null
+
+    // Try to get info from LiabilityForm first
+    if (liabilityFormId) {
+      const form = await prisma.liabilityForm.findUnique({
+        where: { id: liabilityFormId },
+        include: {
+          groupRegistration: { select: { groupName: true } },
+        },
+      })
+      if (form) {
+        participantName = `${form.participantFirstName} ${form.participantLastName}`
+        participantAge = form.participantAge
+        groupName = form.groupRegistration?.groupName || 'Individual'
+        // Also get the linked participantId if available
+        if (form.participantId) {
+          resolvedParticipantId = form.participantId
+        }
+      }
+    }
+
+    // If no LiabilityForm, try Participant table
+    if (!participantName && participantId) {
+      const participant = await prisma.participant.findUnique({
+        where: { id: participantId },
+        include: {
+          groupRegistration: { select: { groupName: true } },
+          liabilityForm: { select: { id: true, participantAge: true } },
+        },
+      })
+      if (participant) {
+        participantName = `${participant.firstName} ${participant.lastName}`
+        participantAge = participant.liabilityForm?.participantAge || null
+        groupName = participant.groupRegistration.groupName
+        if (participant.liabilityForm?.id) {
+          resolvedLiabilityFormId = participant.liabilityForm.id
+        }
+      }
+    }
+
     // Determine initial status
     let status: 'active' | 'monitoring' | 'resolved' = 'active'
     if (participantDisposition === 'returned_to_activities' && !followUpRequired) {
@@ -243,11 +291,15 @@ export async function POST(
       status = 'monitoring'
     }
 
-    // Create incident
+    // Create incident with stored participant info
     const incident = await prisma.medicalIncident.create({
       data: {
         eventId,
-        participantId: participantId || null,
+        participantId: resolvedParticipantId,
+        liabilityFormId: resolvedLiabilityFormId,
+        participantName,
+        participantAge,
+        groupName,
         incidentType,
         severity,
         incidentDate: incidentDate ? new Date(incidentDate) : new Date(),
@@ -282,32 +334,16 @@ export async function POST(
         action: 'create_incident',
         resourceType: 'incident',
         resourceId: incident.id,
-        details: `Created ${severity} ${incidentType} incident`,
+        details: `Created ${severity} ${incidentType} incident for ${participantName || 'Unknown'}`,
       },
     })
-
-    // Get participant name for response
-    let participantName = 'Unknown'
-    let groupName = 'Unknown'
-    if (participantId) {
-      const participant = await prisma.participant.findUnique({
-        where: { id: participantId },
-        include: {
-          groupRegistration: { select: { groupName: true } },
-        },
-      })
-      if (participant) {
-        participantName = `${participant.firstName} ${participant.lastName}`
-        groupName = participant.groupRegistration.groupName
-      }
-    }
 
     return NextResponse.json({
       success: true,
       incident: {
         id: incident.id,
-        participantName,
-        groupName,
+        participantName: participantName || 'Unknown',
+        groupName: groupName || 'Unknown',
         type: incident.incidentType,
         severity: incident.severity,
         status: incident.status,

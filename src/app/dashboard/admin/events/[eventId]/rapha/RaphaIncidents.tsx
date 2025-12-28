@@ -39,6 +39,8 @@ import {
   Edit,
   Eye,
   MessageSquare,
+  Printer,
+  FileText,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { format } from 'date-fns'
@@ -46,7 +48,9 @@ import { format } from 'date-fns'
 interface Incident {
   id: string
   participantId: string | null
+  liabilityFormId: string | null
   participantName: string
+  participantAge: number | null
   groupName: string
   type: string
   severity: 'minor' | 'moderate' | 'severe'
@@ -144,6 +148,11 @@ export default function RaphaIncidents({
   const [resolutionNotes, setResolutionNotes] = useState('')
   const [resolvingDisposition, setResolvingDisposition] = useState('')
 
+  // Print report modal
+  const [showPrintModal, setShowPrintModal] = useState(false)
+  const [printData, setPrintData] = useState<any>(null)
+  const [loadingPrintData, setLoadingPrintData] = useState(false)
+
   useEffect(() => {
     fetchIncidents()
   }, [eventId, statusFilter, severityFilter])
@@ -159,7 +168,8 @@ export default function RaphaIncidents({
     if (openNewIncidentModal) {
       if (preSelectedParticipant) {
         setSelectedParticipant({
-          id: preSelectedParticipant.participantId || preSelectedParticipant.id,
+          id: preSelectedParticipant.participantId || null,
+          liabilityFormId: preSelectedParticipant.id, // This is the LiabilityForm ID
           firstName: preSelectedParticipant.firstName,
           lastName: preSelectedParticipant.lastName,
           groupName: preSelectedParticipant.groupName,
@@ -254,6 +264,7 @@ export default function RaphaIncidents({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           participantId: selectedParticipant?.id || null,
+          liabilityFormId: selectedParticipant?.liabilityFormId || null,
           ...newIncident,
           nextCheckTime: newIncident.nextCheckTime || null,
         }),
@@ -358,6 +369,34 @@ export default function RaphaIncidents({
     } finally {
       setSavingUpdate(false)
     }
+  }
+
+  async function handlePrintVisitHistory(participantId: string | null, liabilityFormId: string | null) {
+    if (!participantId && !liabilityFormId) {
+      toast.error('Cannot print report - participant not linked')
+      return
+    }
+
+    setLoadingPrintData(true)
+    try {
+      const id = liabilityFormId || participantId
+      const response = await fetch(`/api/admin/events/${eventId}/rapha/participants/${id}/incidents`)
+      if (response.ok) {
+        const data = await response.json()
+        setPrintData(data)
+        setShowPrintModal(true)
+      } else {
+        toast.error('Failed to load visit history')
+      }
+    } catch (error) {
+      toast.error('Failed to load visit history')
+    } finally {
+      setLoadingPrintData(false)
+    }
+  }
+
+  function handlePrint() {
+    window.print()
   }
 
   function getSeverityBadge(severity: string) {
@@ -1014,9 +1053,21 @@ export default function RaphaIncidents({
                 )}
               </div>
 
-              <DialogFooter>
+              <DialogFooter className="flex-wrap gap-2">
                 <Button variant="outline" onClick={() => setShowIncidentModal(false)}>
                   Close
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => handlePrintVisitHistory(selectedIncident.participantId, selectedIncident.liabilityFormId)}
+                  disabled={loadingPrintData}
+                >
+                  {loadingPrintData ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Printer className="w-4 h-4 mr-2" />
+                  )}
+                  Print Visit History
                 </Button>
                 {selectedIncident.status !== 'resolved' && (
                   <Button
@@ -1079,6 +1130,253 @@ export default function RaphaIncidents({
               Resolve
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Print Visit History Modal */}
+      <Dialog open={showPrintModal} onOpenChange={setShowPrintModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto print:max-w-none print:max-h-none print:overflow-visible print:shadow-none print:border-none">
+          {printData && (
+            <>
+              <div className="print:block">
+                {/* Print Header */}
+                <div className="text-center mb-6 print:mb-4">
+                  <h1 className="text-2xl font-bold text-[#0077BE] print:text-black">
+                    Medical Visit History Report
+                  </h1>
+                  <p className="text-muted-foreground">
+                    {printData.event.organizationName} - {printData.event.name}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Generated: {format(new Date(printData.generatedAt), 'MMM d, yyyy h:mm a')} by {printData.generatedBy}
+                  </p>
+                </div>
+
+                {/* Participant Info */}
+                <div className="bg-gray-50 p-4 rounded-lg mb-6 print:bg-white print:border print:border-gray-300">
+                  <h2 className="font-bold text-lg mb-3 flex items-center gap-2">
+                    <FileText className="w-5 h-5 print:hidden" />
+                    Participant Information
+                  </h2>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Name</p>
+                      <p className="font-medium">{printData.participant.name}</p>
+                    </div>
+                    {printData.participant.preferredName && (
+                      <div>
+                        <p className="text-muted-foreground">Preferred Name</p>
+                        <p className="font-medium">{printData.participant.preferredName}</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-muted-foreground">Age</p>
+                      <p className="font-medium">{printData.participant.age || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Gender</p>
+                      <p className="font-medium">{printData.participant.gender || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Group</p>
+                      <p className="font-medium">{printData.participant.groupName}</p>
+                    </div>
+                    {printData.participant.parishName && (
+                      <div>
+                        <p className="text-muted-foreground">Parish</p>
+                        <p className="font-medium">{printData.participant.parishName}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Medical Info */}
+                  <div className="mt-4 pt-4 border-t">
+                    <h3 className="font-medium mb-2">Medical Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                      {printData.participant.allergies && (
+                        <div className="bg-red-50 p-2 rounded print:bg-white print:border">
+                          <p className="text-red-700 font-medium">Allergies</p>
+                          <p>{printData.participant.allergies}</p>
+                        </div>
+                      )}
+                      {printData.participant.medicalConditions && (
+                        <div className="bg-amber-50 p-2 rounded print:bg-white print:border">
+                          <p className="text-amber-700 font-medium">Medical Conditions</p>
+                          <p>{printData.participant.medicalConditions}</p>
+                        </div>
+                      )}
+                      {printData.participant.medications && (
+                        <div className="bg-blue-50 p-2 rounded print:bg-white print:border">
+                          <p className="text-blue-700 font-medium">Medications</p>
+                          <p>{printData.participant.medications}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Emergency Contacts */}
+                  <div className="mt-4 pt-4 border-t">
+                    <h3 className="font-medium mb-2">Emergency Contacts</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                      {printData.participant.emergencyContact1.name && (
+                        <div>
+                          <p className="font-medium">{printData.participant.emergencyContact1.name}</p>
+                          <p className="text-muted-foreground">
+                            {printData.participant.emergencyContact1.relation} - {printData.participant.emergencyContact1.phone}
+                          </p>
+                        </div>
+                      )}
+                      {printData.participant.emergencyContact2.name && (
+                        <div>
+                          <p className="font-medium">{printData.participant.emergencyContact2.name}</p>
+                          <p className="text-muted-foreground">
+                            {printData.participant.emergencyContact2.relation} - {printData.participant.emergencyContact2.phone}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Insurance */}
+                  {printData.participant.insuranceProvider && (
+                    <div className="mt-4 pt-4 border-t">
+                      <h3 className="font-medium mb-2">Insurance Information</h3>
+                      <p className="text-sm">
+                        {printData.participant.insuranceProvider}
+                        {printData.participant.insurancePolicyNumber && ` - Policy: ${printData.participant.insurancePolicyNumber}`}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Incidents */}
+                <div>
+                  <h2 className="font-bold text-lg mb-3">
+                    Visit History ({printData.incidents.length} incident{printData.incidents.length !== 1 ? 's' : ''})
+                  </h2>
+
+                  {printData.incidents.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">No medical incidents recorded for this participant.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {printData.incidents.map((incident: any, index: number) => (
+                        <div key={incident.id} className="border rounded-lg p-4 print:break-inside-avoid">
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="font-medium">
+                              Visit #{printData.incidents.length - index}: {incident.type.replace(/_/g, ' ')}
+                            </h3>
+                            <div className="flex gap-2">
+                              <Badge className={
+                                incident.severity === 'severe' ? 'bg-red-500' :
+                                incident.severity === 'moderate' ? 'bg-amber-500' : 'bg-green-500'
+                              }>
+                                {incident.severity}
+                              </Badge>
+                              <Badge className={
+                                incident.status === 'resolved' ? 'bg-green-500' :
+                                incident.status === 'monitoring' ? 'bg-amber-500' : 'bg-red-500'
+                              }>
+                                {incident.status}
+                              </Badge>
+                            </div>
+                          </div>
+
+                          <div className="text-sm text-muted-foreground mb-2">
+                            {format(new Date(incident.date), 'EEEE, MMMM d, yyyy')} at {incident.time}
+                            {incident.location && ` - ${incident.location}`}
+                          </div>
+
+                          <div className="text-sm space-y-2">
+                            <div>
+                              <span className="font-medium">Description: </span>
+                              {incident.description}
+                            </div>
+                            <div>
+                              <span className="font-medium">Treatment: </span>
+                              {incident.treatmentProvided}
+                            </div>
+                            <div>
+                              <span className="font-medium">Staff: </span>
+                              {incident.staffMemberName}
+                            </div>
+
+                            {/* Flags */}
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {incident.parentContacted && (
+                                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                  Parent Contacted
+                                </span>
+                              )}
+                              {incident.ambulanceCalled && (
+                                <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
+                                  Ambulance Called
+                                </span>
+                              )}
+                              {incident.sentToHospital && (
+                                <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
+                                  Sent to Hospital: {incident.hospitalName || 'Unknown'}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Updates */}
+                            {incident.updates && incident.updates.length > 0 && (
+                              <div className="mt-2 pt-2 border-t">
+                                <p className="font-medium text-xs mb-1">Follow-up Notes:</p>
+                                {incident.updates.map((update: any, idx: number) => (
+                                  <div key={idx} className="text-xs bg-gray-50 p-2 rounded mb-1 print:bg-white print:border">
+                                    <p>{update.text}</p>
+                                    <p className="text-muted-foreground">
+                                      - {update.by}, {format(new Date(update.at), 'MMM d, h:mm a')}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Resolution */}
+                            {incident.status === 'resolved' && incident.resolvedAt && (
+                              <div className="mt-2 pt-2 border-t bg-green-50 -mx-4 -mb-4 p-4 rounded-b-lg print:bg-white print:border-t">
+                                <p className="font-medium text-green-700">Resolved</p>
+                                <p className="text-xs">
+                                  {incident.resolutionNotes}
+                                  {' - '}
+                                  {format(new Date(incident.resolvedAt), 'MMM d, yyyy h:mm a')}
+                                </p>
+                                {incident.disposition && (
+                                  <p className="text-xs mt-1">
+                                    Final disposition: {incident.disposition.replace(/_/g, ' ')}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="mt-6 pt-4 border-t text-center text-sm text-muted-foreground print:mt-4">
+                  <p>CONFIDENTIAL MEDICAL INFORMATION - For authorized medical staff only</p>
+                  <p className="mt-1">
+                    {printData.event.organizationName} - {printData.event.name}
+                  </p>
+                </div>
+              </div>
+
+              <DialogFooter className="print:hidden">
+                <Button variant="outline" onClick={() => setShowPrintModal(false)}>
+                  Close
+                </Button>
+                <Button className="bg-[#0077BE] hover:bg-[#0077BE]/90" onClick={handlePrint}>
+                  <Printer className="w-4 h-4 mr-2" />
+                  Print Report
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
