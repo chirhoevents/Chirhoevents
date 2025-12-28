@@ -77,35 +77,64 @@ export async function GET(
       where: {
         eventId,
         action: 'check_in',
-        timestamp: {
+        createdAt: {
           gte: today,
         },
       },
     })
 
     // Get recent check-in activity (last 10)
-    const recentActivity = await prisma.checkInLog.findMany({
+    const recentLogs = await prisma.checkInLog.findMany({
       where: {
         eventId,
       },
       orderBy: {
-        timestamp: 'desc',
+        createdAt: 'desc',
       },
       take: 10,
-      include: {
-        participant: {
-          select: {
-            firstName: true,
-            lastName: true,
-          },
-        },
-        group: {
-          select: {
-            groupName: true,
-          },
-        },
-      },
     })
+
+    // Fetch participant and group names for recent logs
+    const participantIds = recentLogs
+      .map((log) => log.participantId)
+      .filter((id): id is string => id !== null)
+    const groupIds = recentLogs
+      .map((log) => log.groupRegistrationId)
+      .filter((id): id is string => id !== null)
+
+    const [participants, groups] = await Promise.all([
+      participantIds.length > 0
+        ? prisma.participant.findMany({
+            where: { id: { in: participantIds } },
+            select: { id: true, firstName: true, lastName: true },
+          })
+        : [],
+      groupIds.length > 0
+        ? prisma.groupRegistration.findMany({
+            where: { id: { in: groupIds } },
+            select: { id: true, groupName: true },
+          })
+        : [],
+    ])
+
+    const participantMap = new Map(
+      participants.map((p) => [p.id, `${p.firstName} ${p.lastName}`])
+    )
+    const groupMap = new Map(groups.map((g) => [g.id, g.groupName]))
+
+    const recentActivity = recentLogs.map((log) => ({
+      id: log.id,
+      action: log.action,
+      timestamp: log.createdAt.toISOString(),
+      participantName: log.participantId
+        ? participantMap.get(log.participantId) || null
+        : null,
+      groupName: log.groupRegistrationId
+        ? groupMap.get(log.groupRegistrationId) || null
+        : null,
+      stationId: log.station,
+      notes: log.notes,
+    }))
 
     return NextResponse.json({
       totalParticipants,
@@ -118,17 +147,7 @@ export async function GET(
       groupsWithCheckIns,
       fullyCheckedInGroups,
       checkInsToday,
-      recentActivity: recentActivity.map((log) => ({
-        id: log.id,
-        action: log.action,
-        timestamp: log.timestamp,
-        participantName: log.participant
-          ? `${log.participant.firstName} ${log.participant.lastName}`
-          : null,
-        groupName: log.group?.groupName || null,
-        stationId: log.stationId,
-        notes: log.notes,
-      })),
+      recentActivity,
     })
   } catch (error) {
     console.error('Failed to fetch SALVE stats:', error)

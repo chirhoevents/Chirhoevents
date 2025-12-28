@@ -76,12 +76,11 @@ export async function POST(
       data: participantIds.map((participantId: string) => ({
         eventId,
         participantId,
-        groupId: participants.find((p) => p.id === participantId)?.groupRegistration.id || groupId,
+        groupRegistrationId: participants.find((p) => p.id === participantId)?.groupRegistration.id || groupId,
         action: action as 'check_in' | 'check_out',
-        performedBy: userId!,
-        stationId: stationId || null,
+        userId: userId!,
+        station: stationId || null,
         notes: notes || null,
-        timestamp: now,
       })),
     })
 
@@ -194,12 +193,11 @@ export async function PUT(
       data: participantIds.map((participantId) => ({
         eventId,
         participantId,
-        groupId,
+        groupRegistrationId: groupId,
         action: (action || 'check_in') as 'check_in' | 'check_out',
-        performedBy: userId!,
-        stationId: stationId || null,
+        userId: userId!,
+        station: stationId || null,
         notes: notes || null,
-        timestamp: now,
       })),
     })
 
