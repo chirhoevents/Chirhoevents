@@ -142,7 +142,7 @@ export async function POST(
     )
 
     // Helper function for meal color hex values
-    function getMealColorHex(color: string): string {
+    const getMealColorHex = (color: string): string => {
       const colors: Record<string, string> = {
         blue: '#3498db',
         red: '#e74c3c',
