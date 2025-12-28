@@ -232,8 +232,10 @@ export async function POST(
         welcomeLetterText: settings?.welcomeLetterText || null,
         schedule: scheduleEntries.map((entry) => ({
           day: entry.day,
-          time: entry.time,
+          startTime: entry.startTime,
+          endTime: entry.endTime,
           title: entry.title,
+          location: entry.location,
           description: entry.description,
         })),
         mealTimes: mealTimes.map((mt) => ({
