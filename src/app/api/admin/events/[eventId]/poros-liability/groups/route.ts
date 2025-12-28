@@ -77,19 +77,21 @@ export async function GET(
     })
 
     // Format response with stats
-    const formattedGroups = groups.map((group) => {
+    type GroupResult = typeof groups[number]
+    type FormType = { formStatus: string }
+    const formattedGroups = groups.map((group: GroupResult) => {
       const totalSpots = group.totalParticipants
 
       const allCompletedForms = group.liabilityForms
       const submittedCount = allCompletedForms.length
       const approvedCount = allCompletedForms.filter(
-        (f) => f.formStatus === 'approved'
+        (f: FormType) => f.formStatus === 'approved'
       ).length
       const pendingCount = allCompletedForms.filter(
-        (f) => f.formStatus === 'pending'
+        (f: FormType) => f.formStatus === 'pending'
       ).length
       const deniedCount = allCompletedForms.filter(
-        (f) => f.formStatus === 'denied'
+        (f: FormType) => f.formStatus === 'denied'
       ).length
 
       return {
@@ -101,7 +103,7 @@ export async function GET(
         approvedCount,
         pendingCount,
         deniedCount,
-        participants: allCompletedForms.map((form) => ({
+        participants: allCompletedForms.map((form: GroupResult['liabilityForms'][number]) => ({
           id: form.participant?.id || form.id,
           firstName: form.participantFirstName,
           lastName: form.participantLastName,
@@ -131,7 +133,7 @@ export async function GET(
     // Filter out groups with no matching forms when status filter is applied
     const filteredGroups =
       status !== 'all'
-        ? formattedGroups.filter((g) => g.participants.length > 0)
+        ? formattedGroups.filter((g: { participants: unknown[] }) => g.participants.length > 0)
         : formattedGroups
 
     return NextResponse.json(filteredGroups)

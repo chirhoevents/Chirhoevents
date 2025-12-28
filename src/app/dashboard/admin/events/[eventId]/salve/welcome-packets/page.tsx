@@ -1,8 +1,25 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,7 +27,7 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
 import {
   Dialog,
   DialogContent,
@@ -33,7 +50,9 @@ import {
   Map,
   Phone,
   Home,
-  Download,
+  Upload,
+  File,
+  ExternalLink,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
@@ -47,9 +66,8 @@ interface PacketSettings {
 
 interface PacketInsert {
   id: string
-  title: string
-  content: string
-  insertType: string
+  name: string
+  fileUrl: string
   displayOrder: number
   isActive: boolean
 }
@@ -98,12 +116,89 @@ const DEFAULT_SETTINGS: PacketSettings = {
   includeEmergencyContacts: true,
 }
 
+// Sortable insert item component
+function SortableInsertItem({
+  insert,
+  onDelete,
+  onToggleActive,
+}: {
+  insert: PacketInsert
+  onDelete: (id: string) => void
+  onToggleActive: (id: string, isActive: boolean) => void
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: insert.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-2 p-3 rounded-lg border bg-white ${
+        isDragging ? 'shadow-lg' : ''
+      } ${!insert.isActive ? 'opacity-60' : ''}`}
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing touch-none"
+      >
+        <GripVertical className="w-4 h-4 text-muted-foreground" />
+      </button>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <File className="w-4 h-4 text-navy" />
+          <span className="font-medium truncate">{insert.name}</span>
+        </div>
+        {insert.fileUrl && (
+          <a
+            href={insert.fileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-gold hover:underline flex items-center gap-1 mt-1"
+          >
+            <ExternalLink className="w-3 h-3" />
+            View PDF
+          </a>
+        )}
+      </div>
+
+      <Switch
+        checked={insert.isActive}
+        onCheckedChange={(checked) => onToggleActive(insert.id, checked)}
+      />
+
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={() => onDelete(insert.id)}
+        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+      >
+        <Trash2 className="w-4 h-4" />
+      </Button>
+    </div>
+  )
+}
+
 export default function WelcomePacketsPage() {
   const params = useParams()
   const eventId = params.eventId as string
 
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [eventName, setEventName] = useState('')
   const [settings, setSettings] = useState<PacketSettings>(DEFAULT_SETTINGS)
   const [inserts, setInserts] = useState<PacketInsert[]>([])
@@ -112,7 +207,18 @@ export default function WelcomePacketsPage() {
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
   const [previewData, setPreviewData] = useState<PacketPreview | null>(null)
   const [isAddInsertModalOpen, setIsAddInsertModalOpen] = useState(false)
-  const [newInsert, setNewInsert] = useState({ title: '', content: '', insertType: 'general' })
+  const [newInsertName, setNewInsertName] = useState('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [isDraggingFile, setIsDraggingFile] = useState(false)
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
 
   useEffect(() => {
     fetchData()
@@ -121,10 +227,10 @@ export default function WelcomePacketsPage() {
   async function fetchData() {
     setLoading(true)
     try {
-      const [eventRes, groupsRes, packetRes] = await Promise.all([
+      const [eventRes, groupsRes, insertsRes] = await Promise.all([
         fetch(`/api/admin/events/${eventId}`),
         fetch(`/api/admin/events/${eventId}/groups`),
-        fetch(`/api/admin/events/${eventId}/salve/generate-packet`),
+        fetch(`/api/admin/events/${eventId}/salve/inserts`),
       ])
 
       if (eventRes.ok) {
@@ -142,14 +248,9 @@ export default function WelcomePacketsPage() {
         })))
       }
 
-      if (packetRes.ok) {
-        const packetData = await packetRes.json()
-        if (packetData.settings) {
-          setSettings(packetData.settings)
-        }
-        if (packetData.inserts) {
-          setInserts(packetData.inserts)
-        }
+      if (insertsRes.ok) {
+        const insertsData = await insertsRes.json()
+        setInserts(insertsData.inserts || [])
       }
     } catch (error) {
       console.error('Failed to fetch data:', error)
@@ -181,6 +282,157 @@ export default function WelcomePacketsPage() {
 
   function deselectAllGroups() {
     setSelectedGroups(new Set())
+  }
+
+  // File drag and drop handlers
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDraggingFile(true)
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDraggingFile(false)
+  }, [])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDraggingFile(false)
+
+    const file = e.dataTransfer.files[0]
+    if (file && file.type === 'application/pdf') {
+      setSelectedFile(file)
+      // Use filename without extension as default name
+      if (!newInsertName) {
+        setNewInsertName(file.name.replace(/\.pdf$/i, ''))
+      }
+    } else {
+      toast.error('Only PDF files are accepted')
+    }
+  }, [newInsertName])
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.type === 'application/pdf') {
+        setSelectedFile(file)
+        if (!newInsertName) {
+          setNewInsertName(file.name.replace(/\.pdf$/i, ''))
+        }
+      } else {
+        toast.error('Only PDF files are accepted')
+      }
+    }
+  }
+
+  async function handleUploadInsert() {
+    if (!newInsertName.trim()) {
+      toast.error('Name is required')
+      return
+    }
+
+    if (!selectedFile) {
+      toast.error('Please select a PDF file')
+      return
+    }
+
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', selectedFile)
+      formData.append('name', newInsertName.trim())
+
+      const response = await fetch(`/api/admin/events/${eventId}/salve/inserts`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setInserts((prev) => [...prev, data.insert])
+        setNewInsertName('')
+        setSelectedFile(null)
+        setIsAddInsertModalOpen(false)
+        toast.success('Insert uploaded successfully')
+      } else {
+        const error = await response.json()
+        toast.error(error.message || 'Failed to upload insert')
+      }
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast.error('Failed to upload insert')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function handleDeleteInsert(id: string) {
+    try {
+      const response = await fetch(
+        `/api/admin/events/${eventId}/salve/inserts?id=${id}`,
+        { method: 'DELETE' }
+      )
+
+      if (response.ok) {
+        setInserts((prev) => prev.filter((i) => i.id !== id))
+        toast.success('Insert deleted')
+      } else {
+        toast.error('Failed to delete insert')
+      }
+    } catch (error) {
+      console.error('Delete error:', error)
+      toast.error('Failed to delete insert')
+    }
+  }
+
+  async function handleToggleActive(id: string, isActive: boolean) {
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}/salve/inserts`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ insertId: id, isActive }),
+      })
+
+      if (response.ok) {
+        setInserts((prev) =>
+          prev.map((i) => (i.id === id ? { ...i, isActive } : i))
+        )
+      } else {
+        toast.error('Failed to update insert')
+      }
+    } catch (error) {
+      console.error('Toggle error:', error)
+      toast.error('Failed to update insert')
+    }
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+
+    if (over && active.id !== over.id) {
+      const oldIndex = inserts.findIndex((i) => i.id === active.id)
+      const newIndex = inserts.findIndex((i) => i.id === over.id)
+
+      const reordered = arrayMove(inserts, oldIndex, newIndex)
+      setInserts(reordered)
+
+      // Update order in database
+      try {
+        await fetch(`/api/admin/events/${eventId}/salve/inserts`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            inserts: reordered.map((insert, index) => ({
+              id: insert.id,
+              displayOrder: index,
+            })),
+          }),
+        })
+      } catch (error) {
+        console.error('Reorder error:', error)
+        toast.error('Failed to save order')
+      }
+    }
   }
 
   async function handlePreview() {
@@ -458,8 +710,7 @@ export default function WelcomePacketsPage() {
             ${packet.inserts.length > 0 ? packet.inserts.map((insert: any) => `
               <div class="section">
                 <div class="section-title">${insert.name || insert.title}</div>
-                ${insert.fileUrl ? `<p><a href="${insert.fileUrl}" target="_blank">📄 View Attached Document</a></p>` : ''}
-                ${insert.content ? `<div>${insert.content}</div>` : ''}
+                ${insert.fileUrl ? `<p><a href="${insert.fileUrl}" target="_blank">View Attached Document</a></p>` : ''}
               </div>
             `).join('') : ''}
           </div>
@@ -469,33 +720,8 @@ export default function WelcomePacketsPage() {
     `
   }
 
-  function handleAddInsert() {
-    if (!newInsert.title.trim()) {
-      toast.error('Title is required')
-      return
-    }
-
-    const insert: PacketInsert = {
-      id: `temp-${Date.now()}`,
-      title: newInsert.title,
-      content: newInsert.content,
-      insertType: newInsert.insertType,
-      displayOrder: inserts.length,
-      isActive: true,
-    }
-
-    setInserts((prev) => [...prev, insert])
-    setNewInsert({ title: '', content: '', insertType: 'general' })
-    setIsAddInsertModalOpen(false)
-    toast.success('Insert added')
-  }
-
-  function handleRemoveInsert(id: string) {
-    setInserts((prev) => prev.filter((i) => i.id !== id))
-    toast.success('Insert removed')
-  }
-
   const selectedCount = selectedGroups.size
+  const activeInserts = inserts.filter((i) => i.isActive)
 
   if (loading) {
     return (
@@ -619,44 +845,56 @@ export default function WelcomePacketsPage() {
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <FileText className="w-5 h-5" />
-              Custom Inserts
+              PDF Inserts
+              {activeInserts.length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {activeInserts.length} active
+                </Badge>
+              )}
             </CardTitle>
             <Button size="sm" variant="outline" onClick={() => setIsAddInsertModalOpen(true)}>
               <Plus className="w-4 h-4 mr-1" />
-              Add
+              Upload
             </Button>
           </CardHeader>
           <CardContent>
             {inserts.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
-                No custom inserts added yet
-              </p>
+              <div className="text-center py-8">
+                <Upload className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+                <p className="text-muted-foreground mb-3">No PDF inserts uploaded yet</p>
+                <Button variant="outline" onClick={() => setIsAddInsertModalOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Upload PDF
+                </Button>
+              </div>
             ) : (
-              <ScrollArea className="h-[300px]">
-                <div className="space-y-2">
-                  {inserts.map((insert) => (
-                    <div
-                      key={insert.id}
-                      className="flex items-center gap-2 p-2 rounded border bg-white"
-                    >
-                      <GripVertical className="w-4 h-4 text-muted-foreground" />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate">{insert.title}</div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {insert.content.substring(0, 50)}...
-                        </div>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleRemoveInsert(insert.id)}
-                      >
-                        <Trash2 className="w-4 h-4 text-red-500" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={inserts.map((i) => i.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-2">
+                    {inserts.map((insert) => (
+                      <SortableInsertItem
+                        key={insert.id}
+                        insert={insert}
+                        onDelete={handleDeleteInsert}
+                        onToggleActive={handleToggleActive}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            )}
+
+            {inserts.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-4 text-center">
+                Drag to reorder. Toggle to include/exclude from packets.
+              </p>
             )}
           </CardContent>
         </Card>
@@ -746,41 +984,110 @@ export default function WelcomePacketsPage() {
         </Card>
       </div>
 
-      {/* Add Insert Modal */}
+      {/* Upload Insert Modal */}
       <Dialog open={isAddInsertModalOpen} onOpenChange={setIsAddInsertModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Custom Insert</DialogTitle>
+            <DialogTitle>Upload PDF Insert</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="insertTitle">Title</Label>
+              <Label htmlFor="insertName">Insert Name</Label>
               <Input
-                id="insertTitle"
-                placeholder="e.g., Important Reminders"
-                value={newInsert.title}
-                onChange={(e) => setNewInsert((prev) => ({ ...prev, title: e.target.value }))}
+                id="insertName"
+                placeholder="e.g., Campus Map, Event Schedule"
+                value={newInsertName}
+                onChange={(e) => setNewInsertName(e.target.value)}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="insertContent">Content</Label>
-              <Textarea
-                id="insertContent"
-                placeholder="Enter the content for this insert..."
-                value={newInsert.content}
-                onChange={(e) => setNewInsert((prev) => ({ ...prev, content: e.target.value }))}
-                rows={6}
-              />
+              <Label>PDF File</Label>
+              <div
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                  isDraggingFile
+                    ? 'border-navy bg-navy/5'
+                    : selectedFile
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                {selectedFile ? (
+                  <div className="flex items-center justify-center gap-3">
+                    <File className="w-8 h-8 text-green-600" />
+                    <div className="text-left">
+                      <p className="font-medium">{selectedFile.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedFile(null)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <Upload className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+                    <p className="text-muted-foreground mb-2">
+                      Drag and drop a PDF file here, or
+                    </p>
+                    <Button
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Browse Files
+                    </Button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,application/pdf"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    <p className="text-xs text-muted-foreground mt-3">
+                      PDF files only, max 10MB
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddInsertModalOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsAddInsertModalOpen(false)
+                setNewInsertName('')
+                setSelectedFile(null)
+              }}
+            >
               Cancel
             </Button>
-            <Button onClick={handleAddInsert}>Add Insert</Button>
+            <Button
+              onClick={handleUploadInsert}
+              disabled={uploading || !selectedFile || !newInsertName.trim()}
+            >
+              {uploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload Insert
+                </>
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -854,6 +1161,30 @@ export default function WelcomePacketsPage() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                </div>
+              )}
+
+              {activeInserts.length > 0 && (
+                <div>
+                  <h4 className="font-semibold text-gold border-b pb-2 mb-2">PDF Inserts</h4>
+                  <div className="space-y-2">
+                    {activeInserts.map((insert) => (
+                      <div key={insert.id} className="flex items-center gap-2 p-2 bg-beige rounded">
+                        <File className="w-4 h-4 text-navy" />
+                        <span>{insert.name}</span>
+                        {insert.fileUrl && (
+                          <a
+                            href={insert.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-gold hover:underline text-sm ml-auto"
+                          >
+                            View PDF
+                          </a>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
