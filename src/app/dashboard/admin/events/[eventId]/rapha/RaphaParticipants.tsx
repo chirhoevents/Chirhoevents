@@ -44,7 +44,7 @@ import {
 import { toast } from '@/lib/toast'
 import { format } from 'date-fns'
 
-interface Participant {
+export interface RaphaParticipant {
   id: string
   participantId: string | null
   firstName: string
@@ -87,23 +87,37 @@ interface Participant {
   formCompletedAt: string | null
 }
 
+// Alias for internal use
+type Participant = RaphaParticipant
+
 interface RaphaParticipantsProps {
   eventId: string
+  onCreateIncident?: (participant: Participant) => void
 }
 
-export default function RaphaParticipants({ eventId }: RaphaParticipantsProps) {
+export default function RaphaParticipants({ eventId, onCreateIncident }: RaphaParticipantsProps) {
   const searchParams = useSearchParams()
-  const initialFilter = searchParams.get('filter') || 'all'
-  const initialSearch = searchParams.get('search') || ''
 
   const [loading, setLoading] = useState(true)
   const [participants, setParticipants] = useState<Participant[]>([])
   const [totalCount, setTotalCount] = useState(0)
-  const [search, setSearch] = useState(initialSearch)
-  const [filter, setFilter] = useState(initialFilter)
+  const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState('all')
   const [sortBy, setSortBy] = useState('name')
   const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null)
   const [showProfileModal, setShowProfileModal] = useState(false)
+
+  // Watch for URL search params changes
+  useEffect(() => {
+    const urlSearch = searchParams.get('search') || ''
+    const urlFilter = searchParams.get('filter') || 'all'
+    if (urlSearch !== search) {
+      setSearch(urlSearch)
+    }
+    if (urlFilter !== filter) {
+      setFilter(urlFilter)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     fetchParticipants()
@@ -293,10 +307,20 @@ export default function RaphaParticipants({ eventId }: RaphaParticipantsProps) {
                             variant="outline"
                             size="sm"
                             onClick={() => openProfile(p)}
+                            title="View Profile"
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
-                          <Button variant="outline" size="sm">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              if (onCreateIncident) {
+                                onCreateIncident(p)
+                              }
+                            }}
+                            title="Create Incident"
+                          >
                             <Plus className="w-4 h-4" />
                           </Button>
                         </div>
@@ -488,7 +512,15 @@ export default function RaphaParticipants({ eventId }: RaphaParticipantsProps) {
 
                 {/* Actions */}
                 <div className="flex flex-wrap gap-2 pt-4 border-t">
-                  <Button className="bg-[#0077BE] hover:bg-[#0077BE]/90">
+                  <Button
+                    className="bg-[#0077BE] hover:bg-[#0077BE]/90"
+                    onClick={() => {
+                      if (onCreateIncident && selectedParticipant) {
+                        setShowProfileModal(false)
+                        onCreateIncident(selectedParticipant)
+                      }
+                    }}
+                  >
                     <Plus className="w-4 h-4 mr-2" />
                     Create Incident
                   </Button>

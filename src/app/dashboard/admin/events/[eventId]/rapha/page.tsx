@@ -33,7 +33,7 @@ import { toast } from '@/lib/toast'
 import { format } from 'date-fns'
 
 // Import sub-components
-import RaphaParticipants from './RaphaParticipants'
+import RaphaParticipants, { RaphaParticipant } from './RaphaParticipants'
 import RaphaIncidents from './RaphaIncidents'
 import RaphaReports from './RaphaReports'
 
@@ -77,6 +77,10 @@ export default function RaphaPage() {
   const [quickSearch, setQuickSearch] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [searching, setSearching] = useState(false)
+
+  // State for incident creation from participants
+  const [incidentParticipant, setIncidentParticipant] = useState<RaphaParticipant | null>(null)
+  const [openIncidentModal, setOpenIncidentModal] = useState(false)
 
   useEffect(() => {
     fetchDashboardData()
@@ -131,6 +135,17 @@ export default function RaphaPage() {
   function handleQuickFilter(filter: string) {
     setActiveTab('participants')
     router.push(`/dashboard/admin/events/${eventId}/rapha?tab=participants&filter=${filter}`)
+  }
+
+  function handleCreateIncident(participant: RaphaParticipant) {
+    setIncidentParticipant(participant)
+    setOpenIncidentModal(true)
+    setActiveTab('incidents')
+  }
+
+  function handleIncidentModalClose() {
+    setOpenIncidentModal(false)
+    setIncidentParticipant(null)
   }
 
   if (loading) {
@@ -625,12 +640,26 @@ export default function RaphaPage() {
 
         {/* Participants Tab */}
         <TabsContent value="participants">
-          <RaphaParticipants eventId={eventId} />
+          <RaphaParticipants eventId={eventId} onCreateIncident={handleCreateIncident} />
         </TabsContent>
 
         {/* Incidents Tab */}
         <TabsContent value="incidents">
-          <RaphaIncidents eventId={eventId} onStatsChange={fetchDashboardData} />
+          <RaphaIncidents
+            eventId={eventId}
+            onStatsChange={fetchDashboardData}
+            preSelectedParticipant={incidentParticipant ? {
+              id: incidentParticipant.id,
+              participantId: incidentParticipant.participantId,
+              firstName: incidentParticipant.firstName,
+              lastName: incidentParticipant.lastName,
+              groupName: incidentParticipant.groupName,
+              allergies: incidentParticipant.medical.allergies,
+              hasSevereAllergy: incidentParticipant.medical.hasSevereAllergy,
+            } : null}
+            openNewIncidentModal={openIncidentModal}
+            onModalClose={handleIncidentModalClose}
+          />
         </TabsContent>
 
         {/* Reports Tab */}
