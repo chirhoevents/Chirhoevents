@@ -203,16 +203,16 @@ export async function POST(
         summary: housingSummary,
       },
       inserts: inserts.map((i) => ({
-        title: i.title,
-        content: i.content,
-        type: i.insertType,
+        name: i.name,
+        fileUrl: i.fileUrl,
+        displayOrder: i.displayOrder,
       })),
       settings: settings || {
-        includeSchedule: true,
-        includeMap: true,
-        includeRoster: true,
-        includeHousingAssignments: true,
-        includeEmergencyContacts: true,
+        includeCampusMap: true,
+        includeMealSchedule: true,
+        includeEventSchedule: true,
+        includeEmergencyProcedures: true,
+        includeHousingColumn: true,
       },
       generatedAt: new Date(),
     }
@@ -247,11 +247,11 @@ export async function GET(
 
     return NextResponse.json({
       settings: settings || {
-        includeSchedule: true,
-        includeMap: true,
-        includeRoster: true,
-        includeHousingAssignments: true,
-        includeEmergencyContacts: true,
+        includeCampusMap: true,
+        includeMealSchedule: true,
+        includeEventSchedule: true,
+        includeEmergencyProcedures: true,
+        includeHousingColumn: true,
       },
       inserts,
     })
