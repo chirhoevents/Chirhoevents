@@ -116,6 +116,19 @@ export async function POST(
       },
     })
 
+    // Get meal color assignments for these participants' groups
+    const groupIds = [...new Set(participants.map((p) => p.groupRegistrationId))]
+    const mealColorAssignments = await prisma.mealColorAssignment.findMany({
+      where: {
+        groupRegistrationId: { in: groupIds },
+      },
+    })
+
+    // Create a map of groupRegistrationId -> meal color
+    const mealColorMap = new Map(
+      mealColorAssignments.map((mca) => [mca.groupRegistrationId, mca.color])
+    )
+
     // Create a map of participantId -> room assignment with building info
     const assignmentMap = new Map(
       roomAssignments.map((ra) => [
@@ -128,12 +141,29 @@ export async function POST(
       ])
     )
 
+    // Helper function for meal color hex values
+    function getMealColorHex(color: string): string {
+      const colors: Record<string, string> = {
+        blue: '#3498db',
+        red: '#e74c3c',
+        orange: '#e67e22',
+        yellow: '#f1c40f',
+        green: '#27ae60',
+        purple: '#9b59b6',
+        brown: '#8b4513',
+        grey: '#95a5a6',
+        gray: '#95a5a6',
+      }
+      return colors[color.toLowerCase()] || '#6b7280'
+    }
+
     // Generate name tag data for each participant
     const nameTags = participants.map((p) => {
       const assignment = assignmentMap.get(p.id)
       const bedLetter = assignment?.bedNumber
         ? String.fromCharCode(64 + assignment.bedNumber)
         : null
+      const mealColor = mealColorMap.get(p.groupRegistrationId)
 
       return {
         participantId: p.id,
@@ -151,6 +181,12 @@ export async function POST(
               room: assignment.roomNumber,
               bed: bedLetter,
               fullLocation: `${assignment.buildingName} ${assignment.roomNumber}${bedLetter ? ` - Bed ${bedLetter}` : ''}`,
+            }
+          : null,
+        mealColor: mealColor
+          ? {
+              name: mealColor,
+              hex: getMealColorHex(mealColor),
             }
           : null,
         template: templateConfig,

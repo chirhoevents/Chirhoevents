@@ -78,6 +78,10 @@ interface NameTagPreview {
     bed: string | null
     fullLocation: string
   } | null
+  mealColor: {
+    name: string
+    hex: string
+  } | null
 }
 
 const DEFAULT_TEMPLATE: NameTagTemplate = {
@@ -327,6 +331,18 @@ export default function NameTagDesignerPage() {
             border-top: 1px dashed #ccc;
             font-size: ${fonts.details};
           }
+          .name-tag .meal-color-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 8px;
+            border-radius: 0 0 8px 8px;
+          }
+          .name-tag {
+            position: relative;
+            overflow: hidden;
+          }
         </style>
       </head>
       <body>
@@ -347,6 +363,9 @@ export default function NameTagDesignerPage() {
                 <div class="housing">
                   <strong>Housing:</strong> ${tag.housing.fullLocation}
                 </div>
+              ` : ''}
+              ${template.showMealColor && tag.mealColor ? `
+                <div class="meal-color-bar" style="background-color: ${tag.mealColor.hex}"></div>
               ` : ''}
             </div>
           `).join('')}
@@ -499,6 +518,15 @@ export default function NameTagDesignerPage() {
 
               <div className="flex items-center gap-2">
                 <Checkbox
+                  id="showMealColor"
+                  checked={template.showMealColor}
+                  onCheckedChange={(checked) => updateTemplate('showMealColor', checked)}
+                />
+                <Label htmlFor="showMealColor" className="font-normal">Show Meal Color Bar</Label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Checkbox
                   id="showQrCode"
                   checked={template.showQrCode}
                   onCheckedChange={(checked) => updateTemplate('showQrCode', checked)}
@@ -555,7 +583,7 @@ export default function NameTagDesignerPage() {
           <CardContent>
             <div className="flex justify-center">
               <div
-                className="border-2 border-dashed rounded-lg p-4 flex flex-col"
+                className="border-2 border-dashed rounded-lg p-4 flex flex-col relative overflow-hidden"
                 style={{
                   backgroundColor: template.backgroundColor,
                   color: template.textColor,
@@ -598,6 +626,12 @@ export default function NameTagDesignerPage() {
                   <div className="mt-auto pt-2 border-t border-dashed text-xs opacity-70">
                     <strong>Housing:</strong> Building A 101 - Bed A
                   </div>
+                )}
+                {template.showMealColor && (
+                  <div
+                    className="absolute bottom-0 left-0 right-0 h-2 rounded-b-lg"
+                    style={{ backgroundColor: '#3498db' }}
+                  />
                 )}
               </div>
             </div>
@@ -706,7 +740,7 @@ export default function NameTagDesignerPage() {
             {previewData.map((tag, index) => (
               <div
                 key={index}
-                className="border-2 rounded-lg p-3 flex flex-col"
+                className="border-2 rounded-lg p-3 flex flex-col relative overflow-hidden"
                 style={{
                   backgroundColor: template.backgroundColor,
                   color: template.textColor,
@@ -740,6 +774,13 @@ export default function NameTagDesignerPage() {
                   <div className="mt-auto pt-2 border-t border-dashed text-xs opacity-70">
                     <strong>Housing:</strong> {tag.housing.fullLocation}
                   </div>
+                )}
+
+                {template.showMealColor && tag.mealColor && (
+                  <div
+                    className="absolute bottom-0 left-0 right-0 h-2 rounded-b-lg"
+                    style={{ backgroundColor: tag.mealColor.hex }}
+                  />
                 )}
               </div>
             ))}
