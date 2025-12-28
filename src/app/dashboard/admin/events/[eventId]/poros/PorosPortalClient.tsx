@@ -11,6 +11,7 @@ import { PorosStaff } from '@/components/admin/poros/PorosStaff'
 import { PorosSettings } from '@/components/admin/poros/PorosSettings'
 import { PorosADA } from '@/components/admin/poros/PorosADA'
 import { PorosResources } from '@/components/admin/poros/PorosResources'
+import { GroupAllocations } from '@/components/admin/poros/GroupAllocations'
 import {
   LayoutDashboard,
   Home,
@@ -20,7 +21,8 @@ import {
   UserCheck,
   Settings,
   Accessibility,
-  FileText
+  FileText,
+  Building2
 } from 'lucide-react'
 
 interface PorosPortalClientProps {
@@ -89,6 +91,13 @@ export default function PorosPortalClient({
             </TabsTrigger>
           )}
 
+          {housingEnabled && (
+            <TabsTrigger value="group-allocations" className="flex items-center gap-2">
+              <Building2 className="w-4 h-4" />
+              Group Allocations
+            </TabsTrigger>
+          )}
+
           {seatingEnabled && (
             <TabsTrigger value="seating" className="flex items-center gap-2">
               <Grid3X3 className="w-4 h-4" />
@@ -140,6 +149,12 @@ export default function PorosPortalClient({
         {housingEnabled && (
           <TabsContent value="housing">
             <PorosHousing eventId={eventId} settings={settings} />
+          </TabsContent>
+        )}
+
+        {housingEnabled && (
+          <TabsContent value="group-allocations">
+            <GroupAllocations eventId={eventId} />
           </TabsContent>
         )}
 

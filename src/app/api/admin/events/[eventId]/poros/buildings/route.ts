@@ -9,11 +9,41 @@ export async function GET(
   try {
     const user = await requireAdmin()
     const { eventId } = params
+    const { searchParams } = new URL(request.url)
+    const includeRooms = searchParams.get('includeRooms') === 'true'
 
     const buildings = await prisma.building.findMany({
       where: { eventId },
       orderBy: { displayOrder: 'asc' },
+      include: includeRooms
+        ? {
+            rooms: {
+              orderBy: [{ floor: 'asc' }, { roomNumber: 'asc' }],
+              include: {
+                allocatedToGroup: {
+                  select: {
+                    id: true,
+                    groupName: true,
+                  },
+                },
+              },
+            },
+          }
+        : undefined,
     })
+
+    // Transform to include allocatedToGroupName on rooms
+    if (includeRooms) {
+      const transformedBuildings = buildings.map((building) => ({
+        ...building,
+        rooms: building.rooms.map((room) => ({
+          ...room,
+          allocatedToGroupName: room.allocatedToGroup?.groupName || null,
+          allocatedToGroup: undefined,
+        })),
+      }))
+      return NextResponse.json(transformedBuildings)
+    }
 
     return NextResponse.json(buildings)
   } catch (error) {

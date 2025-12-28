@@ -18,6 +18,7 @@ import {
   Plus,
   ChevronDown,
   RefreshCw,
+  Home,
 } from 'lucide-react'
 import {
   Select,
@@ -158,6 +159,7 @@ function GroupLeaderLayoutContent({
     { name: 'Liability Forms', href: '/dashboard/group-leader/forms', icon: FileText },
     { name: 'Participants', href: '/dashboard/group-leader/participants', icon: Users },
     { name: 'Certificates', href: '/dashboard/group-leader/certificates', icon: Shield },
+    { name: 'Housing', href: '/dashboard/group-leader/housing', icon: Home },
     { name: 'Settings', href: '/dashboard/group-leader/settings', icon: Settings },
   ]
 
