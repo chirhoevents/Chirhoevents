@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,6 +39,12 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
+
+// Dynamic import for QR scanner to avoid SSR issues
+const QRScanner = dynamic(
+  () => import('@/components/salve/QRScanner').then((mod) => mod.QRScanner),
+  { ssr: false, loading: () => <div className="text-center py-8"><Loader2 className="w-8 h-8 animate-spin mx-auto" /></div> }
+)
 
 interface GroupData {
   id: string
@@ -202,6 +209,68 @@ export default function SalveCheckInPage() {
     } catch (error) {
       console.error('Search failed:', error)
       setStatus('error')
+    }
+  }
+
+  async function handleQrScan(accessCode: string) {
+    if (!accessCode) {
+      toast.error('Invalid QR code')
+      setStatus('idle')
+      return
+    }
+
+    setStatus('loading')
+    setGroupData(null)
+    setSearchQuery(accessCode) // Show what was scanned
+
+    try {
+      const response = await fetch(
+        `/api/admin/events/${eventId}/salve/lookup?accessCode=${encodeURIComponent(accessCode)}`
+      )
+
+      if (response.ok) {
+        const data = await response.json()
+
+        // Handle response - accessCode returns single group directly
+        let group: GroupData | null = null
+
+        if (data.results) {
+          // Search response format
+          if (data.results.length > 0) {
+            group = data.results[0]
+          }
+        } else if (data.id) {
+          // Direct group response
+          group = data
+        }
+
+        if (group) {
+          setGroupData(group)
+          setStatus('found')
+          toast.success(`Found: ${group.groupName}`)
+
+          // Pre-select all participants who aren't already checked in
+          const notCheckedIn = new Set<string>(
+            group.participants
+              .filter((p: ParticipantData) => !p.checkedIn)
+              .map((p: ParticipantData) => p.id)
+          )
+          setSelectedParticipants(notCheckedIn)
+        } else {
+          setStatus('not_found')
+          toast.error('Group not found for this QR code')
+        }
+      } else if (response.status === 404) {
+        setStatus('not_found')
+        toast.error('No group found with this access code')
+      } else {
+        setStatus('error')
+        toast.error('Failed to look up group')
+      }
+    } catch (error) {
+      console.error('QR lookup failed:', error)
+      setStatus('error')
+      toast.error('Failed to look up group')
     }
   }
 
@@ -385,6 +454,24 @@ export default function SalveCheckInPage() {
                 </p>
               </div>
 
+              {/* Scan QR Code Button */}
+              <div className="flex justify-center">
+                <Button
+                  onClick={() => setStatus('scanning')}
+                  size="lg"
+                  className="h-14 px-8 text-lg bg-navy hover:bg-navy/90"
+                >
+                  <Camera className="w-6 h-6 mr-3" />
+                  Scan QR Code
+                </Button>
+              </div>
+
+              <div className="flex items-center gap-4 max-w-xl mx-auto">
+                <div className="flex-1 h-px bg-gray-200" />
+                <span className="text-sm text-muted-foreground">or search manually</span>
+                <div className="flex-1 h-px bg-gray-200" />
+              </div>
+
               <div className="flex gap-2 max-w-xl mx-auto">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -400,6 +487,25 @@ export default function SalveCheckInPage() {
                   Search
                 </Button>
               </div>
+            </div>
+          )}
+
+          {status === 'scanning' && (
+            <div className="space-y-4">
+              <div className="text-center mb-4">
+                <h2 className="text-xl font-semibold">Scan QR Code</h2>
+                <p className="text-muted-foreground">
+                  Point camera at the group leader&apos;s QR code
+                </p>
+              </div>
+              <QRScanner
+                onScan={handleQrScan}
+                onError={(err) => {
+                  console.error('QR Error:', err)
+                  toast.error('QR scanner error. Try manual search.')
+                }}
+                onClose={() => setStatus('idle')}
+              />
             </div>
           )}
 
