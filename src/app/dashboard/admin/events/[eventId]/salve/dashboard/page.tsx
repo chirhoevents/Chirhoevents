@@ -21,7 +21,6 @@ import {
   Users,
   Check,
   AlertCircle,
-  Clock,
   Building2,
   TrendingUp,
   RefreshCw,
@@ -49,7 +48,7 @@ interface StatsData {
 
 interface ActivityLog {
   id: string
-  action: 'check_in' | 'check_out' | 'undo_check_in'
+  action: 'check_in' | 'check_out'
   timestamp: string
   participantName: string | null
   groupName: string | null
@@ -431,8 +430,6 @@ function ActivityCard({ activity }: { activity: ActivityLog }) {
         return <UserCheck className="w-4 h-4 text-green-600" />
       case 'check_out':
         return <UserX className="w-4 h-4 text-red-600" />
-      case 'undo_check_in':
-        return <Clock className="w-4 h-4 text-amber-600" />
       default:
         return <Users className="w-4 h-4 text-gray-600" />
     }
@@ -444,8 +441,6 @@ function ActivityCard({ activity }: { activity: ActivityLog }) {
         return 'checked in'
       case 'check_out':
         return 'checked out'
-      case 'undo_check_in':
-        return 'undid check-in'
       default:
         return activity.action
     }

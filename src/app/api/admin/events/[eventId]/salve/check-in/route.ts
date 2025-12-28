@@ -22,9 +22,9 @@ export async function POST(
       )
     }
 
-    if (!action || !['check_in', 'check_out', 'undo_check_in'].includes(action)) {
+    if (!action || !['check_in', 'check_out'].includes(action)) {
       return NextResponse.json(
-        { message: 'Valid action is required (check_in, check_out, undo_check_in)' },
+        { message: 'Valid action is required (check_in, check_out)' },
         { status: 400 }
       )
     }
@@ -56,7 +56,6 @@ export async function POST(
 
     const now = new Date()
     const isCheckingIn = action === 'check_in'
-    const isUndoing = action === 'undo_check_in'
 
     // Update participants
     await prisma.participant.updateMany({
@@ -78,7 +77,7 @@ export async function POST(
         eventId,
         participantId,
         groupId: participants.find((p) => p.id === participantId)?.groupRegistration.id || groupId,
-        action: action as 'check_in' | 'check_out' | 'undo_check_in',
+        action: action as 'check_in' | 'check_out',
         performedBy: userId!,
         stationId: stationId || null,
         notes: notes || null,
@@ -196,7 +195,7 @@ export async function PUT(
         eventId,
         participantId,
         groupId,
-        action: (action || 'check_in') as 'check_in' | 'check_out' | 'undo_check_in',
+        action: (action || 'check_in') as 'check_in' | 'check_out',
         performedBy: userId!,
         stationId: stationId || null,
         notes: notes || null,
