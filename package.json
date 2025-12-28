@@ -25,6 +25,7 @@
     "@react-pdf/renderer": "^4.3.1",
     "@stripe/react-stripe-js": "^5.4.1",
     "@stripe/stripe-js": "^8.5.3",
+    "@yudiel/react-qr-scanner": "^2.5.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
     "date-fns": "^4.1.0",
