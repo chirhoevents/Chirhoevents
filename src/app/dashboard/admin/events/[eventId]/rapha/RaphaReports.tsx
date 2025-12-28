@@ -77,7 +77,118 @@ export default function RaphaReports({ eventId, eventName }: RaphaReportsProps) 
   }
 
   function handlePrint() {
-    window.print()
+    if (!reportData) return
+
+    // Create a new window with printable content
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) {
+      toast.error('Please allow popups to print')
+      return
+    }
+
+    // Get the report content HTML
+    const reportContent = document.getElementById('report-content')
+    if (!reportContent) {
+      toast.error('Report content not found')
+      return
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${reportData.title} - ${reportData.event.name}</title>
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            font-size: 12px;
+          }
+          h1 { color: #0077BE; margin: 0; font-size: 24px; }
+          h2 { font-size: 18px; margin: 16px 0 8px 0; }
+          h3 { font-size: 14px; margin: 12px 0 6px 0; }
+          h4 { font-size: 13px; margin: 8px 0 4px 0; }
+          p { margin: 4px 0; }
+          table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+          th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+          th { background-color: #f5f5f5; font-weight: 600; }
+          .text-center { text-align: center; }
+          .font-bold { font-weight: bold; }
+          .font-medium { font-weight: 500; }
+          .text-xs { font-size: 11px; }
+          .text-sm { font-size: 12px; }
+          .text-lg { font-size: 16px; }
+          .text-xl { font-size: 18px; }
+          .text-2xl { font-size: 22px; }
+          .text-red-600 { color: #dc2626; }
+          .text-red-700 { color: #b91c1c; }
+          .text-amber-600 { color: #d97706; }
+          .text-amber-700 { color: #b45309; }
+          .text-green-600 { color: #16a34a; }
+          .text-green-700 { color: #15803d; }
+          .text-blue-600 { color: #2563eb; }
+          .text-blue-700 { color: #1d4ed8; }
+          .text-purple-700 { color: #7c3aed; }
+          .text-indigo-700 { color: #4338ca; }
+          .text-muted { color: #666; }
+          .bg-red-50 { background-color: #fef2f2; }
+          .bg-amber-50 { background-color: #fffbeb; }
+          .bg-green-50 { background-color: #f0fdf4; }
+          .bg-blue-50 { background-color: #eff6ff; }
+          .bg-purple-50 { background-color: #faf5ff; }
+          .bg-indigo-50 { background-color: #eef2ff; }
+          .bg-gray-50 { background-color: #f9fafb; }
+          .bg-gray-100 { background-color: #f3f4f6; }
+          .border { border: 1px solid #ddd; }
+          .border-t { border-top: 1px solid #ddd; }
+          .border-b { border-bottom: 1px solid #ddd; }
+          .rounded { border-radius: 4px; }
+          .rounded-lg { border-radius: 8px; }
+          .p-2 { padding: 8px; }
+          .p-3 { padding: 12px; }
+          .p-4 { padding: 16px; }
+          .mb-2 { margin-bottom: 8px; }
+          .mb-3 { margin-bottom: 12px; }
+          .mb-4 { margin-bottom: 16px; }
+          .mb-6 { margin-bottom: 24px; }
+          .mt-2 { margin-top: 8px; }
+          .mt-3 { margin-top: 12px; }
+          .mt-4 { margin-top: 16px; }
+          .mt-8 { margin-top: 32px; }
+          .pt-4 { padding-top: 16px; }
+          .pb-4 { padding-bottom: 16px; }
+          .grid { display: grid; gap: 16px; }
+          .grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+          .grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+          .grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+          .gap-4 { gap: 16px; }
+          .space-y-6 > * + * { margin-top: 24px; }
+          .inline { display: inline; }
+          .mr-1 { margin-right: 4px; }
+          .confidential-banner {
+            background-color: #fffbeb;
+            border: 1px solid #fde68a;
+            padding: 8px;
+            text-align: center;
+            font-size: 12px;
+            margin-top: 16px;
+          }
+          .page-break { page-break-before: always; }
+          @media print {
+            body { padding: 0; }
+            .page-break { page-break-before: always; }
+          }
+        </style>
+      </head>
+      <body>
+        ${reportContent.innerHTML}
+        <script>window.onload = function() { window.print(); }</script>
+      </body>
+      </html>
+    `)
+    printWindow.document.close()
   }
 
   const reports = [
@@ -560,27 +671,6 @@ export default function RaphaReports({ eventId, eventName }: RaphaReportsProps) 
         </DialogContent>
       </Dialog>
 
-      {/* Print Styles */}
-      <style jsx global>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          #report-content,
-          #report-content * {
-            visibility: visible;
-          }
-          #report-content {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-          }
-          .no-print {
-            display: none !important;
-          }
-        }
-      `}</style>
     </div>
   )
 }
