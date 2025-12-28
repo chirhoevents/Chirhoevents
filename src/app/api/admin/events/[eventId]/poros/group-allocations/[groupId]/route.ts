@@ -37,10 +37,11 @@ export async function GET(
       )
     }
 
+    type RoomResult = typeof group.allocatedRooms[number]
     return NextResponse.json({
       groupId: group.id,
       groupName: group.groupName,
-      allocatedRooms: group.allocatedRooms.map((room) => ({
+      allocatedRooms: group.allocatedRooms.map((room: RoomResult) => ({
         id: room.id,
         roomNumber: room.roomNumber,
         buildingName: room.building.name,

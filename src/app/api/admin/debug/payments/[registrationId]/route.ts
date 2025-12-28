@@ -99,8 +99,8 @@ export async function GET(
     })
 
     // Calculate what the balance SHOULD be
-    const succeededPayments = allPayments.filter(p => p.paymentStatus === 'succeeded')
-    const calculatedTotal = succeededPayments.reduce((sum, p) => sum + Number(p.amount), 0)
+    const succeededPayments = allPayments.filter((p: { paymentStatus: string }) => p.paymentStatus === 'succeeded')
+    const calculatedTotal = succeededPayments.reduce((sum: number, p: { amount: unknown }) => sum + Number(p.amount), 0)
 
     return NextResponse.json({
       registrationId,
@@ -112,7 +112,7 @@ export async function GET(
       currentBalanceAmountPaid: paymentBalance ? Number(paymentBalance.amountPaid) : null,
       currentBalanceTotalDue: paymentBalance ? Number(paymentBalance.totalAmountDue) : null,
       discrepancy: paymentBalance ? Number(paymentBalance.amountPaid) - calculatedTotal : null,
-      allPayments: allPayments.map(p => ({
+      allPayments: allPayments.map((p: { amount: unknown }) => ({
         ...p,
         amount: Number(p.amount),
       })),

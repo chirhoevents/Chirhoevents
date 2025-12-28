@@ -88,7 +88,8 @@ export async function GET(
     })
 
     // Format response
-    const formattedCertificates = certificates.map((cert) => ({
+    type CertificateResult = typeof certificates[number]
+    const formattedCertificates = certificates.map((cert: CertificateResult) => ({
       id: cert.id,
       certificateHolderName: cert.participant
         ? `${cert.participant.firstName} ${cert.participant.lastName}`

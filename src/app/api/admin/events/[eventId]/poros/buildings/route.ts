@@ -32,9 +32,11 @@ export async function GET(
       })
 
       // Transform to include allocatedToGroupName on rooms
-      const transformedBuildings = buildingsWithRooms.map((building) => ({
+      type BuildingResult = typeof buildingsWithRooms[number]
+      type RoomResult = BuildingResult['rooms'][number]
+      const transformedBuildings = buildingsWithRooms.map((building: BuildingResult) => ({
         ...building,
-        rooms: building.rooms.map((room) => ({
+        rooms: building.rooms.map((room: RoomResult) => ({
           ...room,
           allocatedToGroupName: room.allocatedToGroup?.groupName || null,
           allocatedToGroup: undefined,
