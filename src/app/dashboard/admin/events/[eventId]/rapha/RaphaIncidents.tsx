@@ -371,16 +371,17 @@ export default function RaphaIncidents({
     }
   }
 
-  async function handlePrintVisitHistory(participantId: string | null, liabilityFormId: string | null) {
-    if (!participantId && !liabilityFormId) {
-      toast.error('Cannot print report - participant not linked')
-      return
-    }
-
+  async function handlePrintVisitHistory(
+    participantId: string | null,
+    liabilityFormId: string | null,
+    incidentId?: string
+  ) {
     setLoadingPrintData(true)
     try {
-      const id = liabilityFormId || participantId
-      const response = await fetch(`/api/admin/events/${eventId}/rapha/participants/${id}/incidents`)
+      // Use liabilityFormId first, then participantId, fallback to 'unknown' with incidentId
+      const id = liabilityFormId || participantId || 'unknown'
+      const queryParams = incidentId ? `?incidentId=${incidentId}` : ''
+      const response = await fetch(`/api/admin/events/${eventId}/rapha/participants/${id}/incidents${queryParams}`)
       if (response.ok) {
         const data = await response.json()
         setPrintData(data)
@@ -1059,7 +1060,7 @@ export default function RaphaIncidents({
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => handlePrintVisitHistory(selectedIncident.participantId, selectedIncident.liabilityFormId)}
+                  onClick={() => handlePrintVisitHistory(selectedIncident.participantId, selectedIncident.liabilityFormId, selectedIncident.id)}
                   disabled={loadingPrintData}
                 >
                   {loadingPrintData ? (
