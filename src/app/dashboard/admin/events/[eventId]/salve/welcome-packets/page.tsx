@@ -223,7 +223,7 @@ export default function WelcomePacketsPage() {
     try {
       const allPackets = []
 
-      for (const groupId of selectedGroups) {
+      for (const groupId of Array.from(selectedGroups)) {
         const response = await fetch(`/api/admin/events/${eventId}/salve/generate-packet`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
