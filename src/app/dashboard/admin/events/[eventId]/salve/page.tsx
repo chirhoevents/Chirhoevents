@@ -153,7 +153,7 @@ export default function SalveCheckInPage() {
         setStatus('found')
 
         // Pre-select all participants who aren't already checked in
-        const notCheckedIn = new Set(
+        const notCheckedIn = new Set<string>(
           data.participants
             .filter((p: ParticipantData) => !p.checkedIn)
             .map((p: ParticipantData) => p.id)
