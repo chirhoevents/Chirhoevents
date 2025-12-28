@@ -20,9 +20,9 @@ export async function GET(
       select: {
         id: true,
         groupName: true,
-        diocese: true,
+        dioceseName: true,
         accessCode: true,
-        contactEmail: true,
+        groupLeaderEmail: true,
         participants: includeParticipants || includeCheckInStats
           ? {
               select: {
@@ -62,9 +62,9 @@ export async function GET(
       return {
         id: group.id,
         groupName: group.groupName,
-        diocese: group.diocese,
+        diocese: group.dioceseName,
         accessCode: group.accessCode,
-        contactEmail: group.contactEmail,
+        contactEmail: group.groupLeaderEmail,
         participantCount: group._count.participants,
         checkedInCount: includeCheckInStats ? checkedInCount : undefined,
         lastCheckIn: includeCheckInStats ? lastCheckIn : undefined,
