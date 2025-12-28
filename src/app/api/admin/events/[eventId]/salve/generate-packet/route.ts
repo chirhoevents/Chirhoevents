@@ -121,6 +121,18 @@ export async function POST(
       },
     })
 
+    // Get schedule entries from Poros
+    const scheduleEntries = await prisma.porosScheduleEntry.findMany({
+      where: { eventId },
+      orderBy: [{ day: 'asc' }, { order: 'asc' }],
+    })
+
+    // Get meal times from Poros
+    const mealTimes = await prisma.porosMealTime.findMany({
+      where: { eventId },
+      orderBy: [{ day: 'asc' }, { order: 'asc' }],
+    })
+
     // Generate housing summary
     const housingSummary = group.allocatedRooms.map((room) => {
       const occupantIds = room.roomAssignments
@@ -214,6 +226,31 @@ export async function POST(
         includeEmergencyProcedures: true,
         includeHousingColumn: true,
       },
+      resources: {
+        campusMapUrl: settings?.campusMapUrl || null,
+        emergencyProceduresUrl: settings?.emergencyProceduresUrl || null,
+        welcomeLetterText: settings?.welcomeLetterText || null,
+        schedule: scheduleEntries.map((entry) => ({
+          day: entry.day,
+          startTime: entry.startTime,
+          endTime: entry.endTime,
+          title: entry.title,
+          location: entry.location,
+          description: entry.description,
+        })),
+        mealTimes: mealTimes.map((mt) => ({
+          day: mt.day,
+          meal: mt.meal,
+          time: mt.time,
+          color: mt.color,
+        })),
+      },
+      missingResources: {
+        campusMap: !settings?.campusMapUrl,
+        mealSchedule: mealTimes.length === 0,
+        eventSchedule: scheduleEntries.length === 0,
+        emergencyProcedures: !settings?.emergencyProceduresUrl,
+      },
       generatedAt: new Date(),
     }
 
@@ -245,6 +282,15 @@ export async function GET(
       orderBy: { displayOrder: 'asc' },
     })
 
+    // Check for missing resources
+    const scheduleCount = await prisma.porosScheduleEntry.count({
+      where: { eventId },
+    })
+
+    const mealTimesCount = await prisma.porosMealTime.count({
+      where: { eventId },
+    })
+
     return NextResponse.json({
       settings: settings || {
         includeCampusMap: true,
@@ -254,6 +300,12 @@ export async function GET(
         includeHousingColumn: true,
       },
       inserts,
+      missingResources: {
+        campusMap: !settings?.campusMapUrl,
+        mealSchedule: mealTimesCount === 0,
+        eventSchedule: scheduleCount === 0,
+        emergencyProcedures: !settings?.emergencyProceduresUrl,
+      },
     })
   } catch (error) {
     console.error('Failed to fetch packet settings:', error)
