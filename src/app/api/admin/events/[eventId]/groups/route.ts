@@ -17,15 +17,20 @@ export async function GET(
     const groups = await prisma.groupRegistration.findMany({
       where: { eventId },
       orderBy: { groupName: 'asc' },
-      include: {
+      select: {
+        id: true,
+        groupName: true,
+        diocese: true,
+        accessCode: true,
+        contactEmail: true,
         participants: includeParticipants || includeCheckInStats
           ? {
               select: {
                 id: true,
-                firstName: includeParticipants,
-                lastName: includeParticipants,
+                firstName: true,
+                lastName: true,
                 checkedIn: true,
-                checkedInAt: includeCheckInStats,
+                checkedInAt: true,
               },
             }
           : false,
@@ -39,12 +44,13 @@ export async function GET(
 
     // Transform the response
     const response = groups.map((group) => {
-      const checkedInCount = includeCheckInStats && group.participants
-        ? group.participants.filter((p) => p.checkedIn).length
+      const participants = 'participants' in group ? group.participants : null
+      const checkedInCount = includeCheckInStats && participants
+        ? participants.filter((p) => p.checkedIn).length
         : 0
 
-      const lastCheckIn = includeCheckInStats && group.participants
-        ? group.participants
+      const lastCheckIn = includeCheckInStats && participants
+        ? participants
             .filter((p) => p.checkedIn && p.checkedInAt)
             .sort((a, b) => {
               const dateA = a.checkedInAt ? new Date(a.checkedInAt).getTime() : 0
@@ -62,7 +68,7 @@ export async function GET(
         participantCount: group._count.participants,
         checkedInCount: includeCheckInStats ? checkedInCount : undefined,
         lastCheckIn: includeCheckInStats ? lastCheckIn : undefined,
-        participants: includeParticipants ? group.participants : undefined,
+        participants: includeParticipants && participants ? participants : undefined,
       }
     })
 
