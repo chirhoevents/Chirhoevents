@@ -648,8 +648,8 @@ export function GroupAllocations({ eventId }: GroupAllocationsProps) {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                             {availableRooms.map(room => {
                               const isSelected = selectedRooms[category].includes(room.id)
-                              const isAllocatedElsewhere = room.allocatedToGroupId &&
-                                room.allocatedToGroupId !== selectedGroup.id
+                              const isAllocatedElsewhere = Boolean(room.allocatedToGroupId &&
+                                room.allocatedToGroupId !== selectedGroup.id)
 
                               return (
                                 <div
