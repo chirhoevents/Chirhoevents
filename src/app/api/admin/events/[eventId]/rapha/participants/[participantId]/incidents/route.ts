@@ -44,20 +44,24 @@ export async function GET(
 
     // Get participant info from LiabilityForm
     // participantId here could be either the Participant ID or LiabilityForm ID
-    let liabilityForm = await prisma.liabilityForm.findFirst({
-      where: {
-        OR: [
-          { id: participantId },
-          { participantId: participantId },
-        ],
-        eventId,
-      },
-      include: {
-        groupRegistration: {
-          select: { groupName: true, parishName: true },
+    // Skip this query if participantId is 'unknown' (not a valid UUID)
+    let liabilityForm = null
+    if (participantId !== 'unknown') {
+      liabilityForm = await prisma.liabilityForm.findFirst({
+        where: {
+          OR: [
+            { id: participantId },
+            { participantId: participantId },
+          ],
+          eventId,
         },
-      },
-    })
+        include: {
+          groupRegistration: {
+            select: { groupName: true, parishName: true },
+          },
+        },
+      })
+    }
 
     // If no liability form found and we have an incident ID, try to find by incident's stored name
     if (!liabilityForm && incidentId) {
