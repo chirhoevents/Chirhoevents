@@ -457,8 +457,9 @@ export default function WelcomePacketsPage() {
 
             ${packet.inserts.length > 0 ? packet.inserts.map((insert: any) => `
               <div class="section">
-                <div class="section-title">${insert.title}</div>
-                <div>${insert.content}</div>
+                <div class="section-title">${insert.name || insert.title}</div>
+                ${insert.fileUrl ? `<p><a href="${insert.fileUrl}" target="_blank">📄 View Attached Document</a></p>` : ''}
+                ${insert.content ? `<div>${insert.content}</div>` : ''}
               </div>
             `).join('') : ''}
           </div>
