@@ -62,15 +62,6 @@ export async function POST(
               dioceseName: true,
             },
           },
-          housingAssignment: {
-            include: {
-              building: {
-                select: {
-                  name: true,
-                },
-              },
-            },
-          },
         },
         orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
       })
@@ -87,15 +78,6 @@ export async function POST(
             select: {
               groupName: true,
               dioceseName: true,
-            },
-          },
-          housingAssignment: {
-            include: {
-              building: {
-                select: {
-                  name: true,
-                },
-              },
             },
           },
         },
@@ -115,9 +97,43 @@ export async function POST(
       )
     }
 
+    // Get room assignments for these participants
+    const participantIdList = participants.map((p) => p.id)
+    const roomAssignments = await prisma.roomAssignment.findMany({
+      where: {
+        participantId: { in: participantIdList },
+      },
+      include: {
+        room: {
+          include: {
+            building: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    })
+
+    // Create a map of participantId -> room assignment with building info
+    const assignmentMap = new Map(
+      roomAssignments.map((ra) => [
+        ra.participantId,
+        {
+          buildingName: ra.room.building.name,
+          roomNumber: ra.room.roomNumber,
+          bedNumber: ra.bedNumber,
+        },
+      ])
+    )
+
     // Generate name tag data for each participant
     const nameTags = participants.map((p) => {
-      const bedLetter = p.bedNumber ? String.fromCharCode(64 + p.bedNumber) : null
+      const assignment = assignmentMap.get(p.id)
+      const bedLetter = assignment?.bedNumber
+        ? String.fromCharCode(64 + assignment.bedNumber)
+        : null
 
       return {
         participantId: p.id,
@@ -127,14 +143,14 @@ export async function POST(
         groupName: p.groupRegistration.groupName,
         diocese: p.groupRegistration.dioceseName,
         participantType: p.participantType,
-        isChaperone: p.isChaperone,
-        isClergy: p.isClergy,
-        housing: p.housingAssignment
+        isChaperone: p.participantType === 'chaperone',
+        isClergy: p.participantType === 'priest',
+        housing: assignment
           ? {
-              building: p.housingAssignment.building.name,
-              room: p.housingAssignment.roomNumber,
+              building: assignment.buildingName,
+              room: assignment.roomNumber,
               bed: bedLetter,
-              fullLocation: `${p.housingAssignment.building.name} ${p.housingAssignment.roomNumber}${bedLetter ? ` - Bed ${bedLetter}` : ''}`,
+              fullLocation: `${assignment.buildingName} ${assignment.roomNumber}${bedLetter ? ` - Bed ${bedLetter}` : ''}`,
             }
           : null,
         template: templateConfig,

@@ -2,6 +2,39 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 
+// Helper to fetch room assignments for participants
+async function getHousingAssignmentsMap(participantIds: string[]) {
+  if (participantIds.length === 0) return new Map()
+
+  const roomAssignments = await prisma.roomAssignment.findMany({
+    where: {
+      participantId: { in: participantIds },
+    },
+    include: {
+      room: {
+        include: {
+          building: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      },
+    },
+  })
+
+  return new Map(
+    roomAssignments.map((ra) => [
+      ra.participantId,
+      {
+        buildingName: ra.room.building.name,
+        roomNumber: ra.room.roomNumber,
+        bedNumber: ra.bedNumber,
+      },
+    ])
+  )
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { eventId: string } }
@@ -25,17 +58,6 @@ export async function GET(
         include: {
           participants: {
             orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-            include: {
-              housingAssignment: {
-                include: {
-                  building: {
-                    select: {
-                      name: true,
-                    },
-                  },
-                },
-              },
-            },
           },
           allocatedRooms: {
             include: {
@@ -56,7 +78,10 @@ export async function GET(
         )
       }
 
-      return NextResponse.json(formatGroupResponse(group))
+      const housingMap = await getHousingAssignmentsMap(
+        group.participants.map((p) => p.id)
+      )
+      return NextResponse.json(formatGroupResponse(group, housingMap))
     }
 
     // If accessCode is provided, search by access code
@@ -69,17 +94,6 @@ export async function GET(
         include: {
           participants: {
             orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-            include: {
-              housingAssignment: {
-                include: {
-                  building: {
-                    select: {
-                      name: true,
-                    },
-                  },
-                },
-              },
-            },
           },
           allocatedRooms: {
             include: {
@@ -100,13 +114,14 @@ export async function GET(
         )
       }
 
-      return NextResponse.json(formatGroupResponse(group))
+      const housingMap = await getHousingAssignmentsMap(
+        group.participants.map((p) => p.id)
+      )
+      return NextResponse.json(formatGroupResponse(group, housingMap))
     }
 
     // If search query is provided, search groups and participants
     if (search && search.length >= 2) {
-      const searchLower = search.toLowerCase()
-
       // Search groups by name
       const groups = await prisma.groupRegistration.findMany({
         where: {
@@ -130,17 +145,6 @@ export async function GET(
         include: {
           participants: {
             orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-            include: {
-              housingAssignment: {
-                include: {
-                  building: {
-                    select: {
-                      name: true,
-                    },
-                  },
-                },
-              },
-            },
           },
           allocatedRooms: {
             include: {
@@ -155,8 +159,14 @@ export async function GET(
         take: 10,
       })
 
+      // Get housing for all participants across all groups
+      const allParticipantIds = groups.flatMap((g) =>
+        g.participants.map((p) => p.id)
+      )
+      const housingMap = await getHousingAssignmentsMap(allParticipantIds)
+
       return NextResponse.json({
-        results: groups.map(formatGroupResponse),
+        results: groups.map((g) => formatGroupResponse(g, housingMap)),
         count: groups.length,
       })
     }
@@ -174,31 +184,35 @@ export async function GET(
   }
 }
 
-function formatGroupResponse(group: any) {
-  const checkedInCount = group.participants.filter((p: any) => p.checkedIn).length
-  const totalParticipants = group.participants.length
-  const formsCompleted = group.participants.filter((p: any) => p.liabilityFormCompleted).length
-  const hasHousingAssigned = group.allocatedRooms && group.allocatedRooms.length > 0
+interface HousingInfo {
+  buildingName: string
+  roomNumber: string
+  bedNumber: number | null
+}
 
-  // Calculate age from date of birth
-  function calculateAge(dateOfBirth: Date | string | null): number {
-    if (!dateOfBirth) return 0
-    const dob = new Date(dateOfBirth)
-    const today = new Date()
-    let age = today.getFullYear() - dob.getFullYear()
-    const monthDiff = today.getMonth() - dob.getMonth()
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-      age--
-    }
-    return age
-  }
+function formatGroupResponse(
+  group: any,
+  housingMap: Map<string | null, HousingInfo>
+) {
+  const checkedInCount = group.participants.filter(
+    (p: any) => p.checkedIn
+  ).length
+  const totalParticipants = group.participants.length
+  const formsCompleted = group.participants.filter(
+    (p: any) => p.liabilityFormCompleted
+  ).length
+  const hasHousingAssigned =
+    group.allocatedRooms && group.allocatedRooms.length > 0
 
   return {
     id: group.id,
     groupName: group.groupName,
     parishName: group.parishName || null,
     accessCode: group.accessCode,
-    groupLeaderName: group.groupLeaderName || group.groupLeaderEmail?.split('@')[0] || 'Group Leader',
+    groupLeaderName:
+      group.groupLeaderName ||
+      group.groupLeaderEmail?.split('@')[0] ||
+      'Group Leader',
     groupLeaderEmail: group.groupLeaderEmail,
     diocese: group.dioceseName,
     contactEmail: group.groupLeaderEmail,
@@ -219,41 +233,45 @@ function formatGroupResponse(group: any) {
       assigned: hasHousingAssigned,
     },
     checkedInCount,
-    isFullyCheckedIn: checkedInCount === totalParticipants && totalParticipants > 0,
-    participants: group.participants.map((p: any) => ({
-      id: p.id,
-      firstName: p.firstName,
-      lastName: p.lastName,
-      email: p.email,
-      dateOfBirth: p.dateOfBirth,
-      age: calculateAge(p.dateOfBirth),
-      participantType: p.participantType,
-      isChaperone: p.isChaperone,
-      isClergy: p.isClergy,
-      gender: p.gender,
-      liabilityFormCompleted: p.liabilityFormCompleted || false,
-      checkedIn: p.checkedIn,
-      checkedInAt: p.checkedInAt,
-      checkInNotes: p.checkInNotes,
-      housing: p.housingAssignment
-        ? {
-            buildingName: p.housingAssignment.building.name,
-            roomNumber: p.housingAssignment.roomNumber,
-            bedLetter: p.bedNumber ? String.fromCharCode(64 + p.bedNumber) : null,
-          }
-        : null,
-      mealColor: p.mealColor || null,
-      smallGroup: p.smallGroup || null,
-    })),
-    allocatedRooms: group.allocatedRooms?.map((r: any) => ({
-      id: r.id,
-      roomNumber: r.roomNumber,
-      buildingName: r.building.name,
-      capacity: r.capacity,
-      currentOccupancy: r.currentOccupancy,
-      gender: r.gender,
-      housingType: r.housingType,
-      floor: r.floor,
-    })) || [],
+    isFullyCheckedIn:
+      checkedInCount === totalParticipants && totalParticipants > 0,
+    participants: group.participants.map((p: any) => {
+      const housingInfo = housingMap.get(p.id)
+      return {
+        id: p.id,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        email: p.email,
+        age: p.age,
+        participantType: p.participantType,
+        isChaperone: p.participantType === 'chaperone',
+        isClergy: p.participantType === 'priest',
+        gender: p.gender,
+        liabilityFormCompleted: p.liabilityFormCompleted || false,
+        checkedIn: p.checkedIn,
+        checkedInAt: p.checkedInAt,
+        checkInNotes: p.checkInNotes,
+        housing: housingInfo
+          ? {
+              buildingName: housingInfo.buildingName,
+              roomNumber: housingInfo.roomNumber,
+              bedLetter: housingInfo.bedNumber
+                ? String.fromCharCode(64 + housingInfo.bedNumber)
+                : null,
+            }
+          : null,
+      }
+    }),
+    allocatedRooms:
+      group.allocatedRooms?.map((r: any) => ({
+        id: r.id,
+        roomNumber: r.roomNumber,
+        buildingName: r.building.name,
+        capacity: r.capacity,
+        currentOccupancy: r.currentOccupancy,
+        gender: r.gender,
+        housingType: r.housingType,
+        floor: r.floor,
+      })) || [],
   }
 }

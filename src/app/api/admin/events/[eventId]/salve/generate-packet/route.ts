@@ -43,23 +43,18 @@ export async function POST(
       include: {
         participants: {
           orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-          include: {
-            housingAssignment: {
-              include: {
-                building: {
-                  select: {
-                    name: true,
-                  },
-                },
-              },
-            },
-          },
         },
         allocatedRooms: {
           include: {
             building: {
               select: {
                 name: true,
+              },
+            },
+            roomAssignments: {
+              select: {
+                participantId: true,
+                bedNumber: true,
               },
             },
           },
@@ -77,6 +72,37 @@ export async function POST(
         { status: 404 }
       )
     }
+
+    // Get room assignments for these participants
+    const participantIds = group.participants.map((p) => p.id)
+    const roomAssignments = await prisma.roomAssignment.findMany({
+      where: {
+        participantId: { in: participantIds },
+      },
+      include: {
+        room: {
+          include: {
+            building: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    })
+
+    // Create a map of participantId -> room assignment
+    const assignmentMap = new Map(
+      roomAssignments.map((ra) => [
+        ra.participantId,
+        {
+          buildingName: ra.room.building.name,
+          roomNumber: ra.room.roomNumber,
+          bedNumber: ra.bedNumber,
+        },
+      ])
+    )
 
     // Get event details
     const event = await prisma.event.findUnique({
@@ -97,8 +123,11 @@ export async function POST(
 
     // Generate housing summary
     const housingSummary = group.allocatedRooms.map((room) => {
-      const occupants = group.participants.filter(
-        (p) => p.housingAssignmentId === room.id
+      const occupantIds = room.roomAssignments
+        .filter((ra) => ra.participantId)
+        .map((ra) => ra.participantId)
+      const occupants = group.participants.filter((p) =>
+        occupantIds.includes(p.id)
       )
 
       return {
@@ -108,12 +137,19 @@ export async function POST(
         capacity: room.capacity,
         gender: room.gender,
         housingType: room.housingType,
-        occupants: occupants.map((p) => ({
-          name: `${p.firstName} ${p.lastName}`,
-          bedNumber: p.bedNumber,
-          bedLetter: p.bedNumber ? String.fromCharCode(64 + p.bedNumber) : null,
-          participantType: p.participantType,
-        })),
+        occupants: occupants.map((p) => {
+          const assignment = room.roomAssignments.find(
+            (ra) => ra.participantId === p.id
+          )
+          return {
+            name: `${p.firstName} ${p.lastName}`,
+            bedNumber: assignment?.bedNumber,
+            bedLetter: assignment?.bedNumber
+              ? String.fromCharCode(64 + assignment.bedNumber)
+              : null,
+            participantType: p.participantType,
+          }
+        }),
       }
     })
 
@@ -138,26 +174,29 @@ export async function POST(
       participants: {
         total: group.participants.length,
         youth: group.participants.filter(
-          (p) => !p.isChaperone && !p.isClergy
+          (p) => p.participantType !== 'chaperone' && p.participantType !== 'priest'
         ).length,
-        chaperones: group.participants.filter((p) => p.isChaperone).length,
-        clergy: group.participants.filter((p) => p.isClergy).length,
-        list: group.participants.map((p) => ({
-          name: `${p.firstName} ${p.lastName}`,
-          participantType: p.participantType,
-          isChaperone: p.isChaperone,
-          isClergy: p.isClergy,
-          gender: p.gender,
-          housing: p.housingAssignment
-            ? {
-                building: p.housingAssignment.building.name,
-                room: p.housingAssignment.roomNumber,
-                bed: p.bedNumber
-                  ? String.fromCharCode(64 + p.bedNumber)
-                  : null,
-              }
-            : null,
-        })),
+        chaperones: group.participants.filter((p) => p.participantType === 'chaperone').length,
+        clergy: group.participants.filter((p) => p.participantType === 'priest').length,
+        list: group.participants.map((p) => {
+          const assignment = assignmentMap.get(p.id)
+          return {
+            name: `${p.firstName} ${p.lastName}`,
+            participantType: p.participantType,
+            isChaperone: p.participantType === 'chaperone',
+            isClergy: p.participantType === 'priest',
+            gender: p.gender,
+            housing: assignment
+              ? {
+                  building: assignment.buildingName,
+                  room: assignment.roomNumber,
+                  bed: assignment.bedNumber
+                    ? String.fromCharCode(64 + assignment.bedNumber)
+                    : null,
+                }
+              : null,
+          }
+        }),
       },
       housing: {
         totalRooms: group.allocatedRooms.length,
