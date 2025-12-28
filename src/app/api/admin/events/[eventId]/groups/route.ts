@@ -43,16 +43,19 @@ export async function GET(
     })
 
     // Transform the response
-    const response = groups.map((group) => {
-      const participants = 'participants' in group ? group.participants : null
+    type GroupResult = typeof groups[number]
+    type ParticipantType = { id: string; firstName: string; lastName: string; checkedIn: boolean | null; checkedInAt: Date | null }
+
+    const response = groups.map((group: GroupResult) => {
+      const participants = 'participants' in group ? group.participants as ParticipantType[] | null : null
       const checkedInCount = includeCheckInStats && participants
-        ? participants.filter((p) => p.checkedIn).length
+        ? participants.filter((p: ParticipantType) => p.checkedIn).length
         : 0
 
       const lastCheckIn = includeCheckInStats && participants
         ? participants
-            .filter((p) => p.checkedIn && p.checkedInAt)
-            .sort((a, b) => {
+            .filter((p: ParticipantType) => p.checkedIn && p.checkedInAt)
+            .sort((a: ParticipantType, b: ParticipantType) => {
               const dateA = a.checkedInAt ? new Date(a.checkedInAt).getTime() : 0
               const dateB = b.checkedInAt ? new Date(b.checkedInAt).getTime() : 0
               return dateB - dateA

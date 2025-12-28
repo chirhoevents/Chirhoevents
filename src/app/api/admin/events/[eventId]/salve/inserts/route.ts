@@ -1,0 +1,264 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { requireAdmin } from '@/lib/auth-utils'
+import { prisma } from '@/lib/prisma'
+import { uploadPacketInsert, deletePacketInsert } from '@/lib/r2/upload-packet-insert'
+
+// GET - List all inserts for the event
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { eventId: string } }
+) {
+  try {
+    await requireAdmin()
+    const { eventId } = params
+
+    const inserts = await prisma.welcomePacketInsert.findMany({
+      where: { eventId },
+      orderBy: { displayOrder: 'asc' },
+    })
+
+    return NextResponse.json({ inserts })
+  } catch (error) {
+    console.error('Failed to fetch inserts:', error)
+    return NextResponse.json(
+      { message: 'Failed to fetch inserts' },
+      { status: 500 }
+    )
+  }
+}
+
+// POST - Create a new insert (with optional file upload)
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { eventId: string } }
+) {
+  try {
+    await requireAdmin()
+    const { eventId } = params
+
+    // Get event to find organization ID for file storage
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: { organizationId: true },
+    })
+
+    if (!event) {
+      return NextResponse.json(
+        { message: 'Event not found' },
+        { status: 404 }
+      )
+    }
+
+    const contentType = request.headers.get('content-type') || ''
+
+    // Handle file upload
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await request.formData()
+      const file = formData.get('file') as File
+      const name = formData.get('name') as string
+
+      if (!file) {
+        return NextResponse.json(
+          { message: 'File is required' },
+          { status: 400 }
+        )
+      }
+
+      if (!name?.trim()) {
+        return NextResponse.json(
+          { message: 'Name is required' },
+          { status: 400 }
+        )
+      }
+
+      // Validate file type (PDF only)
+      if (!file.type.includes('pdf')) {
+        return NextResponse.json(
+          { message: 'Only PDF files are accepted' },
+          { status: 400 }
+        )
+      }
+
+      // Validate file size (10MB max)
+      const maxSize = 10 * 1024 * 1024
+      if (file.size > maxSize) {
+        return NextResponse.json(
+          { message: 'File size must be less than 10MB' },
+          { status: 400 }
+        )
+      }
+
+      // Convert file to buffer
+      const arrayBuffer = await file.arrayBuffer()
+      const buffer = Buffer.from(arrayBuffer)
+
+      // Upload to R2
+      const fileUrl = await uploadPacketInsert(
+        buffer,
+        file.name,
+        event.organizationId,
+        eventId
+      )
+
+      // Get current max display order
+      const maxOrder = await prisma.welcomePacketInsert.aggregate({
+        where: { eventId },
+        _max: { displayOrder: true },
+      })
+
+      // Create insert record
+      const insert = await prisma.welcomePacketInsert.create({
+        data: {
+          eventId,
+          name: name.trim(),
+          fileUrl,
+          displayOrder: (maxOrder._max.displayOrder || 0) + 1,
+          isActive: true,
+        },
+      })
+
+      return NextResponse.json({ insert })
+    }
+
+    // Handle JSON request (text-only insert without file)
+    const body = await request.json()
+    const { name, fileUrl } = body
+
+    if (!name?.trim()) {
+      return NextResponse.json(
+        { message: 'Name is required' },
+        { status: 400 }
+      )
+    }
+
+    // Get current max display order
+    const maxOrder = await prisma.welcomePacketInsert.aggregate({
+      where: { eventId },
+      _max: { displayOrder: true },
+    })
+
+    const insert = await prisma.welcomePacketInsert.create({
+      data: {
+        eventId,
+        name: name.trim(),
+        fileUrl: fileUrl || '',
+        displayOrder: (maxOrder._max.displayOrder || 0) + 1,
+        isActive: true,
+      },
+    })
+
+    return NextResponse.json({ insert })
+  } catch (error) {
+    console.error('Failed to create insert:', error)
+    return NextResponse.json(
+      { message: 'Failed to create insert' },
+      { status: 500 }
+    )
+  }
+}
+
+// PUT - Update insert order or toggle active status
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { eventId: string } }
+) {
+  try {
+    await requireAdmin()
+    const { eventId } = params
+    const body = await request.json()
+    const { inserts, insertId, isActive } = body
+
+    // Bulk update order
+    if (inserts && Array.isArray(inserts)) {
+      await prisma.$transaction(
+        inserts.map((insert: { id: string; displayOrder: number }) =>
+          prisma.welcomePacketInsert.update({
+            where: { id: insert.id },
+            data: { displayOrder: insert.displayOrder },
+          })
+        )
+      )
+
+      return NextResponse.json({ success: true })
+    }
+
+    // Toggle active status
+    if (insertId && typeof isActive === 'boolean') {
+      const insert = await prisma.welcomePacketInsert.update({
+        where: { id: insertId },
+        data: { isActive },
+      })
+
+      return NextResponse.json({ insert })
+    }
+
+    return NextResponse.json(
+      { message: 'Invalid request' },
+      { status: 400 }
+    )
+  } catch (error) {
+    console.error('Failed to update inserts:', error)
+    return NextResponse.json(
+      { message: 'Failed to update inserts' },
+      { status: 500 }
+    )
+  }
+}
+
+// DELETE - Delete an insert
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { eventId: string } }
+) {
+  try {
+    await requireAdmin()
+    const { eventId } = params
+    const { searchParams } = new URL(request.url)
+    const insertId = searchParams.get('id')
+
+    if (!insertId) {
+      return NextResponse.json(
+        { message: 'Insert ID is required' },
+        { status: 400 }
+      )
+    }
+
+    // Get the insert to find file URL
+    const insert = await prisma.welcomePacketInsert.findFirst({
+      where: {
+        id: insertId,
+        eventId,
+      },
+    })
+
+    if (!insert) {
+      return NextResponse.json(
+        { message: 'Insert not found' },
+        { status: 404 }
+      )
+    }
+
+    // Delete file from R2 if exists
+    if (insert.fileUrl) {
+      try {
+        await deletePacketInsert(insert.fileUrl)
+      } catch (err) {
+        console.error('Failed to delete file from R2:', err)
+        // Continue with DB deletion even if R2 delete fails
+      }
+    }
+
+    // Delete from database
+    await prisma.welcomePacketInsert.delete({
+      where: { id: insertId },
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Failed to delete insert:', error)
+    return NextResponse.json(
+      { message: 'Failed to delete insert' },
+      { status: 500 }
+    )
+  }
+}

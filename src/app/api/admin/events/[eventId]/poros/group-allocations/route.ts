@@ -50,7 +50,9 @@ export async function GET(
     })
 
     // Transform data to include participant counts by category
-    const groups = groupRegistrations.map((group) => {
+    type GroupResult = typeof groupRegistrations[number]
+    type ParticipantResult = GroupResult['participants'][number]
+    const groups = groupRegistrations.map((group: GroupResult) => {
       // Count participants by category
       let maleU18Count = 0
       let femaleU18Count = 0
@@ -105,7 +107,7 @@ export async function GET(
         clergyCount,
         housingAssignmentsLocked: group.housingAssignmentsLocked,
         housingAssignmentsSubmittedAt: group.housingAssignmentsSubmittedAt,
-        allocatedRooms: group.allocatedRooms.map((room) => ({
+        allocatedRooms: group.allocatedRooms.map((room: GroupResult['allocatedRooms'][number]) => ({
           id: room.id,
           roomNumber: room.roomNumber,
           buildingName: room.building.name,
@@ -190,7 +192,8 @@ export async function POST(
       })
 
       // Check for rooms belonging to wrong event
-      const invalidRooms = rooms.filter((r) => r.building.eventId !== eventId)
+      type RoomWithBuilding = typeof rooms[number]
+      const invalidRooms = rooms.filter((r: RoomWithBuilding) => r.building.eventId !== eventId)
       if (invalidRooms.length > 0) {
         return NextResponse.json(
           { message: 'Some rooms do not belong to this event' },
@@ -200,13 +203,13 @@ export async function POST(
 
       // Check for rooms already allocated to other groups
       const conflictRooms = rooms.filter(
-        (r) => r.allocatedToGroupId && r.allocatedToGroupId !== groupRegistrationId
+        (r: RoomWithBuilding) => r.allocatedToGroupId && r.allocatedToGroupId !== groupRegistrationId
       )
       if (conflictRooms.length > 0) {
         return NextResponse.json(
           {
             message: `Some rooms are already allocated to other groups: ${conflictRooms
-              .map((r) => `${r.building.name} ${r.roomNumber}`)
+              .map((r: RoomWithBuilding) => `${r.building.name} ${r.roomNumber}`)
               .join(', ')}`,
           },
           { status: 400 }
