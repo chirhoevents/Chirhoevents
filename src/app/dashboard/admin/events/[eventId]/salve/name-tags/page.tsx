@@ -214,7 +214,7 @@ export default function NameTagDesignerPage() {
       // Generate name tags for all selected groups
       const allNameTags = []
 
-      for (const groupId of selectedGroups) {
+      for (const groupId of Array.from(selectedGroups)) {
         const response = await fetch(`/api/admin/events/${eventId}/salve/generate-name-tags`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
