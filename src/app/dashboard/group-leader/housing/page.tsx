@@ -661,7 +661,7 @@ export default function HousingPage() {
               <div>
                 <h3 className="font-medium">Ready to Submit?</h3>
                 <p className="text-sm text-muted-foreground">
-                  Once submitted, you won't be able to make changes without organizer approval.
+                  Once submitted, you will not be able to make changes without organizer approval.
                 </p>
               </div>
               <Button onClick={() => setIsSubmitModalOpen(true)}>

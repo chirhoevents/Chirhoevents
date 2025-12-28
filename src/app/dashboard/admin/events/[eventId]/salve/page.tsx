@@ -346,7 +346,7 @@ export default function SalveCheckInPage() {
                 <QrCode className="w-16 h-16 mx-auto text-navy mb-4" />
                 <h2 className="text-xl font-semibold mb-2">Scan QR Code or Search</h2>
                 <p className="text-muted-foreground">
-                  Scan the group leader's QR code or search by name, email, or access code
+                  Scan the group leader&apos;s QR code or search by name, email, or access code
                 </p>
               </div>
 
@@ -380,7 +380,7 @@ export default function SalveCheckInPage() {
               <X className="w-16 h-16 mx-auto text-red-500 mb-4" />
               <h2 className="text-xl font-semibold text-red-600 mb-2">Not Found</h2>
               <p className="text-muted-foreground mb-4">
-                No registration found for "{searchQuery}"
+                No registration found for &quot;{searchQuery}&quot;
               </p>
               <Button onClick={resetSearch}>Try Again</Button>
             </div>

@@ -423,9 +423,9 @@ export default function NameTagDesignerPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="small">Small (2.5" x 1.5")</SelectItem>
-                  <SelectItem value="standard">Standard (3.5" x 2.25")</SelectItem>
-                  <SelectItem value="large">Large (4" x 3")</SelectItem>
+                  <SelectItem value="small">Small (2.5&quot; x 1.5&quot;)</SelectItem>
+                  <SelectItem value="standard">Standard (3.5&quot; x 2.25&quot;)</SelectItem>
+                  <SelectItem value="large">Large (4&quot; x 3&quot;)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -578,7 +578,7 @@ export default function NameTagDesignerPage() {
                     </div>
                   )}
                   {template.showGroup && (
-                    <div className="text-xs opacity-70">St. Mary's Parish</div>
+                    <div className="text-xs opacity-70">St. Mary&apos;s Parish</div>
                   )}
                   {template.showDiocese && (
                     <div className="text-xs opacity-70">Diocese of Sample</div>
