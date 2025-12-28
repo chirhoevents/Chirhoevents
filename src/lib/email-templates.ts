@@ -262,6 +262,284 @@ export function processSubject(subject: string, data: any): string {
 /**
  * Generate Virtual Terminal receipt email
  */
+/**
+ * Generate medical incident notification email for parents
+ */
+export function generateMedicalIncidentParentEmail({
+  parentName,
+  participantName,
+  eventName,
+  incidentType,
+  severity,
+  incidentTime,
+  description,
+  treatment,
+  staffName,
+  organizationName,
+  organizationPhone,
+}: {
+  parentName: string
+  participantName: string
+  eventName: string
+  incidentType: string
+  severity: string
+  incidentTime: string
+  description: string
+  treatment: string
+  staffName: string
+  organizationName: string
+  organizationPhone?: string
+}): string {
+  const severityColors = {
+    minor: { bg: '#D1FAE5', border: '#059669', text: '#065F46' },
+    moderate: { bg: '#FEF3C7', border: '#F59E0B', text: '#92400E' },
+    severe: { bg: '#FEE2E2', border: '#EF4444', text: '#991B1B' },
+  }
+
+  const colors = severityColors[severity as keyof typeof severityColors] || severityColors.moderate
+
+  const incidentTypeLabels: Record<string, string> = {
+    injury: 'Injury',
+    illness: 'Illness',
+    allergic_reaction: 'Allergic Reaction',
+    medication_administration: 'Medication Administration',
+    other: 'Medical Incident',
+  }
+
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #1E3A5F; margin: 0; padding: 0; }
+          .container { max-width: 600px; margin: 0 auto; }
+          .header { background: #0077BE; color: white; padding: 30px; text-align: center; }
+          .header h1 { margin: 0; font-size: 24px; }
+          .content { padding: 30px; background: #F5F5F5; }
+          .incident-box { background: ${colors.bg}; border-left: 4px solid ${colors.border}; padding: 20px; margin: 20px 0; }
+          .incident-title { color: ${colors.text}; font-weight: bold; font-size: 18px; margin: 0 0 10px 0; }
+          .detail-row { margin: 10px 0; }
+          .detail-label { font-weight: bold; color: #6B7280; }
+          .footer { text-align: center; padding: 20px; color: #6B7280; font-size: 12px; background: #E5E7EB; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Medical Incident Notification</h1>
+            <p style="margin: 10px 0 0; opacity: 0.9;">${eventName}</p>
+          </div>
+
+          <div class="content">
+            <p>Dear ${parentName},</p>
+
+            <p>This is to inform you that your child, <strong>${participantName}</strong>, was involved in a medical incident at ${eventName}.</p>
+
+            <div class="incident-box">
+              <p class="incident-title">${incidentTypeLabels[incidentType] || 'Medical Incident'}</p>
+              <p style="color: ${colors.text}; text-transform: uppercase; font-size: 12px; margin: 0;">
+                Severity: ${severity.toUpperCase()}
+              </p>
+            </div>
+
+            <div class="detail-row">
+              <span class="detail-label">Time:</span> ${incidentTime}
+            </div>
+
+            <div class="detail-row">
+              <span class="detail-label">What Happened:</span>
+              <p style="margin: 5px 0;">${description}</p>
+            </div>
+
+            <div class="detail-row">
+              <span class="detail-label">Treatment Provided:</span>
+              <p style="margin: 5px 0;">${treatment}</p>
+            </div>
+
+            <div class="detail-row">
+              <span class="detail-label">Treated By:</span> ${staffName}
+            </div>
+
+            <p style="margin-top: 20px;">
+              ${severity === 'severe'
+                ? `<strong>Due to the severity of this incident, please contact us immediately.</strong>`
+                : `Your child is being well cared for. We will keep you updated on their condition.`
+              }
+            </p>
+
+            ${organizationPhone ? `
+              <p>If you have any questions or concerns, please call us at: <strong>${organizationPhone}</strong></p>
+            ` : ''}
+
+            <p>
+              Sincerely,<br>
+              <strong>${organizationName} Medical Staff</strong>
+            </p>
+          </div>
+
+          <div class="footer">
+            <p>This is an automated notification from Rapha Medical Platform</p>
+            <p>&copy; ${new Date().getFullYear()} ${organizationName}. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `
+}
+
+/**
+ * Generate medical incident resolved notification email for parents
+ */
+export function generateMedicalIncidentResolvedEmail({
+  parentName,
+  participantName,
+  eventName,
+  incidentType,
+  resolutionNotes,
+  disposition,
+  organizationName,
+}: {
+  parentName: string
+  participantName: string
+  eventName: string
+  incidentType: string
+  resolutionNotes: string
+  disposition: string
+  organizationName: string
+}): string {
+  const dispositionLabels: Record<string, string> = {
+    returned_to_activities: 'has returned to regular activities',
+    resting_in_health_office: 'is resting in the health office',
+    sent_home: 'has been sent home',
+    hospitalized: 'has been taken to the hospital',
+  }
+
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #1E3A5F; margin: 0; padding: 0; }
+          .container { max-width: 600px; margin: 0 auto; }
+          .header { background: #059669; color: white; padding: 30px; text-align: center; }
+          .header h1 { margin: 0; font-size: 24px; }
+          .content { padding: 30px; background: #F5F5F5; }
+          .success-box { background: #D1FAE5; border: 1px solid #059669; padding: 20px; border-radius: 8px; margin: 20px 0; }
+          .footer { text-align: center; padding: 20px; color: #6B7280; font-size: 12px; background: #E5E7EB; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Incident Resolved</h1>
+            <p style="margin: 10px 0 0; opacity: 0.9;">${eventName}</p>
+          </div>
+
+          <div class="content">
+            <p>Dear ${parentName},</p>
+
+            <p>We're pleased to inform you that the medical incident involving <strong>${participantName}</strong> has been resolved.</p>
+
+            <div class="success-box">
+              <p style="margin: 0; color: #065F46;">
+                <strong>Good news!</strong> ${participantName} ${dispositionLabels[disposition] || 'is doing well'}.
+              </p>
+            </div>
+
+            ${resolutionNotes ? `
+              <p><strong>Resolution Notes:</strong></p>
+              <p>${resolutionNotes}</p>
+            ` : ''}
+
+            <p>If you have any questions, please don't hesitate to contact us.</p>
+
+            <p>
+              Sincerely,<br>
+              <strong>${organizationName} Medical Staff</strong>
+            </p>
+          </div>
+
+          <div class="footer">
+            <p>This is an automated notification from Rapha Medical Platform</p>
+            <p>&copy; ${new Date().getFullYear()} ${organizationName}. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `
+}
+
+/**
+ * Generate medical incident notification email for group leaders
+ */
+export function generateMedicalIncidentGroupLeaderEmail({
+  groupLeaderName,
+  participantName,
+  eventName,
+  incidentType,
+  severity,
+  organizationName,
+}: {
+  groupLeaderName: string
+  participantName: string
+  eventName: string
+  incidentType: string
+  severity: string
+  organizationName: string
+}): string {
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #1E3A5F; margin: 0; padding: 0; }
+          .container { max-width: 600px; margin: 0 auto; }
+          .header { background: #0077BE; color: white; padding: 20px; text-align: center; }
+          .content { padding: 20px; }
+          .notice { background: #FEF3C7; border: 1px solid #F59E0B; padding: 15px; border-radius: 8px; margin: 15px 0; }
+          .footer { text-align: center; padding: 15px; color: #6B7280; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin: 0; font-size: 20px;">Medical Incident Notification</h1>
+          </div>
+
+          <div class="content">
+            <p>Dear ${groupLeaderName},</p>
+
+            <p>This is to inform you that a participant in your group has been involved in a medical incident.</p>
+
+            <div class="notice">
+              <p style="margin: 0;"><strong>Participant:</strong> ${participantName}</p>
+              <p style="margin: 5px 0 0;"><strong>Incident Type:</strong> ${incidentType}</p>
+              <p style="margin: 5px 0 0;"><strong>Severity:</strong> ${severity}</p>
+            </div>
+
+            <p>Our medical staff is handling the situation. No action is required from you at this time. We will keep you informed of any updates.</p>
+
+            <p style="font-size: 12px; color: #6B7280;">
+              Note: For privacy reasons, detailed medical information is not included in this notification.
+            </p>
+
+            <p>
+              - ${organizationName} Medical Staff
+            </p>
+          </div>
+
+          <div class="footer">
+            <p>&copy; ${new Date().getFullYear()} ${organizationName}</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `
+}
+
 export function generateVirtualTerminalReceipt({
   recipientName,
   eventName,
