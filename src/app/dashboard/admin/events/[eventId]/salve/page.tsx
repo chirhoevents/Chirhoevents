@@ -350,15 +350,19 @@ export default function SalveCheckInPage() {
     setParticipantNotes({})
   }
 
-  const progressPercentage = stats.totalExpected > 0
-    ? Math.round((stats.checkedIn / stats.totalExpected) * 100)
+  const totalExpected = stats?.totalExpected || 0
+  const checkedIn = stats?.checkedIn || 0
+  const issues = stats?.issues || 0
+  const notCheckedIn = totalExpected - checkedIn
+  const progressPercentage = totalExpected > 0
+    ? Math.round((checkedIn / totalExpected) * 100)
     : 0
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto">
+    <div className="p-4 md:p-6 max-w-[1600px] mx-auto">
       {/* Header */}
       <div className="mb-6">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+        <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground mb-2">
           <Link href="/dashboard/admin" className="hover:text-navy">Dashboard</Link>
           <span>/</span>
           <Link href="/dashboard/admin/events" className="hover:text-navy">Events</Link>
@@ -367,28 +371,28 @@ export default function SalveCheckInPage() {
           <span>/</span>
           <span className="text-navy font-medium">SALVE Check-In</span>
         </div>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-navy">SALVE Check-In Station</h1>
+            <h1 className="text-2xl md:text-3xl font-bold text-navy">SALVE Check-In Station</h1>
             <p className="text-muted-foreground">{eventName} • Station #1</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Link href={`/dashboard/admin/events/${eventId}/salve/welcome-packets`}>
-              <Button variant="outline">
+              <Button variant="outline" size="sm" className="w-full md:w-auto">
                 <FileText className="w-4 h-4 mr-2" />
-                Welcome Packets
+                <span className="hidden sm:inline">Welcome </span>Packets
               </Button>
             </Link>
             <Link href={`/dashboard/admin/events/${eventId}/salve/name-tags`}>
-              <Button variant="outline">
+              <Button variant="outline" size="sm" className="w-full md:w-auto">
                 <Settings className="w-4 h-4 mr-2" />
-                Name Tag Designer
+                Name Tags
               </Button>
             </Link>
             <Link href={`/dashboard/admin/events/${eventId}/salve/dashboard`}>
-              <Button variant="outline">
+              <Button variant="outline" size="sm" className="w-full md:w-auto">
                 <BarChart3 className="w-4 h-4 mr-2" />
-                View Dashboard
+                Dashboard
               </Button>
             </Link>
           </div>
@@ -396,46 +400,46 @@ export default function SalveCheckInPage() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-3 gap-2 md:gap-4 mb-6">
         <Card>
-          <CardContent className="pt-4">
+          <CardContent className="p-3 md:pt-4 md:p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Checked In</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {stats.checkedIn} / {stats.totalExpected}
+                <p className="text-xs md:text-sm text-muted-foreground">Checked In</p>
+                <p className="text-lg md:text-2xl font-bold text-green-600">
+                  {checkedIn} / {totalExpected}
                 </p>
               </div>
-              <Check className="w-8 h-8 text-green-500" />
+              <Check className="w-6 h-6 md:w-8 md:h-8 text-green-500 hidden sm:block" />
             </div>
             <Progress value={progressPercentage} className="mt-2 h-2" />
-            <p className="text-xs text-muted-foreground mt-1">{progressPercentage}% complete</p>
+            <p className="text-xs text-muted-foreground mt-1">{progressPercentage}%</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="pt-4">
+          <CardContent className="p-3 md:pt-4 md:p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Issues</p>
-                <p className="text-2xl font-bold text-amber-600">{stats.issues}</p>
+                <p className="text-xs md:text-sm text-muted-foreground">Issues</p>
+                <p className="text-lg md:text-2xl font-bold text-amber-600">{issues}</p>
               </div>
-              <AlertCircle className="w-8 h-8 text-amber-500" />
+              <AlertCircle className="w-6 h-6 md:w-8 md:h-8 text-amber-500 hidden sm:block" />
             </div>
-            <p className="text-xs text-muted-foreground mt-2">Missing forms or payments</p>
+            <p className="text-xs text-muted-foreground mt-2 hidden md:block">Missing forms or payments</p>
           </CardContent>
         </Card>
 
         <Card className="bg-navy text-white">
-          <CardContent className="pt-4">
+          <CardContent className="p-3 md:pt-4 md:p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-white/70">Not Checked In</p>
-                <p className="text-2xl font-bold">
-                  {stats.totalExpected - stats.checkedIn}
+                <p className="text-xs md:text-sm text-white/70">Not Checked In</p>
+                <p className="text-lg md:text-2xl font-bold">
+                  {notCheckedIn}
                 </p>
               </div>
-              <Users className="w-8 h-8 text-white/50" />
+              <Users className="w-6 h-6 md:w-8 md:h-8 text-white/50 hidden sm:block" />
             </div>
           </CardContent>
         </Card>
@@ -647,13 +651,13 @@ export default function SalveCheckInPage() {
 
           {/* Participant Roster */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Check In Participants</CardTitle>
+            <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+              <CardTitle className="text-lg">Check In Participants</CardTitle>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={selectAllParticipants}>
+                <Button variant="outline" size="sm" onClick={selectAllParticipants} className="flex-1 md:flex-none">
                   Select All
                 </Button>
-                <Button variant="outline" size="sm" onClick={deselectAllParticipants}>
+                <Button variant="outline" size="sm" onClick={deselectAllParticipants} className="flex-1 md:flex-none">
                   Deselect All
                 </Button>
               </div>

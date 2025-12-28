@@ -45,6 +45,13 @@ interface PacketSettings {
   includeEmergencyContacts: boolean
 }
 
+interface MissingResources {
+  campusMap: boolean
+  mealSchedule: boolean
+  eventSchedule: boolean
+  emergencyProcedures: boolean
+}
+
 interface PacketInsert {
   id: string
   title: string
@@ -113,6 +120,12 @@ export default function WelcomePacketsPage() {
   const [previewData, setPreviewData] = useState<PacketPreview | null>(null)
   const [isAddInsertModalOpen, setIsAddInsertModalOpen] = useState(false)
   const [newInsert, setNewInsert] = useState({ title: '', content: '', insertType: 'general' })
+  const [missingResources, setMissingResources] = useState<MissingResources>({
+    campusMap: true,
+    mealSchedule: true,
+    eventSchedule: true,
+    emergencyProcedures: true,
+  })
 
   useEffect(() => {
     fetchData()
@@ -149,6 +162,9 @@ export default function WelcomePacketsPage() {
         }
         if (packetData.inserts) {
           setInserts(packetData.inserts)
+        }
+        if (packetData.missingResources) {
+          setMissingResources(packetData.missingResources)
         }
       }
     } catch (error) {
@@ -538,6 +554,37 @@ export default function WelcomePacketsPage() {
         </div>
       </div>
 
+      {/* Missing Resources Warning */}
+      {(missingResources.campusMap || missingResources.mealSchedule || missingResources.eventSchedule) && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-yellow-700 font-medium">
+                Missing Resources
+              </p>
+              <ul className="list-disc list-inside text-sm text-yellow-700 mt-2">
+                {missingResources.campusMap && <li>Campus map not uploaded</li>}
+                {missingResources.mealSchedule && <li>Meal schedule not configured</li>}
+                {missingResources.eventSchedule && <li>Event schedule not added</li>}
+              </ul>
+              <p className="text-sm text-yellow-700 mt-2">
+                <Link
+                  href={`/dashboard/admin/events/${eventId}/poros`}
+                  className="underline font-medium hover:text-yellow-800"
+                >
+                  Go to Poros Portal to add these resources
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Packet Settings */}
         <Card>
@@ -560,6 +607,7 @@ export default function WelcomePacketsPage() {
                 <Label htmlFor="includeSchedule" className="font-normal flex items-center gap-2">
                   <Calendar className="w-4 h-4" />
                   Event Schedule
+                  {missingResources.eventSchedule && <span className="text-yellow-600 text-xs">(not configured)</span>}
                 </Label>
               </div>
 
@@ -572,6 +620,7 @@ export default function WelcomePacketsPage() {
                 <Label htmlFor="includeMap" className="font-normal flex items-center gap-2">
                   <Map className="w-4 h-4" />
                   Campus Map
+                  {missingResources.campusMap && <span className="text-yellow-600 text-xs">(not uploaded)</span>}
                 </Label>
               </div>
 
