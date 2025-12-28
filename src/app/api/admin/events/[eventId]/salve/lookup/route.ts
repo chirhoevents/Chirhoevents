@@ -122,13 +122,21 @@ export async function GET(
 
     // If search query is provided, search groups and participants
     if (search && search.length >= 2) {
-      // Search groups by name
+      // Search groups by multiple fields
       const groups = await prisma.groupRegistration.findMany({
         where: {
           eventId,
           OR: [
+            // Group info
             { groupName: { contains: search, mode: 'insensitive' } },
             { accessCode: { contains: search, mode: 'insensitive' } },
+            { parishName: { contains: search, mode: 'insensitive' } },
+            { dioceseName: { contains: search, mode: 'insensitive' } },
+            // Group leader info
+            { groupLeaderName: { contains: search, mode: 'insensitive' } },
+            { groupLeaderEmail: { contains: search, mode: 'insensitive' } },
+            { groupLeaderPhone: { contains: search, mode: 'insensitive' } },
+            // Participant info
             {
               participants: {
                 some: {
