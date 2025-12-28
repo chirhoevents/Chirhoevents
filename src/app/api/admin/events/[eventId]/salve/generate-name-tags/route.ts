@@ -117,7 +117,7 @@ export async function POST(
     })
 
     // Get meal color assignments for these participants' groups
-    const groupIds = [...new Set(participants.map((p) => p.groupRegistrationId))]
+    const groupIds = Array.from(new Set(participants.map((p) => p.groupRegistrationId)))
     const mealColorAssignments = await prisma.mealColorAssignment.findMany({
       where: {
         groupRegistrationId: { in: groupIds },
