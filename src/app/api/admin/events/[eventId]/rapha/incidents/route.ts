@@ -344,11 +344,16 @@ export async function POST(
       success: true,
       incident: {
         id: incident.id,
+        participantId: resolvedParticipantId,
+        liabilityFormId: resolvedLiabilityFormId,
         participantName: participantName || 'Unknown',
+        participantAge,
         groupName: groupName || 'Unknown',
         type: incident.incidentType,
         severity: incident.severity,
         status: incident.status,
+        date: incident.incidentDate,
+        time: incident.incidentTime,
         createdAt: incident.createdAt,
       },
     })

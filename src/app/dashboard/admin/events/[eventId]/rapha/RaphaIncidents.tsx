@@ -263,8 +263,9 @@ export default function RaphaIncidents({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          participantId: selectedParticipant?.id || null,
-          liabilityFormId: selectedParticipant?.liabilityFormId || null,
+          // selectedParticipant.id is the liabilityFormId, .participantId is the actual participant table ID
+          participantId: selectedParticipant?.participantId || null,
+          liabilityFormId: selectedParticipant?.id || null,
           ...newIncident,
           nextCheckTime: newIncident.nextCheckTime || null,
         }),
