@@ -397,7 +397,142 @@ export default function RaphaIncidents({
   }
 
   function handlePrint() {
-    window.print()
+    if (!printData) return
+
+    // Create a new window with printable content
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) {
+      toast.error('Please allow popups to print')
+      return
+    }
+
+    const formatDate = (dateStr: string) => {
+      try {
+        return new Date(dateStr).toLocaleDateString('en-US', {
+          weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+        })
+      } catch { return dateStr }
+    }
+
+    const formatDateTime = (dateStr: string) => {
+      try {
+        return new Date(dateStr).toLocaleString('en-US', {
+          month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'
+        })
+      } catch { return dateStr }
+    }
+
+    const incidentsHtml = printData.incidents.map((incident: any, index: number) => `
+      <div style="border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; page-break-inside: avoid;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h3 style="margin: 0; font-size: 16px;">Visit #${printData.incidents.length - index}: ${incident.type.replace(/_/g, ' ')}</h3>
+          <div>
+            <span style="background: ${incident.severity === 'severe' ? '#ef4444' : incident.severity === 'moderate' ? '#f59e0b' : '#22c55e'}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-right: 4px;">${incident.severity}</span>
+            <span style="background: ${incident.status === 'resolved' ? '#22c55e' : incident.status === 'monitoring' ? '#f59e0b' : '#ef4444'}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;">${incident.status}</span>
+          </div>
+        </div>
+        <p style="color: #666; font-size: 14px; margin: 4px 0;">${formatDate(incident.date)} at ${incident.time}${incident.location ? ` - ${incident.location}` : ''}</p>
+        <div style="font-size: 14px; margin-top: 12px;">
+          <p><strong>Description:</strong> ${incident.description}</p>
+          <p><strong>Treatment:</strong> ${incident.treatmentProvided}</p>
+          <p><strong>Staff:</strong> ${incident.staffMemberName}</p>
+          ${incident.parentContacted ? '<p style="color: #22c55e;">✓ Parent Contacted</p>' : ''}
+          ${incident.ambulanceCalled ? '<p style="color: #ef4444;">🚑 Ambulance Called</p>' : ''}
+          ${incident.sentToHospital ? `<p style="color: #ef4444;">🏥 Sent to Hospital: ${incident.hospitalName || 'Unknown'}</p>` : ''}
+          ${incident.updates && incident.updates.length > 0 ? `
+            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee;">
+              <p style="font-weight: 500; font-size: 12px; margin-bottom: 4px;">Follow-up Notes:</p>
+              ${incident.updates.map((u: any) => `
+                <div style="background: #f9f9f9; padding: 8px; border-radius: 4px; margin-bottom: 4px; font-size: 12px;">
+                  <p style="margin: 0;">${u.text}</p>
+                  <p style="margin: 4px 0 0 0; color: #666;">- ${u.by}, ${formatDateTime(u.at)}</p>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+          ${incident.status === 'resolved' && incident.resolvedAt ? `
+            <div style="margin-top: 12px; padding: 12px; background: #f0fdf4; border-radius: 4px;">
+              <p style="font-weight: 500; color: #15803d; margin: 0;">Resolved</p>
+              <p style="font-size: 12px; margin: 4px 0 0 0;">${incident.resolutionNotes || ''} - ${formatDateTime(incident.resolvedAt)}</p>
+              ${incident.disposition ? `<p style="font-size: 12px; margin: 4px 0 0 0;">Final disposition: ${incident.disposition.replace(/_/g, ' ')}</p>` : ''}
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    `).join('')
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Medical Visit History - ${printData.participant.name}</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; color: #333; }
+          @media print { body { padding: 0; } }
+        </style>
+      </head>
+      <body>
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h1 style="color: #0077BE; margin: 0; font-size: 24px;">Medical Visit History Report</h1>
+          <p style="color: #666; margin: 4px 0;">${printData.event.organizationName} - ${printData.event.name}</p>
+          <p style="color: #888; font-size: 12px; margin: 4px 0;">Generated: ${formatDateTime(printData.generatedAt)} by ${printData.generatedBy}</p>
+        </div>
+
+        <div style="background: #f9f9f9; padding: 16px; border-radius: 8px; margin-bottom: 24px; border: 1px solid #ddd;">
+          <h2 style="margin: 0 0 12px 0; font-size: 18px;">Participant Information</h2>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-size: 14px;">
+            <div><span style="color: #666;">Name:</span> <strong>${printData.participant.name}</strong></div>
+            ${printData.participant.preferredName ? `<div><span style="color: #666;">Preferred:</span> <strong>${printData.participant.preferredName}</strong></div>` : ''}
+            <div><span style="color: #666;">Age:</span> <strong>${printData.participant.age || 'N/A'}</strong></div>
+            <div><span style="color: #666;">Gender:</span> <strong>${printData.participant.gender || 'N/A'}</strong></div>
+            <div><span style="color: #666;">Group:</span> <strong>${printData.participant.groupName}</strong></div>
+            ${printData.participant.parishName ? `<div><span style="color: #666;">Parish:</span> <strong>${printData.participant.parishName}</strong></div>` : ''}
+          </div>
+
+          ${printData.participant.allergies || printData.participant.medicalConditions || printData.participant.medications ? `
+            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #ddd;">
+              <h3 style="margin: 0 0 8px 0; font-size: 14px;">Medical Information</h3>
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 14px;">
+                ${printData.participant.allergies ? `<div style="background: #fef2f2; padding: 8px; border-radius: 4px; border: 1px solid #fecaca;"><strong style="color: #dc2626;">Allergies:</strong> ${printData.participant.allergies}</div>` : ''}
+                ${printData.participant.medicalConditions ? `<div style="background: #fffbeb; padding: 8px; border-radius: 4px; border: 1px solid #fde68a;"><strong style="color: #d97706;">Conditions:</strong> ${printData.participant.medicalConditions}</div>` : ''}
+                ${printData.participant.medications ? `<div style="background: #eff6ff; padding: 8px; border-radius: 4px; border: 1px solid #bfdbfe;"><strong style="color: #2563eb;">Medications:</strong> ${printData.participant.medications}</div>` : ''}
+              </div>
+            </div>
+          ` : ''}
+
+          ${printData.participant.emergencyContact1?.name || printData.participant.emergencyContact2?.name ? `
+            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #ddd;">
+              <h3 style="margin: 0 0 8px 0; font-size: 14px;">Emergency Contacts</h3>
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 14px;">
+                ${printData.participant.emergencyContact1?.name ? `<div><strong>${printData.participant.emergencyContact1.name}</strong><br/><span style="color: #666;">${printData.participant.emergencyContact1.relation} - ${printData.participant.emergencyContact1.phone}</span></div>` : ''}
+                ${printData.participant.emergencyContact2?.name ? `<div><strong>${printData.participant.emergencyContact2.name}</strong><br/><span style="color: #666;">${printData.participant.emergencyContact2.relation} - ${printData.participant.emergencyContact2.phone}</span></div>` : ''}
+              </div>
+            </div>
+          ` : ''}
+
+          ${printData.participant.insuranceProvider ? `
+            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #ddd;">
+              <h3 style="margin: 0 0 8px 0; font-size: 14px;">Insurance</h3>
+              <p style="font-size: 14px; margin: 0;">${printData.participant.insuranceProvider}${printData.participant.insurancePolicyNumber ? ` - Policy: ${printData.participant.insurancePolicyNumber}` : ''}</p>
+            </div>
+          ` : ''}
+        </div>
+
+        <div>
+          <h2 style="margin: 0 0 16px 0; font-size: 18px;">Visit History (${printData.incidents.length} incident${printData.incidents.length !== 1 ? 's' : ''})</h2>
+          ${printData.incidents.length === 0 ? '<p style="text-align: center; color: #666; padding: 32px;">No medical incidents recorded for this participant.</p>' : incidentsHtml}
+        </div>
+
+        <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #ddd; text-align: center; color: #666; font-size: 12px;">
+          <p style="margin: 0;"><strong>CONFIDENTIAL MEDICAL INFORMATION</strong> - For authorized medical staff only</p>
+          <p style="margin: 4px 0 0 0;">${printData.event.organizationName} - ${printData.event.name}</p>
+        </div>
+
+        <script>window.onload = function() { window.print(); }</script>
+      </body>
+      </html>
+    `)
+    printWindow.document.close()
   }
 
   function getSeverityBadge(severity: string) {
