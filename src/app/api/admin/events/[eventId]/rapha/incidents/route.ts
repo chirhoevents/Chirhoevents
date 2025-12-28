@@ -271,15 +271,16 @@ export async function POST(
         where: { id: participantId },
         include: {
           groupRegistration: { select: { groupName: true } },
-          liabilityForm: { select: { id: true, participantAge: true } },
+          liabilityForms: { select: { id: true, participantAge: true }, take: 1 },
         },
       })
       if (participant) {
         participantName = `${participant.firstName} ${participant.lastName}`
-        participantAge = participant.liabilityForm?.participantAge || null
+        const liabilityForm = participant.liabilityForms[0]
+        participantAge = liabilityForm?.participantAge || null
         groupName = participant.groupRegistration.groupName
-        if (participant.liabilityForm?.id) {
-          resolvedLiabilityFormId = participant.liabilityForm.id
+        if (liabilityForm?.id) {
+          resolvedLiabilityFormId = liabilityForm.id
         }
       }
     }
