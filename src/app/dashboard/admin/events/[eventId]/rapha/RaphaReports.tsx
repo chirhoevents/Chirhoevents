@@ -79,25 +79,316 @@ export default function RaphaReports({ eventId, eventName }: RaphaReportsProps) 
   function handlePrint() {
     if (!reportData) return
 
-    // Create a new window with printable content
     const printWindow = window.open('', '_blank')
     if (!printWindow) {
       toast.error('Please allow popups to print')
       return
     }
 
-    // Get the report content HTML
-    const reportContent = document.getElementById('report-content')
-    if (!reportContent) {
-      toast.error('Report content not found')
-      return
+    // Generate HTML content directly from reportData
+    const reportHtml = generatePrintHTML(reportData)
+    printWindow.document.write(reportHtml)
+    printWindow.document.close()
+  }
+
+  function generatePrintHTML(data: ReportData): string {
+    const formatDate = (dateStr: string) => {
+      try {
+        return new Date(dateStr).toLocaleDateString('en-US', {
+          month: 'short', day: 'numeric', year: 'numeric'
+        })
+      } catch { return dateStr }
     }
 
-    printWindow.document.write(`
+    let contentHtml = ''
+
+    // Daily Summary Report
+    if (data.summary) {
+      contentHtml = `
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; text-align: center; margin-bottom: 24px;">
+          <div style="padding: 16px; background: #eff6ff; border-radius: 8px;">
+            <p style="font-size: 24px; font-weight: bold; color: #2563eb; margin: 0;">${data.summary.totalWithMedicalNeeds}</p>
+            <p style="font-size: 12px; color: #1d4ed8; margin: 4px 0 0 0;">With Medical Needs</p>
+          </div>
+          <div style="padding: 16px; background: #fef2f2; border-radius: 8px;">
+            <p style="font-size: 24px; font-weight: bold; color: #dc2626; margin: 0;">${data.summary.severeAllergies}</p>
+            <p style="font-size: 12px; color: #b91c1c; margin: 4px 0 0 0;">Severe Allergies</p>
+          </div>
+          <div style="padding: 16px; background: #fffbeb; border-radius: 8px;">
+            <p style="font-size: 24px; font-weight: bold; color: #d97706; margin: 0;">${data.summary.activeIncidents}</p>
+            <p style="font-size: 12px; color: #b45309; margin: 4px 0 0 0;">Active Incidents</p>
+          </div>
+        </div>
+
+        ${data.activeIncidents?.length > 0 ? `
+          <h3 style="color: #dc2626; margin: 16px 0 8px 0;">Active Incidents</h3>
+          <table>
+            <thead style="background: #fef2f2;">
+              <tr>
+                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Participant</th>
+                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Type</th>
+                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Severity</th>
+                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Status</th>
+                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Next Check</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.activeIncidents.map((i: any) => `
+                <tr>
+                  <td style="border: 1px solid #ddd; padding: 8px;">${i.participantName}</td>
+                  <td style="border: 1px solid #ddd; padding: 8px;">${i.type}</td>
+                  <td style="border: 1px solid #ddd; padding: 8px;">${i.severity}</td>
+                  <td style="border: 1px solid #ddd; padding: 8px;">${i.status}</td>
+                  <td style="border: 1px solid #ddd; padding: 8px;">${i.nextCheck ? formatDate(i.nextCheck) : '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        ` : ''}
+
+        ${data.participants?.length > 0 ? `
+          <h3 style="margin: 24px 0 8px 0;">Participants with Medical Needs</h3>
+          <table>
+            <thead style="background: #f9fafb;">
+              <tr>
+                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Name</th>
+                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Age</th>
+                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Group</th>
+                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Allergies</th>
+                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Conditions</th>
+                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Medications</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.participants.map((p: any) => `
+                <tr style="${p.isSevere ? 'background: #fef2f2;' : ''}">
+                  <td style="border: 1px solid #ddd; padding: 8px; font-weight: 500;">
+                    ${p.isSevere ? '⚠️ ' : ''}${p.name}
+                  </td>
+                  <td style="border: 1px solid #ddd; padding: 8px;">${p.age || '-'}</td>
+                  <td style="border: 1px solid #ddd; padding: 8px;">${p.group}</td>
+                  <td style="border: 1px solid #ddd; padding: 8px; font-size: 11px;">${p.allergies || '-'}</td>
+                  <td style="border: 1px solid #ddd; padding: 8px; font-size: 11px;">${p.conditions || '-'}</td>
+                  <td style="border: 1px solid #ddd; padding: 8px; font-size: 11px;">${p.medications || '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        ` : ''}
+      `
+    }
+
+    // Allergy List Report
+    if (data.categories) {
+      contentHtml = `
+        <p style="text-align: center; margin-bottom: 16px;">
+          Total participants with allergies: <strong>${data.totalWithAllergies}</strong>
+        </p>
+        ${Object.entries(data.categories).map(([category, participants]: [string, any]) => {
+          if (!participants || participants.length === 0) return ''
+          return `
+            <h3 style="color: #b45309; margin: 20px 0 8px 0;">${category} (${participants.length})</h3>
+            <table>
+              <thead style="background: #fffbeb;">
+                <tr>
+                  <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Name</th>
+                  <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Age</th>
+                  <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Group</th>
+                  <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Allergy Details</th>
+                  <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Severe?</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${participants.map((p: any) => `
+                  <tr style="${p.isSevere ? 'background: #fef2f2;' : ''}">
+                    <td style="border: 1px solid #ddd; padding: 8px; font-weight: 500;">${p.name}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">${p.age || '-'}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">${p.group}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px; font-size: 11px;">${p.allergies}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">
+                      ${p.isSevere ? '<span style="color: #dc2626; font-weight: bold;">YES - EPIPEN</span>' : 'No'}
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          `
+        }).join('')}
+      `
+    }
+
+    // Medication List Report
+    if (data.totalWithMedications !== undefined && !data.categories && !data.summary) {
+      contentHtml = `
+        <p style="text-align: center; margin-bottom: 16px;">
+          Total participants with medications: <strong>${data.totalWithMedications}</strong>
+        </p>
+        <table>
+          <thead style="background: #faf5ff;">
+            <tr>
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Name</th>
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Age</th>
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Group</th>
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Medications</th>
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Conditions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(data.participants || []).map((p: any) => `
+              <tr>
+                <td style="border: 1px solid #ddd; padding: 8px; font-weight: 500;">${p.name}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${p.age || '-'}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${p.group}</td>
+                <td style="border: 1px solid #ddd; padding: 8px; font-size: 11px;">${p.medications}</td>
+                <td style="border: 1px solid #ddd; padding: 8px; font-size: 11px;">${p.conditions || '-'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `
+    }
+
+    // Critical List Report
+    if (data.totalCritical !== undefined) {
+      contentHtml = `
+        <div style="background: #fef2f2; padding: 16px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+          <p style="color: #b91c1c; font-weight: 600; margin: 0;">
+            ${data.totalCritical} Critical Participants Requiring Special Attention
+          </p>
+        </div>
+        ${(data.participants || []).map((p: any) => `
+          <div style="border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; page-break-inside: avoid;">
+            <div style="margin-bottom: 8px;">
+              <h4 style="margin: 0; font-size: 18px;">${p.name}</h4>
+              <p style="color: #666; margin: 4px 0; font-size: 13px;">Age ${p.age} • ${p.gender} • ${p.group}</p>
+            </div>
+            ${p.allergies ? `<div style="background: #fef2f2; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+              <strong style="color: #b91c1c;">Allergies:</strong> ${p.allergies}
+            </div>` : ''}
+            ${p.conditions ? `<div style="background: #faf5ff; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+              <strong style="color: #7c3aed;">Conditions:</strong> ${p.conditions}
+            </div>` : ''}
+            ${p.medications ? `<div style="background: #eff6ff; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+              <strong style="color: #2563eb;">Medications:</strong> ${p.medications}
+            </div>` : ''}
+            ${p.ada ? `<div style="background: #eef2ff; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+              <strong style="color: #4338ca;">ADA:</strong> ${p.ada}
+            </div>` : ''}
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 12px; font-size: 13px;">
+              <div>
+                <strong>Emergency Contact 1:</strong>
+                <p style="margin: 4px 0;">${p.emergencyContact1?.name || '-'} (${p.emergencyContact1?.relation || '-'})</p>
+                <p style="margin: 0;">${p.emergencyContact1?.phone || '-'}</p>
+              </div>
+              ${p.emergencyContact2?.name ? `<div>
+                <strong>Emergency Contact 2:</strong>
+                <p style="margin: 4px 0;">${p.emergencyContact2.name} (${p.emergencyContact2.relation})</p>
+                <p style="margin: 0;">${p.emergencyContact2.phone}</p>
+              </div>` : ''}
+            </div>
+          </div>
+        `).join('')}
+      `
+    }
+
+    // Incident Summary Report
+    if (data.stats && data.incidents) {
+      contentHtml = `
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; text-align: center; margin-bottom: 24px;">
+          <div style="padding: 12px; background: #f9fafb; border-radius: 8px;">
+            <p style="font-size: 20px; font-weight: bold; margin: 0;">${data.stats.total}</p>
+            <p style="font-size: 11px; margin: 4px 0 0 0;">Total Incidents</p>
+          </div>
+          <div style="padding: 12px; background: #f0fdf4; border-radius: 8px;">
+            <p style="font-size: 20px; font-weight: bold; color: #16a34a; margin: 0;">${data.stats.bySeverity.minor}</p>
+            <p style="font-size: 11px; color: #15803d; margin: 4px 0 0 0;">Minor</p>
+          </div>
+          <div style="padding: 12px; background: #fffbeb; border-radius: 8px;">
+            <p style="font-size: 20px; font-weight: bold; color: #d97706; margin: 0;">${data.stats.bySeverity.moderate}</p>
+            <p style="font-size: 11px; color: #b45309; margin: 4px 0 0 0;">Moderate</p>
+          </div>
+          <div style="padding: 12px; background: #fef2f2; border-radius: 8px;">
+            <p style="font-size: 20px; font-weight: bold; color: #dc2626; margin: 0;">${data.stats.bySeverity.severe}</p>
+            <p style="font-size: 11px; color: #b91c1c; margin: 4px 0 0 0;">Severe</p>
+          </div>
+        </div>
+
+        ${(data.stats.hospitalizations > 0 || data.stats.ambulanceCalls > 0) ? `
+          <div style="background: #fef2f2; padding: 12px; border-radius: 8px; text-align: center; margin-bottom: 16px;">
+            <p style="color: #b91c1c; margin: 0;">
+              Ambulance Calls: <strong>${data.stats.ambulanceCalls}</strong> |
+              Hospitalizations: <strong>${data.stats.hospitalizations}</strong>
+            </p>
+          </div>
+        ` : ''}
+
+        <table>
+          <thead style="background: #f9fafb;">
+            <tr>
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Date/Time</th>
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Participant</th>
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Type</th>
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Severity</th>
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Status</th>
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Treatment</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.incidents.map((i: any) => `
+              <tr>
+                <td style="border: 1px solid #ddd; padding: 8px;">${formatDate(i.date)} ${i.time}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${i.participantName}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${i.type}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${i.severity}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${i.status}</td>
+                <td style="border: 1px solid #ddd; padding: 8px; font-size: 11px;">${(i.treatment || '').substring(0, 50)}...</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `
+    }
+
+    // Insurance List Report
+    if (data.notice === 'CONFIDENTIAL - For emergency use only' && data.participants) {
+      contentHtml = `
+        <div style="background: #f3f4f6; padding: 12px; border-radius: 8px; text-align: center; margin-bottom: 16px;">
+          <strong>For emergency hospitalization use only</strong>
+        </div>
+        <table>
+          <thead style="background: #f9fafb;">
+            <tr>
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Name</th>
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Age</th>
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Group</th>
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Insurance Provider</th>
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Policy #</th>
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Emergency Contact</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.participants.map((p: any) => `
+              <tr>
+                <td style="border: 1px solid #ddd; padding: 8px; font-weight: 500;">${p.name}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${p.age || '-'}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${p.group}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${p.insurance?.provider || '-'}</td>
+                <td style="border: 1px solid #ddd; padding: 8px; font-size: 11px;">${p.insurance?.policyNumber || '-'}</td>
+                <td style="border: 1px solid #ddd; padding: 8px; font-size: 11px;">
+                  ${p.emergencyContact?.name || '-'} - ${p.emergencyContact?.phone || '-'}
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `
+    }
+
+    return `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>${reportData.title} - ${reportData.event.name}</title>
+        <title>${data.title} - ${data.event.name}</title>
         <style>
           body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -106,89 +397,33 @@ export default function RaphaReports({ eventId, eventName }: RaphaReportsProps) 
             color: #333;
             font-size: 12px;
           }
-          h1 { color: #0077BE; margin: 0; font-size: 24px; }
-          h2 { font-size: 18px; margin: 16px 0 8px 0; }
-          h3 { font-size: 14px; margin: 12px 0 6px 0; }
-          h4 { font-size: 13px; margin: 8px 0 4px 0; }
-          p { margin: 4px 0; }
-          table { width: 100%; border-collapse: collapse; margin: 8px 0; }
-          th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
-          th { background-color: #f5f5f5; font-weight: 600; }
-          .text-center { text-align: center; }
-          .font-bold { font-weight: bold; }
-          .font-medium { font-weight: 500; }
-          .text-xs { font-size: 11px; }
-          .text-sm { font-size: 12px; }
-          .text-lg { font-size: 16px; }
-          .text-xl { font-size: 18px; }
-          .text-2xl { font-size: 22px; }
-          .text-red-600 { color: #dc2626; }
-          .text-red-700 { color: #b91c1c; }
-          .text-amber-600 { color: #d97706; }
-          .text-amber-700 { color: #b45309; }
-          .text-green-600 { color: #16a34a; }
-          .text-green-700 { color: #15803d; }
-          .text-blue-600 { color: #2563eb; }
-          .text-blue-700 { color: #1d4ed8; }
-          .text-purple-700 { color: #7c3aed; }
-          .text-indigo-700 { color: #4338ca; }
-          .text-muted { color: #666; }
-          .bg-red-50 { background-color: #fef2f2; }
-          .bg-amber-50 { background-color: #fffbeb; }
-          .bg-green-50 { background-color: #f0fdf4; }
-          .bg-blue-50 { background-color: #eff6ff; }
-          .bg-purple-50 { background-color: #faf5ff; }
-          .bg-indigo-50 { background-color: #eef2ff; }
-          .bg-gray-50 { background-color: #f9fafb; }
-          .bg-gray-100 { background-color: #f3f4f6; }
-          .border { border: 1px solid #ddd; }
-          .border-t { border-top: 1px solid #ddd; }
-          .border-b { border-bottom: 1px solid #ddd; }
-          .rounded { border-radius: 4px; }
-          .rounded-lg { border-radius: 8px; }
-          .p-2 { padding: 8px; }
-          .p-3 { padding: 12px; }
-          .p-4 { padding: 16px; }
-          .mb-2 { margin-bottom: 8px; }
-          .mb-3 { margin-bottom: 12px; }
-          .mb-4 { margin-bottom: 16px; }
-          .mb-6 { margin-bottom: 24px; }
-          .mt-2 { margin-top: 8px; }
-          .mt-3 { margin-top: 12px; }
-          .mt-4 { margin-top: 16px; }
-          .mt-8 { margin-top: 32px; }
-          .pt-4 { padding-top: 16px; }
-          .pb-4 { padding-bottom: 16px; }
-          .grid { display: grid; gap: 16px; }
-          .grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
-          .grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
-          .grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
-          .gap-4 { gap: 16px; }
-          .space-y-6 > * + * { margin-top: 24px; }
-          .inline { display: inline; }
-          .mr-1 { margin-right: 4px; }
-          .confidential-banner {
-            background-color: #fffbeb;
-            border: 1px solid #fde68a;
-            padding: 8px;
-            text-align: center;
-            font-size: 12px;
-            margin-top: 16px;
-          }
-          .page-break { page-break-before: always; }
-          @media print {
-            body { padding: 0; }
-            .page-break { page-break-before: always; }
-          }
+          table { width: 100%; border-collapse: collapse; }
+          @media print { body { padding: 0; } }
         </style>
       </head>
       <body>
-        ${reportContent.innerHTML}
+        <div style="text-align: center; border-bottom: 1px solid #ddd; padding-bottom: 16px; margin-bottom: 20px;">
+          <h1 style="color: #0077BE; margin: 0; font-size: 24px;">${data.title}</h1>
+          <p style="font-size: 16px; margin: 8px 0;">${data.event.name}</p>
+          <p style="color: #666; margin: 4px 0;">${data.event.organization || ''}</p>
+          <p style="font-size: 11px; color: #888; margin: 8px 0;">
+            Generated: ${format(new Date(data.generatedAt), 'MMMM d, yyyy h:mm a')}
+          </p>
+          <div style="background: #fffbeb; border: 1px solid #fde68a; padding: 8px; margin-top: 12px; border-radius: 4px;">
+            <strong>CONFIDENTIAL MEDICAL INFORMATION</strong> - For authorized medical staff only
+          </div>
+        </div>
+
+        ${contentHtml}
+
+        <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #ddd; text-align: center; font-size: 11px; color: #666;">
+          <p style="margin: 0;">This report was generated from ChiRho Events - Rapha Medical Platform</p>
+        </div>
+
         <script>window.onload = function() { window.print(); }</script>
       </body>
       </html>
-    `)
-    printWindow.document.close()
+    `
   }
 
   const reports = [
