@@ -106,6 +106,8 @@ export default function RaphaParticipants({ eventId, onCreateIncident }: RaphaPa
   const [sortBy, setSortBy] = useState('name')
   const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null)
   const [showProfileModal, setShowProfileModal] = useState(false)
+  const [participantIncidents, setParticipantIncidents] = useState<any[]>([])
+  const [loadingIncidents, setLoadingIncidents] = useState(false)
 
   // Watch for URL search params changes
   useEffect(() => {
@@ -154,6 +156,208 @@ export default function RaphaParticipants({ eventId, onCreateIncident }: RaphaPa
     }
   }
 
+  async function fetchParticipantIncidents(participant: Participant) {
+    setLoadingIncidents(true)
+    try {
+      // Use the liability form ID (participant.id) to fetch incidents
+      const response = await fetch(
+        `/api/admin/events/${eventId}/rapha/participants/${participant.id}/incidents`
+      )
+      if (response.ok) {
+        const data = await response.json()
+        setParticipantIncidents(data.incidents || [])
+      } else {
+        setParticipantIncidents([])
+      }
+    } catch (error) {
+      console.error('Failed to fetch incidents:', error)
+      setParticipantIncidents([])
+    } finally {
+      setLoadingIncidents(false)
+    }
+  }
+
+  function handleEmailParent(participant: Participant) {
+    const email = participant.parentEmail || participant.email
+    if (!email) {
+      toast.error('No email address available')
+      return
+    }
+    const subject = encodeURIComponent(`Regarding ${participant.firstName} ${participant.lastName} - Medical Update`)
+    const body = encodeURIComponent(
+      `Dear Parent/Guardian,\n\nThis is regarding ${participant.firstName} ${participant.lastName}.\n\n[Please add your message here]\n\nBest regards,\nMedical Staff`
+    )
+    window.open(`mailto:${email}?subject=${subject}&body=${body}`, '_blank')
+  }
+
+  function handlePrintProfile(participant: Participant) {
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) {
+      toast.error('Please allow popups to print')
+      return
+    }
+
+    const formatDate = (dateStr: string) => {
+      try {
+        return new Date(dateStr).toLocaleDateString('en-US', {
+          month: 'short', day: 'numeric', year: 'numeric'
+        })
+      } catch { return dateStr }
+    }
+
+    const incidentsHtml = participantIncidents.length > 0
+      ? participantIncidents.map((incident: any, index: number) => `
+        <div style="border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <strong>${incident.type?.replace(/_/g, ' ') || 'Incident'}</strong>
+            <div>
+              <span style="background: ${incident.severity === 'severe' ? '#ef4444' : incident.severity === 'moderate' ? '#f59e0b' : '#22c55e'}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-right: 4px;">${incident.severity}</span>
+              <span style="background: ${incident.status === 'resolved' ? '#22c55e' : incident.status === 'monitoring' ? '#f59e0b' : '#ef4444'}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">${incident.status}</span>
+            </div>
+          </div>
+          <p style="font-size: 12px; color: #666; margin: 4px 0;">${formatDate(incident.date)} at ${incident.time}</p>
+          <p style="font-size: 13px; margin: 8px 0;"><strong>Description:</strong> ${incident.description}</p>
+          <p style="font-size: 13px; margin: 4px 0;"><strong>Treatment:</strong> ${incident.treatmentProvided}</p>
+          <p style="font-size: 12px; color: #666; margin: 4px 0;">Staff: ${incident.staffMemberName}</p>
+        </div>
+      `).join('')
+      : '<p style="text-align: center; color: #666; padding: 20px;">No medical incidents recorded.</p>'
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Medical Profile - ${participant.firstName} ${participant.lastName}</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; color: #333; font-size: 13px; }
+          h1 { color: #0077BE; margin: 0 0 4px 0; font-size: 22px; }
+          h2 { font-size: 16px; margin: 20px 0 10px 0; padding-bottom: 6px; border-bottom: 2px solid #0077BE; }
+          .header { text-align: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #ddd; }
+          .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+          .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+          .info-box { background: #f9f9f9; padding: 12px; border-radius: 8px; }
+          .info-box.red { background: #fef2f2; border: 1px solid #fecaca; }
+          .info-box.amber { background: #fffbeb; border: 1px solid #fde68a; }
+          .info-box.purple { background: #faf5ff; border: 1px solid #e9d5ff; }
+          .info-box.blue { background: #eff6ff; border: 1px solid #bfdbfe; }
+          .info-box.green { background: #f0fdf4; border: 1px solid #bbf7d0; }
+          .info-box.indigo { background: #eef2ff; border: 1px solid #c7d2fe; }
+          .label { font-size: 11px; color: #666; margin-bottom: 2px; }
+          .value { font-weight: 500; }
+          .critical { background: #fef2f2; border: 2px solid #ef4444; padding: 12px; border-radius: 8px; margin-bottom: 16px; }
+          .critical-title { color: #dc2626; font-weight: bold; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+          .footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid #ddd; text-align: center; font-size: 11px; color: #666; }
+          @media print { body { padding: 0; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>${participant.firstName} ${participant.lastName}</h1>
+          <p style="color: #666; margin: 4px 0;">Medical Profile Report</p>
+          <p style="font-size: 11px; color: #888;">Generated: ${new Date().toLocaleString()}</p>
+        </div>
+
+        ${participant.medical.hasSevereAllergy ? `
+          <div class="critical">
+            <div class="critical-title">⚠️ CRITICAL ALERT - SEVERE ALLERGY</div>
+            <p style="color: #dc2626; margin: 0;">${participant.medical.allergies}</p>
+          </div>
+        ` : ''}
+
+        <div class="grid">
+          <div class="info-box">
+            <div class="label">Age</div>
+            <div class="value">${participant.age || '-'}</div>
+          </div>
+          <div class="info-box">
+            <div class="label">Gender</div>
+            <div class="value" style="text-transform: capitalize;">${participant.gender || '-'}</div>
+          </div>
+          <div class="info-box">
+            <div class="label">Group</div>
+            <div class="value">${participant.groupName}</div>
+          </div>
+          <div class="info-box">
+            <div class="label">Room</div>
+            <div class="value">${participant.roomAssignment || '-'}</div>
+          </div>
+        </div>
+
+        <h2>Medical Information</h2>
+        <div class="grid-2">
+          ${participant.medical.allergies ? `
+            <div class="info-box amber">
+              <div class="label">Allergies</div>
+              <div class="value">${participant.medical.allergies}</div>
+            </div>
+          ` : ''}
+          ${participant.medical.medicalConditions ? `
+            <div class="info-box purple">
+              <div class="label">Medical Conditions</div>
+              <div class="value">${participant.medical.medicalConditions}</div>
+            </div>
+          ` : ''}
+          ${participant.medical.medications ? `
+            <div class="info-box blue">
+              <div class="label">Medications</div>
+              <div class="value">${participant.medical.medications}</div>
+            </div>
+          ` : ''}
+          ${participant.medical.dietaryRestrictions ? `
+            <div class="info-box green">
+              <div class="label">Dietary Restrictions</div>
+              <div class="value">${participant.medical.dietaryRestrictions}</div>
+            </div>
+          ` : ''}
+          ${participant.medical.adaAccommodations ? `
+            <div class="info-box indigo">
+              <div class="label">ADA Accommodations</div>
+              <div class="value">${participant.medical.adaAccommodations}</div>
+            </div>
+          ` : ''}
+        </div>
+
+        <h2>Emergency Contacts</h2>
+        <div class="grid-2">
+          ${participant.emergency.contact1Name ? `
+            <div class="info-box">
+              <div class="value">${participant.emergency.contact1Name}</div>
+              <div class="label">${participant.emergency.contact1Relation}</div>
+              <div style="color: #0077BE; margin-top: 4px;">${participant.emergency.contact1Phone}</div>
+            </div>
+          ` : ''}
+          ${participant.emergency.contact2Name ? `
+            <div class="info-box">
+              <div class="value">${participant.emergency.contact2Name}</div>
+              <div class="label">${participant.emergency.contact2Relation}</div>
+              <div style="color: #0077BE; margin-top: 4px;">${participant.emergency.contact2Phone}</div>
+            </div>
+          ` : ''}
+        </div>
+
+        ${participant.insurance.provider ? `
+          <h2>Insurance Information</h2>
+          <div class="info-box">
+            <p style="margin: 0;"><strong>Provider:</strong> ${participant.insurance.provider}</p>
+            <p style="margin: 4px 0 0 0;"><strong>Policy:</strong> ${participant.insurance.policyNumber || '-'}</p>
+            <p style="margin: 4px 0 0 0;"><strong>Group:</strong> ${participant.insurance.groupNumber || '-'}</p>
+          </div>
+        ` : ''}
+
+        <h2>Medical Incident History (${participantIncidents.length})</h2>
+        ${incidentsHtml}
+
+        <div class="footer">
+          <strong>CONFIDENTIAL MEDICAL INFORMATION</strong> - For authorized medical staff only
+        </div>
+
+        <script>window.onload = function() { window.print(); }</script>
+      </body>
+      </html>
+    `)
+    printWindow.document.close()
+  }
+
   function getAlertBadge(alertLevel: string) {
     switch (alertLevel) {
       case 'high':
@@ -170,6 +374,7 @@ export default function RaphaParticipants({ eventId, onCreateIncident }: RaphaPa
   function openProfile(participant: Participant) {
     setSelectedParticipant(participant)
     setShowProfileModal(true)
+    fetchParticipantIncidents(participant)
   }
 
   return (
@@ -510,6 +715,70 @@ export default function RaphaParticipants({ eventId, onCreateIncident }: RaphaPa
                   </div>
                 </div>
 
+                {/* Medical Incident History */}
+                <div>
+                  <h4 className="font-medium flex items-center gap-2 mb-2">
+                    <AlertCircle className="w-4 h-4 text-red-500" />
+                    Medical Incident History ({participantIncidents.length})
+                  </h4>
+                  {loadingIncidents ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : participantIncidents.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4 bg-gray-50 rounded-lg">
+                      No medical incidents recorded for this participant.
+                    </p>
+                  ) : (
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                      {participantIncidents.map((incident: any) => (
+                        <div
+                          key={incident.id}
+                          className={`p-3 rounded-lg border text-sm ${
+                            incident.status === 'active'
+                              ? 'border-red-200 bg-red-50'
+                              : incident.status === 'monitoring'
+                                ? 'border-amber-200 bg-amber-50'
+                                : 'border-gray-200 bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-medium">{incident.type?.replace(/_/g, ' ')}</span>
+                            <div className="flex gap-1">
+                              <Badge
+                                className={
+                                  incident.severity === 'severe'
+                                    ? 'bg-red-500'
+                                    : incident.severity === 'moderate'
+                                      ? 'bg-amber-500'
+                                      : 'bg-green-500'
+                                }
+                              >
+                                {incident.severity}
+                              </Badge>
+                              <Badge
+                                className={
+                                  incident.status === 'resolved'
+                                    ? 'bg-green-500'
+                                    : incident.status === 'monitoring'
+                                      ? 'bg-amber-500'
+                                      : 'bg-red-500'
+                                }
+                              >
+                                {incident.status}
+                              </Badge>
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(incident.date), 'MMM d, yyyy')} at {incident.time}
+                          </p>
+                          <p className="text-xs mt-1 line-clamp-2">{incident.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {/* Actions */}
                 <div className="flex flex-wrap gap-2 pt-4 border-t">
                   <Button
@@ -524,13 +793,19 @@ export default function RaphaParticipants({ eventId, onCreateIncident }: RaphaPa
                     <Plus className="w-4 h-4 mr-2" />
                     Create Incident
                   </Button>
-                  {selectedParticipant.parentEmail && (
-                    <Button variant="outline">
+                  {(selectedParticipant.parentEmail || selectedParticipant.email) && (
+                    <Button
+                      variant="outline"
+                      onClick={() => handleEmailParent(selectedParticipant)}
+                    >
                       <Mail className="w-4 h-4 mr-2" />
                       Email Parent
                     </Button>
                   )}
-                  <Button variant="outline">
+                  <Button
+                    variant="outline"
+                    onClick={() => handlePrintProfile(selectedParticipant)}
+                  >
                     <Printer className="w-4 h-4 mr-2" />
                     Print Profile
                   </Button>
