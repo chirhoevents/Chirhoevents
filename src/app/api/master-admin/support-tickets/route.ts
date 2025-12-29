@@ -45,10 +45,10 @@ export async function GET(request: NextRequest) {
         organization: {
           select: { id: true, name: true },
         },
-        createdBy: {
+        submittedByUser: {
           select: { firstName: true, lastName: true, email: true },
         },
-        assignedTo: {
+        assignedToUser: {
           select: { firstName: true, lastName: true },
         },
         _count: {
