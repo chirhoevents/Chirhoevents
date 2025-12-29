@@ -431,8 +431,12 @@ export async function PUT(
   }
 }
 
-export async function DELETE(request: Request, { params }: RouteParams) {
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ eventId: string }> }
+) {
   try {
+    const { eventId } = await params
     const user = await getCurrentUser()
 
     if (!user || !isAdmin(user)) {
@@ -441,8 +445,6 @@ export async function DELETE(request: Request, { params }: RouteParams) {
         { status: 403 }
       )
     }
-
-    const { eventId } = params
 
     // Verify event belongs to user's organization
     const event = await prisma.event.findUnique({
