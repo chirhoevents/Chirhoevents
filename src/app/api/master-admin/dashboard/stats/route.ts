@@ -85,7 +85,7 @@ export async function GET() {
     })
 
     const currentMRR = activeSubscriptions.reduce(
-      (sum: number, org: { monthlyFee: number | null }) => sum + Number(org.monthlyFee || 0),
+      (sum, org) => sum + Number(org.monthlyFee || 0),
       0
     )
     const annualRunRate = currentMRR * 12
