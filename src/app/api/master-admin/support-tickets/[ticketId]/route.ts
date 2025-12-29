@@ -36,10 +36,10 @@ export async function GET(
             subscriptionTier: true,
           },
         },
-        createdBy: {
+        submittedByUser: {
           select: { firstName: true, lastName: true, email: true },
         },
-        assignedTo: {
+        assignedToUser: {
           select: { id: true, firstName: true, lastName: true },
         },
         messages: {
