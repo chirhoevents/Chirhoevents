@@ -2,13 +2,10 @@ import { NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 
-interface RouteParams {
-  params: {
-    eventId: string
-  }
-}
-
-export async function GET(request: Request, { params }: RouteParams) {
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ eventId: string }> }
+) {
   try {
     const user = await getCurrentUser()
 
@@ -19,7 +16,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       )
     }
 
-    const { eventId } = params
+    const { eventId } = await params
 
     const event = await prisma.event.findUnique({
       where: { id: eventId },

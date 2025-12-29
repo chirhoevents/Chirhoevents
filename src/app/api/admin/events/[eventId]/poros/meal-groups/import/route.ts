@@ -2,14 +2,13 @@ import { requireAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { NextRequest, NextResponse } from 'next/server'
 
-interface RouteParams {
-  params: { eventId: string }
-}
-
-export async function POST(request: NextRequest, { params }: RouteParams) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ eventId: string }> }
+) {
   try {
     const user = await requireAdmin()
-    const { eventId } = await Promise.resolve(params)
+    const { eventId } = await params
 
     // Verify event belongs to user's organization
     const event = await prisma.event.findUnique({
