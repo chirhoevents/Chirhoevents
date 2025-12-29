@@ -21,7 +21,7 @@ export async function GET() {
     }
 
     const settings = await prisma.platformSetting.findMany({
-      orderBy: { key: 'asc' },
+      orderBy: { settingKey: 'asc' },
     })
 
     type SettingType = typeof settings[0]
@@ -29,7 +29,7 @@ export async function GET() {
     // Convert to object format
     const settingsObj: Record<string, string> = {}
     settings.forEach((s: SettingType) => {
-      settingsObj[s.key] = s.value
+      settingsObj[s.settingKey] = s.settingValue
     })
 
     // Default settings if none exist
@@ -102,14 +102,14 @@ export async function PUT(request: NextRequest) {
     // Upsert each setting
     const updates = Object.entries(settings).map(([key, value]) =>
       prisma.platformSetting.upsert({
-        where: { key },
+        where: { settingKey: key },
         create: {
-          key,
-          value: String(value),
+          settingKey: key,
+          settingValue: String(value),
           updatedByUserId: user.id,
         },
         update: {
-          value: String(value),
+          settingValue: String(value),
           updatedByUserId: user.id,
         },
       })
