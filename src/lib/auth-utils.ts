@@ -64,13 +64,14 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       return null
     }
 
-    // Provide default organization for master_admin without one
-    const organization = user.organization || { id: '', name: 'ChiRho Platform', type: 'platform' }
+    // For master_admin without org, provide defaults that won't break queries
+    const organizationId = user.organizationId ?? 'platform-admin'
+    const organization = user.organization || { id: 'platform-admin', name: 'ChiRho Platform', type: 'platform' }
 
     return {
       id: user.id,
       clerkUserId: userId,
-      organizationId: user.organizationId || '',
+      organizationId,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
