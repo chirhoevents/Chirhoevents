@@ -62,7 +62,7 @@ export async function POST(
         contactName: `${onboardingRequest.contactFirstName} ${onboardingRequest.contactLastName}`,
         contactEmail: onboardingRequest.contactEmail,
         contactPhone: onboardingRequest.contactPhone,
-        address: onboardingRequest.billingAddress ? { street: onboardingRequest.billingAddress } : null,
+        address: onboardingRequest.billingAddress ? { street: onboardingRequest.billingAddress } : undefined,
         subscriptionTier: requestedTier as 'starter' | 'small_diocese' | 'growing' | 'conference' | 'enterprise',
         subscriptionStatus: 'active',
         status: 'active',
