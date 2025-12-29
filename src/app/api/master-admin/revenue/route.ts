@@ -46,10 +46,10 @@ export async function GET() {
     let mrr = 0
     organizations.forEach((org: OrgType) => {
       if (org.billingCycle === 'monthly') {
-        mrr += org.monthlyFee || org.monthlyPrice || 0
+        mrr += Number(org.monthlyFee) || Number(org.monthlyPrice) || 0
       } else {
         // For annual, convert to monthly equivalent
-        mrr += Math.round((org.annualPrice || 0) / 12)
+        mrr += Math.round((Number(org.annualPrice) || 0) / 12)
       }
     })
 
@@ -70,9 +70,9 @@ export async function GET() {
       if (tierRevenue[tier]) {
         tierRevenue[tier].count++
         if (org.billingCycle === 'monthly') {
-          tierRevenue[tier].mrr += org.monthlyFee || org.monthlyPrice || 0
+          tierRevenue[tier].mrr += Number(org.monthlyFee) || Number(org.monthlyPrice) || 0
         } else {
-          tierRevenue[tier].mrr += Math.round((org.annualPrice || 0) / 12)
+          tierRevenue[tier].mrr += Math.round((Number(org.annualPrice) || 0) / 12)
         }
       }
     })
@@ -86,10 +86,10 @@ export async function GET() {
     const setupFeesOwed = organizations.filter((o: OrgType) => !o.setupFeePaid).length
     const setupFeesCollected = organizations
       .filter((o: OrgType) => o.setupFeePaid)
-      .reduce((sum: number, o: OrgType) => sum + (o.setupFeeAmount || 250), 0)
+      .reduce((sum: number, o: OrgType) => sum + (Number(o.setupFeeAmount) || 250), 0)
     const setupFeesOutstanding = organizations
       .filter((o: OrgType) => !o.setupFeePaid)
-      .reduce((sum: number, o: OrgType) => sum + (o.setupFeeAmount || 250), 0)
+      .reduce((sum: number, o: OrgType) => sum + (Number(o.setupFeeAmount) || 250), 0)
 
     // Get monthly signups for the last 6 months
     const sixMonthsAgo = new Date()
