@@ -58,7 +58,7 @@ export async function POST(
     const organization = await prisma.organization.create({
       data: {
         name: onboardingRequest.organizationName,
-        type: (onboardingRequest.organizationType as 'diocese' | 'archdiocese' | 'parish' | 'seminary' | 'ministry' | 'retreat_center' | 'school' | 'other') || 'parish',
+        type: (onboardingRequest.organizationType as 'diocese' | 'archdiocese' | 'parish' | 'seminary' | 'retreat_center' | 'other') || 'parish',
         contactName: `${onboardingRequest.contactFirstName} ${onboardingRequest.contactLastName}`,
         contactEmail: onboardingRequest.contactEmail,
         contactPhone: onboardingRequest.contactPhone,
