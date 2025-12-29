@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Welcome to ${pendingUser.organization.name}!`,
+      message: `Welcome to ${pendingUser.organization?.name || 'the organization'}!`,
       user: {
         id: updatedUser.id,
         email: updatedUser.email,
