@@ -31,7 +31,7 @@ export async function GET(
         organizationId: user.organizationId,
       },
       include: {
-        createdBy: {
+        submittedByUser: {
           select: { firstName: true, lastName: true, email: true },
         },
         messages: {

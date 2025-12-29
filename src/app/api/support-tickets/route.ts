@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
     const tickets = await prisma.supportTicket.findMany({
       where,
       include: {
-        createdBy: {
+        submittedByUser: {
           select: { firstName: true, lastName: true },
         },
         _count: {

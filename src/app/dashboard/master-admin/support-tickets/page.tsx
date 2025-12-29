@@ -28,12 +28,12 @@ interface SupportTicket {
     id: string
     name: string
   }
-  createdBy: {
+  submittedByUser: {
     firstName: string
     lastName: string
     email: string
   }
-  assignedTo?: {
+  assignedToUser?: {
     firstName: string
     lastName: string
   }
@@ -247,7 +247,7 @@ export default function SupportTicketsPage() {
                         </span>
                         <span className="flex items-center gap-1">
                           <User className="h-4 w-4" />
-                          {ticket.createdBy.firstName} {ticket.createdBy.lastName}
+                          {ticket.submittedByUser.firstName} {ticket.submittedByUser.lastName}
                         </span>
                         <span className="flex items-center gap-1">
                           <MessageSquare className="h-4 w-4" />
@@ -260,9 +260,9 @@ export default function SupportTicketsPage() {
                         <p className="text-sm text-gray-500">
                           Updated {formatDate(ticket.updatedAt)}
                         </p>
-                        {ticket.assignedTo && (
+                        {ticket.assignedToUser && (
                           <p className="text-xs text-purple-600">
-                            Assigned to {ticket.assignedTo.firstName}
+                            Assigned to {ticket.assignedToUser.firstName}
                           </p>
                         )}
                       </div>

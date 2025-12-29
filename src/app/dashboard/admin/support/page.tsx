@@ -23,7 +23,7 @@ interface SupportTicket {
   status: 'open' | 'in_progress' | 'waiting_on_customer' | 'resolved' | 'closed'
   createdAt: string
   updatedAt: string
-  createdBy: {
+  submittedByUser: {
     firstName: string
     lastName: string
   }

@@ -32,7 +32,7 @@ interface Ticket {
   createdAt: string
   updatedAt: string
   resolvedAt?: string
-  createdBy: {
+  submittedByUser: {
     firstName: string
     lastName: string
     email: string

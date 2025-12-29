@@ -43,12 +43,12 @@ interface Ticket {
     contactEmail: string
     subscriptionTier: string
   }
-  createdBy: {
+  submittedByUser: {
     firstName: string
     lastName: string
     email: string
   }
-  assignedTo?: {
+  assignedToUser?: {
     id: string
     firstName: string
     lastName: string
@@ -313,11 +313,11 @@ export default function TicketDetailPage({ params }: { params: Promise<{ ticketI
               Submitted By
             </h3>
             <p className="font-medium text-gray-900">
-              {ticket.createdBy.firstName} {ticket.createdBy.lastName}
+              {ticket.submittedByUser.firstName} {ticket.submittedByUser.lastName}
             </p>
             <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
               <Mail className="h-3 w-3" />
-              {ticket.createdBy.email}
+              {ticket.submittedByUser.email}
             </p>
           </div>
 
