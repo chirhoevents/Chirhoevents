@@ -14,9 +14,12 @@ const isPublicRoute = createRouteMatcher([
   '/api/events(.*)',
 ])
 
-export default clerkMiddleware((auth, request) => {
+export default clerkMiddleware(async (auth, request) => {
   if (!isPublicRoute(request)) {
-    auth().protect()
+    const { userId } = await auth()
+    if (!userId) {
+      return Response.redirect(new URL('/sign-in', request.url))
+    }
   }
 })
 
