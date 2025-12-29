@@ -50,7 +50,6 @@ export async function POST(request: NextRequest) {
           create: {
             userId: user.id,
             message: message.trim(),
-            isFromAdmin: false,
           },
         },
       },
