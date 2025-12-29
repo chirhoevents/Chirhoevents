@@ -42,7 +42,7 @@ export async function GET(
       orderBy: { groupName: 'asc' }
     })
 
-    const groupIds = groupRegistrations.map(g => g.id)
+    const groupIds = groupRegistrations.map((g: { id: string }) => g.id)
 
     // Get room assignments for these groups
     const roomAssignments = await prisma.roomAssignment.findMany({
@@ -90,7 +90,7 @@ export async function GET(
 
     // Create lookup maps
     const roomMap = new Map<string, any[]>()
-    roomAssignments.forEach(ra => {
+    roomAssignments.forEach((ra: any) => {
       const grId = ra.groupRegistrationId
       if (grId) {
         if (!roomMap.has(grId)) roomMap.set(grId, [])
@@ -102,7 +102,7 @@ export async function GET(
     })
 
     const seatingMap = new Map<string, any>()
-    seatingAssignments.forEach(sa => {
+    seatingAssignments.forEach((sa: any) => {
       if (sa.groupRegistrationId) {
         seatingMap.set(sa.groupRegistrationId, {
           section: sa.section.name
@@ -112,18 +112,18 @@ export async function GET(
 
     const smallGroupMap = new Map(
       smallGroupAssignments
-        .filter(a => a.groupRegistrationId)
-        .map(a => [a.groupRegistrationId, a.smallGroup])
+        .filter((a: any) => a.groupRegistrationId)
+        .map((a: any) => [a.groupRegistrationId, a.smallGroup])
     )
 
     const mealColorMap = new Map(
       mealColorAssignments
-        .filter(a => a.groupRegistrationId)
-        .map(a => [a.groupRegistrationId, a.color])
+        .filter((a: any) => a.groupRegistrationId)
+        .map((a: any) => [a.groupRegistrationId, a.color])
     )
 
     // Format response
-    const results = groupRegistrations.map(gr => ({
+    const results = groupRegistrations.map((gr: any) => ({
       id: gr.id,
       type: 'group' as const,
       groupName: gr.groupName,
@@ -133,8 +133,8 @@ export async function GET(
       diocese: gr.dioceseName || gr.parishName,
       housingType: gr.housingType,
       participantCount: gr.participants.length,
-      maleCount: gr.participants.filter(p => p.gender?.toLowerCase() === 'male').length,
-      femaleCount: gr.participants.filter(p => p.gender?.toLowerCase() === 'female').length,
+      maleCount: gr.participants.filter((p: any) => p.gender?.toLowerCase() === 'male').length,
+      femaleCount: gr.participants.filter((p: any) => p.gender?.toLowerCase() === 'female').length,
       roomAssignments: roomMap.get(gr.id) || [],
       seating: seatingMap.get(gr.id) || null,
       smallGroup: smallGroupMap.get(gr.id) || null,

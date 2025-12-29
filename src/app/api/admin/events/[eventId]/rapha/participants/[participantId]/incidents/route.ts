@@ -174,7 +174,7 @@ export async function GET(
               resolvedAt: incident.resolvedAt,
               resolutionNotes: incident.resolutionNotes,
               createdAt: incident.createdAt,
-              updates: incident.updates.map((u) => ({
+              updates: incident.updates.map((u: any) => ({
                 text: u.updateText,
                 by: u.updatedByName,
                 at: u.createdAt,
@@ -257,7 +257,7 @@ export async function GET(
         startDate: event.startDate,
         endDate: event.endDate,
       },
-      incidents: incidents.map((incident) => ({
+      incidents: incidents.map((incident: any) => ({
         id: incident.id,
         type: incident.incidentType,
         severity: incident.severity,
@@ -282,7 +282,7 @@ export async function GET(
         resolvedAt: incident.resolvedAt,
         resolutionNotes: incident.resolutionNotes,
         createdAt: incident.createdAt,
-        updates: incident.updates.map((u) => ({
+        updates: incident.updates.map((u: any) => ({
           text: u.updateText,
           by: u.updatedByName,
           at: u.createdAt,

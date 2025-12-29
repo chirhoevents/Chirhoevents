@@ -86,7 +86,7 @@ export async function GET(
 
     // Transform incidents - use stored participant info, fall back to lookup for legacy data
     const incidentsWithNames = await Promise.all(
-      incidents.map(async (incident) => {
+      incidents.map(async (incident: any) => {
         let participantName = incident.participantName
         let groupName = incident.groupName
 

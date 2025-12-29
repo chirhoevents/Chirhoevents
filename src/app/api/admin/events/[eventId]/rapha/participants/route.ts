@@ -98,8 +98,8 @@ export async function GET(
 
     // Get room assignments for participants
     const participantIds = liabilityForms
-      .map((f) => f.participantId)
-      .filter((id): id is string => id !== null)
+      .map((f: any) => f.participantId)
+      .filter((id: any): id is string => id !== null)
 
     const roomAssignments = await prisma.roomAssignment.findMany({
       where: {
@@ -117,7 +117,7 @@ export async function GET(
     })
 
     const roomMap = new Map(
-      roomAssignments.map((ra) => [
+      roomAssignments.map((ra: any) => [
         ra.participantId,
         `${ra.room.building.name} ${ra.room.roomNumber}`,
       ])
@@ -134,11 +134,11 @@ export async function GET(
     })
 
     const incidentMap = new Map(
-      incidentCounts.map((ic) => [ic.participantId, ic._count.id])
+      incidentCounts.map((ic: any) => [ic.participantId, ic._count.id])
     )
 
     // Transform and calculate severity
-    const participants = liabilityForms.map((form) => {
+    const participants = liabilityForms.map((form: any) => {
       const hasSevereAllergy =
         form.allergies?.toLowerCase().includes('epi') ||
         form.allergies?.toLowerCase().includes('severe') ||
@@ -205,8 +205,8 @@ export async function GET(
 
     // Sort by severity if requested
     if (sortBy === 'severity') {
-      const severityOrder = { high: 0, medium: 1, low: 2, none: 3 }
-      participants.sort((a, b) => severityOrder[a.alertLevel] - severityOrder[b.alertLevel])
+      const severityOrder: Record<string, number> = { high: 0, medium: 1, low: 2, none: 3 }
+      participants.sort((a: any, b: any) => severityOrder[a.alertLevel] - severityOrder[b.alertLevel])
     }
 
     // Log access for HIPAA compliance

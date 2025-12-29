@@ -90,7 +90,7 @@ export async function GET(
       })
 
       const roommateIds = allRoomAssignments
-        .filter(a => {
+        .filter((a: any) => {
           if (participant && a.participantId !== participant.id) return true
           if (individual && a.individualRegistrationId !== individual.id) return true
           return false

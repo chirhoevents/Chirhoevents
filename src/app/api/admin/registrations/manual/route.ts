@@ -5,7 +5,7 @@ import { Resend } from 'resend'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { generateIndividualConfirmationCode } from '@/lib/access-code'
 import { isAdminRole } from '@/lib/permissions'
-import { UserRole } from '@prisma/client'
+// UserRole type is handled by isAdminRole function
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       include: { organization: true },
     })
 
-    if (!user || !isAdminRole(user.role as UserRole)) {
+    if (!user || !isAdminRole(user.role as any)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

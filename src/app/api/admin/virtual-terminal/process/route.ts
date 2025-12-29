@@ -256,7 +256,7 @@ export async function POST(request: Request) {
     })
 
     const newAmountPaid = allSucceededPayments.reduce(
-      (sum, p) => sum + Number(p.amount),
+      (sum: number, p: any) => sum + Number(p.amount),
       0
     )
     const newBalance = registration.totalAmount - newAmountPaid

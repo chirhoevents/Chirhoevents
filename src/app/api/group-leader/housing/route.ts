@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all room assignments for this group's participants
-    const participantIds = groupRegistration.participants.map(p => p.id)
+    const participantIds = groupRegistration.participants.map((p: any) => p.id)
     const roomAssignments = await prisma.roomAssignment.findMany({
       where: {
         participantId: { in: participantIds },
@@ -87,12 +87,12 @@ export async function GET(request: NextRequest) {
     })
 
     // Create a map of participantId -> assignment
-    const assignmentMap = new Map(
-      roomAssignments.map(ra => [ra.participantId, { roomId: ra.roomId, bedNumber: ra.bedNumber }])
+    const assignmentMap = new Map<string, { roomId: string; bedNumber: number | null }>(
+      roomAssignments.map((ra: any) => [ra.participantId, { roomId: ra.roomId, bedNumber: ra.bedNumber }])
     )
 
     // Transform participants with assignment info
-    const participants = groupRegistration.participants.map(p => ({
+    const participants = groupRegistration.participants.map((p: any) => ({
       id: p.id,
       firstName: p.firstName,
       lastName: p.lastName,
@@ -105,13 +105,13 @@ export async function GET(request: NextRequest) {
     }))
 
     // Transform rooms with bed info
-    const rooms = groupRegistration.allocatedRooms.map(room => {
+    const rooms = groupRegistration.allocatedRooms.map((room: any) => {
       // Create beds array with capacity
       const beds = []
       for (let i = 1; i <= room.capacity; i++) {
-        const assignment = room.roomAssignments.find(ra => ra.bedNumber === i)
+        const assignment = room.roomAssignments.find((ra: any) => ra.bedNumber === i)
         const participant = assignment
-          ? groupRegistration.participants.find(p => p.id === assignment.participantId)
+          ? groupRegistration.participants.find((p: any) => p.id === assignment.participantId)
           : null
 
         beds.push({
@@ -140,22 +140,22 @@ export async function GET(request: NextRequest) {
     // Calculate stats
     const stats = {
       totalParticipants: participants.length,
-      assignedParticipants: participants.filter(p => p.isAssigned).length,
+      assignedParticipants: participants.filter((p: any) => p.isAssigned).length,
       maleU18: {
-        total: participants.filter(p => p.gender === 'male' && (p.participantType === 'youth_u18' || p.age < 18)).length,
-        assigned: participants.filter(p => p.gender === 'male' && (p.participantType === 'youth_u18' || p.age < 18) && p.isAssigned).length,
+        total: participants.filter((p: any) => p.gender === 'male' && (p.participantType === 'youth_u18' || p.age < 18)).length,
+        assigned: participants.filter((p: any) => p.gender === 'male' && (p.participantType === 'youth_u18' || p.age < 18) && p.isAssigned).length,
       },
       femaleU18: {
-        total: participants.filter(p => p.gender === 'female' && (p.participantType === 'youth_u18' || p.age < 18)).length,
-        assigned: participants.filter(p => p.gender === 'female' && (p.participantType === 'youth_u18' || p.age < 18) && p.isAssigned).length,
+        total: participants.filter((p: any) => p.gender === 'female' && (p.participantType === 'youth_u18' || p.age < 18)).length,
+        assigned: participants.filter((p: any) => p.gender === 'female' && (p.participantType === 'youth_u18' || p.age < 18) && p.isAssigned).length,
       },
       maleChaperone: {
-        total: participants.filter(p => p.gender === 'male' && (p.participantType === 'chaperone' || p.participantType === 'youth_o18' || p.age >= 18)).length,
-        assigned: participants.filter(p => p.gender === 'male' && (p.participantType === 'chaperone' || p.participantType === 'youth_o18' || p.age >= 18) && p.isAssigned).length,
+        total: participants.filter((p: any) => p.gender === 'male' && (p.participantType === 'chaperone' || p.participantType === 'youth_o18' || p.age >= 18)).length,
+        assigned: participants.filter((p: any) => p.gender === 'male' && (p.participantType === 'chaperone' || p.participantType === 'youth_o18' || p.age >= 18) && p.isAssigned).length,
       },
       femaleChaperone: {
-        total: participants.filter(p => p.gender === 'female' && (p.participantType === 'chaperone' || p.participantType === 'youth_o18' || p.age >= 18)).length,
-        assigned: participants.filter(p => p.gender === 'female' && (p.participantType === 'chaperone' || p.participantType === 'youth_o18' || p.age >= 18) && p.isAssigned).length,
+        total: participants.filter((p: any) => p.gender === 'female' && (p.participantType === 'chaperone' || p.participantType === 'youth_o18' || p.age >= 18)).length,
+        assigned: participants.filter((p: any) => p.gender === 'female' && (p.participantType === 'chaperone' || p.participantType === 'youth_o18' || p.age >= 18) && p.isAssigned).length,
       },
     }
 

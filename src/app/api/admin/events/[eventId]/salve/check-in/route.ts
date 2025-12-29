@@ -76,7 +76,7 @@ export async function POST(
       data: participantIds.map((participantId: string) => ({
         eventId,
         participantId,
-        groupRegistrationId: participants.find((p) => p.id === participantId)?.groupRegistration.id || groupId,
+        groupRegistrationId: participants.find((p: any) => p.id === participantId)?.groupRegistration.id || groupId,
         action: action as 'check_in' | 'check_out',
         userId: userId!,
         station: stationId || null,
@@ -161,8 +161,8 @@ export async function PUT(
 
     // Get participants to update based on action
     const participantIds = isCheckingIn
-      ? group.participants.filter((p) => !p.checkedIn).map((p) => p.id)
-      : group.participants.filter((p) => p.checkedIn).map((p) => p.id)
+      ? group.participants.filter((p: any) => !p.checkedIn).map((p: any) => p.id)
+      : group.participants.filter((p: any) => p.checkedIn).map((p: any) => p.id)
 
     if (participantIds.length === 0) {
       return NextResponse.json({
@@ -190,7 +190,7 @@ export async function PUT(
 
     // Create check-in logs
     await prisma.checkInLog.createMany({
-      data: participantIds.map((participantId) => ({
+      data: participantIds.map((participantId: any) => ({
         eventId,
         participantId,
         groupRegistrationId: groupId,

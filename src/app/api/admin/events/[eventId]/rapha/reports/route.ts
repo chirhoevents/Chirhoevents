@@ -113,12 +113,12 @@ async function generateDailySummary(event: any) {
 
   // Get participant names for incidents
   const participantIds = activeIncidents
-    .map((i) => i.participantId)
-    .filter((id): id is string => id !== null)
+    .map((i: any) => i.participantId)
+    .filter((id: any): id is string => id !== null)
   const participants = await prisma.participant.findMany({
     where: { id: { in: participantIds } },
   })
-  const participantMap = new Map(participants.map((p) => [p.id, `${p.firstName} ${p.lastName}`]))
+  const participantMap = new Map(participants.map((p: any) => [p.id, `${p.firstName} ${p.lastName}`]))
 
   const report = {
     title: 'Daily Medical Summary',
@@ -131,13 +131,13 @@ async function generateDailySummary(event: any) {
     summary: {
       totalWithMedicalNeeds: forms.length,
       severeAllergies: forms.filter(
-        (f) =>
+        (f: any) =>
           f.allergies?.toLowerCase().includes('epi') ||
           f.allergies?.toLowerCase().includes('severe')
       ).length,
       activeIncidents: activeIncidents.length,
     },
-    participants: forms.map((f) => ({
+    participants: forms.map((f: any) => ({
       name: `${f.participantFirstName} ${f.participantLastName}`,
       age: f.participantAge,
       group: f.groupRegistration?.groupName || 'Individual',
@@ -149,7 +149,7 @@ async function generateDailySummary(event: any) {
         f.allergies?.toLowerCase().includes('epi') ||
         f.allergies?.toLowerCase().includes('severe'),
     })),
-    activeIncidents: activeIncidents.map((i) => ({
+    activeIncidents: activeIncidents.map((i: any) => ({
       participantName: i.participantId ? participantMap.get(i.participantId) || 'Unknown' : 'Unknown',
       type: i.incidentType,
       severity: i.severity,
@@ -189,7 +189,7 @@ async function generateAllergyList(event: any) {
     'Other Allergies': [],
   }
 
-  forms.forEach((f) => {
+  forms.forEach((f: any) => {
     const allergies = f.allergies?.toLowerCase() || ''
     const participant = {
       name: `${f.participantFirstName} ${f.participantLastName}`,
@@ -277,7 +277,7 @@ async function generateMedicationList(event: any) {
     },
     generatedAt: new Date().toISOString(),
     totalWithMedications: forms.length,
-    participants: forms.map((f) => ({
+    participants: forms.map((f: any) => ({
       name: `${f.participantFirstName} ${f.participantLastName}`,
       age: f.participantAge,
       group: f.groupRegistration?.groupName || 'Individual',
@@ -320,7 +320,7 @@ async function generateCriticalList(event: any) {
     generatedAt: new Date().toISOString(),
     notice: 'CONFIDENTIAL MEDICAL INFORMATION - For authorized medical staff only',
     totalCritical: forms.length,
-    participants: forms.map((f) => ({
+    participants: forms.map((f: any) => ({
       name: `${f.participantFirstName} ${f.participantLastName}`,
       age: f.participantAge,
       gender: f.participantGender,
@@ -360,28 +360,28 @@ async function generateIncidentSummary(event: any, searchParams: URLSearchParams
   })
 
   // Get participant names
-  const participantIds = incidents.map((i) => i.participantId).filter((id): id is string => id !== null)
+  const participantIds = incidents.map((i: any) => i.participantId).filter((id: any): id is string => id !== null)
   const participants = await prisma.participant.findMany({
     where: { id: { in: participantIds } },
     include: {
       groupRegistration: { select: { groupName: true } },
     },
   })
-  const participantMap = new Map(
-    participants.map((p) => [p.id, { name: `${p.firstName} ${p.lastName}`, group: p.groupRegistration.groupName }])
+  const participantMap = new Map<string, { name: string; group: string }>(
+    participants.map((p: any) => [p.id, { name: `${p.firstName} ${p.lastName}`, group: p.groupRegistration.groupName }])
   )
 
   // Stats
   const stats = {
     total: incidents.length,
     byType: {} as Record<string, number>,
-    bySeverity: { minor: 0, moderate: 0, severe: 0 },
-    byStatus: { active: 0, monitoring: 0, resolved: 0 },
-    hospitalizations: incidents.filter((i) => i.sentToHospital).length,
-    ambulanceCalls: incidents.filter((i) => i.ambulanceCalled).length,
+    bySeverity: { minor: 0, moderate: 0, severe: 0 } as Record<string, number>,
+    byStatus: { active: 0, monitoring: 0, resolved: 0 } as Record<string, number>,
+    hospitalizations: incidents.filter((i: any) => i.sentToHospital).length,
+    ambulanceCalls: incidents.filter((i: any) => i.ambulanceCalled).length,
   }
 
-  incidents.forEach((i) => {
+  incidents.forEach((i: any) => {
     stats.byType[i.incidentType] = (stats.byType[i.incidentType] || 0) + 1
     stats.bySeverity[i.severity]++
     stats.byStatus[i.status]++
@@ -399,7 +399,7 @@ async function generateIncidentSummary(event: any, searchParams: URLSearchParams
       to: dateTo || 'Present',
     },
     stats,
-    incidents: incidents.map((i) => {
+    incidents: incidents.map((i: any) => {
       const pInfo = i.participantId ? participantMap.get(i.participantId) : null
       return {
         date: i.incidentDate,
@@ -444,7 +444,7 @@ async function generateInsuranceList(event: any) {
     },
     generatedAt: new Date().toISOString(),
     notice: 'CONFIDENTIAL - For emergency use only',
-    participants: forms.map((f) => ({
+    participants: forms.map((f: any) => ({
       name: `${f.participantFirstName} ${f.participantLastName}`,
       age: f.participantAge,
       dob: f.participantAge

@@ -39,15 +39,15 @@ export default async function PorosSelectEventPage() {
         startDate: 'desc',
       },
     })
-    events = basicEvents.map(e => ({
+    events = basicEvents.map((e: any) => ({
       ...e,
       _count: { groupRegistrations: 0, individualRegistrations: 0 }
     }))
   }
 
-  const activeEvents = events.filter(e => e.status === 'registration_open' || e.status === 'registration_closed' || e.status === 'in_progress')
-  const pastEvents = events.filter(e => e.status === 'completed')
-  const draftEvents = events.filter(e => e.status === 'draft')
+  const activeEvents = events.filter((e: any) => e.status === 'registration_open' || e.status === 'registration_closed' || e.status === 'in_progress')
+  const pastEvents = events.filter((e: any) => e.status === 'completed')
+  const draftEvents = events.filter((e: any) => e.status === 'draft')
 
   function getStatusBadge(status: string) {
     const colors: Record<string, string> = {

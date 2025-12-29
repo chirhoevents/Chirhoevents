@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Use a transaction to ensure atomicity and prevent race conditions
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // Get fresh payment balance inside transaction
       const paymentBalance = await tx.paymentBalance.findUnique({
         where: { registrationId },
@@ -171,7 +171,7 @@ export async function POST(request: NextRequest) {
       })
 
       // Sum up all succeeded payments
-      const newAmountPaid = allPayments.reduce((sum, p) => sum + Number(p.amount), 0)
+      const newAmountPaid = allPayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0)
       const totalDue = Number(paymentBalance.totalAmountDue)
       const newAmountRemaining = totalDue - newAmountPaid
 
@@ -190,7 +190,7 @@ export async function POST(request: NextRequest) {
       console.log('Registration ID:', registrationId)
       console.log('Registration Type:', registrationType)
       console.log('New payment amount:', paymentAmount)
-      console.log('All payments found:', allPayments.map(p => ({
+      console.log('All payments found:', allPayments.map((p: any) => ({
         id: p.id,
         amount: Number(p.amount),
         createdAt: p.createdAt,
@@ -220,9 +220,9 @@ export async function POST(request: NextRequest) {
         // Debug info
         _debug: {
           paymentsCountAfterCreate: allPayments.length,
-          paymentIds: allPayments.map(p => p.id),
-          paymentAmounts: allPayments.map(p => Number(p.amount)),
-          sumCalculation: `${allPayments.map(p => Number(p.amount)).join(' + ')} = ${newAmountPaid}`,
+          paymentIds: allPayments.map((p: any) => p.id),
+          paymentAmounts: allPayments.map((p: any) => Number(p.amount)),
+          sumCalculation: `${allPayments.map((p: any) => Number(p.amount)).join(' + ')} = ${newAmountPaid}`,
         },
       }
     })
