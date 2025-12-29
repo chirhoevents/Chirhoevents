@@ -49,9 +49,9 @@ export default function LandingPage() {
               <Link href="/sign-in">
                 <Button variant="outline" size="sm">Sign In</Button>
               </Link>
-              <a href="#contact">
+              <Link href="/get-started">
                 <Button size="sm">Get Started</Button>
-              </a>
+              </Link>
             </div>
           </div>
         </div>
@@ -83,11 +83,11 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <a href="#contact">
+              <Link href="/get-started">
                 <Button size="lg" className="text-lg px-8 py-6">
                   Get Started
                 </Button>
-              </a>
+              </Link>
               <a href="#pricing">
                 <Button size="lg" variant="outline" className="text-lg px-8 py-6 bg-transparent border-white text-white hover:bg-white hover:text-navy">
                   See Pricing
@@ -314,12 +314,12 @@ export default function LandingPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <p className="text-sm text-gray-600">• 2 events/year</p>
+                <p className="text-sm text-gray-600">• 3 events/year</p>
                 <p className="text-sm text-gray-600">• 500 people max</p>
                 <p className="text-sm text-gray-600">• 5GB storage</p>
-                <a href="#contact">
+                <Link href="/get-started?tier=starter">
                   <Button className="w-full mt-6">Get Started</Button>
-                </a>
+                </Link>
               </CardContent>
             </Card>
 
@@ -335,10 +335,10 @@ export default function LandingPage() {
               <CardContent className="space-y-3">
                 <p className="text-sm text-gray-600">• 5 events/year</p>
                 <p className="text-sm text-gray-600">• 1,000 people max</p>
-                <p className="text-sm text-gray-600">• 15GB storage</p>
-                <a href="#contact">
+                <p className="text-sm text-gray-600">• 10GB storage</p>
+                <Link href="/get-started?tier=small_diocese">
                   <Button className="w-full mt-6">Get Started</Button>
-                </a>
+                </Link>
               </CardContent>
             </Card>
 
@@ -357,10 +357,10 @@ export default function LandingPage() {
               <CardContent className="space-y-3">
                 <p className="text-sm text-gray-600">• 10 events/year</p>
                 <p className="text-sm text-gray-600">• 3,000 people max</p>
-                <p className="text-sm text-gray-600">• 40GB storage</p>
-                <a href="#contact">
+                <p className="text-sm text-gray-600">• 25GB storage</p>
+                <Link href="/get-started?tier=growing">
                   <Button className="w-full mt-6">Get Started</Button>
-                </a>
+                </Link>
               </CardContent>
             </Card>
 
@@ -377,9 +377,9 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• 25 events/year</p>
                 <p className="text-sm text-gray-600">• 8,000 people max</p>
                 <p className="text-sm text-gray-600">• 100GB storage</p>
-                <a href="#contact">
+                <Link href="/get-started?tier=conference">
                   <Button className="w-full mt-6">Get Started</Button>
-                </a>
+                </Link>
               </CardContent>
             </Card>
 
@@ -388,16 +388,17 @@ export default function LandingPage() {
               <CardHeader>
                 <CardTitle className="text-2xl">Enterprise</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">Custom</span>
+                  <span className="text-4xl font-bold text-navy">$499</span>
+                  <span className="text-gray-600">/mo</span>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-gray-600">• Unlimited events</p>
                 <p className="text-sm text-gray-600">• Unlimited people</p>
-                <p className="text-sm text-gray-600">• Dedicated support</p>
-                <a href="#contact">
-                  <Button variant="outline" className="w-full mt-6">Contact Sales</Button>
-                </a>
+                <p className="text-sm text-gray-600">• 500GB storage</p>
+                <Link href="/get-started?tier=enterprise">
+                  <Button variant="outline" className="w-full mt-6">Get Started</Button>
+                </Link>
               </CardContent>
             </Card>
           </div>
@@ -568,7 +569,7 @@ export default function LandingPage() {
                       ></textarea>
                     </div>
                     <Button type="submit" size="lg" className="w-full">
-                      Get Started
+                      Submit Inquiry
                     </Button>
                     <p className="text-center text-sm text-gray-600">
                       Or email us at <a href="mailto:hello@chirhoevents.com" className="text-gold hover:underline">hello@chirhoevents.com</a>

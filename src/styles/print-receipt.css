@@ -1,7 +1,8 @@
 /* Print styles for group registration receipt */
 @media print {
   /* Hide elements not needed in print */
-  .print\\:hidden {
+  .no-print,
+  [class*="print:hidden"] {
     display: none !important;
   }
 

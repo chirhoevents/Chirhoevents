@@ -1,0 +1,184 @@
+import { NextResponse } from 'next/server'
+import { auth } from '@clerk/nextjs/server'
+import { prisma } from '@/lib/prisma'
+
+export async function GET() {
+  try {
+    const { userId: clerkUserId } = await auth()
+
+    if (!clerkUserId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const user = await prisma.user.findFirst({
+      where: { clerkUserId },
+      select: { id: true, role: true },
+    })
+
+    if (!user || user.role !== 'master_admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Get all active organizations
+    const organizations = await prisma.organization.findMany({
+      where: {
+        status: 'active',
+        subscriptionStatus: 'active',
+      },
+      select: {
+        id: true,
+        name: true,
+        subscriptionTier: true,
+        billingCycle: true,
+        monthlyFee: true,
+        monthlyPrice: true,
+        annualPrice: true,
+        setupFeePaid: true,
+        setupFeeAmount: true,
+        subscriptionStartedAt: true,
+        createdAt: true,
+      },
+    })
+
+    type OrgType = typeof organizations[0]
+
+    // Calculate MRR
+    let mrr = 0
+    organizations.forEach((org: OrgType) => {
+      if (org.billingCycle === 'monthly') {
+        mrr += org.monthlyFee || org.monthlyPrice || 0
+      } else {
+        // For annual, convert to monthly equivalent
+        mrr += Math.round((org.annualPrice || 0) / 12)
+      }
+    })
+
+    // Calculate ARR
+    const arr = mrr * 12
+
+    // Revenue by tier
+    const tierRevenue: Record<string, { count: number; mrr: number }> = {
+      starter: { count: 0, mrr: 0 },
+      small_diocese: { count: 0, mrr: 0 },
+      growing: { count: 0, mrr: 0 },
+      conference: { count: 0, mrr: 0 },
+      enterprise: { count: 0, mrr: 0 },
+    }
+
+    organizations.forEach((org: OrgType) => {
+      const tier = org.subscriptionTier || 'growing'
+      if (tierRevenue[tier]) {
+        tierRevenue[tier].count++
+        if (org.billingCycle === 'monthly') {
+          tierRevenue[tier].mrr += org.monthlyFee || org.monthlyPrice || 0
+        } else {
+          tierRevenue[tier].mrr += Math.round((org.annualPrice || 0) / 12)
+        }
+      }
+    })
+
+    // Billing cycle breakdown
+    const monthlyCount = organizations.filter((o: OrgType) => o.billingCycle === 'monthly').length
+    const annualCount = organizations.filter((o: OrgType) => o.billingCycle === 'annual').length
+
+    // Setup fees collected
+    const setupFeesPaid = organizations.filter((o: OrgType) => o.setupFeePaid).length
+    const setupFeesOwed = organizations.filter((o: OrgType) => !o.setupFeePaid).length
+    const setupFeesCollected = organizations
+      .filter((o: OrgType) => o.setupFeePaid)
+      .reduce((sum: number, o: OrgType) => sum + (o.setupFeeAmount || 250), 0)
+    const setupFeesOutstanding = organizations
+      .filter((o: OrgType) => !o.setupFeePaid)
+      .reduce((sum: number, o: OrgType) => sum + (o.setupFeeAmount || 250), 0)
+
+    // Get monthly signups for the last 6 months
+    const sixMonthsAgo = new Date()
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+
+    const allOrgsWithDates = await prisma.organization.findMany({
+      where: {
+        createdAt: { gte: sixMonthsAgo },
+      },
+      select: {
+        createdAt: true,
+        subscriptionTier: true,
+      },
+    })
+
+    const monthlySignups: { month: string; count: number }[] = []
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date()
+      date.setMonth(date.getMonth() - i)
+      const monthStr = date.toLocaleString('default', { month: 'short', year: 'numeric' })
+
+      const count = allOrgsWithDates.filter((org) => {
+        const orgDate = new Date(org.createdAt)
+        return (
+          orgDate.getMonth() === date.getMonth() &&
+          orgDate.getFullYear() === date.getFullYear()
+        )
+      }).length
+
+      monthlySignups.push({ month: monthStr, count })
+    }
+
+    // Get invoice stats
+    const invoices = await prisma.invoice.findMany({
+      select: {
+        amount: true,
+        status: true,
+        invoiceType: true,
+      },
+    })
+
+    const invoiceStats = {
+      total: invoices.length,
+      paid: invoices.filter(i => i.status === 'paid').length,
+      pending: invoices.filter(i => i.status === 'pending' || i.status === 'sent').length,
+      overdue: invoices.filter(i => i.status === 'overdue').length,
+      totalCollected: invoices.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.amount, 0),
+      totalOutstanding: invoices.filter(i => ['pending', 'sent', 'overdue'].includes(i.status)).reduce((sum, i) => sum + i.amount, 0),
+    }
+
+    // Recent organizations
+    const recentOrgs = await prisma.organization.findMany({
+      where: { status: 'active' },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      select: {
+        id: true,
+        name: true,
+        subscriptionTier: true,
+        billingCycle: true,
+        monthlyFee: true,
+        createdAt: true,
+      },
+    })
+
+    return NextResponse.json({
+      mrr,
+      arr,
+      totalActiveOrgs: organizations.length,
+      tierRevenue,
+      billingCycleBreakdown: {
+        monthly: monthlyCount,
+        annual: annualCount,
+      },
+      setupFees: {
+        paid: setupFeesPaid,
+        owed: setupFeesOwed,
+        collected: setupFeesCollected,
+        outstanding: setupFeesOutstanding,
+      },
+      monthlySignups,
+      invoiceStats,
+      recentOrgs,
+    })
+  } catch (error) {
+    console.error('Revenue data error:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch revenue data' },
+      { status: 500 }
+    )
+  }
+}
