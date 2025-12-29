@@ -41,8 +41,10 @@ export async function POST(request: NextRequest) {
     const ticket = await prisma.supportTicket.create({
       data: {
         organizationId: user.organizationId,
-        createdByUserId: user.id,
+        submittedByUserId: user.id,
+        ticketNumber: `TKT-${Date.now()}`,
         subject: subject.trim(),
+        description: message.trim(),
         category,
         priority: priority || 'medium',
         status: 'open',
