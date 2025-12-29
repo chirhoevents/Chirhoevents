@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
       firstName: pendingUser.firstName,
       lastName: pendingUser.lastName,
       email: pendingUser.email,
-      organizationName: pendingUser.organization.name,
+      organizationName: pendingUser.organization?.name || 'Unknown',
       role: pendingUser.role,
     },
   })
