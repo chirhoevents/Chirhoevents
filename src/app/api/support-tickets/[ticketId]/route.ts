@@ -110,7 +110,6 @@ export async function POST(
           ticketId,
           userId: user.id,
           message: message.trim(),
-          isFromAdmin: false,
         },
         include: {
           user: {
