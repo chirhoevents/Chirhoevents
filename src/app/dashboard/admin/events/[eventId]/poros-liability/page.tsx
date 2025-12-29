@@ -4,14 +4,14 @@ import { notFound } from 'next/navigation'
 import PorosLiabilityClient from './PorosLiabilityClient'
 
 interface PageProps {
-  params: {
+  params: Promise<{
     eventId: string
-  }
+  }>
 }
 
 export default async function PorosLiabilityPage({ params }: PageProps) {
   const user = await requireAdmin()
-  const { eventId } = await Promise.resolve(params)
+  const { eventId } = await params
 
   // Fetch event with settings
   const event = await prisma.event.findUnique({

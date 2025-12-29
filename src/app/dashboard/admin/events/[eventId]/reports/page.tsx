@@ -4,14 +4,14 @@ import { notFound } from 'next/navigation'
 import ReportsClient from './ReportsClient'
 
 interface PageProps {
-  params: {
+  params: Promise<{
     eventId: string
-  }
+  }>
 }
 
 export default async function EventReportsPage({ params }: PageProps) {
   const user = await requireAdmin()
-  const { eventId } = await Promise.resolve(params)
+  const { eventId } = await params
 
   // Verify event exists and belongs to user's organization
   const event = await prisma.event.findUnique({

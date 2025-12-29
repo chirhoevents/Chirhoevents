@@ -3,12 +3,13 @@ import { notFound } from 'next/navigation'
 import ResourcePortalClient from './ResourcePortalClient'
 
 interface PageProps {
-  params: { eventId: string }
-  searchParams: { [key: string]: string | string[] | undefined }
+  params: Promise<{ eventId: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 export default async function ResourcePortalPage({ params, searchParams }: PageProps) {
-  const { eventId } = params
+  const { eventId } = await params
+  const searchParamsResolved = await searchParams
 
   // Fetch event with settings
   const event = await prisma.event.findUnique({

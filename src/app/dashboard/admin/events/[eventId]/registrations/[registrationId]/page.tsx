@@ -4,15 +4,15 @@ import { notFound, redirect } from 'next/navigation'
 import RegistrationDetailClient from './RegistrationDetailClient'
 
 interface PageProps {
-  params: {
+  params: Promise<{
     eventId: string
     registrationId: string
-  }
+  }>
 }
 
 export default async function RegistrationDetailPage({ params }: PageProps) {
   const user = await requireAdmin()
-  const { eventId, registrationId } = params
+  const { eventId, registrationId } = await params
 
   // Verify event exists and belongs to user's organization
   const event = await prisma.event.findUnique({

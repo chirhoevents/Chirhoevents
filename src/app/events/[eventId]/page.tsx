@@ -7,13 +7,13 @@ import { Calendar, MapPin, Users } from 'lucide-react'
 import EventLandingClient from './EventLandingClient'
 
 interface EventPageProps {
-  params: {
+  params: Promise<{
     eventId: string
-  }
+  }>
 }
 
 export default async function EventLandingPage({ params }: EventPageProps) {
-  const { eventId } = params
+  const { eventId } = await params
 
   // Check if eventId is a UUID (id) or a slug
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId)

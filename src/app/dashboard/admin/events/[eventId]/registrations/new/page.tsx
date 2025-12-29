@@ -4,14 +4,14 @@ import { notFound } from 'next/navigation'
 import ManualRegistrationForm from './ManualRegistrationForm'
 
 interface PageProps {
-  params: {
+  params: Promise<{
     eventId: string
-  }
+  }>
 }
 
 export default async function NewManualRegistrationPage({ params }: PageProps) {
   const user = await requireAdmin()
-  const { eventId } = await Promise.resolve(params)
+  const { eventId } = await params
 
   // Verify event exists and belongs to user's organization
   const event = await prisma.event.findUnique({
