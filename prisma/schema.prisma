@@ -80,6 +80,7 @@ model Organization {
   safeEnvironmentCertificates SafeEnvironmentCertificate[]
   liabilityFormTemplates  LiabilityFormTemplate[]
   supportTickets          SupportTicket[]
+  invoices                Invoice[]
   createdByUser           User?    @relation("OrganizationsCreatedByUser", fields: [createdByUserId], references: [id])
 
   @@index([contactEmail], name: "idx_org_email")
@@ -122,6 +123,7 @@ model User {
   supportTicketMessages   SupportTicketMessage[]
   onboardingRequestsApproved OrganizationOnboardingRequest[] @relation("OnboardingRequestsApprovedByUser")
   platformSettingsUpdated PlatformSetting[] @relation("PlatformSettingsUpdatedByUser")
+  invoicesCreated Invoice[] @relation("InvoicesCreatedByUser")
 
   @@index([organizationId], name: "idx_user_org")
   @@index([email], name: "idx_user_email")
@@ -1903,11 +1905,12 @@ model PlatformSetting {
 
 model Invoice {
   id                String   @id @default(uuid()) @db.Uuid
-  invoiceNumber     String   @unique @map("invoice_number") @db.VarChar(50)
+  invoiceNumber     Int      @unique @map("invoice_number")
   organizationId    String   @map("organization_id") @db.Uuid
   invoiceType       InvoiceType @map("invoice_type")
   amount            Decimal  @db.Decimal(10, 2)
   description       String?  @db.Text
+  lineItems         Json?    @map("line_items") @db.JsonB
   dueDate           DateTime @map("due_date") @db.Date
   status            InvoiceStatus @default(pending)
   paymentMethod     PaymentMethodPreference? @map("payment_method")
@@ -1916,8 +1919,13 @@ model Invoice {
   notes             String?  @db.Text
   periodStart       DateTime? @map("period_start") @db.Date
   periodEnd         DateTime? @map("period_end") @db.Date
+  createdByUserId   String?  @map("created_by_user_id") @db.Uuid
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  organization      Organization @relation(fields: [organizationId], references: [id])
+  createdBy         User? @relation("InvoicesCreatedByUser", fields: [createdByUserId], references: [id])
 
   @@index([organizationId], name: "idx_invoice_org")
   @@index([status], name: "idx_invoice_status")
