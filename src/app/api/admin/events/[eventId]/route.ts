@@ -53,8 +53,12 @@ export async function GET(
   }
 }
 
-export async function PUT(request: Request, { params }: RouteParams) {
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ eventId: string }> }
+) {
   try {
+    const { eventId } = await params
     const user = await getCurrentUser()
 
     if (!user || !isAdmin(user)) {
@@ -63,8 +67,6 @@ export async function PUT(request: Request, { params }: RouteParams) {
         { status: 403 }
       )
     }
-
-    const { eventId } = params
     const data = await request.json()
 
     // Validate required fields based on status
