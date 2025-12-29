@@ -168,17 +168,17 @@ export async function GET(
 
     // Get participant names for follow-ups
     const participantIds = upcomingFollowUps
-      .map((f) => f.participantId)
-      .filter((id): id is string => id !== null)
+      .map((f: any) => f.participantId)
+      .filter((id: any): id is string => id !== null)
 
     const participants = await prisma.participant.findMany({
       where: { id: { in: participantIds } },
       select: { id: true, firstName: true, lastName: true },
     })
 
-    const participantMap = new Map(participants.map((p) => [p.id, p]))
+    const participantMap = new Map<string, { id: string; firstName: string; lastName: string }>(participants.map((p: any) => [p.id, p]))
 
-    const followUpsWithNames = upcomingFollowUps.map((f) => ({
+    const followUpsWithNames = upcomingFollowUps.map((f: any) => ({
       ...f,
       participantName: f.participantId
         ? `${participantMap.get(f.participantId)?.firstName || ''} ${participantMap.get(f.participantId)?.lastName || ''}`.trim()

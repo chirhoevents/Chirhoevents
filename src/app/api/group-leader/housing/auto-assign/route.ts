@@ -85,16 +85,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Get existing assignments for this group's participants
-    const participantIds = groupRegistration.participants.map(p => p.id)
+    const participantIds = groupRegistration.participants.map((p: any) => p.id)
     const existingAssignments = await prisma.roomAssignment.findMany({
       where: {
         participantId: { in: participantIds },
       },
     })
-    const assignedParticipantIds = new Set(existingAssignments.map(a => a.participantId))
+    const assignedParticipantIds = new Set(existingAssignments.map((a: any) => a.participantId))
 
     // Get unassigned participants for the category
-    const unassignedParticipants = groupRegistration.participants.filter(p => {
+    const unassignedParticipants = groupRegistration.participants.filter((p: any) => {
       const pCategory = getParticipantCategory(p)
       return pCategory === category && !assignedParticipantIds.has(p.id)
     })
@@ -107,13 +107,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Get rooms for the category with available beds
-    const roomsForCategory = groupRegistration.allocatedRooms.filter(room => {
+    const roomsForCategory = groupRegistration.allocatedRooms.filter((room: any) => {
       const rCategory = getRoomCategory(room)
       return rCategory === category
     })
 
     // Sort rooms by most beds available (to fill rooms efficiently)
-    roomsForCategory.sort((a, b) => {
+    roomsForCategory.sort((a: any, b: any) => {
       const aAvailable = a.capacity - a.roomAssignments.length
       const bAvailable = b.capacity - b.roomAssignments.length
       return bAvailable - aAvailable
@@ -122,8 +122,8 @@ export async function POST(request: NextRequest) {
     // Build a map of room -> taken bed numbers
     const roomBedsTaken = new Map<string, Set<number>>()
     for (const room of roomsForCategory) {
-      const takenBeds = new Set(room.roomAssignments.map(a => a.bedNumber).filter(b => b !== null) as number[])
-      roomBedsTaken.set(room.id, takenBeds)
+      const takenBeds = new Set((room as any).roomAssignments.map((a: any) => a.bedNumber).filter((b: any) => b !== null) as number[])
+      roomBedsTaken.set((room as any).id, takenBeds)
     }
 
     // Assign participants to available beds
@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
 
     // Create all assignments in a transaction
     if (assignments.length > 0) {
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: any) => {
         for (const assignment of assignments) {
           await tx.roomAssignment.create({
             data: {

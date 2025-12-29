@@ -66,7 +66,7 @@ export async function GET(
     })
 
     const fullyCheckedInGroups = allGroups.filter(
-      (g) => g._count.participants > 0 && g.participants.length === g._count.participants
+      (g: any) => g._count.participants > 0 && g.participants.length === g._count.participants
     ).length
 
     // Get check-in logs for today
@@ -96,11 +96,11 @@ export async function GET(
 
     // Fetch participant and group names for recent logs
     const participantIds = recentLogs
-      .map((log) => log.participantId)
-      .filter((id): id is string => id !== null)
+      .map((log: any) => log.participantId)
+      .filter((id: any): id is string => id !== null)
     const groupIds = recentLogs
-      .map((log) => log.groupRegistrationId)
-      .filter((id): id is string => id !== null)
+      .map((log: any) => log.groupRegistrationId)
+      .filter((id: any): id is string => id !== null)
 
     const [participants, groups] = await Promise.all([
       participantIds.length > 0
@@ -118,11 +118,11 @@ export async function GET(
     ])
 
     const participantMap = new Map(
-      participants.map((p) => [p.id, `${p.firstName} ${p.lastName}`])
+      participants.map((p: any) => [p.id, `${p.firstName} ${p.lastName}`])
     )
-    const groupMap = new Map(groups.map((g) => [g.id, g.groupName]))
+    const groupMap = new Map(groups.map((g: any) => [g.id, g.groupName]))
 
-    const recentActivity = recentLogs.map((log) => ({
+    const recentActivity = recentLogs.map((log: any) => ({
       id: log.id,
       action: log.action,
       timestamp: log.createdAt.toISOString(),

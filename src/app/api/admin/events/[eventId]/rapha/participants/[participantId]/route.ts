@@ -182,7 +182,7 @@ export async function GET(
         formCompletedAt: liabilityForm.completedAt,
         formCompletedBy: liabilityForm.completedByEmail,
       },
-      incidents: incidents.map((incident) => ({
+      incidents: incidents.map((incident: any) => ({
         id: incident.id,
         type: incident.incidentType,
         severity: incident.severity,

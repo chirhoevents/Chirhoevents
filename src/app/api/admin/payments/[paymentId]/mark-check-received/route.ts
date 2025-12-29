@@ -111,7 +111,7 @@ export async function POST(
       })
 
       const newAmountPaid = allSucceededPayments.reduce(
-        (sum, p) => sum + Number(p.amount),
+        (sum: number, p: any) => sum + Number(p.amount),
         0
       )
       const newBalanceRemaining = Number(paymentBalance.totalAmountDue) - newAmountPaid

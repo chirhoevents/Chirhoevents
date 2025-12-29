@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
-import { RegistrationType } from '@prisma/client'
+// RegistrationType is 'group' | 'individual' string literal
 import { format } from 'date-fns'
 
 export async function GET(
@@ -134,7 +134,7 @@ export async function GET(
     const payments = await prisma.payment.findMany({
       where: {
         registrationId,
-        registrationType: registrationType as RegistrationType,
+        registrationType: registrationType as 'group' | 'individual',
         paymentStatus: 'succeeded',
       },
       orderBy: { createdAt: 'asc' },
@@ -144,7 +144,7 @@ export async function GET(
     const refunds = await prisma.refund.findMany({
       where: {
         registrationId,
-        registrationType: registrationType as RegistrationType,
+        registrationType: registrationType as 'group' | 'individual',
         status: 'completed',
       },
       orderBy: { createdAt: 'asc' },
@@ -157,7 +157,7 @@ export async function GET(
     // Calculate totals
     const totalDue = paymentBalance ? Number(paymentBalance.totalAmountDue) : 0
     const totalPaid = paymentBalance ? Number(paymentBalance.amountPaid) : 0
-    const totalRefunded = refunds.reduce((sum, r) => sum + Number(r.refundAmount), 0)
+    const totalRefunded = refunds.reduce((sum: number, r: any) => sum + Number(r.refundAmount), 0)
     const balanceRemaining = paymentBalance ? Number(paymentBalance.amountRemaining) : 0
 
     // Generate HTML invoice

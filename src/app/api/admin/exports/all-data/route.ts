@@ -35,7 +35,7 @@ export async function POST() {
       },
     })
 
-    const eventMap = new Map(events.map((e) => [e.id, e]))
+    const eventMap = new Map<string, any>(events.map((e: any) => [e.id, e]))
 
     // Fetch all group registrations
     const groupRegistrations = await prisma.groupRegistration.findMany({
@@ -66,8 +66,8 @@ export async function POST() {
       where: { organizationId },
     })
 
-    const paymentBalanceMap = new Map(
-      paymentBalances.map((pb) => [pb.registrationId, pb])
+    const paymentBalanceMap = new Map<string, any>(
+      paymentBalances.map((pb: any) => [pb.registrationId, pb])
     )
 
     // Fetch all payments
@@ -127,7 +127,7 @@ export async function POST() {
       // Add participant rows
       for (const participant of group.participants) {
         const participantForms = liabilityForms.filter(
-          (f) => f.participantId === participant.id
+          (f: any) => f.participantId === participant.id
         )
         const formsComplete = participantForms.length > 0
 
@@ -167,7 +167,7 @@ export async function POST() {
       const event = eventMap.get(individual.eventId)
       const balance = paymentBalanceMap.get(individual.id)
       const individualForms = liabilityForms.filter(
-        (f) => f.individualRegistrationId === individual.id
+        (f: any) => f.individualRegistrationId === individual.id
       )
       const formsComplete = individualForms.length > 0
 

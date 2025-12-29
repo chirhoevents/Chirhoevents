@@ -97,7 +97,7 @@ export async function GET(
               paymentStatus: paymentBalance.paymentStatus,
             }
           : null,
-        payments: payments.map((p) => ({
+        payments: payments.map((p: any) => ({
           id: p.id,
           amount: Number(p.amount),
           paymentType: p.paymentType,
@@ -112,7 +112,7 @@ export async function GET(
           createdAt: p.createdAt.toISOString(),
           processedBy: p.processedBy,
         })),
-        refunds: refunds.map((r) => ({
+        refunds: refunds.map((r: any) => ({
           id: r.id,
           refundAmount: Number(r.refundAmount),
           refundMethod: r.refundMethod,
@@ -193,7 +193,7 @@ export async function GET(
               paymentStatus: paymentBalance.paymentStatus,
             }
           : null,
-        payments: payments.map((p) => ({
+        payments: payments.map((p: any) => ({
           id: p.id,
           amount: Number(p.amount),
           paymentType: p.paymentType,
@@ -208,7 +208,7 @@ export async function GET(
           createdAt: p.createdAt.toISOString(),
           processedBy: p.processedBy,
         })),
-        refunds: refunds.map((r) => ({
+        refunds: refunds.map((r: any) => ({
           id: r.id,
           refundAmount: Number(r.refundAmount),
           refundMethod: r.refundMethod,

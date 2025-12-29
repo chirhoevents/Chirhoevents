@@ -92,13 +92,13 @@ export async function POST(request: NextRequest) {
           })
 
           const newAmountPaid = allSucceededPayments.reduce(
-            (sum, p) => sum + Number(p.amount),
+            (sum: number, p: any) => sum + Number(p.amount),
             0
           )
           const newAmountRemaining = Number(balance.totalAmountDue) - newAmountPaid
 
           console.log('🔄 Recalculating balance from', allSucceededPayments.length, 'payments:', {
-            payments: allSucceededPayments.map(p => Number(p.amount)),
+            payments: allSucceededPayments.map((p: any) => Number(p.amount)),
             newAmountPaid,
             newAmountRemaining,
             status: newAmountRemaining <= 0 ? 'paid_full' : 'partial'
@@ -327,7 +327,7 @@ export async function POST(request: NextRequest) {
           })
 
           const newAmountPaid = allSucceededPayments.reduce(
-            (sum, p) => sum + Number(p.amount),
+            (sum: number, p: any) => sum + Number(p.amount),
             0
           )
           const newAmountRemaining = Number(balance.totalAmountDue) - newAmountPaid

@@ -158,7 +158,7 @@ async function getGroupRegistration(registrationId: string, organizationId: stri
 
   // Calculate liability forms status
   const liabilityFormsCompleted = registration.participants.filter(
-    (p) => p.liabilityFormCompleted
+    (p: any) => p.liabilityFormCompleted
   ).length
   const liabilityFormsTotal = registration.totalParticipants || registration.participants.length
   const liabilityFormsPercentage =
@@ -205,7 +205,7 @@ async function getGroupRegistration(registrationId: string, organizationId: stri
           paymentStatus: paymentBalance.paymentStatus,
         }
       : null,
-    payments: payments.map((p) => ({
+    payments: payments.map((p: any) => ({
       id: p.id,
       amount: Number(p.amount),
       paymentType: p.paymentType,
@@ -220,7 +220,7 @@ async function getGroupRegistration(registrationId: string, organizationId: stri
       createdAt: p.createdAt.toISOString(),
       processedBy: p.processedBy,
     })),
-    refunds: refunds.map((r) => ({
+    refunds: refunds.map((r: any) => ({
       id: r.id,
       refundAmount: Number(r.refundAmount),
       refundMethod: r.refundMethod,
@@ -231,7 +231,7 @@ async function getGroupRegistration(registrationId: string, organizationId: stri
       processedBy: r.processedBy,
     })),
     emailLogs,
-    registrationEdits: registrationEdits.map((e) => ({
+    registrationEdits: registrationEdits.map((e: any) => ({
       id: e.id,
       editType: e.editType,
       changesMade: e.changesMade,
@@ -367,7 +367,7 @@ async function getIndividualRegistration(registrationId: string, organizationId:
   })
 
   const liabilityForms = liabilityFormsDb.length > 0
-    ? liabilityFormsDb.map((form) => ({
+    ? liabilityFormsDb.map((form: any) => ({
         id: form.id,
         completed: form.completed,
         completedAt: form.completedAt?.toISOString() || null,
@@ -417,7 +417,7 @@ async function getIndividualRegistration(registrationId: string, organizationId:
           paymentStatus: paymentBalance.paymentStatus,
         }
       : null,
-    payments: payments.map((p) => ({
+    payments: payments.map((p: any) => ({
       id: p.id,
       amount: Number(p.amount),
       paymentType: p.paymentType,
@@ -432,7 +432,7 @@ async function getIndividualRegistration(registrationId: string, organizationId:
       createdAt: p.createdAt.toISOString(),
       processedBy: p.processedBy,
     })),
-    refunds: refunds.map((r) => ({
+    refunds: refunds.map((r: any) => ({
       id: r.id,
       refundAmount: Number(r.refundAmount),
       refundMethod: r.refundMethod,
@@ -443,7 +443,7 @@ async function getIndividualRegistration(registrationId: string, organizationId:
       processedBy: r.processedBy,
     })),
     emailLogs,
-    registrationEdits: registrationEdits.map((e) => ({
+    registrationEdits: registrationEdits.map((e: any) => ({
       id: e.id,
       editType: e.editType,
       changesMade: e.changesMade,

@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
         orderBy: orderByClause,
       })
       // Convert to expected format
-      events = basicEvents.map(e => ({
+      events = basicEvents.map((e: any) => ({
         ...e,
         settings: null,
         pricing: null,

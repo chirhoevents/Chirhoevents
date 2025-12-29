@@ -98,7 +98,7 @@ export async function POST(
     }
 
     // Get room assignments for these participants
-    const participantIdList = participants.map((p) => p.id)
+    const participantIdList = participants.map((p: any) => p.id)
     const roomAssignments = await prisma.roomAssignment.findMany({
       where: {
         participantId: { in: participantIdList },
@@ -117,7 +117,7 @@ export async function POST(
     })
 
     // Get meal color assignments for these participants' groups
-    const groupIds = Array.from(new Set(participants.map((p) => p.groupRegistrationId)))
+    const groupIds = Array.from(new Set(participants.map((p: any) => p.groupRegistrationId)))
     const mealColorAssignments = await prisma.mealColorAssignment.findMany({
       where: {
         groupRegistrationId: { in: groupIds },
@@ -125,13 +125,13 @@ export async function POST(
     })
 
     // Create a map of groupRegistrationId -> meal color
-    const mealColorMap = new Map(
-      mealColorAssignments.map((mca) => [mca.groupRegistrationId, mca.color])
+    const mealColorMap = new Map<string, string>(
+      mealColorAssignments.map((mca: any) => [mca.groupRegistrationId, mca.color])
     )
 
     // Create a map of participantId -> room assignment with building info
-    const assignmentMap = new Map(
-      roomAssignments.map((ra) => [
+    const assignmentMap = new Map<string, { buildingName: string; roomNumber: string; bedNumber: number | null }>(
+      roomAssignments.map((ra: any) => [
         ra.participantId,
         {
           buildingName: ra.room.building.name,
@@ -158,7 +158,7 @@ export async function POST(
     }
 
     // Generate name tag data for each participant
-    const nameTags = participants.map((p) => {
+    const nameTags = participants.map((p: any) => {
       const assignment = assignmentMap.get(p.id)
       const bedLetter = assignment?.bedNumber
         ? String.fromCharCode(64 + assignment.bedNumber)

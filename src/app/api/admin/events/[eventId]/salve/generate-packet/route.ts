@@ -74,7 +74,7 @@ export async function POST(
     }
 
     // Get room assignments for these participants
-    const participantIds = group.participants.map((p) => p.id)
+    const participantIds = group.participants.map((p: any) => p.id)
     const roomAssignments = await prisma.roomAssignment.findMany({
       where: {
         participantId: { in: participantIds },
@@ -93,8 +93,8 @@ export async function POST(
     })
 
     // Create a map of participantId -> room assignment
-    const assignmentMap = new Map(
-      roomAssignments.map((ra) => [
+    const assignmentMap = new Map<string, { buildingName: string; roomNumber: string; bedNumber: number | null }>(
+      roomAssignments.map((ra: any) => [
         ra.participantId,
         {
           buildingName: ra.room.building.name,
@@ -134,11 +134,11 @@ export async function POST(
     })
 
     // Generate housing summary
-    const housingSummary = group.allocatedRooms.map((room) => {
+    const housingSummary = group.allocatedRooms.map((room: any) => {
       const occupantIds = room.roomAssignments
-        .filter((ra) => ra.participantId)
-        .map((ra) => ra.participantId)
-      const occupants = group.participants.filter((p) =>
+        .filter((ra: any) => ra.participantId)
+        .map((ra: any) => ra.participantId)
+      const occupants = group.participants.filter((p: any) =>
         occupantIds.includes(p.id)
       )
 
@@ -149,9 +149,9 @@ export async function POST(
         capacity: room.capacity,
         gender: room.gender,
         housingType: room.housingType,
-        occupants: occupants.map((p) => {
+        occupants: occupants.map((p: any) => {
           const assignment = room.roomAssignments.find(
-            (ra) => ra.participantId === p.id
+            (ra: any) => ra.participantId === p.id
           )
           return {
             name: `${p.firstName} ${p.lastName}`,
@@ -186,11 +186,11 @@ export async function POST(
       participants: {
         total: group.participants.length,
         youth: group.participants.filter(
-          (p) => p.participantType !== 'chaperone' && p.participantType !== 'priest'
+          (p: any) => p.participantType !== 'chaperone' && p.participantType !== 'priest'
         ).length,
-        chaperones: group.participants.filter((p) => p.participantType === 'chaperone').length,
-        clergy: group.participants.filter((p) => p.participantType === 'priest').length,
-        list: group.participants.map((p) => {
+        chaperones: group.participants.filter((p: any) => p.participantType === 'chaperone').length,
+        clergy: group.participants.filter((p: any) => p.participantType === 'priest').length,
+        list: group.participants.map((p: any) => {
           const assignment = assignmentMap.get(p.id)
           return {
             name: `${p.firstName} ${p.lastName}`,
@@ -214,7 +214,7 @@ export async function POST(
         totalRooms: group.allocatedRooms.length,
         summary: housingSummary,
       },
-      inserts: inserts.map((i) => ({
+      inserts: inserts.map((i: any) => ({
         name: i.name,
         fileUrl: i.fileUrl,
         displayOrder: i.displayOrder,
@@ -230,7 +230,7 @@ export async function POST(
         campusMapUrl: settings?.campusMapUrl || null,
         emergencyProceduresUrl: settings?.emergencyProceduresUrl || null,
         welcomeLetterText: settings?.welcomeLetterText || null,
-        schedule: scheduleEntries.map((entry) => ({
+        schedule: scheduleEntries.map((entry: any) => ({
           day: entry.day,
           startTime: entry.startTime,
           endTime: entry.endTime,
@@ -238,7 +238,7 @@ export async function POST(
           location: entry.location,
           description: entry.description,
         })),
-        mealTimes: mealTimes.map((mt) => ({
+        mealTimes: mealTimes.map((mt: any) => ({
           day: mt.day,
           meal: mt.meal,
           time: mt.time,

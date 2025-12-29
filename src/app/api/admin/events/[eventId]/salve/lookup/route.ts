@@ -23,8 +23,8 @@ async function getHousingAssignmentsMap(participantIds: string[]) {
     },
   })
 
-  return new Map(
-    roomAssignments.map((ra) => [
+  return new Map<string, { buildingName: string; roomNumber: string; bedNumber: number | null }>(
+    roomAssignments.map((ra: any) => [
       ra.participantId,
       {
         buildingName: ra.room.building.name,
@@ -79,7 +79,7 @@ export async function GET(
       }
 
       const housingMap = await getHousingAssignmentsMap(
-        group.participants.map((p) => p.id)
+        group.participants.map((p: any) => p.id)
       )
       return NextResponse.json(formatGroupResponse(group, housingMap))
     }
@@ -115,7 +115,7 @@ export async function GET(
       }
 
       const housingMap = await getHousingAssignmentsMap(
-        group.participants.map((p) => p.id)
+        group.participants.map((p: any) => p.id)
       )
       return NextResponse.json(formatGroupResponse(group, housingMap))
     }
@@ -168,13 +168,13 @@ export async function GET(
       })
 
       // Get housing for all participants across all groups
-      const allParticipantIds = groups.flatMap((g) =>
-        g.participants.map((p) => p.id)
+      const allParticipantIds = groups.flatMap((g: any) =>
+        g.participants.map((p: any) => p.id)
       )
       const housingMap = await getHousingAssignmentsMap(allParticipantIds)
 
       return NextResponse.json({
-        results: groups.map((g) => formatGroupResponse(g, housingMap)),
+        results: groups.map((g: any) => formatGroupResponse(g, housingMap)),
         count: groups.length,
       })
     }

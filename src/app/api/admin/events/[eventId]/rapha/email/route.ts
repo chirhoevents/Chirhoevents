@@ -33,7 +33,7 @@ export async function POST(
       },
       include: {
         organization: {
-          select: { name: true, emailFromName: true, emailFromAddress: true },
+          select: { name: true, contactEmail: true },
         },
       },
     })
@@ -172,8 +172,8 @@ export async function POST(
     `
 
     // Determine from address
-    const fromName = event.organization.emailFromName || event.organization.name
-    const fromEmail = event.organization.emailFromAddress || 'notifications@chirhoevents.com'
+    const fromName = event.organization.name
+    const fromEmail = 'notifications@chirhoevents.com'
 
     // Send email via Resend
     const { data, error } = await resend.emails.send({
@@ -181,7 +181,7 @@ export async function POST(
       to: recipientEmail,
       subject: subject,
       html: htmlContent,
-      replyTo: user.email || undefined,
+      reply_to: user.email || undefined,
     })
 
     if (error) {

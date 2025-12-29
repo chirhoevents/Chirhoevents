@@ -67,7 +67,7 @@ export async function GET(
       ],
     })
 
-    const participants = liabilityForms.map((form) => {
+    const participants = liabilityForms.map((form: any) => {
       const hasSevereAllergy =
         form.allergies?.toLowerCase().includes('epi') ||
         form.allergies?.toLowerCase().includes('severe')
