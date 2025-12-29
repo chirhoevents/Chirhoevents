@@ -24,9 +24,11 @@ export async function GET() {
       orderBy: { key: 'asc' },
     })
 
+    type SettingType = typeof settings[0]
+
     // Convert to object format
     const settingsObj: Record<string, string> = {}
-    settings.forEach((s) => {
+    settings.forEach((s: SettingType) => {
       settingsObj[s.key] = s.value
     })
 

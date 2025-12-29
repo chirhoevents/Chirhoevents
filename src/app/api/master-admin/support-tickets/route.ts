@@ -67,6 +67,8 @@ export async function GET(request: NextRequest) {
       _count: { status: true },
     })
 
+    type CountType = typeof counts[0]
+
     const statusCounts = {
       all: tickets.length,
       open: 0,
@@ -76,7 +78,7 @@ export async function GET(request: NextRequest) {
       closed: 0,
     }
 
-    counts.forEach((c) => {
+    counts.forEach((c: CountType) => {
       statusCounts[c.status as keyof typeof statusCounts] = c._count.status
     })
 

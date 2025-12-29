@@ -105,13 +105,15 @@ export async function GET() {
       },
     })
 
+    type OrgWithDate = typeof allOrgsWithDates[0]
+
     const monthlySignups: { month: string; count: number }[] = []
     for (let i = 5; i >= 0; i--) {
       const date = new Date()
       date.setMonth(date.getMonth() - i)
       const monthStr = date.toLocaleString('default', { month: 'short', year: 'numeric' })
 
-      const count = allOrgsWithDates.filter((org) => {
+      const count = allOrgsWithDates.filter((org: OrgWithDate) => {
         const orgDate = new Date(org.createdAt)
         return (
           orgDate.getMonth() === date.getMonth() &&
@@ -131,13 +133,15 @@ export async function GET() {
       },
     })
 
+    type InvoiceType = typeof invoices[0]
+
     const invoiceStats = {
       total: invoices.length,
-      paid: invoices.filter(i => i.status === 'paid').length,
-      pending: invoices.filter(i => i.status === 'pending' || i.status === 'sent').length,
-      overdue: invoices.filter(i => i.status === 'overdue').length,
-      totalCollected: invoices.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.amount, 0),
-      totalOutstanding: invoices.filter(i => ['pending', 'sent', 'overdue'].includes(i.status)).reduce((sum, i) => sum + i.amount, 0),
+      paid: invoices.filter((i: InvoiceType) => i.status === 'paid').length,
+      pending: invoices.filter((i: InvoiceType) => i.status === 'pending' || i.status === 'sent').length,
+      overdue: invoices.filter((i: InvoiceType) => i.status === 'overdue').length,
+      totalCollected: invoices.filter((i: InvoiceType) => i.status === 'paid').reduce((sum: number, i: InvoiceType) => sum + Number(i.amount), 0),
+      totalOutstanding: invoices.filter((i: InvoiceType) => ['pending', 'sent', 'overdue'].includes(i.status)).reduce((sum: number, i: InvoiceType) => sum + Number(i.amount), 0),
     }
 
     // Recent organizations
