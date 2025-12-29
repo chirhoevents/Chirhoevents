@@ -17,7 +17,7 @@ export async function PATCH(
       where: { clerkUserId: userId },
     })
 
-    if (!user || user.role !== 'org_admin') {
+    if (!user || !user.organizationId || user.role !== 'org_admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
