@@ -27,7 +27,6 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const paymentId = paymentId
     const {
       checkNumber,
       actualAmount,

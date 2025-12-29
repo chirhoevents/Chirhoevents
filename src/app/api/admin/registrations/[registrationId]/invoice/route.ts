@@ -29,8 +29,6 @@ export async function GET(
       )
     }
 
-    const registrationId = registrationId
-
     // Get organization info
     const organization = await prisma.organization.findUnique({
       where: { id: user.organizationId! },

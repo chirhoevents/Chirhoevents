@@ -14,8 +14,6 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const eventId = eventId
-
     // Fetch all data in parallel for performance
     const [
       groupRegistrations,

@@ -27,8 +27,6 @@ export async function GET(
       )
     }
 
-    const registrationId = registrationId
-
     // Verify registration exists and belongs to user's organization
     if (registrationType === 'group') {
       const registration = await prisma.groupRegistration.findUnique({

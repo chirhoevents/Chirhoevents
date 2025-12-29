@@ -14,8 +14,6 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { eventId } = await Promise.resolve(params)
-
     let schedule: any[] = []
     try {
       schedule = await prisma.porosScheduleEntry.findMany({

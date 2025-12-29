@@ -10,7 +10,6 @@ export async function PUT(
 ) {
   try {
     const { participantId } = await params
-    const participantId = participantId
     const body = await request.json()
 
     const {

@@ -9,15 +9,14 @@ export async function GET(
   { params }: { params: Promise<{ registrationId: string }> }
 ) {
   try {
-    const { registrationId } = await params
     const { userId } = await auth()
 
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const resolvedParams = await params
-    let registrationId = resolvedParams.registrationId
+    const { registrationId: paramRegistrationId } = await params
+    let registrationId = paramRegistrationId
     let registrationType: 'group' | 'individual' | null = null
     let registrationInfo: any = null
 
