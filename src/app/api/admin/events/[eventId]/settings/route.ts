@@ -79,7 +79,7 @@ export async function PATCH(
       where: { clerkUserId: userId },
     })
 
-    if (!user) {
+    if (!user || !user.organizationId) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
