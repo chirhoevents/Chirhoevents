@@ -4,14 +4,14 @@ import { notFound } from 'next/navigation'
 import PorosPortalClient from './PorosPortalClient'
 
 interface PageProps {
-  params: {
+  params: Promise<{
     eventId: string
-  }
+  }>
 }
 
 export default async function PorosPortalPage({ params }: PageProps) {
   const user = await requireAdmin()
-  const { eventId } = await Promise.resolve(params)
+  const { eventId } = await params
 
   // Fetch event with settings - with defensive error handling
   let event: any = null

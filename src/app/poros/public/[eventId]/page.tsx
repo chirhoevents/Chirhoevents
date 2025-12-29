@@ -3,11 +3,11 @@ import { notFound } from 'next/navigation'
 import PorosPublicClient from './PorosPublicClient'
 
 interface PageProps {
-  params: { eventId: string }
+  params: Promise<{ eventId: string }>
 }
 
 export async function generateMetadata({ params }: PageProps) {
-  const { eventId } = await Promise.resolve(params)
+  const { eventId } = await params
   let event: { name: string } | null = null
   try {
     event = await prisma.event.findUnique({
@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: PageProps) {
 }
 
 export default async function PorosPublicEventPage({ params }: PageProps) {
-  const { eventId } = await Promise.resolve(params)
+  const { eventId } = await params
 
   let event: any = null
   try {
@@ -65,7 +65,7 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
   let resources: any[] = []
   try {
     resources = await prisma.porosResource.findMany({
-      where: { eventId: params.eventId, isActive: true },
+      where: { eventId, isActive: true },
       orderBy: { order: 'asc' }
     })
   } catch {
@@ -76,7 +76,7 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
   let mealGroups: any[] = []
   try {
     mealGroups = await prisma.mealGroup.findMany({
-      where: { eventId: params.eventId, isActive: true },
+      where: { eventId, isActive: true },
       orderBy: { displayOrder: 'asc' }
     })
   } catch {
@@ -124,7 +124,7 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
   let scheduleEntries: any[] = []
   try {
     scheduleEntries = await prisma.porosScheduleEntry.findMany({
-      where: { eventId: params.eventId },
+      where: { eventId },
       orderBy: [{ day: 'asc' }, { startTime: 'asc' }]
     })
   } catch {
@@ -135,7 +135,7 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
   let schedulePdf: any = null
   try {
     schedulePdf = await prisma.porosSchedulePdf.findUnique({
-      where: { eventId: params.eventId }
+      where: { eventId }
     })
   } catch {
     // Table might not exist yet

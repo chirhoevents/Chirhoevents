@@ -4,14 +4,14 @@ import { notFound } from 'next/navigation'
 import EventDetailClient from './EventDetailClient'
 
 interface PageProps {
-  params: {
+  params: Promise<{
     eventId: string
-  }
+  }>
 }
 
 export default async function EventDetailPage({ params }: PageProps) {
   const user = await requireAdmin()
-  const { eventId } = await Promise.resolve(params)
+  const { eventId } = await params
 
   // Fetch event with all related data
   let event: any = null
