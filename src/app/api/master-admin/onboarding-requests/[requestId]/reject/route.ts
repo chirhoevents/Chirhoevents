@@ -55,9 +55,7 @@ export async function POST(
       where: { id: requestId },
       data: {
         status: 'rejected',
-        rejectedByUserId: masterAdmin.id,
-        rejectedAt: new Date(),
-        rejectionReason: reason.trim(),
+        rejectedReason: reason.trim(),
       },
     })
 
