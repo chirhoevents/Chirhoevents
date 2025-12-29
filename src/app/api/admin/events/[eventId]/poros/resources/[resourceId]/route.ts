@@ -35,6 +35,7 @@ export async function PUT(
   { params }: { params: Promise<{ eventId: string; resourceId: string }> }
 ) {
   try {
+    const { resourceId } = await params
     const { userId } = auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -67,6 +68,7 @@ export async function DELETE(
   { params }: { params: Promise<{ eventId: string; resourceId: string }> }
 ) {
   try {
+    const { resourceId } = await params
     const { userId } = auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
