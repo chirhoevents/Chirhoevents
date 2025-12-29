@@ -24,7 +24,7 @@ export async function POST(
       where: { clerkUserId: userId },
     })
 
-    if (!user) {
+    if (!user || !user.organizationId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
