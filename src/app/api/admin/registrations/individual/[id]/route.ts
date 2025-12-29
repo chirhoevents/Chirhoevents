@@ -8,9 +8,10 @@ const resend = new Resend(process.env.RESEND_API_KEY!)
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const user = await getCurrentUser()
 
     if (!user || !isAdmin(user)) {
@@ -20,7 +21,7 @@ export async function PUT(
       )
     }
 
-    const registrationId = params.id
+    const registrationId = id
     const body = await request.json()
 
     // Verify the registration belongs to the user's organization

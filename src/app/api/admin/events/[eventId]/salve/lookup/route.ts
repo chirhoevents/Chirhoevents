@@ -37,11 +37,11 @@ async function getHousingAssignmentsMap(participantIds: string[]) {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     await requireAdmin()
-    const { eventId } = params
+    const { eventId } = await params
     const { searchParams } = new URL(request.url)
 
     const accessCode = searchParams.get('accessCode')

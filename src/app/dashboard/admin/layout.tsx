@@ -18,6 +18,7 @@ import {
   X,
   LogOut,
   CreditCard,
+  HelpCircle,
   LucideIcon
 } from 'lucide-react'
 import { hasPermission, getRoleName, type Permission, type UserRole } from '@/lib/permissions'
@@ -45,6 +46,7 @@ const allNavigation: NavItem[] = [
   { name: 'SALVE Check-In', href: '/dashboard/admin/salve', icon: CheckSquare, permission: 'portals.salve.view' },
   { name: 'Rapha Medical', href: '/dashboard/admin/rapha', icon: Activity, permission: 'portals.rapha.view' },
   { name: 'Reports', href: '/dashboard/admin/reports', icon: BarChart3, permission: 'reports.view' },
+  { name: 'Support', href: '/dashboard/admin/support', icon: HelpCircle },
   { name: 'Settings', href: '/dashboard/admin/settings', icon: Settings, permission: 'settings.view' },
 ]
 

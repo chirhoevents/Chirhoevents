@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 // GET - List all resources for an event
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const { userId } = auth()
@@ -36,7 +36,7 @@ export async function GET(
 // POST - Create a new resource
 export async function POST(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const { userId } = auth()
@@ -88,7 +88,7 @@ export async function POST(
 // PUT - Update multiple resources (for reordering)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const { userId } = auth()

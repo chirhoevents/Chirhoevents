@@ -5,11 +5,11 @@ import { prisma } from '@/lib/prisma'
 // GET - Fetch all groups with their room allocations
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { eventId } = params
+    const { eventId } = await params
 
     // Get the event to find organizationId
     const event = await prisma.event.findUnique({
@@ -132,11 +132,11 @@ export async function GET(
 // POST - Save room allocations for a group
 export async function POST(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { eventId } = params
+    const { eventId } = await params
     const body = await request.json()
 
     const { groupRegistrationId, allocations } = body

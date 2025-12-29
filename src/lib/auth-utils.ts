@@ -59,16 +59,24 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       return null
     }
 
+    // For non-master_admin users, organizationId and organization are required
+    if (user.role !== 'master_admin' && (!user.organizationId || !user.organization)) {
+      return null
+    }
+
+    // Provide default organization for master_admin without one
+    const organization = user.organization || { id: '', name: 'ChiRho Platform', type: 'platform' }
+
     return {
       id: user.id,
       clerkUserId: userId,
-      organizationId: user.organizationId,
+      organizationId: user.organizationId || '',
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role as UserRole,
       permissions: user.permissions as Record<string, boolean> | null,
-      organization: user.organization,
+      organization,
     }
   } catch (error) {
     console.error('Error getting current user:', error)

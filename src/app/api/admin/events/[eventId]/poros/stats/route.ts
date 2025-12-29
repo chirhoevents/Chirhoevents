@@ -5,15 +5,14 @@ import { prisma } from '@/lib/prisma'
 // GET - Fetch all Poros statistics for the dashboard
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
+    const { eventId } = await params
     const { userId } = auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
-    const eventId = params.eventId
 
     // Fetch all data in parallel for performance
     const [

@@ -66,7 +66,7 @@ const VALID_SETTINGS_FIELDS = [
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const { userId } = await auth()
@@ -79,7 +79,7 @@ export async function PATCH(
       where: { clerkUserId: userId },
     })
 
-    if (!user) {
+    if (!user || !user.organizationId) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 

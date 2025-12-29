@@ -4,7 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const { userId } = await auth()
@@ -12,7 +12,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { eventId } = params
+    const { eventId } = await params
     const body = await request.json()
     const { filters = {} } = body
 
@@ -21,7 +21,7 @@ export async function POST(
       where: { clerkUserId: userId },
     })
 
-    if (!user) {
+    if (!user || !user.organizationId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

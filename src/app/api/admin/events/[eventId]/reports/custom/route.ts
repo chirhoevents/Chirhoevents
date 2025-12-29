@@ -5,13 +5,13 @@ import { auth } from '@clerk/nextjs/server'
 // POST execute a custom report without saving as template
 export async function POST(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const { userId } = await auth()
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { eventId } = params
+    const { eventId } = await params
     const body = await request.json()
     const { configuration } = body
 
@@ -24,7 +24,7 @@ export async function POST(
       where: { clerkUserId: userId },
     })
 
-    if (!user) {
+    if (!user || !user.organizationId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

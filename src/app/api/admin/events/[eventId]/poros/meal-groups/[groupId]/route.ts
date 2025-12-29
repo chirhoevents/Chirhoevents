@@ -4,11 +4,11 @@ import { prisma } from '@/lib/prisma'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { eventId: string; groupId: string } }
+  { params }: { params: Promise<{ eventId: string; groupId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { groupId } = params
+    const { groupId } = await params
     const body = await request.json()
 
     const group = await prisma.mealGroup.update({
@@ -37,11 +37,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { eventId: string; groupId: string } }
+  { params }: { params: Promise<{ eventId: string; groupId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { groupId } = params
+    const { groupId } = await params
 
     await prisma.mealGroup.delete({
       where: { id: groupId },

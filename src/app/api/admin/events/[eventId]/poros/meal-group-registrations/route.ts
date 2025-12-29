@@ -26,11 +26,11 @@ interface MealGroupAssignmentRecord {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { eventId } = params
+    const { eventId } = await params
 
     // Get group registrations
     const groupRegs = await prisma.groupRegistration.findMany({

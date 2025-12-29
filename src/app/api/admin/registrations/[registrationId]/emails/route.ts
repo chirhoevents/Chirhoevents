@@ -6,18 +6,13 @@ import { getEmailHistory, logEmail, logEmailFailure } from '@/lib/email-logger'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
-interface RouteParams {
-  params: {
-    registrationId: string
-  }
-}
-
 // GET email history for a registration
 export async function GET(
   request: NextRequest,
-  { params }: RouteParams
+  { params }: { params: Promise<{ registrationId: string }> }
 ) {
   try {
+    const { registrationId } = await params
     const { userId } = await auth()
     console.log('[GET /emails] Request from user:', userId)
 
@@ -34,12 +29,10 @@ export async function GET(
 
     console.log('[GET /emails] User found:', { id: user?.id, role: user?.role, orgId: user?.organizationId })
 
-    if (!user || user.role !== 'org_admin') {
+    if (!user || !user.organizationId || user.role !== 'org_admin') {
       console.log('[GET /emails] Forbidden - not org admin')
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-
-    const { registrationId } = params
     const { searchParams } = new URL(request.url)
     const registrationType = searchParams.get('type') as 'group' | 'individual' | null
 
@@ -104,9 +97,10 @@ export async function GET(
 // POST to resend an email or send from template
 export async function POST(
   request: NextRequest,
-  { params }: RouteParams
+  { params }: { params: Promise<{ registrationId: string }> }
 ) {
   try {
+    const { registrationId } = await params
     const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -118,11 +112,9 @@ export async function POST(
       include: { organization: true },
     })
 
-    if (!user || user.role !== 'org_admin') {
+    if (!user || !user.organizationId || user.role !== 'org_admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-
-    const { registrationId } = params
     const body = await request.json()
     const {
       emailId, // Optional: for resending from history

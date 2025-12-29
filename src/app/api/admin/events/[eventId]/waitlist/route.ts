@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     // Check admin access
@@ -16,7 +16,7 @@ export async function GET(
       )
     }
 
-    const { eventId } = params
+    const { eventId } = await params
 
     // Verify event belongs to user's organization
     const event = await prisma.event.findUnique({

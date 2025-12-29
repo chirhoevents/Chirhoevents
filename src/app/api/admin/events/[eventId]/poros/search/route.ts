@@ -5,9 +5,10 @@ import { prisma } from '@/lib/prisma'
 // GET - Search group registrations for quick lookup
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
+    const { eventId } = await params
     const { userId } = auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -23,7 +24,7 @@ export async function GET(
     // Search group registrations
     const groupRegistrations = await prisma.groupRegistration.findMany({
       where: {
-        eventId: params.eventId,
+        eventId: eventId,
         OR: [
           { groupName: { contains: query, mode: 'insensitive' } },
           { parishName: { contains: query, mode: 'insensitive' } },

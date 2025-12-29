@@ -9,11 +9,11 @@ interface RoomRecord {
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { eventId: string; roomId: string } }
+  { params }: { params: Promise<{ eventId: string; roomId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { roomId } = params
+    const { roomId } = await params
     const body = await request.json()
 
     const room = await prisma.room.update({
@@ -45,11 +45,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { eventId: string; roomId: string } }
+  { params }: { params: Promise<{ eventId: string; roomId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { roomId } = params
+    const { roomId } = await params
 
     const room = await prisma.room.findUnique({
       where: { id: roomId },

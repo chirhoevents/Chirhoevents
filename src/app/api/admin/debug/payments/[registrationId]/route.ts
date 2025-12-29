@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma'
 // Accepts either registration UUID or access code/confirmation code
 export async function GET(
   request: NextRequest,
-  { params }: { params: { registrationId: string } }
+  { params }: { params: Promise<{ registrationId: string }> }
 ) {
   try {
     const { userId } = await auth()
@@ -15,7 +15,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    let registrationId = params.registrationId
+    const { registrationId: paramRegistrationId } = await params
+    let registrationId = paramRegistrationId
     let registrationType: 'group' | 'individual' | null = null
     let registrationInfo: any = null
 
@@ -46,7 +47,7 @@ export async function GET(
         } else {
           return NextResponse.json({
             error: 'Registration not found',
-            searchedFor: params.registrationId,
+            searchedFor: registrationId,
             hint: 'Provide either a UUID or a valid access code/confirmation code',
           }, { status: 404 })
         }

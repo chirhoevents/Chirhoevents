@@ -4,11 +4,11 @@ import { prisma } from '@/lib/prisma'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { eventId: string; staffId: string } }
+  { params }: { params: Promise<{ eventId: string; staffId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { staffId } = params
+    const { staffId } = await params
     const body = await request.json()
 
     const staff = await prisma.porosStaff.update({
@@ -37,11 +37,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { eventId: string; staffId: string } }
+  { params }: { params: Promise<{ eventId: string; staffId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { staffId } = params
+    const { staffId } = await params
 
     await prisma.porosStaff.delete({
       where: { id: staffId },

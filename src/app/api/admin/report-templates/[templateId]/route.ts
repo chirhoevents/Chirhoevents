@@ -5,13 +5,13 @@ import { auth } from '@clerk/nextjs/server'
 // GET single report template
 export async function GET(
   request: NextRequest,
-  { params }: { params: { templateId: string } }
+  { params }: { params: Promise<{ templateId: string }> }
 ) {
   try {
     const { userId } = await auth()
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { templateId } = params
+    const { templateId } = await params
 
     const template = await prisma.reportTemplate.findUnique({
       where: { id: templateId },
@@ -55,13 +55,13 @@ export async function GET(
 // PUT update report template
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { templateId: string } }
+  { params }: { params: Promise<{ templateId: string }> }
 ) {
   try {
     const { userId } = await auth()
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { templateId } = params
+    const { templateId } = await params
     const body = await request.json()
     const { name, description, configuration, isPublic } = body
 
@@ -116,13 +116,13 @@ export async function PUT(
 // DELETE report template
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { templateId: string } }
+  { params }: { params: Promise<{ templateId: string }> }
 ) {
   try {
     const { userId } = await auth()
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { templateId } = params
+    const { templateId } = await params
 
     const existingTemplate = await prisma.reportTemplate.findUnique({
       where: { id: templateId },

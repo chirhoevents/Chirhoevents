@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { participantId: string } }
+  { params }: { params: Promise<{ participantId: string }> }
 ) {
   try {
     const { userId } = await auth()
@@ -16,7 +16,7 @@ export async function DELETE(
       )
     }
 
-    const { participantId } = params
+    const { participantId } = await params
 
     // Find the participant and verify it belongs to this user's group
     const participant = await prisma.participant.findUnique({

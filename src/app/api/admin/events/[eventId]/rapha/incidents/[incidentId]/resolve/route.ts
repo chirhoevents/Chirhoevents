@@ -5,11 +5,11 @@ import { hasPermission } from '@/lib/permissions'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { eventId: string; incidentId: string } }
+  { params }: { params: Promise<{ eventId: string; incidentId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { eventId, incidentId } = params
+    const { eventId, incidentId } = await params
     const body = await request.json()
 
     // Check Rapha access permission

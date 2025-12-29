@@ -4,11 +4,11 @@ import { prisma } from '@/lib/prisma'
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { eventId: string; id: string } }
+  { params }: { params: Promise<{ eventId: string; id: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { id } = params
+    const { id } = await params
     const body = await request.json().catch(() => ({}))
     const { type } = body
 

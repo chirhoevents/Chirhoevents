@@ -33,11 +33,11 @@ interface RoomAssignmentRecord {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { eventId } = params
+    const { eventId } = await params
 
     // Get participants from group registrations (on_campus only)
     const groupParticipants = await prisma.participant.findMany({

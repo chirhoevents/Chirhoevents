@@ -4,11 +4,11 @@ import { prisma } from '@/lib/prisma'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     await requireAdmin()
-    const { eventId } = params
+    const { eventId } = await params
     const body = await request.json()
 
     const { groupId } = body
@@ -267,11 +267,11 @@ export async function POST(
 // GET - Fetch packet settings and available inserts
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     await requireAdmin()
-    const { eventId } = params
+    const { eventId } = await params
 
     const settings = await prisma.welcomePacketSettings.findFirst({
       where: { eventId },

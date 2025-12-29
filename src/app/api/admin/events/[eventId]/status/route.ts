@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const { userId } = await auth()
@@ -17,11 +17,11 @@ export async function PATCH(
       where: { clerkUserId: userId },
     })
 
-    if (!user || user.role !== 'org_admin') {
+    if (!user || !user.organizationId || user.role !== 'org_admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const { eventId } = params
+    const { eventId } = await params
     const body = await request.json()
     const { status } = body
 

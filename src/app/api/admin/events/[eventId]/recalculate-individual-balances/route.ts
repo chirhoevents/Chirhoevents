@@ -4,7 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const { userId } = await auth()
@@ -12,7 +12,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { eventId } = params
+    const { eventId } = await params
 
     // Get event with pricing
     const event = await prisma.event.findUnique({

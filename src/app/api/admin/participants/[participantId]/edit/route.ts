@@ -6,10 +6,10 @@ const resend = new Resend(process.env.RESEND_API_KEY!)
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { participantId: string } }
+  { params }: { params: Promise<{ participantId: string }> }
 ) {
   try {
-    const participantId = params.participantId
+    const { participantId } = await params
     const body = await request.json()
 
     const {

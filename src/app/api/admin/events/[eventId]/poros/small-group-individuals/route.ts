@@ -20,9 +20,10 @@ interface SmallGroupAssignmentRecord {
 // GET - List all individual registrations for small group assignment
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
+    const { eventId } = await params
     const { userId } = auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -30,14 +31,14 @@ export async function GET(
 
     // Get all individual registrations for this event
     const individuals = await prisma.individualRegistration.findMany({
-      where: { eventId: params.eventId },
+      where: { eventId: eventId },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }]
     })
 
     // Get small group assignments for individual registrations
     const assignments = await prisma.smallGroupAssignment.findMany({
       where: {
-        smallGroup: { eventId: params.eventId },
+        smallGroup: { eventId: eventId },
         individualRegistrationId: { not: null }
       },
       include: {

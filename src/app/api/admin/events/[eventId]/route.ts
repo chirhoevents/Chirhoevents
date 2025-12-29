@@ -2,13 +2,10 @@ import { NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 
-interface RouteParams {
-  params: {
-    eventId: string
-  }
-}
-
-export async function GET(request: Request, { params }: RouteParams) {
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ eventId: string }> }
+) {
   try {
     const user = await getCurrentUser()
 
@@ -19,7 +16,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       )
     }
 
-    const { eventId } = params
+    const { eventId } = await params
 
     const event = await prisma.event.findUnique({
       where: { id: eventId },
@@ -56,8 +53,12 @@ export async function GET(request: Request, { params }: RouteParams) {
   }
 }
 
-export async function PUT(request: Request, { params }: RouteParams) {
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ eventId: string }> }
+) {
   try {
+    const { eventId } = await params
     const user = await getCurrentUser()
 
     if (!user || !isAdmin(user)) {
@@ -66,8 +67,6 @@ export async function PUT(request: Request, { params }: RouteParams) {
         { status: 403 }
       )
     }
-
-    const { eventId } = params
     const data = await request.json()
 
     // Validate required fields based on status
@@ -432,8 +431,12 @@ export async function PUT(request: Request, { params }: RouteParams) {
   }
 }
 
-export async function DELETE(request: Request, { params }: RouteParams) {
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ eventId: string }> }
+) {
   try {
+    const { eventId } = await params
     const user = await getCurrentUser()
 
     if (!user || !isAdmin(user)) {
@@ -442,8 +445,6 @@ export async function DELETE(request: Request, { params }: RouteParams) {
         { status: 403 }
       )
     }
-
-    const { eventId } = params
 
     // Verify event belongs to user's organization
     const event = await prisma.event.findUnique({

@@ -4,9 +4,10 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { registrationId: string } }
+  { params }: { params: Promise<{ registrationId: string }> }
 ) {
   try {
+    const { registrationId } = await params
     const user = await getCurrentUser()
 
     if (!user || !isAdmin(user)) {
@@ -25,8 +26,6 @@ export async function GET(
         { status: 400 }
       )
     }
-
-    const registrationId = params.registrationId
 
     // Verify registration exists and belongs to user's organization
     if (registrationType === 'group') {

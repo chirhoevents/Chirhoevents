@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser()
 
-    if (!user) {
+    if (!user || !user.organizationId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

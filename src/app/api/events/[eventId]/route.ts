@@ -3,11 +3,12 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
+    const { eventId } = await params
     const event = await prisma.event.findUnique({
-      where: { id: params.eventId },
+      where: { id: eventId },
       include: {
         pricing: true,
         settings: true,
@@ -35,7 +36,7 @@ export async function GET(
 
     // Fetch depositPerPerson directly via raw query (Prisma client may not have this field)
     const depositPerPersonResult = await prisma.$queryRaw<Array<{ deposit_per_person: boolean | null }>>`
-      SELECT deposit_per_person FROM event_pricing WHERE event_id = ${params.eventId}::uuid LIMIT 1
+      SELECT deposit_per_person FROM event_pricing WHERE event_id = ${eventId}::uuid LIMIT 1
     `
     const depositPerPerson = depositPerPersonResult[0]?.deposit_per_person ?? true
 
