@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       include: { organization: true },
     })
 
-    if (!user || !isAdminRole(user.role as any)) {
+    if (!user || !user.organizationId || !isAdminRole(user.role as any)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
