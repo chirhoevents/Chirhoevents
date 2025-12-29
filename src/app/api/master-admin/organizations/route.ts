@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
         contactName: `${contactFirstName} ${contactLastName}`,
         contactEmail,
         contactPhone,
-        address: billingAddress ? { street: billingAddress } : null,
+        address: billingAddress ? { street: billingAddress } : undefined,
         subscriptionTier: subscriptionTier || 'starter',
         subscriptionStatus: 'active',
         status: 'active',
