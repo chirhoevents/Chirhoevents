@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
       data: {
         organizationId,
         invoiceNumber: nextInvoiceNumber,
-        invoiceType: invoiceType as 'setup_fee' | 'subscription' | 'overage' | 'custom',
+        invoiceType: invoiceType as 'setup_fee' | 'subscription' | 'reactivation_fee' | 'custom',
         amount: parseFloat(amount),
         description: description || null,
         lineItems: lineItems || null,
