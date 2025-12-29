@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { organizationId: string; templateId: string } }
+  { params }: { params: Promise<{ organizationId: string; templateId: string }> }
 ) {
   try {
     const user = await getCurrentUser()
@@ -50,7 +50,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { organizationId: string; templateId: string } }
+  { params }: { params: Promise<{ organizationId: string; templateId: string }> }
 ) {
   try {
     const user = await getCurrentUser()
@@ -126,7 +126,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { organizationId: string; templateId: string } }
+  { params }: { params: Promise<{ organizationId: string; templateId: string }> }
 ) {
   try {
     const user = await getCurrentUser()

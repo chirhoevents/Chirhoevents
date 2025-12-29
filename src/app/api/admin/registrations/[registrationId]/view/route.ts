@@ -4,9 +4,10 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { registrationId: string } }
+  { params }: { params: Promise<{ registrationId: string }> }
 ) {
   try {
+    const { registrationId } = await params
     const user = await getCurrentUser()
 
     if (!user || !isAdmin(user)) {
@@ -27,9 +28,9 @@ export async function GET(
     }
 
     if (registrationType === 'group') {
-      return await getGroupRegistration(params.registrationId, user.organizationId)
+      return await getGroupRegistration(registrationId, user.organizationId)
     } else {
-      return await getIndividualRegistration(params.registrationId, user.organizationId)
+      return await getIndividualRegistration(registrationId, user.organizationId)
     }
   } catch (error) {
     console.error('Error fetching registration view data:', error)

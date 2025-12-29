@@ -5,13 +5,13 @@ import { generateCSV } from '@/lib/reports/generate-csv'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const { userId } = await auth()
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { eventId } = params
+    const { eventId } = await params
     const eventFilter = eventId === 'all' ? {} : { eventId }
 
     // Fetch all registrations and participants

@@ -7,9 +7,10 @@ const resend = new Resend(process.env.RESEND_API_KEY!)
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const { userId } = await auth()
 
     if (!userId) {
@@ -26,7 +27,7 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const registrationId = params.id
+    const registrationId = id
 
     // Fetch the registration with all related data
     const registration = await prisma.groupRegistration.findUnique({
@@ -104,7 +105,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth()
@@ -123,7 +124,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const registrationId = params.id
+    const registrationId = id
     const body = await request.json()
 
     // Verify the registration belongs to the user's organization

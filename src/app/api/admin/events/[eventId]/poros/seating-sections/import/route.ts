@@ -5,9 +5,10 @@ import { prisma } from '@/lib/prisma'
 // POST - Import seating sections from CSV
 export async function POST(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
+    const { eventId } = await params
     const { userId } = auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -41,7 +42,7 @@ export async function POST(
 
     // Get max display order
     const maxOrder = await prisma.seatingSection.aggregate({
-      where: { eventId: params.eventId },
+      where: { eventId: eventId },
       _max: { displayOrder: true }
     })
     let nextOrder = (maxOrder._max.displayOrder || 0) + 1
@@ -106,7 +107,7 @@ export async function POST(
       }
 
       sectionsToCreate.push({
-        eventId: params.eventId,
+        eventId: eventId,
         name,
         sectionCode: values[headerMap['section code']]?.trim() || null,
         color,

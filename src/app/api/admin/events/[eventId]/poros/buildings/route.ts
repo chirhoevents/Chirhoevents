@@ -4,11 +4,11 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { eventId } = params
+    const { eventId } = await params
     const { searchParams } = new URL(request.url)
     const includeRooms = searchParams.get('includeRooms') === 'true'
 
@@ -62,11 +62,11 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { eventId } = params
+    const { eventId } = await params
     const body = await request.json()
 
     const building = await prisma.building.create({

@@ -5,11 +5,11 @@ import { prisma } from '@/lib/prisma'
 // GET - Fetch allocations for a specific group
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string; groupId: string } }
+  { params }: { params: Promise<{ eventId: string; groupId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { eventId, groupId } = params
+    const { eventId, groupId } = await params
 
     // Verify group exists and belongs to this event
     const group = await prisma.groupRegistration.findFirst({
@@ -63,11 +63,11 @@ export async function GET(
 // DELETE - Clear all room allocations for a group
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { eventId: string; groupId: string } }
+  { params }: { params: Promise<{ eventId: string; groupId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { eventId, groupId } = params
+    const { eventId, groupId } = await params
 
     // Verify group exists and belongs to this event
     const group = await prisma.groupRegistration.findFirst({

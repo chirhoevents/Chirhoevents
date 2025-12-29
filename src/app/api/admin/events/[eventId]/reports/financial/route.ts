@@ -4,7 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     // Auth check
@@ -13,7 +13,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { eventId } = params
+    const { eventId } = await params
     const isPreview = request.nextUrl.searchParams.get('preview') === 'true'
 
     // Handle "all" events

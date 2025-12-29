@@ -5,19 +5,20 @@ import { prisma } from '@/lib/prisma'
 // GET - Get a single resource
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string; resourceId: string } }
+  { params }: { params: Promise<{ eventId: string; resourceId: string }> }
 ) {
   try {
+    const { eventId, resourceId } = await params
     const { userId } = auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const resource = await prisma.porosResource.findUnique({
-      where: { id: params.resourceId }
+      where: { id: resourceId }
     })
 
-    if (!resource || resource.eventId !== params.eventId) {
+    if (!resource || resource.eventId !== eventId) {
       return NextResponse.json({ error: 'Resource not found' }, { status: 404 })
     }
 
@@ -31,7 +32,7 @@ export async function GET(
 // PUT - Update a resource
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { eventId: string; resourceId: string } }
+  { params }: { params: Promise<{ eventId: string; resourceId: string }> }
 ) {
   try {
     const { userId } = auth()
@@ -43,7 +44,7 @@ export async function PUT(
     const { name, type, url, order, isActive } = body
 
     const resource = await prisma.porosResource.update({
-      where: { id: params.resourceId },
+      where: { id: resourceId },
       data: {
         ...(name !== undefined && { name }),
         ...(type !== undefined && { type }),
@@ -63,7 +64,7 @@ export async function PUT(
 // DELETE - Delete a resource
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { eventId: string; resourceId: string } }
+  { params }: { params: Promise<{ eventId: string; resourceId: string }> }
 ) {
   try {
     const { userId } = auth()
@@ -72,7 +73,7 @@ export async function DELETE(
     }
 
     await prisma.porosResource.delete({
-      where: { id: params.resourceId }
+      where: { id: resourceId }
     })
 
     return NextResponse.json({ success: true })

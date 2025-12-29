@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 // PUT - Update a meal time
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { eventId: string; mealTimeId: string } }
+  { params }: { params: Promise<{ eventId: string; mealTimeId: string }> }
 ) {
   try {
     const { userId } = auth()
@@ -37,7 +37,7 @@ export async function PUT(
 // DELETE - Delete a meal time
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { eventId: string; mealTimeId: string } }
+  { params }: { params: Promise<{ eventId: string; mealTimeId: string }> }
 ) {
   try {
     const { userId } = auth()

@@ -26,11 +26,11 @@ interface SmallGroupAssignmentRecord {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { eventId } = params
+    const { eventId } = await params
 
     // Get participants
     const participants = await prisma.participant.findMany({

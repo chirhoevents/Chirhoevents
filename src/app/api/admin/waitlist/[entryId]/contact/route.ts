@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { entryId: string } }
+  { params }: { params: Promise<{ entryId: string }> }
 ) {
   try {
     // Check admin access
@@ -16,7 +16,7 @@ export async function POST(
       )
     }
 
-    const { entryId } = params
+    const { entryId } = await params
 
     // Fetch waitlist entry with event
     const entry = await prisma.waitlistEntry.findUnique({

@@ -5,9 +5,10 @@ import { prisma } from '@/lib/prisma'
 // GET - List all meal times for an event
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
+    const { eventId } = await params
     const { userId } = auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -46,7 +47,7 @@ export async function GET(
 // POST - Create or update meal times
 export async function POST(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const { userId } = auth()
@@ -68,14 +69,14 @@ export async function POST(
     const mealTime = await prisma.porosMealTime.upsert({
       where: {
         unique_meal_time: {
-          eventId: params.eventId,
+          eventId: eventId,
           day,
           meal,
           color
         }
       },
       create: {
-        eventId: params.eventId,
+        eventId: eventId,
         day,
         dayDate: dayDate ? new Date(dayDate) : null,
         meal,
@@ -98,7 +99,7 @@ export async function POST(
 // PUT - Bulk update meal times
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const { userId } = auth()
@@ -115,14 +116,14 @@ export async function PUT(
 
     // Delete existing meal times for this event
     await prisma.porosMealTime.deleteMany({
-      where: { eventId: params.eventId }
+      where: { eventId: eventId }
     })
 
     // Create new meal times
     if (mealTimes.length > 0) {
       await prisma.porosMealTime.createMany({
         data: mealTimes.map((mt: any, index: number) => ({
-          eventId: params.eventId,
+          eventId: eventId,
           day: mt.day,
           dayDate: mt.dayDate ? new Date(mt.dayDate) : null,
           meal: mt.meal,
@@ -143,7 +144,7 @@ export async function PUT(
 // DELETE - Delete a specific meal time or all
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const { userId } = auth()
@@ -160,7 +161,7 @@ export async function DELETE(
       })
     } else {
       await prisma.porosMealTime.deleteMany({
-        where: { eventId: params.eventId }
+        where: { eventId: eventId }
       })
     }
 

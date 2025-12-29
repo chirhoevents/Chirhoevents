@@ -7,9 +7,10 @@ const resend = new Resend(process.env.RESEND_API_KEY!)
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { paymentId: string } }
+  { params }: { params: Promise<{ paymentId: string }> }
 ) {
   try {
+    const { paymentId } = await params
     const { userId } = await auth()
 
     if (!userId) {
@@ -26,7 +27,7 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const paymentId = params.paymentId
+    const paymentId = paymentId
     const {
       checkNumber,
       actualAmount,

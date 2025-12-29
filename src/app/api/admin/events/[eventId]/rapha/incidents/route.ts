@@ -6,11 +6,11 @@ import { hasPermission } from '@/lib/permissions'
 // GET: List all incidents
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { eventId } = params
+    const { eventId } = await params
     const { searchParams } = new URL(request.url)
 
     // Check Rapha access permission
@@ -177,11 +177,11 @@ export async function GET(
 // POST: Create new incident
 export async function POST(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { eventId } = params
+    const { eventId } = await params
     const body = await request.json()
 
     // Check Rapha access permission

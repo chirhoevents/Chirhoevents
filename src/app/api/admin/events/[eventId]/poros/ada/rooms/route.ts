@@ -16,9 +16,10 @@ interface RoomWithBuilding {
 // GET - List all ADA accessible rooms
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
+    const { eventId } = await params
     const { userId } = auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -26,7 +27,7 @@ export async function GET(
 
     const adaRooms = await prisma.room.findMany({
       where: {
-        building: { eventId: params.eventId },
+        building: { eventId: eventId },
         isAdaAccessible: true,
       },
       include: {

@@ -5,9 +5,10 @@ import { prisma } from '@/lib/prisma'
 // GET - List all schedule entries for an event
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
+    const { eventId } = await params
     const { userId } = auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -45,7 +46,7 @@ export async function GET(
 // POST - Create a new schedule entry
 export async function POST(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const { userId } = auth()
@@ -65,13 +66,13 @@ export async function POST(
 
     // Get max order for the day
     const maxOrder = await prisma.porosScheduleEntry.aggregate({
-      where: { eventId: params.eventId, day },
+      where: { eventId: eventId, day },
       _max: { order: true }
     })
 
     const entry = await prisma.porosScheduleEntry.create({
       data: {
-        eventId: params.eventId,
+        eventId: eventId,
         day,
         dayDate: dayDate ? new Date(dayDate) : null,
         startTime,
@@ -93,7 +94,7 @@ export async function POST(
 // PUT - Bulk update schedule entries
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const { userId } = auth()
@@ -108,14 +109,14 @@ export async function PUT(
     if (Array.isArray(entries)) {
       // Delete existing entries for this event
       await prisma.porosScheduleEntry.deleteMany({
-        where: { eventId: params.eventId }
+        where: { eventId: eventId }
       })
 
       // Create new entries
       if (entries.length > 0) {
         await prisma.porosScheduleEntry.createMany({
           data: entries.map((e: any, index: number) => ({
-            eventId: params.eventId,
+            eventId: eventId,
             day: e.day,
             dayDate: e.dayDate ? new Date(e.dayDate) : null,
             startTime: e.startTime,
@@ -133,9 +134,9 @@ export async function PUT(
     if (pdfUrl !== undefined) {
       if (pdfUrl) {
         await prisma.porosSchedulePdf.upsert({
-          where: { eventId: params.eventId },
+          where: { eventId: eventId },
           create: {
-            eventId: params.eventId,
+            eventId: eventId,
             url: pdfUrl,
             filename: pdfFilename || 'schedule.pdf'
           },
@@ -148,7 +149,7 @@ export async function PUT(
         // Delete PDF if url is null/empty
         try {
           await prisma.porosSchedulePdf.delete({
-            where: { eventId: params.eventId }
+            where: { eventId: eventId }
           })
         } catch {
           // Ignore if doesn't exist
@@ -166,7 +167,7 @@ export async function PUT(
 // DELETE - Delete all schedule entries
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const { userId } = auth()
@@ -175,7 +176,7 @@ export async function DELETE(
     }
 
     await prisma.porosScheduleEntry.deleteMany({
-      where: { eventId: params.eventId }
+      where: { eventId: eventId }
     })
 
     return NextResponse.json({ success: true })

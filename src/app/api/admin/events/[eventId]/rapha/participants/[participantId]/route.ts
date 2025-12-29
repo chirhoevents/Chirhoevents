@@ -5,11 +5,11 @@ import { hasPermission } from '@/lib/permissions'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string; participantId: string } }
+  { params }: { params: Promise<{ eventId: string; participantId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { eventId, participantId } = params
+    const { eventId, participantId } = await params
 
     // Check Rapha access permission
     if (!hasPermission(user.role, 'rapha.access')) {

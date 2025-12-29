@@ -6,11 +6,11 @@ import { uploadPacketInsert, deletePacketInsert } from '@/lib/r2/upload-packet-i
 // GET - List all inserts for the event
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     await requireAdmin()
-    const { eventId } = params
+    const { eventId } = await params
 
     const inserts = await prisma.welcomePacketInsert.findMany({
       where: { eventId },
@@ -30,11 +30,11 @@ export async function GET(
 // POST - Create a new insert (with optional file upload)
 export async function POST(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     await requireAdmin()
-    const { eventId } = params
+    const { eventId } = await params
 
     // Get event to find organization ID for file storage
     const event = await prisma.event.findUnique({
@@ -160,11 +160,11 @@ export async function POST(
 // PUT - Update insert order or toggle active status
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     await requireAdmin()
-    const { eventId } = params
+    const { eventId } = await params
     const body = await request.json()
     const { inserts, insertId, isActive } = body
 
@@ -208,11 +208,11 @@ export async function PUT(
 // DELETE - Delete an insert
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     await requireAdmin()
-    const { eventId } = params
+    const { eventId } = await params
     const { searchParams } = new URL(request.url)
     const insertId = searchParams.get('id')
 

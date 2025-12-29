@@ -5,12 +5,12 @@ import { auth } from '@clerk/nextjs/server'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const user = await requireAdmin()
     const { userId } = await auth()
-    const { eventId } = params
+    const { eventId } = await params
     const body = await request.json()
 
     const { participantIds, action, stationId, notes, groupId } = body
@@ -116,12 +116,12 @@ export async function POST(
 // Bulk check-in for entire group
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const user = await requireAdmin()
     const { userId } = await auth()
-    const { eventId } = params
+    const { eventId } = await params
     const body = await request.json()
 
     const { groupId, action, stationId, notes } = body

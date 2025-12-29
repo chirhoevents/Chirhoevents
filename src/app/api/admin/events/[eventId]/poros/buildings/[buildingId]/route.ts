@@ -4,11 +4,11 @@ import { prisma } from '@/lib/prisma'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { eventId: string; buildingId: string } }
+  { params }: { params: Promise<{ eventId: string; buildingId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { buildingId } = params
+    const { buildingId } = await params
     const body = await request.json()
 
     const building = await prisma.building.update({
@@ -34,11 +34,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { eventId: string; buildingId: string } }
+  { params }: { params: Promise<{ eventId: string; buildingId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { buildingId } = params
+    const { buildingId } = await params
 
     await prisma.building.delete({
       where: { id: buildingId },

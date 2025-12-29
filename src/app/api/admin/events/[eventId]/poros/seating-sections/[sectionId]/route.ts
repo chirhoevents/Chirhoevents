@@ -4,11 +4,11 @@ import { prisma } from '@/lib/prisma'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { eventId: string; sectionId: string } }
+  { params }: { params: Promise<{ eventId: string; sectionId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { sectionId } = params
+    const { sectionId } = await params
     const body = await request.json()
 
     const section = await prisma.seatingSection.update({
@@ -35,11 +35,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { eventId: string; sectionId: string } }
+  { params }: { params: Promise<{ eventId: string; sectionId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { sectionId } = params
+    const { sectionId } = await params
 
     await prisma.seatingSection.delete({
       where: { id: sectionId },

@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const user = await getCurrentUser()
@@ -16,7 +16,7 @@ export async function GET(
       )
     }
 
-    const { eventId } = params
+    const { eventId } = await params
 
     // Fetch event with pricing and settings
     const event = await prisma.event.findUnique({

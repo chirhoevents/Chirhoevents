@@ -4,16 +4,17 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
+    const { eventId } = await params
     const { userId } = auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const buildings = await prisma.building.findMany({
-      where: { eventId: params.eventId },
+      where: { eventId: eventId },
       include: { rooms: true },
       orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }]
     })
@@ -51,7 +52,7 @@ export async function GET(
     return new NextResponse(csv, {
       headers: {
         'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="housing-export-${params.eventId}.csv"`
+        'Content-Disposition': `attachment; filename="housing-export-${eventId}.csv"`
       }
     })
 

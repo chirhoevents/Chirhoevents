@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { eventId: string; formId: string } }
+  { params }: { params: Promise<{ eventId: string; formId: string }> }
 ) {
   try {
     const user = await getCurrentUser()

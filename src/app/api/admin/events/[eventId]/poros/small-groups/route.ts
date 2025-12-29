@@ -24,11 +24,11 @@ interface SmallGroupWithAssignments {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { eventId } = params
+    const { eventId } = await params
 
     const groups = await prisma.smallGroup.findMany({
       where: { eventId },
@@ -68,11 +68,11 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { eventId } = params
+    const { eventId } = await params
     const body = await request.json()
 
     const group = await prisma.smallGroup.create({

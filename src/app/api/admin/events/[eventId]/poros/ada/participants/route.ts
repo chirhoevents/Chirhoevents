@@ -34,9 +34,10 @@ interface RoomAssignmentWithRoom {
 // GET - List all participants with ADA needs
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
+    const { eventId } = await params
     const { userId } = auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -44,7 +45,7 @@ export async function GET(
 
     // Query AdaIndividual without relations (they're not defined in schema)
     const adaIndividuals = await prisma.adaIndividual.findMany({
-      where: { eventId: params.eventId }
+      where: { eventId: eventId }
     })
 
     // Extract IDs for separate queries

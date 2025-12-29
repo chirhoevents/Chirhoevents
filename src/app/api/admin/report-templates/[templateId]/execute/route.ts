@@ -5,13 +5,13 @@ import { auth } from '@clerk/nextjs/server'
 // POST execute a report template with dynamic parameters
 export async function POST(
   request: NextRequest,
-  { params }: { params: { templateId: string } }
+  { params }: { params: Promise<{ templateId: string }> }
 ) {
   try {
     const { userId } = await auth()
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { templateId } = params
+    const { templateId } = await params
     const body = await request.json()
     const { eventId, dateRange, additionalFilters } = body
 

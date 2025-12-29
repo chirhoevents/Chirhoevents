@@ -6,11 +6,11 @@ import { hasPermission } from '@/lib/permissions'
 // GET: Get single incident
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string; incidentId: string } }
+  { params }: { params: Promise<{ eventId: string; incidentId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { eventId, incidentId } = params
+    const { eventId, incidentId } = await params
 
     // Check Rapha access permission
     if (!hasPermission(user.role, 'rapha.access')) {
@@ -146,11 +146,11 @@ export async function GET(
 // PUT: Update incident
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { eventId: string; incidentId: string } }
+  { params }: { params: Promise<{ eventId: string; incidentId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { eventId, incidentId } = params
+    const { eventId, incidentId } = await params
     const body = await request.json()
 
     // Check Rapha access permission

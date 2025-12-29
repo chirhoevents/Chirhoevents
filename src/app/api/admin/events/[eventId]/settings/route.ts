@@ -66,7 +66,7 @@ const VALID_SETTINGS_FIELDS = [
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const { userId } = await auth()

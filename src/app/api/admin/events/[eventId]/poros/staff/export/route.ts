@@ -16,16 +16,17 @@ interface StaffRecord {
 // GET - Export staff to CSV
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
+    const { eventId } = await params
     const { userId } = auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const staff = await prisma.porosStaff.findMany({
-      where: { eventId: params.eventId },
+      where: { eventId: eventId },
       orderBy: [{ staffType: 'asc' }, { lastName: 'asc' }]
     })
 

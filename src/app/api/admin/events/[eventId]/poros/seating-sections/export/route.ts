@@ -15,16 +15,17 @@ interface SeatingSectionRecord {
 // GET - Export seating sections to CSV
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
+    const { eventId } = await params
     const { userId } = auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const sections = await prisma.seatingSection.findMany({
-      where: { eventId: params.eventId },
+      where: { eventId: eventId },
       orderBy: { displayOrder: 'asc' }
     })
 

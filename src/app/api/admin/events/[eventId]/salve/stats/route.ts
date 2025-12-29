@@ -4,11 +4,11 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     await requireAdmin()
-    const { eventId } = params
+    const { eventId } = await params
 
     // Get total participants for this event
     const totalParticipants = await prisma.participant.count({

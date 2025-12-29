@@ -10,11 +10,11 @@ const resend = new Resend(process.env.RESEND_API_KEY!)
 // POST: Send email from Rapha
 export async function POST(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { eventId } = params
+    const { eventId } = await params
     const body = await request.json()
 
     // Check Rapha access permission

@@ -4,10 +4,10 @@ import { generateLiabilityFormPDF } from '@/lib/pdf/generate-liability-form-pdf'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { formId: string } }
+  { params }: { params: Promise<{ formId: string }> }
 ) {
   try {
-    const { formId } = params
+    const { formId } = await params
 
     // Find liability form with all relations needed for PDF
     const form = await prisma.liabilityForm.findUnique({

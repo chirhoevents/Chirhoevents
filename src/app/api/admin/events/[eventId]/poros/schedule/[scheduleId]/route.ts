@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 // PUT - Update a schedule entry
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { eventId: string; scheduleId: string } }
+  { params }: { params: Promise<{ eventId: string; scheduleId: string }> }
 ) {
   try {
     const { userId } = auth()
@@ -38,7 +38,7 @@ export async function PUT(
 // DELETE - Delete a schedule entry
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { eventId: string; scheduleId: string } }
+  { params }: { params: Promise<{ eventId: string; scheduleId: string }> }
 ) {
   try {
     const { userId } = auth()

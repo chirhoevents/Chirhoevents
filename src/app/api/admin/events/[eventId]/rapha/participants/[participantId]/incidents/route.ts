@@ -6,11 +6,11 @@ import { hasPermission } from '@/lib/permissions'
 // GET: Get all incidents for a participant (for printing visit history)
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string; participantId: string } }
+  { params }: { params: Promise<{ eventId: string; participantId: string }> }
 ) {
   try {
     const user = await requireAdmin()
-    const { eventId, participantId } = params
+    const { eventId, participantId } = await params
     const { searchParams } = new URL(request.url)
     const incidentId = searchParams.get('incidentId')
 

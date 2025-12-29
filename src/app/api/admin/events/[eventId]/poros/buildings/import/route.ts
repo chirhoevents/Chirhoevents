@@ -4,9 +4,10 @@ import { prisma } from '@/lib/prisma'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
+    const { eventId } = await params
     const { userId } = auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -107,14 +108,14 @@ export async function POST(
     for (const buildingData of Array.from(buildingsMap.values())) {
       // Get the max display order for the event
       const maxOrder = await prisma.building.aggregate({
-        where: { eventId: params.eventId },
+        where: { eventId: eventId },
         _max: { displayOrder: true }
       })
 
       // Create building
       const building = await prisma.building.create({
         data: {
-          eventId: params.eventId,
+          eventId: eventId,
           name: buildingData.name,
           gender: buildingData.gender as any,
           housingType: buildingData.housingType as any,

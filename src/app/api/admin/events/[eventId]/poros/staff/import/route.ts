@@ -9,9 +9,10 @@ const VALID_GENDERS = ['male', 'female']
 // POST - Import staff from CSV
 export async function POST(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
+    const { eventId } = await params
     const { userId } = auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -85,7 +86,7 @@ export async function POST(
       }
 
       staffToCreate.push({
-        eventId: params.eventId,
+        eventId: eventId,
         firstName,
         lastName,
         email: values[headerMap['email']]?.trim() || null,

@@ -9,6 +9,7 @@ export async function GET(
   { params }: { params: Promise<{ registrationId: string }> }
 ) {
   try {
+    const { registrationId } = await params
     const { userId } = await auth()
 
     if (!userId) {
@@ -47,7 +48,7 @@ export async function GET(
         } else {
           return NextResponse.json({
             error: 'Registration not found',
-            searchedFor: params.registrationId,
+            searchedFor: registrationId,
             hint: 'Provide either a UUID or a valid access code/confirmation code',
           }, { status: 404 })
         }

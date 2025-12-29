@@ -3,11 +3,12 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { registrationId: string } }
+  { params }: { params: Promise<{ registrationId: string }> }
 ) {
   try {
+    const { registrationId } = await params
     const registration = await prisma.groupRegistration.findUnique({
-      where: { id: params.registrationId },
+      where: { id: registrationId },
       include: {
         event: true,
       },
@@ -23,7 +24,7 @@ export async function GET(
     // Fetch payments separately (polymorphic relationship)
     const payments = await prisma.payment.findMany({
       where: {
-        registrationId: params.registrationId,
+        registrationId: registrationId,
         registrationType: 'group',
         paymentStatus: 'succeeded',
       },
