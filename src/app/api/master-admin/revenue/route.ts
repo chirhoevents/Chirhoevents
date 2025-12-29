@@ -138,10 +138,10 @@ export async function GET() {
     const invoiceStats = {
       total: invoices.length,
       paid: invoices.filter((i: InvoiceType) => i.status === 'paid').length,
-      pending: invoices.filter((i: InvoiceType) => i.status === 'pending' || i.status === 'sent').length,
+      pending: invoices.filter((i: InvoiceType) => i.status === 'pending').length,
       overdue: invoices.filter((i: InvoiceType) => i.status === 'overdue').length,
       totalCollected: invoices.filter((i: InvoiceType) => i.status === 'paid').reduce((sum: number, i: InvoiceType) => sum + Number(i.amount), 0),
-      totalOutstanding: invoices.filter((i: InvoiceType) => ['pending', 'sent', 'overdue'].includes(i.status)).reduce((sum: number, i: InvoiceType) => sum + Number(i.amount), 0),
+      totalOutstanding: invoices.filter((i: InvoiceType) => ['pending', 'overdue'].includes(i.status)).reduce((sum: number, i: InvoiceType) => sum + Number(i.amount), 0),
     }
 
     // Recent organizations
