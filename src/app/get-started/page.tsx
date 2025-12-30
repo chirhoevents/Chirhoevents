@@ -610,7 +610,7 @@ export default function GetStartedPage() {
             </label>
 
             <div className="bg-[#F5F1E8] rounded-lg p-4 text-sm text-gray-700">
-              <strong>Note:</strong> By submitting, you&apos;ll be charged a $250 one-time setup fee upon approval. Subscription fees will be billed according to your selected plan and billing cycle.
+              After approval, you&apos;ll receive an invoice for the $250 setup fee and your first subscription payment.
             </div>
 
             <button
