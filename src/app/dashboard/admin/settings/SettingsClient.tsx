@@ -2,10 +2,11 @@
 
 import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Building2, Users, Plug, Loader2, Lock } from 'lucide-react'
+import { Building2, Users, Plug, Loader2, CreditCard } from 'lucide-react'
 import OrganizationSettingsTab from '@/components/admin/settings/OrganizationSettingsTab'
 import TeamSettingsTab from '@/components/admin/settings/TeamSettingsTab'
 import IntegrationsSettingsTab from '@/components/admin/settings/IntegrationsSettingsTab'
+import BillingSettingsTab from '@/components/admin/settings/BillingSettingsTab'
 import { usePermissions } from '@/hooks/usePermissions'
 
 interface SettingsClientProps {
@@ -61,6 +62,15 @@ export default function SettingsClient({ organizationName }: SettingsClientProps
           )}
           {canAccessIntegrations && (
             <TabsTrigger
+              value="billing"
+              className="data-[state=active]:bg-white data-[state=active]:text-[#1E3A5F] data-[state=active]:shadow-sm flex items-center gap-2"
+            >
+              <CreditCard className="h-4 w-4" />
+              Billing
+            </TabsTrigger>
+          )}
+          {canAccessIntegrations && (
+            <TabsTrigger
               value="integrations"
               className="data-[state=active]:bg-white data-[state=active]:text-[#1E3A5F] data-[state=active]:shadow-sm flex items-center gap-2"
             >
@@ -77,6 +87,12 @@ export default function SettingsClient({ organizationName }: SettingsClientProps
         {canAccessTeam && (
           <TabsContent value="team" className="mt-6">
             <TeamSettingsTab />
+          </TabsContent>
+        )}
+
+        {canAccessIntegrations && (
+          <TabsContent value="billing" className="mt-6">
+            <BillingSettingsTab />
           </TabsContent>
         )}
 
