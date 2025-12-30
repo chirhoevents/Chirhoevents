@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import Stripe from 'stripe'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
@@ -18,8 +19,11 @@ export async function GET() {
       )
     }
 
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user)
+
     const organization = await prisma.organization.findUnique({
-      where: { id: user.organizationId },
+      where: { id: organizationId },
       select: {
         stripeAccountId: true,
       },
@@ -77,7 +81,7 @@ export async function GET() {
     if (stripeConnection.connected) {
       const payments = await prisma.payment.aggregate({
         where: {
-          organizationId: user.organizationId,
+          organizationId,
           paymentStatus: 'succeeded',
         },
         _sum: {
@@ -88,7 +92,7 @@ export async function GET() {
 
       const lastPayment = await prisma.payment.findFirst({
         where: {
-          organizationId: user.organizationId,
+          organizationId,
           paymentStatus: 'succeeded',
         },
         orderBy: {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function GET() {
   try {
@@ -13,11 +14,14 @@ export async function GET() {
       )
     }
 
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user)
+
     // Get active events count
     const now = new Date()
     const activeEventsCount = await prisma.event.count({
       where: {
-        organizationId: user.organizationId,
+        organizationId,
         status: {
           in: ['registration_open', 'in_progress', 'published'],
         },
@@ -30,13 +34,13 @@ export async function GET() {
     // Get total registrations across all events
     const groupRegistrationsCount = await prisma.groupRegistration.count({
       where: {
-        organizationId: user.organizationId,
+        organizationId,
       },
     })
 
     const individualRegistrationsCount = await prisma.individualRegistration.count({
       where: {
-        organizationId: user.organizationId,
+        organizationId,
       },
     })
 
@@ -45,7 +49,7 @@ export async function GET() {
     // Calculate total revenue
     const payments = await prisma.payment.findMany({
       where: {
-        organizationId: user.organizationId,
+        organizationId,
         paymentStatus: 'succeeded',
       },
       select: {
@@ -54,27 +58,27 @@ export async function GET() {
     })
 
     const revenue = payments.reduce(
-      (sum: number, payment: any) => sum + Number(payment.amount),
+      (sum: number, payment: { amount: unknown }) => sum + Number(payment.amount),
       0
     )
 
     // Get forms completion stats
     const totalParticipants = await prisma.participant.count({
       where: {
-        organizationId: user.organizationId,
+        organizationId,
       },
     })
 
     const completedForms = await prisma.participant.count({
       where: {
-        organizationId: user.organizationId,
+        organizationId,
         liabilityFormCompleted: true,
       },
     })
 
     const totalIndividualForms = await prisma.individualRegistration.count({
       where: {
-        organizationId: user.organizationId,
+        organizationId,
         registrationStatus: 'complete',
       },
     })
@@ -85,7 +89,7 @@ export async function GET() {
     // Get upcoming events (next 3)
     const upcomingEvents = await prisma.event.findMany({
       where: {
-        organizationId: user.organizationId,
+        organizationId,
         status: {
           not: 'draft',
         },
@@ -110,7 +114,7 @@ export async function GET() {
     // Get recent registrations (last 5)
     const recentGroupRegistrations = await prisma.groupRegistration.findMany({
       where: {
-        organizationId: user.organizationId,
+        organizationId,
       },
       include: {
         event: {
@@ -128,7 +132,7 @@ export async function GET() {
     // Get pending safe environment certs
     const pendingCerts = await prisma.safeEnvironmentCertificate.count({
       where: {
-        organizationId: user.organizationId,
+        organizationId,
         status: 'pending',
       },
     })
@@ -136,7 +140,7 @@ export async function GET() {
     // Get pending check payments
     const pendingCheckPayments = await prisma.payment.count({
       where: {
-        organizationId: user.organizationId,
+        organizationId,
         paymentMethod: 'check',
         paymentStatus: 'pending',
       },
@@ -145,7 +149,7 @@ export async function GET() {
     // Get registrations with overdue balances (simplified - would need late fee deadline logic)
     const overdueBalances = await prisma.paymentBalance.count({
       where: {
-        organizationId: user.organizationId,
+        organizationId,
         paymentStatus: {
           in: ['unpaid', 'partial'],
         },
@@ -163,7 +167,7 @@ export async function GET() {
         formsCompleted,
         formsTotal,
       },
-      upcomingEvents: upcomingEvents.map((event: any) => ({
+      upcomingEvents: upcomingEvents.map((event) => ({
         id: event.id,
         name: event.name,
         slug: event.slug,
@@ -171,7 +175,7 @@ export async function GET() {
         endDate: event.endDate,
         totalRegistrations: event._count.groupRegistrations + event._count.individualRegistrations,
       })),
-      recentRegistrations: recentGroupRegistrations.map((reg: any) => ({
+      recentRegistrations: recentGroupRegistrations.map((reg) => ({
         id: reg.id,
         groupName: reg.groupName,
         eventName: reg.event.name,

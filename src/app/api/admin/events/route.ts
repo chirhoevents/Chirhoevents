@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,6 +14,9 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user)
+
     // Parse query parameters
     const searchParams = request.nextUrl.searchParams
     const status = searchParams.get('status') // 'all' | 'upcoming' | 'past' | 'draft'
@@ -23,7 +27,7 @@ export async function GET(request: NextRequest) {
     // Build where clause
     const now = new Date()
     const whereClause: any = {
-      organizationId: user.organizationId,
+      organizationId,
     }
 
     // Apply status filter
