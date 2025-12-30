@@ -31,6 +31,7 @@ interface Organization {
   legalEntityName: string | null
   website: string | null
   paymentMethodPreference: string
+  platformFeePercentage: number
 }
 
 // Standard tier pricing
@@ -83,6 +84,7 @@ export default function EditOrganizationPage() {
     legalEntityName: '',
     website: '',
     paymentMethod: 'credit_card',
+    platformFeePercentage: 1,
   })
 
   useEffect(() => {
@@ -116,6 +118,7 @@ export default function EditOrganizationPage() {
             legalEntityName: org.legalEntityName || '',
             website: org.website || '',
             paymentMethod: org.paymentMethodPreference || 'credit_card',
+            platformFeePercentage: org.platformFeePercentage || 1,
           })
         } else {
           setError('Organization not found')
@@ -435,6 +438,28 @@ export default function EditOrganizationPage() {
                 />
                 <span className="text-sm text-gray-700">Paid</span>
               </label>
+            </div>
+          </div>
+
+          {/* Platform Fee */}
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="text-sm font-medium text-gray-700">Platform Fee Percentage</label>
+                <p className="text-xs text-gray-500">Applied to event registration payments via Stripe Connect</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  max="10"
+                  step="0.1"
+                  value={formData.platformFeePercentage}
+                  onChange={(e) => setFormData({ ...formData, platformFeePercentage: Number(e.target.value) })}
+                  className="w-20 border border-gray-300 rounded-lg px-3 py-2 text-right focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                />
+                <span className="text-sm text-gray-700">%</span>
+              </div>
             </div>
           </div>
         </div>
