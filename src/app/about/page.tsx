@@ -3,55 +3,22 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import Link from "next/link";
-import Image from "next/image";
+import { PublicNav } from "@/components/PublicNav";
 
 export default function AboutPage() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 bg-white border-b border-gray-200">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center">
-              <Link href="/" className="flex items-center">
-                <Image
-                  src="/dark-logo-horizontal.png"
-                  alt="ChiRho Events"
-                  width={200}
-                  height={60}
-                  className="h-10 md:h-14 w-auto cursor-pointer"
-                  priority
-                />
-              </Link>
-            </div>
-            <div className="hidden md:flex items-center space-x-8">
-              <Link href="/about" className="text-navy hover:text-gold transition-colors font-medium">About</Link>
-              <Link href="/features" className="text-navy hover:text-gold transition-colors font-medium">Features</Link>
-              <Link href="/#pricing" className="text-navy hover:text-gold transition-colors font-medium">Pricing</Link>
-              <Link href="/#faq" className="text-navy hover:text-gold transition-colors font-medium">FAQ</Link>
-              <Link href="/#contact" className="text-navy hover:text-gold transition-colors font-medium">Contact</Link>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Link href="/sign-in">
-                <Button variant="outline" size="sm">Sign In</Button>
-              </Link>
-              <Link href="/#contact">
-                <Button size="sm">Get Started</Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <PublicNav currentPage="/about" />
 
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-navy to-navy-700 text-white py-20 sm:py-32">
-        <div className="absolute inset-0 bg-black opacity-40"></div>
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      <section className="bg-navy text-white py-16">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto text-center">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 leading-tight">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
               About ChiRho Events
             </h1>
-            <p className="text-xl sm:text-2xl text-gray-200">
+            <p className="text-lg sm:text-xl text-gray-300">
               Built by ministry, for ministry
             </p>
           </div>
@@ -117,7 +84,7 @@ export default function AboutPage() {
                 Join the growing number of Catholic organizations using ChiRho Events
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link href="/#contact">
+                <Link href="/get-started">
                   <Button size="lg" className="text-lg px-8 py-6">
                     Get Started
                   </Button>

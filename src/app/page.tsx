@@ -537,13 +537,68 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Section 7: Contact Form */}
+      {/* Section 7: Get More Information */}
       <section id="contact" className="py-16 bg-beige">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-2xl mx-auto">
-            <h2 className="text-3xl sm:text-4xl font-bold text-center text-navy mb-12">
-              Ready to Get Started?
+          {/* Quick Links for More Information */}
+          <div className="max-w-4xl mx-auto mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-center text-navy mb-4">
+              Get More Information
             </h2>
+            <p className="text-center text-gray-600 mb-8">
+              Not ready to sign up yet? Explore these resources to learn more about ChiRho Events.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="text-center hover:shadow-lg transition-shadow">
+                <CardContent className="p-6">
+                  <div className="bg-navy rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
+                    <FileText className="h-6 w-6 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-navy mb-2">Explore Features</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    See all the tools ChiRho offers for registration, housing, check-in, and more.
+                  </p>
+                  <Link href="/features">
+                    <Button variant="outline" className="w-full">View Features</Button>
+                  </Link>
+                </CardContent>
+              </Card>
+              <Card className="text-center hover:shadow-lg transition-shadow">
+                <CardContent className="p-6">
+                  <div className="bg-navy rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
+                    <Clipboard className="h-6 w-6 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-navy mb-2">Read Documentation</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Learn how the platform works with step-by-step guides and tutorials.
+                  </p>
+                  <Link href="/docs">
+                    <Button variant="outline" className="w-full">View Docs</Button>
+                  </Link>
+                </CardContent>
+              </Card>
+              <Card className="text-center hover:shadow-lg transition-shadow">
+                <CardContent className="p-6">
+                  <div className="bg-navy rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
+                    <Heart className="h-6 w-6 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-navy mb-2">Get Support</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Have questions? Check our FAQ or contact our support team directly.
+                  </p>
+                  <Link href="/support">
+                    <Button variant="outline" className="w-full">Visit Support</Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Contact Form */}
+          <div className="max-w-2xl mx-auto">
+            <h3 className="text-2xl font-bold text-center text-navy mb-8">
+              Or Send Us a Message
+            </h3>
             <Card>
               <CardContent className="p-8">
                 {contactFormSubmitted ? (
