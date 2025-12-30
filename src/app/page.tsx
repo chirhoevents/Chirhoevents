@@ -118,9 +118,9 @@ export default function LandingPage() {
                 <tbody>
                   <tr className="bg-gold-50 border-2 border-gold">
                     <td className="py-4 px-6 font-bold text-navy">ChiRho ✅</td>
-                    <td className="py-4 px-6">3.06%</td>
+                    <td className="py-4 px-6">3.9%*</td>
                     <td className="py-4 px-6">$49-$149</td>
-                    <td className="py-4 px-6 font-bold text-gold-700">$3,060 + monthly</td>
+                    <td className="py-4 px-6 font-bold text-gold-700">$3,900 + monthly</td>
                   </tr>
                   <tr className="border-b">
                     <td className="py-4 px-6">Eventbrite</td>
@@ -138,7 +138,8 @@ export default function LandingPage() {
               </table>
             </div>
             <div className="text-center mt-6">
-              <p className="text-2xl font-bold text-gold-700">💰 Save $1,240+ per event</p>
+              <p className="text-2xl font-bold text-gold-700">💰 Save $400+ per event vs Eventbrite</p>
+              <p className="text-sm text-gray-500 mt-2">*3.9% = 2.9% Stripe processing + 1% ChiRho platform fee (+ $0.30/transaction)</p>
             </div>
           </div>
         </div>
@@ -300,8 +301,11 @@ export default function LandingPage() {
           <h2 className="text-3xl sm:text-4xl font-bold text-center text-navy mb-4">
             Simple, Transparent Pricing
           </h2>
-          <p className="text-center text-gray-600 mb-12 text-lg">
-            Processing Fee: 3.06% + $0.30 per ticket • Setup Fee: $250 (one-time)
+          <p className="text-center text-gray-600 mb-4 text-lg">
+            Processing Fee: 2.9% + $0.30 per ticket (Stripe) • Platform Fee: 1% • Setup Fee: $250 (one-time)
+          </p>
+          <p className="text-center text-sm text-gray-500 mb-12">
+            All payments are processed securely via Stripe. The 1% platform fee helps us maintain and improve ChiRho Events.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 max-w-7xl mx-auto">
             {/* Starter */}
@@ -418,7 +422,7 @@ export default function LandingPage() {
                   How does pricing work?
                 </AccordionTrigger>
                 <AccordionContent className="text-gray-600">
-                  You pay a monthly subscription based on your tier, plus a processing fee of 3.06% + $0.30 per ticket. There&apos;s a one-time $250 setup fee. No hidden costs!
+                  You pay a monthly subscription based on your tier. For payments, Stripe charges 2.9% + $0.30 per transaction, and ChiRho adds a 1% platform fee. There&apos;s a one-time $250 setup fee. All fees are transparent — no hidden costs!
                 </AccordionContent>
               </AccordionItem>
 
