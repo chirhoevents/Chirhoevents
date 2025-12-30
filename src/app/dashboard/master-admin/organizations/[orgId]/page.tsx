@@ -515,10 +515,12 @@ export default function OrganizationDetailPage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Stripe Connect</h2>
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                {organization.stripeOnboardingCompleted ? (
+                {organization.stripeOnboardingCompleted || organization.stripeAccountId ? (
                   <>
                     <Check className="h-5 w-5 text-green-500" />
-                    <span className="text-sm text-gray-900">Stripe Account Connected</span>
+                    <span className="text-sm text-gray-900">
+                      Stripe Account {organization.stripeOnboardingCompleted ? 'Connected' : 'Linked'}
+                    </span>
                   </>
                 ) : (
                   <>
@@ -529,6 +531,9 @@ export default function OrganizationDetailPage() {
               </div>
               {organization.stripeAccountId && (
                 <p className="text-sm text-gray-500">Account ID: {organization.stripeAccountId}</p>
+              )}
+              {organization.stripeAccountId && !organization.stripeOnboardingCompleted && (
+                <p className="text-xs text-yellow-600">Onboarding may still be in progress</p>
               )}
             </div>
           </div>
