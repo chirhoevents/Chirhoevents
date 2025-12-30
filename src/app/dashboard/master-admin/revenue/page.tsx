@@ -12,6 +12,8 @@ import {
   ArrowDownRight,
   Calendar,
   Receipt,
+  Download,
+  Loader2,
 } from 'lucide-react'
 
 interface TierRevenue {
@@ -72,10 +74,89 @@ const tierColors: Record<string, string> = {
 export default function RevenuePage() {
   const [data, setData] = useState<RevenueData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     fetchData()
   }, [])
+
+  const handleExportCSV = async () => {
+    if (!data) return
+    setExporting(true)
+
+    try {
+      // Generate CSV content
+      const now = new Date()
+      const dateStr = now.toISOString().split('T')[0]
+
+      let csvContent = 'ChirhoEvents Revenue Report\n'
+      csvContent += `Generated: ${now.toLocaleString()}\n\n`
+
+      // Summary metrics
+      csvContent += 'SUMMARY METRICS\n'
+      csvContent += 'Metric,Value\n'
+      csvContent += `Monthly Recurring Revenue (MRR),${formatCurrency(data.mrr)}\n`
+      csvContent += `Annual Recurring Revenue (ARR),${formatCurrency(data.arr)}\n`
+      csvContent += `Active Organizations,${data.totalActiveOrgs}\n`
+      csvContent += `Average Revenue per Org,${formatCurrency(data.totalActiveOrgs > 0 ? data.mrr / data.totalActiveOrgs : 0)}\n\n`
+
+      // Revenue by tier
+      csvContent += 'REVENUE BY TIER\n'
+      csvContent += 'Tier,Organizations,MRR\n'
+      Object.entries(data.tierRevenue).forEach(([tier, stats]) => {
+        csvContent += `${tierLabels[tier] || tier},${stats.count},${formatCurrency(stats.mrr)}\n`
+      })
+      csvContent += '\n'
+
+      // Billing cycle breakdown
+      csvContent += 'BILLING CYCLE\n'
+      csvContent += 'Cycle,Count\n'
+      csvContent += `Annual,${data.billingCycleBreakdown.annual}\n`
+      csvContent += `Monthly,${data.billingCycleBreakdown.monthly}\n\n`
+
+      // Setup fees
+      csvContent += 'SETUP FEES\n'
+      csvContent += 'Status,Amount,Count\n'
+      csvContent += `Collected,${formatCurrency(data.setupFees.collected)},${data.setupFees.paid}\n`
+      csvContent += `Outstanding,${formatCurrency(data.setupFees.outstanding)},${data.setupFees.owed}\n\n`
+
+      // Invoice stats
+      csvContent += 'INVOICE SUMMARY\n'
+      csvContent += 'Status,Count,Amount\n'
+      csvContent += `Paid,${data.invoiceStats.paid},${formatCurrency(data.invoiceStats.totalCollected)}\n`
+      csvContent += `Pending,${data.invoiceStats.pending},-\n`
+      csvContent += `Overdue,${data.invoiceStats.overdue},-\n`
+      csvContent += `Total Outstanding,-,${formatCurrency(data.invoiceStats.totalOutstanding)}\n\n`
+
+      // Monthly signups
+      csvContent += 'MONTHLY SIGNUPS (6 MONTHS)\n'
+      csvContent += 'Month,New Organizations\n'
+      data.monthlySignups.forEach(m => {
+        csvContent += `${m.month},${m.count}\n`
+      })
+      csvContent += '\n'
+
+      // Recent orgs
+      csvContent += 'RECENT ORGANIZATIONS\n'
+      csvContent += 'Name,Tier,Billing Cycle,Monthly Fee,Created\n'
+      data.recentOrgs.forEach(org => {
+        csvContent += `"${org.name}",${tierLabels[org.subscriptionTier] || org.subscriptionTier},${org.billingCycle},${formatCurrency(org.monthlyFee || 0)},${new Date(org.createdAt).toLocaleDateString()}\n`
+      })
+
+      // Create and download file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = `chirhoevents-revenue-report-${dateStr}.csv`
+      link.click()
+      URL.revokeObjectURL(link.href)
+    } catch (error) {
+      console.error('Export error:', error)
+      alert('Failed to export report')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const fetchData = async () => {
     try {
@@ -125,9 +206,28 @@ export default function RevenuePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Revenue & Analytics</h1>
-        <p className="text-gray-600">Platform financial overview and growth metrics</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Revenue & Analytics</h1>
+          <p className="text-gray-600">Platform financial overview and growth metrics</p>
+        </div>
+        <button
+          onClick={handleExportCSV}
+          disabled={exporting || !data}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {exporting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Exporting...
+            </>
+          ) : (
+            <>
+              <Download className="h-4 w-4" />
+              Export Report
+            </>
+          )}
+        </button>
       </div>
 
       {/* Top Stats */}
