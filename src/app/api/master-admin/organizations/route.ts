@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
         registrationsUsed: true,
         registrationsLimit: true,
         monthlyFee: true,
+        stripeAccountId: true,
         stripeOnboardingCompleted: true,
         createdAt: true,
       },

@@ -19,7 +19,8 @@ import {
   DollarSign,
   ExternalLink,
   Check,
-  X
+  X,
+  AlertTriangle
 } from 'lucide-react'
 
 interface Organization {
@@ -37,7 +38,19 @@ interface Organization {
   registrationsLimit: number | null
   monthlyFee: number
   createdAt: string
+  stripeAccountId: string | null
   stripeOnboardingCompleted: boolean
+}
+
+// Helper function to get Stripe status display
+function getStripeStatus(org: Organization): { label: string; color: string; icon: 'check' | 'warning' | 'x' } | null {
+  if (org.stripeAccountId && org.stripeOnboardingCompleted) {
+    return { label: 'Connected', color: 'bg-green-100 text-green-700', icon: 'check' }
+  }
+  if (org.stripeAccountId && !org.stripeOnboardingCompleted) {
+    return { label: 'Pending', color: 'bg-yellow-100 text-yellow-700', icon: 'warning' }
+  }
+  return { label: 'Not Connected', color: 'bg-red-100 text-red-700', icon: 'x' }
 }
 
 const tierLabels: Record<string, string> = {
@@ -291,12 +304,18 @@ export default function OrganizationsPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-medium text-gray-900">{org.name}</p>
-                          {org.stripeOnboardingCompleted && (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700">
-                              <Check className="h-3 w-3" />
-                              Stripe
-                            </span>
-                          )}
+                          {(() => {
+                            const stripeStatus = getStripeStatus(org)
+                            if (!stripeStatus) return null
+                            return (
+                              <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs ${stripeStatus.color}`}>
+                                {stripeStatus.icon === 'check' && <Check className="h-3 w-3" />}
+                                {stripeStatus.icon === 'warning' && <AlertTriangle className="h-3 w-3" />}
+                                {stripeStatus.icon === 'x' && <X className="h-3 w-3" />}
+                                {stripeStatus.label}
+                              </span>
+                            )
+                          })()}
                         </div>
                         <p className="text-xs text-gray-500">{org.contactName} • {org.contactEmail}</p>
                       </div>
