@@ -161,29 +161,59 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Create org admin user
-    const orgAdminUser = await prisma.user.create({
-      data: {
-        firstName: contactFirstName,
-        lastName: contactLastName,
-        email: contactEmail,
-        phone: contactPhone,
-        role: 'org_admin',
-        organizationId: organization.id,
-        createdBy: masterAdmin.id,
-      },
-    })
+    // Create or update org admin user
+    let orgAdminUser
+    try {
+      // Check if user with this email already exists
+      const existingUser = await prisma.user.findFirst({
+        where: { email: contactEmail },
+      })
 
-    // Log activity
-    await prisma.platformActivityLog.create({
-      data: {
-        organizationId: organization.id,
-        userId: masterAdmin.id,
-        activityType: 'org_created',
-        description: `Organization "${name}" created by Master Admin`,
-        metadata: { tier: subscriptionTier, billingCycle },
-      },
-    })
+      if (existingUser) {
+        // Update existing user to be org admin for this org
+        orgAdminUser = await prisma.user.update({
+          where: { id: existingUser.id },
+          data: {
+            organizationId: organization.id,
+            role: existingUser.role === 'master_admin' ? 'master_admin' : 'org_admin',
+          },
+        })
+        console.log(`Updated existing user ${contactEmail} to org ${organization.id}`)
+      } else {
+        // Create new user
+        orgAdminUser = await prisma.user.create({
+          data: {
+            firstName: contactFirstName,
+            lastName: contactLastName,
+            email: contactEmail,
+            phone: contactPhone,
+            role: 'org_admin',
+            organizationId: organization.id,
+            createdBy: masterAdmin.id,
+          },
+        })
+      }
+    } catch (userError) {
+      console.error('Error creating/updating org admin user:', userError)
+      // Continue anyway - org was created
+      orgAdminUser = { id: null, email: contactEmail }
+    }
+
+    // Log activity (non-blocking)
+    try {
+      await prisma.platformActivityLog.create({
+        data: {
+          organizationId: organization.id,
+          userId: masterAdmin.id,
+          activityType: 'org_created',
+          description: `Organization "${name}" created by Master Admin`,
+          metadata: { tier: subscriptionTier, billingCycle },
+        },
+      })
+    } catch (logError) {
+      console.error('Error logging activity:', logError)
+      // Continue anyway
+    }
 
     // TODO: Send welcome email if sendWelcomeEmail is true
     // TODO: Send Stripe onboarding email if sendStripeOnboarding is true
