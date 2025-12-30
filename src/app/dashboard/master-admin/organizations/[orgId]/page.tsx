@@ -128,7 +128,52 @@ export default function OrganizationDetailPage() {
     amount: '',
     description: '',
     dueDate: '',
+    periodStart: '',
+    periodEnd: '',
   })
+
+  // Auto-fill invoice amount based on type
+  const handleInvoiceTypeChange = (type: string) => {
+    if (!organization) return
+
+    let amount = ''
+    let description = ''
+    const today = new Date()
+    const oneYearLater = new Date(today)
+    oneYearLater.setFullYear(oneYearLater.getFullYear() + 1)
+    const oneMonthLater = new Date(today)
+    oneMonthLater.setMonth(oneMonthLater.getMonth() + 1)
+
+    if (type === 'subscription_annual') {
+      amount = organization.annualPrice?.toString() || ''
+      description = `Annual subscription for ${organization.name}`
+      setInvoiceForm({
+        invoiceType: 'subscription',
+        amount,
+        description,
+        dueDate: new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        periodStart: today.toISOString().split('T')[0],
+        periodEnd: oneYearLater.toISOString().split('T')[0],
+      })
+    } else if (type === 'subscription_monthly') {
+      amount = organization.monthlyPrice?.toString() || ''
+      description = `Monthly subscription for ${organization.name}`
+      setInvoiceForm({
+        invoiceType: 'subscription',
+        amount,
+        description,
+        dueDate: new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        periodStart: today.toISOString().split('T')[0],
+        periodEnd: oneMonthLater.toISOString().split('T')[0],
+      })
+    } else if (type === 'setup_fee') {
+      amount = organization.setupFeeAmount?.toString() || '250'
+      description = `One-time setup fee for ${organization.name}`
+      setInvoiceForm({ ...invoiceForm, invoiceType: type, amount, description, periodStart: '', periodEnd: '' })
+    } else {
+      setInvoiceForm({ ...invoiceForm, invoiceType: type, periodStart: '', periodEnd: '' })
+    }
+  }
   const [creatingInvoice, setCreatingInvoice] = useState(false)
 
   useEffect(() => {
@@ -181,7 +226,7 @@ export default function OrganizationDetailPage() {
         const data = await response.json()
         alert(`Invoice #${data.invoice.invoiceNumber} created successfully!`)
         setShowInvoiceModal(false)
-        setInvoiceForm({ invoiceType: 'custom', amount: '', description: '', dueDate: '' })
+        setInvoiceForm({ invoiceType: 'custom', amount: '', description: '', dueDate: '', periodStart: '', periodEnd: '' })
         // Refresh invoices
         const invResponse = await fetch(`/api/master-admin/invoices?orgId=${params.orgId}`)
         if (invResponse.ok) {
@@ -740,12 +785,17 @@ export default function OrganizationDetailPage() {
                   Invoice Type
                 </label>
                 <select
-                  value={invoiceForm.invoiceType}
-                  onChange={(e) => setInvoiceForm({ ...invoiceForm, invoiceType: e.target.value })}
+                  value={invoiceForm.invoiceType === 'subscription' && invoiceForm.periodEnd ?
+                    (new Date(invoiceForm.periodEnd).getTime() - new Date(invoiceForm.periodStart).getTime() > 60 * 24 * 60 * 60 * 1000
+                      ? 'subscription_annual'
+                      : 'subscription_monthly')
+                    : invoiceForm.invoiceType}
+                  onChange={(e) => handleInvoiceTypeChange(e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 >
-                  <option value="setup_fee">Setup Fee</option>
-                  <option value="subscription">Subscription</option>
+                  <option value="subscription_annual">Annual Subscription ({formatCurrency(organization?.annualPrice || 0)}/year)</option>
+                  <option value="subscription_monthly">Monthly Subscription ({formatCurrency(organization?.monthlyPrice || 0)}/month)</option>
+                  <option value="setup_fee">Setup Fee ({formatCurrency(organization?.setupFeeAmount || 250)})</option>
                   <option value="overage">Overage</option>
                   <option value="custom">Custom</option>
                 </select>
@@ -777,6 +827,33 @@ export default function OrganizationDetailPage() {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 />
               </div>
+
+              {invoiceForm.invoiceType === 'subscription' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Period Start
+                    </label>
+                    <input
+                      type="date"
+                      value={invoiceForm.periodStart}
+                      onChange={(e) => setInvoiceForm({ ...invoiceForm, periodStart: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Period End
+                    </label>
+                    <input
+                      type="date"
+                      value={invoiceForm.periodEnd}
+                      onChange={(e) => setInvoiceForm({ ...invoiceForm, periodEnd: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

@@ -163,7 +163,7 @@ export async function GET() {
     const paymentsWithPlatformFees = await prisma.payment.findMany({
       where: {
         platformFeeAmount: { not: null },
-        paymentStatus: 'completed',
+        paymentStatus: 'succeeded',
       },
       select: {
         id: true,
