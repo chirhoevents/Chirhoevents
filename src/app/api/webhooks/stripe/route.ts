@@ -500,5 +500,195 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true })
   }
 
+  // Handle subscription events
+  if (event.type === 'customer.subscription.created') {
+    console.log('📝 Processing customer.subscription.created event')
+    const subscription = event.data.object as Stripe.Subscription
+    const organizationId = subscription.metadata?.organizationId
+
+    if (!organizationId) {
+      console.log('⚠️ No organizationId in subscription metadata')
+      return NextResponse.json({ received: true })
+    }
+
+    try {
+      await prisma.organization.update({
+        where: { id: organizationId },
+        data: {
+          stripeSubscriptionId: subscription.id,
+          subscriptionStatus: 'active',
+          subscriptionStartedAt: new Date(subscription.created * 1000),
+          subscriptionRenewsAt: new Date(subscription.current_period_end * 1000),
+        },
+      })
+
+      console.log('✅ Subscription created for org:', organizationId)
+    } catch (error) {
+      console.error('❌ Error processing subscription.created:', error)
+    }
+
+    return NextResponse.json({ received: true })
+  }
+
+  if (event.type === 'customer.subscription.updated') {
+    console.log('🔄 Processing customer.subscription.updated event')
+    const subscription = event.data.object as Stripe.Subscription
+    const organizationId = subscription.metadata?.organizationId
+
+    if (!organizationId) {
+      // Try to find org by customer ID
+      const org = await prisma.organization.findFirst({
+        where: { stripeCustomerId: subscription.customer as string },
+      })
+      if (!org) {
+        console.log('⚠️ No organization found for subscription')
+        return NextResponse.json({ received: true })
+      }
+    }
+
+    try {
+      const updateData: Record<string, unknown> = {
+        subscriptionRenewsAt: new Date(subscription.current_period_end * 1000),
+      }
+
+      // Map Stripe status to our status
+      if (subscription.status === 'active' || subscription.status === 'trialing') {
+        updateData.subscriptionStatus = 'active'
+      } else if (subscription.status === 'canceled' || subscription.status === 'unpaid') {
+        updateData.subscriptionStatus = 'suspended'
+        updateData.cancelledAt = new Date()
+      } else if (subscription.status === 'past_due') {
+        updateData.subscriptionStatus = 'suspended'
+      }
+
+      if (subscription.cancel_at_period_end) {
+        updateData.cancelledAt = subscription.cancel_at
+          ? new Date(subscription.cancel_at * 1000)
+          : null
+      }
+
+      await prisma.organization.update({
+        where: { id: organizationId || undefined, stripeCustomerId: subscription.customer as string },
+        data: updateData,
+      })
+
+      console.log('✅ Subscription updated for org:', organizationId)
+    } catch (error) {
+      console.error('❌ Error processing subscription.updated:', error)
+    }
+
+    return NextResponse.json({ received: true })
+  }
+
+  if (event.type === 'customer.subscription.deleted') {
+    console.log('🗑️ Processing customer.subscription.deleted event')
+    const subscription = event.data.object as Stripe.Subscription
+
+    try {
+      // Find org by subscription ID or customer ID
+      const org = await prisma.organization.findFirst({
+        where: {
+          OR: [
+            { stripeSubscriptionId: subscription.id },
+            { stripeCustomerId: subscription.customer as string },
+          ],
+        },
+      })
+
+      if (org) {
+        await prisma.organization.update({
+          where: { id: org.id },
+          data: {
+            subscriptionStatus: 'suspended',
+            cancelledAt: new Date(),
+          },
+        })
+
+        console.log('✅ Subscription deleted, org suspended:', org.id)
+      }
+    } catch (error) {
+      console.error('❌ Error processing subscription.deleted:', error)
+    }
+
+    return NextResponse.json({ received: true })
+  }
+
+  if (event.type === 'invoice.payment_succeeded') {
+    console.log('💵 Processing invoice.payment_succeeded event')
+    const invoice = event.data.object as Stripe.Invoice
+
+    // Only handle subscription invoices
+    if (!invoice.subscription) {
+      return NextResponse.json({ received: true })
+    }
+
+    try {
+      const org = await prisma.organization.findFirst({
+        where: { stripeSubscriptionId: invoice.subscription as string },
+      })
+
+      if (org) {
+        // Update subscription renewal date
+        await prisma.organization.update({
+          where: { id: org.id },
+          data: {
+            subscriptionStatus: 'active',
+            subscriptionRenewsAt: invoice.lines.data[0]?.period?.end
+              ? new Date(invoice.lines.data[0].period.end * 1000)
+              : undefined,
+          },
+        })
+
+        // Log platform activity
+        await prisma.platformActivityLog.create({
+          data: {
+            organizationId: org.id,
+            activityType: 'subscription_payment',
+            description: `Subscription payment of $${(invoice.amount_paid / 100).toFixed(2)} succeeded`,
+          },
+        })
+
+        console.log('✅ Invoice payment succeeded for org:', org.id)
+      }
+    } catch (error) {
+      console.error('❌ Error processing invoice.payment_succeeded:', error)
+    }
+
+    return NextResponse.json({ received: true })
+  }
+
+  if (event.type === 'invoice.payment_failed') {
+    console.log('❌ Processing invoice.payment_failed event')
+    const invoice = event.data.object as Stripe.Invoice
+
+    // Only handle subscription invoices
+    if (!invoice.subscription) {
+      return NextResponse.json({ received: true })
+    }
+
+    try {
+      const org = await prisma.organization.findFirst({
+        where: { stripeSubscriptionId: invoice.subscription as string },
+      })
+
+      if (org) {
+        // Log platform activity
+        await prisma.platformActivityLog.create({
+          data: {
+            organizationId: org.id,
+            activityType: 'subscription_payment_failed',
+            description: `Subscription payment of $${(invoice.amount_due / 100).toFixed(2)} failed`,
+          },
+        })
+
+        console.log('⚠️ Invoice payment failed for org:', org.id)
+      }
+    } catch (error) {
+      console.error('❌ Error processing invoice.payment_failed:', error)
+    }
+
+    return NextResponse.json({ received: true })
+  }
+
   return NextResponse.json({ received: true })
 }

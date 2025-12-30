@@ -43,6 +43,14 @@ export async function POST(req: NextRequest) {
             id: true,
             name: true,
             organizationId: true,
+            organization: {
+              select: {
+                id: true,
+                stripeAccountId: true,
+                stripeChargesEnabled: true,
+                platformFeePercentage: true,
+              },
+            },
           },
         },
       },
@@ -55,9 +63,16 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Create Stripe payment intent
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert to cents
+    const org = groupRegistration.event.organization
+    const amountInCents = Math.round(amount * 100)
+
+    // Calculate platform fee (default 1%)
+    const platformFeePercentage = Number(org.platformFeePercentage) || 1
+    const platformFeeAmount = Math.round(amountInCents * (platformFeePercentage / 100))
+
+    // Build payment intent config
+    const paymentIntentConfig: any = {
+      amount: amountInCents,
       currency: 'usd',
       automatic_payment_methods: {
         enabled: true,
@@ -70,8 +85,20 @@ export async function POST(req: NextRequest) {
         eventName: groupRegistration.event.name,
         organizationId: groupRegistration.event.organizationId,
         notes: notes || '',
+        platformFeeAmount: platformFeeAmount.toString(),
       },
-    })
+    }
+
+    // If organization has Stripe Connect enabled, use destination charges with platform fee
+    if (org.stripeAccountId && org.stripeChargesEnabled) {
+      paymentIntentConfig.application_fee_amount = platformFeeAmount
+      paymentIntentConfig.transfer_data = {
+        destination: org.stripeAccountId,
+      }
+    }
+
+    // Create Stripe payment intent
+    const paymentIntent = await stripe.paymentIntents.create(paymentIntentConfig)
 
     // Create Payment record in database
     await prisma.payment.create({
@@ -85,6 +112,7 @@ export async function POST(req: NextRequest) {
         paymentMethod: 'card',
         paymentStatus: 'pending',
         stripePaymentIntentId: paymentIntent.id,
+        platformFeeAmount: platformFeeAmount / 100, // Store in dollars
         notes: notes || null,
       },
     })

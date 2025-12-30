@@ -68,7 +68,15 @@ export async function POST(request: NextRequest) {
       where: { id: eventId },
       include: {
         pricing: true,
-        organization: true,
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            stripeAccountId: true,
+            stripeChargesEnabled: true,
+            platformFeePercentage: true,
+          },
+        },
         settings: true,
       },
     })
@@ -405,7 +413,14 @@ export async function POST(request: NextRequest) {
       })
     } else {
       // Credit card payment - create Stripe checkout session
-      const checkoutSession = await stripe.checkout.sessions.create({
+      const totalAmountCents = Math.round(totalAmount * 100)
+
+      // Calculate platform fee (default 1%)
+      const platformFeePercentage = Number(event.organization.platformFeePercentage) || 1
+      const platformFeeAmount = Math.round(totalAmountCents * (platformFeePercentage / 100))
+
+      // Build checkout session config
+      const checkoutConfig: any = {
         payment_method_types: ['card'],
         line_items: [
           {
@@ -415,7 +430,7 @@ export async function POST(request: NextRequest) {
                 name: `${event.name} - Individual Registration`,
                 description: `Registration for ${firstName} ${lastName}`,
               },
-              unit_amount: Math.round(totalAmount * 100), // Convert to cents
+              unit_amount: totalAmountCents,
             },
             quantity: 1,
           },
@@ -428,9 +443,22 @@ export async function POST(request: NextRequest) {
           eventId: event.id,
           registrationType: 'individual',
           participantName: `${firstName} ${lastName}`,
+          platformFeeAmount: platformFeeAmount.toString(),
         },
         customer_email: email,
-      })
+      }
+
+      // If organization has Stripe Connect enabled, use destination charges with platform fee
+      if (event.organization.stripeAccountId && event.organization.stripeChargesEnabled) {
+        checkoutConfig.payment_intent_data = {
+          application_fee_amount: platformFeeAmount,
+          transfer_data: {
+            destination: event.organization.stripeAccountId,
+          },
+        }
+      }
+
+      const checkoutSession = await stripe.checkout.sessions.create(checkoutConfig)
 
       // Create payment record
       await prisma.payment.create({
@@ -444,6 +472,7 @@ export async function POST(request: NextRequest) {
           paymentMethod: 'card',
           paymentStatus: 'pending',
           stripePaymentIntentId: checkoutSession.id,
+          platformFeeAmount: platformFeeAmount / 100, // Store in dollars
         },
       })
 

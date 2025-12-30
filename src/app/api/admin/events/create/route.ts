@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 
+// Overage pricing per event (configurable)
+const OVERAGE_FEE_PER_EVENT = 50 // $50 per extra event
+
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser()
@@ -21,6 +24,31 @@ export async function POST(request: Request) {
         { error: 'Event name and slug are required' },
         { status: 400 }
       )
+    }
+
+    // Get organization to check event limits
+    const organization = await prisma.organization.findUnique({
+      where: { id: user.organizationId! },
+      select: {
+        id: true,
+        name: true,
+        eventsPerYearLimit: true,
+        eventsUsed: true,
+        subscriptionTier: true,
+      },
+    })
+
+    if (!organization) {
+      return NextResponse.json(
+        { error: 'Organization not found' },
+        { status: 404 }
+      )
+    }
+
+    // Check if organization has exceeded event limit
+    let isOverage = false
+    if (organization.eventsPerYearLimit !== null) {
+      isOverage = organization.eventsUsed >= organization.eventsPerYearLimit
     }
 
     // For published events, require dates
@@ -213,7 +241,60 @@ export async function POST(request: Request) {
       },
     })
 
-    return NextResponse.json({ event })
+    // Increment events used counter
+    await prisma.organization.update({
+      where: { id: user.organizationId! },
+      data: { eventsUsed: { increment: 1 } },
+    })
+
+    // If this is an overage event, create an overage invoice
+    if (isOverage) {
+      // Generate invoice number
+      const lastInvoice = await prisma.invoice.findFirst({
+        orderBy: { invoiceNumber: 'desc' },
+        select: { invoiceNumber: true },
+      })
+      const nextInvoiceNumber = (lastInvoice?.invoiceNumber || 1000) + 1
+
+      await prisma.invoice.create({
+        data: {
+          organizationId: organization.id,
+          invoiceNumber: nextInvoiceNumber,
+          invoiceType: 'custom',
+          amount: OVERAGE_FEE_PER_EVENT,
+          description: `Overage fee for additional event: ${data.name}. Your plan includes ${organization.eventsPerYearLimit} events per year. This is event #${organization.eventsUsed + 1}.`,
+          lineItems: {
+            items: [
+              {
+                description: `Additional Event Fee - ${data.name}`,
+                quantity: 1,
+                unitPrice: OVERAGE_FEE_PER_EVENT,
+                total: OVERAGE_FEE_PER_EVENT,
+              },
+            ],
+          },
+          status: 'pending',
+          dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          createdByUserId: user.id,
+        },
+      })
+
+      // Log platform activity
+      await prisma.platformActivityLog.create({
+        data: {
+          organizationId: organization.id,
+          activityType: 'overage_invoice_created',
+          description: `Created overage invoice for event "${data.name}" ($${OVERAGE_FEE_PER_EVENT})`,
+        },
+      })
+    }
+
+    return NextResponse.json({
+      event,
+      overageWarning: isOverage
+        ? `You have exceeded your plan's event limit of ${organization.eventsPerYearLimit} events. An overage fee of $${OVERAGE_FEE_PER_EVENT} has been added to your account.`
+        : null,
+    })
   } catch (error) {
     console.error('Error creating event:', error)
     return NextResponse.json(
