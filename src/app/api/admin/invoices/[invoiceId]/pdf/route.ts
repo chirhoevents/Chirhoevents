@@ -99,7 +99,6 @@ export async function GET(
     }
 
     // Generate PDF using pdf().toBuffer()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const pdfDoc = pdf(React.createElement(InvoicePDF, { invoice: invoiceData }) as any)
     const pdfBuffer = await pdfDoc.toBuffer()
 
