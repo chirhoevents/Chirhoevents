@@ -22,6 +22,7 @@ import {
   LucideIcon
 } from 'lucide-react'
 import { hasPermission, getRoleName, type Permission, type UserRole } from '@/lib/permissions'
+import ImpersonationBanner from '@/components/admin/ImpersonationBanner'
 
 interface UserInfo {
   organizationName: string
@@ -33,6 +34,8 @@ interface UserInfo {
     salve: boolean
     rapha: boolean
   }
+  isImpersonating?: boolean
+  impersonatedOrgId?: string | null
 }
 
 interface NavItem {
@@ -90,6 +93,8 @@ export default function AdminLayout({
           permissions: data.permissions,
           logoUrl: data.logoUrl,
           modulesEnabled: data.modulesEnabled,
+          isImpersonating: data.isImpersonating || false,
+          impersonatedOrgId: data.impersonatedOrgId || null,
         })
       } catch (error) {
         console.error('Error:', error)
@@ -132,6 +137,14 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-screen bg-[#F5F1E8]">
+      {/* Impersonation Banner */}
+      {userInfo?.isImpersonating && userInfo?.impersonatedOrgId && (
+        <ImpersonationBanner
+          organizationName={userInfo.organizationName}
+          organizationId={userInfo.impersonatedOrgId}
+        />
+      )}
+
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
