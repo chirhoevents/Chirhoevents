@@ -52,7 +52,8 @@ export async function POST(request: Request) {
         id: true,
         name: true,
         stripeAccountId: true,
-        stripeChargesEnabled: true
+        stripeChargesEnabled: true,
+        platformFeePercentage: true,
       }
     })
 
@@ -166,6 +167,7 @@ export async function POST(request: Request) {
       stripePaymentMethodId?: string
       cardBrand?: string
       cardLast4?: string
+      platformFeeAmount?: number
     }
 
     const paymentData: PaymentData = {
@@ -197,6 +199,10 @@ export async function POST(request: Request) {
         const cardBrand = originalPm.card?.brand || ''
         const cardLast4 = originalPm.card?.last4 || ''
 
+        // Calculate platform fee (default 1%)
+        const platformFeePercentage = Number(org.platformFeePercentage) || 1
+        const platformFeeAmountCents = Math.round(amountCents * (platformFeePercentage / 100))
+
         // Create PaymentIntent on platform with transfer to connected account
         const paymentIntent = await stripe.paymentIntents.create({
           amount: amountCents,
@@ -210,8 +216,11 @@ export async function POST(request: Request) {
             registrationType,
             registrationId: registration.id,
             processedBy: user.id,
-            processedVia: 'virtual_terminal'
+            processedVia: 'virtual_terminal',
+            platformFeeAmount: platformFeeAmountCents.toString(),
           },
+          // Platform fee goes to ChiRho Events
+          application_fee_amount: platformFeeAmountCents,
           // Use destination charges - funds go to connected account
           transfer_data: {
             destination: org.stripeAccountId
@@ -233,6 +242,7 @@ export async function POST(request: Request) {
         paymentData.stripePaymentMethodId = stripePaymentMethodId
         paymentData.cardBrand = cardBrand
         paymentData.cardLast4 = cardLast4
+        paymentData.platformFeeAmount = platformFeeAmountCents / 100 // Store in dollars
 
       } catch (stripeError) {
         console.error('Stripe error:', stripeError)

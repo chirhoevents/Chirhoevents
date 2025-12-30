@@ -28,6 +28,8 @@ model Organization {
   stripeChargesEnabled    Boolean  @default(false) @map("stripe_charges_enabled")
   stripePayoutsEnabled    Boolean  @default(false) @map("stripe_payouts_enabled")
   stripeConnectedAt       DateTime? @map("stripe_connected_at") @db.Timestamptz(6)
+  stripeCustomerId        String?  @unique @map("stripe_customer_id") @db.VarChar(255)
+  stripeSubscriptionId    String?  @unique @map("stripe_subscription_id") @db.VarChar(255)
   subscriptionTier        SubscriptionTier @map("subscription_tier")
   subscriptionStatus      SubscriptionStatus @map("subscription_status")
   monthlyFee              Decimal  @map("monthly_fee") @db.Decimal(10, 2)
@@ -446,6 +448,8 @@ model Payment {
   stripePaymentIntentId String?  @unique @map("stripe_payment_intent_id") @db.VarChar(255)
   stripeChargeId        String?  @map("stripe_charge_id") @db.VarChar(255)
   stripePaymentMethodId String?  @map("stripe_payment_method_id") @db.VarChar(255)
+  stripeTransferId      String?  @map("stripe_transfer_id") @db.VarChar(255)
+  platformFeeAmount     Decimal? @map("platform_fee_amount") @db.Decimal(10, 2)
   receiptUrl            String?  @map("receipt_url") @db.Text
   checkNumber           String?  @map("check_number") @db.VarChar(50)
   checkDate             DateTime? @map("check_date") @db.Date
