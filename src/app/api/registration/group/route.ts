@@ -425,13 +425,17 @@ export async function POST(request: NextRequest) {
       }
 
       // If organization has Stripe Connect enabled, use destination charges with platform fee
-      if (event.organization.stripeAccountId && event.organization.stripeChargesEnabled) {
+      // Platform fee goes to ChiRho Events, rest transfers to connected org account
+      if (event.organization.stripeAccountId) {
         checkoutConfig.payment_intent_data = {
           application_fee_amount: platformFeeAmount,
           transfer_data: {
             destination: event.organization.stripeAccountId,
           },
         }
+        console.log(`[Stripe Connect] Applying platform fee: $${(platformFeeAmount / 100).toFixed(2)} to org ${event.organization.id}`)
+      } else {
+        console.log(`[Stripe Connect] No connected account for org ${event.organization.id} - processing without platform fee`)
       }
 
       const checkoutSession = await stripe.checkout.sessions.create(checkoutConfig)
