@@ -148,6 +148,7 @@ export async function PUT(
         taxId: body.taxId,
         website: body.website,
         paymentMethodPreference: body.paymentMethod,
+        platformFeePercentage: body.platformFeePercentage,
       },
     })
 

@@ -70,7 +70,7 @@ export async function GET() {
         storageUsedGb: Number(organization.storageUsedGb),
         storageLimitGb: organization.storageLimitGb,
       },
-      invoices: invoices.map((inv) => ({
+      invoices: invoices.map((inv: typeof invoices[0]) => ({
         ...inv,
         amount: Number(inv.amount),
       })),

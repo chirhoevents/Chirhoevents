@@ -83,6 +83,8 @@ export async function POST(request: NextRequest) {
       description,
       dueDate,
       lineItems,
+      periodStart,
+      periodEnd,
     } = body
 
     if (!organizationId || !invoiceType || !amount) {
@@ -122,6 +124,8 @@ export async function POST(request: NextRequest) {
         lineItems: lineItems || null,
         status: 'pending',
         dueDate: dueDate ? new Date(dueDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        periodStart: periodStart ? new Date(periodStart) : null,
+        periodEnd: periodEnd ? new Date(periodEnd) : null,
         createdByUserId: user.id,
       },
       include: {

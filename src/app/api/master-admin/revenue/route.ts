@@ -159,6 +159,114 @@ export async function GET() {
       },
     })
 
+    // Get platform fees from payments (1% on event registrations)
+    const paymentsWithPlatformFees = await prisma.payment.findMany({
+      where: {
+        platformFeeAmount: { not: null },
+        paymentStatus: 'succeeded',
+      },
+      select: {
+        id: true,
+        amount: true,
+        platformFeeAmount: true,
+        createdAt: true,
+        eventId: true,
+        organization: {
+          select: { id: true, name: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    type PaymentWithFee = typeof paymentsWithPlatformFees[0]
+
+    const platformFees = {
+      totalCollected: paymentsWithPlatformFees.reduce(
+        (sum: number, p: PaymentWithFee) => sum + Number(p.platformFeeAmount || 0),
+        0
+      ),
+      totalPaymentsProcessed: paymentsWithPlatformFees.reduce(
+        (sum: number, p: PaymentWithFee) => sum + Number(p.amount || 0),
+        0
+      ),
+      transactionCount: paymentsWithPlatformFees.length,
+      recentTransactions: paymentsWithPlatformFees.slice(0, 10).map((p: PaymentWithFee) => ({
+        id: p.id,
+        amount: Number(p.amount),
+        platformFee: Number(p.platformFeeAmount),
+        organizationName: p.organization?.name || 'Unknown',
+        eventId: p.eventId || null,
+        date: p.createdAt,
+      })),
+    }
+
+    // Get setup fee invoices
+    const setupFeeInvoices = await prisma.invoice.findMany({
+      where: { invoiceType: 'setup_fee' },
+      select: {
+        id: true,
+        invoiceNumber: true,
+        amount: true,
+        status: true,
+        createdAt: true,
+        paidAt: true,
+        organization: {
+          select: { id: true, name: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    type SetupFeeInvoice = typeof setupFeeInvoices[0]
+
+    const setupFeeDetails = {
+      invoices: setupFeeInvoices.map((inv: SetupFeeInvoice) => ({
+        id: inv.id,
+        invoiceNumber: inv.invoiceNumber,
+        amount: Number(inv.amount),
+        status: inv.status,
+        organizationName: inv.organization?.name || 'Unknown',
+        createdAt: inv.createdAt,
+        paidAt: inv.paidAt,
+      })),
+    }
+
+    // Get subscription invoices
+    const subscriptionInvoices = await prisma.invoice.findMany({
+      where: { invoiceType: 'subscription' },
+      select: {
+        id: true,
+        invoiceNumber: true,
+        amount: true,
+        status: true,
+        createdAt: true,
+        paidAt: true,
+        periodStart: true,
+        periodEnd: true,
+        organization: {
+          select: { id: true, name: true, subscriptionTier: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    type SubInvoice = typeof subscriptionInvoices[0]
+
+    const subscriptionDetails = {
+      invoices: subscriptionInvoices.map((inv: SubInvoice) => ({
+        id: inv.id,
+        invoiceNumber: inv.invoiceNumber,
+        amount: Number(inv.amount),
+        status: inv.status,
+        organizationName: inv.organization?.name || 'Unknown',
+        tier: inv.organization?.subscriptionTier || 'unknown',
+        createdAt: inv.createdAt,
+        paidAt: inv.paidAt,
+        periodStart: inv.periodStart,
+        periodEnd: inv.periodEnd,
+      })),
+    }
+
     return NextResponse.json({
       mrr,
       arr,
@@ -177,6 +285,10 @@ export async function GET() {
       monthlySignups,
       invoiceStats,
       recentOrgs,
+      // New platform fee data
+      platformFees,
+      setupFeeDetails,
+      subscriptionDetails,
     })
   } catch (error) {
     console.error('Revenue data error:', error)
