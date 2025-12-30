@@ -26,7 +26,7 @@ interface PlatformFeeTransaction {
   amount: number
   platformFee: number
   organizationName: string
-  eventName: string
+  eventId: string | null
   date: string
 }
 
@@ -190,7 +190,7 @@ export default function RevenuePage() {
     csvContent += 'Date,Organization,Event,Payment Amount,Platform Fee (1%)\n'
 
     data.platformFees.recentTransactions.forEach(t => {
-      csvContent += `${new Date(t.date).toLocaleDateString()},"${t.organizationName}","${t.eventName}",${formatCurrency(t.amount)},${formatCurrency(t.platformFee)}\n`
+      csvContent += `${new Date(t.date).toLocaleDateString()},"${t.organizationName}","${t.eventId || 'N/A'}",${formatCurrency(t.amount)},${formatCurrency(t.platformFee)}\n`
     })
 
     csvContent += `\nTotals\n`
@@ -542,7 +542,7 @@ export default function RevenuePage() {
                       <tr key={t.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 text-sm text-gray-900">{formatDate(t.date)}</td>
                         <td className="px-4 py-3 text-sm text-gray-900">{t.organizationName}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{t.eventName}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{t.eventId || 'N/A'}</td>
                         <td className="px-4 py-3 text-sm text-gray-900 text-right">{formatCurrency(t.amount)}</td>
                         <td className="px-4 py-3 text-sm font-medium text-green-600 text-right">{formatCurrency(t.platformFee)}</td>
                       </tr>

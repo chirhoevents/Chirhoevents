@@ -170,10 +170,8 @@ export async function GET() {
         amount: true,
         platformFeeAmount: true,
         createdAt: true,
+        eventId: true,
         organization: {
-          select: { id: true, name: true },
-        },
-        event: {
           select: { id: true, name: true },
         },
       },
@@ -197,7 +195,7 @@ export async function GET() {
         amount: Number(p.amount),
         platformFee: Number(p.platformFeeAmount),
         organizationName: p.organization?.name || 'Unknown',
-        eventName: p.event?.name || 'Unknown',
+        eventId: p.eventId || null,
         date: p.createdAt,
       })),
     }
