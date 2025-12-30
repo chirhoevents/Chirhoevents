@@ -25,7 +25,8 @@ export function PublicNav({ currentPage }: PublicNavProps) {
 
   const navLinks = [
     { href: "/", label: "Home" },
-    { href: "/#features", label: "Features" },
+    { href: "/about", label: "About" },
+    { href: "/features", label: "Features" },
     { href: "/#pricing", label: "Pricing" },
     { href: "/docs", label: "Documentation" },
     { href: "/support", label: "Support" },
