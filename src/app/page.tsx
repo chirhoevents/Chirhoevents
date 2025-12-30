@@ -43,7 +43,8 @@ export default function LandingPage() {
               <Link href="/features" className="text-navy hover:text-gold transition-colors font-medium">Features</Link>
               <a href="#pricing" className="text-navy hover:text-gold transition-colors font-medium">Pricing</a>
               <a href="#faq" className="text-navy hover:text-gold transition-colors font-medium">FAQ</a>
-              <a href="#contact" className="text-navy hover:text-gold transition-colors font-medium">Contact</a>
+              <Link href="/docs" className="text-navy hover:text-gold transition-colors font-medium">Documentation</Link>
+              <a href="mailto:hello@chirhoevents.com" className="text-navy hover:text-gold transition-colors font-medium">Support</a>
             </div>
             <div className="flex items-center space-x-4">
               <Link href="/sign-in">
@@ -295,8 +296,56 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Section 5: Pricing */}
-      <section id="pricing" className="py-16 bg-beige">
+      {/* Section 5: Trust Indicators */}
+      <section className="py-16 bg-beige">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold text-navy mb-4">
+              Trusted by Catholic Organizations
+            </h2>
+            <p className="text-xl text-gray-600">
+              Helping dioceses, parishes, and ministries run better events
+            </p>
+          </div>
+
+          {/* Client Logos Placeholder */}
+          <div className="max-w-4xl mx-auto mb-12">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 items-center justify-items-center opacity-60">
+              <div className="bg-gray-200 rounded-lg p-6 w-32 h-16 flex items-center justify-center text-gray-500 text-sm font-medium">
+                Client Logo
+              </div>
+              <div className="bg-gray-200 rounded-lg p-6 w-32 h-16 flex items-center justify-center text-gray-500 text-sm font-medium">
+                Client Logo
+              </div>
+              <div className="bg-gray-200 rounded-lg p-6 w-32 h-16 flex items-center justify-center text-gray-500 text-sm font-medium">
+                Client Logo
+              </div>
+              <div className="bg-gray-200 rounded-lg p-6 w-32 h-16 flex items-center justify-center text-gray-500 text-sm font-medium">
+                Client Logo
+              </div>
+            </div>
+            <p className="text-center text-sm text-gray-500 mt-4 italic">
+              Client logos coming soon
+            </p>
+          </div>
+
+          {/* Testimonial Placeholder */}
+          <div className="max-w-2xl mx-auto">
+            <Card className="border-2 border-gold/30">
+              <CardContent className="p-8 text-center">
+                <p className="text-lg text-gray-600 italic mb-4">
+                  &quot;ChiRho Events transformed how we manage our diocesan retreats. The safe environment tracking alone saves us hours of paperwork.&quot;
+                </p>
+                <p className="text-navy font-semibold">— Future Testimonial</p>
+                <p className="text-sm text-gray-500">Diocese Youth Ministry Director</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Section 6: Pricing */}
+      <section id="pricing" className="py-16 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl sm:text-4xl font-bold text-center text-navy mb-4">
             Simple, Transparent Pricing
@@ -321,6 +370,14 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• 3 events/year</p>
                 <p className="text-sm text-gray-600">• 500 people max</p>
                 <p className="text-sm text-gray-600">• 5GB storage</p>
+                <div className="mt-4 text-xs text-gray-600">
+                  <p className="font-semibold mb-1">Additional Fees:</p>
+                  <ul className="space-y-1">
+                    <li>• $250 one-time setup fee</li>
+                    <li>• Stripe fees: 2.9% + $0.30 per transaction</li>
+                    <li>• ChiRho platform fee: 1% of registrations</li>
+                  </ul>
+                </div>
                 <Link href="/get-started?tier=starter">
                   <Button className="w-full mt-6">Get Started</Button>
                 </Link>
@@ -340,6 +397,14 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• 5 events/year</p>
                 <p className="text-sm text-gray-600">• 1,000 people max</p>
                 <p className="text-sm text-gray-600">• 10GB storage</p>
+                <div className="mt-4 text-xs text-gray-600">
+                  <p className="font-semibold mb-1">Additional Fees:</p>
+                  <ul className="space-y-1">
+                    <li>• $250 one-time setup fee</li>
+                    <li>• Stripe fees: 2.9% + $0.30 per transaction</li>
+                    <li>• ChiRho platform fee: 1% of registrations</li>
+                  </ul>
+                </div>
                 <Link href="/get-started?tier=small_diocese">
                   <Button className="w-full mt-6">Get Started</Button>
                 </Link>
@@ -362,6 +427,14 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• 10 events/year</p>
                 <p className="text-sm text-gray-600">• 3,000 people max</p>
                 <p className="text-sm text-gray-600">• 25GB storage</p>
+                <div className="mt-4 text-xs text-gray-600">
+                  <p className="font-semibold mb-1">Additional Fees:</p>
+                  <ul className="space-y-1">
+                    <li>• $250 one-time setup fee</li>
+                    <li>• Stripe fees: 2.9% + $0.30 per transaction</li>
+                    <li>• ChiRho platform fee: 1% of registrations</li>
+                  </ul>
+                </div>
                 <Link href="/get-started?tier=growing">
                   <Button className="w-full mt-6">Get Started</Button>
                 </Link>
@@ -381,6 +454,14 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• 25 events/year</p>
                 <p className="text-sm text-gray-600">• 8,000 people max</p>
                 <p className="text-sm text-gray-600">• 100GB storage</p>
+                <div className="mt-4 text-xs text-gray-600">
+                  <p className="font-semibold mb-1">Additional Fees:</p>
+                  <ul className="space-y-1">
+                    <li>• $250 one-time setup fee</li>
+                    <li>• Stripe fees: 2.9% + $0.30 per transaction</li>
+                    <li>• ChiRho platform fee: 1% of registrations</li>
+                  </ul>
+                </div>
                 <Link href="/get-started?tier=conference">
                   <Button className="w-full mt-6">Get Started</Button>
                 </Link>
@@ -400,11 +481,28 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• Unlimited events</p>
                 <p className="text-sm text-gray-600">• Unlimited people</p>
                 <p className="text-sm text-gray-600">• 500GB storage</p>
+                <div className="mt-4 text-xs text-gray-600">
+                  <p className="font-semibold mb-1">Additional Fees:</p>
+                  <ul className="space-y-1">
+                    <li>• $250 one-time setup fee</li>
+                    <li>• Stripe fees: 2.9% + $0.30 per transaction</li>
+                    <li>• ChiRho platform fee: 1% of registrations</li>
+                  </ul>
+                </div>
                 <Link href="/get-started?tier=enterprise">
                   <Button variant="outline" className="w-full mt-6">Get Started</Button>
                 </Link>
               </CardContent>
             </Card>
+          </div>
+
+          {/* Pricing Example */}
+          <div className="mt-8 text-center text-sm text-gray-600">
+            <p className="font-semibold mb-2">Example: On a $100 registration:</p>
+            <p>• Participant pays: $100.00</p>
+            <p>• Stripe fee: $3.20</p>
+            <p>• ChiRho fee (1%): $1.00</p>
+            <p className="mt-2"><strong>You receive: $95.80</strong></p>
           </div>
         </div>
       </section>
@@ -419,10 +517,10 @@ export default function LandingPage() {
             <Accordion type="single" collapsible className="space-y-4">
               <AccordionItem value="item-1">
                 <AccordionTrigger className="text-left text-lg font-semibold text-navy">
-                  How does pricing work?
+                  What fees does ChiRho charge?
                 </AccordionTrigger>
                 <AccordionContent className="text-gray-600">
-                  You pay a monthly subscription based on your tier. For payments, Stripe charges 2.9% + $0.30 per transaction, and ChiRho adds a 1% platform fee. There&apos;s a one-time $250 setup fee. All fees are transparent — no hidden costs!
+                  ChiRho charges a 1% platform fee on all event registrations plus a monthly or annual subscription fee based on your plan. Standard Stripe processing fees (2.9% + $0.30) also apply to credit card transactions.
                 </AccordionContent>
               </AccordionItem>
 
@@ -437,10 +535,10 @@ export default function LandingPage() {
 
               <AccordionItem value="item-3">
                 <AccordionTrigger className="text-left text-lg font-semibold text-navy">
-                  What if I exceed my tier limits?
+                  What if I need more events than my plan allows?
                 </AccordionTrigger>
                 <AccordionContent className="text-gray-600">
-                  We offer flexible upgrades! You can upgrade to the next tier anytime. Contact us if you need a custom solution.
+                  You can either upgrade to a higher tier or pay a $50 overage fee for each additional event.
                 </AccordionContent>
               </AccordionItem>
 
@@ -486,6 +584,24 @@ export default function LandingPage() {
                 </AccordionTrigger>
                 <AccordionContent className="text-gray-600">
                   While ChiRho Events is built specifically with Catholic events in mind—with features like priest tracking, safe environment compliance, and three-tiered liability forms—it works beautifully for any conference, retreat, or gathering. The platform is flexible enough to adapt to your event&apos;s unique needs.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="item-9">
+                <AccordionTrigger className="text-left text-lg font-semibold text-navy">
+                  Can I pay by check?
+                </AccordionTrigger>
+                <AccordionContent className="text-gray-600">
+                  Yes! Organizations on annual plans can pay by check. We&apos;ll send you an invoice with mailing instructions.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="item-10">
+                <AccordionTrigger className="text-left text-lg font-semibold text-navy">
+                  Is there a free trial?
+                </AccordionTrigger>
+                <AccordionContent className="text-gray-600">
+                  We don&apos;t offer free trials, but we do offer a $250 setup fee that includes onboarding assistance and dedicated support for your first 30 days.
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
