@@ -7,6 +7,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Check, Users, FileText, Home, Clipboard, Heart, BarChart3, Mail, Phone, MapPin } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { PublicNav } from "@/components/PublicNav";
 
 export default function LandingPage() {
   const [contactFormSubmitted, setContactFormSubmitted] = useState(false);
@@ -23,40 +24,7 @@ export default function LandingPage() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 bg-white border-b border-gray-200">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center">
-              <Link href="/" className="flex items-center">
-                <Image
-                  src="/dark-logo-horizontal.png"
-                  alt="ChiRho Events"
-                  width={200}
-                  height={60}
-                  className="h-10 md:h-14 w-auto cursor-pointer"
-                  priority
-                />
-              </Link>
-            </div>
-            <div className="hidden md:flex items-center space-x-8">
-              <Link href="/about" className="text-navy hover:text-gold transition-colors font-medium">About</Link>
-              <Link href="/features" className="text-navy hover:text-gold transition-colors font-medium">Features</Link>
-              <a href="#pricing" className="text-navy hover:text-gold transition-colors font-medium">Pricing</a>
-              <a href="#faq" className="text-navy hover:text-gold transition-colors font-medium">FAQ</a>
-              <Link href="/docs" className="text-navy hover:text-gold transition-colors font-medium">Documentation</Link>
-              <a href="mailto:hello@chirhoevents.com" className="text-navy hover:text-gold transition-colors font-medium">Support</a>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Link href="/sign-in">
-                <Button variant="outline" size="sm">Sign In</Button>
-              </Link>
-              <Link href="/get-started">
-                <Button size="sm">Get Started</Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <PublicNav currentPage="/" />
 
       {/* Section 1: Hero */}
       <section
