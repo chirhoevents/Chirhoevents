@@ -17,8 +17,14 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  AlertCircle,
+  DollarSign,
+  TrendingUp,
+  ChevronRight,
+  Loader2,
 } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import {
   DropdownMenu,
@@ -27,6 +33,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { cn } from '@/lib/utils'
 
 interface Event {
   id: string
@@ -46,6 +62,32 @@ interface EventsListClientProps {
   organizationId: string
 }
 
+interface LimitData {
+  atLimit: boolean
+  currentUsage: number
+  limit: number
+  remaining: number
+  tier: string
+  tierLabel: string
+  options?: {
+    overage: {
+      available: boolean
+      cost: number
+      description: string
+    }
+    upgrade: {
+      available: boolean
+      tiers: Array<{
+        id: string
+        name: string
+        events: number
+        monthlyPrice: number
+      }>
+      description: string
+    }
+  }
+}
+
 type FilterTab = 'all' | 'upcoming' | 'past' | 'draft'
 type SortField = 'date' | 'name' | 'registrations'
 type SortOrder = 'asc' | 'desc'
@@ -53,6 +95,7 @@ type SortOrder = 'asc' | 'desc'
 export default function EventsListClient({
   organizationId,
 }: EventsListClientProps) {
+  const router = useRouter()
   const [events, setEvents] = useState<Event[]>([])
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
@@ -61,13 +104,63 @@ export default function EventsListClient({
   const [sortBy, setSortBy] = useState<SortField>('date')
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
 
+  // Limit check state
+  const [isCheckingLimit, setIsCheckingLimit] = useState(false)
+  const [limitModalOpen, setLimitModalOpen] = useState(false)
+  const [limitData, setLimitData] = useState<LimitData | null>(null)
+  const [usageData, setUsageData] = useState<LimitData | null>(null)
+
   useEffect(() => {
     fetchEvents()
+    fetchUsageData()
   }, [activeTab, sortBy, sortOrder])
 
   useEffect(() => {
     filterEvents()
   }, [events, searchQuery])
+
+  const fetchUsageData = async () => {
+    try {
+      const response = await fetch('/api/admin/events/check-limit')
+      if (response.ok) {
+        const data = await response.json()
+        setUsageData(data)
+      }
+    } catch (error) {
+      console.error('Error fetching usage data:', error)
+    }
+  }
+
+  const handleCreateEvent = async () => {
+    setIsCheckingLimit(true)
+    try {
+      const response = await fetch('/api/admin/events/check-limit')
+      const data = await response.json()
+
+      if (data.atLimit) {
+        setLimitData(data)
+        setLimitModalOpen(true)
+      } else {
+        router.push('/dashboard/admin/events/new')
+      }
+    } catch (error) {
+      console.error('Error checking limit:', error)
+      // On error, let them try to create (backend will block if needed)
+      router.push('/dashboard/admin/events/new')
+    } finally {
+      setIsCheckingLimit(false)
+    }
+  }
+
+  const handleUpgrade = () => {
+    setLimitModalOpen(false)
+    router.push('/dashboard/admin/settings?tab=billing&action=upgrade')
+  }
+
+  const handleContactSupport = () => {
+    setLimitModalOpen(false)
+    window.location.href = 'mailto:support@chirhoevents.com?subject=Event%20Limit%20Increase%20Request'
+  }
 
   const fetchEvents = async () => {
     try {
@@ -225,27 +318,68 @@ export default function EventsListClient({
 
   if (events.length === 0) {
     return (
-      <Card className="p-12 text-center bg-white border-[#D1D5DB]">
-        <Calendar className="h-16 w-16 text-[#9C8466] mx-auto mb-4" />
-        <h2 className="text-xl font-semibold text-[#1E3A5F] mb-2">
-          No Events Yet
-        </h2>
-        <p className="text-[#6B7280] mb-6 max-w-md mx-auto">
-          Create your first event to start accepting registrations and managing
-          your conference.
-        </p>
-        <Link href="/dashboard/admin/events/new">
-          <Button className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
-            <Plus className="h-4 w-4 mr-2" />
+      <>
+        <Card className="p-12 text-center bg-white border-[#D1D5DB]">
+          <Calendar className="h-16 w-16 text-[#9C8466] mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-[#1E3A5F] mb-2">
+            No Events Yet
+          </h2>
+          <p className="text-[#6B7280] mb-6 max-w-md mx-auto">
+            Create your first event to start accepting registrations and managing
+            your conference.
+          </p>
+          <Button
+            onClick={handleCreateEvent}
+            disabled={isCheckingLimit}
+            className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
+          >
+            {isCheckingLimit ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Plus className="h-4 w-4 mr-2" />
+            )}
             Create Your First Event
           </Button>
-        </Link>
-      </Card>
+        </Card>
+
+        {/* Limit Modal */}
+        <LimitReachedModal
+          open={limitModalOpen}
+          onOpenChange={setLimitModalOpen}
+          limitData={limitData}
+          onUpgrade={handleUpgrade}
+          onContactSupport={handleContactSupport}
+        />
+      </>
     )
   }
 
   return (
     <div className="space-y-6">
+      {/* Warning banner when near limit */}
+      {usageData && usageData.currentUsage >= usageData.limit * 0.8 && !usageData.atLimit && (
+        <Alert className="border-orange-200 bg-orange-50">
+          <AlertCircle className="h-4 w-4 text-orange-600" />
+          <AlertTitle className="text-orange-800">Approaching Event Limit</AlertTitle>
+          <AlertDescription className="text-orange-700">
+            You&apos;ve used {usageData.currentUsage} of {usageData.limit} events in your {usageData.tierLabel} plan.
+            Consider upgrading your plan to create more events.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* At limit banner */}
+      {usageData && usageData.atLimit && (
+        <Alert className="border-red-200 bg-red-50">
+          <AlertCircle className="h-4 w-4 text-red-600" />
+          <AlertTitle className="text-red-800">Event Limit Reached</AlertTitle>
+          <AlertDescription className="text-red-700">
+            You&apos;ve reached your limit of {usageData.limit} events for your {usageData.tierLabel} plan.
+            Upgrade your plan or contact support to create more events.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Header with Create Button */}
       <div className="flex items-center justify-between">
         <div className="relative flex-1 max-w-md">
@@ -258,12 +392,41 @@ export default function EventsListClient({
             className="pl-10 border-[#D1D5DB]"
           />
         </div>
-        <Link href="/dashboard/admin/events/new">
-          <Button className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
-            <Plus className="h-4 w-4 mr-2" />
+
+        <div className="flex items-center gap-4">
+          {/* Usage indicator */}
+          {usageData && (
+            <div className="text-sm">
+              <span className={cn(
+                "font-semibold",
+                usageData.atLimit ? "text-red-600" :
+                usageData.currentUsage >= usageData.limit * 0.8 ? "text-orange-600" :
+                "text-green-600"
+              )}>
+                {usageData.currentUsage} / {usageData.limit}
+              </span>
+              <span className="text-gray-600"> events this year</span>
+              {usageData.atLimit && (
+                <span className="ml-2 text-xs text-red-600 font-medium">
+                  (At limit!)
+                </span>
+              )}
+            </div>
+          )}
+
+          <Button
+            onClick={handleCreateEvent}
+            disabled={isCheckingLimit}
+            className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
+          >
+            {isCheckingLimit ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Plus className="h-4 w-4 mr-2" />
+            )}
             Create New Event
           </Button>
-        </Link>
+        </div>
       </div>
 
       {/* Filter Tabs */}
@@ -478,6 +641,121 @@ export default function EventsListClient({
           </CardContent>
         </Card>
       )}
+
+      {/* Limit Modal */}
+      <LimitReachedModal
+        open={limitModalOpen}
+        onOpenChange={setLimitModalOpen}
+        limitData={limitData}
+        onUpgrade={handleUpgrade}
+        onContactSupport={handleContactSupport}
+      />
     </div>
+  )
+}
+
+// Limit Reached Modal Component
+interface LimitReachedModalProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  limitData: LimitData | null
+  onUpgrade: () => void
+  onContactSupport: () => void
+}
+
+function LimitReachedModal({
+  open,
+  onOpenChange,
+  limitData,
+  onUpgrade,
+  onContactSupport,
+}: LimitReachedModalProps) {
+  if (!limitData) return null
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-orange-500" />
+            Event Limit Reached
+          </DialogTitle>
+          <DialogDescription>
+            You&apos;ve created <strong>{limitData.currentUsage}</strong> out of{' '}
+            <strong>{limitData.limit}</strong> events allowed in your{' '}
+            <strong>{limitData.tierLabel}</strong> plan this year.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+            <p className="text-sm text-orange-800">
+              You cannot create more events unless you upgrade your plan or contact support for additional events.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <h4 className="font-semibold text-[#1E3A5F]">Choose an option:</h4>
+
+            {/* Option 1: Upgrade Plan */}
+            {limitData.options?.upgrade.available && (
+              <Card
+                className="cursor-pointer hover:border-[#1E3A5F] transition-colors"
+                onClick={onUpgrade}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-1">
+                      <TrendingUp className="h-5 w-5 text-[#1E3A5F]" />
+                    </div>
+                    <div className="flex-1">
+                      <h5 className="font-semibold text-[#1E3A5F]">Upgrade Your Plan</h5>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {limitData.options.upgrade.description}
+                      </p>
+                      <div className="mt-2 space-y-1">
+                        {limitData.options.upgrade.tiers.slice(0, 3).map((tier) => (
+                          <p key={tier.id} className="text-sm text-gray-700">
+                            <strong>{tier.name}</strong>: {tier.events} events/year - ${tier.monthlyPrice}/month
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-gray-400" />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Option 2: Contact Support */}
+            <Card
+              className="cursor-pointer hover:border-[#1E3A5F] transition-colors"
+              onClick={onContactSupport}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <div className="mt-1">
+                    <DollarSign className="h-5 w-5 text-[#1E3A5F]" />
+                  </div>
+                  <div className="flex-1">
+                    <h5 className="font-semibold text-[#1E3A5F]">Request Additional Events</h5>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Contact support to request additional events at $50 per event.
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-gray-400" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
