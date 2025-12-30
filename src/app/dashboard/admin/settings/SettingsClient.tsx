@@ -2,11 +2,12 @@
 
 import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Building2, Users, Plug, Loader2, CreditCard } from 'lucide-react'
+import { Building2, Users, Plug, Loader2, CreditCard, Palette } from 'lucide-react'
 import OrganizationSettingsTab from '@/components/admin/settings/OrganizationSettingsTab'
 import TeamSettingsTab from '@/components/admin/settings/TeamSettingsTab'
 import IntegrationsSettingsTab from '@/components/admin/settings/IntegrationsSettingsTab'
 import BillingSettingsTab from '@/components/admin/settings/BillingSettingsTab'
+import BrandingSettingsTab from '@/components/admin/settings/BrandingSettingsTab'
 import { usePermissions } from '@/hooks/usePermissions'
 
 interface SettingsClientProps {
@@ -51,6 +52,13 @@ export default function SettingsClient({ organizationName }: SettingsClientProps
             <Building2 className="h-4 w-4" />
             Organization
           </TabsTrigger>
+          <TabsTrigger
+            value="branding"
+            className="data-[state=active]:bg-white data-[state=active]:text-[#1E3A5F] data-[state=active]:shadow-sm flex items-center gap-2"
+          >
+            <Palette className="h-4 w-4" />
+            Branding
+          </TabsTrigger>
           {canAccessTeam && (
             <TabsTrigger
               value="team"
@@ -82,6 +90,10 @@ export default function SettingsClient({ organizationName }: SettingsClientProps
 
         <TabsContent value="organization" className="mt-6">
           <OrganizationSettingsTab />
+        </TabsContent>
+
+        <TabsContent value="branding" className="mt-6">
+          <BrandingSettingsTab />
         </TabsContent>
 
         {canAccessTeam && (

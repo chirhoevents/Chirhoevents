@@ -27,6 +27,12 @@ interface UserInfo {
   organizationName: string
   userRole: UserRole
   permissions?: string[]
+  logoUrl?: string | null
+  modulesEnabled?: {
+    poros: boolean
+    salve: boolean
+    rapha: boolean
+  }
 }
 
 interface NavItem {
@@ -34,17 +40,18 @@ interface NavItem {
   href: string
   icon: LucideIcon
   permission?: Permission
+  module?: 'poros' | 'salve' | 'rapha'
 }
 
-// Define all navigation items with their required permissions
+// Define all navigation items with their required permissions and modules
 const allNavigation: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard/admin', icon: LayoutDashboard },
   { name: 'Events', href: '/dashboard/admin/events', icon: Calendar, permission: 'events.view' },
   { name: 'Registrations', href: '/dashboard/admin/registrations', icon: Users, permission: 'registrations.view' },
   { name: 'Virtual Terminal', href: '/dashboard/admin/virtual-terminal', icon: CreditCard, permission: 'payments.process' },
-  { name: 'Poros Portal', href: '/dashboard/admin/poros', icon: Home, permission: 'portals.poros.view' },
-  { name: 'SALVE Check-In', href: '/dashboard/admin/salve', icon: CheckSquare, permission: 'portals.salve.view' },
-  { name: 'Rapha Medical', href: '/dashboard/admin/rapha', icon: Activity, permission: 'portals.rapha.view' },
+  { name: 'Poros Portal', href: '/dashboard/admin/poros', icon: Home, permission: 'portals.poros.view', module: 'poros' },
+  { name: 'SALVE Check-In', href: '/dashboard/admin/salve', icon: CheckSquare, permission: 'portals.salve.view', module: 'salve' },
+  { name: 'Rapha Medical', href: '/dashboard/admin/rapha', icon: Activity, permission: 'portals.rapha.view', module: 'rapha' },
   { name: 'Reports', href: '/dashboard/admin/reports', icon: BarChart3, permission: 'reports.view' },
   { name: 'Support', href: '/dashboard/admin/support', icon: HelpCircle },
   { name: 'Settings', href: '/dashboard/admin/settings', icon: Settings, permission: 'settings.view' },
@@ -81,6 +88,8 @@ export default function AdminLayout({
           organizationName: data.organizationName,
           userRole: data.userRole as UserRole,
           permissions: data.permissions,
+          logoUrl: data.logoUrl,
+          modulesEnabled: data.modulesEnabled,
         })
       } catch (error) {
         console.error('Error:', error)
@@ -93,12 +102,19 @@ export default function AdminLayout({
     checkAccess()
   }, [router])
 
-  // Filter navigation based on user permissions
+  // Filter navigation based on user permissions and enabled modules
   const navigation = useMemo(() => {
     if (!userInfo) return []
 
     return allNavigation.filter(item => {
-      // Dashboard is always visible to all admins
+      // Check if module is enabled (if module is specified)
+      if (item.module && userInfo.modulesEnabled) {
+        if (!userInfo.modulesEnabled[item.module]) {
+          return false
+        }
+      }
+
+      // Dashboard and non-permission items are always visible
       if (!item.permission) return true
 
       // Check if user has the required permission
@@ -133,13 +149,22 @@ export default function AdminLayout({
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between h-20 lg:h-24 px-6 border-b border-[#2A4A6F]">
-            <Link href="/dashboard/admin" className="flex items-center">
+            <Link href="/dashboard/admin" className="flex items-center gap-3">
+              {/* Organization Logo (if available) */}
+              {userInfo?.logoUrl && (
+                <img
+                  src={userInfo.logoUrl}
+                  alt={userInfo.organizationName}
+                  className="h-10 lg:h-12 w-10 lg:w-12 rounded-lg object-cover bg-white"
+                />
+              )}
+              {/* ChiRho Logo */}
               <Image
                 src="/light-logo-horizontal.png"
                 alt="ChiRho Events"
                 width={200}
                 height={50}
-                className="h-10 lg:h-14 w-auto hover:opacity-90 transition-opacity cursor-pointer"
+                className={`${userInfo?.logoUrl ? 'h-8 lg:h-10' : 'h-10 lg:h-14'} w-auto hover:opacity-90 transition-opacity cursor-pointer`}
               />
             </Link>
             <button

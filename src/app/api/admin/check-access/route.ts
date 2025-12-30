@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
+import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
@@ -12,6 +13,15 @@ export async function GET() {
       )
     }
 
+    // Fetch additional organization branding data
+    const organization = await prisma.organization.findUnique({
+      where: { id: user.organizationId },
+      select: {
+        logoUrl: true,
+        modulesEnabled: true,
+      },
+    })
+
     return NextResponse.json({
       userId: user.id,
       organizationId: user.organizationId,
@@ -20,6 +30,8 @@ export async function GET() {
       email: user.email,
       name: `${user.firstName} ${user.lastName}`,
       permissions: user.permissions,
+      logoUrl: organization?.logoUrl || null,
+      modulesEnabled: organization?.modulesEnabled || { poros: true, salve: true, rapha: true },
     })
   } catch (error) {
     console.error('Error checking admin access:', error)
