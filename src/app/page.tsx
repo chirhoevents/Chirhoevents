@@ -59,8 +59,16 @@ export default function LandingPage() {
       </nav>
 
       {/* Section 1: Hero */}
-      <section className="relative bg-gradient-to-br from-navy to-navy-700 text-white py-20 sm:py-32">
-        <div className="absolute inset-0 bg-black opacity-40"></div>
+      <section
+        className="relative text-white py-20 sm:py-32"
+        style={{
+          backgroundImage: `url('/ChiRho Event Logos/ChiRho events BG.png')`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
+        <div className="absolute inset-0 bg-navy/70"></div>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 leading-tight">
