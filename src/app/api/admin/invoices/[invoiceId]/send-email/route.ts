@@ -109,9 +109,11 @@ export async function POST(
       },
     }
 
-    // Generate PDF using pdf().toBuffer()
+    // Generate PDF using pdf().toBlob() and convert to Buffer
     const pdfDoc = pdf(React.createElement(InvoicePDF, { invoice: invoiceData }) as any)
-    const pdfBuffer = await pdfDoc.toBuffer()
+    const blob = await pdfDoc.toBlob()
+    const arrayBuffer = await blob.arrayBuffer()
+    const pdfBuffer = Buffer.from(arrayBuffer)
 
     // Generate email HTML
     const emailHtml = `
