@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
-import { renderToBuffer } from '@react-pdf/renderer'
+import { pdf } from '@react-pdf/renderer'
 import React from 'react'
 import { InvoicePDF } from '@/components/pdf/InvoicePDF'
 
@@ -109,10 +109,9 @@ export async function POST(
       },
     }
 
-    // Generate PDF
-    const pdfBuffer = await renderToBuffer(
-      React.createElement(InvoicePDF, { invoice: invoiceData })
-    )
+    // Generate PDF using pdf().toBuffer()
+    const pdfDoc = pdf(React.createElement(InvoicePDF, { invoice: invoiceData }))
+    const pdfBuffer = await pdfDoc.toBuffer()
 
     // Generate email HTML
     const emailHtml = `
