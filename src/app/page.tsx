@@ -304,55 +304,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Section 5: Trust Indicators */}
-      <section className="py-16 bg-beige">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-bold text-navy mb-4">
-              Trusted by Catholic Organizations
-            </h2>
-            <p className="text-xl text-gray-600">
-              Helping dioceses, parishes, and ministries run better events
-            </p>
-          </div>
-
-          {/* Client Logos Placeholder */}
-          <div className="max-w-4xl mx-auto mb-12">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 items-center justify-items-center opacity-60">
-              <div className="bg-gray-200 rounded-lg p-6 w-32 h-16 flex items-center justify-center text-gray-500 text-sm font-medium">
-                Client Logo
-              </div>
-              <div className="bg-gray-200 rounded-lg p-6 w-32 h-16 flex items-center justify-center text-gray-500 text-sm font-medium">
-                Client Logo
-              </div>
-              <div className="bg-gray-200 rounded-lg p-6 w-32 h-16 flex items-center justify-center text-gray-500 text-sm font-medium">
-                Client Logo
-              </div>
-              <div className="bg-gray-200 rounded-lg p-6 w-32 h-16 flex items-center justify-center text-gray-500 text-sm font-medium">
-                Client Logo
-              </div>
-            </div>
-            <p className="text-center text-sm text-gray-500 mt-4 italic">
-              Client logos coming soon
-            </p>
-          </div>
-
-          {/* Testimonial Placeholder */}
-          <div className="max-w-2xl mx-auto">
-            <Card className="border-2 border-gold/30">
-              <CardContent className="p-8 text-center">
-                <p className="text-lg text-gray-600 italic mb-4">
-                  &quot;ChiRho Events transformed how we manage our diocesan retreats. The safe environment tracking alone saves us hours of paperwork.&quot;
-                </p>
-                <p className="text-navy font-semibold">— Future Testimonial</p>
-                <p className="text-sm text-gray-500">Diocese Youth Ministry Director</p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* Section 6: Pricing */}
+      {/* Section 5: Pricing */}
       <section id="pricing" className="py-16 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl sm:text-4xl font-bold text-center text-navy mb-4">
