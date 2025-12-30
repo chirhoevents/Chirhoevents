@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
-import { pdf } from '@react-pdf/renderer'
 import React from 'react'
 import { InvoicePDF } from '@/components/pdf/InvoicePDF'
 
@@ -98,14 +97,14 @@ export async function GET(
       },
     }
 
-    // Generate PDF using pdf().toBlob() and convert to Buffer
-    const pdfDoc = pdf(React.createElement(InvoicePDF, { invoice: invoiceData }) as any)
-    const blob = await pdfDoc.toBlob()
-    const arrayBuffer = await blob.arrayBuffer()
-    const pdfBuffer = Buffer.from(arrayBuffer)
+    // Generate PDF using renderToBuffer for server-side rendering
+    const { renderToBuffer } = await import('@react-pdf/renderer')
+    const pdfBuffer = await renderToBuffer(
+      React.createElement(InvoicePDF, { invoice: invoiceData }) as React.ReactElement
+    )
 
-    // Return PDF as response
-    return new NextResponse(pdfBuffer, {
+    // Return PDF as response (convert Buffer to Uint8Array for NextResponse)
+    return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
