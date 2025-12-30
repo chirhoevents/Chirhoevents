@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,6 +13,9 @@ export async function GET(request: NextRequest) {
         { status: 403 }
       )
     }
+
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user)
 
     const { searchParams } = new URL(request.url)
     const eventId = searchParams.get('eventId')
@@ -26,11 +30,11 @@ export async function GET(request: NextRequest) {
 
     // Build where clauses
     const groupWhereClause: any = {
-      organizationId: user.organizationId,
+      organizationId,
     }
 
     const individualWhereClause: any = {
-      organizationId: user.organizationId,
+      organizationId,
     }
 
     // Event filter
@@ -307,7 +311,7 @@ export async function GET(request: NextRequest) {
     // Get available events for filter dropdown
     const events = await prisma.event.findMany({
       where: {
-        organizationId: user.organizationId,
+        organizationId,
         status: { not: 'draft' },
       },
       select: {
