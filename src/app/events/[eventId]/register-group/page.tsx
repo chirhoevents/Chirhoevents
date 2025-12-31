@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2 } from 'lucide-react'
@@ -35,6 +36,7 @@ export default function GroupRegistrationPage() {
   const [loading, setLoading] = useState(true)
   const [event, setEvent] = useState<EventData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -640,6 +642,43 @@ export default function GroupRegistrationPage() {
                   </CardContent>
                 </Card>
 
+                {/* Terms and Privacy Agreement */}
+                <Card className="mb-6">
+                  <CardContent className="pt-6">
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        id="terms-agreement"
+                        checked={agreedToTerms}
+                        onChange={(e) => setAgreedToTerms(e.target.checked)}
+                        className="mt-1 h-4 w-4 rounded border-gray-300 text-gold focus:ring-gold"
+                        required
+                      />
+                      <label htmlFor="terms-agreement" className="text-sm text-gray-700">
+                        I agree to the{' '}
+                        <Link
+                          href="/terms"
+                          target="_blank"
+                          className="text-gold hover:underline font-medium"
+                        >
+                          Terms of Service
+                        </Link>{' '}
+                        and{' '}
+                        <Link
+                          href="/privacy"
+                          target="_blank"
+                          className="text-gold hover:underline font-medium"
+                        >
+                          Privacy Policy
+                        </Link>
+                        . I understand that registration information will be shared with the event
+                        organizer and that liability forms must be completed for all participants.
+                        <span className="text-red-500"> *</span>
+                      </label>
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {error && (
                   <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
                     <p className="text-red-600">{error}</p>
@@ -650,7 +689,7 @@ export default function GroupRegistrationPage() {
                   type="submit"
                   size="lg"
                   className="w-full"
-                  disabled={totalParticipants === 0}
+                  disabled={totalParticipants === 0 || !agreedToTerms}
                 >
                   Continue to Review & Payment
                 </Button>

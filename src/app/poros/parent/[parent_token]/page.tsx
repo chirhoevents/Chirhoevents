@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
+import Link from 'next/link'
 
 interface YouthInfo {
   firstName: string
@@ -565,6 +566,14 @@ export default function ParentCompletionForm() {
                   <strong>I certify that the information provided is accurate and complete</strong>
                 </span>
               </label>
+
+              <p className="text-sm text-gray-600 mb-6">
+                By signing, you agree to our{' '}
+                <Link href="/privacy" target="_blank" className="text-gold hover:underline font-medium">
+                  Privacy Policy
+                </Link>{' '}
+                and consent to the collection and use of the information provided as described therein.
+              </p>
 
               {error && (
                 <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded mb-6">
