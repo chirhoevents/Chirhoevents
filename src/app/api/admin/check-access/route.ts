@@ -41,6 +41,8 @@ export async function GET() {
         name: true,
         logoUrl: true,
         modulesEnabled: true,
+        primaryColor: true,
+        secondaryColor: true,
       },
     })
 
@@ -58,6 +60,8 @@ export async function GET() {
       permissions: user.permissions,
       logoUrl: organization?.logoUrl || null,
       modulesEnabled: organization?.modulesEnabled || { poros: true, salve: true, rapha: true },
+      primaryColor: organization?.primaryColor || '#1E3A5F',
+      secondaryColor: organization?.secondaryColor || '#9C8466',
       isImpersonating: isImpersonating,
       impersonatedOrgId: isImpersonating ? organizationId : null,
     })

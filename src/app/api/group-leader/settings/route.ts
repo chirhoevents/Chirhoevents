@@ -22,7 +22,18 @@ export async function GET(request: NextRequest) {
       groupRegistrations = await prisma.groupRegistration.findMany({
         where: { clerkUserId: userId },
         include: {
-          event: true,
+          event: {
+            include: {
+              organization: {
+                select: {
+                  name: true,
+                  logoUrl: true,
+                  primaryColor: true,
+                  secondaryColor: true,
+                },
+              },
+            },
+          },
         },
         orderBy: {
           createdAt: 'desc',
@@ -85,7 +96,7 @@ export async function GET(request: NextRequest) {
       memberSince: primaryRegistration.createdAt,
     }
 
-    // Build linked events info
+    // Build linked events info with organization branding
     const linkedEvents = groupRegistrations.map((reg: typeof groupRegistrations[0]) => ({
       id: reg.id,
       eventId: reg.eventId,
@@ -94,12 +105,27 @@ export async function GET(request: NextRequest) {
       eventDates: `${new Date(reg.event.startDate).toLocaleDateString()} - ${new Date(reg.event.endDate).toLocaleDateString()}`,
       groupName: reg.groupName,
       linkedAt: reg.createdAt,
+      organization: reg.event.organization ? {
+        name: reg.event.organization.name,
+        logoUrl: reg.event.organization.logoUrl,
+        primaryColor: reg.event.organization.primaryColor || '#1E3A5F',
+        secondaryColor: reg.event.organization.secondaryColor || '#9C8466',
+      } : null,
     }))
+
+    // Get branding from the primary (most recent) registration's organization
+    const primaryOrg = primaryRegistration.event.organization
 
     return NextResponse.json({
       preferences: preferences || {}, // Return empty object if no preferences
       userInfo,
       linkedEvents,
+      branding: primaryOrg ? {
+        organizationName: primaryOrg.name,
+        logoUrl: primaryOrg.logoUrl,
+        primaryColor: primaryOrg.primaryColor || '#1E3A5F',
+        secondaryColor: primaryOrg.secondaryColor || '#9C8466',
+      } : null,
     })
   } catch (error) {
     console.error('Error fetching settings:', error)

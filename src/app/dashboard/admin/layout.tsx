@@ -34,6 +34,8 @@ interface UserInfo {
     salve: boolean
     rapha: boolean
   }
+  primaryColor?: string
+  secondaryColor?: string
   isImpersonating?: boolean
   impersonatedOrgId?: string | null
 }
@@ -93,6 +95,8 @@ export default function AdminLayout({
           permissions: data.permissions,
           logoUrl: data.logoUrl,
           modulesEnabled: data.modulesEnabled,
+          primaryColor: data.primaryColor || '#1E3A5F',
+          secondaryColor: data.secondaryColor || '#9C8466',
           isImpersonating: data.isImpersonating || false,
           impersonatedOrgId: data.impersonatedOrgId || null,
         })
@@ -135,8 +139,18 @@ export default function AdminLayout({
     )
   }
 
+  // Get brand colors with fallbacks
+  const primaryColor = userInfo?.primaryColor || '#1E3A5F'
+  const secondaryColor = userInfo?.secondaryColor || '#9C8466'
+
   return (
-    <div className="min-h-screen bg-[#F5F1E8]">
+    <div
+      className="min-h-screen bg-[#F5F1E8]"
+      style={{
+        '--org-primary': primaryColor,
+        '--org-secondary': secondaryColor,
+      } as React.CSSProperties}
+    >
       {/* Impersonation Banner */}
       {userInfo?.isImpersonating && userInfo?.impersonatedOrgId && (
         <ImpersonationBanner
@@ -155,47 +169,68 @@ export default function AdminLayout({
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#1E3A5F] transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
+        style={{ backgroundColor: primaryColor }}
       >
         <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="flex items-center justify-between h-20 lg:h-24 px-6 border-b border-[#2A4A6F]">
-            <Link href="/dashboard/admin" className="flex items-center gap-3">
-              {/* Organization Logo (if available) */}
-              {userInfo?.logoUrl && (
-                <img
-                  src={userInfo.logoUrl}
-                  alt={userInfo.organizationName}
-                  className="h-10 lg:h-12 w-10 lg:w-12 rounded-lg object-cover bg-white"
-                />
-              )}
-              {/* ChiRho Logo */}
+          {/* Logo Header - ChiRho on LEFT (links to landing), Org logo on RIGHT */}
+          <div
+            className="flex items-center justify-between h-20 lg:h-24 px-4 border-b"
+            style={{ borderColor: `${primaryColor}40` }}
+          >
+            {/* ChiRho Logo - Links to Landing Page */}
+            <Link href="/" className="flex items-center flex-shrink-0">
               <Image
                 src="/light-logo-horizontal.png"
                 alt="ChiRho Events"
-                width={200}
-                height={50}
-                className={`${userInfo?.logoUrl ? 'h-8 lg:h-10' : 'h-10 lg:h-14'} w-auto hover:opacity-90 transition-opacity cursor-pointer`}
+                width={160}
+                height={40}
+                className="h-8 lg:h-10 w-auto hover:opacity-90 transition-opacity"
               />
             </Link>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="lg:hidden text-white"
-            >
-              <X className="h-6 w-6" />
-            </button>
+
+            {/* Right side: Org logo (if available) + mobile close button */}
+            <div className="flex items-center gap-3">
+              {/* Organization Logo with separator */}
+              {userInfo?.logoUrl && (
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-px h-8 opacity-30"
+                    style={{ backgroundColor: 'white' }}
+                  />
+                  <Link href="/dashboard/admin" className="flex-shrink-0">
+                    <img
+                      src={userInfo.logoUrl}
+                      alt={userInfo.organizationName}
+                      className="h-10 lg:h-12 w-10 lg:w-12 rounded-lg object-cover bg-white p-0.5"
+                    />
+                  </Link>
+                </div>
+              )}
+
+              {/* Mobile close button */}
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="lg:hidden text-white ml-2"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
           </div>
 
           {/* Organization Info */}
           {userInfo && (
-            <div className="px-6 py-4 border-b border-[#2A4A6F]">
-              <p className="text-xs text-[#E8DCC8] mb-1">Organization</p>
+            <div
+              className="px-6 py-4 border-b"
+              style={{ borderColor: `${primaryColor}40` }}
+            >
+              <p className="text-xs text-white/70 mb-1">Organization</p>
               <p className="text-sm font-medium text-white truncate">
                 {userInfo.organizationName}
               </p>
-              <p className="text-xs text-[#9C8466] mt-1">
+              <p className="text-xs mt-1" style={{ color: secondaryColor }}>
                 {getRoleName(userInfo.userRole)}
               </p>
             </div>
@@ -210,21 +245,27 @@ export default function AdminLayout({
                 className="flex items-center px-4 py-3 text-white hover:bg-white/10 rounded-lg transition-colors group"
                 onClick={() => setSidebarOpen(false)}
               >
-                <item.icon className="h-5 w-5 mr-3 text-[#9C8466]" />
+                <item.icon
+                  className="h-5 w-5 mr-3"
+                  style={{ color: secondaryColor }}
+                />
                 <span>{item.name}</span>
               </Link>
             ))}
           </nav>
 
           {/* User info */}
-          <div className="px-6 py-4 border-t border-[#2A4A6F]">
+          <div
+            className="px-6 py-4 border-t"
+            style={{ borderColor: `${primaryColor}40` }}
+          >
             <div className="flex items-center space-x-3">
               <UserButton afterSignOutUrl="/" />
               <div className="flex-1">
                 <p className="text-sm font-medium text-white">Account</p>
                 <button
                   onClick={() => signOut()}
-                  className="text-xs text-[#E8DCC8] hover:text-white cursor-pointer flex items-center gap-1"
+                  className="text-xs text-white/70 hover:text-white cursor-pointer flex items-center gap-1"
                 >
                   <LogOut className="h-3 w-3" />
                   Sign out
@@ -242,14 +283,15 @@ export default function AdminLayout({
           <div className="flex items-center justify-between h-16 px-4 lg:px-8">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden text-[#1E3A5F]"
+              className="lg:hidden"
+              style={{ color: primaryColor }}
             >
               <Menu className="h-6 w-6" />
             </button>
 
             {userInfo && (
               <div className="hidden lg:block">
-                <h2 className="text-lg font-semibold text-[#1E3A5F]">
+                <h2 className="text-lg font-semibold" style={{ color: primaryColor }}>
                   {userInfo.organizationName}
                 </h2>
                 <p className="text-sm text-[#6B7280]">
@@ -258,7 +300,15 @@ export default function AdminLayout({
               </div>
             )}
 
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-4">
+              {/* Show org logo in top bar on desktop if they have one */}
+              {userInfo?.logoUrl && (
+                <img
+                  src={userInfo.logoUrl}
+                  alt={userInfo.organizationName}
+                  className="hidden lg:block h-8 w-8 rounded-lg object-cover"
+                />
+              )}
               <UserButton afterSignOutUrl="/" />
             </div>
           </div>

@@ -37,6 +37,13 @@ interface GroupInfo {
   eventName: string
 }
 
+interface BrandingInfo {
+  organizationName: string
+  logoUrl: string | null
+  primaryColor: string
+  secondaryColor: string
+}
+
 function GroupLeaderLayoutContent({
   children,
 }: {
@@ -47,6 +54,7 @@ function GroupLeaderLayoutContent({
   const { signOut } = useClerk()
   const { selectedEventId, setSelectedEventId, linkedEvents, setLinkedEvents, currentEvent, refreshEvents } = useEvent()
   const [groupInfo, setGroupInfo] = useState<GroupInfo | null>(null)
+  const [branding, setBranding] = useState<BrandingInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showAddCode, setShowAddCode] = useState(false)
@@ -67,6 +75,11 @@ function GroupLeaderLayoutContent({
 
         const data = await response.json()
         setLinkedEvents(data.linkedEvents || [])
+
+        // Set branding from the organization
+        if (data.branding) {
+          setBranding(data.branding)
+        }
 
         // Validate that the saved event ID still exists
         const savedEventId = localStorage.getItem('selectedEventId')
@@ -163,6 +176,10 @@ function GroupLeaderLayoutContent({
     { name: 'Settings', href: '/dashboard/group-leader/settings', icon: Settings },
   ]
 
+  // Get brand colors with fallbacks
+  const primaryColor = branding?.primaryColor || '#1E3A5F'
+  const secondaryColor = branding?.secondaryColor || '#9C8466'
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F5F1E8]">
@@ -172,7 +189,13 @@ function GroupLeaderLayoutContent({
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F1E8]">
+    <div
+      className="min-h-screen bg-[#F5F1E8]"
+      style={{
+        '--org-primary': primaryColor,
+        '--org-secondary': secondaryColor,
+      } as React.CSSProperties}
+    >
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
@@ -183,32 +206,62 @@ function GroupLeaderLayoutContent({
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#1E3A5F] transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
+        style={{ backgroundColor: primaryColor }}
       >
         <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="flex items-center justify-between h-20 lg:h-24 px-6 border-b border-[#2A4A6F]">
-            <Link href="/dashboard/group-leader" className="flex items-center">
+          {/* Logo Header - ChiRho on LEFT (links to landing), Org logo on RIGHT */}
+          <div
+            className="flex items-center justify-between h-20 lg:h-24 px-4 border-b"
+            style={{ borderColor: `${primaryColor}40` }}
+          >
+            {/* ChiRho Logo - Links to Landing Page */}
+            <Link href="/" className="flex items-center flex-shrink-0">
               <Image
                 src="/light-logo-horizontal.png"
                 alt="ChiRho Events"
-                width={200}
-                height={50}
-                className="h-10 lg:h-14 w-auto hover:opacity-90 transition-opacity cursor-pointer"
+                width={160}
+                height={40}
+                className="h-8 lg:h-10 w-auto hover:opacity-90 transition-opacity"
               />
             </Link>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="lg:hidden text-white"
-            >
-              <X className="h-6 w-6" />
-            </button>
+
+            {/* Right side: Org logo (if available) + mobile close button */}
+            <div className="flex items-center gap-3">
+              {/* Organization Logo with separator */}
+              {branding?.logoUrl && (
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-px h-8 opacity-30"
+                    style={{ backgroundColor: 'white' }}
+                  />
+                  <Link href="/dashboard/group-leader" className="flex-shrink-0">
+                    <img
+                      src={branding.logoUrl}
+                      alt={branding.organizationName}
+                      className="h-10 lg:h-12 w-10 lg:w-12 rounded-lg object-cover bg-white p-0.5"
+                    />
+                  </Link>
+                </div>
+              )}
+
+              {/* Mobile close button */}
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="lg:hidden text-white ml-2"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
           </div>
 
           {/* Event Switcher & Add Code */}
-          <div className="px-4 py-4 border-b border-[#2A4A6F] space-y-3">
+          <div
+            className="px-4 py-4 border-b space-y-3"
+            style={{ borderColor: `${primaryColor}40` }}
+          >
             {linkedEvents.length > 0 && (
               <>
                 <div>
@@ -320,21 +373,27 @@ function GroupLeaderLayoutContent({
                 className="flex items-center px-4 py-3 text-white hover:bg-white/10 rounded-lg transition-colors group"
                 onClick={() => setSidebarOpen(false)}
               >
-                <item.icon className="h-5 w-5 mr-3 text-[#9C8466]" />
+                <item.icon
+                  className="h-5 w-5 mr-3"
+                  style={{ color: secondaryColor }}
+                />
                 <span>{item.name}</span>
               </Link>
             ))}
           </nav>
 
           {/* User info */}
-          <div className="px-6 py-4 border-t border-[#2A4A6F]">
+          <div
+            className="px-6 py-4 border-t"
+            style={{ borderColor: `${primaryColor}40` }}
+          >
             <div className="flex items-center space-x-3">
               <UserButton afterSignOutUrl="/" />
               <div className="flex-1">
                 <p className="text-sm font-medium text-white">Account</p>
                 <button
                   onClick={() => signOut()}
-                  className="text-xs text-[#E8DCC8] hover:text-white cursor-pointer"
+                  className="text-xs text-white/70 hover:text-white cursor-pointer"
                 >
                   Sign out
                 </button>
@@ -351,21 +410,30 @@ function GroupLeaderLayoutContent({
           <div className="flex items-center justify-between h-16 px-4 lg:px-8">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden text-[#1E3A5F]"
+              className="lg:hidden"
+              style={{ color: primaryColor }}
             >
               <Menu className="h-6 w-6" />
             </button>
 
             {groupInfo && (
               <div className="hidden lg:block">
-                <h2 className="text-lg font-semibold text-[#1E3A5F]">
+                <h2 className="text-lg font-semibold" style={{ color: primaryColor }}>
                   {groupInfo.eventName}
                 </h2>
                 <p className="text-sm text-[#6B7280]">{groupInfo.groupName}</p>
               </div>
             )}
 
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-4">
+              {/* Show org logo in top bar on desktop if they have one */}
+              {branding?.logoUrl && (
+                <img
+                  src={branding.logoUrl}
+                  alt={branding.organizationName}
+                  className="hidden lg:block h-8 w-8 rounded-lg object-cover"
+                />
+              )}
               <UserButton afterSignOutUrl="/" />
             </div>
           </div>
