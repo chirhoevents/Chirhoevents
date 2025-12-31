@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 })
     }
 
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const body = await request.json()
 
