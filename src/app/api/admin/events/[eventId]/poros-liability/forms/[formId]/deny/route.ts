@@ -17,7 +17,7 @@ export async function POST(
       )
     }
 
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const { eventId, formId } = await Promise.resolve(params)
     const body = await request.json()

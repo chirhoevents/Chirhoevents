@@ -53,7 +53,7 @@ export async function GET() {
     }
 
     // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     // Get all group leaders across all events for this organization
     const groupRegistrations = await prisma.groupRegistration.findMany({
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const body: BulkEmailRequest = await request.json()
     const { templateId, subject, htmlContent, recipientType, selectedRecipients } = body

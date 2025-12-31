@@ -27,7 +27,7 @@ export async function GET(
       )
     }
 
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const { eventId } = await Promise.resolve(params)
     const { searchParams } = new URL(request.url)

@@ -15,7 +15,7 @@ export async function GET() {
     }
 
     // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const organization = await prisma.organization.findUnique({
       where: { id: organizationId },
@@ -65,7 +65,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const data = await request.json()
 

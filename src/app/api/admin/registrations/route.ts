@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const { searchParams } = new URL(request.url)
     const eventId = searchParams.get('eventId')

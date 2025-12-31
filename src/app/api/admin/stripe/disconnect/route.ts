@@ -15,7 +15,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const body = await request.json()
     const { newContactEmail } = body

@@ -21,7 +21,7 @@ export async function POST(
     }
 
     // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     // Only users with team.manage permission can resend invites
     if (!userHasPermission(user, 'team.manage')) {

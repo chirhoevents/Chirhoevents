@@ -18,7 +18,7 @@ export async function GET(
     }
 
     // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const { eventId } = await params
 
@@ -73,7 +73,7 @@ export async function PUT(
     }
 
     // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const data = await request.json()
 
@@ -455,7 +455,7 @@ export async function DELETE(
     }
 
     // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     // Verify event belongs to user's organization
     const event = await prisma.event.findUnique({

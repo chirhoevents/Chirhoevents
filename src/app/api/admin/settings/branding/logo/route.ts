@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     // Parse form data
     const formData = await request.formData()
@@ -85,7 +85,7 @@ export async function DELETE() {
     }
 
     // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     // Delete from R2
     await deleteLogo(organizationId)

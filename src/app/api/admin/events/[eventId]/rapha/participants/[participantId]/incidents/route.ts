@@ -11,7 +11,7 @@ export async function GET(
 ) {
   try {
     const user = await requireAdmin()
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
     const { eventId, participantId } = await params
     const { searchParams } = new URL(request.url)
     const incidentId = searchParams.get('incidentId')

@@ -18,7 +18,7 @@ export async function GET(
     }
 
     // Get the effective org ID (handles impersonation)
-    const effectiveOrgId = await getEffectiveOrgId(user)
+    const effectiveOrgId = await getEffectiveOrgId(user as any)
 
     const { organizationId, templateId } = await Promise.resolve(params)
 
@@ -67,7 +67,7 @@ export async function PUT(
     }
 
     // Get the effective org ID (handles impersonation)
-    const effectiveOrgId = await getEffectiveOrgId(user)
+    const effectiveOrgId = await getEffectiveOrgId(user as any)
 
     const { organizationId, templateId } = await Promise.resolve(params)
 
@@ -146,7 +146,7 @@ export async function DELETE(
     }
 
     // Get the effective org ID (handles impersonation)
-    const effectiveOrgId = await getEffectiveOrgId(user)
+    const effectiveOrgId = await getEffectiveOrgId(user as any)
 
     const { organizationId, templateId } = await Promise.resolve(params)
 

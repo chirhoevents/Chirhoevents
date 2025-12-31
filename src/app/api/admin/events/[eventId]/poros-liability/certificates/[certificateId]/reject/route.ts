@@ -17,7 +17,7 @@ export async function POST(
       )
     }
 
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const resolvedParams = await Promise.resolve(params)
     const { certificateId } = resolvedParams

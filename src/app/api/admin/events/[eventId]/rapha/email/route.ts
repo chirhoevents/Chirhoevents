@@ -15,7 +15,7 @@ export async function POST(
 ) {
   try {
     const user = await requireAdmin()
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
     const { eventId } = await params
     const body = await request.json()
 

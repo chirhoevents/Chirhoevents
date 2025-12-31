@@ -19,7 +19,7 @@ export async function DELETE(
     }
 
     // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     // Only users with team.manage permission can remove team members
     if (!userHasPermission(user, 'team.manage')) {
@@ -157,7 +157,7 @@ export async function PUT(
     }
 
     // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     // Only users with team.manage permission can update roles
     if (!userHasPermission(user, 'team.manage')) {

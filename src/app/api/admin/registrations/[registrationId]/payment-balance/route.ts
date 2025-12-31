@@ -18,7 +18,7 @@ export async function PUT(
     }
 
     // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const { registrationId } = await params
     const body = await request.json()

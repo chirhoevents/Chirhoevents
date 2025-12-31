@@ -18,7 +18,7 @@ export async function GET(
     }
 
     // Get the effective org ID (handles impersonation)
-    const effectiveOrgId = await getEffectiveOrgId(user)
+    const effectiveOrgId = await getEffectiveOrgId(user as any)
 
     const { organizationId } = await Promise.resolve(params)
 
@@ -60,7 +60,7 @@ export async function POST(
     }
 
     // Get the effective org ID (handles impersonation)
-    const effectiveOrgId = await getEffectiveOrgId(user)
+    const effectiveOrgId = await getEffectiveOrgId(user as any)
 
     const { organizationId } = await Promise.resolve(params)
 

@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const body = await request.json()
     const {

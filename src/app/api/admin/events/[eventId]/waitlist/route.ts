@@ -17,7 +17,7 @@ export async function GET(
       )
     }
 
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const { eventId } = await params
 

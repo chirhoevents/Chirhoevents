@@ -17,7 +17,7 @@ export async function POST() {
     }
 
     // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     // Fetch organization name
     const organization = await prisma.organization.findUnique({
