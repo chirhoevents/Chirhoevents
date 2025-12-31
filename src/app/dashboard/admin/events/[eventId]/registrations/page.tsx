@@ -1,4 +1,5 @@
 import { requireAdmin } from '@/lib/auth-utils'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import RegistrationsClient from './RegistrationsClient'
@@ -9,15 +10,25 @@ interface PageProps {
   }>
 }
 
+// UUID validation regex
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export default async function EventRegistrationsPage({ params }: PageProps) {
   const user = await requireAdmin()
   const { eventId } = await params
+
+  // Validate eventId is a valid UUID
+  if (!UUID_REGEX.test(eventId)) {
+    notFound()
+  }
+
+  const organizationId = await getEffectiveOrgId(user)
 
   // Verify event exists and belongs to user's organization
   const event = await prisma.event.findUnique({
     where: {
       id: eventId,
-      organizationId: user.organizationId,
+      organizationId: organizationId,
     },
     select: {
       id: true,

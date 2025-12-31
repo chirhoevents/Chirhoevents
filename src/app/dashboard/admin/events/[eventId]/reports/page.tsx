@@ -1,4 +1,5 @@
 import { requireAdmin } from '@/lib/auth-utils'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import ReportsClient from './ReportsClient'
@@ -11,13 +12,14 @@ interface PageProps {
 
 export default async function EventReportsPage({ params }: PageProps) {
   const user = await requireAdmin()
+  const organizationId = await getEffectiveOrgId(user)
   const { eventId } = await params
 
   // Verify event exists and belongs to user's organization
   const event = await prisma.event.findUnique({
     where: {
       id: eventId,
-      organizationId: user.organizationId,
+      organizationId: organizationId,
     },
     select: {
       id: true,

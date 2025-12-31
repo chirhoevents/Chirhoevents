@@ -1,4 +1,5 @@
 import { requireAdmin } from '@/lib/auth-utils'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import PorosPortalClient from './PorosPortalClient'
@@ -11,6 +12,7 @@ interface PageProps {
 
 export default async function PorosPortalPage({ params }: PageProps) {
   const user = await requireAdmin()
+  const organizationId = await getEffectiveOrgId(user)
   const { eventId } = await params
 
   // Fetch event with settings - with defensive error handling
@@ -19,7 +21,7 @@ export default async function PorosPortalPage({ params }: PageProps) {
     event = await prisma.event.findUnique({
       where: {
         id: eventId,
-        organizationId: user.organizationId,
+        organizationId: organizationId,
       },
       include: {
         settings: true,
@@ -31,7 +33,7 @@ export default async function PorosPortalPage({ params }: PageProps) {
     event = await prisma.event.findUnique({
       where: {
         id: eventId,
-        organizationId: user.organizationId,
+        organizationId: organizationId,
       },
     })
     if (event) {

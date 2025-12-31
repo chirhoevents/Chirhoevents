@@ -1,4 +1,5 @@
 import { requireAdmin } from '@/lib/auth-utils'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -8,13 +9,14 @@ import { format } from 'date-fns'
 
 export default async function PorosSelectEventPage() {
   const user = await requireAdmin()
+  const organizationId = await getEffectiveOrgId(user)
 
   // Fetch all events for the organization with defensive error handling
   let events: any[] = []
   try {
     events = await prisma.event.findMany({
       where: {
-        organizationId: user.organizationId,
+        organizationId: organizationId,
       },
       include: {
         _count: {
@@ -33,7 +35,7 @@ export default async function PorosSelectEventPage() {
     // Try without include if there's a schema issue
     const basicEvents = await prisma.event.findMany({
       where: {
-        organizationId: user.organizationId,
+        organizationId: organizationId,
       },
       orderBy: {
         startDate: 'desc',
