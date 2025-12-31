@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
+import Link from 'next/link'
 
 export default function YouthO18ChaperoneForm() {
   const params = useParams()
@@ -897,6 +898,14 @@ export default function YouthO18ChaperoneForm() {
                   I certify that all information provided is accurate and complete
                 </span>
               </label>
+
+              <p className="text-sm text-gray-600 mb-6">
+                By signing, you agree to our{' '}
+                <Link href="/privacy" target="_blank" className="text-gold hover:underline font-medium">
+                  Privacy Policy
+                </Link>{' '}
+                and consent to the collection and use of the information provided as described therein.
+              </p>
 
               <button
                 type="submit"

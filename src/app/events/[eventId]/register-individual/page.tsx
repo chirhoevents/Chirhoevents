@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2 } from 'lucide-react'
@@ -33,6 +34,7 @@ export default function IndividualRegistrationPage() {
   const [loading, setLoading] = useState(true)
   const [event, setEvent] = useState<EventData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -619,6 +621,43 @@ export default function IndividualRegistrationPage() {
                   </CardContent>
                 </Card>
 
+                {/* Terms and Privacy Agreement */}
+                <Card className="mb-6">
+                  <CardContent className="pt-6">
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        id="terms-agreement"
+                        checked={agreedToTerms}
+                        onChange={(e) => setAgreedToTerms(e.target.checked)}
+                        className="mt-1 h-4 w-4 rounded border-gray-300 text-gold focus:ring-gold"
+                        required
+                      />
+                      <label htmlFor="terms-agreement" className="text-sm text-gray-700">
+                        I agree to the{' '}
+                        <Link
+                          href="/terms"
+                          target="_blank"
+                          className="text-gold hover:underline font-medium"
+                        >
+                          Terms of Service
+                        </Link>{' '}
+                        and{' '}
+                        <Link
+                          href="/privacy"
+                          target="_blank"
+                          className="text-gold hover:underline font-medium"
+                        >
+                          Privacy Policy
+                        </Link>
+                        . I understand that my registration information will be shared with the event
+                        organizer.
+                        <span className="text-red-500"> *</span>
+                      </label>
+                    </div>
+                  </CardContent>
+                </Card>
+
                 <div className="flex justify-between">
                   <Button
                     type="button"
@@ -627,7 +666,11 @@ export default function IndividualRegistrationPage() {
                   >
                     Back
                   </Button>
-                  <Button type="submit" className="bg-navy hover:bg-navy/90 !text-white">
+                  <Button
+                    type="submit"
+                    className="bg-navy hover:bg-navy/90 !text-white"
+                    disabled={!agreedToTerms}
+                  >
                     Continue to Review
                   </Button>
                 </div>
