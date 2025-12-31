@@ -1,6 +1,5 @@
 import { requireAdmin } from '@/lib/auth-utils'
 import { getEffectiveOrgId, getImpersonationDetails } from '@/lib/get-effective-org'
-import ReportsClient from '../events/[eventId]/reports/ReportsClient'
 import AllReportsClient from './AllReportsClient'
 
 export default async function AllReportsPage() {
@@ -16,23 +15,11 @@ export default async function AllReportsPage() {
           Reports
         </h1>
         <p className="text-[#6B7280]">
-          Comprehensive reports and analytics across all events for{' '}
-          {orgName}
-        </p>
-      </div>
-
-      <ReportsClient
-        eventId="all"
-        eventName="All Events"
-        organizationId={organizationId}
-        startDate=""
-        endDate=""
-      />
           Generate reports and analytics for your events
         </p>
       </div>
 
-      <AllReportsClient organizationId={user.organizationId} />
+      <AllReportsClient organizationId={organizationId} />
     </div>
   )
 }
