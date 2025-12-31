@@ -4,6 +4,10 @@ import { prisma } from '@/lib/prisma'
 import React from 'react'
 import { InvoicePDF } from '@/components/pdf/InvoicePDF'
 
+// Must use Node.js runtime for @react-pdf/renderer (not Edge)
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 const tierLabels: Record<string, string> = {
   starter: 'Starter',
   small_diocese: 'Small Diocese',
