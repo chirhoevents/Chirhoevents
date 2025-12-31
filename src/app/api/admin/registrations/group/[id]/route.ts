@@ -128,6 +128,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    const organizationId = await getEffectiveOrgId(user as any)
     const registrationId = id
     const body = await request.json()
 
