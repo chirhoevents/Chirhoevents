@@ -14,23 +14,176 @@ export interface EmailTemplate {
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
 
-// Base email wrapper
-const wrapEmail = (content: string) => `
-  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-    <!-- ChiRho Events Logo Header -->
-    <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
-      <img src="${APP_URL}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 200px; height: auto;" />
-    </div>
+/**
+ * Professional email wrapper with consistent branding
+ * Used by all email templates for a unified look
+ */
+export function wrapEmail(content: string, options?: {
+  preheader?: string
+  organizationName?: string
+}): string {
+  const orgName = options?.organizationName || 'ChiRho Events'
+  const preheader = options?.preheader || ''
 
-    <div style="padding: 30px 20px;">
-      ${content}
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>${orgName}</title>
+  <!--[if mso]>
+  <style type="text/css">
+    body, table, td {font-family: Arial, Helvetica, sans-serif !important;}
+  </style>
+  <![endif]-->
+  <style>
+    /* Reset styles */
+    body { margin: 0; padding: 0; min-width: 100%; background-color: #f4f4f4; }
+    table { border-collapse: collapse; width: 100%; }
+    img { border: 0; display: block; outline: none; text-decoration: none; }
 
-      <p style="color: #666; font-size: 12px; margin-top: 30px;">
-        © 2025 ChiRho Events. All rights reserved.
-      </p>
-    </div>
-  </div>
-`
+    /* Typography */
+    body, td { font-family: 'Segoe UI', Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #333333; }
+    h1 { font-size: 24px; font-weight: 700; color: #1E3A5F; margin: 0 0 16px 0; }
+    h2 { font-size: 20px; font-weight: 600; color: #1E3A5F; margin: 24px 0 12px 0; }
+    h3 { font-size: 18px; font-weight: 600; color: #1E3A5F; margin: 20px 0 10px 0; }
+    p { margin: 0 0 16px 0; }
+    a { color: #9C8466; text-decoration: underline; }
+
+    /* Responsive */
+    @media screen and (max-width: 600px) {
+      .container { width: 100% !important; padding: 0 16px !important; }
+      .content { padding: 24px 16px !important; }
+    }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f4f4f4;">
+  ${preheader ? `<div style="display: none; max-height: 0; overflow: hidden;">${preheader}</div>` : ''}
+
+  <!-- Wrapper Table -->
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4;">
+    <tr>
+      <td align="center" style="padding: 24px 0;">
+
+        <!-- Email Container -->
+        <table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #1E3A5F 0%, #2d5a8c 100%); padding: 32px 40px; text-align: center;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <!-- Logo/Icon -->
+                    <div style="font-size: 40px; margin-bottom: 8px;">⚓</div>
+                    <div style="color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: 0.5px;">ChiRho Events</div>
+                    <div style="color: #9C8466; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px;">Catholic Event Management</div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td class="content" style="padding: 40px;">
+              ${content}
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f9f9f9; border-top: 1px solid #e0e0e0; padding: 24px 40px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="color: #666666; font-size: 13px; line-height: 1.5;">
+                    <p style="margin: 0 0 8px 0;">
+                      <strong>${orgName}</strong>
+                    </p>
+                    <p style="margin: 0 0 8px 0;">
+                      Questions? Email <a href="mailto:support@chirhoevents.com" style="color: #9C8466;">support@chirhoevents.com</a>
+                    </p>
+                    <p style="margin: 0; color: #999999; font-size: 12px;">
+                      © ${new Date().getFullYear()} ChiRho Events. All rights reserved.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim()
+}
+
+/**
+ * Generate a styled button for emails
+ */
+export function emailButton(text: string, url: string, color: 'primary' | 'secondary' | 'success' = 'primary'): string {
+  const colors = {
+    primary: { bg: '#1E3A5F', text: '#ffffff' },
+    secondary: { bg: '#9C8466', text: '#ffffff' },
+    success: { bg: '#059669', text: '#ffffff' },
+  }
+  const c = colors[color]
+
+  return `
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 24px 0;">
+      <tr>
+        <td style="background-color: ${c.bg}; border-radius: 6px; text-align: center;">
+          <a href="${url}" target="_blank" style="display: inline-block; padding: 14px 32px; color: ${c.text}; text-decoration: none; font-weight: 600; font-size: 16px;">
+            ${text}
+          </a>
+        </td>
+      </tr>
+    </table>
+  `
+}
+
+/**
+ * Generate an info box for emails
+ */
+export function emailInfoBox(content: string, type: 'info' | 'success' | 'warning' | 'error' = 'info'): string {
+  const styles = {
+    info: { bg: '#EBF5FF', border: '#3B82F6', text: '#1E40AF' },
+    success: { bg: '#ECFDF5', border: '#10B981', text: '#065F46' },
+    warning: { bg: '#FFFBEB', border: '#F59E0B', text: '#92400E' },
+    error: { bg: '#FEF2F2', border: '#EF4444', text: '#991B1B' },
+  }
+  const s = styles[type]
+
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 20px 0;">
+      <tr>
+        <td style="background-color: ${s.bg}; border-left: 4px solid ${s.border}; padding: 16px 20px; border-radius: 4px;">
+          <div style="color: ${s.text}; font-size: 15px;">
+            ${content}
+          </div>
+        </td>
+      </tr>
+    </table>
+  `
+}
+
+/**
+ * Generate a detail row for receipts/invoices
+ */
+export function emailDetailRow(label: string, value: string): string {
+  return `
+    <tr>
+      <td style="padding: 10px 0; border-bottom: 1px solid #e5e5e5; color: #666666; font-size: 14px;">${label}</td>
+      <td style="padding: 10px 0; border-bottom: 1px solid #e5e5e5; text-align: right; font-weight: 600; color: #1E3A5F;">${value}</td>
+    </tr>
+  `
+}
 
 export const emailTemplates: EmailTemplate[] = [
   {
@@ -690,4 +843,376 @@ export function generateVirtualTerminalReceipt({
       </body>
     </html>
   `
+}
+
+/**
+ * Generate welcome email for new organizations
+ */
+export function generateOrganizationWelcomeEmail({
+  adminName,
+  organizationName,
+  subscriptionPlan,
+  loginUrl,
+}: {
+  adminName: string
+  organizationName: string
+  subscriptionPlan: string
+  loginUrl: string
+}): string {
+  return wrapEmail(`
+    <h1>Welcome to ChiRho Events!</h1>
+
+    <p>Dear ${adminName},</p>
+
+    <p>Congratulations! Your organization <strong>${organizationName}</strong> has been approved and your account is now active.</p>
+
+    ${emailInfoBox(`
+      <strong>Your Subscription:</strong> ${subscriptionPlan}<br>
+      <strong>Organization:</strong> ${organizationName}
+    `, 'success')}
+
+    <h2>Getting Started</h2>
+    <p>Here's what you can do with ChiRho Events:</p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 20px 0;">
+      <tr>
+        <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e5;">
+          <strong style="color: #1E3A5F;">1. Create Your First Event</strong>
+          <p style="margin: 4px 0 0; color: #666; font-size: 14px;">Set up registration, pricing tiers, and deadlines</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e5;">
+          <strong style="color: #1E3A5F;">2. Customize Liability Forms</strong>
+          <p style="margin: 4px 0 0; color: #666; font-size: 14px;">Configure youth, chaperone, and clergy forms for your diocese</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e5;">
+          <strong style="color: #1E3A5F;">3. Invite Your Team</strong>
+          <p style="margin: 4px 0 0; color: #666; font-size: 14px;">Add staff members and assign roles</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 12px 0;">
+          <strong style="color: #1E3A5F;">4. Configure Payments</strong>
+          <p style="margin: 4px 0 0; color: #666; font-size: 14px;">Connect Stripe to accept online payments</p>
+        </td>
+      </tr>
+    </table>
+
+    ${emailButton('Access Your Dashboard', loginUrl, 'primary')}
+
+    <h2>Need Help?</h2>
+    <p>Our team is here to support you during your first 30 days with priority onboarding assistance:</p>
+    <ul>
+      <li>Email: <a href="mailto:support@chirhoevents.com">support@chirhoevents.com</a></li>
+      <li>Documentation: <a href="https://chirhoevents.com/docs">chirhoevents.com/docs</a></li>
+    </ul>
+
+    <p>Welcome to the ChiRho family. We're honored to serve your ministry!</p>
+  `, { organizationName: 'ChiRho Events' })
+}
+
+/**
+ * Generate invoice email with payment details
+ */
+export function generateInvoiceEmail({
+  recipientName,
+  organizationName,
+  invoiceNumber,
+  invoiceDate,
+  dueDate,
+  amount,
+  lineItems,
+  paymentUrl,
+  isPastDue,
+}: {
+  recipientName: string
+  organizationName: string
+  invoiceNumber: string
+  invoiceDate: string
+  dueDate: string
+  amount: number
+  lineItems: Array<{ description: string; amount: number }>
+  paymentUrl: string
+  isPastDue?: boolean
+}): string {
+  const lineItemsHtml = lineItems.map(item => `
+    <tr>
+      <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e5; color: #333;">${item.description}</td>
+      <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e5; text-align: right; font-weight: 600; color: #1E3A5F;">$${item.amount.toFixed(2)}</td>
+    </tr>
+  `).join('')
+
+  return wrapEmail(`
+    <h1>Invoice from ChiRho Events</h1>
+
+    <p>Dear ${recipientName},</p>
+
+    ${isPastDue ? emailInfoBox(`
+      <strong>Payment Past Due</strong><br>
+      This invoice was due on ${dueDate}. Please submit payment as soon as possible to avoid service interruption.
+    `, 'warning') : `
+      <p>Please find your invoice details below for <strong>${organizationName}</strong>.</p>
+    `}
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0; background: #f9f9f9; border-radius: 8px; padding: 20px;">
+      <tr>
+        <td>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            ${emailDetailRow('Invoice Number', invoiceNumber)}
+            ${emailDetailRow('Invoice Date', invoiceDate)}
+            ${emailDetailRow('Due Date', dueDate)}
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <h2>Invoice Details</h2>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0;">
+      ${lineItemsHtml}
+      <tr>
+        <td style="padding: 16px 0; font-weight: 700; font-size: 18px; color: #1E3A5F;">Total Due</td>
+        <td style="padding: 16px 0; text-align: right; font-weight: 700; font-size: 18px; color: #1E3A5F;">$${amount.toFixed(2)}</td>
+      </tr>
+    </table>
+
+    ${emailButton('Pay Now', paymentUrl, 'primary')}
+
+    <h2>Payment Options</h2>
+    <ul>
+      <li><strong>Online:</strong> Click the button above to pay securely with credit card</li>
+      <li><strong>Check:</strong> Make payable to "ChiRho Events" and mail to our billing address</li>
+      <li><strong>ACH/Wire:</strong> Contact us for bank transfer details</li>
+    </ul>
+
+    <p style="font-size: 14px; color: #666;">
+      If you have any questions about this invoice, please contact our billing team at
+      <a href="mailto:billing@chirhoevents.com">billing@chirhoevents.com</a>.
+    </p>
+  `, { organizationName: 'ChiRho Events', preheader: `Invoice ${invoiceNumber} - $${amount.toFixed(2)} due ${dueDate}` })
+}
+
+/**
+ * Generate support ticket confirmation email
+ */
+export function generateSupportTicketConfirmationEmail({
+  userName,
+  ticketId,
+  ticketSubject,
+  ticketMessage,
+  ticketCategory,
+  ticketPriority,
+}: {
+  userName: string
+  ticketId: string
+  ticketSubject: string
+  ticketMessage: string
+  ticketCategory: string
+  ticketPriority: string
+}): string {
+  const priorityColors: Record<string, 'info' | 'warning' | 'error'> = {
+    low: 'info',
+    medium: 'info',
+    high: 'warning',
+    urgent: 'error',
+  }
+
+  return wrapEmail(`
+    <h1>Support Ticket Received</h1>
+
+    <p>Dear ${userName},</p>
+
+    <p>Thank you for contacting ChiRho Events support. We've received your request and will respond as soon as possible.</p>
+
+    ${emailInfoBox(`
+      <strong>Ticket ID:</strong> #${ticketId}<br>
+      <strong>Priority:</strong> ${ticketPriority.charAt(0).toUpperCase() + ticketPriority.slice(1)}<br>
+      <strong>Category:</strong> ${ticketCategory}
+    `, priorityColors[ticketPriority] || 'info')}
+
+    <h2>Your Request</h2>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0; background: #f9f9f9; border-radius: 8px;">
+      <tr>
+        <td style="padding: 20px;">
+          <p style="margin: 0 0 8px; font-weight: 600; color: #1E3A5F;">${ticketSubject}</p>
+          <p style="margin: 0; color: #666; white-space: pre-wrap;">${ticketMessage}</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2>What Happens Next?</h2>
+    <ul>
+      <li>Our support team will review your ticket within 24 hours</li>
+      <li>You'll receive an email when we respond</li>
+      <li>You can reply to this email to add more information</li>
+    </ul>
+
+    <p style="font-size: 14px; color: #666;">
+      Reference your ticket ID <strong>#${ticketId}</strong> in any follow-up communications.
+    </p>
+  `, { organizationName: 'ChiRho Events', preheader: `Support ticket #${ticketId} received - we'll respond within 24 hours` })
+}
+
+/**
+ * Generate support ticket response email
+ */
+export function generateSupportTicketResponseEmail({
+  userName,
+  ticketId,
+  ticketSubject,
+  responseMessage,
+  responderName,
+  isResolved,
+}: {
+  userName: string
+  ticketId: string
+  ticketSubject: string
+  responseMessage: string
+  responderName: string
+  isResolved?: boolean
+}): string {
+  return wrapEmail(`
+    <h1>${isResolved ? 'Ticket Resolved' : 'Response to Your Ticket'}</h1>
+
+    <p>Dear ${userName},</p>
+
+    ${isResolved ? emailInfoBox(`
+      <strong>Good news!</strong> Your support ticket has been resolved. If you have any further questions, feel free to reply to this email.
+    `, 'success') : `
+      <p>We've responded to your support ticket.</p>
+    `}
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0; background: #f0f7ff; border-left: 4px solid #3B82F6; border-radius: 4px;">
+      <tr>
+        <td style="padding: 20px;">
+          <p style="margin: 0 0 4px; font-size: 12px; color: #666;">Ticket #${ticketId}: ${ticketSubject}</p>
+        </td>
+      </tr>
+    </table>
+
+    <h2>Response from ${responderName}</h2>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0; background: #f9f9f9; border-radius: 8px;">
+      <tr>
+        <td style="padding: 20px;">
+          <div style="color: #333; white-space: pre-wrap;">${responseMessage}</div>
+        </td>
+      </tr>
+    </table>
+
+    ${!isResolved ? `
+      <p><strong>Need to follow up?</strong> Simply reply to this email and your response will be added to the ticket.</p>
+    ` : `
+      <p>Thank you for using ChiRho Events. We're always here to help!</p>
+    `}
+
+    <p style="font-size: 14px; color: #666; margin-top: 24px;">
+      — ChiRho Events Support Team
+    </p>
+  `, { organizationName: 'ChiRho Events', preheader: isResolved ? `Ticket #${ticketId} resolved` : `New response to ticket #${ticketId}` })
+}
+
+/**
+ * Generate password reset email
+ */
+export function generatePasswordResetEmail({
+  userName,
+  resetUrl,
+  expiresIn,
+}: {
+  userName: string
+  resetUrl: string
+  expiresIn: string
+}): string {
+  return wrapEmail(`
+    <h1>Reset Your Password</h1>
+
+    <p>Dear ${userName},</p>
+
+    <p>We received a request to reset your password for your ChiRho Events account.</p>
+
+    ${emailButton('Reset Password', resetUrl, 'primary')}
+
+    ${emailInfoBox(`
+      <strong>This link expires in ${expiresIn}.</strong><br>
+      If you didn't request a password reset, you can safely ignore this email.
+    `, 'warning')}
+
+    <p>For security reasons:</p>
+    <ul>
+      <li>Never share this link with anyone</li>
+      <li>ChiRho Events will never ask for your password via email</li>
+      <li>If you didn't request this reset, please contact support</li>
+    </ul>
+
+    <p style="font-size: 14px; color: #666;">
+      If the button doesn't work, copy and paste this link into your browser:<br>
+      <a href="${resetUrl}" style="word-break: break-all;">${resetUrl}</a>
+    </p>
+  `, { organizationName: 'ChiRho Events', preheader: 'Reset your ChiRho Events password' })
+}
+
+/**
+ * Generate event reminder email
+ */
+export function generateEventReminderEmail({
+  participantName,
+  eventName,
+  eventDate,
+  eventLocation,
+  checkInTime,
+  accessCode,
+  organizationName,
+  additionalInfo,
+}: {
+  participantName: string
+  eventName: string
+  eventDate: string
+  eventLocation: string
+  checkInTime?: string
+  accessCode?: string
+  organizationName: string
+  additionalInfo?: string
+}): string {
+  return wrapEmail(`
+    <h1>Event Reminder</h1>
+
+    <p>Dear ${participantName},</p>
+
+    <p>This is a reminder that <strong>${eventName}</strong> is coming up soon!</p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0; background: #f9f9f9; border-radius: 8px; padding: 20px;">
+      <tr>
+        <td>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            ${emailDetailRow('Event', eventName)}
+            ${emailDetailRow('Date', eventDate)}
+            ${emailDetailRow('Location', eventLocation)}
+            ${checkInTime ? emailDetailRow('Check-In Time', checkInTime) : ''}
+            ${accessCode ? emailDetailRow('Access Code', accessCode) : ''}
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    ${additionalInfo ? `
+      <h2>Important Information</h2>
+      <p>${additionalInfo}</p>
+    ` : ''}
+
+    <h2>Checklist Before You Arrive</h2>
+    <ul>
+      <li>Ensure all liability forms are completed</li>
+      <li>Have your access code ready for check-in</li>
+      <li>Review the event schedule and packing list</li>
+      <li>Bring any required medications or documents</li>
+    </ul>
+
+    <p>We look forward to seeing you!</p>
+
+    <p style="font-size: 14px; color: #666;">
+      — ${organizationName}
+    </p>
+  `, { organizationName, preheader: `${eventName} is coming up on ${eventDate}` })
 }

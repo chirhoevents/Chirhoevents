@@ -174,6 +174,16 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Increment organization's registration counter
+    await prisma.organization.update({
+      where: { id: event.organizationId },
+      data: {
+        registrationsUsed: {
+          increment: 1,
+        },
+      },
+    })
+
     // Generate QR code containing registration data
     const qrData = JSON.stringify({
       registration_id: registration.id,

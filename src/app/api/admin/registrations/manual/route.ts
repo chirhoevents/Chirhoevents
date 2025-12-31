@@ -125,6 +125,16 @@ export async function POST(request: NextRequest) {
         })
       }
 
+      // Increment organization's registration counter
+      await prisma.organization.update({
+        where: { id: user.organizationId! },
+        data: {
+          registrationsUsed: {
+            increment: 1,
+          },
+        },
+      })
+
       // Send email notification if email is provided and not a placeholder
       if (fields.email && !fields.email.includes('placeholder.com')) {
         const emailSubject = `Manual Registration Created - ${event.name}`
@@ -311,6 +321,16 @@ export async function POST(request: NextRequest) {
           },
         })
       }
+
+      // Increment organization's registration counter
+      await prisma.organization.update({
+        where: { id: user.organizationId! },
+        data: {
+          registrationsUsed: {
+            increment: totalParticipants,
+          },
+        },
+      })
 
       // Send email notification with access code if email is provided
       if (fields.groupLeaderEmail && !fields.groupLeaderEmail.includes('placeholder.com')) {

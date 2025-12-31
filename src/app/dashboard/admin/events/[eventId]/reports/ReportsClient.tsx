@@ -10,6 +10,7 @@ import FormsReportModal from '@/components/admin/reports/FormsReportModal'
 import HousingReportModal from '@/components/admin/reports/HousingReportModal'
 import MedicalReportModal from '@/components/admin/reports/MedicalReportModal'
 import CertificatesReportModal from '@/components/admin/reports/CertificatesReportModal'
+import ChaperoneReportModal from '@/components/admin/reports/ChaperoneReportModal'
 import { CustomReportBuilder } from '@/components/admin/reports/CustomReportBuilder'
 import { usePermissions } from '@/hooks/usePermissions'
 
@@ -132,6 +133,13 @@ export default function ReportsClient({
           eventId={eventId}
           onViewReport={() => setActiveModal('certificates')}
         />
+
+        <ReportCard
+          title="Chaperone Summary Report"
+          reportType="chaperones"
+          eventId={eventId}
+          onViewReport={() => setActiveModal('chaperones')}
+        />
       </div>
 
       {/* Report Modals */}
@@ -174,6 +182,13 @@ export default function ReportsClient({
 
       <CertificatesReportModal
         isOpen={activeModal === 'certificates'}
+        onClose={() => setActiveModal(null)}
+        eventId={eventId}
+        eventName={eventName}
+      />
+
+      <ChaperoneReportModal
+        isOpen={activeModal === 'chaperones'}
         onClose={() => setActiveModal(null)}
         eventId={eventId}
         eventName={eventName}

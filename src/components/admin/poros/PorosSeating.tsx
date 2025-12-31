@@ -50,7 +50,11 @@ import {
   UserMinus,
   Upload,
   Download,
+  FileSpreadsheet,
+  AlertCircle,
+  CheckCircle2,
 } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { toast } from '@/lib/toast'
 
 interface PorosSeatingProps {
@@ -119,10 +123,24 @@ export function PorosSeating({ eventId }: PorosSeatingProps) {
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
   const [assignLoading, setAssignLoading] = useState(false)
 
-  // Import state
+  // Import state (sections)
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
   const [importFile, setImportFile] = useState<File | null>(null)
   const [importLoading, setImportLoading] = useState(false)
+
+  // Import state (assignments)
+  const [isAssignmentImportOpen, setIsAssignmentImportOpen] = useState(false)
+  const [assignmentImportFile, setAssignmentImportFile] = useState<File | null>(null)
+  const [assignmentImportLoading, setAssignmentImportLoading] = useState(false)
+  const [importPreview, setImportPreview] = useState<{ headers: string[]; rows: string[][] } | null>(null)
+  const [importResult, setImportResult] = useState<{
+    success: boolean
+    sectionsCreated: number
+    assignmentsCreated: number
+    assignmentsUpdated: number
+    errors: { row: number; message: string; participantName?: string }[]
+    warnings: string[]
+  } | null>(null)
 
   useEffect(() => {
     fetchData()
@@ -362,6 +380,105 @@ export function PorosSeating({ eventId }: PorosSeatingProps) {
     }
   }
 
+  // Assignment import functions
+  async function handleDownloadAssignmentTemplate() {
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}/poros/seating-assignments/template`)
+      if (!response.ok) throw new Error('Failed to download template')
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `seating-assignments-template-${eventId}.csv`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      toast.success('Template downloaded')
+    } catch (error) {
+      toast.error('Failed to download template')
+    }
+  }
+
+  async function handleAssignmentImportFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const selectedFile = e.target.files?.[0]
+    if (!selectedFile) return
+
+    setAssignmentImportFile(selectedFile)
+    setImportResult(null)
+
+    // Parse CSV for preview
+    const text = await selectedFile.text()
+    const lines = text.split('\n').filter(line => line.trim() && !line.startsWith('#'))
+    if (lines.length > 0) {
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''))
+      const rows = lines.slice(1, 6).map(line => {
+        const values: string[] = []
+        let current = ''
+        let inQuotes = false
+        for (const char of line) {
+          if (char === '"') {
+            inQuotes = !inQuotes
+          } else if (char === ',' && !inQuotes) {
+            values.push(current.trim())
+            current = ''
+          } else {
+            current += char
+          }
+        }
+        values.push(current.trim())
+        return values
+      })
+      setImportPreview({ headers, rows })
+    }
+  }
+
+  async function handleAssignmentImport() {
+    if (!assignmentImportFile) return
+
+    setAssignmentImportLoading(true)
+    setImportResult(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', assignmentImportFile)
+
+      const response = await fetch(`/api/admin/events/${eventId}/poros/seating-assignments/import`, {
+        method: 'POST',
+        body: formData
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Import failed')
+      }
+
+      setImportResult(result)
+
+      if (result.errors.length === 0) {
+        toast.success(
+          `Created ${result.assignmentsCreated} assignments` +
+          (result.assignmentsUpdated > 0 ? `, updated ${result.assignmentsUpdated}` : '') +
+          (result.sectionsCreated > 0 ? `, created ${result.sectionsCreated} new section(s)` : '')
+        )
+        setIsAssignmentImportOpen(false)
+        setAssignmentImportFile(null)
+        setImportPreview(null)
+        setImportResult(null)
+        fetchData()
+      } else {
+        toast.error(`Import completed with ${result.errors.length} error(s)`)
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to import assignments')
+    } finally {
+      setAssignmentImportLoading(false)
+    }
+  }
+
   // Filter registrations
   const filteredRegistrations = registrations.filter(r => {
     if (searchQuery) {
@@ -556,6 +673,18 @@ export function PorosSeating({ eventId }: PorosSeatingProps) {
       {/* Assignments */}
       {activeTab === 'assignments' && (
         <>
+          {/* Import Actions */}
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={handleDownloadAssignmentTemplate}>
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              Download Template
+            </Button>
+            <Button variant="outline" onClick={() => setIsAssignmentImportOpen(true)}>
+              <Upload className="w-4 h-4 mr-2" />
+              Import from Template
+            </Button>
+          </div>
+
           {/* Filters */}
           <Card>
             <CardContent className="pt-4">
@@ -873,6 +1002,144 @@ export function PorosSeating({ eventId }: PorosSeatingProps) {
             </Button>
             <Button onClick={handleImport} disabled={!importFile || importLoading}>
               {importLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Import
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assignment Import Dialog */}
+      <Dialog open={isAssignmentImportOpen} onOpenChange={(open) => {
+        setIsAssignmentImportOpen(open)
+        if (!open) {
+          setAssignmentImportFile(null)
+          setImportPreview(null)
+          setImportResult(null)
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Import Seating Assignments from Template</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-medium text-blue-900 mb-2">How to use:</h4>
+              <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                <li>Download the template (includes all registered participants)</li>
+                <li>Fill in the Section Name column for each participant</li>
+                <li>New sections will be created automatically if they don&apos;t exist</li>
+                <li>Upload the filled template and click Import</li>
+              </ol>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Select CSV File</Label>
+              <Input
+                type="file"
+                accept=".csv"
+                onChange={handleAssignmentImportFileChange}
+              />
+            </div>
+
+            {/* Preview */}
+            {importPreview && (
+              <div className="space-y-2">
+                <Label>Preview (first 5 rows)</Label>
+                <div className="border rounded-lg overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        {importPreview.headers.map((header, i) => (
+                          <th key={i} className="px-3 py-2 text-left font-medium">
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {importPreview.rows.map((row, i) => (
+                        <tr key={i} className="border-t">
+                          {row.map((cell, j) => (
+                            <td key={j} className="px-3 py-2 truncate max-w-[150px]">
+                              {cell || <span className="text-gray-400">-</span>}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Import Results */}
+            {importResult && (
+              <div className="space-y-3">
+                {/* Success summary */}
+                {(importResult.assignmentsCreated > 0 || importResult.assignmentsUpdated > 0) && (
+                  <Alert className="border-green-200 bg-green-50">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <AlertDescription className="text-green-800">
+                      <strong>Success:</strong> Created {importResult.assignmentsCreated} assignments
+                      {importResult.assignmentsUpdated > 0 && `, updated ${importResult.assignmentsUpdated}`}
+                      {importResult.sectionsCreated > 0 && `, created ${importResult.sectionsCreated} new section(s)`}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Errors */}
+                {importResult.errors.length > 0 && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>{importResult.errors.length} error(s) found:</strong>
+                      <ScrollArea className="h-[150px] mt-2">
+                        <ul className="text-sm space-y-1">
+                          {importResult.errors.map((error, i) => (
+                            <li key={i}>
+                              Row {error.row}: {error.message}
+                              {error.participantName && (
+                                <span className="text-gray-500"> ({error.participantName})</span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </ScrollArea>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Warnings */}
+                {importResult.warnings.length > 0 && (
+                  <Alert className="border-yellow-200 bg-yellow-50">
+                    <AlertCircle className="h-4 w-4 text-yellow-600" />
+                    <AlertDescription className="text-yellow-800">
+                      <strong>Warnings:</strong>
+                      <ul className="text-sm mt-1">
+                        {importResult.warnings.map((warning, i) => (
+                          <li key={i}>{warning}</li>
+                        ))}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsAssignmentImportOpen(false)
+              setAssignmentImportFile(null)
+              setImportPreview(null)
+              setImportResult(null)
+            }}>
+              {importResult?.errors.length === 0 ? 'Done' : 'Cancel'}
+            </Button>
+            <Button
+              onClick={handleAssignmentImport}
+              disabled={!assignmentImportFile || assignmentImportLoading}
+            >
+              {assignmentImportLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Import
             </Button>
           </DialogFooter>
