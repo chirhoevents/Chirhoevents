@@ -167,7 +167,14 @@ export async function GET() {
         formsCompleted,
         formsTotal,
       },
-      upcomingEvents: upcomingEvents.map((event) => ({
+      upcomingEvents: upcomingEvents.map((event: {
+        id: string
+        name: string
+        slug: string
+        startDate: Date
+        endDate: Date
+        _count: { groupRegistrations: number; individualRegistrations: number }
+      }) => ({
         id: event.id,
         name: event.name,
         slug: event.slug,
@@ -175,7 +182,13 @@ export async function GET() {
         endDate: event.endDate,
         totalRegistrations: event._count.groupRegistrations + event._count.individualRegistrations,
       })),
-      recentRegistrations: recentGroupRegistrations.map((reg) => ({
+      recentRegistrations: recentGroupRegistrations.map((reg: {
+        id: string
+        groupName: string | null
+        totalParticipants: number
+        registeredAt: Date
+        event: { name: string }
+      }) => ({
         id: reg.id,
         groupName: reg.groupName,
         eventName: reg.event.name,

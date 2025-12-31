@@ -70,22 +70,23 @@ export async function GET(
     })
 
     // Apply housing filter if specified
+    type LiabilityFormRecord = typeof liabilityForms[number]
     let filteredForms = liabilityForms
     if (housingFilter) {
       filteredForms = liabilityForms.filter(
-        (form) => form.groupRegistration?.housingType === housingFilter
+        (form: LiabilityFormRecord) => form.groupRegistration?.housingType === housingFilter
       )
     }
 
     // Count youth by gender
     const maleYouth = filteredForms.filter(
-      (f) =>
+      (f: LiabilityFormRecord) =>
         (f.participantType === 'youth_u18' || f.participantType === 'youth_o18') &&
         f.participantGender === 'male'
     ).length
 
     const femaleYouth = filteredForms.filter(
-      (f) =>
+      (f: LiabilityFormRecord) =>
         (f.participantType === 'youth_u18' || f.participantType === 'youth_o18') &&
         f.participantGender === 'female'
     ).length
@@ -94,8 +95,8 @@ export async function GET(
 
     // Get male chaperones with details
     const maleChaperones: ChaperoneInfo[] = filteredForms
-      .filter((f) => f.participantType === 'chaperone' && f.participantGender === 'male')
-      .map((f) => ({
+      .filter((f: LiabilityFormRecord) => f.participantType === 'chaperone' && f.participantGender === 'male')
+      .map((f: LiabilityFormRecord) => ({
         name: `${f.participantFirstName} ${f.participantLastName}`,
         groupName: f.groupRegistration?.parishName || f.groupRegistration?.groupName || 'Unknown',
         email: f.participantEmail,
@@ -104,8 +105,8 @@ export async function GET(
 
     // Get female chaperones with details
     const femaleChaperones: ChaperoneInfo[] = filteredForms
-      .filter((f) => f.participantType === 'chaperone' && f.participantGender === 'female')
-      .map((f) => ({
+      .filter((f: LiabilityFormRecord) => f.participantType === 'chaperone' && f.participantGender === 'female')
+      .map((f: LiabilityFormRecord) => ({
         name: `${f.participantFirstName} ${f.participantLastName}`,
         groupName: f.groupRegistration?.parishName || f.groupRegistration?.groupName || 'Unknown',
         email: f.participantEmail,
@@ -123,7 +124,7 @@ export async function GET(
     const overallCompliant = maleCompliant && femaleCompliant
 
     // Get priests count
-    const priests = filteredForms.filter((f) => f.participantType === 'priest').length
+    const priests = filteredForms.filter((f: LiabilityFormRecord) => f.participantType === 'priest').length
 
     // Get groups for filter dropdown
     const groups = await prisma.groupRegistration.findMany({
@@ -165,7 +166,7 @@ export async function GET(
           : `Does not meet ${REQUIRED_RATIO}:1 ratio requirement`,
       },
       filters: {
-        groups: groups.map((g) => ({
+        groups: groups.map((g: { id: string; groupName: string | null; parishName: string | null }) => ({
           id: g.id,
           name: g.parishName || g.groupName,
         })),
