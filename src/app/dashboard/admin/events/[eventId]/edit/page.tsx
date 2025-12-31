@@ -1,6 +1,7 @@
 import { requireAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import CreateEventClient from '../../new/CreateEventClient'
 
 interface PageProps {
@@ -9,9 +10,19 @@ interface PageProps {
   }>
 }
 
+// UUID validation regex
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export default async function EditEventPage({ params }: PageProps) {
   const user = await requireAdmin()
   const { eventId } = await params
+
+  // Validate eventId is a valid UUID
+  if (!UUID_REGEX.test(eventId)) {
+    notFound()
+  }
+
+  const organizationId = await getEffectiveOrgId(user)
 
   // Fetch event with all related data
   let event: any = null
@@ -19,7 +30,7 @@ export default async function EditEventPage({ params }: PageProps) {
     event = await prisma.event.findUnique({
       where: {
         id: eventId,
-        organizationId: user.organizationId,
+        organizationId: organizationId,
       },
       include: {
         settings: true,
@@ -31,7 +42,7 @@ export default async function EditEventPage({ params }: PageProps) {
     event = await prisma.event.findUnique({
       where: {
         id: eventId,
-        organizationId: user.organizationId,
+        organizationId: organizationId,
       },
     })
     if (event) {
@@ -166,7 +177,7 @@ export default async function EditEventPage({ params }: PageProps) {
         <p className="text-[#6B7280]">Update your event details and settings</p>
       </div>
       <CreateEventClient
-        organizationId={user.organizationId}
+        organizationId={organizationId}
         eventId={eventId}
         initialData={formData}
         isEditMode={true}

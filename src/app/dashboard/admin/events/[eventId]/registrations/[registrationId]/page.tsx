@@ -1,4 +1,5 @@
 import { requireAdmin } from '@/lib/auth-utils'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { prisma } from '@/lib/prisma'
 import { notFound, redirect } from 'next/navigation'
 import RegistrationDetailClient from './RegistrationDetailClient'
@@ -12,13 +13,14 @@ interface PageProps {
 
 export default async function RegistrationDetailPage({ params }: PageProps) {
   const user = await requireAdmin()
+  const organizationId = await getEffectiveOrgId(user)
   const { eventId, registrationId } = await params
 
   // Verify event exists and belongs to user's organization
   const event = await prisma.event.findUnique({
     where: {
       id: eventId,
-      organizationId: user.organizationId,
+      organizationId: organizationId,
     },
     select: {
       id: true,
@@ -53,7 +55,7 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
     // Verify it belongs to this event and organization
     if (
       individualRegistration.eventId !== eventId ||
-      individualRegistration.organizationId !== user.organizationId
+      individualRegistration.organizationId !== organizationId
     ) {
       notFound()
     }
@@ -134,7 +136,7 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
     // Verify it belongs to this event and organization
     if (
       groupRegistration.eventId !== eventId ||
-      groupRegistration.organizationId !== user.organizationId
+      groupRegistration.organizationId !== organizationId
     ) {
       notFound()
     }

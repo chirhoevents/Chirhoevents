@@ -1,6 +1,7 @@
 import { requireAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import EventDetailClient from './EventDetailClient'
 
 interface PageProps {
@@ -9,9 +10,20 @@ interface PageProps {
   }>
 }
 
+// UUID validation regex
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export default async function EventDetailPage({ params }: PageProps) {
   const user = await requireAdmin()
   const { eventId } = await params
+
+  // Validate eventId is a valid UUID to prevent Prisma errors
+  if (!UUID_REGEX.test(eventId)) {
+    notFound()
+  }
+
+  // Get effective org ID (supports impersonation)
+  const organizationId = await getEffectiveOrgId(user)
 
   // Fetch event with all related data
   let event: any = null
@@ -19,7 +31,7 @@ export default async function EventDetailPage({ params }: PageProps) {
     event = await prisma.event.findUnique({
       where: {
         id: eventId,
-        organizationId: user.organizationId, // Ensure user can only see their org's events
+        organizationId: organizationId, // Ensure user can only see their org's events
       },
       include: {
         settings: true,
@@ -38,7 +50,7 @@ export default async function EventDetailPage({ params }: PageProps) {
     event = await prisma.event.findUnique({
       where: {
         id: eventId,
-        organizationId: user.organizationId,
+        organizationId: organizationId,
       },
     })
     if (event) {
