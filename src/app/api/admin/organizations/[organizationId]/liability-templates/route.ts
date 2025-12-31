@@ -18,12 +18,12 @@ export async function GET(
     }
 
     // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user)
+    const effectiveOrgId = await getEffectiveOrgId(user)
 
     const { organizationId } = await Promise.resolve(params)
 
-    // Verify organization matches user's organization
-    if (organizationId !== organizationId) {
+    // Verify organization matches user's effective organization
+    if (organizationId !== effectiveOrgId) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
@@ -60,12 +60,12 @@ export async function POST(
     }
 
     // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user)
+    const effectiveOrgId = await getEffectiveOrgId(user)
 
     const { organizationId } = await Promise.resolve(params)
 
-    // Verify organization matches user's organization
-    if (organizationId !== organizationId) {
+    // Verify organization matches user's effective organization
+    if (organizationId !== effectiveOrgId) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 

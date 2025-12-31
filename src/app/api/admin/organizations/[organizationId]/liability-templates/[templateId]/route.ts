@@ -18,12 +18,12 @@ export async function GET(
     }
 
     // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user)
+    const effectiveOrgId = await getEffectiveOrgId(user)
 
     const { organizationId, templateId } = await Promise.resolve(params)
 
-    // Verify organization matches user's organization
-    if (organizationId !== organizationId) {
+    // Verify organization matches user's effective organization
+    if (organizationId !== effectiveOrgId) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
@@ -67,12 +67,12 @@ export async function PUT(
     }
 
     // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user)
+    const effectiveOrgId = await getEffectiveOrgId(user)
 
     const { organizationId, templateId } = await Promise.resolve(params)
 
-    // Verify organization matches user's organization
-    if (organizationId !== organizationId) {
+    // Verify organization matches user's effective organization
+    if (organizationId !== effectiveOrgId) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
@@ -146,12 +146,12 @@ export async function DELETE(
     }
 
     // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user)
+    const effectiveOrgId = await getEffectiveOrgId(user)
 
     const { organizationId, templateId } = await Promise.resolve(params)
 
-    // Verify organization matches user's organization
-    if (organizationId !== organizationId) {
+    // Verify organization matches user's effective organization
+    if (organizationId !== effectiveOrgId) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
