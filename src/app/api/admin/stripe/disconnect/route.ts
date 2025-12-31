@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser, isFullAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser()
+    const organizationId = await getEffectiveOrgId(user)
 
     // Only org_admin or master_admin can disconnect Stripe
     if (!user || !isFullAdmin(user)) {
@@ -18,7 +20,7 @@ export async function POST(request: Request) {
     const { newContactEmail } = body
 
     const organization = await prisma.organization.findUnique({
-      where: { id: user.organizationId },
+      where: { id: organizationId },
     })
 
     if (!organization) {

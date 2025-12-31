@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,6 +13,9 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       )
     }
+
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user)
 
     const body = await request.json()
     const {
@@ -26,11 +30,11 @@ export async function POST(request: NextRequest) {
 
     // Build where clauses
     const groupWhereClause: any = {
-      organizationId: user.organizationId,
+      organizationId: organizationId,
     }
 
     const individualWhereClause: any = {
-      organizationId: user.organizationId,
+      organizationId: organizationId,
     }
 
     // If specific IDs provided, filter by those

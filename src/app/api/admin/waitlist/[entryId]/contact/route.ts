@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function POST(
   request: NextRequest,
@@ -9,6 +10,7 @@ export async function POST(
   try {
     // Check admin access
     const user = await getCurrentUser()
+    const organizationId = await getEffectiveOrgId(user)
     if (!user || !isAdmin(user)) {
       return NextResponse.json(
         { error: 'Unauthorized - Admin access required' },
@@ -40,7 +42,7 @@ export async function POST(
     }
 
     // Verify event belongs to user's organization
-    if (entry.event.organizationId !== user.organizationId) {
+    if (entry.event.organizationId !== organizationId) {
       return NextResponse.json(
         { error: 'Unauthorized - Entry belongs to different organization' },
         { status: 403 }

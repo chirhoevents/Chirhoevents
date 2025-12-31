@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { generateCSV } from '@/lib/reports/generate-csv'
 import { format } from 'date-fns'
 
@@ -15,7 +16,8 @@ export async function POST() {
       )
     }
 
-    const organizationId = user.organizationId
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user)
 
     // Fetch organization name
     const organization = await prisma.organization.findUnique({

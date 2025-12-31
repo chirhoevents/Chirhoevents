@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function GET(
   request: NextRequest,
@@ -17,6 +18,9 @@ export async function GET(
       )
     }
 
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user)
+
     const { searchParams } = new URL(request.url)
     const registrationType = searchParams.get('type') // 'group' or 'individual'
 
@@ -28,9 +32,9 @@ export async function GET(
     }
 
     if (registrationType === 'group') {
-      return await getGroupRegistration(registrationId, user.organizationId)
+      return await getGroupRegistration(registrationId, organizationId)
     } else {
-      return await getIndividualRegistration(registrationId, user.organizationId)
+      return await getIndividualRegistration(registrationId, organizationId)
     }
   } catch (error) {
     console.error('Error fetching registration view data:', error)

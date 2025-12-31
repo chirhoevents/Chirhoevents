@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function POST(request: Request) {
   try {
@@ -12,6 +13,9 @@ export async function POST(request: Request) {
         { status: 403 }
       )
     }
+
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user)
 
     const data = await request.json()
 
@@ -25,7 +29,7 @@ export async function POST(request: Request) {
 
     // Get organization to check event limits
     const organization = await prisma.organization.findUnique({
-      where: { id: user.organizationId! },
+      where: { id: organizationId },
       select: {
         id: true,
         name: true,
@@ -70,7 +74,7 @@ export async function POST(request: Request) {
     // Create event with all related data
     const event = await prisma.event.create({
       data: {
-        organizationId: user.organizationId,
+        organizationId: organizationId,
         name: data.name,
         slug: data.slug,
         description: data.description || null,
@@ -249,7 +253,7 @@ export async function POST(request: Request) {
 
     // Increment events used counter
     await prisma.organization.update({
-      where: { id: user.organizationId! },
+      where: { id: organizationId },
       data: { eventsUsed: { increment: 1 } },
     })
 

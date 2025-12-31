@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { hasPermission } from '@/lib/permissions'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 // GET: Get all incidents for a participant (for printing visit history)
 export async function GET(
@@ -10,6 +11,7 @@ export async function GET(
 ) {
   try {
     const user = await requireAdmin()
+    const organizationId = await getEffectiveOrgId(user)
     const { eventId, participantId } = await params
     const { searchParams } = new URL(request.url)
     const incidentId = searchParams.get('incidentId')
@@ -26,7 +28,7 @@ export async function GET(
     const event = await prisma.event.findFirst({
       where: {
         id: eventId,
-        ...(user.role !== 'master_admin' ? { organizationId: user.organizationId } : {}),
+        organizationId: organizationId,
       },
       include: {
         organization: {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function GET(
   request: NextRequest,
@@ -16,10 +17,13 @@ export async function GET(
       )
     }
 
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user)
+
     const { organizationId, templateId } = await Promise.resolve(params)
 
     // Verify organization matches user's organization
-    if (organizationId !== user.organizationId) {
+    if (organizationId !== organizationId) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
@@ -62,10 +66,13 @@ export async function PUT(
       )
     }
 
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user)
+
     const { organizationId, templateId } = await Promise.resolve(params)
 
     // Verify organization matches user's organization
-    if (organizationId !== user.organizationId) {
+    if (organizationId !== organizationId) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
@@ -138,10 +145,13 @@ export async function DELETE(
       )
     }
 
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user)
+
     const { organizationId, templateId } = await Promise.resolve(params)
 
     // Verify organization matches user's organization
-    if (organizationId !== user.organizationId) {
+    if (organizationId !== organizationId) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 

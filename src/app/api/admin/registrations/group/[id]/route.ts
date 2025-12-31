@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
@@ -27,6 +28,8 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    const organizationId = await getEffectiveOrgId(user)
+
     const registrationId = id
 
     // Fetch the registration with all related data
@@ -49,7 +52,7 @@ export async function GET(
       )
     }
 
-    if (registration.organizationId !== user.organizationId) {
+    if (registration.organizationId !== organizationId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -144,7 +147,7 @@ export async function PUT(
       )
     }
 
-    if (existingRegistration.organizationId !== user.organizationId) {
+    if (existingRegistration.organizationId !== organizationId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

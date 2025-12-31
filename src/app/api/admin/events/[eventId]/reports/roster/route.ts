@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@clerk/nextjs/server'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function POST(
   request: NextRequest,
@@ -21,14 +22,16 @@ export async function POST(
       where: { clerkUserId: userId },
     })
 
-    if (!user || !user.organizationId) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const organizationId = await getEffectiveOrgId(user)
 
     const event = await prisma.event.findFirst({
       where: {
         id: eventId,
-        organizationId: user.organizationId,
+        organizationId: organizationId,
       },
     })
 

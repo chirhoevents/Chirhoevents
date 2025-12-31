@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 function escapeCSV(value: string | null | undefined): string {
   if (value === null || value === undefined) return ''
@@ -26,6 +27,8 @@ export async function GET(
       )
     }
 
+    const organizationId = await getEffectiveOrgId(user)
+
     const { eventId } = await Promise.resolve(params)
     const { searchParams } = new URL(request.url)
     const exportType = searchParams.get('type') || 'all'
@@ -34,7 +37,7 @@ export async function GET(
     const event = await prisma.event.findUnique({
       where: {
         id: eventId,
-        organizationId: user.organizationId,
+        organizationId: organizationId,
       },
     })
 
@@ -82,7 +85,7 @@ export async function GET(
       // Export Safe Environment certificates - filter through participant's group registration
       const certs = await prisma.safeEnvironmentCertificate.findMany({
         where: {
-          organizationId: user.organizationId,
+          organizationId: organizationId,
           participant: {
             groupRegistration: {
               eventId,

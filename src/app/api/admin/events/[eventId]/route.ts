@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function GET(
   request: Request,
@@ -15,6 +16,9 @@ export async function GET(
         { status: 403 }
       )
     }
+
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user)
 
     const { eventId } = await params
 
@@ -36,7 +40,7 @@ export async function GET(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 
-    if (event.organizationId !== user.organizationId) {
+    if (event.organizationId !== organizationId) {
       return NextResponse.json(
         { error: 'You do not have permission to view this event' },
         { status: 403 }
@@ -67,6 +71,10 @@ export async function PUT(
         { status: 403 }
       )
     }
+
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user)
+
     const data = await request.json()
 
     // Validate required fields based on status
@@ -101,7 +109,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 
-    if (existingEvent.organizationId !== user.organizationId) {
+    if (existingEvent.organizationId !== organizationId) {
       return NextResponse.json(
         { error: 'You do not have permission to edit this event' },
         { status: 403 }
@@ -446,6 +454,9 @@ export async function DELETE(
       )
     }
 
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user)
+
     // Verify event belongs to user's organization
     const event = await prisma.event.findUnique({
       where: { id: eventId },
@@ -464,7 +475,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 
-    if (event.organizationId !== user.organizationId) {
+    if (event.organizationId !== organizationId) {
       return NextResponse.json(
         { error: 'You do not have permission to delete this event' },
         { status: 403 }

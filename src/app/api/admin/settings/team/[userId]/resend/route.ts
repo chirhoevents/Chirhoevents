@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin, userHasPermission } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -19,6 +20,9 @@ export async function POST(
       )
     }
 
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user)
+
     // Only users with team.manage permission can resend invites
     if (!userHasPermission(user, 'team.manage')) {
       return NextResponse.json(
@@ -33,7 +37,7 @@ export async function POST(
     const pendingUser = await prisma.user.findFirst({
       where: {
         id: userId,
-        organizationId: user.organizationId,
+        organizationId: organizationId,
         clerkUserId: null, // Only pending invites
       },
     })
@@ -47,7 +51,7 @@ export async function POST(
 
     // Get organization details
     const organization = await prisma.organization.findUnique({
-      where: { id: user.organizationId },
+      where: { id: organizationId },
       select: { name: true },
     })
 

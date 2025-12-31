@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function GET(
   request: NextRequest,
@@ -16,6 +17,8 @@ export async function GET(
       )
     }
 
+    const organizationId = await getEffectiveOrgId(user)
+
     const { eventId } = await Promise.resolve(params)
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status') || 'all'
@@ -25,7 +28,7 @@ export async function GET(
     const event = await prisma.event.findUnique({
       where: {
         id: eventId,
-        organizationId: user.organizationId,
+        organizationId: organizationId,
       },
     })
 
@@ -35,7 +38,7 @@ export async function GET(
 
     // Build where clause - filter by organization and participants in this event
     const whereClause: any = {
-      organizationId: user.organizationId,
+      organizationId: organizationId,
       participant: {
         groupRegistration: {
           eventId: eventId,

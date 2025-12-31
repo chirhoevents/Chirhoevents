@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 // Tier limits and pricing
 const TIER_LIMITS: Record<string, { events: number; monthlyPrice: number }> = {
@@ -48,9 +49,12 @@ export async function GET() {
       )
     }
 
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user)
+
     // Get organization with event usage info
     const organization = await prisma.organization.findUnique({
-      where: { id: user.organizationId! },
+      where: { id: organizationId },
       select: {
         id: true,
         name: true,

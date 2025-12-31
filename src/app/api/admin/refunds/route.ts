@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import Stripe from 'stripe'
 import { Resend } from 'resend'
 
@@ -26,9 +27,12 @@ export async function POST(request: NextRequest) {
       include: { organization: true },
     })
 
-    if (!user || user.role !== 'org_admin') {
+    if (!user || (user.role !== 'org_admin' && user.role !== 'master_admin')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const {
       registrationId,
@@ -70,7 +74,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (registration.organizationId !== user.organizationId) {
+    if (registration.organizationId !== organizationId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

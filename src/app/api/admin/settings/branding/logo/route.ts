@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { uploadLogo, deleteLogo } from '@/lib/r2/upload-logo'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,6 +14,9 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       )
     }
+
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user)
 
     // Parse form data
     const formData = await request.formData()
@@ -48,11 +52,11 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(arrayBuffer)
 
     // Upload to R2
-    const logoUrl = await uploadLogo(buffer, file.name, user.organizationId!)
+    const logoUrl = await uploadLogo(buffer, file.name, organizationId)
 
     // Update organization in database
     await prisma.organization.update({
-      where: { id: user.organizationId! },
+      where: { id: organizationId },
       data: { logoUrl },
     })
 
@@ -80,12 +84,15 @@ export async function DELETE() {
       )
     }
 
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user)
+
     // Delete from R2
-    await deleteLogo(user.organizationId!)
+    await deleteLogo(organizationId)
 
     // Update organization in database
     await prisma.organization.update({
-      where: { id: user.organizationId! },
+      where: { id: organizationId },
       data: { logoUrl: null },
     })
 

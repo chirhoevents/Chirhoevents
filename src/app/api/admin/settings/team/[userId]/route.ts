@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin, userHasPermission } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { ADMIN_ROLES } from '@/lib/permissions'
 
 export async function DELETE(
@@ -16,6 +17,9 @@ export async function DELETE(
         { status: 403 }
       )
     }
+
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user)
 
     // Only users with team.manage permission can remove team members
     if (!userHasPermission(user, 'team.manage')) {
@@ -39,7 +43,7 @@ export async function DELETE(
     const targetUser = await prisma.user.findFirst({
       where: {
         id: userId,
-        organizationId: user.organizationId,
+        organizationId: organizationId,
       },
     })
 
@@ -152,6 +156,9 @@ export async function PUT(
       )
     }
 
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user)
+
     // Only users with team.manage permission can update roles
     if (!userHasPermission(user, 'team.manage')) {
       return NextResponse.json(
@@ -185,7 +192,7 @@ export async function PUT(
     const targetUser = await prisma.user.findFirst({
       where: {
         id: userId,
-        organizationId: user.organizationId,
+        organizationId: organizationId,
       },
     })
 
