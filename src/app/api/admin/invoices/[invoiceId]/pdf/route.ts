@@ -40,14 +40,14 @@ export async function GET(
     // Verify user has access (org_admin or master_admin)
     const user = await prisma.user.findFirst({
       where: { clerkUserId },
-      select: { id: true, role: true, organizationId: true },
+      include: { organization: true },
     })
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const { invoiceId } = await params
 
