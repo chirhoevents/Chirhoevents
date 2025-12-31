@@ -10,13 +10,14 @@ export async function GET(
   try {
     // Check admin access
     const user = await getCurrentUser()
-    const organizationId = await getEffectiveOrgId(user)
     if (!user || !isAdmin(user)) {
       return NextResponse.json(
         { error: 'Unauthorized - Admin access required' },
         { status: 403 }
       )
     }
+
+    const organizationId = await getEffectiveOrgId(user)
 
     const { eventId } = await params
 
