@@ -40,7 +40,7 @@ export async function GET(
     // Build where clause for filters
     const whereClause: Record<string, unknown> = {
       eventId,
-      status: { in: ['complete', 'parent_signed', 'verified'] },
+      completed: true,
     }
 
     if (groupFilter) {

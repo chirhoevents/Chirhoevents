@@ -31,7 +31,7 @@ export async function POST(
     const liabilityForms = await prisma.liabilityForm.findMany({
       where: {
         eventId,
-        status: { in: ['complete', 'parent_signed', 'verified'] },
+        completed: true,
       },
       select: {
         id: true,
