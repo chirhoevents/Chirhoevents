@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
 
       // Increment organization's registration counter
       await prisma.organization.update({
-        where: { id: user.organizationId },
+        where: { id: user.organizationId! },
         data: {
           registrationsUsed: {
             increment: 1,
@@ -321,7 +321,7 @@ export async function POST(request: NextRequest) {
 
       // Increment organization's registration counter
       await prisma.organization.update({
-        where: { id: user.organizationId },
+        where: { id: user.organizationId! },
         data: {
           registrationsUsed: {
             increment: totalParticipants,
