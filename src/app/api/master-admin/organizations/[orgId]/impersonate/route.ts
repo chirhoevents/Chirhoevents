@@ -48,10 +48,14 @@ export async function POST(
       )
     }
 
-    // Get the organization name
+    // Get the organization details
     const organization = await prisma.organization.findUnique({
       where: { id: orgId },
-      select: { name: true },
+      select: {
+        name: true,
+        logoUrl: true,
+        modulesEnabled: true,
+      },
     })
 
     // Set impersonation cookies
@@ -103,12 +107,70 @@ export async function POST(
     return NextResponse.json({
       success: true,
       message: `Now impersonating ${organization?.name}`,
+      organizationName: organization?.name,
+      logoUrl: organization?.logoUrl,
+      modulesEnabled: organization?.modulesEnabled || { poros: true, salve: true, rapha: true },
       redirectUrl: '/dashboard/admin',
     })
   } catch (error) {
     console.error('Impersonate error:', error)
     return NextResponse.json(
       { error: 'Failed to impersonate organization' },
+      { status: 500 }
+    )
+  }
+}
+
+// Exit impersonation
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ orgId: string }> }
+) {
+  try {
+    const { userId: clerkUserId } = await auth()
+
+    if (!clerkUserId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Verify master admin
+    const masterAdmin = await prisma.user.findFirst({
+      where: { clerkUserId },
+      select: { id: true, role: true },
+    })
+
+    if (!masterAdmin || masterAdmin.role !== 'master_admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const { orgId } = await params
+    const cookieStore = await cookies()
+
+    // Clear impersonation cookies
+    cookieStore.delete('impersonating_org')
+    cookieStore.delete('impersonating_user')
+    cookieStore.delete('impersonating_org_name')
+    cookieStore.delete('master_admin_id')
+
+    // Log activity
+    await prisma.platformActivityLog.create({
+      data: {
+        organizationId: orgId,
+        userId: masterAdmin.id,
+        activityType: 'impersonation_ended',
+        description: `Master Admin stopped impersonating organization`,
+      },
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: 'Impersonation ended',
+      redirectUrl: '/dashboard/master-admin',
+    })
+  } catch (error) {
+    console.error('Exit impersonation error:', error)
+    return NextResponse.json(
+      { error: 'Failed to exit impersonation' },
       { status: 500 }
     )
   }
