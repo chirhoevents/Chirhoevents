@@ -23,13 +23,14 @@ export async function POST(
     // Verify user has access to this event
     const user = await prisma.user.findFirst({
       where: { clerkUserId: userId },
+      include: { organization: true },
     })
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const event = await prisma.event.findFirst({
       where: {
