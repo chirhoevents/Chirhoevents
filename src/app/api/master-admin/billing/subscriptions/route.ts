@@ -24,8 +24,7 @@ export async function GET(request: NextRequest) {
     const tier = searchParams.get('tier') || 'all'
     const billingCycle = searchParams.get('billingCycle') || 'all'
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = {
+    const where: Record<string, unknown> = {
       status: { in: ['active', 'pending', 'suspended'] },
     }
 

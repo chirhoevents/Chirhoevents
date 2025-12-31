@@ -28,8 +28,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = {}
+    const where: Record<string, unknown> = {}
 
     if (orgId) {
       where.organizationId = orgId
