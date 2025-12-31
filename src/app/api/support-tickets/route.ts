@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+import { Resend } from 'resend'
+
+const resend = new Resend(process.env.RESEND_API_KEY!)
 
 // Create a new support ticket (org admin)
 export async function POST(request: NextRequest) {
@@ -13,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     const user = await prisma.user.findFirst({
       where: { clerkUserId },
-      select: { id: true, organizationId: true, role: true },
+      select: { id: true, organizationId: true, role: true, email: true, firstName: true, lastName: true },
     })
 
     if (!user) {
@@ -26,6 +29,12 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       )
     }
+
+    // Get organization name
+    const org = await prisma.organization.findUnique({
+      where: { id: user.organizationId },
+      select: { name: true },
+    })
 
     const body = await request.json()
     const { subject, category, priority, message } = body
@@ -62,6 +71,82 @@ export async function POST(request: NextRequest) {
         },
       },
     })
+
+    // Send confirmation email to the user
+    if (user.email) {
+      const emailHtml = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #1E3A5F; margin: 0; padding: 0; }
+              .container { max-width: 600px; margin: 0 auto; }
+              .header { background: #1E3A5F; color: white; padding: 30px; text-align: center; }
+              .header h1 { margin: 0; font-size: 24px; }
+              .content { padding: 30px; background: #F5F5F5; }
+              .ticket-box { background: white; border: 2px solid #9C8466; border-radius: 8px; padding: 20px; margin: 20px 0; }
+              .ticket-number { font-size: 24px; font-weight: bold; color: #1E3A5F; margin: 10px 0; }
+              .footer { text-align: center; padding: 20px; color: #6B7280; font-size: 12px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>Support Ticket Received</h1>
+              </div>
+
+              <div class="content">
+                <p>Hi ${user.firstName || 'there'},</p>
+
+                <p>We've received your support request and our team will review it shortly.</p>
+
+                <div class="ticket-box">
+                  <div style="color: #666; font-size: 12px; text-transform: uppercase;">Ticket Number</div>
+                  <div class="ticket-number">${ticket.ticketNumber}</div>
+
+                  <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #E5E7EB;">
+                    <strong>Subject:</strong> ${ticket.subject}
+                  </div>
+                  <div style="margin-top: 10px;">
+                    <strong>Category:</strong> ${category}
+                  </div>
+                  <div style="margin-top: 10px;">
+                    <strong>Priority:</strong> ${priority || 'Medium'}
+                  </div>
+                </div>
+
+                <p>You can view and respond to this ticket from your organization dashboard under <strong>Settings → Support</strong>.</p>
+
+                <p>We typically respond within 24 hours during business days.</p>
+
+                <p>
+                  Best regards,<br>
+                  <strong>ChiRho Events Support Team</strong>
+                </p>
+              </div>
+
+              <div class="footer">
+                <p>ChiRho Events - Event Management for Faith Communities</p>
+                <p>www.chirhoevents.com | support@chirhoevents.com</p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `
+
+      try {
+        await resend.emails.send({
+          from: process.env.RESEND_FROM_EMAIL || 'support@chirhoevents.com',
+          to: user.email,
+          subject: `Support Ticket ${ticket.ticketNumber} Received - ${subject}`,
+          html: emailHtml,
+        })
+      } catch (emailError) {
+        console.error('Failed to send ticket confirmation email:', emailError)
+        // Don't fail the ticket creation if email fails
+      }
+    }
 
     return NextResponse.json({
       success: true,
