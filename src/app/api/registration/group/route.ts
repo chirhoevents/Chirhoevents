@@ -204,6 +204,16 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Increment organization's registration counter
+    await prisma.organization.update({
+      where: { id: event.organizationId },
+      data: {
+        registrationsUsed: {
+          increment: totalParticipants,
+        },
+      },
+    })
+
     // Create payment balance record
     const paymentBalanceStatus =
       paymentMethod === 'check' ? 'pending_check_payment' : 'unpaid'
