@@ -10,6 +10,7 @@ import {
   Home,
   Heart,
   Shield,
+  UserCheck,
   Eye,
   Download,
   Loader2,
@@ -17,7 +18,7 @@ import {
 
 interface ReportCardProps {
   title: string
-  reportType: 'financial' | 'registrations' | 'forms' | 'housing' | 'medical' | 'certificates'
+  reportType: 'financial' | 'registrations' | 'forms' | 'housing' | 'medical' | 'certificates' | 'chaperones'
   eventId: string
   onViewReport: () => void
 }
@@ -35,6 +36,7 @@ const ICONS = {
   housing: Home,
   medical: Heart,
   certificates: Shield,
+  chaperones: UserCheck,
 }
 
 export default function ReportCard({
@@ -110,6 +112,12 @@ export default function ReportCard({
           stat1: { label: 'Certificates Required', value: data.required || 0 },
           stat2: { label: 'Uploaded', value: `${data.uploaded || 0} (${data.uploadRate || 0}%)` },
           stat3: { label: 'Verified', value: `${data.verified || 0} (${data.verifyRate || 0}%)` },
+        }
+      case 'chaperones':
+        return {
+          stat1: { label: 'Total Youth', value: data.youth?.total || 0 },
+          stat2: { label: 'Male Chaperones', value: data.chaperones?.male?.count || 0 },
+          stat3: { label: 'Female Chaperones', value: data.chaperones?.female?.count || 0 },
         }
       default:
         return {
