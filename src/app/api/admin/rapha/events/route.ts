@@ -43,8 +43,7 @@ export async function GET() {
           },
           select: {
             allergies: true,
-            hasSevereAllergy: true,
-            dailyMedications: true,
+            medications: true,
             medicalConditions: true,
             dietaryRestrictions: true,
           },
@@ -83,9 +82,15 @@ export async function GET() {
 
         // Calculate stats from liability forms
         type FormRecord = typeof liabilityForms[number]
-        const severeAllergies = liabilityForms.filter((f: FormRecord) => f.hasSevereAllergy).length
+        // Detect severe allergies by keywords in allergies text
+        const severeAllergyKeywords = ['severe', 'epipen', 'epi-pen', 'anaphylaxis', 'anaphylactic', 'life-threatening', 'life threatening']
+        const severeAllergies = liabilityForms.filter((f: FormRecord) => {
+          if (!f.allergies) return false
+          const lowerAllergies = f.allergies.toLowerCase()
+          return severeAllergyKeywords.some(keyword => lowerAllergies.includes(keyword))
+        }).length
         const allergies = liabilityForms.filter((f: FormRecord) => f.allergies && f.allergies.trim() !== '').length
-        const medications = liabilityForms.filter((f: FormRecord) => f.dailyMedications && f.dailyMedications.trim() !== '').length
+        const medications = liabilityForms.filter((f: FormRecord) => f.medications && f.medications.trim() !== '').length
         const medicalConditions = liabilityForms.filter((f: FormRecord) => f.medicalConditions && f.medicalConditions.trim() !== '').length
         const dietaryRestrictions = liabilityForms.filter((f: FormRecord) => f.dietaryRestrictions && f.dietaryRestrictions.trim() !== '').length
 
