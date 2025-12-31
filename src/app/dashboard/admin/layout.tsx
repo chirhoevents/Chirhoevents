@@ -22,6 +22,7 @@ import {
   LucideIcon
 } from 'lucide-react'
 import { hasPermission, getRoleName, type Permission, type UserRole } from '@/lib/permissions'
+import { ImpersonationBanner } from '@/components/ImpersonationBanner'
 
 interface UserInfo {
   organizationName: string
@@ -115,8 +116,12 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F1E8]">
-      {/* Mobile sidebar backdrop */}
+    <>
+      {/* Impersonation Banner - shows when Master Admin is viewing as org */}
+      <ImpersonationBanner />
+
+      <div className="min-h-screen bg-[#F5F1E8]">
+        {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
@@ -232,5 +237,6 @@ export default function AdminLayout({
         </main>
       </div>
     </div>
+    </>
   )
 }

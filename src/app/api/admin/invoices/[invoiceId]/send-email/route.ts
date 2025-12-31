@@ -5,6 +5,10 @@ import { Resend } from 'resend'
 import React from 'react'
 import { InvoicePDF } from '@/components/pdf/InvoicePDF'
 
+// Must use Node.js runtime for @react-pdf/renderer (not Edge)
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
 const tierLabels: Record<string, string> = {
@@ -213,7 +217,7 @@ export async function POST(
       attachments: [
         {
           filename: `invoice-${invoice.invoiceNumber}.pdf`,
-          content: Buffer.from(pdfBuffer).toString('base64'),
+          content: Buffer.from(pdfBuffer),
         },
       ],
     })
