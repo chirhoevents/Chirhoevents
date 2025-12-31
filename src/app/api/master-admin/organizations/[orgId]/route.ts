@@ -121,35 +121,50 @@ export async function PUT(
     const { orgId } = await params
     const body = await request.json()
 
+    // Helper to convert empty strings to null for optional fields
+    const toNullable = (value: string | null | undefined): string | null => {
+      if (value === undefined || value === null || value === '') return null
+      return value
+    }
+
+    // Build update data, only including defined fields
+    const updateData: Record<string, unknown> = {}
+
+    if (body.name !== undefined) updateData.name = body.name
+    if (body.type !== undefined) updateData.type = body.type
+    if (body.contactName !== undefined) updateData.contactName = toNullable(body.contactName)
+    if (body.contactEmail !== undefined) updateData.contactEmail = body.contactEmail
+    if (body.contactPhone !== undefined) updateData.contactPhone = toNullable(body.contactPhone)
+    if (body.subscriptionTier !== undefined) updateData.subscriptionTier = body.subscriptionTier
+    if (body.billingCycle !== undefined) updateData.billingCycle = body.billingCycle
+    if (body.monthlyFee !== undefined) updateData.monthlyFee = body.monthlyFee
+    if (body.monthlyPrice !== undefined) updateData.monthlyPrice = body.monthlyPrice
+    if (body.annualPrice !== undefined) updateData.annualPrice = body.annualPrice
+    if (body.eventsLimit !== undefined) {
+      // Handle -1 as unlimited (null in DB)
+      updateData.eventsPerYearLimit = body.eventsLimit === -1 ? null : body.eventsLimit
+    }
+    if (body.registrationsLimit !== undefined) {
+      // Handle -1 as unlimited (null in DB)
+      updateData.registrationsLimit = body.registrationsLimit === -1 ? null : body.registrationsLimit
+    }
+    if (body.storageLimitGb !== undefined) updateData.storageLimitGb = body.storageLimitGb
+    if (body.setupFeePaid !== undefined) updateData.setupFeePaid = body.setupFeePaid
+    if (body.setupFeeAmount !== undefined) updateData.setupFeeAmount = body.setupFeeAmount
+    if (body.status !== undefined) updateData.status = body.status
+    if (body.primaryColor !== undefined) updateData.primaryColor = toNullable(body.primaryColor)
+    if (body.secondaryColor !== undefined) updateData.secondaryColor = toNullable(body.secondaryColor)
+    if (body.modulesEnabled !== undefined) updateData.modulesEnabled = body.modulesEnabled
+    if (body.notes !== undefined) updateData.notes = toNullable(body.notes)
+    if (body.legalEntityName !== undefined) updateData.legalEntityName = toNullable(body.legalEntityName)
+    if (body.taxId !== undefined) updateData.taxId = toNullable(body.taxId)
+    if (body.website !== undefined) updateData.website = toNullable(body.website)
+    if (body.paymentMethod !== undefined) updateData.paymentMethodPreference = body.paymentMethod
+    if (body.platformFeePercentage !== undefined) updateData.platformFeePercentage = body.platformFeePercentage
+
     const organization = await prisma.organization.update({
       where: { id: orgId },
-      data: {
-        name: body.name,
-        type: body.type,
-        contactName: body.contactName,
-        contactEmail: body.contactEmail,
-        contactPhone: body.contactPhone,
-        subscriptionTier: body.subscriptionTier,
-        billingCycle: body.billingCycle,
-        monthlyFee: body.monthlyFee,
-        monthlyPrice: body.monthlyPrice,
-        annualPrice: body.annualPrice,
-        eventsPerYearLimit: body.eventsLimit,
-        registrationsLimit: body.registrationsLimit,
-        storageLimitGb: body.storageLimitGb,
-        setupFeePaid: body.setupFeePaid,
-        setupFeeAmount: body.setupFeeAmount,
-        status: body.status,
-        primaryColor: body.primaryColor,
-        secondaryColor: body.secondaryColor,
-        modulesEnabled: body.modulesEnabled,
-        notes: body.notes,
-        legalEntityName: body.legalEntityName,
-        taxId: body.taxId,
-        website: body.website,
-        paymentMethodPreference: body.paymentMethod,
-        platformFeePercentage: body.platformFeePercentage,
-      },
+      data: updateData,
     })
 
     // Log activity
@@ -165,8 +180,9 @@ export async function PUT(
     return NextResponse.json({ success: true, organization })
   } catch (error) {
     console.error('Update organization error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { error: 'Failed to update organization' },
+      { error: 'Failed to update organization', details: errorMessage },
       { status: 500 }
     )
   }

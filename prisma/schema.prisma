@@ -661,6 +661,7 @@ enum SubscriptionTier {
   growing
   conference
   enterprise
+  test
 }
 
 enum SubscriptionStatus {
