@@ -35,7 +35,7 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
     const { searchParams } = new URL(request.url)
     const registrationType = searchParams.get('type') as 'group' | 'individual' | null
 
@@ -115,9 +115,11 @@ export async function POST(
       include: { organization: true },
     })
 
-    if (!user || !organizationId || user.role !== 'org_admin') {
+    if (!user || user.role !== 'org_admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+
+    const organizationId = await getEffectiveOrgId(user as any)
     const body = await request.json()
     const {
       emailId, // Optional: for resending from history
