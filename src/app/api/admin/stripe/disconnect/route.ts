@@ -6,7 +6,6 @@ import { getEffectiveOrgId } from '@/lib/get-effective-org'
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser()
-    const organizationId = await getEffectiveOrgId(user)
 
     // Only org_admin or master_admin can disconnect Stripe
     if (!user || !isFullAdmin(user)) {
@@ -15,6 +14,8 @@ export async function POST(request: Request) {
         { status: 403 }
       )
     }
+
+    const organizationId = await getEffectiveOrgId(user)
 
     const body = await request.json()
     const { newContactEmail } = body
