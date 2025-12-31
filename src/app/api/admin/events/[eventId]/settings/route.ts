@@ -73,18 +73,16 @@ export async function PATCH(
     const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const organizationId = await getEffectiveOrgId(user)
     }
-
 
     // Get user from database to verify admin role
     const user = await prisma.user.findFirst({
       where: { clerkUserId: userId },
+      include: { organization: true },
     })
 
-    if (!user || !organizationId) {
+    if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    const organizationId = await getEffectiveOrgId(user)
     }
 
     // Check if user has permission - allow all admin roles
@@ -92,6 +90,8 @@ export async function PATCH(
     if (!adminRoles.includes(user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const { eventId } = await Promise.resolve(params)
     const body = await request.json()

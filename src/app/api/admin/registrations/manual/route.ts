@@ -15,9 +15,7 @@ export async function POST(request: NextRequest) {
     const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const organizationId = await getEffectiveOrgId(user)
     }
-
 
     // Get user from database to verify admin role
     const user = await prisma.user.findFirst({
@@ -25,13 +23,14 @@ export async function POST(request: NextRequest) {
       include: { organization: true },
     })
 
-    if (!user || !organizationId || !isAdminRole(user.role as any)) {
+    if (!user || !isAdminRole(user.role as any)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    const organizationId = await getEffectiveOrgId(user)
     }
 
+    const organizationId = await getEffectiveOrgId(user as any)
+
     const body = await request.json()
-    const { eventId, organizationId, registrationType, ...fields } = body
+    const { eventId, registrationType, ...fields } = body
 
     // Verify event belongs to user's organization
     const event = await prisma.event.findUnique({

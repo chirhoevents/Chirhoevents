@@ -11,19 +11,19 @@ export async function PATCH(
     const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const organizationId = await getEffectiveOrgId(user)
     }
-
 
     // Get user from database to verify org admin role
     const user = await prisma.user.findFirst({
       where: { clerkUserId: userId },
+      include: { organization: true },
     })
 
-    if (!user || !organizationId || user.role !== 'org_admin') {
+    if (!user || user.role !== 'org_admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    const organizationId = await getEffectiveOrgId(user)
     }
+
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const { eventId } = await params
     const body = await request.json()
