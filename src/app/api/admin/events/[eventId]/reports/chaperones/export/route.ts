@@ -53,24 +53,26 @@ export async function POST(
     })
 
     // Calculate stats
+    type LiabilityFormRecord = typeof liabilityForms[number]
+
     const maleYouth = liabilityForms.filter(
-      (f) =>
+      (f: LiabilityFormRecord) =>
         (f.participantType === 'youth_u18' || f.participantType === 'youth_o18') &&
         f.participantGender === 'male'
     ).length
 
     const femaleYouth = liabilityForms.filter(
-      (f) =>
+      (f: LiabilityFormRecord) =>
         (f.participantType === 'youth_u18' || f.participantType === 'youth_o18') &&
         f.participantGender === 'female'
     ).length
 
     const maleChaperones = liabilityForms.filter(
-      (f) => f.participantType === 'chaperone' && f.participantGender === 'male'
+      (f: LiabilityFormRecord) => f.participantType === 'chaperone' && f.participantGender === 'male'
     )
 
     const femaleChaperones = liabilityForms.filter(
-      (f) => f.participantType === 'chaperone' && f.participantGender === 'female'
+      (f: LiabilityFormRecord) => f.participantType === 'chaperone' && f.participantGender === 'female'
     )
 
     const maleRatio = maleChaperones.length > 0 ? maleYouth / maleChaperones.length : null
@@ -98,7 +100,7 @@ export async function POST(
       lines.push('')
       lines.push('MALE CHAPERONES')
       lines.push('Name,Group/Parish,Email,Phone')
-      maleChaperones.forEach((c) => {
+      maleChaperones.forEach((c: LiabilityFormRecord) => {
         lines.push(
           `"${c.participantFirstName} ${c.participantLastName}","${c.groupRegistration?.parishName || c.groupRegistration?.groupName || 'Unknown'}","${c.participantEmail || ''}","${c.participantPhone || ''}"`
         )
@@ -106,7 +108,7 @@ export async function POST(
       lines.push('')
       lines.push('FEMALE CHAPERONES')
       lines.push('Name,Group/Parish,Email,Phone')
-      femaleChaperones.forEach((c) => {
+      femaleChaperones.forEach((c: LiabilityFormRecord) => {
         lines.push(
           `"${c.participantFirstName} ${c.participantLastName}","${c.groupRegistration?.parishName || c.groupRegistration?.groupName || 'Unknown'}","${c.participantEmail || ''}","${c.participantPhone || ''}"`
         )
@@ -173,7 +175,7 @@ export async function POST(
   <h2>MALE CHAPERONES (${maleChaperones.length})</h2>
   <table>
     <tr><th>Name</th><th>Group/Parish</th><th>Email</th><th>Phone</th></tr>
-    ${maleChaperones.map((c) => `
+    ${maleChaperones.map((c: LiabilityFormRecord) => `
       <tr>
         <td>${c.participantFirstName} ${c.participantLastName}</td>
         <td>${c.groupRegistration?.parishName || c.groupRegistration?.groupName || 'Unknown'}</td>
@@ -186,7 +188,7 @@ export async function POST(
   <h2>FEMALE CHAPERONES (${femaleChaperones.length})</h2>
   <table>
     <tr><th>Name</th><th>Group/Parish</th><th>Email</th><th>Phone</th></tr>
-    ${femaleChaperones.map((c) => `
+    ${femaleChaperones.map((c: LiabilityFormRecord) => `
       <tr>
         <td>${c.participantFirstName} ${c.participantLastName}</td>
         <td>${c.groupRegistration?.parishName || c.groupRegistration?.groupName || 'Unknown'}</td>

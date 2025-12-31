@@ -94,8 +94,9 @@ export async function POST(
     const existingSections = await prisma.seatingSection.findMany({
       where: { eventId },
     })
-    const sectionMap = new Map(
-      existingSections.map(s => [s.name.toLowerCase(), s])
+    type SeatingSection = typeof existingSections[number]
+    const sectionMap = new Map<string, SeatingSection>(
+      existingSections.map((s: SeatingSection) => [s.name.toLowerCase(), s])
     )
 
     // Fetch all registrations for matching
