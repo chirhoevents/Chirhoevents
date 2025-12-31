@@ -15,7 +15,7 @@ export async function GET() {
     }
 
     // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     // Get active events count
     const now = new Date()

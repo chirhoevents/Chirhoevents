@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function POST(
   request: NextRequest,
@@ -15,6 +16,8 @@ export async function POST(
         { status: 403 }
       )
     }
+
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const { eventId, formId } = await Promise.resolve(params)
     const body = await request.json()
@@ -48,7 +51,7 @@ export async function POST(
       )
     }
 
-    if (form.event.organizationId !== user.organizationId) {
+    if (form.event.organizationId !== organizationId) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 

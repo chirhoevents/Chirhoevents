@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { Resend } from 'resend'
 import { getEmailHistory, logEmail, logEmailFailure } from '@/lib/email-logger'
 
@@ -27,12 +28,14 @@ export async function GET(
       include: { organization: true },
     })
 
-    console.log('[GET /emails] User found:', { id: user?.id, role: user?.role, orgId: user?.organizationId })
+    console.log('[GET /emails] User found:', { id: user?.id, role: user?.role })
 
-    if (!user || !user.organizationId || user.role !== 'org_admin') {
+    if (!user || user.role !== 'org_admin') {
       console.log('[GET /emails] Forbidden - not org admin')
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+
+    const organizationId = await getEffectiveOrgId(user as any)
     const { searchParams } = new URL(request.url)
     const registrationType = searchParams.get('type') as 'group' | 'individual' | null
 
@@ -70,8 +73,8 @@ export async function GET(
       )
     }
 
-    if (registration.organizationId !== user.organizationId) {
-      console.log('[GET /emails] Organization mismatch:', { regOrg: registration.organizationId, userOrg: user.organizationId })
+    if (registration.organizationId !== organizationId) {
+      console.log('[GET /emails] Organization mismatch:', { regOrg: registration.organizationId, userOrg: organizationId })
       return NextResponse.json(
         { error: 'You do not have permission to access this registration' },
         { status: 403 }
@@ -112,9 +115,11 @@ export async function POST(
       include: { organization: true },
     })
 
-    if (!user || !user.organizationId || user.role !== 'org_admin') {
+    if (!user || user.role !== 'org_admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+
+    const organizationId = await getEffectiveOrgId(user as any)
     const body = await request.json()
     const {
       emailId, // Optional: for resending from history
@@ -184,7 +189,7 @@ export async function POST(
       eventId = individualReg.eventId
     }
 
-    if (registration.organizationId !== user.organizationId) {
+    if (registration.organizationId !== organizationId) {
       return NextResponse.json(
         { error: 'You do not have permission to access this registration' },
         { status: 403 }
@@ -242,7 +247,7 @@ export async function POST(
 
       // Log the sent email
       await logEmail({
-        organizationId: user.organizationId,
+        organizationId: organizationId,
         eventId,
         registrationId,
         registrationType,
@@ -271,7 +276,7 @@ export async function POST(
 
       await logEmailFailure(
         {
-          organizationId: user.organizationId,
+          organizationId: organizationId,
           eventId,
           registrationId,
           registrationType,

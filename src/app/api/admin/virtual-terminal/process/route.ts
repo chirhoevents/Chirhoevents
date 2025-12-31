@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import Stripe from 'stripe'
 import { Resend } from 'resend'
 import { generateVirtualTerminalReceipt } from '@/lib/email-templates'
@@ -16,7 +17,7 @@ export async function POST(request: Request) {
   try {
     const user = await getCurrentUser()
 
-    if (!user || !user.organizationId) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -28,6 +29,9 @@ export async function POST(request: Request) {
     if (!hasPermission(user.role, 'payments.process')) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
+
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const body = await request.json()
     const {
@@ -47,7 +51,7 @@ export async function POST(request: Request) {
 
     // Get organization with Stripe account
     const org = await prisma.organization.findUnique({
-      where: { id: user.organizationId },
+      where: { id: organizationId },
       select: {
         id: true,
         name: true,
@@ -78,7 +82,7 @@ export async function POST(request: Request) {
       const groupReg = await prisma.groupRegistration.findFirst({
         where: {
           id: registrationId,
-          organizationId: user.organizationId
+          organizationId: organizationId
         },
         include: {
           event: { select: { id: true, name: true } }
@@ -111,7 +115,7 @@ export async function POST(request: Request) {
       const individualReg = await prisma.individualRegistration.findFirst({
         where: {
           id: registrationId,
-          organizationId: user.organizationId
+          organizationId: organizationId
         },
         include: {
           event: { select: { id: true, name: true } }
@@ -171,7 +175,7 @@ export async function POST(request: Request) {
     }
 
     const paymentData: PaymentData = {
-      organizationId: user.organizationId,
+      organizationId: organizationId,
       eventId: registration.eventId,
       registrationId: registration.id,
       registrationType: registrationType as 'group' | 'individual',
@@ -211,7 +215,7 @@ export async function POST(request: Request) {
           confirm: true,
           description: `${org.name} - ${registration.eventName} - ${registration.recipientName}`,
           metadata: {
-            organizationId: user.organizationId,
+            organizationId: organizationId,
             eventId: registration.eventId,
             registrationType,
             registrationId: registration.id,

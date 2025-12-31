@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { hasPermission } from '@/lib/permissions'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 // GET: List all incidents
 export async function GET(
@@ -10,6 +11,7 @@ export async function GET(
 ) {
   try {
     const user = await requireAdmin()
+    const organizationId = await getEffectiveOrgId(user as any)
     const { eventId } = await params
     const { searchParams } = new URL(request.url)
 
@@ -25,7 +27,7 @@ export async function GET(
     const event = await prisma.event.findFirst({
       where: {
         id: eventId,
-        ...(user.role !== 'master_admin' ? { organizationId: user.organizationId } : {}),
+        organizationId: organizationId,
       },
     })
 
@@ -181,6 +183,7 @@ export async function POST(
 ) {
   try {
     const user = await requireAdmin()
+    const organizationId = await getEffectiveOrgId(user as any)
     const { eventId } = await params
     const body = await request.json()
 
@@ -196,7 +199,7 @@ export async function POST(
     const event = await prisma.event.findFirst({
       where: {
         id: eventId,
-        ...(user.role !== 'master_admin' ? { organizationId: user.organizationId } : {}),
+        organizationId: organizationId,
       },
     })
 

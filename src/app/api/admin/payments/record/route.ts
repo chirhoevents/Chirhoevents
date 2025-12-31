@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
@@ -22,6 +23,8 @@ export async function POST(request: NextRequest) {
     if (!user || user.role !== 'org_admin') {
       return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 })
     }
+
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const body = await request.json()
 
@@ -110,7 +113,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Verify the registration belongs to the user's organization
-      if (paymentBalance.organizationId !== user.organizationId) {
+      if (paymentBalance.organizationId !== organizationId) {
         throw new Error('Forbidden')
       }
 

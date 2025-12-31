@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@clerk/nextjs/server'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 // POST execute a custom report without saving as template
 export async function POST(
@@ -22,16 +23,19 @@ export async function POST(
     // Verify user has access to this event
     const user = await prisma.user.findFirst({
       where: { clerkUserId: userId },
+      include: { organization: true },
     })
 
-    if (!user || !user.organizationId) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const event = await prisma.event.findFirst({
       where: {
         id: eventId,
-        organizationId: user.organizationId,
+        organizationId: organizationId,
       },
     })
 

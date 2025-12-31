@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { Resend } from 'resend'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 
@@ -51,9 +52,12 @@ export async function GET() {
       )
     }
 
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user as any)
+
     // Get all group leaders across all events for this organization
     const groupRegistrations = await prisma.groupRegistration.findMany({
-      where: { organizationId: user.organizationId },
+      where: { organizationId: organizationId },
       include: {
         event: {
           select: {
@@ -71,7 +75,7 @@ export async function GET() {
 
     // Also get individual registrations
     const individualRegistrations = await prisma.individualRegistration.findMany({
-      where: { organizationId: user.organizationId },
+      where: { organizationId: organizationId },
       include: {
         event: {
           select: {
@@ -143,6 +147,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user as any)
+
     const body: BulkEmailRequest = await request.json()
     const { templateId, subject, htmlContent, recipientType, selectedRecipients } = body
 
@@ -158,7 +165,7 @@ export async function POST(request: NextRequest) {
 
     if (recipientType === 'all_group_leaders') {
       groupRegistrations = await prisma.groupRegistration.findMany({
-        where: { organizationId: user.organizationId },
+        where: { organizationId: organizationId },
         include: {
           event: {
             select: {
@@ -171,7 +178,7 @@ export async function POST(request: NextRequest) {
     } else if (selectedRecipients && selectedRecipients.length > 0) {
       groupRegistrations = await prisma.groupRegistration.findMany({
         where: {
-          organizationId: user.organizationId,
+          organizationId: organizationId,
           id: { in: selectedRecipients },
         },
         include: {
@@ -221,7 +228,7 @@ export async function POST(request: NextRequest) {
 
         // Log successful email
         await logEmail({
-          organizationId: user.organizationId,
+          organizationId: organizationId,
           eventId: registration.eventId,
           registrationId: registration.id,
           registrationType: 'group',
@@ -247,7 +254,7 @@ export async function POST(request: NextRequest) {
         // Log failed email
         await logEmailFailure(
           {
-            organizationId: user.organizationId,
+            organizationId: organizationId,
             eventId: registration.eventId,
             registrationId: registration.id,
             registrationType: 'group',

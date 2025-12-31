@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function PUT(
   request: NextRequest,
@@ -15,6 +16,9 @@ export async function PUT(
         { status: 403 }
       )
     }
+
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const { registrationId } = await params
     const body = await request.json()
@@ -42,7 +46,7 @@ export async function PUT(
     }
 
     // Verify organization access
-    if (paymentBalance.organizationId !== user.organizationId) {
+    if (paymentBalance.organizationId !== organizationId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

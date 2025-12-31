@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { Resend } from 'resend'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { generateIndividualConfirmationCode } from '@/lib/access-code'
@@ -22,16 +23,18 @@ export async function POST(request: NextRequest) {
       include: { organization: true },
     })
 
-    if (!user || !user.organizationId || !isAdminRole(user.role as any)) {
+    if (!user || !isAdminRole(user.role as any)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    const organizationId = await getEffectiveOrgId(user as any)
+
     const body = await request.json()
-    const { eventId, organizationId, registrationType, ...fields } = body
+    const { eventId, registrationType, ...fields } = body
 
     // Verify event belongs to user's organization
     const event = await prisma.event.findUnique({
-      where: { id: eventId, organizationId: user.organizationId },
+      where: { id: eventId, organizationId: organizationId },
       include: { pricing: true },
     })
 
@@ -59,7 +62,7 @@ export async function POST(request: NextRequest) {
       const registration = await prisma.individualRegistration.create({
         data: {
           eventId,
-          organizationId: user.organizationId,
+          organizationId: organizationId,
           firstName: fields.firstName || 'N/A',
           lastName: fields.lastName || 'N/A',
           preferredName: fields.preferredName || null,
@@ -102,7 +105,7 @@ export async function POST(request: NextRequest) {
       await prisma.paymentBalance.create({
         data: {
           eventId,
-          organizationId: user.organizationId,
+          organizationId: organizationId,
           registrationId: registration.id,
           registrationType: 'individual',
           totalAmountDue: price,
@@ -192,7 +195,7 @@ export async function POST(request: NextRequest) {
 
           // Log the email
           await logEmail({
-            organizationId: user.organizationId,
+            organizationId: organizationId,
             eventId,
             registrationId: registration.id,
             registrationType: 'individual',
@@ -213,7 +216,7 @@ export async function POST(request: NextRequest) {
           console.error('Error sending email notification:', emailError)
           await logEmailFailure(
             {
-              organizationId: user.organizationId,
+              organizationId: organizationId,
               eventId,
               registrationId: registration.id,
               registrationType: 'individual',
@@ -271,7 +274,7 @@ export async function POST(request: NextRequest) {
       const registration = await prisma.groupRegistration.create({
         data: {
           eventId,
-          organizationId: user.organizationId,
+          organizationId: organizationId,
           groupName: fields.groupName || 'Manual Group',
           parishName: fields.parishName || null,
           groupLeaderName: fields.groupLeaderName || 'N/A',
@@ -299,7 +302,7 @@ export async function POST(request: NextRequest) {
       await prisma.paymentBalance.create({
         data: {
           eventId,
-          organizationId: user.organizationId,
+          organizationId: organizationId,
           registrationId: registration.id,
           registrationType: 'group',
           totalAmountDue: totalAmount,
@@ -393,7 +396,7 @@ export async function POST(request: NextRequest) {
 
           // Log the email
           await logEmail({
-            organizationId: user.organizationId,
+            organizationId: organizationId,
             eventId,
             registrationId: registration.id,
             registrationType: 'group',
@@ -413,7 +416,7 @@ export async function POST(request: NextRequest) {
           console.error('Error sending email notification:', emailError)
           await logEmailFailure(
             {
-              organizationId: user.organizationId,
+              organizationId: organizationId,
               eventId,
               registrationId: registration.id,
               registrationType: 'group',

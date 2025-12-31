@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser, isFullAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function POST(request: Request) {
   try {
@@ -14,11 +15,13 @@ export async function POST(request: Request) {
       )
     }
 
+    const organizationId = await getEffectiveOrgId(user as any)
+
     const body = await request.json()
     const { newContactEmail } = body
 
     const organization = await prisma.organization.findUnique({
-      where: { id: user.organizationId },
+      where: { id: organizationId },
     })
 
     if (!organization) {

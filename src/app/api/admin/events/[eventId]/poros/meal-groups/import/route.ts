@@ -1,6 +1,7 @@
 import { requireAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { NextRequest, NextResponse } from 'next/server'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function POST(
   request: NextRequest,
@@ -8,13 +9,14 @@ export async function POST(
 ) {
   try {
     const user = await requireAdmin()
+    const organizationId = await getEffectiveOrgId(user as any)
     const { eventId } = await params
 
     // Verify event belongs to user's organization
     const event = await prisma.event.findUnique({
       where: {
         id: eventId,
-        organizationId: user.organizationId,
+        organizationId: organizationId,
       },
       select: { id: true },
     })

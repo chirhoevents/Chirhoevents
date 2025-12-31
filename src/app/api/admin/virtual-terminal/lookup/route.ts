@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser()
 
-    if (!user || !user.organizationId) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -20,6 +21,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user as any)
+
     const searchParams = request.nextUrl.searchParams
     const code = searchParams.get('code')
 
@@ -31,7 +35,7 @@ export async function GET(request: NextRequest) {
     const groupReg = await prisma.groupRegistration.findFirst({
       where: {
         accessCode: code.trim(),
-        organizationId: user.organizationId
+        organizationId: organizationId
       },
       include: {
         event: {
@@ -130,7 +134,7 @@ export async function GET(request: NextRequest) {
     const individualReg = await prisma.individualRegistration.findFirst({
       where: {
         confirmationCode: code.trim(),
-        organizationId: user.organizationId
+        organizationId: organizationId
       },
       include: {
         event: {

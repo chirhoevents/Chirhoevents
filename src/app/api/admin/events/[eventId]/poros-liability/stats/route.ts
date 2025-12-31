@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function GET(
   request: NextRequest,
@@ -16,13 +17,15 @@ export async function GET(
       )
     }
 
+    const organizationId = await getEffectiveOrgId(user as any)
+
     const { eventId } = await Promise.resolve(params)
 
     // Verify event belongs to user's organization
     const event = await prisma.event.findUnique({
       where: {
         id: eventId,
-        organizationId: user.organizationId,
+        organizationId: organizationId,
       },
     })
 
@@ -65,7 +68,7 @@ export async function GET(
     // Get safe environment certificates stats - filter through participant's group registration
     const totalCertificates = await prisma.safeEnvironmentCertificate.count({
       where: {
-        organizationId: user.organizationId,
+        organizationId: organizationId,
         participant: {
           groupRegistration: {
             eventId,
@@ -76,7 +79,7 @@ export async function GET(
 
     const verifiedCertificates = await prisma.safeEnvironmentCertificate.count({
       where: {
-        organizationId: user.organizationId,
+        organizationId: organizationId,
         participant: {
           groupRegistration: {
             eventId,
@@ -88,7 +91,7 @@ export async function GET(
 
     const pendingCertificates = await prisma.safeEnvironmentCertificate.count({
       where: {
-        organizationId: user.organizationId,
+        organizationId: organizationId,
         participant: {
           groupRegistration: {
             eventId,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function GET(
   request: NextRequest,
@@ -16,6 +17,9 @@ export async function GET(
         { status: 403 }
       )
     }
+
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const { searchParams } = new URL(request.url)
     const registrationType = searchParams.get('type') // 'group' or 'individual'
@@ -42,7 +46,7 @@ export async function GET(
         return NextResponse.json({ error: 'Registration not found' }, { status: 404 })
       }
 
-      if (registration.organizationId !== user.organizationId) {
+      if (registration.organizationId !== organizationId) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
 
@@ -138,7 +142,7 @@ export async function GET(
         return NextResponse.json({ error: 'Registration not found' }, { status: 404 })
       }
 
-      if (registration.organizationId !== user.organizationId) {
+      if (registration.organizationId !== organizationId) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
 

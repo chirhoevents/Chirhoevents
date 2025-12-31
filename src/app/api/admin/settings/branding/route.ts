@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function GET() {
   try {
@@ -13,8 +14,11 @@ export async function GET() {
       )
     }
 
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user as any)
+
     const organization = await prisma.organization.findUnique({
-      where: { id: user.organizationId! },
+      where: { id: organizationId },
       select: {
         id: true,
         name: true,
@@ -60,6 +64,9 @@ export async function PUT(request: NextRequest) {
       )
     }
 
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user as any)
+
     const data = await request.json()
 
     // Validate colors if provided
@@ -102,7 +109,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const organization = await prisma.organization.update({
-      where: { id: user.organizationId! },
+      where: { id: organizationId },
       data: updateData,
       select: {
         id: true,

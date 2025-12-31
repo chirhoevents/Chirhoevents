@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function PATCH(
   request: NextRequest,
@@ -15,11 +16,14 @@ export async function PATCH(
     // Get user from database to verify org admin role
     const user = await prisma.user.findFirst({
       where: { clerkUserId: userId },
+      include: { organization: true },
     })
 
-    if (!user || !user.organizationId || user.role !== 'org_admin') {
+    if (!user || user.role !== 'org_admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const { eventId } = await params
     const body = await request.json()
@@ -45,7 +49,7 @@ export async function PATCH(
 
     // Verify event belongs to user's organization
     const event = await prisma.event.findUnique({
-      where: { id: eventId, organizationId: user.organizationId },
+      where: { id: eventId, organizationId: organizationId },
     })
 
     if (!event) {

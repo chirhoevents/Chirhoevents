@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { Resend } from 'resend'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 
@@ -20,6 +21,9 @@ export async function PUT(
         { status: 403 }
       )
     }
+
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const registrationId = id
     const body = await request.json()
@@ -58,7 +62,7 @@ export async function PUT(
       )
     }
 
-    if (existingRegistration.organizationId !== user.organizationId) {
+    if (existingRegistration.organizationId !== organizationId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -308,7 +312,7 @@ export async function PUT(
 
           // Log the email
           await logEmail({
-            organizationId: user.organizationId,
+            organizationId: organizationId,
             eventId: existingRegistration.event.id,
             registrationId,
             registrationType: 'individual',
@@ -329,7 +333,7 @@ export async function PUT(
         // Log email failure
         if (emailChanges.length > 0) {
           await logEmailFailure({
-            organizationId: user.organizationId,
+            organizationId: organizationId,
             eventId: existingRegistration.event.id,
             registrationId,
             registrationType: 'individual',

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function GET(
   request: NextRequest,
@@ -16,11 +17,14 @@ export async function GET(
     // Get user from database to verify org admin role
     const user = await prisma.user.findFirst({
       where: { clerkUserId: userId },
+      include: { organization: true },
     })
 
     if (!user || user.role !== 'org_admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const { registrationId } = await params
     const { searchParams } = new URL(request.url)
@@ -50,7 +54,7 @@ export async function GET(
       )
     }
 
-    if (registration.organizationId !== user.organizationId) {
+    if (registration.organizationId !== organizationId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

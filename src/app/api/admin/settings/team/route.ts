@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin, userHasPermission } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { Resend } from 'resend'
 import { ADMIN_ROLES } from '@/lib/permissions'
 
@@ -37,10 +38,13 @@ export async function GET() {
       )
     }
 
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user as any)
+
     // Get all team members with admin roles
     const teamMembers = await prisma.user.findMany({
       where: {
-        organizationId: user.organizationId,
+        organizationId: organizationId,
         role: {
           in: ADMIN_ROLES,
         },
@@ -97,6 +101,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user as any)
+
     const body = await request.json()
     const { email, firstName, lastName, role, permissions } = body
 
@@ -130,7 +137,7 @@ export async function POST(request: NextRequest) {
 
     // Get organization details for the email
     const organization = await prisma.organization.findUnique({
-      where: { id: user.organizationId },
+      where: { id: organizationId },
       select: { name: true },
     })
 
@@ -142,7 +149,7 @@ export async function POST(request: NextRequest) {
         lastName,
         role,
         permissions: permissions || null,
-        organizationId: user.organizationId,
+        organizationId: organizationId,
         createdBy: user.id,
       },
       select: {

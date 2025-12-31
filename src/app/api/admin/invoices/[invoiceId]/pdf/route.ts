@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import React from 'react'
 import { InvoicePDF } from '@/components/pdf/InvoicePDF'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 // Must use Node.js runtime for @react-pdf/renderer (not Edge)
 export const runtime = 'nodejs'
@@ -39,12 +40,14 @@ export async function GET(
     // Verify user has access (org_admin or master_admin)
     const user = await prisma.user.findFirst({
       where: { clerkUserId },
-      select: { id: true, role: true, organizationId: true },
+      include: { organization: true },
     })
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const organizationId = await getEffectiveOrgId(user as any)
 
     const { invoiceId } = await params
 
@@ -72,7 +75,7 @@ export async function GET(
 
     // Check access: master_admin can see all, org_admin can only see their org's invoices
     if (user.role !== 'master_admin') {
-      if (user.organizationId !== invoice.organizationId) {
+      if (organizationId !== invoice.organizationId) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
     }

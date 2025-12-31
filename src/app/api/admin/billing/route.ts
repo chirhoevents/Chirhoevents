@@ -1,18 +1,22 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function GET() {
   try {
     const user = await getCurrentUser()
 
-    if (!user || !isAdmin(user) || !user.organizationId) {
+    if (!user || !isAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Get the effective org ID (handles impersonation)
+    const organizationId = await getEffectiveOrgId(user as any)
+
     // Get organization with subscription and usage data
     const organization = await prisma.organization.findUnique({
-      where: { id: user.organizationId },
+      where: { id: organizationId },
       select: {
         subscriptionTier: true,
         subscriptionStatus: true,
@@ -37,7 +41,7 @@ export async function GET() {
 
     // Get invoices for this organization
     const invoices = await prisma.invoice.findMany({
-      where: { organizationId: user.organizationId },
+      where: { organizationId: organizationId },
       select: {
         id: true,
         invoiceNumber: true,

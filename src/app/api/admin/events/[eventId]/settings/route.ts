@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 // List of all valid settings fields that can be updated
 const VALID_SETTINGS_FIELDS = [
@@ -77,9 +78,10 @@ export async function PATCH(
     // Get user from database to verify admin role
     const user = await prisma.user.findFirst({
       where: { clerkUserId: userId },
+      include: { organization: true },
     })
 
-    if (!user || !user.organizationId) {
+    if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
@@ -89,12 +91,14 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    const organizationId = await getEffectiveOrgId(user as any)
+
     const { eventId } = await Promise.resolve(params)
     const body = await request.json()
 
     // Verify event belongs to user's organization (without including settings to avoid schema issues)
     const event = await prisma.event.findUnique({
-      where: { id: eventId, organizationId: user.organizationId },
+      where: { id: eventId, organizationId: organizationId },
       select: { id: true },
     })
 
