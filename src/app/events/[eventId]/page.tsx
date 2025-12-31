@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { Metadata } from 'next'
 import { prisma } from '@/lib/prisma'
 import { getRegistrationStatus, getSpotsRemainingMessage } from '@/lib/registration-status'
 import CountdownTimer from '@/components/CountdownTimer'
@@ -10,6 +11,69 @@ interface EventPageProps {
   params: Promise<{
     eventId: string
   }>
+}
+
+// Generate dynamic metadata for each event
+export async function generateMetadata({
+  params,
+}: EventPageProps): Promise<Metadata> {
+  const { eventId } = await params
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId)
+
+  const event = await prisma.event.findUnique({
+    where: isUuid ? { id: eventId } : { slug: eventId },
+    include: {
+      organization: true,
+      settings: true,
+    },
+  })
+
+  if (!event) {
+    return {
+      title: 'Event Not Found',
+    }
+  }
+
+  const formattedDates = `${event.startDate.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  })} - ${event.endDate.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })}`
+
+  const description = event.description
+    ? `${event.description.slice(0, 150)}${event.description.length > 150 ? '...' : ''}`
+    : `Register for ${event.name} by ${event.organization.name}. ${formattedDates}${event.locationName ? ` at ${event.locationName}` : ''}.`
+
+  return {
+    title: event.name,
+    description,
+    openGraph: {
+      title: `${event.name} | ChiRho Events`,
+      description,
+      type: 'website',
+      images: event.settings?.backgroundImageUrl
+        ? [
+            {
+              url: event.settings.backgroundImageUrl,
+              width: 1200,
+              height: 630,
+              alt: event.name,
+            },
+          ]
+        : ['/og-image.png'],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${event.name} | ChiRho Events`,
+      description,
+      images: event.settings?.backgroundImageUrl
+        ? [event.settings.backgroundImageUrl]
+        : ['/og-image.png'],
+    },
+  }
 }
 
 export default async function EventLandingPage({ params }: EventPageProps) {
