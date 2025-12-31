@@ -49,6 +49,8 @@ export async function GET(request: NextRequest) {
         registrationsUsed: true,
         registrationsLimit: true,
         monthlyFee: true,
+        billingCycle: true,
+        annualPrice: true,
         stripeAccountId: true,
         stripeOnboardingCompleted: true,
         createdAt: true,
@@ -60,6 +62,7 @@ export async function GET(request: NextRequest) {
       organizations: organizations.map((org: typeof organizations[0]) => ({
         ...org,
         monthlyFee: Number(org.monthlyFee),
+        annualPrice: Number(org.annualPrice) || 0,
       })),
     })
   } catch (error) {

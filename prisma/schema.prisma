@@ -83,6 +83,7 @@ model Organization {
   liabilityFormTemplates  LiabilityFormTemplate[]
   supportTickets          SupportTicket[]
   invoices                Invoice[]
+  billingNotes            BillingNote[]
   createdByUser           User?    @relation("OrganizationsCreatedByUser", fields: [createdByUserId], references: [id])
 
   @@index([contactEmail], name: "idx_org_email")
@@ -126,6 +127,7 @@ model User {
   onboardingRequestsApproved OrganizationOnboardingRequest[] @relation("OnboardingRequestsApprovedByUser")
   platformSettingsUpdated PlatformSetting[] @relation("PlatformSettingsUpdatedByUser")
   invoicesCreated Invoice[] @relation("InvoicesCreatedByUser")
+  billingNotesCreated BillingNote[] @relation("BillingNotesCreatedByUser")
 
   @@index([organizationId], name: "idx_user_org")
   @@index([email], name: "idx_user_email")
@@ -1964,5 +1966,39 @@ model PlatformActivityLog {
   @@index([activityType], name: "idx_platform_activity_type")
   @@index([createdAt], name: "idx_platform_activity_created")
   @@map("platform_activity_logs")
+}
+
+// ===================================
+// BILLING NOTES (Master Admin)
+// ===================================
+
+model BillingNote {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  paymentId       String?  @map("payment_id") @db.Uuid
+  invoiceId       String?  @map("invoice_id") @db.Uuid
+  noteType        BillingNoteType @default(general) @map("note_type")
+  note            String   @db.Text
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  createdBy       User @relation("BillingNotesCreatedByUser", fields: [createdByUserId], references: [id])
+
+  @@index([organizationId], name: "idx_billing_note_org")
+  @@index([paymentId], name: "idx_billing_note_payment")
+  @@index([invoiceId], name: "idx_billing_note_invoice")
+  @@map("billing_notes")
+}
+
+enum BillingNoteType {
+  general
+  check_expected
+  check_received
+  payment_plan
+  reminder_sent
+  special_arrangement
 }
 

@@ -17,7 +17,8 @@ import {
   LogOut,
   Shield,
   AlertTriangle,
-  LucideIcon
+  LucideIcon,
+  CreditCard
 } from 'lucide-react'
 
 interface UserInfo {
@@ -35,6 +36,7 @@ interface NavItem {
 const navigation: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard/master-admin', icon: LayoutDashboard },
   { name: 'Organizations', href: '/dashboard/master-admin/organizations', icon: Building2 },
+  { name: 'Billing', href: '/dashboard/master-admin/billing', icon: CreditCard },
   { name: 'Pending Requests', href: '/dashboard/master-admin/pending-requests', icon: FileText },
   { name: 'Support Tickets', href: '/dashboard/master-admin/support-tickets', icon: Ticket },
   { name: 'Revenue & Analytics', href: '/dashboard/master-admin/revenue', icon: DollarSign },
