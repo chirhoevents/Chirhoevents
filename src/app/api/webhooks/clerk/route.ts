@@ -70,19 +70,44 @@ export async function POST(request: NextRequest) {
 
       console.log('👤 New user signed up:', email)
 
-      // Check if user already exists (shouldn't happen, but just in case)
-      const existingUser = await prisma.user.findUnique({
+      // Check if user already exists by clerkUserId
+      const existingUserByClerk = await prisma.user.findUnique({
         where: { clerkUserId: id },
       })
 
-      if (existingUser) {
-        console.log('⚠️ User already exists in database')
+      if (existingUserByClerk) {
+        console.log('⚠️ User already exists in database by clerkUserId')
         return NextResponse.json({ received: true })
       }
 
-      // Create user in database
-      // By default, new users are group_leader role
-      // Admin roles must be assigned manually
+      // Check if there's a pending invitation for this email (user created without clerkUserId)
+      const pendingInvite = await prisma.user.findFirst({
+        where: {
+          email: email,
+          clerkUserId: null, // No Clerk ID means pending invite
+        },
+      })
+
+      if (pendingInvite) {
+        // This user is accepting an invitation - link their Clerk ID
+        console.log('✉️ Found pending invitation for:', email)
+        await prisma.user.update({
+          where: { id: pendingInvite.id },
+          data: {
+            clerkUserId: id,
+            firstName: first_name || pendingInvite.firstName,
+            lastName: last_name || pendingInvite.lastName,
+            lastLogin: new Date(),
+            updatedAt: new Date(),
+          },
+        })
+        console.log('✅ Invitation accepted - user linked:', email, 'with role:', pendingInvite.role)
+        return NextResponse.json({ received: true })
+      }
+
+      // No pending invite - create new user with default role
+      // Note: Users created this way won't have an organization
+      // They'll need to be invited to an org or create their own
       await prisma.user.create({
         data: {
           clerkUserId: id,
@@ -95,7 +120,7 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      console.log('✅ User created in database:', email)
+      console.log('✅ New user created in database:', email)
     }
 
     // Handle user.updated event
@@ -105,26 +130,50 @@ export async function POST(request: NextRequest) {
 
       console.log('🔄 User updated:', email)
 
-      // Check if user exists
+      // Check if user exists by clerkUserId
       const existingUser = await prisma.user.findUnique({
         where: { clerkUserId: id },
       })
 
       if (!existingUser) {
-        // User doesn't exist in our database, create them
-        console.log('⚠️ User not found in database, creating...')
-        await prisma.user.create({
-          data: {
-            clerkUserId: id,
+        // User doesn't exist - check for pending invite first
+        const pendingInvite = await prisma.user.findFirst({
+          where: {
             email: email,
-            firstName: first_name || '',
-            lastName: last_name || '',
-            role: 'group_leader',
-            createdAt: new Date(),
-            updatedAt: new Date(),
+            clerkUserId: null,
           },
         })
-        console.log('✅ User created in database')
+
+        if (pendingInvite) {
+          // Link to pending invite
+          console.log('✉️ Found pending invitation on update:', email)
+          await prisma.user.update({
+            where: { id: pendingInvite.id },
+            data: {
+              clerkUserId: id,
+              firstName: first_name || pendingInvite.firstName,
+              lastName: last_name || pendingInvite.lastName,
+              lastLogin: new Date(),
+              updatedAt: new Date(),
+            },
+          })
+          console.log('✅ Invitation accepted via update - user linked')
+        } else {
+          // Create new user
+          console.log('⚠️ User not found in database, creating...')
+          await prisma.user.create({
+            data: {
+              clerkUserId: id,
+              email: email,
+              firstName: first_name || '',
+              lastName: last_name || '',
+              role: 'group_leader',
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+          })
+          console.log('✅ User created in database')
+        }
       } else {
         // Update existing user
         await prisma.user.update({
