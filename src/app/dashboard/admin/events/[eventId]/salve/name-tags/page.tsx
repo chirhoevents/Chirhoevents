@@ -41,7 +41,7 @@ import {
 import { toast } from '@/lib/toast'
 
 interface NameTagTemplate {
-  size: 'standard' | 'large' | 'small'
+  size: 'standard' | 'large' | 'small' | 'badge_4x6'
   showName: boolean
   showGroup: boolean
   showParticipantType: boolean
@@ -67,6 +67,7 @@ interface GroupData {
 }
 
 interface NameTagPreview {
+  participantId: string
   firstName: string
   lastName: string
   groupName: string
@@ -84,6 +85,7 @@ interface NameTagPreview {
     name: string
     hex: string
   } | null
+  qrCode?: string // Base64 data URL of QR code
 }
 
 const DEFAULT_TEMPLATE: NameTagTemplate = {
@@ -262,17 +264,24 @@ export default function NameTagDesignerPage() {
       small: { width: '2.5in', height: '1.5in' },
       standard: { width: '3.5in', height: '2.25in' },
       large: { width: '4in', height: '3in' },
+      badge_4x6: { width: '4in', height: '6in' },
     }
 
-    const fontSizes = {
-      small: { name: '20px', details: '10px' },
-      medium: { name: '26px', details: '12px' },
-      large: { name: '32px', details: '14px' },
+    const fontSizes: Record<string, { name: string; details: string; housing?: string }> = {
+      small: { name: '16px', details: '10px' },
+      medium: { name: '20px', details: '12px' },
+      large: { name: '24px', details: '14px' },
     }
+
+    // Special font sizes for 4x6 badge
+    const badge4x6Fonts = { name: '32px', details: '16px', housing: '14px' }
 
     const size = sizeStyles[template.size]
-    const fonts = fontSizes[template.fontSize]
-    const conferenceHeader = template.conferenceHeaderText || eventName || ''
+    const fonts = template.size === 'badge_4x6' ? badge4x6Fonts : fontSizes[template.fontSize]
+    const is4x6Badge = template.size === 'badge_4x6'
+
+    // For 4x6 badges, force QR code display if it's not explicitly disabled
+    const showQr = is4x6Badge || template.showQrCode
 
     return `
       <!DOCTYPE html>
@@ -282,8 +291,8 @@ export default function NameTagDesignerPage() {
         <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
         <style>
           @page {
-            size: letter;
-            margin: 0.5in;
+            size: ${is4x6Badge ? '4in 6in' : 'letter'};
+            margin: ${is4x6Badge ? '0' : '0.5in'};
           }
           body {
             margin: 0;
@@ -293,38 +302,27 @@ export default function NameTagDesignerPage() {
           .name-tags-container {
             display: flex;
             flex-wrap: wrap;
-            gap: 0.25in;
+            gap: ${is4x6Badge ? '0' : '0.25in'};
           }
           .name-tag {
             width: ${size.width};
             height: ${size.height};
-            border: 1px solid #ccc;
-            border-radius: 8px;
+            border: ${is4x6Badge ? 'none' : '1px solid #ccc'};
+            border-radius: ${is4x6Badge ? '0' : '8px'};
+            padding: ${is4x6Badge ? '20px' : '12px'};
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
             background-color: ${template.backgroundColor};
             color: ${template.textColor};
             page-break-inside: avoid;
-            position: relative;
-            overflow: hidden;
+            ${is4x6Badge ? 'page-break-after: always;' : ''}
           }
-          .name-tag .conference-header {
-            background-color: ${template.accentColor};
-            color: white;
-            text-align: center;
-            padding: 4px 8px;
-            font-size: 11px;
-            font-weight: 600;
-          }
-          .name-tag .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 8px;
-            text-align: center;
+          .name-tag .header {
+            border-bottom: ${is4x6Badge ? '4px' : '2px'} solid ${template.accentColor};
+            padding-bottom: ${is4x6Badge ? '16px' : '8px'};
+            margin-bottom: ${is4x6Badge ? '16px' : '8px'};
+            text-align: ${is4x6Badge ? 'center' : 'left'};
           }
           .name-tag .name {
             font-size: ${fonts.name};
@@ -344,36 +342,53 @@ export default function NameTagDesignerPage() {
             display: inline-block;
             background-color: ${template.accentColor};
             color: white;
-            padding: 2px 8px;
+            padding: ${is4x6Badge ? '6px 16px' : '2px 8px'};
             border-radius: 4px;
-            font-size: 10px;
-            margin-top: 6px;
-          }
-          .name-tag .bottom-section {
-            display: flex;
-            align-items: flex-end;
-            justify-content: space-between;
-            padding: 6px 8px;
+            font-size: ${is4x6Badge ? '14px' : '10px'};
+            margin-top: ${is4x6Badge ? '8px' : '4px'};
+            ${is4x6Badge ? 'align-self: center;' : ''}
           }
           .name-tag .housing {
-            font-size: 9px;
-            color: #666;
-            flex: 1;
-          }
-          .name-tag .qr-code {
-            width: 40px;
-            height: 40px;
-          }
-          .name-tag .qr-code canvas {
-            width: 100% !important;
-            height: 100% !important;
+            ${is4x6Badge ? '' : 'margin-top: auto;'}
+            padding-top: ${is4x6Badge ? '16px' : '8px'};
+            border-top: 1px dashed #ccc;
+            font-size: ${is4x6Badge ? (fonts.housing || fonts.details) : fonts.details};
+            ${is4x6Badge ? 'text-align: center;' : ''}
           }
           .name-tag .meal-color-bar {
             position: absolute;
             bottom: 0;
             left: 0;
             right: 0;
-            height: 6px;
+            height: ${is4x6Badge ? '16px' : '8px'};
+            border-radius: ${is4x6Badge ? '0' : '0 0 8px 8px'};
+          }
+          .name-tag {
+            position: relative;
+            overflow: hidden;
+          }
+          .name-tag .qr-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 16px 0;
+          }
+          .name-tag .qr-code {
+            width: ${is4x6Badge ? '180px' : '80px'};
+            height: ${is4x6Badge ? '180px' : '80px'};
+          }
+          .name-tag .qr-label {
+            font-size: 10px;
+            color: #666;
+            margin-top: 8px;
+            text-align: center;
+          }
+          .name-tag .content-section {
+            display: flex;
+            flex-direction: column;
+            ${is4x6Badge ? 'align-items: center;' : ''}
           }
         </style>
       </head>
@@ -404,6 +419,24 @@ export default function NameTagDesignerPage() {
                   <div class="qr-code" id="qr-${index}"></div>
                 ` : ''}
               </div>
+              <div class="content-section">
+                ${template.showParticipantType ? `
+                  <div class="badge">
+                    ${tag.isClergy ? 'Clergy' : tag.isChaperone ? 'Chaperone' : 'Youth'}
+                  </div>
+                ` : ''}
+              </div>
+              ${showQr && tag.qrCode ? `
+                <div class="qr-section">
+                  <img class="qr-code" src="${tag.qrCode}" alt="QR Code" />
+                  <div class="qr-label">Scan for check-in</div>
+                </div>
+              ` : ''}
+              ${template.showHousing && tag.housing ? `
+                <div class="housing">
+                  <strong>Housing:</strong> ${tag.housing.fullLocation}
+                </div>
+              ` : ''}
               ${template.showMealColor && tag.mealColor ? `
                 <div class="meal-color-bar" style="background-color: ${tag.mealColor.hex}"></div>
               ` : ''}
@@ -502,6 +535,7 @@ export default function NameTagDesignerPage() {
                   <SelectItem value="small">Small (2.5&quot; x 1.5&quot;)</SelectItem>
                   <SelectItem value="standard">Standard (3.5&quot; x 2.25&quot;)</SelectItem>
                   <SelectItem value="large">Large (4&quot; x 3&quot;)</SelectItem>
+                  <SelectItem value="badge_4x6">Badge (4&quot; x 6&quot;) - With QR Code</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -659,12 +693,14 @@ export default function NameTagDesignerPage() {
           <CardContent>
             <div className="flex justify-center">
               <div
-                className="border-2 border-dashed rounded-lg flex flex-col relative overflow-hidden"
+                className={`border-2 border-dashed rounded-lg p-4 flex flex-col relative overflow-hidden ${
+                  template.size === 'badge_4x6' ? 'text-center' : ''
+                }`}
                 style={{
                   backgroundColor: template.backgroundColor,
                   color: template.textColor,
-                  width: template.size === 'small' ? '180px' : template.size === 'large' ? '280px' : '240px',
-                  minHeight: template.size === 'small' ? '108px' : template.size === 'large' ? '216px' : '162px',
+                  width: template.size === 'small' ? '180px' : template.size === 'large' ? '280px' : template.size === 'badge_4x6' ? '200px' : '240px',
+                  minHeight: template.size === 'small' ? '108px' : template.size === 'large' ? '216px' : template.size === 'badge_4x6' ? '300px' : '162px',
                 }}
               >
                 {/* Conference Header */}
@@ -683,7 +719,7 @@ export default function NameTagDesignerPage() {
                     <div
                       className="font-bold"
                       style={{
-                        fontSize: template.fontSize === 'small' ? '18px' : template.fontSize === 'large' ? '26px' : '22px',
+                        fontSize: template.size === 'badge_4x6' ? '20px' : template.fontSize === 'small' ? '14px' : template.fontSize === 'large' ? '18px' : '16px',
                       }}
                     >
                       John Doe
@@ -705,25 +741,37 @@ export default function NameTagDesignerPage() {
                   )}
                 </div>
 
-                {/* Bottom Section - Housing and QR Code */}
-                <div className="flex items-end justify-between p-2 pt-0">
-                  {template.showHousing ? (
-                    <div className="text-xs opacity-70 flex-1">
-                      <strong>Housing:</strong> Bldg A 101
-                    </div>
-                  ) : (
-                    <div className="flex-1" />
-                  )}
-                  {template.showQrCode && (
-                    <div
-                      className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center"
-                      style={{ border: `1px solid ${template.accentColor}` }}
-                    >
-                      <span className="text-[8px] text-gray-500">QR</span>
-                    </div>
-                  )}
-                </div>
+                {template.showParticipantType && (
+                  <span
+                    className={`text-white text-xs px-2 py-0.5 rounded ${
+                      template.size === 'badge_4x6' ? 'self-center' : 'self-start'
+                    }`}
+                    style={{ backgroundColor: template.accentColor }}
+                  >
+                    Youth
+                  </span>
+                )}
 
+                {(template.showQrCode || template.size === 'badge_4x6') && (
+                  <div className="flex-1 flex flex-col items-center justify-center py-4">
+                    <div
+                      className="bg-white border rounded flex items-center justify-center"
+                      style={{
+                        width: template.size === 'badge_4x6' ? '100px' : '60px',
+                        height: template.size === 'badge_4x6' ? '100px' : '60px',
+                      }}
+                    >
+                      <span className="text-[8px] text-gray-400 text-center">QR Code</span>
+                    </div>
+                    <span className="text-[8px] text-gray-400 mt-1">Scan for check-in</span>
+                  </div>
+                )}
+
+                {template.showHousing && (
+                  <div className="mt-auto pt-2 border-t border-dashed text-xs opacity-70">
+                    <strong>Housing:</strong> Building A 101 - Bed A
+                  </div>
+                )}
                 {template.showMealColor && (
                   <div
                     className="absolute bottom-0 left-0 right-0 h-2 rounded-b-lg"
@@ -737,6 +785,7 @@ export default function NameTagDesignerPage() {
               {template.size === 'small' && 'Small: 2.5" × 1.5"'}
               {template.size === 'standard' && 'Standard: 3.5" × 2.25"'}
               {template.size === 'large' && 'Large: 4" × 3"'}
+              {template.size === 'badge_4x6' && 'Badge: 4" × 6" (1 per page)'}
             </div>
           </CardContent>
         </Card>

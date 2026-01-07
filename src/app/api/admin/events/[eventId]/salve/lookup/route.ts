@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { parseQRCodeData } from '@/lib/qr-code'
 
 // Helper to fetch room assignments for participants
 async function getHousingAssignmentsMap(participantIds: string[]) {
@@ -102,6 +103,177 @@ export async function GET(
     const accessCode = searchParams.get('accessCode')
     const search = searchParams.get('search') || searchParams.get('q')
     const groupId = searchParams.get('groupId')
+    const participantId = searchParams.get('participantId')
+    const qrCode = searchParams.get('qrCode') // Raw QR code data to parse
+
+    // If raw QR code data is provided, parse it first
+    if (qrCode) {
+      const parsed = parseQRCodeData(qrCode)
+
+      if (parsed.type === 'participant' && parsed.participantId) {
+        // Look up participant by UUID
+        const participant = await prisma.participant.findFirst({
+          where: {
+            id: parsed.participantId,
+            groupRegistration: {
+              eventId,
+            },
+          },
+          include: {
+            groupRegistration: {
+              include: {
+                participants: {
+                  orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+                },
+                allocatedRooms: {
+                  include: {
+                    building: {
+                      select: {
+                        name: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        })
+
+        if (!participant) {
+          return NextResponse.json(
+            { message: 'Participant not found' },
+            { status: 404 }
+          )
+        }
+
+        const group = participant.groupRegistration
+        const housingMap = await getHousingAssignmentsMap(
+          group.participants.map((p: any) => p.id)
+        )
+
+        return NextResponse.json({
+          ...formatGroupResponse(group, housingMap),
+          scannedParticipantId: participant.id,
+          lookupType: 'participant',
+        })
+      } else if (parsed.type === 'group' && parsed.accessCode) {
+        // Redirect to access code lookup
+        const group = await prisma.groupRegistration.findFirst({
+          where: {
+            accessCode: parsed.accessCode,
+            eventId,
+          },
+          include: {
+            participants: {
+              orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+            },
+            allocatedRooms: {
+              include: {
+                building: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        })
+
+        if (!group) {
+          return NextResponse.json(
+            { message: 'Group not found with this access code' },
+            { status: 404 }
+          )
+        }
+
+        const housingMap = await getHousingAssignmentsMap(
+          group.participants.map((p: any) => p.id)
+        )
+        return NextResponse.json({
+          ...formatGroupResponse(group, housingMap),
+          lookupType: 'group',
+        })
+      } else if (parsed.type === 'individual' && parsed.registrationId) {
+        // Individual registration - return info about it
+        const registration = await prisma.individualRegistration.findFirst({
+          where: {
+            id: parsed.registrationId,
+            eventId,
+          },
+        })
+
+        if (!registration) {
+          return NextResponse.json(
+            { message: 'Individual registration not found' },
+            { status: 404 }
+          )
+        }
+
+        return NextResponse.json({
+          lookupType: 'individual',
+          individual: {
+            id: registration.id,
+            firstName: registration.firstName,
+            lastName: registration.lastName,
+            email: registration.email,
+            checkedIn: false, // Individual check-in not implemented yet
+          },
+        })
+      }
+
+      return NextResponse.json(
+        { message: 'Unable to parse QR code data' },
+        { status: 400 }
+      )
+    }
+
+    // If participantId is provided directly, look up that participant
+    if (participantId) {
+      const participant = await prisma.participant.findFirst({
+        where: {
+          id: participantId,
+          groupRegistration: {
+            eventId,
+          },
+        },
+        include: {
+          groupRegistration: {
+            include: {
+              participants: {
+                orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+              },
+              allocatedRooms: {
+                include: {
+                  building: {
+                    select: {
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      })
+
+      if (!participant) {
+        return NextResponse.json(
+          { message: 'Participant not found' },
+          { status: 404 }
+        )
+      }
+
+      const group = participant.groupRegistration
+      const housingMap = await getHousingAssignmentsMap(
+        group.participants.map((p: any) => p.id)
+      )
+
+      return NextResponse.json({
+        ...formatGroupResponse(group, housingMap),
+        scannedParticipantId: participant.id,
+        lookupType: 'participant',
+      })
+    }
 
     // If groupId is provided, fetch that specific group
     if (groupId) {
