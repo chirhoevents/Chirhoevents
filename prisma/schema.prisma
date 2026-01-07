@@ -386,6 +386,12 @@ model IndividualRegistration {
   registeredAt              DateTime @default(now()) @map("registered_at") @db.Timestamptz(6)
   createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                 DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  // Check-in fields
+  checkedIn                 Boolean  @default(false) @map("checked_in")
+  checkedInAt               DateTime? @map("checked_in_at") @db.Timestamptz(6)
+  checkedInBy               String?  @map("checked_in_by") @db.Uuid
+  checkInStation            String?  @map("check_in_station") @db.VarChar(100)
+  checkInNotes              String?  @map("check_in_notes") @db.Text
 
   // Relations
   event        Event        @relation(fields: [eventId], references: [id])
@@ -393,6 +399,7 @@ model IndividualRegistration {
   liabilityForms LiabilityForm[]
 
   @@index([confirmationCode], name: "idx_individual_confirmation_code")
+  @@index([checkedIn], name: "idx_individual_checked_in")
   @@map("individual_registrations")
 }
 
@@ -1557,6 +1564,7 @@ model CheckInLog {
   eventId       String   @map("event_id") @db.Uuid
   participantId String?  @map("participant_id") @db.Uuid
   groupRegistrationId String? @map("group_registration_id") @db.Uuid
+  individualRegistrationId String? @map("individual_registration_id") @db.Uuid
   action        CheckInAction
   station       String?  @db.VarChar(100)
   userId        String?  @map("user_id") @db.Uuid
@@ -1566,6 +1574,7 @@ model CheckInLog {
   @@index([eventId], name: "idx_check_in_log_event")
   @@index([participantId], name: "idx_check_in_log_participant")
   @@index([groupRegistrationId], name: "idx_check_in_log_group")
+  @@index([individualRegistrationId], name: "idx_check_in_log_individual")
   @@index([createdAt], name: "idx_check_in_log_created")
   @@map("check_in_logs")
 }
