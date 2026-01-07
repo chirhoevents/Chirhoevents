@@ -26,7 +26,25 @@ export async function POST(
 
     const { orgId } = await params
 
-    // Get the org admin user for this organization
+    // Get the organization details first
+    const organization = await prisma.organization.findUnique({
+      where: { id: orgId },
+      select: {
+        id: true,
+        name: true,
+        logoUrl: true,
+        modulesEnabled: true,
+      },
+    })
+
+    if (!organization) {
+      return NextResponse.json(
+        { error: 'Organization not found' },
+        { status: 404 }
+      )
+    }
+
+    // Get the org admin user for this organization (optional - org might not have one yet)
     const orgAdmin = await prisma.user.findFirst({
       where: {
         organizationId: orgId,
@@ -38,23 +56,6 @@ export async function POST(
         firstName: true,
         lastName: true,
         organizationId: true,
-      },
-    })
-
-    if (!orgAdmin) {
-      return NextResponse.json(
-        { error: 'No org admin found for this organization' },
-        { status: 404 }
-      )
-    }
-
-    // Get the organization details
-    const organization = await prisma.organization.findUnique({
-      where: { id: orgId },
-      select: {
-        name: true,
-        logoUrl: true,
-        modulesEnabled: true,
       },
     })
 
@@ -70,13 +71,16 @@ export async function POST(
       path: '/',
     })
 
-    cookieStore.set('impersonating_user', orgAdmin.id, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 4, // 4 hours
-      path: '/',
-    })
+    // Store org admin ID if one exists
+    if (orgAdmin) {
+      cookieStore.set('impersonating_user', orgAdmin.id, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 4, // 4 hours
+        path: '/',
+      })
+    }
 
     cookieStore.set('impersonating_org_name', organization?.name || '', {
       httpOnly: true,
