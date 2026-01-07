@@ -28,14 +28,26 @@ import {
   Utensils,
   Accessibility,
   ArrowLeft,
+  QrCode,
+  Phone,
+  User,
+  X,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from '@/lib/toast'
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 // Import sub-components from admin dashboard
 import RaphaParticipants, { type RaphaParticipant } from '@/app/dashboard/admin/events/[eventId]/rapha/RaphaParticipants'
 import RaphaIncidents from '@/app/dashboard/admin/events/[eventId]/rapha/RaphaIncidents'
 import RaphaReports from '@/app/dashboard/admin/events/[eventId]/rapha/RaphaReports'
+import { RaphaQRScanner } from '@/components/rapha/RaphaQRScanner'
 
 interface RaphaStats {
   totalParticipants: number
@@ -95,6 +107,11 @@ export default function RaphaDedicatedPortal() {
   // State for incident creation from participants
   const [incidentParticipant, setIncidentParticipant] = useState<PreSelectedParticipant | null>(null)
   const [openIncidentModal, setOpenIncidentModal] = useState(false)
+
+  // QR Scanner state
+  const [qrScannerOpen, setQrScannerOpen] = useState(false)
+  const [scannedParticipant, setScannedParticipant] = useState<any>(null)
+  const [scanLoading, setScanLoading] = useState(false)
 
   useEffect(() => {
     checkAuthAndFetchData()
@@ -202,6 +219,53 @@ export default function RaphaDedicatedPortal() {
   function handleIncidentModalClose() {
     setOpenIncidentModal(false)
     setIncidentParticipant(null)
+  }
+
+  // Handle QR code scan
+  async function handleQrScan(qrData: string) {
+    setScanLoading(true)
+    try {
+      const response = await fetch(
+        `/api/admin/events/${eventId}/rapha/lookup?qrCode=${encodeURIComponent(qrData)}`
+      )
+
+      if (response.ok) {
+        const data = await response.json()
+        setScannedParticipant(data)
+        toast.success(`Found: ${data.participant.firstName} ${data.participant.lastName}`)
+      } else {
+        const errorData = await response.json()
+        toast.error(errorData.message || 'Participant not found')
+        setScannedParticipant(null)
+      }
+    } catch (err) {
+      console.error('QR lookup error:', err)
+      toast.error('Failed to look up participant')
+      setScannedParticipant(null)
+    } finally {
+      setScanLoading(false)
+    }
+  }
+
+  function handleCloseScannedParticipant() {
+    setScannedParticipant(null)
+  }
+
+  function handleCreateIncidentFromScan() {
+    if (!scannedParticipant) return
+
+    setIncidentParticipant({
+      id: scannedParticipant.participant.id,
+      participantId: scannedParticipant.participant.id,
+      firstName: scannedParticipant.participant.firstName,
+      lastName: scannedParticipant.participant.lastName,
+      groupName: scannedParticipant.participant.groupName,
+      allergies: scannedParticipant.medical.allergies,
+      hasSevereAllergy: scannedParticipant.medical.hasSevereAllergy,
+    })
+    setOpenIncidentModal(true)
+    setActiveTab('incidents')
+    setScannedParticipant(null)
   }
 
   if (loading || authChecking) {
@@ -645,6 +709,15 @@ export default function RaphaDedicatedPortal() {
                 <CardContent className="space-y-3">
                   <Button
                     className="w-full justify-start bg-red-600 hover:bg-red-700"
+                    onClick={() => setQrScannerOpen(true)}
+                  >
+                    <QrCode className="w-4 h-4 mr-2" />
+                    Scan Participant QR Code
+                  </Button>
+
+                  <Button
+                    className="w-full justify-start"
+                    variant="secondary"
                     onClick={() => {
                       setIncidentParticipant(null)
                       setOpenIncidentModal(true)
@@ -726,6 +799,238 @@ export default function RaphaDedicatedPortal() {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* QR Scanner */}
+      <RaphaQRScanner
+        open={qrScannerOpen}
+        onOpenChange={setQrScannerOpen}
+        onScan={handleQrScan}
+      />
+
+      {/* Scanned Participant Details Modal */}
+      <Dialog open={!!scannedParticipant} onOpenChange={(open) => !open && handleCloseScannedParticipant()}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <User className="w-5 h-5 text-red-600" />
+                {scannedParticipant?.participant.firstName} {scannedParticipant?.participant.lastName}
+              </span>
+              {scannedParticipant?.medical.hasSevereAllergy && (
+                <Badge className="bg-red-500">SEVERE ALLERGY</Badge>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+
+          {scannedParticipant && (
+            <div className="space-y-4">
+              {/* Basic Info */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Age:</span>
+                    <span className="ml-2 font-medium">{scannedParticipant.participant.age}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Gender:</span>
+                    <span className="ml-2 font-medium capitalize">{scannedParticipant.participant.gender}</span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-muted-foreground">Group:</span>
+                    <span className="ml-2 font-medium">{scannedParticipant.participant.groupName}</span>
+                  </div>
+                  {scannedParticipant.participant.diocese && (
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Diocese:</span>
+                      <span className="ml-2 font-medium">{scannedParticipant.participant.diocese}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Medical Information */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-red-600 flex items-center gap-2">
+                  <Stethoscope className="w-4 h-4" />
+                  Medical Information
+                </h3>
+
+                {scannedParticipant.medical.allergies && (
+                  <div className={`p-3 rounded-lg ${scannedParticipant.medical.hasSevereAllergy ? 'bg-red-50 border border-red-200' : 'bg-amber-50 border border-amber-200'}`}>
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className={`w-4 h-4 mt-0.5 ${scannedParticipant.medical.hasSevereAllergy ? 'text-red-500' : 'text-amber-500'}`} />
+                      <div>
+                        <strong className={scannedParticipant.medical.hasSevereAllergy ? 'text-red-700' : 'text-amber-700'}>Allergies:</strong>
+                        <p className={`text-sm ${scannedParticipant.medical.hasSevereAllergy ? 'text-red-600' : 'text-amber-600'}`}>{scannedParticipant.medical.allergies}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {scannedParticipant.medical.medicalConditions && (
+                  <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+                    <div className="flex items-start gap-2">
+                      <Activity className="w-4 h-4 mt-0.5 text-blue-500" />
+                      <div>
+                        <strong className="text-blue-700">Medical Conditions:</strong>
+                        <p className="text-sm text-blue-600">{scannedParticipant.medical.medicalConditions}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {scannedParticipant.medical.medications && (
+                  <div className="p-3 rounded-lg bg-purple-50 border border-purple-200">
+                    <div className="flex items-start gap-2">
+                      <Pill className="w-4 h-4 mt-0.5 text-purple-500" />
+                      <div>
+                        <strong className="text-purple-700">Medications:</strong>
+                        <p className="text-sm text-purple-600">{scannedParticipant.medical.medications}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {scannedParticipant.medical.dietaryRestrictions && (
+                  <div className="p-3 rounded-lg bg-green-50 border border-green-200">
+                    <div className="flex items-start gap-2">
+                      <Utensils className="w-4 h-4 mt-0.5 text-green-500" />
+                      <div>
+                        <strong className="text-green-700">Dietary Restrictions:</strong>
+                        <p className="text-sm text-green-600">{scannedParticipant.medical.dietaryRestrictions}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {scannedParticipant.medical.adaAccommodations && (
+                  <div className="p-3 rounded-lg bg-indigo-50 border border-indigo-200">
+                    <div className="flex items-start gap-2">
+                      <Accessibility className="w-4 h-4 mt-0.5 text-indigo-500" />
+                      <div>
+                        <strong className="text-indigo-700">ADA/Special Needs:</strong>
+                        <p className="text-sm text-indigo-600">{scannedParticipant.medical.adaAccommodations}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {!scannedParticipant.medical.allergies &&
+                 !scannedParticipant.medical.medicalConditions &&
+                 !scannedParticipant.medical.medications &&
+                 !scannedParticipant.medical.dietaryRestrictions &&
+                 !scannedParticipant.medical.adaAccommodations && (
+                  <p className="text-muted-foreground text-sm italic">No medical information on file.</p>
+                )}
+              </div>
+
+              {/* Insurance Information */}
+              {scannedParticipant.medical.insuranceProvider && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-gray-700">Insurance Information</h3>
+                  <div className="bg-gray-50 rounded-lg p-3 text-sm">
+                    <div><strong>Provider:</strong> {scannedParticipant.medical.insuranceProvider}</div>
+                    {scannedParticipant.medical.insurancePolicyNumber && (
+                      <div><strong>Policy #:</strong> {scannedParticipant.medical.insurancePolicyNumber}</div>
+                    )}
+                    {scannedParticipant.medical.insuranceGroupNumber && (
+                      <div><strong>Group #:</strong> {scannedParticipant.medical.insuranceGroupNumber}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Emergency Contacts */}
+              {scannedParticipant.emergencyContacts && scannedParticipant.emergencyContacts.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-gray-700 flex items-center gap-2">
+                    <Phone className="w-4 h-4" />
+                    Emergency Contacts
+                  </h3>
+                  <div className="space-y-2">
+                    {scannedParticipant.emergencyContacts.map((contact: any, idx: number) => (
+                      <div key={idx} className="bg-gray-50 rounded-lg p-3 text-sm flex items-center justify-between">
+                        <div>
+                          <div className="font-medium">{contact.name}</div>
+                          <div className="text-muted-foreground">{contact.relation}</div>
+                        </div>
+                        <a
+                          href={`tel:${contact.phone}`}
+                          className="text-red-600 font-medium hover:underline"
+                        >
+                          {contact.phone}
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Group Leader Contact */}
+              {scannedParticipant.participant.groupLeader && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-gray-700">Group Leader</h3>
+                  <div className="bg-gray-50 rounded-lg p-3 text-sm flex items-center justify-between">
+                    <div className="font-medium">{scannedParticipant.participant.groupLeader.name}</div>
+                    {scannedParticipant.participant.groupLeader.phone && (
+                      <a
+                        href={`tel:${scannedParticipant.participant.groupLeader.phone}`}
+                        className="text-red-600 font-medium hover:underline"
+                      >
+                        {scannedParticipant.participant.groupLeader.phone}
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Recent Incidents */}
+              {scannedParticipant.recentIncidents && scannedParticipant.recentIncidents.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-amber-600 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
+                    Recent Incidents ({scannedParticipant.recentIncidents.length})
+                  </h3>
+                  <div className="space-y-2">
+                    {scannedParticipant.recentIncidents.map((incident: any) => (
+                      <div key={incident.id} className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-medium">{incident.type}</span>
+                          <Badge variant={incident.status === 'resolved' ? 'outline' : 'default'}>
+                            {incident.status}
+                          </Badge>
+                        </div>
+                        <p className="text-muted-foreground text-xs">
+                          {incident.description?.substring(0, 100)}...
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-4 border-t">
+                <Button
+                  className="flex-1 bg-red-600 hover:bg-red-700"
+                  onClick={handleCreateIncidentFromScan}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Incident
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setQrScannerOpen(true)}
+                >
+                  <QrCode className="w-4 h-4 mr-2" />
+                  Scan Another
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
