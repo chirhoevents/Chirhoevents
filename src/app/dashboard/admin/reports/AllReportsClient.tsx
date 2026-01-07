@@ -50,7 +50,9 @@ export default function AllReportsClient({ organizationId }: AllReportsClientPro
       const response = await fetch('/api/admin/events?status=all')
       if (response.ok) {
         const data = await response.json()
-        setEvents(data)
+        // Handle both array and object response formats
+        const eventsArray = Array.isArray(data) ? data : (data.events || [])
+        setEvents(eventsArray)
       }
     } catch (error) {
       console.error('Error fetching events:', error)

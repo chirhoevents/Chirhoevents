@@ -65,7 +65,9 @@ export default function RaphaPortalPage() {
         const fallbackResponse = await fetch('/api/admin/events?includeStats=true')
         if (fallbackResponse.ok) {
           const data = await fallbackResponse.json()
-          const raphaEvents = data.filter((event: any) => {
+          // Handle both array and object response formats
+          const eventsArray = Array.isArray(data) ? data : (data.events || [])
+          const raphaEvents = eventsArray.filter((event: any) => {
             const hasSettings = event.settings?.raphaMedicalEnabled
             const isActiveOrUpcoming = ['published', 'registration_open', 'registration_closed'].includes(event.status)
             return hasSettings && isActiveOrUpcoming

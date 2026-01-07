@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth-utils'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
     const user = await requireAdmin()
+    const organizationId = await getEffectiveOrgId(user)
 
     // Get events with Rapha enabled
     const events = await prisma.event.findMany({
       where: {
-        organizationId: user.organizationId,
+        organizationId,
         status: {
           in: ['published', 'registration_open', 'registration_closed'],
         },
