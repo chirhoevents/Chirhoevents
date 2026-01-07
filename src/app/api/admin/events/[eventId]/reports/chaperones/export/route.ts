@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { prisma } from '@/lib/prisma'
 
 export async function POST(
@@ -14,16 +15,17 @@ export async function POST(
     }
 
     const { eventId } = await params
+    const organizationId = await getEffectiveOrgId(user)
     const body = await request.json()
     const { format } = body
 
-    // Verify event belongs to user's organization
+    // Verify event belongs to user's organization (or impersonated org)
     const event = await prisma.event.findUnique({
       where: { id: eventId },
       select: { id: true, name: true, organizationId: true },
     })
 
-    if (!event || event.organizationId !== user.organizationId) {
+    if (!event || event.organizationId !== organizationId) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 

@@ -40,8 +40,10 @@ export default function SalvePortalPage() {
       const response = await fetch('/api/admin/events?includeStats=true')
       if (response.ok) {
         const data = await response.json()
+        // Handle both array and object response formats
+        const eventsArray = Array.isArray(data) ? data : (data.events || [])
         // Filter to events with SALVE enabled and that are active
-        const salveEvents = data.filter((event: any) => {
+        const salveEvents = eventsArray.filter((event: any) => {
           const hasSettings = event.settings?.salveCheckinEnabled
           const isActiveOrUpcoming = ['published', 'registration_open', 'registration_closed'].includes(event.status)
           return hasSettings && isActiveOrUpcoming
