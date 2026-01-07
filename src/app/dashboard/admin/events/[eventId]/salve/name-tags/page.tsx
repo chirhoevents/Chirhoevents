@@ -283,6 +283,9 @@ export default function NameTagDesignerPage() {
     // For 4x6 badges, force QR code display if it's not explicitly disabled
     const showQr = is4x6Badge || template.showQrCode
 
+    // Conference header text
+    const conferenceHeader = template.conferenceHeaderText || eventName || ''
+
     return `
       <!DOCTYPE html>
       <html>
