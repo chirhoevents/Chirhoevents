@@ -548,8 +548,9 @@ export default function FeaturesPage() {
           <div className="border-t border-navy-500 mt-8 pt-8 text-center text-gray-400">
             <p>&copy; 2025 ChiRho Events. All rights reserved.</p>
             <div className="mt-4 space-x-6">
-              <a href="#" className="hover:text-gold transition-colors">Privacy Policy</a>
-              <a href="#" className="hover:text-gold transition-colors">Terms of Service</a>
+              <Link href="/privacy" className="hover:text-gold transition-colors">Privacy Policy</Link>
+              <Link href="/terms" className="hover:text-gold transition-colors">Terms of Service</Link>
+              <Link href="/cookies" className="hover:text-gold transition-colors">Cookie Policy</Link>
             </div>
           </div>
         </div>

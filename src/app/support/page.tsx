@@ -243,6 +243,11 @@ export default function SupportPage() {
       <footer className="bg-navy text-white py-8 mt-16">
         <div className="container mx-auto px-4 text-center">
           <p className="text-gray-400">&copy; 2025 ChiRho Events. All rights reserved.</p>
+          <div className="mt-4 space-x-6">
+            <a href="/privacy" className="text-gray-400 hover:text-gold transition-colors">Privacy Policy</a>
+            <a href="/terms" className="text-gray-400 hover:text-gold transition-colors">Terms of Service</a>
+            <a href="/cookies" className="text-gray-400 hover:text-gold transition-colors">Cookie Policy</a>
+          </div>
         </div>
       </footer>
     </div>
