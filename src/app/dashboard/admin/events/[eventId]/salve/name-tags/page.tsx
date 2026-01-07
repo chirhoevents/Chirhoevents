@@ -50,6 +50,8 @@ interface NameTagTemplate {
   showMealColor: boolean
   showSmallGroup: boolean
   showQrCode: boolean
+  showConferenceHeader: boolean
+  conferenceHeaderText: string
   backgroundColor: string
   textColor: string
   accentColor: string
@@ -95,7 +97,9 @@ const DEFAULT_TEMPLATE: NameTagTemplate = {
   showDiocese: false,
   showMealColor: false,
   showSmallGroup: false,
-  showQrCode: false,
+  showQrCode: true,
+  showConferenceHeader: true,
+  conferenceHeaderText: '',
   backgroundColor: '#FFFFFF',
   textColor: '#1E3A5F',
   accentColor: '#9C8466',
@@ -279,11 +283,15 @@ export default function NameTagDesignerPage() {
     // For 4x6 badges, force QR code display if it's not explicitly disabled
     const showQr = is4x6Badge || template.showQrCode
 
+    // Conference header text
+    const conferenceHeader = template.conferenceHeaderText || eventName || ''
+
     return `
       <!DOCTYPE html>
       <html>
       <head>
         <title>Name Tags</title>
+        <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
         <style>
           @page {
             size: ${is4x6Badge ? '4in 6in' : 'letter'};
@@ -324,9 +332,14 @@ export default function NameTagDesignerPage() {
             font-weight: bold;
             color: ${template.textColor};
           }
-          .name-tag .details {
+          .name-tag .group-name {
             font-size: ${fonts.details};
             color: #666;
+            margin-top: 4px;
+          }
+          .name-tag .diocese {
+            font-size: 10px;
+            color: #888;
           }
           .name-tag .badge {
             display: inline-block;
@@ -384,12 +397,30 @@ export default function NameTagDesignerPage() {
       </head>
       <body>
         <div class="name-tags-container">
-          ${nameTags.map((tag) => `
+          ${nameTags.map((tag, index) => `
             <div class="name-tag">
-              <div class="header">
+              ${template.showConferenceHeader && conferenceHeader ? `
+                <div class="conference-header">${conferenceHeader}</div>
+              ` : ''}
+              <div class="main-content">
                 ${template.showName ? `<div class="name">${tag.firstName} ${tag.lastName}</div>` : ''}
-                ${template.showGroup ? `<div class="details">${tag.groupName}</div>` : ''}
-                ${template.showDiocese && tag.diocese ? `<div class="details">${tag.diocese}</div>` : ''}
+                ${template.showGroup ? `<div class="group-name">${tag.groupName}</div>` : ''}
+                ${template.showDiocese && tag.diocese ? `<div class="diocese">${tag.diocese}</div>` : ''}
+                ${template.showParticipantType ? `
+                  <div class="badge">
+                    ${tag.isClergy ? 'Clergy' : tag.isChaperone ? 'Chaperone' : 'Youth'}
+                  </div>
+                ` : ''}
+              </div>
+              <div class="bottom-section">
+                ${template.showHousing && tag.housing ? `
+                  <div class="housing">
+                    <strong>Housing:</strong> ${tag.housing.fullLocation}
+                  </div>
+                ` : '<div></div>'}
+                ${template.showQrCode ? `
+                  <div class="qr-code" id="qr-${index}"></div>
+                ` : ''}
               </div>
               <div class="content-section">
                 ${template.showParticipantType ? `
@@ -415,6 +446,23 @@ export default function NameTagDesignerPage() {
             </div>
           `).join('')}
         </div>
+        ${template.showQrCode ? `
+          <script>
+            document.addEventListener('DOMContentLoaded', function() {
+              const participants = ${JSON.stringify(nameTags.map((t, i) => ({ id: t.participantId, index: i })))};
+              participants.forEach(function(p) {
+                const el = document.getElementById('qr-' + p.index);
+                if (el) {
+                  QRCode.toCanvas(el.appendChild(document.createElement('canvas')), p.id, {
+                    width: 40,
+                    margin: 0,
+                    color: { dark: '${template.textColor}', light: '${template.backgroundColor}' }
+                  });
+                }
+              });
+            });
+          </script>
+        ` : ''}
       </body>
       </html>
     `
@@ -511,6 +559,25 @@ export default function NameTagDesignerPage() {
                   <SelectItem value="large">Large</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Conference Header */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="showConferenceHeader"
+                  checked={template.showConferenceHeader}
+                  onCheckedChange={(checked) => updateTemplate('showConferenceHeader', checked)}
+                />
+                <Label htmlFor="showConferenceHeader" className="font-normal">Show Conference Header</Label>
+              </div>
+              {template.showConferenceHeader && (
+                <Input
+                  placeholder="Enter conference name (e.g., SALVE 2025)"
+                  value={template.conferenceHeaderText}
+                  onChange={(e) => updateTemplate('conferenceHeaderText', e.target.value)}
+                />
+              )}
             </div>
 
             {/* Display Options */}
@@ -639,10 +706,18 @@ export default function NameTagDesignerPage() {
                   minHeight: template.size === 'small' ? '108px' : template.size === 'large' ? '216px' : template.size === 'badge_4x6' ? '300px' : '162px',
                 }}
               >
-                <div
-                  className="border-b-2 pb-2 mb-2"
-                  style={{ borderColor: template.accentColor }}
-                >
+                {/* Conference Header */}
+                {template.showConferenceHeader && (
+                  <div
+                    className="text-center py-1 text-xs font-semibold text-white"
+                    style={{ backgroundColor: template.accentColor }}
+                  >
+                    {template.conferenceHeaderText || eventName || 'CONFERENCE'}
+                  </div>
+                )}
+
+                {/* Main Content - Name Centered */}
+                <div className="flex-1 flex flex-col items-center justify-center p-3 text-center">
                   {template.showName && (
                     <div
                       className="font-bold"
@@ -654,10 +729,18 @@ export default function NameTagDesignerPage() {
                     </div>
                   )}
                   {template.showGroup && (
-                    <div className="text-xs opacity-70">St. Mary&apos;s Parish</div>
+                    <div className="text-sm opacity-70 mt-1">St. Mary&apos;s Parish</div>
                   )}
                   {template.showDiocese && (
-                    <div className="text-xs opacity-70">Diocese of Sample</div>
+                    <div className="text-xs opacity-60">Diocese of Sample</div>
+                  )}
+                  {template.showParticipantType && (
+                    <span
+                      className="text-white text-xs px-2 py-0.5 rounded mt-2"
+                      style={{ backgroundColor: template.accentColor }}
+                    >
+                      Youth
+                    </span>
                   )}
                 </div>
 
@@ -806,41 +889,62 @@ export default function NameTagDesignerPage() {
             {previewData.map((tag, index) => (
               <div
                 key={index}
-                className="border-2 rounded-lg p-3 flex flex-col relative overflow-hidden"
+                className="border-2 rounded-lg flex flex-col relative overflow-hidden"
                 style={{
                   backgroundColor: template.backgroundColor,
                   color: template.textColor,
+                  minHeight: '140px',
                 }}
               >
-                <div
-                  className="border-b-2 pb-2 mb-2"
-                  style={{ borderColor: template.accentColor }}
-                >
+                {/* Conference Header */}
+                {template.showConferenceHeader && (
+                  <div
+                    className="text-center py-1 text-xs font-semibold text-white"
+                    style={{ backgroundColor: template.accentColor }}
+                  >
+                    {template.conferenceHeaderText || eventName || 'CONFERENCE'}
+                  </div>
+                )}
+
+                {/* Main Content - Name Centered */}
+                <div className="flex-1 flex flex-col items-center justify-center p-2 text-center">
                   {template.showName && (
-                    <div className="font-bold">{tag.firstName} {tag.lastName}</div>
+                    <div className="font-bold text-lg">{tag.firstName} {tag.lastName}</div>
                   )}
                   {template.showGroup && (
-                    <div className="text-xs opacity-70">{tag.groupName}</div>
+                    <div className="text-xs opacity-70 mt-1">{tag.groupName}</div>
                   )}
                   {template.showDiocese && tag.diocese && (
-                    <div className="text-xs opacity-70">{tag.diocese}</div>
+                    <div className="text-xs opacity-60">{tag.diocese}</div>
+                  )}
+                  {template.showParticipantType && (
+                    <span
+                      className="text-white text-xs px-2 py-0.5 rounded mt-2"
+                      style={{ backgroundColor: template.accentColor }}
+                    >
+                      {tag.isClergy ? 'Clergy' : tag.isChaperone ? 'Chaperone' : 'Youth'}
+                    </span>
                   )}
                 </div>
 
-                {template.showParticipantType && (
-                  <span
-                    className="self-start text-white text-xs px-2 py-0.5 rounded"
-                    style={{ backgroundColor: template.accentColor }}
-                  >
-                    {tag.isClergy ? 'Clergy' : tag.isChaperone ? 'Chaperone' : 'Youth'}
-                  </span>
-                )}
-
-                {template.showHousing && tag.housing && (
-                  <div className="mt-auto pt-2 border-t border-dashed text-xs opacity-70">
-                    <strong>Housing:</strong> {tag.housing.fullLocation}
-                  </div>
-                )}
+                {/* Bottom Section - Housing and QR Code */}
+                <div className="flex items-end justify-between p-2 pt-0">
+                  {template.showHousing && tag.housing ? (
+                    <div className="text-xs opacity-70 flex-1">
+                      <strong>Housing:</strong> {tag.housing.fullLocation}
+                    </div>
+                  ) : (
+                    <div className="flex-1" />
+                  )}
+                  {template.showQrCode && (
+                    <div
+                      className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center"
+                      style={{ border: `1px solid ${template.accentColor}` }}
+                    >
+                      <span className="text-[6px] text-gray-500">QR</span>
+                    </div>
+                  )}
+                </div>
 
                 {template.showMealColor && tag.mealColor && (
                   <div

@@ -591,27 +591,38 @@ export default function RaphaDedicatedPortal() {
                       {searchResults.map((p) => (
                         <div
                           key={p.id}
-                          className="p-3 hover:bg-gray-50 transition-colors"
+                          className="p-3 hover:bg-gray-50 transition-colors cursor-pointer"
+                          onClick={() => {
+                            setQuickSearch('')
+                            setSearchResults([])
+                            setSelectedSearchParticipant(`${p.firstName} ${p.lastName}`)
+                            setActiveTab('participants')
+                          }}
                         >
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">
-                              {p.firstName} {p.lastName}
-                            </span>
-                            {p.hasSevereAllergy && (
-                              <Badge className="bg-red-500 text-xs">SEVERE</Badge>
-                            )}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {p.groupName} &bull; Age {p.age}
-                          </div>
-                          {(p.allergies || p.medicalConditions) && (
-                            <div className="mt-1 text-xs text-amber-600">
-                              {p.allergies && <span>Allergies: {p.allergies}</span>}
-                              {p.medicalConditions && (
-                                <span className="ml-2">Conditions: {p.medicalConditions}</span>
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">
+                                  {p.firstName} {p.lastName}
+                                </span>
+                                {p.hasSevereAllergy && (
+                                  <Badge className="bg-red-500 text-xs">SEVERE</Badge>
+                                )}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {p.groupName} &bull; Age {p.age}
+                              </div>
+                              {(p.allergies || p.medicalConditions) && (
+                                <div className="mt-1 text-xs text-amber-600">
+                                  {p.allergies && <span>Allergies: {p.allergies}</span>}
+                                  {p.medicalConditions && (
+                                    <span className="ml-2">Conditions: {p.medicalConditions}</span>
+                                  )}
+                                </div>
                               )}
                             </div>
-                          )}
+                            <ChevronRight className="w-4 h-4 text-muted-foreground mt-1" />
+                          </div>
                         </div>
                       ))}
                     </div>
