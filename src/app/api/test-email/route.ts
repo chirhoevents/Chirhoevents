@@ -242,7 +242,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid email type. Valid types: basic, registration, access-code, parent, payment, org-welcome' }, { status: 400 })
     }
 
-    const data = await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: `ChiRho Events <${fromEmail}>`,
       reply_to: 'support@chirhoevents.com',
       to,
@@ -250,12 +250,20 @@ export async function POST(request: NextRequest) {
       html,
     })
 
+    if (error) {
+      console.error('[Test Email] Resend error:', error)
+      return NextResponse.json(
+        { error: error.message || 'Failed to send email' },
+        { status: 500 }
+      )
+    }
+
     console.log('[Test Email] Email sent successfully!')
-    console.log('[Test Email] Resend ID:', data.id)
+    console.log('[Test Email] Resend ID:', data?.id)
 
     return NextResponse.json({
       success: true,
-      messageId: data.id,
+      messageId: data?.id,
       message: `${type} email sent to ${to}`,
     })
   } catch (error) {
