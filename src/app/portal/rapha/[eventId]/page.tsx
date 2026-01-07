@@ -1,65 +1,35 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Activity,
-  Search,
   Users,
   Loader2,
   AlertCircle,
   AlertTriangle,
   Pill,
   Heart,
-  Phone,
   Utensils,
   Accessibility,
-  X,
-  Shield,
-  Eye,
   ArrowLeft,
   Stethoscope,
-  MapPin,
+  ClipboardList,
+  FileText,
+  LayoutDashboard,
 } from 'lucide-react'
 import { format } from 'date-fns'
+import { toast } from '@/lib/toast'
 
-interface Participant {
-  id: string
-  firstName: string
-  lastName: string
-  age: number | null
-  gender: string | null
-  groupName: string
-  roomAssignment: string | null
-  alertLevel: 'none' | 'low' | 'medium' | 'high'
-  medical: {
-    allergies: string | null
-    hasSevereAllergy: boolean
-    medicalConditions: string | null
-    medications: string | null
-    dietaryRestrictions: string | null
-    adaAccommodations: string | null
-  }
-  emergency: {
-    contact1Name: string | null
-    contact1Phone: string | null
-    contact1Relation: string | null
-    contact2Name: string | null
-    contact2Phone: string | null
-    contact2Relation: string | null
-  }
-}
+// Import the dashboard components
+import RaphaParticipants, { type RaphaParticipant } from '@/app/dashboard/admin/events/[eventId]/rapha/RaphaParticipants'
+import RaphaIncidents from '@/app/dashboard/admin/events/[eventId]/rapha/RaphaIncidents'
+import RaphaReports from '@/app/dashboard/admin/events/[eventId]/rapha/RaphaReports'
 
 interface RaphaStats {
   totalParticipants: number
@@ -71,37 +41,84 @@ interface RaphaStats {
   adaAccommodations: number
 }
 
+interface IncidentStats {
+  active: number
+  monitoring: number
+  resolved: number
+  total: number
+}
+
+interface PreSelectedParticipant {
+  id: string
+  participantId: string | null
+  firstName: string
+  lastName: string
+  groupName: string
+  allergies?: string | null
+  hasSevereAllergy?: boolean
+}
+
 export default function RaphaDedicatedPortal() {
   const params = useParams()
+  const router = useRouter()
   const eventId = params.eventId as string
 
   const [loading, setLoading] = useState(true)
+  const [authChecking, setAuthChecking] = useState(true)
+  const [isAuthorized, setIsAuthorized] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [eventName, setEventName] = useState('')
   const [eventDates, setEventDates] = useState('')
   const [stats, setStats] = useState<RaphaStats | null>(null)
-  const [participants, setParticipants] = useState<Participant[]>([])
-  const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState('all')
-  const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null)
-  const [showProfileModal, setShowProfileModal] = useState(false)
+  const [incidentStats, setIncidentStats] = useState<IncidentStats>({ active: 0, monitoring: 0, resolved: 0, total: 0 })
+  const [activeTab, setActiveTab] = useState('dashboard')
   const [error, setError] = useState('')
 
+  // For incident creation from participants
+  const [preSelectedParticipant, setPreSelectedParticipant] = useState<PreSelectedParticipant | null>(null)
+  const [openNewIncidentModal, setOpenNewIncidentModal] = useState(false)
+
   useEffect(() => {
-    fetchData()
+    checkAuthAndFetchData()
   }, [eventId])
 
-  useEffect(() => {
-    if (eventId) {
-      fetchParticipants()
-    }
-  }, [eventId, filter])
+  async function checkAuthAndFetchData() {
+    try {
+      setAuthChecking(true)
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchParticipants()
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [search])
+      // Check authorization - user must be admin, rapha_user, or rapha_coordinator
+      const authResponse = await fetch('/api/admin/check-access')
+      if (authResponse.ok) {
+        const authData = await authResponse.json()
+        setIsAdmin(true)
+        setIsAuthorized(true)
+      } else {
+        // Check if they have rapha-specific role
+        const raphaAuthResponse = await fetch(`/api/portal/rapha/check-access?eventId=${eventId}`)
+        if (raphaAuthResponse.ok) {
+          const raphaData = await raphaAuthResponse.json()
+          setIsAuthorized(true)
+          setIsAdmin(raphaData.isAdmin || false)
+        } else {
+          setIsAuthorized(false)
+          setError('You do not have permission to access this portal')
+          setLoading(false)
+          setAuthChecking(false)
+          return
+        }
+      }
+
+      setAuthChecking(false)
+
+      // Fetch event data and stats
+      await fetchData()
+    } catch (err) {
+      console.error('Auth check failed:', err)
+      setError('Failed to verify access')
+      setAuthChecking(false)
+      setLoading(false)
+    }
+  }
 
   async function fetchData() {
     try {
@@ -113,6 +130,9 @@ export default function RaphaDedicatedPortal() {
           `${format(new Date(data.event.startDate), 'MMM d')} - ${format(new Date(data.event.endDate), 'MMM d, yyyy')}`
         )
         setStats(data.stats)
+        if (data.incidentStats) {
+          setIncidentStats(data.incidentStats)
+        }
       } else {
         setError('Failed to load event data')
       }
@@ -123,56 +143,61 @@ export default function RaphaDedicatedPortal() {
     }
   }
 
-  async function fetchParticipants() {
+  async function fetchIncidentStats() {
     try {
-      const params = new URLSearchParams({
-        filter,
-        sortBy: 'name',
-        ...(search && { search }),
-      })
-      const response = await fetch(`/api/admin/events/${eventId}/rapha/participants?${params}`)
+      const response = await fetch(`/api/admin/events/${eventId}/rapha/incidents`)
       if (response.ok) {
         const data = await response.json()
-        setParticipants(data.participants || [])
+        setIncidentStats(data.stats || { active: 0, monitoring: 0, resolved: 0, total: 0 })
       }
     } catch (err) {
-      console.error('Failed to fetch participants:', err)
+      console.error('Failed to fetch incident stats:', err)
     }
   }
 
-  function getAlertBadge(alertLevel: string) {
-    switch (alertLevel) {
-      case 'high':
-        return <Badge className="bg-red-500">SEVERE</Badge>
-      case 'medium':
-        return <Badge className="bg-amber-500">ALERT</Badge>
-      case 'low':
-        return <Badge className="bg-blue-500">INFO</Badge>
-      default:
-        return <Badge variant="outline">OK</Badge>
-    }
+  function handleCreateIncident(participant: RaphaParticipant) {
+    setPreSelectedParticipant({
+      id: participant.id,
+      participantId: participant.participantId,
+      firstName: participant.firstName,
+      lastName: participant.lastName,
+      groupName: participant.groupName,
+      allergies: participant.medical.allergies,
+      hasSevereAllergy: participant.medical.hasSevereAllergy,
+    })
+    setOpenNewIncidentModal(true)
+    setActiveTab('incidents')
   }
 
-  if (loading) {
+  function handleIncidentModalClose() {
+    setPreSelectedParticipant(null)
+    setOpenNewIncidentModal(false)
+  }
+
+  if (loading || authChecking) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-red-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading Rapha Medical Portal...</p>
+          <p className="text-gray-600">
+            {authChecking ? 'Verifying access...' : 'Loading Rapha Medical Portal...'}
+          </p>
         </div>
       </div>
     )
   }
 
-  if (error) {
+  if (!isAuthorized || error) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Card className="max-w-md">
           <CardContent className="pt-6 text-center">
             <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold mb-2">Error Loading Portal</h2>
-            <p className="text-gray-600 mb-4">{error}</p>
-            <Link href="/dashboard/admin/rapha">
+            <h2 className="text-xl font-bold mb-2">Access Denied</h2>
+            <p className="text-gray-600 mb-4">
+              {error || 'You do not have permission to access the Rapha Medical Portal.'}
+            </p>
+            <Link href="/dashboard/admin">
               <Button>Return to Dashboard</Button>
             </Link>
           </CardContent>
@@ -195,13 +220,15 @@ export default function RaphaDedicatedPortal() {
               <p className="text-sm text-white/80">{eventName} - {eventDates}</p>
             </div>
           </div>
-          <Link
-            href="/dashboard/admin/rapha"
-            className="flex items-center gap-2 text-sm text-white/80 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Exit Portal
-          </Link>
+          {isAdmin && (
+            <Link
+              href="/dashboard/admin/rapha"
+              className="flex items-center gap-2 text-sm text-white/80 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Dashboard
+            </Link>
+          )}
         </div>
       </header>
 
@@ -215,8 +242,8 @@ export default function RaphaDedicatedPortal() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto p-6">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
+        {/* Stats Cards - Always visible */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-6">
           <Card>
             <CardContent className="pt-4 text-center">
               <Users className="w-6 h-6 text-gray-500 mx-auto mb-1" />
@@ -266,296 +293,196 @@ export default function RaphaDedicatedPortal() {
               <p className="text-xs text-indigo-600">ADA</p>
             </CardContent>
           </Card>
+          <Card className={`${incidentStats.active > 0 ? 'border-red-300 bg-red-100' : 'border-gray-200'}`}>
+            <CardContent className="pt-4 text-center">
+              <Activity className="w-6 h-6 text-red-500 mx-auto mb-1" />
+              <p className={`text-2xl font-bold ${incidentStats.active > 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                {incidentStats.active}
+              </p>
+              <p className={`text-xs ${incidentStats.active > 0 ? 'text-red-600' : 'text-gray-500'}`}>Active</p>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Search & Filter */}
-        <Card className="mb-6">
-          <CardContent className="pt-4">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <Input
-                  placeholder="Search by name, condition, allergy..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-12 h-12 text-lg"
-                />
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { key: 'all', label: 'All', color: 'bg-gray-100' },
-                  { key: 'severe', label: 'Severe', color: 'bg-red-100 text-red-700' },
-                  { key: 'allergies', label: 'Allergies', color: 'bg-amber-100 text-amber-700' },
-                  { key: 'medications', label: 'Meds', color: 'bg-blue-100 text-blue-700' },
-                  { key: 'conditions', label: 'Conditions', color: 'bg-purple-100 text-purple-700' },
-                ].map((f) => (
+        {/* Tabs for different sections */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4 h-14">
+            <TabsTrigger value="dashboard" className="text-lg">
+              <LayoutDashboard className="w-5 h-5 mr-2" />
+              Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="participants" className="text-lg">
+              <Users className="w-5 h-5 mr-2" />
+              Participants
+            </TabsTrigger>
+            <TabsTrigger value="incidents" className="text-lg relative">
+              <ClipboardList className="w-5 h-5 mr-2" />
+              Incidents
+              {incidentStats.active > 0 && (
+                <Badge className="absolute -top-1 -right-1 bg-red-500 text-white text-xs h-5 w-5 flex items-center justify-center p-0">
+                  {incidentStats.active}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="reports" className="text-lg">
+              <FileText className="w-5 h-5 mr-2" />
+              Reports
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Dashboard Tab */}
+          <TabsContent value="dashboard" className="space-y-6">
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Quick Actions */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-red-600" />
+                    Quick Actions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
                   <Button
-                    key={f.key}
-                    variant={filter === f.key ? 'default' : 'outline'}
-                    size="lg"
-                    onClick={() => setFilter(f.key)}
-                    className={filter === f.key ? 'bg-red-600 hover:bg-red-700' : ''}
+                    className="w-full h-12 bg-red-600 hover:bg-red-700 text-lg"
+                    onClick={() => {
+                      setPreSelectedParticipant(null)
+                      setOpenNewIncidentModal(true)
+                      setActiveTab('incidents')
+                    }}
                   >
-                    {f.label}
+                    <ClipboardList className="w-5 h-5 mr-2" />
+                    Log New Incident
                   </Button>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                  <Button
+                    variant="outline"
+                    className="w-full h-12 text-lg"
+                    onClick={() => setActiveTab('participants')}
+                  >
+                    <Users className="w-5 h-5 mr-2" />
+                    Search Participants
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full h-12 text-lg"
+                    onClick={() => setActiveTab('reports')}
+                  >
+                    <FileText className="w-5 h-5 mr-2" />
+                    Generate Reports
+                  </Button>
+                </CardContent>
+              </Card>
 
-        {/* Participants Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="w-5 h-5 text-red-600" />
-              Participant Medical Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="text-left p-4 font-semibold">Name</th>
-                    <th className="text-left p-4 font-semibold">Age</th>
-                    <th className="text-left p-4 font-semibold">Group / Room</th>
-                    <th className="text-left p-4 font-semibold">Alert</th>
-                    <th className="text-left p-4 font-semibold">Allergies</th>
-                    <th className="text-left p-4 font-semibold">Conditions</th>
-                    <th className="text-left p-4 font-semibold">Medications</th>
-                    <th className="text-left p-4 font-semibold">Emergency Contact</th>
-                    <th className="text-left p-4 font-semibold">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {participants.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="text-center py-12 text-gray-500">
-                        No participants found matching your criteria
-                      </td>
-                    </tr>
-                  ) : (
-                    participants.map((p) => (
-                      <tr key={p.id} className="hover:bg-gray-50">
-                        <td className="p-4">
-                          <div className="font-medium">{p.firstName} {p.lastName}</div>
-                        </td>
-                        <td className="p-4">{p.age || '-'}</td>
-                        <td className="p-4">
-                          <div>{p.groupName}</div>
-                          {p.roomAssignment && (
-                            <div className="text-xs text-gray-500 flex items-center gap-1">
-                              <MapPin className="w-3 h-3" />
-                              {p.roomAssignment}
-                            </div>
-                          )}
-                        </td>
-                        <td className="p-4">{getAlertBadge(p.alertLevel)}</td>
-                        <td className="p-4">
-                          {p.medical.allergies ? (
-                            <div className="max-w-[180px]">
-                              {p.medical.hasSevereAllergy && (
-                                <AlertTriangle className="w-4 h-4 text-red-500 inline mr-1" />
-                              )}
-                              <span className={p.medical.hasSevereAllergy ? 'text-red-600 font-bold' : 'text-amber-600'}>
-                                {p.medical.allergies}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-gray-400">None</span>
-                          )}
-                        </td>
-                        <td className="p-4">
-                          {p.medical.medicalConditions ? (
-                            <span className="text-purple-600">{p.medical.medicalConditions}</span>
-                          ) : (
-                            <span className="text-gray-400">None</span>
-                          )}
-                        </td>
-                        <td className="p-4">
-                          {p.medical.medications ? (
-                            <span className="text-blue-600">{p.medical.medications}</span>
-                          ) : (
-                            <span className="text-gray-400">None</span>
-                          )}
-                        </td>
-                        <td className="p-4 text-sm">
-                          {p.emergency.contact1Name && (
-                            <div>
-                              <div className="font-medium">{p.emergency.contact1Name}</div>
-                              <a
-                                href={`tel:${p.emergency.contact1Phone}`}
-                                className="text-red-600 hover:underline flex items-center gap-1"
-                              >
-                                <Phone className="w-3 h-3" />
-                                {p.emergency.contact1Phone}
-                              </a>
-                            </div>
-                          )}
-                        </td>
-                        <td className="p-4">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedParticipant(p)
-                              setShowProfileModal(true)
-                            }}
-                          >
-                            <Eye className="w-4 h-4 mr-1" />
-                            Details
-                          </Button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      </main>
-
-      {/* Profile Modal */}
-      <Dialog open={showProfileModal} onOpenChange={setShowProfileModal}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          {selectedParticipant && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-3 text-xl">
-                  {selectedParticipant.firstName} {selectedParticipant.lastName}
-                  {getAlertBadge(selectedParticipant.alertLevel)}
-                </DialogTitle>
-              </DialogHeader>
-
-              <div className="space-y-6 py-4">
-                {/* Basic Info */}
-                <div className="grid grid-cols-4 gap-4 text-sm">
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-gray-500 text-xs">Age</p>
-                    <p className="font-medium text-lg">{selectedParticipant.age || '-'}</p>
-                  </div>
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-gray-500 text-xs">Gender</p>
-                    <p className="font-medium text-lg capitalize">{selectedParticipant.gender || '-'}</p>
-                  </div>
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-gray-500 text-xs">Group</p>
-                    <p className="font-medium">{selectedParticipant.groupName}</p>
-                  </div>
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-gray-500 text-xs">Room</p>
-                    <p className="font-medium">{selectedParticipant.roomAssignment || '-'}</p>
-                  </div>
-                </div>
-
-                {/* Critical Alert */}
-                {selectedParticipant.medical.hasSevereAllergy && (
-                  <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
-                    <div className="flex items-center gap-2 text-red-700 font-bold mb-2">
-                      <AlertTriangle className="w-5 h-5" />
-                      CRITICAL - SEVERE ALLERGY
+              {/* Incident Summary */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ClipboardList className="w-5 h-5 text-red-600" />
+                    Incident Summary
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div
+                      className="p-4 bg-red-50 rounded-lg text-center cursor-pointer hover:bg-red-100 transition-colors"
+                      onClick={() => setActiveTab('incidents')}
+                    >
+                      <p className="text-3xl font-bold text-red-600">{incidentStats.active}</p>
+                      <p className="text-sm text-red-700">Active</p>
                     </div>
-                    <p className="text-red-600 font-medium">{selectedParticipant.medical.allergies}</p>
+                    <div
+                      className="p-4 bg-amber-50 rounded-lg text-center cursor-pointer hover:bg-amber-100 transition-colors"
+                      onClick={() => setActiveTab('incidents')}
+                    >
+                      <p className="text-3xl font-bold text-amber-600">{incidentStats.monitoring}</p>
+                      <p className="text-sm text-amber-700">Monitoring</p>
+                    </div>
+                    <div
+                      className="p-4 bg-green-50 rounded-lg text-center cursor-pointer hover:bg-green-100 transition-colors"
+                      onClick={() => setActiveTab('incidents')}
+                    >
+                      <p className="text-3xl font-bold text-green-600">{incidentStats.resolved}</p>
+                      <p className="text-sm text-green-700">Resolved</p>
+                    </div>
                   </div>
-                )}
+                  <p className="text-center text-sm text-gray-500 mt-4">
+                    Total incidents this event: {incidentStats.total}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
 
-                {/* Allergies */}
-                {selectedParticipant.medical.allergies && !selectedParticipant.medical.hasSevereAllergy && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                    <h4 className="font-medium flex items-center gap-2 mb-2 text-amber-800">
-                      <AlertCircle className="w-4 h-4" />
-                      Allergies
-                    </h4>
-                    <p className="text-amber-700">{selectedParticipant.medical.allergies}</p>
-                  </div>
-                )}
+            {/* Critical Alerts */}
+            {(stats?.severeAllergies || 0) > 0 && (
+              <Card className="border-red-200 bg-red-50">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-red-700">
+                    <AlertTriangle className="w-5 h-5" />
+                    Critical Alerts
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-red-700">
+                    <strong>{stats?.severeAllergies}</strong> participants have severe allergies requiring
+                    immediate attention. Please review the participants list for detailed allergy information.
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="mt-4 border-red-300 text-red-700 hover:bg-red-100"
+                    onClick={() => setActiveTab('participants')}
+                  >
+                    View Severe Allergies
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
 
-                {/* Medical Conditions */}
-                {selectedParticipant.medical.medicalConditions && (
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                    <h4 className="font-medium flex items-center gap-2 mb-2 text-purple-800">
-                      <Heart className="w-4 h-4" />
-                      Medical Conditions
-                    </h4>
-                    <p className="text-purple-700">{selectedParticipant.medical.medicalConditions}</p>
-                  </div>
-                )}
-
-                {/* Medications */}
-                {selectedParticipant.medical.medications && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 className="font-medium flex items-center gap-2 mb-2 text-blue-800">
-                      <Pill className="w-4 h-4" />
-                      Medications
-                    </h4>
-                    <p className="text-blue-700">{selectedParticipant.medical.medications}</p>
-                  </div>
-                )}
-
-                {/* Dietary Restrictions */}
-                {selectedParticipant.medical.dietaryRestrictions && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <h4 className="font-medium flex items-center gap-2 mb-2 text-green-800">
-                      <Utensils className="w-4 h-4" />
-                      Dietary Restrictions
-                    </h4>
-                    <p className="text-green-700">{selectedParticipant.medical.dietaryRestrictions}</p>
-                  </div>
-                )}
-
-                {/* ADA Accommodations */}
-                {selectedParticipant.medical.adaAccommodations && (
-                  <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-                    <h4 className="font-medium flex items-center gap-2 mb-2 text-indigo-800">
-                      <Accessibility className="w-4 h-4" />
-                      ADA Accommodations
-                    </h4>
-                    <p className="text-indigo-700">{selectedParticipant.medical.adaAccommodations}</p>
-                  </div>
-                )}
-
-                {/* Emergency Contacts */}
-                <div>
-                  <h4 className="font-medium flex items-center gap-2 mb-3 text-gray-800">
-                    <Phone className="w-4 h-4 text-red-600" />
-                    Emergency Contacts
-                  </h4>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    {selectedParticipant.emergency.contact1Name && (
-                      <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
-                        <p className="font-medium text-lg">{selectedParticipant.emergency.contact1Name}</p>
-                        <p className="text-gray-500 text-sm">{selectedParticipant.emergency.contact1Relation}</p>
-                        <a
-                          href={`tel:${selectedParticipant.emergency.contact1Phone}`}
-                          className="text-red-600 font-medium flex items-center gap-1 mt-2 text-lg"
-                        >
-                          <Phone className="w-4 h-4" />
-                          {selectedParticipant.emergency.contact1Phone}
-                        </a>
-                      </div>
-                    )}
-                    {selectedParticipant.emergency.contact2Name && (
-                      <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
-                        <p className="font-medium text-lg">{selectedParticipant.emergency.contact2Name}</p>
-                        <p className="text-gray-500 text-sm">{selectedParticipant.emergency.contact2Relation}</p>
-                        <a
-                          href={`tel:${selectedParticipant.emergency.contact2Phone}`}
-                          className="text-red-600 font-medium flex items-center gap-1 mt-2 text-lg"
-                        >
-                          <Phone className="w-4 h-4" />
-                          {selectedParticipant.emergency.contact2Phone}
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                </div>
+          {/* Participants Tab */}
+          <TabsContent value="participants">
+            <Suspense fallback={
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-red-600" />
               </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+            }>
+              <RaphaParticipants
+                eventId={eventId}
+                onCreateIncident={handleCreateIncident}
+              />
+            </Suspense>
+          </TabsContent>
+
+          {/* Incidents Tab */}
+          <TabsContent value="incidents">
+            <Suspense fallback={
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-red-600" />
+              </div>
+            }>
+              <RaphaIncidents
+                eventId={eventId}
+                onStatsChange={fetchIncidentStats}
+                preSelectedParticipant={preSelectedParticipant}
+                openNewIncidentModal={openNewIncidentModal}
+                onModalClose={handleIncidentModalClose}
+              />
+            </Suspense>
+          </TabsContent>
+
+          {/* Reports Tab */}
+          <TabsContent value="reports">
+            <Suspense fallback={
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-red-600" />
+              </div>
+            }>
+              <RaphaReports
+                eventId={eventId}
+                eventName={eventName}
+              />
+            </Suspense>
+          </TabsContent>
+        </Tabs>
+      </main>
     </div>
   )
 }

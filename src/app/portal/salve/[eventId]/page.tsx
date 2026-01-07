@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -87,6 +87,7 @@ type CheckInStatus = 'idle' | 'scanning' | 'loading' | 'found' | 'not_found' | '
 
 export default function SalveDedicatedPortal() {
   const params = useParams()
+  const router = useRouter()
   const eventId = params.eventId as string
 
   const [status, setStatus] = useState<CheckInStatus>('idle')
@@ -98,6 +99,9 @@ export default function SalveDedicatedPortal() {
   const [eventName, setEventName] = useState('')
   const [stats, setStats] = useState({ totalExpected: 0, checkedIn: 0, issues: 0 })
   const [loading, setLoading] = useState(true)
+  const [authChecking, setAuthChecking] = useState(true)
+  const [isAuthorized, setIsAuthorized] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [error, setError] = useState('')
 
   // Success modal
@@ -106,9 +110,46 @@ export default function SalveDedicatedPortal() {
   const [notCheckedInParticipants, setNotCheckedInParticipants] = useState<ParticipantData[]>([])
 
   useEffect(() => {
-    fetchEventInfo()
-    fetchStats()
+    checkAuthAndFetchData()
   }, [eventId])
+
+  async function checkAuthAndFetchData() {
+    try {
+      setAuthChecking(true)
+
+      // Check authorization - user must be admin, salve_user, or salve_coordinator
+      const authResponse = await fetch('/api/admin/check-access')
+      if (authResponse.ok) {
+        setIsAdmin(true)
+        setIsAuthorized(true)
+      } else {
+        // Check if they have salve-specific role
+        const salveAuthResponse = await fetch(`/api/portal/salve/check-access?eventId=${eventId}`)
+        if (salveAuthResponse.ok) {
+          const salveData = await salveAuthResponse.json()
+          setIsAuthorized(true)
+          setIsAdmin(salveData.isAdmin || false)
+        } else {
+          setIsAuthorized(false)
+          setError('You do not have permission to access this portal')
+          setLoading(false)
+          setAuthChecking(false)
+          return
+        }
+      }
+
+      setAuthChecking(false)
+
+      // Fetch event data
+      await fetchEventInfo()
+      await fetchStats()
+    } catch (err) {
+      console.error('Auth check failed:', err)
+      setError('Failed to verify access')
+      setAuthChecking(false)
+      setLoading(false)
+    }
+  }
 
   async function fetchEventInfo() {
     try {
@@ -333,26 +374,30 @@ export default function SalveDedicatedPortal() {
   const notCheckedInCount = totalExpected - checkedIn
   const progressPercentage = totalExpected > 0 ? Math.round((checkedIn / totalExpected) * 100) : 0
 
-  if (loading) {
+  if (loading || authChecking) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-emerald-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading SALVE Check-In Portal...</p>
+          <p className="text-gray-600">
+            {authChecking ? 'Verifying access...' : 'Loading SALVE Check-In Portal...'}
+          </p>
         </div>
       </div>
     )
   }
 
-  if (error) {
+  if (!isAuthorized || error) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Card className="max-w-md">
           <CardContent className="pt-6 text-center">
             <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold mb-2">Error Loading Portal</h2>
-            <p className="text-gray-600 mb-4">{error}</p>
-            <Link href="/dashboard/admin/salve">
+            <h2 className="text-xl font-bold mb-2">Access Denied</h2>
+            <p className="text-gray-600 mb-4">
+              {error || 'You do not have permission to access the SALVE Check-In Portal.'}
+            </p>
+            <Link href="/dashboard/admin">
               <Button>Return to Dashboard</Button>
             </Link>
           </CardContent>
@@ -375,13 +420,15 @@ export default function SalveDedicatedPortal() {
               <p className="text-sm text-white/80">{eventName}</p>
             </div>
           </div>
-          <Link
-            href="/dashboard/admin/salve"
-            className="flex items-center gap-2 text-sm text-white/80 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Exit Portal
-          </Link>
+          {isAdmin && (
+            <Link
+              href="/dashboard/admin/salve"
+              className="flex items-center gap-2 text-sm text-white/80 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Dashboard
+            </Link>
+          )}
         </div>
       </header>
 

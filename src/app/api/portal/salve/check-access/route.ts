@@ -1,0 +1,73 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
+import { prisma } from '@/lib/prisma'
+
+export async function GET(request: NextRequest) {
+  try {
+    const user = await getCurrentUser()
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Please sign in' },
+        { status: 401 }
+      )
+    }
+
+    const { searchParams } = new URL(request.url)
+    const eventId = searchParams.get('eventId')
+
+    // Check if user is an admin - they have full access
+    if (isAdmin(user)) {
+      return NextResponse.json({
+        authorized: true,
+        isAdmin: true,
+        role: user.role,
+        organizationId: user.organizationId,
+      })
+    }
+
+    // Check if user has portal-specific roles (salve_user, salve_coordinator)
+    // These roles would be stored in the user's permissions or a separate portal access table
+    const portalRoles = ['salve_user', 'salve_coordinator']
+    const hasPortalRole = user.permissions?.some((p: string) => portalRoles.includes(p))
+
+    if (hasPortalRole) {
+      // If eventId is provided, verify user has access to that specific event
+      if (eventId) {
+        // Check if the event belongs to the user's organization
+        const event = await prisma.event.findFirst({
+          where: {
+            id: eventId,
+            organizationId: user.organizationId,
+          },
+        })
+
+        if (!event) {
+          return NextResponse.json(
+            { error: 'You do not have access to this event' },
+            { status: 403 }
+          )
+        }
+      }
+
+      return NextResponse.json({
+        authorized: true,
+        isAdmin: false,
+        role: hasPortalRole ? 'salve_user' : user.role,
+        organizationId: user.organizationId,
+      })
+    }
+
+    // User has no admin access and no portal-specific roles
+    return NextResponse.json(
+      { error: 'You do not have permission to access the SALVE Check-In Portal' },
+      { status: 403 }
+    )
+  } catch (error) {
+    console.error('Error checking SALVE portal access:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
