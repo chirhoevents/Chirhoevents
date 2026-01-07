@@ -25,6 +25,7 @@ import {
   Loader2,
   Plus,
   Receipt,
+  UserCog,
 } from 'lucide-react'
 
 interface Organization {
@@ -176,6 +177,15 @@ export default function OrganizationDetailPage() {
     }
   }
   const [creatingInvoice, setCreatingInvoice] = useState(false)
+  const [showChangeAdminModal, setShowChangeAdminModal] = useState(false)
+  const [changeAdminForm, setChangeAdminForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    sendOnboardingEmail: true,
+  })
+  const [changingAdmin, setChangingAdmin] = useState(false)
 
   useEffect(() => {
     const fetchOrganization = async () => {
@@ -332,6 +342,56 @@ export default function OrganizationDetailPage() {
       alert(error instanceof Error ? error.message : 'Failed to resend onboarding email')
     } finally {
       setActionLoading(null)
+    }
+  }
+
+  const handleChangeAdmin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!changeAdminForm.firstName || !changeAdminForm.lastName || !changeAdminForm.email) return
+
+    setChangingAdmin(true)
+    try {
+      const response = await fetch(`/api/master-admin/organizations/${params.orgId}/change-admin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(changeAdminForm),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to change organization admin')
+      }
+
+      // Update local state
+      setOrganization(prev => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          contactName: `${changeAdminForm.firstName} ${changeAdminForm.lastName}`,
+          contactEmail: changeAdminForm.email,
+          contactPhone: changeAdminForm.phone || prev.contactPhone,
+          users: [{
+            id: data.admin.id,
+            firstName: data.admin.firstName,
+            lastName: data.admin.lastName,
+            email: data.admin.email,
+            phone: changeAdminForm.phone || '',
+            clerkUserId: data.admin.isOnboarded ? 'linked' : null,
+          }],
+        }
+      })
+
+      setShowChangeAdminModal(false)
+      setChangeAdminForm({ firstName: '', lastName: '', email: '', phone: '', sendOnboardingEmail: true })
+
+      const emailMsg = data.emailSent ? ' Onboarding email sent.' : ''
+      alert(`Organization admin changed to ${data.admin.firstName} ${data.admin.lastName}.${emailMsg}`)
+    } catch (error: unknown) {
+      console.error('Failed to change admin:', error)
+      alert(error instanceof Error ? error.message : 'Failed to change organization admin')
+    } finally {
+      setChangingAdmin(false)
     }
   }
 
@@ -783,6 +843,13 @@ export default function OrganizationDetailPage() {
                 Resend Onboarding Email
               </button>
               <button
+                onClick={() => setShowChangeAdminModal(true)}
+                className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+              >
+                <UserCog className="h-4 w-4 text-gray-400" />
+                Change Org Admin
+              </button>
+              <button
                 onClick={() => setShowInvoiceModal(true)}
                 className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
               >
@@ -915,6 +982,130 @@ export default function OrganizationDetailPage() {
                 >
                   <Receipt className="h-4 w-4" />
                   {creatingInvoice ? 'Creating...' : 'Create Invoice'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Change Admin Modal */}
+      {showChangeAdminModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">Change Organization Admin</h2>
+              <button
+                onClick={() => setShowChangeAdminModal(false)}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
+
+            <form onSubmit={handleChangeAdmin} className="p-4 space-y-4">
+              {orgAdmin && (
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-600">Current Admin:</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {orgAdmin.firstName} {orgAdmin.lastName} ({orgAdmin.email})
+                  </p>
+                  {orgAdmin.clerkUserId && (
+                    <p className="text-xs text-green-600 mt-1">Account active</p>
+                  )}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    First Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={changeAdminForm.firstName}
+                    onChange={(e) => setChangeAdminForm({ ...changeAdminForm, firstName: e.target.value })}
+                    placeholder="First name"
+                    required
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Last Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={changeAdminForm.lastName}
+                    onChange={(e) => setChangeAdminForm({ ...changeAdminForm, lastName: e.target.value })}
+                    placeholder="Last name"
+                    required
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email Address *
+                </label>
+                <input
+                  type="email"
+                  value={changeAdminForm.email}
+                  onChange={(e) => setChangeAdminForm({ ...changeAdminForm, email: e.target.value })}
+                  placeholder="admin@organization.com"
+                  required
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  value={changeAdminForm.phone}
+                  onChange={(e) => setChangeAdminForm({ ...changeAdminForm, phone: e.target.value })}
+                  placeholder="(555) 123-4567"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="sendOnboardingEmail"
+                  checked={changeAdminForm.sendOnboardingEmail}
+                  onChange={(e) => setChangeAdminForm({ ...changeAdminForm, sendOnboardingEmail: e.target.checked })}
+                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                />
+                <label htmlFor="sendOnboardingEmail" className="text-sm text-gray-700">
+                  Send onboarding email to new admin
+                </label>
+              </div>
+
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  <strong>Note:</strong> The current admin will be demoted to staff role. This action cannot be undone automatically.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setShowChangeAdminModal(false)}
+                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={changingAdmin || !changeAdminForm.firstName || !changeAdminForm.lastName || !changeAdminForm.email}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <UserCog className="h-4 w-4" />
+                  {changingAdmin ? 'Changing...' : 'Change Admin'}
                 </button>
               </div>
             </form>

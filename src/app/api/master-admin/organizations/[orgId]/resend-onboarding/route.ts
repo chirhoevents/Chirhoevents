@@ -45,7 +45,7 @@ export async function POST(
     }
 
     // Find the Org Admin user for this organization
-    const orgAdmin = await prisma.user.findFirst({
+    let orgAdmin = await prisma.user.findFirst({
       where: {
         organizationId: organization.id,
         role: 'org_admin',
@@ -55,11 +55,50 @@ export async function POST(
       },
     })
 
+    // If no org admin exists, create one from the organization's contact info
     if (!orgAdmin) {
-      return NextResponse.json(
-        { error: 'No organization admin found for this organization' },
-        { status: 404 }
-      )
+      if (!organization.contactEmail) {
+        return NextResponse.json(
+          { error: 'No organization admin found and no contact email on organization' },
+          { status: 404 }
+        )
+      }
+
+      // Parse contact name (format is usually "FirstName LastName")
+      const nameParts = (organization.contactName || '').split(' ')
+      const firstName = nameParts[0] || 'Organization'
+      const lastName = nameParts.slice(1).join(' ') || 'Admin'
+
+      // Check if a user with this email already exists
+      const existingUser = await prisma.user.findFirst({
+        where: { email: organization.contactEmail },
+      })
+
+      if (existingUser) {
+        // Update existing user to be org admin for this organization
+        orgAdmin = await prisma.user.update({
+          where: { id: existingUser.id },
+          data: {
+            organizationId: organization.id,
+            role: existingUser.role === 'master_admin' ? 'master_admin' : 'org_admin',
+          },
+        })
+        console.log(`Updated existing user ${organization.contactEmail} to be org admin for ${organization.id}`)
+      } else {
+        // Create new org admin user
+        orgAdmin = await prisma.user.create({
+          data: {
+            firstName,
+            lastName,
+            email: organization.contactEmail,
+            phone: organization.contactPhone,
+            role: 'org_admin',
+            organizationId: organization.id,
+            createdBy: currentUser.id,
+          },
+        })
+        console.log(`Created org admin user for ${organization.name}: ${organization.contactEmail}`)
+      }
     }
 
     // Generate invite link
