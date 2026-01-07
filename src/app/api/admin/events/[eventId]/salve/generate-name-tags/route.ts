@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { generateParticipantQRCode } from '@/lib/qr-code'
 
 export async function POST(
   request: NextRequest,
@@ -157,41 +158,61 @@ export async function POST(
       return colors[color.toLowerCase()] || '#6b7280'
     }
 
-    // Generate name tag data for each participant
-    const nameTags = participants.map((p: any) => {
-      const assignment = assignmentMap.get(p.id)
-      const bedLetter = assignment?.bedNumber
-        ? String.fromCharCode(64 + assignment.bedNumber)
-        : null
-      const mealColor = mealColorMap.get(p.groupRegistrationId)
+    // Generate name tag data for each participant (including QR codes)
+    const nameTags = await Promise.all(
+      participants.map(async (p: any) => {
+        const assignment = assignmentMap.get(p.id)
+        const bedLetter = assignment?.bedNumber
+          ? String.fromCharCode(64 + assignment.bedNumber)
+          : null
+        const mealColor = mealColorMap.get(p.groupRegistrationId)
 
-      return {
-        participantId: p.id,
-        firstName: p.firstName,
-        lastName: p.lastName,
-        fullName: `${p.firstName} ${p.lastName}`,
-        groupName: p.groupRegistration.groupName,
-        diocese: p.groupRegistration.dioceseName,
-        participantType: p.participantType,
-        isChaperone: p.participantType === 'chaperone',
-        isClergy: p.participantType === 'priest',
-        housing: assignment
-          ? {
-              building: assignment.buildingName,
-              room: assignment.roomNumber,
-              bed: bedLetter,
-              fullLocation: `${assignment.buildingName} ${assignment.roomNumber}${bedLetter ? ` - Bed ${bedLetter}` : ''}`,
-            }
-          : null,
-        mealColor: mealColor
-          ? {
-              name: mealColor,
-              hex: getMealColorHex(mealColor),
-            }
-          : null,
-        template: templateConfig,
-      }
-    })
+        // Get QR code - use stored one if available, otherwise generate on-the-fly
+        let qrCode = p.qrCode
+        if (!qrCode) {
+          try {
+            qrCode = await generateParticipantQRCode(p.id)
+            // Optionally save it for future use (don't await to keep response fast)
+            prisma.participant.update({
+              where: { id: p.id },
+              data: { qrCode },
+            }).catch(() => {
+              // Silently fail - QR code will be regenerated next time
+            })
+          } catch (err) {
+            console.error(`Failed to generate QR code for participant ${p.id}:`, err)
+          }
+        }
+
+        return {
+          participantId: p.id,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          fullName: `${p.firstName} ${p.lastName}`,
+          groupName: p.groupRegistration.groupName,
+          diocese: p.groupRegistration.dioceseName,
+          participantType: p.participantType,
+          isChaperone: p.participantType === 'chaperone',
+          isClergy: p.participantType === 'priest',
+          housing: assignment
+            ? {
+                building: assignment.buildingName,
+                room: assignment.roomNumber,
+                bed: bedLetter,
+                fullLocation: `${assignment.buildingName} ${assignment.roomNumber}${bedLetter ? ` - Bed ${bedLetter}` : ''}`,
+              }
+            : null,
+          mealColor: mealColor
+            ? {
+                name: mealColor,
+                hex: getMealColorHex(mealColor),
+              }
+            : null,
+          qrCode: qrCode || null,
+          template: templateConfig,
+        }
+      })
+    )
 
     // Get event details for header
     const event = await prisma.event.findUnique({

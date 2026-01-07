@@ -420,6 +420,8 @@ model Participant {
   checkedInBy                  String?  @map("checked_in_by") @db.Uuid
   checkInStation               String?  @map("check_in_station") @db.VarChar(100)
   checkInNotes                 String?  @map("check_in_notes") @db.Text
+  // QR Code for check-in and medical lookup
+  qrCode                       String?  @map("qr_code") @db.Text
   createdAt                    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { generateLiabilityFormPDF } from '@/lib/pdf/generate-liability-form-pdf'
 import { uploadLiabilityFormPDF } from '@/lib/r2/upload-pdf'
+import { generateParticipantQRCode } from '@/lib/qr-code'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -108,6 +109,18 @@ export async function POST(request: NextRequest) {
         parentEmail: liabilityForm.parentEmail,
       },
     })
+
+    // Generate QR code for participant (used for check-in and medical lookup)
+    try {
+      const qrCode = await generateParticipantQRCode(participant.id)
+      await prisma.participant.update({
+        where: { id: participant.id },
+        data: { qrCode },
+      })
+    } catch (qrError) {
+      console.error('Failed to generate QR code:', qrError)
+      // Continue without failing - QR code can be generated later
+    }
 
     // Update liability form with parent's data and link to participant
     const updatedForm = await prisma.liabilityForm.update({
