@@ -131,12 +131,34 @@ export default function RaphaParticipants({ eventId, onCreateIncident, initialSe
     }
   }, [searchParams])
 
-  // Update search when initialSearch prop changes
+  // Update search when initialSearch prop changes and immediately fetch
   useEffect(() => {
-    if (initialSearch && initialSearch !== search) {
+    if (initialSearch !== undefined && initialSearch !== '') {
       setSearch(initialSearch)
+      // Immediately fetch with the new search term
+      const fetchWithSearch = async () => {
+        setLoading(true)
+        try {
+          const params = new URLSearchParams({
+            filter,
+            sortBy,
+            search: initialSearch,
+          })
+          const response = await fetch(`/api/admin/events/${eventId}/rapha/participants?${params}`)
+          if (response.ok) {
+            const data = await response.json()
+            setParticipants(data.participants || [])
+            setTotalCount(data.totalCount || 0)
+          }
+        } catch (error) {
+          console.error('Failed to fetch participants:', error)
+        } finally {
+          setLoading(false)
+        }
+      }
+      fetchWithSearch()
     }
-  }, [initialSearch])
+  }, [initialSearch, eventId])
 
   useEffect(() => {
     fetchParticipants()
