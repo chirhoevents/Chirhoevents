@@ -175,62 +175,67 @@ export default function AdminLayout({
         style={{ backgroundColor: primaryColor }}
       >
         <div className="flex flex-col h-full">
-          {/* Logo Header - ChiRho on LEFT (links to landing), Org logo on RIGHT */}
+          {/* Logo Header - Centered Logos */}
           <div
-            className="flex items-center justify-between h-20 lg:h-24 px-4 border-b"
+            className="p-6 border-b"
             style={{ borderColor: `${primaryColor}40` }}
           >
-            {/* ChiRho Logo - Links to Landing Page */}
-            <Link href="/" className="flex items-center flex-shrink-0">
-              <Image
-                src="/light-logo-horizontal.png"
-                alt="ChiRho Events"
-                width={160}
-                height={40}
-                className="h-8 lg:h-10 w-auto hover:opacity-90 transition-opacity"
-              />
-            </Link>
+            {/* Mobile close button - absolute positioned */}
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden text-white absolute top-4 right-4"
+            >
+              <X className="h-6 w-6" />
+            </button>
 
-            {/* Right side: Org logo (if available) + mobile close button */}
-            <div className="flex items-center gap-3">
-              {/* Organization Logo with separator */}
-              {userInfo?.logoUrl && (
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-px h-8 opacity-30"
-                    style={{ backgroundColor: 'white' }}
-                  />
-                  <Link href="/dashboard/admin" className="flex-shrink-0">
+            {/* ChiRho Logo - Centered */}
+            <div className="flex justify-center items-center mb-4">
+              <Link href="/" className="hover:opacity-90 transition-opacity">
+                <Image
+                  src="/light-logo-horizontal.png"
+                  alt="ChiRho Events"
+                  width={140}
+                  height={35}
+                  className="object-contain"
+                />
+              </Link>
+            </div>
+
+            {/* Divider Line (only show if org has logo) */}
+            {userInfo?.logoUrl && (
+              <div className="w-full h-px bg-white/20 my-4" />
+            )}
+
+            {/* Organization Logo - Centered */}
+            {userInfo?.logoUrl && (
+              <div className="flex justify-center items-center">
+                <Link href="/dashboard/admin" className="block">
+                  <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center p-1.5 hover:shadow-lg transition-shadow">
                     <img
                       src={userInfo.logoUrl}
                       alt={userInfo.organizationName}
-                      className="h-10 lg:h-12 w-10 lg:w-12 rounded-lg object-cover bg-white p-0.5"
+                      className="w-full h-full object-contain rounded"
                     />
-                  </Link>
-                </div>
-              )}
+                  </div>
+                </Link>
+              </div>
+            )}
 
-              {/* Mobile close button */}
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="lg:hidden text-white ml-2"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-          </div>
-
-          {/* Organization Info */}
-          {userInfo && (
-            <div
-              className="px-6 py-4 border-b"
-              style={{ borderColor: `${primaryColor}40` }}
-            >
-              <p className="text-xs text-white/70 mb-1">Organization</p>
-              <p className="text-sm font-medium text-white truncate">
+            {/* Organization Name - Centered */}
+            {userInfo?.organizationName && (
+              <p className="text-center text-sm text-white/80 mt-2 truncate">
                 {userInfo.organizationName}
               </p>
-              <p className="text-xs mt-1" style={{ color: secondaryColor }}>
+            )}
+          </div>
+
+          {/* User Role Info */}
+          {userInfo && (
+            <div
+              className="px-6 py-3 border-b"
+              style={{ borderColor: `${primaryColor}40` }}
+            >
+              <p className="text-xs text-center" style={{ color: secondaryColor }}>
                 {getRoleName(userInfo.userRole)}
               </p>
             </div>
