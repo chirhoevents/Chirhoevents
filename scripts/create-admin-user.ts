@@ -46,10 +46,13 @@ async function createAdminUser() {
       console.log('✅ Found organization:', organization.name);
     }
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
+    // Check if user already exists by clerkUserId or email
+    const existingUser = await prisma.user.findFirst({
       where: {
-        clerkUserId: CLERK_USER_ID,
+        OR: [
+          { clerkUserId: CLERK_USER_ID },
+          { email: EMAIL },
+        ],
       },
     });
 
@@ -62,11 +65,12 @@ async function createAdminUser() {
 
         const updatedUser = await prisma.user.update({
           where: {
-            clerkUserId: CLERK_USER_ID,
+            id: existingUser.id,
           },
           data: {
             role: 'org_admin',
             organizationId: organization.id,
+            clerkUserId: CLERK_USER_ID,
           },
         });
 
