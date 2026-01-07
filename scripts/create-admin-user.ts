@@ -30,9 +30,12 @@ async function createAdminUser() {
       organization = await prisma.organization.create({
         data: {
           name: 'Mount Saint Mary Seminary',
-          slug: 'mount-st-marys',
-          organizationType: 'seminary',
+          type: 'seminary',
           contactEmail: EMAIL,
+          subscriptionTier: 'starter',
+          subscriptionStatus: 'active',
+          monthlyFee: 0,
+          storageLimitGb: 5,
           createdAt: new Date(),
           updatedAt: new Date(),
         },
