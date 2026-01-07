@@ -237,8 +237,50 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Section: Security & Compliance */}
+      <section id="security" className="py-16 bg-beige">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl sm:text-4xl font-bold text-center text-navy mb-4">
+            Security & Compliance
+          </h2>
+          <p className="text-center text-gray-600 mb-12 max-w-2xl mx-auto">
+            Your participants&apos; data is protected with industry-leading security measures.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
+            <div className="bg-white rounded-lg p-6 text-center shadow-sm">
+              <div className="bg-navy rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
+                <Check className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="font-semibold text-navy mb-2">Encrypted Data</h3>
+              <p className="text-sm text-gray-600">All data encrypted in transit (HTTPS) and at rest (AES-256)</p>
+            </div>
+            <div className="bg-white rounded-lg p-6 text-center shadow-sm">
+              <div className="bg-navy rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
+                <Check className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="font-semibold text-navy mb-2">Secure Payments</h3>
+              <p className="text-sm text-gray-600">PCI-compliant payment processing through Stripe</p>
+            </div>
+            <div className="bg-white rounded-lg p-6 text-center shadow-sm">
+              <div className="bg-navy rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
+                <Check className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="font-semibold text-navy mb-2">Safe Environment</h3>
+              <p className="text-sm text-gray-600">Built-in tracking for diocesan Safe Environment compliance</p>
+            </div>
+            <div className="bg-white rounded-lg p-6 text-center shadow-sm">
+              <div className="bg-navy rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
+                <Check className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="font-semibold text-navy mb-2">COPPA Compliant</h3>
+              <p className="text-sm text-gray-600">Proper handling of minor data with parental consent workflows</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Section 4: Founder Story */}
-      <section className="py-16 bg-navy text-white">
+      <section id="about" className="py-16 bg-navy text-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-3xl sm:text-4xl font-bold mb-8">
