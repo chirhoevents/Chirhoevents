@@ -20,7 +20,10 @@ import {
   ExternalLink,
   Check,
   X,
-  AlertTriangle
+  AlertTriangle,
+  Mail,
+  Clock,
+  UserCheck
 } from 'lucide-react'
 
 interface Organization {
@@ -40,6 +43,13 @@ interface Organization {
   createdAt: string
   stripeAccountId: string | null
   stripeOnboardingCompleted: boolean
+  orgAdmin: {
+    id: string
+    firstName: string
+    lastName: string
+    email: string
+    isOnboarded: boolean
+  } | null
 }
 
 // Helper function to get Stripe status display
@@ -51,6 +61,17 @@ function getStripeStatus(org: Organization): { label: string; color: string; ico
     return { label: 'Pending', color: 'bg-yellow-100 text-yellow-700', icon: 'warning' }
   }
   return { label: 'Not Connected', color: 'bg-red-100 text-red-700', icon: 'x' }
+}
+
+// Helper function to get onboarding status display
+function getOnboardingStatus(org: Organization): { label: string; color: string; icon: 'check' | 'clock' } {
+  if (!org.orgAdmin) {
+    return { label: 'No Admin', color: 'bg-gray-100 text-gray-700', icon: 'clock' }
+  }
+  if (org.orgAdmin.isOnboarded) {
+    return { label: 'Active', color: 'bg-green-100 text-green-700', icon: 'check' }
+  }
+  return { label: 'Pending', color: 'bg-yellow-100 text-yellow-700', icon: 'clock' }
 }
 
 const tierLabels: Record<string, string> = {
@@ -177,6 +198,24 @@ export default function OrganizationsPage() {
     setOpenDropdown(null)
   }
 
+  const handleResendOnboarding = async (orgId: string) => {
+    try {
+      const response = await fetch(`/api/master-admin/organizations/${orgId}/resend-onboarding`, {
+        method: 'POST',
+      })
+      const data = await response.json()
+      if (response.ok) {
+        alert(`Onboarding email sent to ${data.sentTo}`)
+      } else {
+        alert(data.error || 'Failed to resend onboarding email')
+      }
+    } catch (error) {
+      console.error('Failed to resend onboarding:', error)
+      alert('Failed to resend onboarding email')
+    }
+    setOpenDropdown(null)
+  }
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -284,6 +323,9 @@ export default function OrganizationsPage() {
                     Status
                   </th>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Onboarding
+                  </th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Events
                   </th>
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -331,6 +373,18 @@ export default function OrganizationsPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
+                      {(() => {
+                        const onboardingStatus = getOnboardingStatus(org)
+                        return (
+                          <span className={`inline-flex items-center gap-0.5 px-2 py-1 text-xs font-medium rounded-full ${onboardingStatus.color}`}>
+                            {onboardingStatus.icon === 'check' && <UserCheck className="h-3 w-3" />}
+                            {onboardingStatus.icon === 'clock' && <Clock className="h-3 w-3" />}
+                            {onboardingStatus.label}
+                          </span>
+                        )
+                      })()}
+                    </td>
+                    <td className="px-6 py-4">
                       <span className="text-sm text-gray-700">
                         {org.eventsUsed}
                         {org.eventsPerYearLimit && ` / ${org.eventsPerYearLimit}`}
@@ -372,13 +426,20 @@ export default function OrganizationsPage() {
                           </button>
 
                           {openDropdown === org.id && (
-                            <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                            <div className="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
                               <button
                                 onClick={() => handleImpersonate(org.id)}
                                 className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
                               >
                                 <LogIn className="h-4 w-4" />
                                 Login As Org Admin
+                              </button>
+                              <button
+                                onClick={() => handleResendOnboarding(org.id)}
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                              >
+                                <Mail className="h-4 w-4" />
+                                Resend Onboarding Email
                               </button>
                               {org.status === 'active' ? (
                                 <button

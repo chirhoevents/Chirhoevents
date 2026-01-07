@@ -66,6 +66,7 @@ interface Organization {
     lastName: string
     email: string
     phone: string
+    clerkUserId: string | null
   }>
   events: Array<{
     id: string
@@ -305,6 +306,30 @@ export default function OrganizationDetailPage() {
       }
     } catch (error) {
       console.error('Failed to reactivate:', error)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleResendOnboarding = async () => {
+    if (!confirm('Resend onboarding email to the organization admin?')) return
+
+    setActionLoading('resend-onboarding')
+    try {
+      const response = await fetch(`/api/master-admin/organizations/${params.orgId}/resend-onboarding`, {
+        method: 'POST',
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to resend onboarding email')
+      }
+
+      alert(`Onboarding email sent to ${data.sentTo}`)
+    } catch (error: unknown) {
+      console.error('Failed to resend onboarding:', error)
+      alert(error instanceof Error ? error.message : 'Failed to resend onboarding email')
     } finally {
       setActionLoading(null)
     }
@@ -746,15 +771,23 @@ export default function OrganizationDetailPage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
             <div className="space-y-2">
               <button
+                onClick={handleResendOnboarding}
+                disabled={actionLoading === 'resend-onboarding'}
+                className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {actionLoading === 'resend-onboarding' ? (
+                  <Loader2 className="h-4 w-4 text-gray-400 animate-spin" />
+                ) : (
+                  <Mail className="h-4 w-4 text-gray-400" />
+                )}
+                Resend Onboarding Email
+              </button>
+              <button
                 onClick={() => setShowInvoiceModal(true)}
                 className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
               >
                 <FileText className="h-4 w-4 text-gray-400" />
                 Create Invoice
-              </button>
-              <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
-                <Mail className="h-4 w-4 text-gray-400" />
-                Send Email
               </button>
               <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
                 <BarChart3 className="h-4 w-4 text-gray-400" />

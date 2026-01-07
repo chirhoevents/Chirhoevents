@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+import { Resend } from 'resend'
+import { generateOrgAdminOnboardingEmail } from '@/emails/org-admin-onboarding'
+
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function GET(request: NextRequest) {
   try {
@@ -54,16 +58,40 @@ export async function GET(request: NextRequest) {
         stripeAccountId: true,
         stripeOnboardingCompleted: true,
         createdAt: true,
+        users: {
+          where: { role: 'org_admin' },
+          take: 1,
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            clerkUserId: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     })
 
     return NextResponse.json({
-      organizations: organizations.map((org: typeof organizations[0]) => ({
-        ...org,
-        monthlyFee: Number(org.monthlyFee),
-        annualPrice: Number(org.annualPrice) || 0,
-      })),
+      organizations: organizations.map((org) => {
+        const orgAdmin = org.users[0]
+        return {
+          ...org,
+          monthlyFee: Number(org.monthlyFee),
+          annualPrice: Number(org.annualPrice) || 0,
+          orgAdmin: orgAdmin
+            ? {
+                id: orgAdmin.id,
+                firstName: orgAdmin.firstName,
+                lastName: orgAdmin.lastName,
+                email: orgAdmin.email,
+                isOnboarded: !!orgAdmin.clerkUserId,
+              }
+            : null,
+          users: undefined, // Remove users array from response
+        }
+      }),
     })
   } catch (error) {
     console.error('Organizations list error:', error)
@@ -218,8 +246,34 @@ export async function POST(request: NextRequest) {
       // Continue anyway
     }
 
-    // TODO: Send welcome email if sendWelcomeEmail is true
-    // TODO: Send Stripe onboarding email if sendStripeOnboarding is true
+    // Send onboarding email if requested and user was created
+    let emailSent = false
+    if (sendWelcomeEmail && orgAdminUser && orgAdminUser.id) {
+      try {
+        const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/invite/${orgAdminUser.id}`
+
+        const emailHtml = generateOrgAdminOnboardingEmail({
+          orgName: organization.name,
+          orgAdminFirstName: contactFirstName,
+          orgAdminEmail: contactEmail,
+          inviteLink,
+          organizationId: organization.id,
+        })
+
+        await resend.emails.send({
+          from: 'ChiRho Events <noreply@chirhoevents.com>',
+          to: contactEmail,
+          subject: `Welcome to ChiRho Events - ${organization.name}`,
+          html: emailHtml,
+        })
+
+        emailSent = true
+        console.log('Onboarding email sent to:', contactEmail)
+      } catch (emailError) {
+        console.error('Failed to send onboarding email:', emailError)
+        // Don't fail the org creation if email fails - we can resend later
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -231,6 +285,7 @@ export async function POST(request: NextRequest) {
         id: orgAdminUser.id,
         email: orgAdminUser.email,
       },
+      emailSent,
     }, { status: 201 })
   } catch (error) {
     console.error('Create organization error:', error)
