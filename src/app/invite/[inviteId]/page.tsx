@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useAuth, SignUp, useUser } from '@clerk/nextjs'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Loader2, CheckCircle, XCircle, Building2, Mail, User } from 'lucide-react'
+import { Loader2, CheckCircle, XCircle, Building2, Mail, User, ShieldCheck, Crown } from 'lucide-react'
 
 interface InviteDetails {
   firstName: string
@@ -161,6 +161,21 @@ export default function InvitePage() {
     )
   }
 
+  const isOrgAdmin = inviteDetails?.role === 'org_admin'
+
+  const getRoleDisplayName = (role: string) => {
+    const roleNames: Record<string, string> = {
+      org_admin: 'Organization Administrator',
+      event_manager: 'Event Manager',
+      finance_manager: 'Finance Manager',
+      poros_coordinator: 'Poros Coordinator',
+      salve_coordinator: 'SALVE Coordinator',
+      rapha_coordinator: 'Rapha Coordinator',
+      staff: 'Staff / Viewer',
+    }
+    return roleNames[role] || role
+  }
+
   // Show invite details and sign up form
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1E3A5F] via-[#2A4A6F] to-[#1E3A5F] py-12 px-4">
@@ -168,10 +183,25 @@ export default function InvitePage() {
         {/* Invite Details Card */}
         <Card className="bg-white/95 backdrop-blur">
           <CardHeader className="text-center pb-2">
-            <CardTitle className="text-[#1E3A5F]">You&apos;ve Been Invited!</CardTitle>
-            <CardDescription>
-              Join {inviteDetails?.organizationName} on ChiRho Events
-            </CardDescription>
+            {isOrgAdmin ? (
+              <>
+                <div className="mx-auto mb-3 p-3 bg-[#F5F1E8] rounded-full w-fit">
+                  <Crown className="h-8 w-8 text-[#9C8466]" />
+                </div>
+                <CardTitle className="text-[#1E3A5F]">Welcome to ChiRho Events!</CardTitle>
+                <CardDescription>
+                  Your organization <strong>{inviteDetails?.organizationName}</strong> has been set up.
+                  Create your account to start managing events!
+                </CardDescription>
+              </>
+            ) : (
+              <>
+                <CardTitle className="text-[#1E3A5F]">You&apos;ve Been Invited!</CardTitle>
+                <CardDescription>
+                  Join {inviteDetails?.organizationName} on ChiRho Events
+                </CardDescription>
+              </>
+            )}
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
@@ -197,6 +227,15 @@ export default function InvitePage() {
                 <p className="font-medium text-[#1E3A5F]">{inviteDetails?.email}</p>
               </div>
             </div>
+            {inviteDetails?.role && (
+              <div className="flex items-center gap-3 p-3 bg-[#F5F1E8] rounded-lg">
+                <ShieldCheck className="h-5 w-5 text-[#9C8466]" />
+                <div>
+                  <p className="text-xs text-gray-500">Your Role</p>
+                  <p className="font-medium text-[#1E3A5F]">{getRoleDisplayName(inviteDetails.role)}</p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
