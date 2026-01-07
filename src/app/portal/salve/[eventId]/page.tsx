@@ -435,13 +435,13 @@ export default function SalveDedicatedPortal() {
                 <span className="hidden sm:inline">All Participants</span>
               </Button>
             </Link>
-            <Link href={`/portal/salve/${eventId}/welcome-packets`}>
+            <Link href={`/dashboard/admin/events/${eventId}/salve/welcome-packets`}>
               <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
                 <FileText className="w-4 h-4 mr-1" />
                 <span className="hidden sm:inline">Packets</span>
               </Button>
             </Link>
-            <Link href={`/portal/salve/${eventId}/name-tags`}>
+            <Link href={`/dashboard/admin/events/${eventId}/salve/name-tags`}>
               <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
                 <Tag className="w-4 h-4 mr-1" />
                 <span className="hidden sm:inline">Name Tags</span>
