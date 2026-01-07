@@ -1,280 +1,149 @@
-'use client'
-
-import { useState, useEffect } from 'react'
+import { requireAdmin } from '@/lib/auth-utils'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
+import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Activity,
-  Calendar,
-  Users,
-  Loader2,
-  ArrowRight,
-  AlertCircle,
-  Pill,
-  AlertTriangle,
-  Heart,
-  Utensils,
-} from 'lucide-react'
+import { Activity, Calendar, MapPin, Users, ArrowRight, ExternalLink, AlertCircle } from 'lucide-react'
 import { format } from 'date-fns'
 
-interface EventWithStats {
-  id: string
-  name: string
-  startDate: string
-  endDate: string
-  status: string
-  raphaMedicalEnabled: boolean
-  stats: {
-    totalParticipants: number
-    severeAllergies: number
-    allergies: number
-    medications: number
-    medicalConditions: number
-    dietaryRestrictions: number
-    activeIncidents: number
-    totalIncidents: number
+export default async function RaphaSelectEventPage() {
+  const user = await requireAdmin()
+  const organizationId = await getEffectiveOrgId(user)
+
+  // Fetch all events for the organization
+  let events: any[] = []
+  try {
+    events = await prisma.event.findMany({
+      where: {
+        organizationId: organizationId,
+      },
+      include: {
+        _count: {
+          select: {
+            groupRegistrations: true,
+            individualRegistrations: true,
+          },
+        },
+      },
+      orderBy: {
+        startDate: 'desc',
+      },
+    })
+  } catch (error) {
+    console.error('Error fetching events:', error)
+    const basicEvents = await prisma.event.findMany({
+      where: {
+        organizationId: organizationId,
+      },
+      orderBy: {
+        startDate: 'desc',
+      },
+    })
+    events = basicEvents.map((e: any) => ({
+      ...e,
+      _count: { groupRegistrations: 0, individualRegistrations: 0 }
+    }))
   }
-}
 
-export default function RaphaPortalPage() {
-  const [loading, setLoading] = useState(true)
-  const [events, setEvents] = useState<EventWithStats[]>([])
-  const [selectedEventId, setSelectedEventId] = useState<string>('')
+  const activeEvents = events.filter((e: any) => e.status === 'registration_open' || e.status === 'registration_closed' || e.status === 'in_progress')
+  const pastEvents = events.filter((e: any) => e.status === 'completed')
+  const draftEvents = events.filter((e: any) => e.status === 'draft')
 
-  useEffect(() => {
-    fetchEvents()
-  }, [])
-
-  async function fetchEvents() {
-    try {
-      const response = await fetch('/api/admin/rapha/events')
-      if (response.ok) {
-        const data = await response.json()
-        setEvents(data)
-      } else {
-        // Fallback to regular events API
-        const fallbackResponse = await fetch('/api/admin/events?includeStats=true')
-        if (fallbackResponse.ok) {
-          const data = await fallbackResponse.json()
-          // Handle both array and object response formats
-          const eventsArray = Array.isArray(data) ? data : (data.events || [])
-          const raphaEvents = eventsArray.filter((event: any) => {
-            const hasSettings = event.settings?.raphaMedicalEnabled
-            const isActiveOrUpcoming = ['published', 'registration_open', 'registration_closed'].includes(event.status)
-            return hasSettings && isActiveOrUpcoming
-          }).map((event: any) => ({
-            id: event.id,
-            name: event.name,
-            startDate: event.startDate,
-            endDate: event.endDate,
-            status: event.status,
-            raphaMedicalEnabled: true,
-            stats: {
-              totalParticipants: event._count?.participants || event.totalParticipants || 0,
-              severeAllergies: 0,
-              allergies: 0,
-              medications: 0,
-              medicalConditions: 0,
-              dietaryRestrictions: 0,
-              activeIncidents: 0,
-              totalIncidents: event.medicalIncidentCount || 0,
-            },
-          }))
-          setEvents(raphaEvents)
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch events:', error)
-    } finally {
-      setLoading(false)
+  function getStatusBadge(status: string) {
+    const colors: Record<string, string> = {
+      draft: 'bg-gray-100 text-gray-800',
+      registration_open: 'bg-green-100 text-green-800',
+      registration_closed: 'bg-amber-100 text-amber-800',
+      in_progress: 'bg-blue-100 text-blue-800',
+      completed: 'bg-purple-100 text-purple-800',
     }
+    const labels: Record<string, string> = {
+      draft: 'Draft',
+      registration_open: 'Registration Open',
+      registration_closed: 'Registration Closed',
+      in_progress: 'In Progress',
+      completed: 'Completed',
+    }
+    return <Badge className={colors[status] || colors.draft}>{labels[status] || status}</Badge>
   }
 
-  const selectedEvent = events.find(e => e.id === selectedEventId)
+  function EventCard({ event }: { event: typeof events[0] }) {
+    const totalRegistrations = event._count.groupRegistrations + event._count.individualRegistrations
 
-  if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-navy" />
-      </div>
+      <Card className="hover:shadow-lg transition-shadow">
+        <CardHeader className="pb-2">
+          <div className="flex items-start justify-between">
+            <CardTitle className="text-lg">
+              {event.name}
+            </CardTitle>
+            {getStatusBadge(event.status)}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Calendar className="w-4 h-4" />
+            <span>
+              {format(new Date(event.startDate), 'MMM d, yyyy')}
+              {event.endDate && ` - ${format(new Date(event.endDate), 'MMM d, yyyy')}`}
+            </span>
+          </div>
+          {event.locationName && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <MapPin className="w-4 h-4" />
+              <span>{event.locationName}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Users className="w-4 h-4" />
+            <span>{totalRegistrations} registration{totalRegistrations !== 1 ? 's' : ''}</span>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-col gap-2 pt-3 border-t">
+            <Link
+              href={`/dashboard/admin/events/${event.id}/rapha`}
+              className="flex items-center justify-between px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium group"
+            >
+              <span className="flex items-center gap-2">
+                <Activity className="w-4 h-4" />
+                Open Rapha Dashboard
+              </span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+            <Link
+              href={`/portal/rapha/${event.id}`}
+              target="_blank"
+              className="flex items-center justify-between px-3 py-2 bg-[#1E3A5F] text-white rounded-lg hover:bg-[#1E3A5F]/90 transition-colors text-sm font-medium group"
+            >
+              <span className="flex items-center gap-2">
+                <ExternalLink className="w-4 h-4" />
+                Open Medical Portal
+              </span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
     )
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div>
         <div className="flex items-center gap-3 mb-2">
-          <Activity className="w-8 h-8 text-navy" />
-          <h1 className="text-3xl font-bold text-navy">Rapha Medical Platform</h1>
+          <Activity className="w-8 h-8 text-red-600" />
+          <h1 className="text-3xl font-bold text-navy">Rapha Medical Portal</h1>
         </div>
         <p className="text-muted-foreground">
-          Manage medical incidents, track participant health information, and generate reports.
+          Select an event to access medical information, track incidents, and manage participant health data.
         </p>
       </div>
 
-      {/* Event Selector */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Select Event</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Select value={selectedEventId} onValueChange={setSelectedEventId}>
-            <SelectTrigger className="w-full max-w-md">
-              <SelectValue placeholder="Choose an event..." />
-            </SelectTrigger>
-            <SelectContent>
-              {events.map((event) => (
-                <SelectItem key={event.id} value={event.id}>
-                  <div className="flex items-center gap-2">
-                    <span>{event.name}</span>
-                    <span className="text-muted-foreground text-sm">
-                      ({format(new Date(event.startDate), 'MMM d')} - {format(new Date(event.endDate), 'MMM d, yyyy')})
-                    </span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {selectedEvent && (
-            <div className="mt-4">
-              <Link href={`/dashboard/admin/events/${selectedEventId}/rapha`}>
-                <Button className="bg-navy hover:bg-navy/90">
-                  <Activity className="w-4 h-4 mr-2" />
-                  Access Rapha Dashboard
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </Link>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Events List with Medical Summary */}
-      {events.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Activity className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-            <h2 className="text-xl font-semibold text-gray-600 mb-2">No Events Available</h2>
-            <p className="text-muted-foreground mb-4">
-              There are no events with Rapha medical tracking enabled.
-            </p>
-            <Link href="/dashboard/admin/events">
-              <Button>
-                <Calendar className="w-4 h-4 mr-2" />
-                Manage Events
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-navy">All Events with Rapha Enabled</h2>
-          {events.map((event) => (
-            <Card
-              key={event.id}
-              className={`hover:border-navy transition-colors ${selectedEventId === event.id ? 'border-navy bg-blue-50/50' : ''}`}
-            >
-              <CardContent className="p-6">
-                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                  {/* Event Info */}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-xl font-semibold text-navy">{event.name}</h3>
-                      <Badge
-                        className={
-                          event.status === 'registration_open'
-                            ? 'bg-green-500'
-                            : event.status === 'registration_closed'
-                              ? 'bg-yellow-500'
-                              : 'bg-gray-500'
-                        }
-                      >
-                        {event.status.replace('_', ' ')}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        {format(new Date(event.startDate), 'MMM d')} - {format(new Date(event.endDate), 'MMM d, yyyy')}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Users className="w-4 h-4" />
-                        {event.stats.totalParticipants} participants
-                      </div>
-                    </div>
-
-                    {/* Medical Summary */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {event.stats.severeAllergies > 0 && (
-                        <div className="flex items-center gap-2 bg-red-50 text-red-700 px-3 py-2 rounded-lg">
-                          <AlertTriangle className="w-4 h-4" />
-                          <span className="text-sm font-medium">
-                            {event.stats.severeAllergies} severe allerg{event.stats.severeAllergies === 1 ? 'y' : 'ies'}
-                          </span>
-                        </div>
-                      )}
-                      {event.stats.allergies > 0 && (
-                        <div className="flex items-center gap-2 bg-amber-50 text-amber-700 px-3 py-2 rounded-lg">
-                          <AlertCircle className="w-4 h-4" />
-                          <span className="text-sm">{event.stats.allergies} allergies</span>
-                        </div>
-                      )}
-                      {event.stats.medications > 0 && (
-                        <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-2 rounded-lg">
-                          <Pill className="w-4 h-4" />
-                          <span className="text-sm">{event.stats.medications} on medications</span>
-                        </div>
-                      )}
-                      {event.stats.medicalConditions > 0 && (
-                        <div className="flex items-center gap-2 bg-purple-50 text-purple-700 px-3 py-2 rounded-lg">
-                          <Heart className="w-4 h-4" />
-                          <span className="text-sm">{event.stats.medicalConditions} conditions</span>
-                        </div>
-                      )}
-                      {event.stats.dietaryRestrictions > 0 && (
-                        <div className="flex items-center gap-2 bg-green-50 text-green-700 px-3 py-2 rounded-lg">
-                          <Utensils className="w-4 h-4" />
-                          <span className="text-sm">{event.stats.dietaryRestrictions} dietary</span>
-                        </div>
-                      )}
-                      {event.stats.activeIncidents > 0 && (
-                        <div className="flex items-center gap-2 bg-red-100 text-red-800 px-3 py-2 rounded-lg font-medium">
-                          <Activity className="w-4 h-4" />
-                          <span className="text-sm">{event.stats.activeIncidents} active incident{event.stats.activeIncidents === 1 ? '' : 's'}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Action Button */}
-                  <div className="flex-shrink-0">
-                    <Link href={`/dashboard/admin/events/${event.id}/rapha`}>
-                      <Button className="bg-navy hover:bg-navy/90 w-full lg:w-auto">
-                        Access Rapha Dashboard
-                        <ArrowRight className="w-4 h-4 ml-2" />
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
       {/* HIPAA Notice */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
           <div className="text-sm text-blue-800">
@@ -284,6 +153,62 @@ export default function RaphaPortalPage() {
           </div>
         </div>
       </div>
+
+      {events.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Activity className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <h3 className="text-lg font-medium mb-2">No Events Found</h3>
+            <p className="text-muted-foreground mb-4">
+              Create an event first to use Rapha Medical.
+            </p>
+            <Link
+              href="/dashboard/admin/events/new"
+              className="inline-flex items-center px-4 py-2 bg-navy text-white rounded-lg hover:bg-navy/90 transition-colors"
+            >
+              Create Event
+            </Link>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Active/Published Events */}
+          {activeEvents.length > 0 && (
+            <div>
+              <h2 className="text-xl font-semibold mb-4 text-navy">Active Events</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {activeEvents.map((event) => (
+                  <EventCard key={event.id} event={event} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Draft Events */}
+          {draftEvents.length > 0 && (
+            <div>
+              <h2 className="text-xl font-semibold mb-4 text-gray-600">Draft Events</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {draftEvents.map((event) => (
+                  <EventCard key={event.id} event={event} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Past Events */}
+          {pastEvents.length > 0 && (
+            <div>
+              <h2 className="text-xl font-semibold mb-4 text-gray-500">Past Events</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {pastEvents.map((event) => (
+                  <EventCard key={event.id} event={event} />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }
