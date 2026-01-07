@@ -319,4 +319,75 @@ For development/testing, use the default .resend.dev domain.
 
 ---
 
+## Inbound Email Handling
+
+### Overview
+
+ChiRho Events can receive inbound emails via Resend webhooks. When someone emails support@chirhoevents.com (or other configured addresses), the system:
+
+1. Stores the raw email in `received_emails` table
+2. Creates an `InboundSupportTicket`
+3. Sends auto-reply with ticket number
+4. Forwards email to configured addresses
+
+### Database Models
+
+- **ReceivedEmail** - Raw storage of all inbound emails
+- **EmailForward** - Routing configuration per email address
+- **InboundSupportTicket** - Support tickets from external senders
+- **InboundTicketReply** - Replies on inbound tickets
+
+### Webhook Endpoint
+
+**Location:** `src/app/api/webhooks/resend-inbound/route.ts`
+
+**URL:** `https://chirhoevents.com/api/webhooks/resend-inbound`
+
+### Email Addresses
+
+| Address | Purpose | Auto-Reply | Create Ticket |
+|---------|---------|------------|---------------|
+| support@chirhoevents.com | Main support | Yes | Yes |
+| info@chirhoevents.com | General inquiries | Yes | Yes |
+| billing@chirhoevents.com | Billing questions | Yes | Yes |
+| legal@chirhoevents.com | Legal matters | No | Yes |
+| privacy@chirhoevents.com | Privacy/GDPR | No | Yes |
+
+### Setup Instructions
+
+1. **Add Environment Variable:**
+   ```
+   RESEND_WEBHOOK_SECRET=whsec_xxxxx
+   ```
+
+2. **Run Database Migration:**
+   ```bash
+   npx prisma db push
+   ```
+
+3. **Seed Email Forwards:**
+   ```bash
+   npx tsx prisma/seed-email-forwards.ts
+   ```
+
+4. **Configure Resend Webhook:**
+   - Go to https://resend.com/webhooks
+   - Add webhook URL: `https://chirhoevents.com/api/webhooks/resend-inbound`
+   - Select event: `email.received`
+   - Copy webhook secret to environment variables
+
+5. **Verify Domain for Receiving:**
+   - Add MX records for inbound email
+   - Configure subdomain if needed
+
+### Testing Inbound Emails
+
+For development testing:
+1. Use ngrok: `ngrok http 3000`
+2. Update webhook URL in Resend dashboard
+3. Send test email to configured address
+4. Check database for ticket creation
+
+---
+
 Last Updated: January 2026
