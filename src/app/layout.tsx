@@ -5,11 +5,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL('https://chirhoevents.com'),
   title: {
-    default: "ChiRho Events - Catholic Event Registration Made Simple",
+    default: "ChiRho Events - Built by Ministry for Ministry",
     template: "%s | ChiRho Events",
   },
-  description: "Professional event registration platform for Catholic youth ministry. Manage registrations, payments, liability forms, and housing for Steubenville conferences, diocesan retreats, and parish events.",
-  keywords: ["Catholic", "event registration", "youth ministry", "Steubenville", "diocese", "retreat registration", "liability forms", "conference registration"],
+  description: "Professional event registration platform for Catholic ministry. Manage registrations, payments, liability forms, and housing for Steubenville conferences, diocesan retreats, and parish events.",
+  keywords: ["Catholic", "event registration", "ministry", "Steubenville", "diocese", "retreat registration", "liability forms", "conference registration"],
   authors: [{ name: "ChiRho Events" }],
   creator: "ChiRho Events",
   publisher: "ChiRho Events",
@@ -18,8 +18,8 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: "https://chirhoevents.com",
     siteName: "ChiRho Events",
-    title: "ChiRho Events - Catholic Event Registration Made Simple",
-    description: "Professional event registration platform for Catholic youth ministry. Manage registrations, payments, liability forms, and housing.",
+    title: "ChiRho Events - Built by Ministry for Ministry",
+    description: "Professional event registration platform for Catholic ministry. Manage registrations, payments, liability forms, and housing.",
     images: [
       {
         url: "/og-image.png",
@@ -31,8 +31,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "ChiRho Events - Catholic Event Registration Made Simple",
-    description: "Professional event registration platform for Catholic youth ministry conferences, retreats, and events.",
+    title: "ChiRho Events - Built by Ministry for Ministry",
+    description: "Professional event registration platform for Catholic ministry conferences, retreats, and events.",
     images: ["/og-image.png"],
   },
   robots: {
