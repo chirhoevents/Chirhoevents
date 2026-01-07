@@ -13,7 +13,7 @@ export async function POST(
     const { eventId } = await params
     const body = await request.json()
 
-    const { participantIds, action, stationId, notes, groupId } = body
+    const { participantIds, action, stationId, notes, groupId, registrationType } = body
 
     if (!participantIds || !Array.isArray(participantIds) || participantIds.length === 0) {
       return NextResponse.json(
@@ -29,7 +29,76 @@ export async function POST(
       )
     }
 
-    // Verify participants belong to a group in this event
+    const now = new Date()
+    const isCheckingIn = action === 'check_in'
+
+    // Check if this is an individual registration check-in
+    if (registrationType === 'individual') {
+      // Handle individual registration check-in
+      const individuals = await prisma.individualRegistration.findMany({
+        where: {
+          id: { in: participantIds },
+          eventId,
+        },
+      })
+
+      if (individuals.length !== participantIds.length) {
+        return NextResponse.json(
+          { message: 'One or more registrations not found in this event' },
+          { status: 404 }
+        )
+      }
+
+      // Update individual registrations
+      await prisma.individualRegistration.updateMany({
+        where: {
+          id: { in: participantIds },
+        },
+        data: {
+          checkedIn: isCheckingIn,
+          checkedInAt: isCheckingIn ? now : null,
+          checkedInBy: isCheckingIn ? userId : null,
+          checkInStation: isCheckingIn ? stationId : null,
+          checkInNotes: notes || null,
+        },
+      })
+
+      // Create check-in logs
+      await prisma.checkInLog.createMany({
+        data: participantIds.map((individualId: string) => ({
+          eventId,
+          individualRegistrationId: individualId,
+          action: action as 'check_in' | 'check_out',
+          userId: userId!,
+          station: stationId || null,
+          notes: notes || null,
+        })),
+      })
+
+      // Get updated individuals
+      const updatedIndividuals = await prisma.individualRegistration.findMany({
+        where: {
+          id: { in: participantIds },
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          checkedIn: true,
+          checkedInAt: true,
+        },
+      })
+
+      return NextResponse.json({
+        success: true,
+        action,
+        count: participantIds.length,
+        registrationType: 'individual',
+        participants: updatedIndividuals,
+      })
+    }
+
+    // Handle group participant check-in (original logic)
     const participants = await prisma.participant.findMany({
       where: {
         id: { in: participantIds },
@@ -53,9 +122,6 @@ export async function POST(
         { status: 404 }
       )
     }
-
-    const now = new Date()
-    const isCheckingIn = action === 'check_in'
 
     // Update participants
     await prisma.participant.updateMany({
