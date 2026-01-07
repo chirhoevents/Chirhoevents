@@ -95,6 +95,7 @@ export default function RaphaDedicatedPortal() {
   // State for incident creation from participants
   const [incidentParticipant, setIncidentParticipant] = useState<PreSelectedParticipant | null>(null)
   const [openIncidentModal, setOpenIncidentModal] = useState(false)
+  const [selectedSearchParticipant, setSelectedSearchParticipant] = useState<string>('')
 
   useEffect(() => {
     checkAuthAndFetchData()
@@ -524,15 +525,12 @@ export default function RaphaDedicatedPortal() {
                   {searchResults.length > 0 && (
                     <div className="border rounded-lg divide-y max-h-[300px] overflow-y-auto">
                       {searchResults.map((p) => (
-                        <button
+                        <div
                           key={p.id}
-                          onClick={() => {
-                            setActiveTab('participants')
-                          }}
-                          className="w-full text-left p-3 hover:bg-gray-50 transition-colors"
+                          className="p-3 hover:bg-gray-50 transition-colors"
                         >
                           <div className="flex items-start justify-between">
-                            <div>
+                            <div className="flex-1">
                               <div className="flex items-center gap-2">
                                 <span className="font-medium">
                                   {p.firstName} {p.lastName}
@@ -544,17 +542,56 @@ export default function RaphaDedicatedPortal() {
                               <div className="text-sm text-muted-foreground">
                                 {p.groupName} &bull; Age {p.age}
                               </div>
-                            </div>
-                          </div>
-                          {(p.allergies || p.medicalConditions) && (
-                            <div className="mt-1 text-xs text-amber-600">
-                              {p.allergies && <span>Allergies: {p.allergies}</span>}
-                              {p.medicalConditions && (
-                                <span className="ml-2">Conditions: {p.medicalConditions}</span>
+                              {(p.allergies || p.medicalConditions) && (
+                                <div className="mt-1 text-xs text-amber-600">
+                                  {p.allergies && <span>Allergies: {p.allergies}</span>}
+                                  {p.medicalConditions && (
+                                    <span className="ml-2">Conditions: {p.medicalConditions}</span>
+                                  )}
+                                </div>
                               )}
                             </div>
-                          )}
-                        </button>
+                            <div className="flex gap-2 ml-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setQuickSearch('')
+                                  setSearchResults([])
+                                  setSelectedSearchParticipant(`${p.firstName} ${p.lastName}`)
+                                  setActiveTab('participants')
+                                }}
+                              >
+                                <FileText className="w-3 h-3 mr-1" />
+                                View
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="bg-red-600 hover:bg-red-700"
+                                onClick={() => {
+                                  handleCreateIncident({
+                                    id: p.id,
+                                    participantId: p.participantId || null,
+                                    firstName: p.firstName,
+                                    lastName: p.lastName,
+                                    groupName: p.groupName,
+                                    medical: {
+                                      allergies: p.allergies,
+                                      hasSevereAllergy: p.hasSevereAllergy,
+                                      medications: p.medications,
+                                      medicalConditions: p.medicalConditions,
+                                    },
+                                  } as any)
+                                  setQuickSearch('')
+                                  setSearchResults([])
+                                }}
+                              >
+                                <Plus className="w-3 h-3 mr-1" />
+                                Incident
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   )}
@@ -693,7 +730,7 @@ export default function RaphaDedicatedPortal() {
                 <Loader2 className="w-8 h-8 animate-spin text-red-600" />
               </div>
             }>
-              <RaphaParticipants eventId={eventId} onCreateIncident={handleCreateIncident} />
+              <RaphaParticipants eventId={eventId} onCreateIncident={handleCreateIncident} initialSearch={selectedSearchParticipant} />
             </Suspense>
           </TabsContent>
 

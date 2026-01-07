@@ -44,7 +44,7 @@ function formatIndividualRegistrationAsGroup(individual: any): any {
     type: 'individual', // Mark as individual registration
     groupName: `${individual.firstName} ${individual.lastName}`,
     parishName: null,
-    accessCode: individual.accessCode || individual.id.slice(0, 8).toUpperCase(),
+    accessCode: individual.confirmationCode || individual.id.slice(0, 8).toUpperCase(),
     groupLeaderName: `${individual.firstName} ${individual.lastName}`,
     groupLeaderEmail: individual.email,
     diocese: null,
