@@ -128,6 +128,8 @@ model User {
   platformSettingsUpdated PlatformSetting[] @relation("PlatformSettingsUpdatedByUser")
   invoicesCreated Invoice[] @relation("InvoicesCreatedByUser")
   billingNotesCreated BillingNote[] @relation("BillingNotesCreatedByUser")
+  inboundTicketsAssigned InboundSupportTicket[] @relation("InboundTicketsAssignedToUser")
+  inboundTicketReplies InboundTicketReply[] @relation("InboundTicketRepliesByUser")
 
   @@index([organizationId], name: "idx_user_org")
   @@index([email], name: "idx_user_email")
@@ -2000,5 +2002,114 @@ enum BillingNoteType {
   payment_plan
   reminder_sent
   special_arrangement
+}
+
+// ===================================
+// INBOUND EMAIL HANDLING
+// ===================================
+
+// Raw storage for received emails via Resend webhook
+model ReceivedEmail {
+  id            String    @id @default(uuid()) @db.Uuid
+  resendEmailId String    @unique @map("resend_email_id") @db.VarChar(255)
+  fromAddress   String    @map("from_address") @db.VarChar(500)
+  toAddresses   String[]  @map("to_addresses")
+  ccAddresses   String[]  @map("cc_addresses") @default([])
+  bccAddresses  String[]  @map("bcc_addresses") @default([])
+  subject       String?   @db.VarChar(1000)
+  textBody      String?   @map("text_body") @db.Text
+  htmlBody      String?   @map("html_body") @db.Text
+  messageId     String?   @map("message_id") @db.VarChar(500)
+  attachments   Json?     @db.JsonB
+  processed     Boolean   @default(false)
+  processedAt   DateTime? @map("processed_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  inboundTicket InboundSupportTicket?
+
+  @@index([fromAddress], name: "idx_received_email_from")
+  @@index([createdAt], name: "idx_received_email_created")
+  @@index([processed], name: "idx_received_email_processed")
+  @@map("received_emails")
+}
+
+// Email forwarding/routing configuration
+model EmailForward {
+  id            String   @id @default(uuid()) @db.Uuid
+  fromAddress   String   @unique @map("from_address") @db.VarChar(255) // e.g., "support@chirhoevents.com"
+  forwardTo     String[] @map("forward_to") // Array of emails to forward to
+  createTicket  Boolean  @default(true) @map("create_ticket")
+  autoReply     Boolean  @default(true) @map("auto_reply")
+  autoReplyText String?  @map("auto_reply_text") @db.Text
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([fromAddress], name: "idx_email_forward_from")
+  @@index([active], name: "idx_email_forward_active")
+  @@map("email_forwards")
+}
+
+// Support tickets from inbound emails (external/anonymous senders)
+model InboundSupportTicket {
+  id               String    @id @default(uuid()) @db.Uuid
+  ticketNumber     Int       @unique @default(autoincrement()) @map("ticket_number")
+  receivedEmailId  String?   @unique @map("received_email_id") @db.Uuid
+  fromEmail        String    @map("from_email") @db.VarChar(255)
+  fromName         String?   @map("from_name") @db.VarChar(255)
+  subject          String    @db.VarChar(1000)
+  message          String    @db.Text
+  status           InboundTicketStatus @default(open)
+  priority         InboundTicketPriority @default(normal)
+  category         String?   @db.VarChar(100) // general, billing, technical, feature_request
+  assignedToUserId String?   @map("assigned_to_user_id") @db.Uuid
+  notes            String?   @db.Text
+  resolvedAt       DateTime? @map("resolved_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  receivedEmail    ReceivedEmail? @relation(fields: [receivedEmailId], references: [id])
+  assignedToUser   User? @relation("InboundTicketsAssignedToUser", fields: [assignedToUserId], references: [id])
+  replies          InboundTicketReply[]
+
+  @@index([status], name: "idx_inbound_ticket_status")
+  @@index([fromEmail], name: "idx_inbound_ticket_from")
+  @@index([createdAt], name: "idx_inbound_ticket_created")
+  @@index([assignedToUserId], name: "idx_inbound_ticket_assigned")
+  @@map("inbound_support_tickets")
+}
+
+model InboundTicketReply {
+  id         String   @id @default(uuid()) @db.Uuid
+  ticketId   String   @map("ticket_id") @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid // null if from external sender
+  fromEmail  String?  @map("from_email") @db.VarChar(255) // set if from external
+  message    String   @db.Text
+  isInternal Boolean  @default(false) @map("is_internal")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  ticket     InboundSupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user       User? @relation("InboundTicketRepliesByUser", fields: [userId], references: [id])
+
+  @@index([ticketId], name: "idx_inbound_reply_ticket")
+  @@map("inbound_ticket_replies")
+}
+
+enum InboundTicketStatus {
+  open
+  in_progress
+  waiting_reply
+  resolved
+  closed
+}
+
+enum InboundTicketPriority {
+  low
+  normal
+  high
+  urgent
 }
 
