@@ -108,6 +108,13 @@ export default function SalveCheckInPage() {
   // Roster view modal
   const [isRosterModalOpen, setIsRosterModalOpen] = useState(false)
 
+  // All participants modal
+  const [isAllParticipantsOpen, setIsAllParticipantsOpen] = useState(false)
+  const [allParticipants, setAllParticipants] = useState<any[]>([])
+  const [allParticipantsLoading, setAllParticipantsLoading] = useState(false)
+  const [allParticipantsSearch, setAllParticipantsSearch] = useState('')
+  const [allParticipantsFilter, setAllParticipantsFilter] = useState<'all' | 'checked_in' | 'not_checked_in'>('all')
+
   // Success modal
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false)
   const [checkedInCount, setCheckedInCount] = useState(0)
@@ -139,6 +146,56 @@ export default function SalveCheckInPage() {
       }
     } catch (error) {
       console.error('Failed to fetch stats:', error)
+    }
+  }
+
+  async function fetchAllParticipants() {
+    setAllParticipantsLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (allParticipantsSearch) params.set('search', allParticipantsSearch)
+      if (allParticipantsFilter !== 'all') params.set('status', allParticipantsFilter)
+
+      const response = await fetch(`/api/admin/events/${eventId}/salve/participants?${params}`)
+      if (response.ok) {
+        const data = await response.json()
+        setAllParticipants(data.participants || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch all participants:', error)
+    } finally {
+      setAllParticipantsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (isAllParticipantsOpen) {
+      fetchAllParticipants()
+    }
+  }, [isAllParticipantsOpen, allParticipantsFilter])
+
+  async function handleQuickCheckIn(participant: any) {
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}/salve/check-in`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          participantIds: [participant.id],
+          action: participant.checkedIn ? 'check_out' : 'check_in',
+          registrationType: participant.registrationType,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || 'Failed to update check-in status')
+      }
+
+      toast.success(participant.checkedIn ? 'Checked out successfully' : 'Checked in successfully')
+      fetchAllParticipants()
+      fetchStats()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update check-in status')
     }
   }
 
@@ -307,6 +364,9 @@ export default function SalveCheckInPage() {
 
     setCheckingIn(true)
 
+    // Check if this is an individual registration
+    const isIndividual = (groupData as any).type === 'individual'
+
     try {
       const response = await fetch(`/api/admin/events/${eventId}/salve/check-in`, {
         method: 'POST',
@@ -314,6 +374,8 @@ export default function SalveCheckInPage() {
         body: JSON.stringify({
           groupRegistrationId: groupData.id,
           participantIds: Array.from(selectedParticipants),
+          action: 'check_in',
+          registrationType: isIndividual ? 'individual' : 'group',
           absentParticipantIds: groupData.participants
             .filter(p => !p.checkedIn && !selectedParticipants.has(p.id))
             .map(p => p.id),
@@ -377,18 +439,15 @@ export default function SalveCheckInPage() {
             <p className="text-muted-foreground">{eventName} • Station #1</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href={`/dashboard/admin/events/${eventId}/salve/welcome-packets`}>
-              <Button variant="outline" size="sm" className="w-full md:w-auto">
-                <FileText className="w-4 h-4 mr-2" />
-                <span className="hidden sm:inline">Welcome </span>Packets
-              </Button>
-            </Link>
-            <Link href={`/dashboard/admin/events/${eventId}/salve/name-tags`}>
-              <Button variant="outline" size="sm" className="w-full md:w-auto">
-                <Settings className="w-4 h-4 mr-2" />
-                Name Tags
-              </Button>
-            </Link>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full md:w-auto"
+              onClick={() => setIsAllParticipantsOpen(true)}
+            >
+              <Users className="w-4 h-4 mr-2" />
+              View All Attendance
+            </Button>
             <Link href={`/dashboard/admin/events/${eventId}/salve/dashboard`}>
               <Button variant="outline" size="sm" className="w-full md:w-auto">
                 <BarChart3 className="w-4 h-4 mr-2" />
@@ -821,6 +880,140 @@ export default function SalveCheckInPage() {
               Done - Next Group
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* All Participants Modal */}
+      <Dialog open={isAllParticipantsOpen} onOpenChange={setIsAllParticipantsOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="text-navy flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              All Attendance - {eventName}
+            </DialogTitle>
+            <DialogDescription>
+              View and manage check-in status for all participants
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Search and Filter */}
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name..."
+                  value={allParticipantsSearch}
+                  onChange={(e) => setAllParticipantsSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && fetchAllParticipants()}
+                  className="pl-10"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant={allParticipantsFilter === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setAllParticipantsFilter('all')}
+                >
+                  All
+                </Button>
+                <Button
+                  variant={allParticipantsFilter === 'checked_in' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setAllParticipantsFilter('checked_in')}
+                  className={allParticipantsFilter === 'checked_in' ? 'bg-green-600 hover:bg-green-700' : ''}
+                >
+                  <Check className="w-4 h-4 mr-1" />
+                  Checked In
+                </Button>
+                <Button
+                  variant={allParticipantsFilter === 'not_checked_in' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setAllParticipantsFilter('not_checked_in')}
+                  className={allParticipantsFilter === 'not_checked_in' ? 'bg-amber-600 hover:bg-amber-700' : ''}
+                >
+                  <X className="w-4 h-4 mr-1" />
+                  Not Checked In
+                </Button>
+                <Button variant="outline" size="sm" onClick={fetchAllParticipants}>
+                  <RefreshCw className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Participants List */}
+            <ScrollArea className="h-[500px] border rounded-lg">
+              {allParticipantsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-navy" />
+                </div>
+              ) : allParticipants.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <Users className="w-12 h-12 mb-2 opacity-50" />
+                  <p>No participants found</p>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {allParticipants.map((participant) => (
+                    <div
+                      key={`${participant.registrationType}-${participant.id}`}
+                      className={`flex items-center justify-between p-3 hover:bg-gray-50 ${
+                        participant.checkedIn ? 'bg-green-50' : ''
+                      }`}
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">
+                            {participant.firstName} {participant.lastName}
+                          </span>
+                          {participant.checkedIn ? (
+                            <Badge className="bg-green-500">Checked In</Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-amber-600 border-amber-300">
+                              Not Checked In
+                            </Badge>
+                          )}
+                          {participant.registrationType === 'individual' && (
+                            <Badge variant="secondary">Individual</Badge>
+                          )}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {participant.groupName}
+                          {participant.email && ` • ${participant.email}`}
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant={participant.checkedIn ? 'outline' : 'default'}
+                        onClick={() => handleQuickCheckIn(participant)}
+                        className={!participant.checkedIn ? 'bg-green-600 hover:bg-green-700' : ''}
+                      >
+                        {participant.checkedIn ? (
+                          <>
+                            <X className="w-4 h-4 mr-1" />
+                            Check Out
+                          </>
+                        ) : (
+                          <>
+                            <Check className="w-4 h-4 mr-1" />
+                            Check In
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+
+            {/* Summary */}
+            <div className="flex items-center justify-between text-sm text-muted-foreground pt-2 border-t">
+              <span>Showing {allParticipants.length} participants</span>
+              <span>
+                {allParticipants.filter(p => p.checkedIn).length} checked in / {allParticipants.filter(p => !p.checkedIn).length} not checked in
+              </span>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
