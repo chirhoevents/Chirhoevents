@@ -2,7 +2,7 @@ import { ImageResponse } from 'next/og'
 
 export const runtime = 'edge'
 
-export const alt = 'ChiRho Events - Catholic Event Registration Made Simple'
+export const alt = 'ChiRho Events - Built by Ministry for Ministry'
 export const size = {
   width: 1200,
   height: 630,
@@ -82,7 +82,7 @@ export default async function Image() {
               marginBottom: 16,
             }}
           >
-            Catholic Event Registration Made Simple
+            Built by Ministry for Ministry
           </span>
           <span
             style={{
@@ -90,7 +90,7 @@ export default async function Image() {
               color: 'rgba(255, 255, 255, 0.7)',
             }}
           >
-            Steubenville Conferences • Diocesan Retreats • Youth Ministry Events
+            Steubenville Conferences • Diocesan Retreats • Parish Events
           </span>
         </div>
 

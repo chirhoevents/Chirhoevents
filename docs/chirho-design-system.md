@@ -529,7 +529,7 @@ Arrow: 8px, matches background color
 - Used sparingly (hero backgrounds, accent imagery)
 
 **Secondary:**
-- Youth ministry events (conferences, retreats)
+- Ministry events (conferences, retreats)
 - Professional UI screenshots
 - People interacting with platform
 - Modern, bright, authentic

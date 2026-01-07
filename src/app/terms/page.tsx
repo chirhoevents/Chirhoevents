@@ -51,7 +51,7 @@ export default function TermsOfServicePage() {
               <h2 className="text-2xl font-bold text-navy mb-4">Description of Service</h2>
               <p className="text-gray-700 leading-relaxed">
                 ChiRho Events provides event registration and management services for Catholic
-                youth ministry events, including but not limited to diocesan retreats, conferences,
+                ministry events, including but not limited to diocesan retreats, conferences,
                 parish events, and seminary programs.
               </p>
             </section>

@@ -146,7 +146,7 @@ export default function PrivacyPolicyPage() {
             <section className="mb-10">
               <h2 className="text-2xl font-bold text-navy mb-4">Children&apos;s Privacy</h2>
               <p className="text-gray-700 mb-4">
-                Our platform is designed for youth ministry events. For participants under 18:
+                Our platform is designed for ministry events. For participants under 18:
               </p>
               <ul className="list-disc pl-6 text-gray-700 space-y-2 mb-4">
                 <li>Parental consent is required for liability forms</li>

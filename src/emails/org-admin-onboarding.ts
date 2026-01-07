@@ -44,7 +44,7 @@ export function generateOrgAdminOnboardingEmail({
     <p>Congratulations! Your organization <strong style="color: #1E3A5F;">${orgName}</strong> has been set up on ChiRho Events. You've been assigned as an <strong>Organization Administrator</strong>.</p>
 
     <div style="background: #F5F1E8; border-left: 4px solid #9C8466; padding: 15px; margin: 20px 0; border-radius: 4px;">
-      <p style="margin: 0; font-weight: 600; color: #1E3A5F;">You can now manage all your Catholic youth ministry events in one place!</p>
+      <p style="margin: 0; font-weight: 600; color: #1E3A5F;">You can now manage all your Catholic ministry events in one place!</p>
     </div>
 
     <!-- Step 1: Create Account -->
@@ -194,7 +194,7 @@ export function generateOrgAdminOnboardingEmail({
 
     <!-- Footer -->
     <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; color: #666; font-size: 14px;">
-      <p style="margin: 5px 0;">ChiRho Events - Catholic Event Registration Made Simple</p>
+      <p style="margin: 5px 0;">ChiRho Events - Built by Ministry for Ministry</p>
       <p style="margin: 5px 0;">
         <a href="https://chirhoevents.com" style="color: #9C8466; text-decoration: none;">chirhoevents.com</a>
       </p>
@@ -340,7 +340,7 @@ export function generateTeamInviteEmail({
 
     <!-- Footer -->
     <div style="text-align: center; color: #666; font-size: 14px;">
-      <p style="margin: 5px 0;">ChiRho Events - Catholic Event Registration Made Simple</p>
+      <p style="margin: 5px 0;">ChiRho Events - Built by Ministry for Ministry</p>
       <p style="margin: 15px 0 5px 0; font-size: 12px; color: #999;">
         This invitation was sent to ${inviteEmail}.<br>
         If you weren't expecting this, you can safely ignore this email.

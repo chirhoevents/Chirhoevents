@@ -7,7 +7,7 @@
 
 ## 🎯 Executive Summary
 
-ChiRho Events is a comprehensive Catholic youth ministry registration and event management platform designed specifically for conferences, retreats, and diocesan events. The platform serves 8 distinct user roles across 6 integrated systems.
+ChiRho Events is a comprehensive Catholic ministry registration and event management platform designed specifically for conferences, retreats, and diocesan events. The platform serves 8 distinct user roles across 6 integrated systems.
 
 **Core Value Proposition:**
 - 30% lower cost than competitors (Eventbrite, Cvent, Campbrain)
@@ -16,7 +16,7 @@ ChiRho Events is a comprehensive Catholic youth ministry registration and event 
 
 **Target Market:**
 - Catholic dioceses and archdioceses
-- Youth ministry conferences (Steubenville-style events)
+- Ministry conferences (Steubenville-style events)
 - Parish retreats and vocation programs
 - Seminary programs
 
