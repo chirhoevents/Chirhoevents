@@ -35,6 +35,61 @@ async function getHousingAssignmentsMap(participantIds: string[]) {
   )
 }
 
+// Format individual registration as a "group" for consistent frontend handling
+function formatIndividualRegistrationAsGroup(individual: any): any {
+  const liabilityForm = individual.liabilityForms?.[0]
+
+  return {
+    id: individual.id,
+    type: 'individual', // Mark as individual registration
+    groupName: `${individual.firstName} ${individual.lastName}`,
+    parishName: null,
+    accessCode: individual.accessCode || individual.id.slice(0, 8).toUpperCase(),
+    groupLeaderName: `${individual.firstName} ${individual.lastName}`,
+    groupLeaderEmail: individual.email,
+    diocese: null,
+    contactEmail: individual.email,
+    contactPhone: individual.phone,
+    totalParticipants: 1,
+    registrationStatus: individual.registrationStatus || 'confirmed',
+    payment: {
+      status: individual.paymentStatus || 'pending',
+      totalAmount: individual.totalAmount || 0,
+      paidAmount: individual.paidAmount || 0,
+      balanceRemaining: (individual.totalAmount || 0) - (individual.paidAmount || 0),
+    },
+    forms: {
+      completed: liabilityForm?.completed ? 1 : 0,
+      pending: liabilityForm?.completed ? 0 : 1,
+    },
+    housing: {
+      assigned: false, // TODO: Check if individual has housing
+    },
+    checkedInCount: individual.checkedIn ? 1 : 0,
+    isFullyCheckedIn: individual.checkedIn,
+    participants: [
+      {
+        id: individual.id,
+        firstName: individual.firstName,
+        lastName: individual.lastName,
+        email: individual.email,
+        age: liabilityForm?.participantAge || null,
+        participantType: individual.participantType || 'individual',
+        isChaperone: false,
+        isClergy: individual.participantType === 'priest',
+        gender: liabilityForm?.participantGender || null,
+        liabilityFormCompleted: liabilityForm?.completed || false,
+        checkedIn: individual.checkedIn || false,
+        checkedInAt: individual.checkedInAt,
+        checkInNotes: individual.checkInNotes,
+        housing: null,
+        isIndividual: true, // Flag for frontend
+      },
+    ],
+    allocatedRooms: [],
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
@@ -120,7 +175,7 @@ export async function GET(
       return NextResponse.json(formatGroupResponse(group, housingMap))
     }
 
-    // If search query is provided, search groups and participants
+    // If search query is provided, search groups, participants, AND individual registrations
     if (search && search.length >= 2) {
       // Search groups by multiple fields
       const groups = await prisma.groupRegistration.findMany({
@@ -167,15 +222,40 @@ export async function GET(
         take: 10,
       })
 
+      // Also search individual registrations
+      const individuals = await prisma.individualRegistration.findMany({
+        where: {
+          eventId,
+          OR: [
+            { firstName: { contains: search, mode: 'insensitive' } },
+            { lastName: { contains: search, mode: 'insensitive' } },
+            { email: { contains: search, mode: 'insensitive' } },
+            { accessCode: { contains: search, mode: 'insensitive' } },
+          ],
+        },
+        include: {
+          liabilityForms: {
+            take: 1,
+          },
+        },
+        take: 10,
+      })
+
       // Get housing for all participants across all groups
       const allParticipantIds = groups.flatMap((g: any) =>
         g.participants.map((p: any) => p.id)
       )
       const housingMap = await getHousingAssignmentsMap(allParticipantIds)
 
+      // Combine group and individual results
+      const groupResults = groups.map((g: any) => formatGroupResponse(g, housingMap))
+      const individualResults = individuals.map((i: any) => formatIndividualRegistrationAsGroup(i))
+
+      const allResults = [...groupResults, ...individualResults]
+
       return NextResponse.json({
-        results: groups.map((g: any) => formatGroupResponse(g, housingMap)),
-        count: groups.length,
+        results: allResults,
+        count: allResults.length,
       })
     }
 

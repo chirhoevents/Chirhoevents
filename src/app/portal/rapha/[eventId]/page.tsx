@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -31,8 +32,17 @@ import {
   ArrowLeft,
   Stethoscope,
   MapPin,
+  Camera,
+  QrCode,
 } from 'lucide-react'
 import { format } from 'date-fns'
+import { toast } from '@/lib/toast'
+
+// Dynamic import for QR scanner
+const QRScanner = dynamic(
+  () => import('@/components/salve/QRScanner').then((mod) => mod.QRScanner),
+  { ssr: false, loading: () => <div className="text-center py-8"><Loader2 className="w-8 h-8 animate-spin mx-auto" /></div> }
+)
 
 interface Participant {
   id: string
@@ -84,7 +94,39 @@ export default function RaphaDedicatedPortal() {
   const [filter, setFilter] = useState('all')
   const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null)
   const [showProfileModal, setShowProfileModal] = useState(false)
+  const [showQRScanner, setShowQRScanner] = useState(false)
   const [error, setError] = useState('')
+
+  // Quick lookup by ID (for QR scan)
+  async function lookupByParticipantId(participantId: string) {
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}/rapha/participants/${participantId}`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.participant) {
+          setSelectedParticipant(data.participant)
+          setShowProfileModal(true)
+          setShowQRScanner(false)
+          return true
+        }
+      }
+      // If not found by ID, try searching by name
+      setSearch(participantId)
+      setShowQRScanner(false)
+      toast.error('Participant not found. Try searching by name.')
+      return false
+    } catch (err) {
+      console.error('Failed to lookup participant:', err)
+      toast.error('Failed to lookup participant')
+      return false
+    }
+  }
+
+  function handleQRScan(data: string) {
+    if (data) {
+      lookupByParticipantId(data)
+    }
+  }
 
   useEffect(() => {
     fetchData()
@@ -272,14 +314,24 @@ export default function RaphaDedicatedPortal() {
         <Card className="mb-6">
           <CardContent className="pt-4">
             <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <Input
-                  placeholder="Search by name, condition, allergy..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-12 h-12 text-lg"
-                />
+              <div className="flex gap-2 flex-1">
+                <Button
+                  onClick={() => setShowQRScanner(true)}
+                  size="lg"
+                  className="h-12 px-4 bg-red-600 hover:bg-red-700"
+                >
+                  <QrCode className="w-5 h-5 mr-2" />
+                  Scan QR
+                </Button>
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Input
+                    placeholder="Search by name, condition, allergy..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-12 h-12 text-lg"
+                  />
+                </div>
               </div>
               <div className="flex flex-wrap gap-2">
                 {[
@@ -339,7 +391,15 @@ export default function RaphaDedicatedPortal() {
                     participants.map((p) => (
                       <tr key={p.id} className="hover:bg-gray-50">
                         <td className="p-4">
-                          <div className="font-medium">{p.firstName} {p.lastName}</div>
+                          <button
+                            onClick={() => {
+                              setSelectedParticipant(p)
+                              setShowProfileModal(true)
+                            }}
+                            className="font-medium text-red-600 hover:text-red-800 hover:underline text-left"
+                          >
+                            {p.firstName} {p.lastName}
+                          </button>
                         </td>
                         <td className="p-4">{p.age || '-'}</td>
                         <td className="p-4">
@@ -554,6 +614,31 @@ export default function RaphaDedicatedPortal() {
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* QR Scanner Modal */}
+      <Dialog open={showQRScanner} onOpenChange={setShowQRScanner}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <QrCode className="w-5 h-5" />
+              Scan Participant QR Code
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-gray-500 mb-4 text-center">
+              Point the camera at the participant&apos;s name tag QR code
+            </p>
+            <QRScanner
+              onScan={handleQRScan}
+              onError={(err) => {
+                console.error('QR Error:', err)
+                toast.error('QR scanner error. Try searching manually.')
+              }}
+              onClose={() => setShowQRScanner(false)}
+            />
+          </div>
         </DialogContent>
       </Dialog>
     </div>
