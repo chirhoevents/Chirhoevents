@@ -175,29 +175,37 @@ export default function AdminLayout({
         style={{ backgroundColor: primaryColor }}
       >
         <div className="flex flex-col h-full">
-          {/* Logo Header - Side by Side */}
+          {/* Logo Header - Side by Side, Centered */}
           <div
-            className="flex items-center justify-between h-20 lg:h-24 px-4 border-b"
+            className="flex items-center justify-center h-20 lg:h-24 px-4 border-b relative"
             style={{ borderColor: `${primaryColor}40` }}
           >
-            {/* ChiRho Logo */}
-            <Link href="/" className="flex items-center flex-shrink-0 hover:opacity-90 transition-opacity">
-              <Image
-                src="/light-logo-horizontal.png"
-                alt="ChiRho Events"
-                width={130}
-                height={32}
-                className="h-8 lg:h-9 w-auto object-contain"
-              />
-            </Link>
+            {/* Mobile close button - absolute positioned */}
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden text-white absolute top-4 right-4"
+            >
+              <X className="h-6 w-6" />
+            </button>
 
-            {/* Right side: Divider + Org logo + mobile close */}
-            <div className="flex items-center gap-3">
+            {/* Logos centered together */}
+            <div className="flex items-center gap-4">
+              {/* ChiRho Logo */}
+              <Link href="/" className="flex items-center hover:opacity-90 transition-opacity">
+                <Image
+                  src="/light-logo-horizontal.png"
+                  alt="ChiRho Events"
+                  width={120}
+                  height={30}
+                  className="h-8 lg:h-9 w-auto object-contain"
+                />
+              </Link>
+
               {/* Vertical Divider + Organization Logo */}
               {userInfo?.logoUrl && (
                 <>
                   <div className="w-px h-10 bg-white/30" />
-                  <Link href="/dashboard/admin" className="flex-shrink-0">
+                  <Link href="/dashboard/admin">
                     <div className="w-12 h-12 lg:w-14 lg:h-14 bg-white rounded-lg flex items-center justify-center p-1 hover:shadow-lg transition-shadow">
                       <img
                         src={userInfo.logoUrl}
@@ -208,14 +216,6 @@ export default function AdminLayout({
                   </Link>
                 </>
               )}
-
-              {/* Mobile close button */}
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="lg:hidden text-white ml-2"
-              >
-                <X className="h-6 w-6" />
-              </button>
             </div>
           </div>
 
