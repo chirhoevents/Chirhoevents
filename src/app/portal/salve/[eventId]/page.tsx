@@ -438,7 +438,7 @@ export default function SalveDedicatedPortal() {
                   <QrCode className="w-20 h-20 mx-auto text-emerald-600 mb-4" />
                   <h2 className="text-2xl font-semibold mb-2">Scan QR Code or Search</h2>
                   <p className="text-gray-500">
-                    Scan the group leader's QR code or search by name, email, or access code
+                    Scan the group leader&apos;s QR code or search by name, email, or access code
                   </p>
                 </div>
 
@@ -481,7 +481,7 @@ export default function SalveDedicatedPortal() {
               <div className="space-y-4">
                 <div className="text-center mb-4">
                   <h2 className="text-xl font-semibold">Scan QR Code</h2>
-                  <p className="text-gray-500">Point camera at the group leader's QR code</p>
+                  <p className="text-gray-500">Point camera at the group leader&apos;s QR code</p>
                 </div>
                 <QRScanner
                   onScan={handleQrScan}
@@ -505,7 +505,7 @@ export default function SalveDedicatedPortal() {
               <div className="text-center py-12">
                 <X className="w-20 h-20 mx-auto text-red-500 mb-4" />
                 <h2 className="text-2xl font-semibold text-red-600 mb-2">Not Found</h2>
-                <p className="text-gray-500 mb-4">No registration found for "{searchQuery}"</p>
+                <p className="text-gray-500 mb-4">No registration found for &quot;{searchQuery}&quot;</p>
                 <Button onClick={resetSearch} size="lg">Try Again</Button>
               </div>
             )}
