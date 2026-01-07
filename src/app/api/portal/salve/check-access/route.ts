@@ -27,9 +27,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if user has portal-specific roles (salve_user, salve_coordinator)
-    // These roles would be stored in the user's permissions or a separate portal access table
-    const portalRoles = ['salve_user', 'salve_coordinator']
-    const hasPortalRole = user.permissions?.some((p: string) => portalRoles.includes(p))
+    // These roles would be stored in the user's permissions object
+    const portalRoles = ['salve_user', 'salve_coordinator', 'portals.salve.view']
+    const hasPortalRole = user.permissions
+      ? portalRoles.some(role => user.permissions?.[role] === true)
+      : false
 
     if (hasPortalRole) {
       // If eventId is provided, verify user has access to that specific event
