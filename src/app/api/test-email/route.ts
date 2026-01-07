@@ -244,7 +244,7 @@ export async function POST(request: NextRequest) {
 
     const data = await resend.emails.send({
       from: `ChiRho Events <${fromEmail}>`,
-      replyTo: 'support@chirhoevents.com',
+      reply_to: 'support@chirhoevents.com',
       to,
       subject,
       html,
