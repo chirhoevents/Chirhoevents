@@ -184,7 +184,7 @@ export async function GET(
           OR: [
             // Group info
             { groupName: { contains: search, mode: 'insensitive' } },
-            { accessCode: { contains: search, mode: 'insensitive' } },
+            { confirmationCode: { contains: search, mode: 'insensitive' } },
             { parishName: { contains: search, mode: 'insensitive' } },
             { dioceseName: { contains: search, mode: 'insensitive' } },
             // Group leader info
@@ -230,7 +230,7 @@ export async function GET(
             { firstName: { contains: search, mode: 'insensitive' } },
             { lastName: { contains: search, mode: 'insensitive' } },
             { email: { contains: search, mode: 'insensitive' } },
-            { accessCode: { contains: search, mode: 'insensitive' } },
+            { confirmationCode: { contains: search, mode: 'insensitive' } },
           ],
         },
         include: {
