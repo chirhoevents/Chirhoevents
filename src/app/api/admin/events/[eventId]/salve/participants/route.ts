@@ -14,22 +14,28 @@ export async function GET(
     const search = searchParams.get('search') || ''
     const filterStatus = searchParams.get('status') || 'all' // all, checked_in, not_checked_in
 
+    // Build where clause for group participants
+    const groupWhere: any = {
+      groupRegistration: {
+        eventId,
+      },
+    }
+    if (search) {
+      groupWhere.OR = [
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ]
+    }
+    if (filterStatus === 'checked_in') {
+      groupWhere.checkedIn = true
+    } else if (filterStatus === 'not_checked_in') {
+      groupWhere.checkedIn = false
+    }
+
     // Get all group participants for this event
     const groupParticipants = await prisma.participant.findMany({
-      where: {
-        groupRegistration: {
-          eventId,
-        },
-        ...(search && {
-          OR: [
-            { firstName: { contains: search, mode: 'insensitive' } },
-            { lastName: { contains: search, mode: 'insensitive' } },
-            { email: { contains: search, mode: 'insensitive' } },
-          ],
-        }),
-        ...(filterStatus === 'checked_in' && { checkedIn: true }),
-        ...(filterStatus === 'not_checked_in' && { checkedIn: false }),
-      },
+      where: groupWhere,
       include: {
         groupRegistration: {
           select: {
@@ -43,20 +49,26 @@ export async function GET(
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     })
 
+    // Build where clause for individual registrations
+    const individualWhere: any = {
+      eventId,
+    }
+    if (search) {
+      individualWhere.OR = [
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ]
+    }
+    if (filterStatus === 'checked_in') {
+      individualWhere.checkedIn = true
+    } else if (filterStatus === 'not_checked_in') {
+      individualWhere.checkedIn = false
+    }
+
     // Get all individual registrations for this event
     const individuals = await prisma.individualRegistration.findMany({
-      where: {
-        eventId,
-        ...(search && {
-          OR: [
-            { firstName: { contains: search, mode: 'insensitive' } },
-            { lastName: { contains: search, mode: 'insensitive' } },
-            { email: { contains: search, mode: 'insensitive' } },
-          ],
-        }),
-        ...(filterStatus === 'checked_in' && { checkedIn: true }),
-        ...(filterStatus === 'not_checked_in' && { checkedIn: false }),
-      },
+      where: individualWhere,
       include: {
         liabilityForms: {
           take: 1,
