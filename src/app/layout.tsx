@@ -59,7 +59,18 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className="antialiased">{children}</body>
+        <body className="antialiased">
+          {/* Skip to main content link for accessibility */}
+          <a
+            href="#main-content"
+            className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-[#1E3A5F] text-white px-4 py-2 rounded z-[9999]"
+          >
+            Skip to main content
+          </a>
+          <main id="main-content">
+            {children}
+          </main>
+        </body>
       </html>
     </ClerkProvider>
   );
