@@ -95,15 +95,16 @@ type Participant = RaphaParticipant
 interface RaphaParticipantsProps {
   eventId: string
   onCreateIncident?: (participant: Participant) => void
+  initialSearch?: string
 }
 
-export default function RaphaParticipants({ eventId, onCreateIncident }: RaphaParticipantsProps) {
+export default function RaphaParticipants({ eventId, onCreateIncident, initialSearch }: RaphaParticipantsProps) {
   const searchParams = useSearchParams()
 
   const [loading, setLoading] = useState(true)
   const [participants, setParticipants] = useState<Participant[]>([])
   const [totalCount, setTotalCount] = useState(0)
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(initialSearch || '')
   const [filter, setFilter] = useState('all')
   const [sortBy, setSortBy] = useState('name')
   const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null)
@@ -129,6 +130,13 @@ export default function RaphaParticipants({ eventId, onCreateIncident }: RaphaPa
       setFilter(urlFilter)
     }
   }, [searchParams])
+
+  // Update search when initialSearch prop changes
+  useEffect(() => {
+    if (initialSearch && initialSearch !== search) {
+      setSearch(initialSearch)
+    }
+  }, [initialSearch])
 
   useEffect(() => {
     fetchParticipants()

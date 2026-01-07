@@ -102,7 +102,7 @@ export async function GET(
       groupId: null,
       groupName: 'Individual Registration',
       parishName: null,
-      accessCode: i.accessCode,
+      accessCode: i.confirmationCode,
     }))
 
     // Combine and sort

@@ -30,9 +30,6 @@ import {
   Camera,
   ArrowLeft,
   CheckSquare,
-  FileText,
-  Settings,
-  BarChart3,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
@@ -44,6 +41,7 @@ const QRScanner = dynamic(
 
 interface GroupData {
   id: string
+  type?: 'individual' | 'group'
   groupName: string
   parishName: string | null
   accessCode: string
@@ -332,12 +330,17 @@ export default function SalveDedicatedPortal() {
     setCheckingIn(true)
 
     try {
+      // Check if this is an individual registration
+      const isIndividual = (groupData as any).type === 'individual'
+
       const response = await fetch(`/api/admin/events/${eventId}/salve/check-in`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          groupRegistrationId: groupData.id,
+          groupRegistrationId: isIndividual ? undefined : groupData.id,
           participantIds: Array.from(selectedParticipants),
+          registrationType: isIndividual ? 'individual' : 'group',
+          action: 'check_in',
           absentParticipantIds: groupData.participants
             .filter(p => !p.checkedIn && !selectedParticipants.has(p.id))
             .map(p => p.id),
@@ -424,16 +427,10 @@ export default function SalveDedicatedPortal() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Link href={`/portal/salve/${eventId}/welcome-packets`}>
+            <Link href={`/portal/salve/${eventId}/participants`}>
               <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
-                <FileText className="w-4 h-4 mr-1" />
-                <span className="hidden sm:inline">Packets</span>
-              </Button>
-            </Link>
-            <Link href={`/portal/salve/${eventId}/name-tags`}>
-              <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
-                <Settings className="w-4 h-4 mr-1" />
-                <span className="hidden sm:inline">Tags</span>
+                <Users className="w-4 h-4 mr-1" />
+                <span className="hidden sm:inline">All Participants</span>
               </Button>
             </Link>
             {isAdmin && (
