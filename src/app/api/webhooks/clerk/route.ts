@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       console.log('👤 New user signed up:', email)
 
       // Check if user already exists by clerkUserId
-      const existingUserByClerk = await prisma.user.findUnique({
+      const existingUserByClerk = await prisma.user.findFirst({
         where: { clerkUserId: id },
       })
 
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
       console.log('🔄 User updated:', email)
 
       // Check if user exists by clerkUserId
-      const existingUser = await prisma.user.findUnique({
+      const existingUser = await prisma.user.findFirst({
         where: { clerkUserId: id },
       })
 
@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
       } else {
         // Update existing user
         await prisma.user.update({
-          where: { clerkUserId: id },
+          where: { id: existingUser.id },
           data: {
             email: email,
             firstName: first_name || '',
@@ -196,13 +196,13 @@ export async function POST(request: NextRequest) {
       console.log('🗑️ User deleted from Clerk:', id)
 
       // Check if user exists before trying to delete
-      const existingUser = await prisma.user.findUnique({
+      const existingUser = await prisma.user.findFirst({
         where: { clerkUserId: id },
       })
 
       if (existingUser) {
         await prisma.user.delete({
-          where: { clerkUserId: id },
+          where: { id: existingUser.id },
         })
         console.log('✅ User deleted from database')
       } else {
