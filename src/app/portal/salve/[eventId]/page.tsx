@@ -30,6 +30,8 @@ import {
   Camera,
   ArrowLeft,
   CheckSquare,
+  FileText,
+  Tag,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
@@ -431,6 +433,18 @@ export default function SalveDedicatedPortal() {
               <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
                 <Users className="w-4 h-4 mr-1" />
                 <span className="hidden sm:inline">All Participants</span>
+              </Button>
+            </Link>
+            <Link href={`/portal/salve/${eventId}/welcome-packets`}>
+              <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
+                <FileText className="w-4 h-4 mr-1" />
+                <span className="hidden sm:inline">Packets</span>
+              </Button>
+            </Link>
+            <Link href={`/portal/salve/${eventId}/name-tags`}>
+              <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
+                <Tag className="w-4 h-4 mr-1" />
+                <span className="hidden sm:inline">Name Tags</span>
               </Button>
             </Link>
             {isAdmin && (
