@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Save, Loader2, Building2 } from 'lucide-react'
@@ -56,6 +57,7 @@ const tierLabels: Record<string, string> = {
 export default function EditOrganizationPage() {
   const params = useParams()
   const router = useRouter()
+  const { getToken } = useAuth()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -90,7 +92,10 @@ export default function EditOrganizationPage() {
   useEffect(() => {
     const fetchOrganization = async () => {
       try {
-        const response = await fetch(`/api/master-admin/organizations/${params.orgId}`)
+        const token = await getToken()
+        const response = await fetch(`/api/master-admin/organizations/${params.orgId}`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        })
         if (response.ok) {
           const data = await response.json()
           const org: Organization = data.organization
@@ -131,7 +136,7 @@ export default function EditOrganizationPage() {
     }
 
     fetchOrganization()
-  }, [params.orgId])
+  }, [params.orgId, getToken])
 
   const handleTierChange = (newTier: string) => {
     const pricing = tierPricing[newTier]
@@ -166,9 +171,13 @@ export default function EditOrganizationPage() {
     setError(null)
 
     try {
+      const token = await getToken()
       const response = await fetch(`/api/master-admin/organizations/${params.orgId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(formData),
       })
 

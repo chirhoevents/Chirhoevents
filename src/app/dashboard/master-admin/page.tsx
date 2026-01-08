@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
 import {
   Building2,
@@ -62,13 +63,17 @@ interface DashboardStats {
 }
 
 export default function MasterAdminDashboard() {
+  const { getToken } = useAuth()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await fetch('/api/master-admin/dashboard/stats')
+        const token = await getToken()
+        const response = await fetch('/api/master-admin/dashboard/stats', {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        })
         if (response.ok) {
           const data = await response.json()
           setStats(data)
@@ -81,7 +86,7 @@ export default function MasterAdminDashboard() {
     }
 
     fetchStats()
-  }, [])
+  }, [getToken])
 
   // Default stats while loading or if API fails
   const displayStats: DashboardStats = stats || {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -53,6 +54,7 @@ const tierPricing: Record<string, { monthly: number; annual: number }> = {
 
 export default function PendingRequestsPage() {
   const router = useRouter()
+  const { getToken } = useAuth()
   const [requests, setRequests] = useState<OnboardingRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedRequest, setSelectedRequest] = useState<OnboardingRequest | null>(null)
@@ -63,7 +65,10 @@ export default function PendingRequestsPage() {
   useEffect(() => {
     const fetchRequests = async () => {
       try {
-        const response = await fetch('/api/master-admin/onboarding-requests')
+        const token = await getToken()
+        const response = await fetch('/api/master-admin/onboarding-requests', {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        })
         if (response.ok) {
           const data = await response.json()
           setRequests(data.requests)
@@ -76,13 +81,15 @@ export default function PendingRequestsPage() {
     }
 
     fetchRequests()
-  }, [])
+  }, [getToken])
 
   const handleApprove = async (requestId: string) => {
     setActionLoading(requestId)
     try {
+      const token = await getToken()
       const response = await fetch(`/api/master-admin/onboarding-requests/${requestId}/approve`, {
         method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
       if (response.ok) {
         setRequests(reqs => reqs.filter(r => r.id !== requestId))
@@ -98,9 +105,13 @@ export default function PendingRequestsPage() {
   const handleReject = async (requestId: string) => {
     setActionLoading(requestId)
     try {
+      const token = await getToken()
       const response = await fetch(`/api/master-admin/onboarding-requests/${requestId}/reject`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ reason: rejectReason }),
       })
       if (response.ok) {

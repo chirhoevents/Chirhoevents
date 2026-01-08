@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -120,6 +121,7 @@ const invoiceStatusColors: Record<string, string> = {
 export default function OrganizationDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const { getToken } = useAuth()
   const [organization, setOrganization] = useState<Organization | null>(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
@@ -190,7 +192,10 @@ export default function OrganizationDetailPage() {
   useEffect(() => {
     const fetchOrganization = async () => {
       try {
-        const response = await fetch(`/api/master-admin/organizations/${params.orgId}`)
+        const token = await getToken()
+        const response = await fetch(`/api/master-admin/organizations/${params.orgId}`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        })
         if (response.ok) {
           const data = await response.json()
           setOrganization(data.organization)
@@ -204,7 +209,10 @@ export default function OrganizationDetailPage() {
 
     const fetchInvoices = async () => {
       try {
-        const response = await fetch(`/api/master-admin/invoices?orgId=${params.orgId}`)
+        const token = await getToken()
+        const response = await fetch(`/api/master-admin/invoices?orgId=${params.orgId}`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        })
         if (response.ok) {
           const data = await response.json()
           setInvoices(data.invoices)
@@ -216,7 +224,7 @@ export default function OrganizationDetailPage() {
 
     fetchOrganization()
     fetchInvoices()
-  }, [params.orgId])
+  }, [params.orgId, getToken])
 
   const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -224,9 +232,13 @@ export default function OrganizationDetailPage() {
 
     setCreatingInvoice(true)
     try {
+      const token = await getToken()
       const response = await fetch('/api/master-admin/invoices', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           organizationId: params.orgId,
           ...invoiceForm,
@@ -239,7 +251,9 @@ export default function OrganizationDetailPage() {
         setShowInvoiceModal(false)
         setInvoiceForm({ invoiceType: 'custom', amount: '', description: '', dueDate: '', periodStart: '', periodEnd: '' })
         // Refresh invoices
-        const invResponse = await fetch(`/api/master-admin/invoices?orgId=${params.orgId}`)
+        const invResponse = await fetch(`/api/master-admin/invoices?orgId=${params.orgId}`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        })
         if (invResponse.ok) {
           const invData = await invResponse.json()
           setInvoices(invData.invoices)
@@ -255,9 +269,13 @@ export default function OrganizationDetailPage() {
 
   const handleMarkPaid = async (invoiceId: string) => {
     try {
+      const token = await getToken()
       const response = await fetch(`/api/master-admin/invoices/${invoiceId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ status: 'paid' }),
       })
 
@@ -274,8 +292,10 @@ export default function OrganizationDetailPage() {
   const handleImpersonate = async () => {
     setActionLoading('impersonate')
     try {
+      const token = await getToken()
       const response = await fetch(`/api/master-admin/organizations/${params.orgId}/impersonate`, {
         method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
       if (response.ok) {
         router.push('/dashboard/admin')
@@ -292,8 +312,10 @@ export default function OrganizationDetailPage() {
 
     setActionLoading('suspend')
     try {
+      const token = await getToken()
       const response = await fetch(`/api/master-admin/organizations/${params.orgId}/suspend`, {
         method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
       if (response.ok) {
         setOrganization(prev => prev ? { ...prev, status: 'suspended', subscriptionStatus: 'suspended' } : null)
@@ -308,8 +330,10 @@ export default function OrganizationDetailPage() {
   const handleReactivate = async () => {
     setActionLoading('reactivate')
     try {
+      const token = await getToken()
       const response = await fetch(`/api/master-admin/organizations/${params.orgId}/reactivate`, {
         method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
       if (response.ok) {
         setOrganization(prev => prev ? { ...prev, status: 'active', subscriptionStatus: 'active' } : null)
@@ -326,8 +350,10 @@ export default function OrganizationDetailPage() {
 
     setActionLoading('resend-onboarding')
     try {
+      const token = await getToken()
       const response = await fetch(`/api/master-admin/organizations/${params.orgId}/resend-onboarding`, {
         method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
 
       const data = await response.json()
@@ -351,9 +377,13 @@ export default function OrganizationDetailPage() {
 
     setChangingAdmin(true)
     try {
+      const token = await getToken()
       const response = await fetch(`/api/master-admin/organizations/${params.orgId}/change-admin`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(changeAdminForm),
       })
 

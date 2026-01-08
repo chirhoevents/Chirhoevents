@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -39,6 +40,7 @@ const subscriptionTiers = [
 
 export default function CreateOrganizationPage() {
   const router = useRouter()
+  const { getToken } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -85,9 +87,13 @@ export default function CreateOrganizationPage() {
     setError(null)
 
     try {
+      const token = await getToken()
       const response = await fetch('/api/master-admin/organizations', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           ...formData,
           modulesEnabled: {
