@@ -50,7 +50,7 @@ function GroupLeaderLayoutContent({
   children: React.ReactNode
 }) {
   const router = useRouter()
-  const { userId } = useAuth()
+  const { isLoaded, isSignedIn, getToken } = useAuth()
   const { signOut } = useClerk()
   const { selectedEventId, setSelectedEventId, linkedEvents, setLinkedEvents, currentEvent, refreshEvents } = useEvent()
   const [groupInfo, setGroupInfo] = useState<GroupInfo | null>(null)
@@ -63,9 +63,21 @@ function GroupLeaderLayoutContent({
   const [addCodeError, setAddCodeError] = useState('')
 
   useEffect(() => {
+    if (!isLoaded) return
+
+    if (!isSignedIn) {
+      router.push('/sign-in')
+      return
+    }
+
     const checkAccess = async () => {
       try {
-        const response = await fetch('/api/group-leader/settings')
+        // Get token to pass in Authorization header (for when cookies aren't ready)
+        const token = await getToken()
+
+        const response = await fetch('/api/group-leader/settings', {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        })
 
         if (response.status === 404 || !response.ok) {
           // No linked registration - redirect to link page
@@ -99,10 +111,8 @@ function GroupLeaderLayoutContent({
       }
     }
 
-    if (userId) {
-      checkAccess()
-    }
-  }, [userId, router])
+    checkAccess()
+  }, [isLoaded, isSignedIn, getToken, router])
 
   // Update groupInfo when currentEvent changes
   useEffect(() => {

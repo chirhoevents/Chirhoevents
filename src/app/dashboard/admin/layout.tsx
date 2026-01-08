@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { UserButton, useClerk } from '@clerk/nextjs'
+import { UserButton, useClerk, useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
@@ -69,14 +69,27 @@ export default function AdminLayout({
 }) {
   const router = useRouter()
   const { signOut } = useClerk()
+  const { isLoaded, isSignedIn, getToken } = useAuth()
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
+    if (!isLoaded) return
+
+    if (!isSignedIn) {
+      router.push('/sign-in')
+      return
+    }
+
     const checkAccess = async () => {
       try {
-        const response = await fetch('/api/admin/check-access')
+        // Get token to pass in Authorization header (for when cookies aren't ready)
+        const token = await getToken()
+
+        const response = await fetch('/api/admin/check-access', {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        })
 
         if (response.status === 403) {
           // Not an admin - redirect appropriately
@@ -109,7 +122,7 @@ export default function AdminLayout({
     }
 
     checkAccess()
-  }, [router])
+  }, [isLoaded, isSignedIn, getToken, router])
 
   // Filter navigation based on user permissions and enabled modules
   const navigation = useMemo(() => {
