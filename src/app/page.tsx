@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -8,9 +8,28 @@ import { Check, Users, FileText, Home, Clipboard, Heart, BarChart3, Mail, Phone,
 import Link from "next/link";
 import Image from "next/image";
 import { PublicNav } from "@/components/PublicNav";
+import { PlatformPricing, getDefaultPricing } from "@/lib/pricing-config";
 
 export default function LandingPage() {
   const [contactFormSubmitted, setContactFormSubmitted] = useState(false);
+  const [pricing, setPricing] = useState<PlatformPricing>(getDefaultPricing());
+
+  useEffect(() => {
+    // Fetch dynamic pricing from API
+    const fetchPricing = async () => {
+      try {
+        const response = await fetch('/api/pricing');
+        if (response.ok) {
+          const data = await response.json();
+          setPricing(data.pricing);
+        }
+      } catch (error) {
+        console.error('Failed to fetch pricing:', error);
+        // Keep default pricing on error
+      }
+    };
+    fetchPricing();
+  }, []);
 
   const handleContactSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -321,158 +340,61 @@ export default function LandingPage() {
             Simple, Transparent Pricing
           </h2>
           <p className="text-center text-gray-600 mb-4 text-lg">
-            Processing Fee: 2.9% + $0.30 per ticket (Stripe) • Platform Fee: 1% • Setup Fee: $250 (one-time)
+            Processing Fee: {pricing.processingFeePercent}% + ${pricing.transactionFee.toFixed(2)} per ticket (Stripe) • Platform Fee: {pricing.platformFeePercent}% • Setup Fee: ${pricing.setupFee} (one-time)
           </p>
           <p className="text-center text-sm text-gray-500 mb-12">
-            All payments are processed securely via Stripe. The 1% platform fee helps us maintain and improve ChiRho Events.
+            All payments are processed securely via Stripe. The {pricing.platformFeePercent}% platform fee helps us maintain and improve ChiRho Events.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 max-w-7xl mx-auto">
-            {/* Starter */}
-            <Card className="border-2 border-gray-200">
-              <CardHeader>
-                <CardTitle className="text-2xl">Starter</CardTitle>
-                <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$49</span>
-                  <span className="text-gray-600">/mo</span>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-gray-600">• 3 events/year</p>
-                <p className="text-sm text-gray-600">• 500 people max</p>
-                <p className="text-sm text-gray-600">• 5GB storage</p>
-                <div className="mt-4 text-xs text-gray-600">
-                  <p className="font-semibold mb-1">Additional Fees:</p>
-                  <ul className="space-y-1">
-                    <li>• $250 one-time setup fee</li>
-                    <li>• Stripe fees: 2.9% + $0.30 per transaction</li>
-                    <li>• ChiRho platform fee: 1% of registrations</li>
-                  </ul>
-                </div>
-                <Link href="/get-started?tier=starter">
-                  <Button className="w-full mt-6">Get Started</Button>
-                </Link>
-              </CardContent>
-            </Card>
-
-            {/* Small Diocese */}
-            <Card className="border-2 border-gray-200">
-              <CardHeader>
-                <CardTitle className="text-2xl">Small Diocese</CardTitle>
-                <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$99</span>
-                  <span className="text-gray-600">/mo</span>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-gray-600">• 5 events/year</p>
-                <p className="text-sm text-gray-600">• 1,000 people max</p>
-                <p className="text-sm text-gray-600">• 10GB storage</p>
-                <div className="mt-4 text-xs text-gray-600">
-                  <p className="font-semibold mb-1">Additional Fees:</p>
-                  <ul className="space-y-1">
-                    <li>• $250 one-time setup fee</li>
-                    <li>• Stripe fees: 2.9% + $0.30 per transaction</li>
-                    <li>• ChiRho platform fee: 1% of registrations</li>
-                  </ul>
-                </div>
-                <Link href="/get-started?tier=small_diocese">
-                  <Button className="w-full mt-6">Get Started</Button>
-                </Link>
-              </CardContent>
-            </Card>
-
-            {/* Growing - Popular */}
-            <Card className="border-2 border-gold shadow-lg scale-105">
-              <div className="bg-gold text-navy text-center py-1 text-sm font-semibold">
-                POPULAR
-              </div>
-              <CardHeader>
-                <CardTitle className="text-2xl">Growing</CardTitle>
-                <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$149</span>
-                  <span className="text-gray-600">/mo</span>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-gray-600">• 10 events/year</p>
-                <p className="text-sm text-gray-600">• 3,000 people max</p>
-                <p className="text-sm text-gray-600">• 25GB storage</p>
-                <div className="mt-4 text-xs text-gray-600">
-                  <p className="font-semibold mb-1">Additional Fees:</p>
-                  <ul className="space-y-1">
-                    <li>• $250 one-time setup fee</li>
-                    <li>• Stripe fees: 2.9% + $0.30 per transaction</li>
-                    <li>• ChiRho platform fee: 1% of registrations</li>
-                  </ul>
-                </div>
-                <Link href="/get-started?tier=growing">
-                  <Button className="w-full mt-6">Get Started</Button>
-                </Link>
-              </CardContent>
-            </Card>
-
-            {/* Conference */}
-            <Card className="border-2 border-gray-200">
-              <CardHeader>
-                <CardTitle className="text-2xl">Conference</CardTitle>
-                <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$249</span>
-                  <span className="text-gray-600">/mo</span>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-gray-600">• 25 events/year</p>
-                <p className="text-sm text-gray-600">• 8,000 people max</p>
-                <p className="text-sm text-gray-600">• 100GB storage</p>
-                <div className="mt-4 text-xs text-gray-600">
-                  <p className="font-semibold mb-1">Additional Fees:</p>
-                  <ul className="space-y-1">
-                    <li>• $250 one-time setup fee</li>
-                    <li>• Stripe fees: 2.9% + $0.30 per transaction</li>
-                    <li>• ChiRho platform fee: 1% of registrations</li>
-                  </ul>
-                </div>
-                <Link href="/get-started?tier=conference">
-                  <Button className="w-full mt-6">Get Started</Button>
-                </Link>
-              </CardContent>
-            </Card>
-
-            {/* Enterprise */}
-            <Card className="border-2 border-navy">
-              <CardHeader>
-                <CardTitle className="text-2xl">Enterprise</CardTitle>
-                <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$499</span>
-                  <span className="text-gray-600">/mo</span>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-gray-600">• Unlimited events</p>
-                <p className="text-sm text-gray-600">• Unlimited people</p>
-                <p className="text-sm text-gray-600">• 500GB storage</p>
-                <div className="mt-4 text-xs text-gray-600">
-                  <p className="font-semibold mb-1">Additional Fees:</p>
-                  <ul className="space-y-1">
-                    <li>• $250 one-time setup fee</li>
-                    <li>• Stripe fees: 2.9% + $0.30 per transaction</li>
-                    <li>• ChiRho platform fee: 1% of registrations</li>
-                  </ul>
-                </div>
-                <Link href="/get-started?tier=enterprise">
-                  <Button variant="outline" className="w-full mt-6">Get Started</Button>
-                </Link>
-              </CardContent>
-            </Card>
+            {pricing.tiers.map((tier) => (
+              <Card
+                key={tier.key}
+                className={`border-2 ${tier.isPopular ? 'border-gold shadow-lg scale-105' : tier.key === 'enterprise' ? 'border-navy' : 'border-gray-200'}`}
+              >
+                {tier.isPopular && (
+                  <div className="bg-gold text-navy text-center py-1 text-sm font-semibold">
+                    POPULAR
+                  </div>
+                )}
+                <CardHeader>
+                  <CardTitle className="text-2xl">{tier.name}</CardTitle>
+                  <div className="mt-4">
+                    <span className="text-4xl font-bold text-navy">${tier.monthlyPrice}</span>
+                    <span className="text-gray-600">/mo</span>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-gray-600">• {tier.features.eventsPerYear} events/year</p>
+                  <p className="text-sm text-gray-600">• {tier.features.maxPeople} people max</p>
+                  <p className="text-sm text-gray-600">• {tier.features.storageGb}GB storage</p>
+                  <div className="mt-4 text-xs text-gray-600">
+                    <p className="font-semibold mb-1">Additional Fees:</p>
+                    <ul className="space-y-1">
+                      <li>• ${pricing.setupFee} one-time setup fee</li>
+                      <li>• Stripe fees: {pricing.processingFeePercent}% + ${pricing.transactionFee.toFixed(2)} per transaction</li>
+                      <li>• ChiRho platform fee: {pricing.platformFeePercent}% of registrations</li>
+                    </ul>
+                  </div>
+                  <Link href={`/get-started?tier=${tier.key}`}>
+                    <Button
+                      variant={tier.key === 'enterprise' ? 'outline' : 'default'}
+                      className="w-full mt-6"
+                    >
+                      Get Started
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ))}
           </div>
 
           {/* Pricing Example */}
           <div className="mt-8 text-center text-sm text-gray-600">
             <p className="font-semibold mb-2">Example: On a $100 registration:</p>
             <p>• Participant pays: $100.00</p>
-            <p>• Stripe fee: $3.20</p>
-            <p>• ChiRho fee (1%): $1.00</p>
-            <p className="mt-2"><strong>You receive: $95.80</strong></p>
+            <p>• Stripe fee: ${(100 * pricing.processingFeePercent / 100 + pricing.transactionFee).toFixed(2)}</p>
+            <p>• ChiRho fee ({pricing.platformFeePercent}%): ${(100 * pricing.platformFeePercent / 100).toFixed(2)}</p>
+            <p className="mt-2"><strong>You receive: ${(100 - (100 * pricing.processingFeePercent / 100 + pricing.transactionFee) - (100 * pricing.platformFeePercent / 100)).toFixed(2)}</strong></p>
           </div>
         </div>
       </section>

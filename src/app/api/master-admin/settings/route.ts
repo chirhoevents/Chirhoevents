@@ -46,16 +46,40 @@ export async function GET() {
       stripe_enabled: 'true',
       invoice_enabled: 'true',
       ach_enabled: 'false',
+      // Fee settings
+      processing_fee_percent: '2.9',
+      platform_fee_percent: '1',
+      transaction_fee: '0.30',
+      // Starter tier
       starter_monthly: '49',
       starter_annual: '490',
+      starter_events: '3',
+      starter_people: '500',
+      starter_storage: '5',
+      // Small Diocese tier
       small_diocese_monthly: '99',
       small_diocese_annual: '990',
+      small_diocese_events: '5',
+      small_diocese_people: '1,000',
+      small_diocese_storage: '10',
+      // Growing tier
       growing_monthly: '149',
       growing_annual: '1490',
+      growing_events: '10',
+      growing_people: '3,000',
+      growing_storage: '25',
+      // Conference tier
       conference_monthly: '249',
       conference_annual: '2490',
+      conference_events: '25',
+      conference_people: '8,000',
+      conference_storage: '100',
+      // Enterprise tier
       enterprise_monthly: '499',
       enterprise_annual: '4990',
+      enterprise_events: 'Unlimited',
+      enterprise_people: 'Unlimited',
+      enterprise_storage: '500',
     }
 
     // Merge with defaults
