@@ -2,6 +2,8 @@ import { NextResponse, NextRequest } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 
+// API route for checking master admin access
+
 // Decode JWT payload to extract user ID when cookies aren't available
 function decodeJwtPayload(token: string): { sub?: string } | null {
   try {
