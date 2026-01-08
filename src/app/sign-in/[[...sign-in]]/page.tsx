@@ -70,7 +70,7 @@ function SignInContent() {
           <p className="text-[#E8DCC8]">{portalInfo.subtitle}</p>
         </div>
         <SignIn
-          afterSignInUrl={redirectUrl}
+          forceRedirectUrl={redirectUrl}
           appearance={{
             elements: {
               rootBox: "mx-auto",
