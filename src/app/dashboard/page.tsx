@@ -1,23 +1,17 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useAuth, useUser } from '@clerk/nextjs'
+import { useAuth } from '@clerk/nextjs'
 
 /**
  * Smart Dashboard Redirect
  *
  * This page handles routing users to the correct dashboard based on their role.
  * It's the default redirect after sign-in when using Clerk's environment variables.
- *
- * We use window.location.href for redirects (instead of router.push) to ensure
- * a full page navigation that properly includes Clerk's session cookies.
  */
 export default function DashboardRedirect() {
   const { isLoaded, isSignedIn, getToken } = useAuth()
-  const { user } = useUser()
   const [error, setError] = useState<string | null>(null)
-  const [retryCount, setRetryCount] = useState(0)
-  const [status, setStatus] = useState('Loading...')
 
   useEffect(() => {
     if (!isLoaded) return
@@ -29,41 +23,22 @@ export default function DashboardRedirect() {
 
     const redirectBasedOnRole = async () => {
       try {
-        setStatus('Establishing session...')
-
-        // Wait for Clerk session to be fully established by getting a token
+        // Get the session token - this should be available immediately after sign-in
         const token = await getToken()
 
         if (!token) {
-          // Session not ready yet, retry after a short delay
-          if (retryCount < 10) {
-            setTimeout(() => setRetryCount(prev => prev + 1), 300)
-            return
-          }
-          // After retries, default to group leader
+          // No token available, default to group leader
           window.location.href = '/dashboard/group-leader'
           return
         }
 
-        setStatus('Checking your account...')
-
         // Call the API with the session token in Authorization header
+        // The server will decode the JWT to get the user ID
         const response = await fetch('/api/user/role', {
-          credentials: 'include',
           headers: {
             'Authorization': `Bearer ${token}`,
           },
         })
-
-        if (response.status === 401) {
-          // Still not authenticated on server, retry
-          if (retryCount < 10) {
-            setTimeout(() => setRetryCount(prev => prev + 1), 300)
-            return
-          }
-          window.location.href = '/dashboard/group-leader'
-          return
-        }
 
         if (!response.ok) {
           // User might not exist in database yet - default to group leader
@@ -74,46 +49,30 @@ export default function DashboardRedirect() {
         const data = await response.json()
         const role = data.role
 
-        setStatus('Redirecting to your dashboard...')
-
-        // Route based on role using full page navigation
-        // This ensures cookies are properly sent with the request
-        let targetUrl = '/dashboard/group-leader'
-
-        switch (role) {
-          case 'master_admin':
-            targetUrl = '/dashboard/master-admin'
-            break
-          case 'org_admin':
-          case 'event_manager':
-          case 'finance_manager':
-          case 'staff':
-            targetUrl = '/dashboard/admin'
-            break
-          case 'poros_coordinator':
-            targetUrl = '/dashboard/admin/poros'
-            break
-          case 'salve_coordinator':
-            targetUrl = '/dashboard/admin/salve'
-            break
-          case 'rapha_coordinator':
-            targetUrl = '/dashboard/admin/rapha'
-            break
+        // Route based on role
+        const routes: Record<string, string> = {
+          'master_admin': '/dashboard/master-admin',
+          'org_admin': '/dashboard/admin',
+          'event_manager': '/dashboard/admin',
+          'finance_manager': '/dashboard/admin',
+          'staff': '/dashboard/admin',
+          'poros_coordinator': '/dashboard/admin/poros',
+          'salve_coordinator': '/dashboard/admin/salve',
+          'rapha_coordinator': '/dashboard/admin/rapha',
         }
 
-        window.location.href = targetUrl
+        window.location.href = routes[role] || '/dashboard/group-leader'
       } catch (err) {
         console.error('Error determining user role:', err)
-        setError('Unable to determine your account type. Please try again.')
-        // Default to group leader dashboard after error
+        setError('Unable to determine your account type.')
         setTimeout(() => {
           window.location.href = '/dashboard/group-leader'
-        }, 2000)
+        }, 1500)
       }
     }
 
     redirectBasedOnRole()
-  }, [isLoaded, isSignedIn, getToken, retryCount, user])
+  }, [isLoaded, isSignedIn, getToken])
 
   if (error) {
     return (
@@ -130,10 +89,7 @@ export default function DashboardRedirect() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1E3A5F] via-[#2A4A6F] to-[#1E3A5F]">
       <div className="text-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
-        <p className="text-white">{status}</p>
-        {retryCount > 0 && (
-          <p className="text-[#E8DCC8] text-sm mt-2">Please wait...</p>
-        )}
+        <p className="text-white">Redirecting to your dashboard...</p>
       </div>
     </div>
   )
