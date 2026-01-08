@@ -3,7 +3,7 @@
 import { SignUp } from '@clerk/nextjs'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
-import { Building2, Users, Stethoscope } from 'lucide-react'
+import { Building2, Users, Stethoscope, Shield } from 'lucide-react'
 
 function SignUpContent() {
   const searchParams = useSearchParams()
@@ -14,6 +14,7 @@ function SignUpContent() {
     'org-admin': '/dashboard/admin',
     'group-leader': '/dashboard/group-leader',
     'staff': '/staff',
+    'master-admin': '/dashboard/master-admin',
   }[portal || ''] || '/dashboard/admin'
 
   // Get portal-specific header content
@@ -36,6 +37,12 @@ function SignUpContent() {
           icon: Stethoscope,
           title: 'Create Staff Account',
           subtitle: 'Get access to Rapha Medical or SALVE Check-In portals',
+        }
+      case 'master-admin':
+        return {
+          icon: Shield,
+          title: 'Master Admin Account',
+          subtitle: 'ChiRho platform administration',
         }
       default:
         return {
