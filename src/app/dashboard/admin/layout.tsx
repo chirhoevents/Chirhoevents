@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { UserButton, useClerk, useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
@@ -73,12 +73,16 @@ export default function AdminLayout({
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const hasRedirected = useRef(false)
 
   useEffect(() => {
+    // Prevent multiple redirect attempts
+    if (hasRedirected.current) return
     if (!isLoaded) return
 
     if (!isSignedIn) {
-      router.push('/sign-in')
+      hasRedirected.current = true
+      router.replace('/sign-in')
       return
     }
 
@@ -86,26 +90,32 @@ export default function AdminLayout({
       try {
         // Get token - may need to wait for it after page reload
         let token = await getToken()
+        let attempts = 0
+        const maxAttempts = 5
 
-        // If token is null, wait a moment and try again (Clerk still initializing)
-        if (!token) {
-          await new Promise(resolve => setTimeout(resolve, 500))
+        // Keep trying with increasing delays until we get a token
+        while (!token && attempts < maxAttempts) {
+          attempts++
+          const delay = attempts * 500
+          await new Promise(resolve => setTimeout(resolve, delay))
           token = await getToken()
         }
 
-        // Still no token? Try one more time
         if (!token) {
-          await new Promise(resolve => setTimeout(resolve, 1000))
-          token = await getToken()
+          console.log('No token after retries in admin layout')
+          hasRedirected.current = true
+          router.replace('/dashboard')
+          return
         }
 
         const response = await fetch('/api/admin/check-access', {
-          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+          headers: { 'Authorization': `Bearer ${token}` },
         })
 
         if (response.status === 403) {
           // Not an admin - redirect appropriately
-          router.push('/dashboard/group-leader')
+          hasRedirected.current = true
+          router.replace('/dashboard/group-leader')
           return
         }
 
@@ -117,6 +127,12 @@ export default function AdminLayout({
           const retryResponse = await fetch('/api/admin/check-access', {
             headers: retryToken ? { 'Authorization': `Bearer ${retryToken}` } : {},
           })
+
+          if (retryResponse.status === 403) {
+            hasRedirected.current = true
+            router.replace('/dashboard/group-leader')
+            return
+          }
 
           if (!retryResponse.ok) {
             throw new Error('Failed to verify admin access after retry')
@@ -155,7 +171,8 @@ export default function AdminLayout({
         })
       } catch (error) {
         console.error('Error:', error)
-        router.push('/')
+        hasRedirected.current = true
+        router.replace('/')
       } finally {
         setLoading(false)
       }

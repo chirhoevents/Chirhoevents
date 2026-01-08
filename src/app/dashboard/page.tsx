@@ -1,53 +1,60 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useAuth } from '@clerk/nextjs'
+import { useRouter } from 'next/navigation'
 
 /**
  * Smart Dashboard Redirect
  * Routes users to the correct dashboard based on their role.
+ * Uses Next.js router for client-side navigation (avoids Clerk reinitialization).
  */
 export default function DashboardRedirect() {
+  const router = useRouter()
   const { isLoaded, isSignedIn, getToken } = useAuth()
   const [error, setError] = useState<string | null>(null)
+  const [status, setStatus] = useState('Checking authentication...')
+  const hasRedirected = useRef(false)
 
   useEffect(() => {
+    // Prevent multiple redirects
+    if (hasRedirected.current) return
     if (!isLoaded) return
 
     if (!isSignedIn) {
-      window.location.href = '/sign-in'
+      hasRedirected.current = true
+      router.replace('/sign-in')
       return
     }
 
     const redirectBasedOnRole = async () => {
       try {
+        setStatus('Getting authentication token...')
+
         // Get token - may need to wait for it after page reload (Clerk still initializing)
         let token = await getToken()
+        let attempts = 0
+        const maxAttempts = 5
 
-        // If token is null, wait and retry (Clerk may still be initializing)
-        if (!token) {
-          await new Promise(resolve => setTimeout(resolve, 500))
+        // Keep trying with increasing delays until we get a token
+        while (!token && attempts < maxAttempts) {
+          attempts++
+          const delay = attempts * 500 // 500ms, 1000ms, 1500ms, 2000ms, 2500ms
+          setStatus(`Waiting for session (attempt ${attempts}/${maxAttempts})...`)
+          await new Promise(resolve => setTimeout(resolve, delay))
           token = await getToken()
         }
 
-        // Still no token? Try one more time with longer wait
-        if (!token) {
-          await new Promise(resolve => setTimeout(resolve, 1000))
-          token = await getToken()
-        }
-
-        // Final attempt after even longer wait
-        if (!token) {
-          await new Promise(resolve => setTimeout(resolve, 1500))
-          token = await getToken()
-        }
-
-        // If still no token after all retries, default to group-leader
+        // If still no token after all retries, redirect to group-leader
         if (!token) {
           console.log('No token after retries, defaulting to group-leader')
-          window.location.href = '/dashboard/group-leader'
+          setStatus('Redirecting to group leader portal...')
+          hasRedirected.current = true
+          router.replace('/dashboard/group-leader')
           return
         }
+
+        setStatus('Determining your role...')
 
         let response = await fetch('/api/user/role', {
           headers: { 'Authorization': `Bearer ${token}` },
@@ -56,6 +63,7 @@ export default function DashboardRedirect() {
         // If we get a 401, wait and retry once (timing issue)
         if (response.status === 401) {
           console.log('Got 401 from /api/user/role, retrying...')
+          setStatus('Retrying authentication...')
           await new Promise(resolve => setTimeout(resolve, 1000))
           const retryToken = await getToken()
           response = await fetch('/api/user/role', {
@@ -65,7 +73,9 @@ export default function DashboardRedirect() {
 
         if (!response.ok) {
           console.log('API response not ok, defaulting to group-leader')
-          window.location.href = '/dashboard/group-leader'
+          setStatus('Redirecting to group leader portal...')
+          hasRedirected.current = true
+          router.replace('/dashboard/group-leader')
           return
         }
 
@@ -83,18 +93,22 @@ export default function DashboardRedirect() {
           'rapha_coordinator': '/dashboard/admin/rapha',
         }
 
-        window.location.href = routes[role] || '/dashboard/group-leader'
+        const destination = routes[role] || '/dashboard/group-leader'
+        setStatus(`Redirecting to ${role ? role.replace('_', ' ') : 'group leader'} dashboard...`)
+        hasRedirected.current = true
+        router.replace(destination)
       } catch (err) {
         console.error('Dashboard redirect error:', err)
         setError('Unable to determine your account type.')
         setTimeout(() => {
-          window.location.href = '/dashboard/group-leader'
+          hasRedirected.current = true
+          router.replace('/dashboard/group-leader')
         }, 1500)
       }
     }
 
     redirectBasedOnRole()
-  }, [isLoaded, isSignedIn, getToken])
+  }, [isLoaded, isSignedIn, getToken, router])
 
   if (error) {
     return (
@@ -111,7 +125,7 @@ export default function DashboardRedirect() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1E3A5F] via-[#2A4A6F] to-[#1E3A5F]">
       <div className="text-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
-        <p className="text-white">Redirecting to your dashboard...</p>
+        <p className="text-white">{status}</p>
       </div>
     </div>
   )
