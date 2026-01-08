@@ -47,8 +47,13 @@ export default function DashboardRedirect() {
 
         setStatus('Checking your account...')
 
-        // Call the API - Clerk cookies should now be established
-        const response = await fetch('/api/user/role')
+        // Call the API with the session token in Authorization header
+        const response = await fetch('/api/user/role', {
+          credentials: 'include',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        })
 
         if (response.status === 401) {
           // Still not authenticated on server, retry
