@@ -32,10 +32,16 @@ export interface AuthUser {
 /**
  * Get the current authenticated user from Clerk and database
  * Returns null if not authenticated or user not found in database
+ * @param overrideUserId - Optional: pass a clerkUserId directly (useful when cookies aren't ready)
  */
-export async function getCurrentUser(): Promise<AuthUser | null> {
+export async function getCurrentUser(overrideUserId?: string): Promise<AuthUser | null> {
   try {
-    const { userId } = await auth()
+    let userId = overrideUserId
+
+    if (!userId) {
+      const authResult = await auth()
+      userId = authResult.userId ?? undefined
+    }
 
     if (!userId) {
       return null
