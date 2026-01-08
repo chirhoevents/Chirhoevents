@@ -55,6 +55,9 @@ const DEFAULT_TEMPLATE = {
   conferenceHeaderText: '',
   showLogo: false,
   logoUrl: '',
+  // 4x6 Header Banner (top 2.5 inches)
+  showHeaderBanner: false,
+  headerBannerUrl: '',
   backgroundColor: '#FFFFFF',
   textColor: '#1E3A5F',
   accentColor: '#9C8466',
@@ -138,6 +141,7 @@ export async function PUT(
         settingsJson: template,
         // Also save some fields to the regular columns for backwards compatibility
         logoUrl: template.logoUrl || null,
+        backgroundUrl: template.headerBannerUrl || null, // Use headerBannerUrl for backgroundUrl column
         primaryColor: template.textColor || '#1E3A5F',
         accentColor: template.accentColor || '#9C8466',
         textColor: template.textColor || '#000000',
@@ -150,6 +154,7 @@ export async function PUT(
       update: {
         settingsJson: template,
         logoUrl: template.logoUrl || null,
+        backgroundUrl: template.headerBannerUrl || null, // Use headerBannerUrl for backgroundUrl column
         primaryColor: template.textColor || '#1E3A5F',
         accentColor: template.accentColor || '#9C8466',
         textColor: template.textColor || '#000000',

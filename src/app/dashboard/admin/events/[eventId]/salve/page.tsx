@@ -37,6 +37,8 @@ import {
   Settings,
   Camera,
   RefreshCw,
+  Tag,
+  ExternalLink,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
@@ -439,6 +441,18 @@ export default function SalveCheckInPage() {
             <p className="text-muted-foreground">{eventName} • Station #1</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link href={`/dashboard/admin/events/${eventId}/salve/welcome-packets`}>
+              <Button variant="outline" size="sm" className="w-full md:w-auto">
+                <FileText className="w-4 h-4 mr-2" />
+                Edit Packets
+              </Button>
+            </Link>
+            <Link href={`/dashboard/admin/events/${eventId}/salve/name-tags`}>
+              <Button variant="outline" size="sm" className="w-full md:w-auto">
+                <Tag className="w-4 h-4 mr-2" />
+                Edit Name Tags
+              </Button>
+            </Link>
             <Button
               variant="outline"
               size="sm"
@@ -452,6 +466,12 @@ export default function SalveCheckInPage() {
               <Button variant="outline" size="sm" className="w-full md:w-auto">
                 <BarChart3 className="w-4 h-4 mr-2" />
                 Dashboard
+              </Button>
+            </Link>
+            <Link href={`/portal/salve/${eventId}`} target="_blank">
+              <Button variant="outline" size="sm" className="w-full md:w-auto">
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Open Portal
               </Button>
             </Link>
           </div>
