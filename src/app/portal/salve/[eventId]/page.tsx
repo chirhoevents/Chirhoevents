@@ -966,20 +966,10 @@ export default function SalveDedicatedPortal() {
               .schedule-day { margin-bottom: 1.5em; }
               .schedule-item { padding: 8px 0; border-bottom: 1px dashed #ddd; }
               .schedule-time { font-weight: bold; color: #1E3A5F; width: 100px; display: inline-block; }
-              .insert-section { margin-top: 2em; padding: 1em; background: #f0f7ff; border-radius: 8px; }
-              .insert-link { display: block; padding: 10px; margin: 5px 0; background: white; border-radius: 4px; text-decoration: none; color: #1E3A5F; border: 1px solid #ddd; }
-              .insert-link:hover { background: #f5f5f5; }
-              .print-btn { background: #1E3A5F; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; font-size: 14px; }
-              .print-btn:hover { background: #2a4a6f; }
-              .actions { margin: 20px 0; text-align: center; }
+              .insert-image { max-width: 100%; height: auto; margin: 20px 0; }
             </style>
           </head>
           <body>
-            <div class="actions no-print">
-              <button class="print-btn" onclick="window.print()">Print This Page</button>
-              ${inserts.length > 0 ? `<span style="margin: 0 10px; color: #666;">|</span><span style="color: #666;">Additional documents below</span>` : ''}
-            </div>
-
             <div class="header">
               ${eventInfo.logoUrl ? `<img src="${eventInfo.logoUrl}" alt="Logo" />` : ''}
               <h1>Welcome to ${eventInfo.name || eventName}!</h1>
@@ -1064,43 +1054,16 @@ export default function SalveDedicatedPortal() {
               </table>
             ` : ''}
 
-            ${inserts.length > 0 ? `
-              <div class="insert-section page-break">
-                <h2 style="margin-top: 0;">Additional Documents</h2>
-                <p>The following documents are included in your welcome packet. Click each link to view and print:</p>
-                ${inserts.map((insert: any, index: number) => `
-                  <a href="${insert.fileUrl}" target="_blank" class="insert-link no-print">
-                    📄 ${insert.name}
-                  </a>
-                  <p class="no-print" style="font-size: 12px; color: #666; margin: 0 0 10px 0;">
-                    <button class="print-btn" style="font-size: 12px; padding: 5px 10px;" onclick="window.open('${insert.fileUrl}', '_blank')">
-                      Open & Print
-                    </button>
-                  </p>
-                `).join('')}
-                <p style="font-size: 12px; color: #888; margin-top: 1em;">
-                  Note: Additional PDF documents will open in new tabs for printing.
-                </p>
-              </div>
-            ` : ''}
-
-            ${resources.campusMapUrl && settings.includeCampusMap !== false ? `
-              <div class="insert-section no-print">
-                <h3>Campus Map</h3>
-                <a href="${resources.campusMapUrl}" target="_blank" class="insert-link">
-                  🗺️ View Campus Map
-                </a>
-              </div>
-            ` : ''}
-
-            ${resources.emergencyProceduresUrl && settings.includeEmergencyProcedures !== false ? `
-              <div class="insert-section no-print">
-                <h3>Emergency Procedures</h3>
-                <a href="${resources.emergencyProceduresUrl}" target="_blank" class="insert-link">
-                  🚨 View Emergency Procedures
-                </a>
-              </div>
-            ` : ''}
+            ${/* Embed image inserts directly - each on its own page */
+              inserts.filter((insert: any) => insert.imageUrls && insert.imageUrls.length > 0).map((insert: any) =>
+                insert.imageUrls.map((imageUrl: string, imgIndex: number) => `
+                  <div class="page-break" style="text-align: center;">
+                    ${imgIndex === 0 ? `<h2 style="margin-top: 0; text-align: left;">${insert.name}</h2>` : ''}
+                    <img src="${imageUrl}" alt="${insert.name}" style="max-width: 100%; height: auto; margin: 20px 0;" />
+                  </div>
+                `).join('')
+              ).join('')
+            }
 
             <div style="margin-top: 2em; padding-top: 1em; border-top: 1px solid #ddd; text-align: center; color: #888; font-size: 12px;">
               Generated on ${new Date().toLocaleString()}
