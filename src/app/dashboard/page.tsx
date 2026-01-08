@@ -10,11 +10,15 @@ import { useAuth } from '@clerk/nextjs'
  * It's the default redirect after sign-in when using Clerk's environment variables.
  */
 export default function DashboardRedirect() {
+  console.log('[Dashboard] Component rendering...')
+
   const { isLoaded, isSignedIn, getToken } = useAuth()
   const [error, setError] = useState<string | null>(null)
 
+  console.log('[Dashboard] Auth state:', { isLoaded, isSignedIn })
+
   useEffect(() => {
-    console.log('[Dashboard] isLoaded:', isLoaded, 'isSignedIn:', isSignedIn)
+    console.log('[Dashboard] useEffect - isLoaded:', isLoaded, 'isSignedIn:', isSignedIn)
 
     if (!isLoaded) {
       console.log('[Dashboard] Still loading auth...')
