@@ -3,7 +3,7 @@
 import { SignUp } from '@clerk/nextjs'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
-import { Building2, Users, Stethoscope, Shield } from 'lucide-react'
+import { Building2, Users, Stethoscope, Shield, ClipboardCheck } from 'lucide-react'
 
 function SignUpContent() {
   const searchParams = useSearchParams()
@@ -13,7 +13,8 @@ function SignUpContent() {
   const redirectUrl = {
     'org-admin': '/dashboard/admin',
     'group-leader': '/dashboard/group-leader',
-    'staff': '/staff',
+    'rapha': '/dashboard/admin/rapha',
+    'salve': '/dashboard/admin/salve',
     'master-admin': '/dashboard/master-admin',
   }[portal || ''] || '/dashboard/admin'
 
@@ -32,11 +33,17 @@ function SignUpContent() {
           title: 'Create Group Leader Account',
           subtitle: 'Start managing your group registration',
         }
-      case 'staff':
+      case 'rapha':
         return {
           icon: Stethoscope,
-          title: 'Create Staff Account',
-          subtitle: 'Get access to Rapha Medical or SALVE Check-In portals',
+          title: 'Create Rapha Account',
+          subtitle: 'Get access to medical information portal',
+        }
+      case 'salve':
+        return {
+          icon: ClipboardCheck,
+          title: 'Create SALVE Account',
+          subtitle: 'Get access to check-in portal',
         }
       case 'master-admin':
         return {
@@ -94,7 +101,7 @@ function SignUpContent() {
           </div>
         )}
 
-        {portal === 'staff' && (
+        {(portal === 'rapha' || portal === 'salve') && (
           <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
             <p className="text-sm text-blue-900">
               <strong>Staff accounts:</strong> Your role and portal access will be configured
