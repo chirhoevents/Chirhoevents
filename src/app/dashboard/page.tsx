@@ -5,62 +5,39 @@ import { useAuth } from '@clerk/nextjs'
 
 /**
  * Smart Dashboard Redirect
- *
- * This page handles routing users to the correct dashboard based on their role.
- * It's the default redirect after sign-in when using Clerk's environment variables.
+ * Routes users to the correct dashboard based on their role.
  */
 export default function DashboardRedirect() {
-  console.log('[Dashboard] Component rendering...')
-
   const { isLoaded, isSignedIn, getToken } = useAuth()
   const [error, setError] = useState<string | null>(null)
 
-  console.log('[Dashboard] Auth state:', { isLoaded, isSignedIn })
-
   useEffect(() => {
-    console.log('[Dashboard] useEffect - isLoaded:', isLoaded, 'isSignedIn:', isSignedIn)
-
-    if (!isLoaded) {
-      console.log('[Dashboard] Still loading auth...')
-      return
-    }
+    if (!isLoaded) return
 
     if (!isSignedIn) {
-      console.log('[Dashboard] Not signed in, redirecting to sign-in')
       window.location.href = '/sign-in'
       return
     }
 
     const redirectBasedOnRole = async () => {
       try {
-        console.log('[Dashboard] Getting token...')
         const token = await getToken()
-        console.log('[Dashboard] Token received:', token ? 'yes' : 'no')
 
         if (!token) {
-          console.log('[Dashboard] No token, defaulting to group-leader')
           window.location.href = '/dashboard/group-leader'
           return
         }
 
-        console.log('[Dashboard] Calling /api/user/role...')
         const response = await fetch('/api/user/role', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
+          headers: { 'Authorization': `Bearer ${token}` },
         })
 
-        console.log('[Dashboard] API response status:', response.status)
-
         if (!response.ok) {
-          const errorText = await response.text()
-          console.log('[Dashboard] API error:', errorText)
           window.location.href = '/dashboard/group-leader'
           return
         }
 
         const data = await response.json()
-        console.log('[Dashboard] API data:', data)
         const role = data.role
 
         const routes: Record<string, string> = {
@@ -74,11 +51,9 @@ export default function DashboardRedirect() {
           'rapha_coordinator': '/dashboard/admin/rapha',
         }
 
-        const targetRoute = routes[role] || '/dashboard/group-leader'
-        console.log('[Dashboard] Redirecting to:', targetRoute)
-        window.location.href = targetRoute
+        window.location.href = routes[role] || '/dashboard/group-leader'
       } catch (err) {
-        console.error('[Dashboard] Error:', err)
+        console.error('Dashboard redirect error:', err)
         setError('Unable to determine your account type.')
         setTimeout(() => {
           window.location.href = '/dashboard/group-leader'
