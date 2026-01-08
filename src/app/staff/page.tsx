@@ -11,7 +11,7 @@ export default async function StaffPortalPage() {
     redirect('/sign-in?portal=staff')
   }
 
-  const user = await prisma.user.findUnique({
+  const user = await prisma.user.findFirst({
     where: { clerkUserId: userId },
     select: {
       role: true,
