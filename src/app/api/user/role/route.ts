@@ -10,6 +10,7 @@ import { prisma } from '@/lib/prisma'
  */
 export async function GET() {
   try {
+    // Get userId from Clerk's auth()
     const { userId: clerkUserId } = await auth()
 
     if (!clerkUserId) {
