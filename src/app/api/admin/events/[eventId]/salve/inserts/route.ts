@@ -110,9 +110,8 @@ export async function POST(
         _max: { displayOrder: true },
       })
 
-      // Determine file type and set imageUrls for direct embedding
+      // Determine file type for direct embedding
       const fileType = isImage ? 'image' : 'pdf'
-      const imageUrls = isImage ? [fileUrl] : null // Images can be embedded directly
 
       // Create insert record
       const insert = await prisma.welcomePacketInsert.create({
@@ -121,7 +120,8 @@ export async function POST(
           name: name.trim(),
           fileUrl,
           fileType,
-          imageUrls,
+          // Only include imageUrls for images (can be embedded directly in print)
+          ...(isImage ? { imageUrls: [fileUrl] } : {}),
           displayOrder: (maxOrder._max.displayOrder || 0) + 1,
           isActive: true,
         },
