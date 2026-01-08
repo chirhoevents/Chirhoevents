@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth, UserButton, useClerk } from '@clerk/nextjs'
 import Link from 'next/link'
@@ -61,12 +61,16 @@ function GroupLeaderLayoutContent({
   const [newAccessCode, setNewAccessCode] = useState('')
   const [addingCode, setAddingCode] = useState(false)
   const [addCodeError, setAddCodeError] = useState('')
+  const hasRedirected = useRef(false)
 
   useEffect(() => {
+    // Prevent multiple redirect attempts
+    if (hasRedirected.current) return
     if (!isLoaded) return
 
     if (!isSignedIn) {
-      router.push('/sign-in')
+      hasRedirected.current = true
+      router.replace('/sign-in')
       return
     }
 
@@ -74,17 +78,20 @@ function GroupLeaderLayoutContent({
       try {
         // Get token - may need to wait for it after page reload
         let token = await getToken()
+        let attempts = 0
+        const maxAttempts = 5
 
-        // If token is null, wait a moment and try again (Clerk still initializing)
-        if (!token) {
-          await new Promise(resolve => setTimeout(resolve, 500))
+        // Keep trying with increasing delays until we get a token
+        while (!token && attempts < maxAttempts) {
+          attempts++
+          const delay = attempts * 500
+          await new Promise(resolve => setTimeout(resolve, delay))
           token = await getToken()
         }
 
-        // Still no token? Try one more time
         if (!token) {
-          await new Promise(resolve => setTimeout(resolve, 1000))
-          token = await getToken()
+          console.log('No token after retries in group-leader layout')
+          // Still proceed with the request - the API will handle unauthorized
         }
 
         const response = await fetch('/api/group-leader/settings', {
@@ -101,7 +108,8 @@ function GroupLeaderLayoutContent({
           })
 
           if (retryResponse.status === 404) {
-            router.push('/dashboard/group-leader/link-access-code')
+            hasRedirected.current = true
+            router.replace('/dashboard/group-leader/link-access-code')
             return
           }
 
@@ -126,7 +134,8 @@ function GroupLeaderLayoutContent({
 
         if (response.status === 404) {
           // No linked registration - redirect to link page
-          router.push('/dashboard/group-leader/link-access-code')
+          hasRedirected.current = true
+          router.replace('/dashboard/group-leader/link-access-code')
           return
         }
 
