@@ -394,13 +394,6 @@ export default function NameTagDesignerPage() {
             margin-top: ${is4x6Badge ? '8px' : '4px'};
             ${is4x6Badge ? 'align-self: center;' : ''}
           }
-          .name-tag .housing {
-            ${is4x6Badge ? '' : 'margin-top: auto;'}
-            padding-top: ${is4x6Badge ? '16px' : '8px'};
-            border-top: 1px dashed #ccc;
-            font-size: ${is4x6Badge ? (fonts.housing || fonts.details) : fonts.details};
-            ${is4x6Badge ? 'text-align: center;' : ''}
-          }
           .name-tag .meal-color-bar {
             position: absolute;
             bottom: 0;
@@ -413,28 +406,28 @@ export default function NameTagDesignerPage() {
             position: relative;
             overflow: hidden;
           }
-          .name-tag .qr-section {
-            flex: 1;
+          .name-tag .bottom-row {
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 16px 0;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-top: auto;
+            padding-top: 8px;
+          }
+          .name-tag .housing {
+            font-size: ${is4x6Badge ? (fonts.housing || fonts.details) : '10px'};
+            text-align: left;
+            flex: 1;
           }
           .name-tag .qr-code {
-            width: ${is4x6Badge ? '180px' : '80px'};
-            height: ${is4x6Badge ? '180px' : '80px'};
-          }
-          .name-tag .qr-label {
-            font-size: 10px;
-            color: #666;
-            margin-top: 8px;
-            text-align: center;
+            width: ${is4x6Badge ? '80px' : '40px'};
+            height: ${is4x6Badge ? '80px' : '40px'};
+            flex-shrink: 0;
           }
           .name-tag .content-section {
             display: flex;
             flex-direction: column;
             ${is4x6Badge ? 'align-items: center;' : ''}
+            flex: 1;
           }
         </style>
       </head>
@@ -460,17 +453,16 @@ export default function NameTagDesignerPage() {
                   </div>
                 ` : ''}
               </div>
-              ${showQr && tag.qrCode ? `
-                <div class="qr-section">
-                  <img class="qr-code" src="${tag.qrCode}" alt="QR Code" />
-                  <div class="qr-label">Scan to connect</div>
-                </div>
-              ` : ''}
-              ${template.showHousing && tag.housing ? `
-                <div class="housing">
-                  <strong>Housing:</strong> ${tag.housing.fullLocation}
-                </div>
-              ` : ''}
+              <div class="bottom-row">
+                ${template.showHousing && tag.housing ? `
+                  <div class="housing">
+                    <strong>Housing:</strong> ${tag.housing.fullLocation}
+                  </div>
+                ` : '<div></div>'}
+                ${showQr && tag.qrCode ? `
+                  <img class="qr-code" src="${tag.qrCode}" alt="QR" />
+                ` : ''}
+              </div>
               ${template.showMealColor && tag.mealColor ? `
                 <div class="meal-color-bar" style="background-color: ${tag.mealColor.hex}"></div>
               ` : ''}
@@ -833,26 +825,25 @@ export default function NameTagDesignerPage() {
                   )}
                 </div>
 
-                {(template.showQrCode || template.size === 'badge_4x6') && (
-                  <div className="flex-1 flex flex-col items-center justify-center py-4">
+                {/* Bottom row: Housing on left, QR on right */}
+                <div className="mt-auto pt-2 flex justify-between items-end">
+                  {template.showHousing ? (
+                    <div className="text-[10px] opacity-70">
+                      <strong>Housing:</strong> Building A 101
+                    </div>
+                  ) : <div />}
+                  {(template.showQrCode || template.size === 'badge_4x6') && (
                     <div
-                      className="bg-white border rounded flex items-center justify-center"
+                      className="bg-white border rounded flex items-center justify-center flex-shrink-0"
                       style={{
-                        width: template.size === 'badge_4x6' ? '100px' : '60px',
-                        height: template.size === 'badge_4x6' ? '100px' : '60px',
+                        width: template.size === 'badge_4x6' ? '50px' : '30px',
+                        height: template.size === 'badge_4x6' ? '50px' : '30px',
                       }}
                     >
-                      <span className="text-[8px] text-gray-400 text-center">QR Code</span>
+                      <span className="text-[6px] text-gray-400 text-center">QR</span>
                     </div>
-                    <span className="text-[8px] text-gray-400 mt-1">Scan to connect</span>
-                  </div>
-                )}
-
-                {template.showHousing && (
-                  <div className="mt-auto pt-2 border-t border-dashed text-xs opacity-70">
-                    <strong>Housing:</strong> Building A 101 - Bed A
-                  </div>
-                )}
+                  )}
+                </div>
                 {template.showMealColor && (
                   <div
                     className="absolute bottom-0 left-0 right-0 h-2 rounded-b-lg"
