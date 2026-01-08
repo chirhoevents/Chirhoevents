@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, use } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -74,6 +75,7 @@ const priorityConfig = {
 export default function TicketDetailPage({ params }: { params: Promise<{ ticketId: string }> }) {
   const resolvedParams = use(params)
   const router = useRouter()
+  const { getToken } = useAuth()
   const [ticket, setTicket] = useState<Ticket | null>(null)
   const [loading, setLoading] = useState(true)
   const [replyMessage, setReplyMessage] = useState('')
@@ -87,7 +89,10 @@ export default function TicketDetailPage({ params }: { params: Promise<{ ticketI
 
   const fetchTicket = async () => {
     try {
-      const response = await fetch(`/api/master-admin/support-tickets/${resolvedParams.ticketId}`)
+      const token = await getToken()
+      const response = await fetch(`/api/master-admin/support-tickets/${resolvedParams.ticketId}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
       if (!response.ok) throw new Error('Failed to fetch ticket')
 
       const data = await response.json()
@@ -105,9 +110,13 @@ export default function TicketDetailPage({ params }: { params: Promise<{ ticketI
 
     setSending(true)
     try {
+      const token = await getToken()
       const response = await fetch(`/api/master-admin/support-tickets/${resolvedParams.ticketId}/reply`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           message: replyMessage,
           newStatus: newStatus !== ticket?.status ? newStatus : undefined,
@@ -129,9 +138,13 @@ export default function TicketDetailPage({ params }: { params: Promise<{ ticketI
   const handleUpdateStatus = async (status: string) => {
     setUpdating(true)
     try {
+      const token = await getToken()
       const response = await fetch(`/api/master-admin/support-tickets/${resolvedParams.ticketId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ status }),
       })
 

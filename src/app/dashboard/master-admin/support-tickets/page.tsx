@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
 import {
   Ticket,
@@ -67,6 +68,7 @@ const priorityConfig = {
 }
 
 export default function SupportTicketsPage() {
+  const { getToken } = useAuth()
   const [tickets, setTickets] = useState<SupportTicket[]>([])
   const [counts, setCounts] = useState<StatusCounts>({
     all: 0, open: 0, in_progress: 0, waiting_on_customer: 0, resolved: 0, closed: 0
@@ -82,11 +84,14 @@ export default function SupportTicketsPage() {
 
   const fetchTickets = async () => {
     try {
+      const token = await getToken()
       const params = new URLSearchParams()
       if (statusFilter !== 'all') params.append('status', statusFilter)
       if (priorityFilter !== 'all') params.append('priority', priorityFilter)
 
-      const response = await fetch(`/api/master-admin/support-tickets?${params}`)
+      const response = await fetch(`/api/master-admin/support-tickets?${params}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
       if (!response.ok) throw new Error('Failed to fetch tickets')
 
       const data = await response.json()

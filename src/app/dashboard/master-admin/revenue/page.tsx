@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
 import {
   DollarSign,
@@ -122,6 +123,7 @@ const statusColors: Record<string, string> = {
 }
 
 export default function RevenuePage() {
+  const { getToken } = useAuth()
   const [data, setData] = useState<RevenueData | null>(null)
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
@@ -207,7 +209,10 @@ export default function RevenuePage() {
 
   const fetchData = async () => {
     try {
-      const response = await fetch('/api/master-admin/revenue')
+      const token = await getToken()
+      const response = await fetch('/api/master-admin/revenue', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
       if (!response.ok) throw new Error('Failed to fetch revenue data')
 
       const result = await response.json()

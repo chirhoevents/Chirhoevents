@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { format } from 'date-fns'
 import {
   DollarSign,
@@ -229,6 +230,7 @@ const getStatusBadge = (status: string) => {
 }
 
 export default function BillingDashboard() {
+  const { getToken } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -296,7 +298,10 @@ export default function BillingDashboard() {
   // Fetch functions
   const fetchOverview = useCallback(async () => {
     try {
-      const res = await fetch('/api/master-admin/billing/overview')
+      const token = await getToken()
+      const res = await fetch('/api/master-admin/billing/overview', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
       if (!res.ok) throw new Error('Failed to fetch overview')
       const data = await res.json()
       setOverview(data)
@@ -304,72 +309,87 @@ export default function BillingDashboard() {
       console.error('Error fetching overview:', err)
       setError('Failed to load overview data')
     }
-  }, [])
+  }, [getToken])
 
   const fetchSubscriptions = useCallback(async () => {
     try {
+      const token = await getToken()
       const params = new URLSearchParams()
       if (subscriptionFilter !== 'all') params.append('status', subscriptionFilter)
       if (tierFilter !== 'all') params.append('tier', tierFilter)
 
-      const res = await fetch(`/api/master-admin/billing/subscriptions?${params}`)
+      const res = await fetch(`/api/master-admin/billing/subscriptions?${params}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
       if (!res.ok) throw new Error('Failed to fetch subscriptions')
       const data = await res.json()
       setSubscriptions(data.subscriptions)
     } catch (err) {
       console.error('Error fetching subscriptions:', err)
     }
-  }, [subscriptionFilter, tierFilter])
+  }, [getToken, subscriptionFilter, tierFilter])
 
   const fetchInvoices = useCallback(async () => {
     try {
+      const token = await getToken()
       const params = new URLSearchParams()
       if (invoiceStatusFilter !== 'all') params.append('status', invoiceStatusFilter)
 
-      const res = await fetch(`/api/master-admin/invoices?${params}`)
+      const res = await fetch(`/api/master-admin/invoices?${params}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
       if (!res.ok) throw new Error('Failed to fetch invoices')
       const data = await res.json()
       setInvoices(data.invoices)
     } catch (err) {
       console.error('Error fetching invoices:', err)
     }
-  }, [invoiceStatusFilter])
+  }, [getToken, invoiceStatusFilter])
 
   const fetchPayments = useCallback(async () => {
     try {
+      const token = await getToken()
       const params = new URLSearchParams()
       if (paymentMethodFilter !== 'all') params.append('method', paymentMethodFilter)
 
-      const res = await fetch(`/api/master-admin/billing/payments?${params}`)
+      const res = await fetch(`/api/master-admin/billing/payments?${params}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
       if (!res.ok) throw new Error('Failed to fetch payments')
       const data = await res.json()
       setPayments(data.payments)
     } catch (err) {
       console.error('Error fetching payments:', err)
     }
-  }, [paymentMethodFilter])
+  }, [getToken, paymentMethodFilter])
 
   const fetchBillingNotes = useCallback(async () => {
     try {
-      const res = await fetch('/api/master-admin/billing/notes')
+      const token = await getToken()
+      const res = await fetch('/api/master-admin/billing/notes', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
       if (!res.ok) throw new Error('Failed to fetch notes')
       const data = await res.json()
       setBillingNotes(data.notes)
     } catch (err) {
       console.error('Error fetching notes:', err)
     }
-  }, [])
+  }, [getToken])
 
   const fetchOrganizations = useCallback(async () => {
     try {
-      const res = await fetch('/api/master-admin/organizations')
+      const token = await getToken()
+      const res = await fetch('/api/master-admin/organizations', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
       if (!res.ok) throw new Error('Failed to fetch organizations')
       const data = await res.json()
       setOrganizations(data.organizations || [])
     } catch (err) {
       console.error('Error fetching organizations:', err)
     }
-  }, [])
+  }, [getToken])
 
   useEffect(() => {
     const loadData = async () => {
@@ -404,9 +424,13 @@ export default function BillingDashboard() {
     if (!selectedInvoice) return
 
     try {
+      const token = await getToken()
       const res = await fetch(`/api/master-admin/billing/invoices/${selectedInvoice.id}/mark-paid`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(markPaidForm),
       })
 
@@ -423,9 +447,13 @@ export default function BillingDashboard() {
 
   const handleProcessPayment = async () => {
     try {
+      const token = await getToken()
       const res = await fetch('/api/master-admin/billing/payments/manual', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(processPaymentForm),
       })
 
@@ -462,9 +490,13 @@ export default function BillingDashboard() {
 
   const handleAddNote = async () => {
     try {
+      const token = await getToken()
       const res = await fetch('/api/master-admin/billing/notes', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(addNoteForm),
       })
 
@@ -480,9 +512,13 @@ export default function BillingDashboard() {
 
   const handleSubscriptionAction = async (subscriptionId: string, action: string) => {
     try {
+      const token = await getToken()
       const res = await fetch(`/api/master-admin/billing/subscriptions/${subscriptionId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ action }),
       })
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import {
   Settings,
   Save,
@@ -39,6 +40,7 @@ interface SettingsData {
 }
 
 export default function SettingsPage() {
+  const { getToken } = useAuth()
   const [settings, setSettings] = useState<SettingsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -50,7 +52,10 @@ export default function SettingsPage() {
 
   const fetchSettings = async () => {
     try {
-      const response = await fetch('/api/master-admin/settings')
+      const token = await getToken()
+      const response = await fetch('/api/master-admin/settings', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
       if (!response.ok) throw new Error('Failed to fetch settings')
 
       const data = await response.json()
@@ -80,9 +85,13 @@ export default function SettingsPage() {
 
     setSaving(true)
     try {
+      const token = await getToken()
       const response = await fetch('/api/master-admin/settings', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ settings }),
       })
 

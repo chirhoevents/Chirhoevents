@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -99,6 +100,7 @@ const statusLabels: Record<string, string> = {
 
 export default function OrganizationsPage() {
   const router = useRouter()
+  const { getToken } = useAuth()
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -109,7 +111,10 @@ export default function OrganizationsPage() {
   useEffect(() => {
     const fetchOrganizations = async () => {
       try {
-        const response = await fetch('/api/master-admin/organizations')
+        const token = await getToken()
+        const response = await fetch('/api/master-admin/organizations', {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        })
         if (response.ok) {
           const data = await response.json()
           setOrganizations(data.organizations)
@@ -122,7 +127,7 @@ export default function OrganizationsPage() {
     }
 
     fetchOrganizations()
-  }, [])
+  }, [getToken])
 
   const filteredOrganizations = useMemo(() => {
     return organizations.filter(org => {
@@ -148,8 +153,10 @@ export default function OrganizationsPage() {
 
   const handleImpersonate = async (orgId: string) => {
     try {
+      const token = await getToken()
       const response = await fetch(`/api/master-admin/organizations/${orgId}/impersonate`, {
         method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
       if (response.ok) {
         router.push('/dashboard/admin')
@@ -164,8 +171,10 @@ export default function OrganizationsPage() {
     if (!confirm('Are you sure you want to suspend this organization?')) return
 
     try {
+      const token = await getToken()
       const response = await fetch(`/api/master-admin/organizations/${orgId}/suspend`, {
         method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
       if (response.ok) {
         setOrganizations(orgs =>
@@ -182,8 +191,10 @@ export default function OrganizationsPage() {
 
   const handleReactivate = async (orgId: string) => {
     try {
+      const token = await getToken()
       const response = await fetch(`/api/master-admin/organizations/${orgId}/reactivate`, {
         method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
       if (response.ok) {
         setOrganizations(orgs =>
@@ -200,8 +211,10 @@ export default function OrganizationsPage() {
 
   const handleResendOnboarding = async (orgId: string) => {
     try {
+      const token = await getToken()
       const response = await fetch(`/api/master-admin/organizations/${orgId}/resend-onboarding`, {
         method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
       const data = await response.json()
       if (response.ok) {
