@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@clerk/nextjs/server'
 
 // Helper function to check if user can access Salve portal
 async function requireSalveAccess(eventId: string) {
@@ -47,8 +46,7 @@ export async function POST(
 ) {
   try {
     const { eventId } = await params
-    await requireSalveAccess(eventId)
-    const { userId } = await auth()
+    const user = await requireSalveAccess(eventId)
     const body = await request.json()
 
     const { participantIds, action, stationId, notes, groupId, registrationType } = body
@@ -95,7 +93,7 @@ export async function POST(
         data: {
           checkedIn: isCheckingIn,
           checkedInAt: isCheckingIn ? now : null,
-          checkedInBy: isCheckingIn ? userId : null,
+          checkedInBy: isCheckingIn ? user.id : null,
           checkInStation: isCheckingIn ? stationId : null,
           checkInNotes: notes || null,
         },
@@ -107,7 +105,7 @@ export async function POST(
           eventId,
           individualRegistrationId: individualId,
           action: action as 'check_in' | 'check_out',
-          userId: userId!,
+          userId: user.id,
           station: stationId || null,
           notes: notes || null,
         })),
@@ -169,7 +167,7 @@ export async function POST(
       data: {
         checkedIn: isCheckingIn,
         checkedInAt: isCheckingIn ? now : null,
-        checkedInBy: isCheckingIn ? userId : null,
+        checkedInBy: isCheckingIn ? user.id : null,
         checkInStation: isCheckingIn ? stationId : null,
         checkInNotes: notes || null,
       },
@@ -182,7 +180,7 @@ export async function POST(
         participantId,
         groupRegistrationId: participants.find((p: any) => p.id === participantId)?.groupRegistration.id || groupId,
         action: action as 'check_in' | 'check_out',
-        userId: userId!,
+        userId: user.id,
         station: stationId || null,
         notes: notes || null,
       })),
@@ -239,8 +237,7 @@ export async function PUT(
 ) {
   try {
     const { eventId } = await params
-    await requireSalveAccess(eventId)
-    const { userId } = await auth()
+    const user = await requireSalveAccess(eventId)
     const body = await request.json()
 
     const { groupId, action, stationId, notes } = body
@@ -301,7 +298,7 @@ export async function PUT(
       data: {
         checkedIn: isCheckingIn,
         checkedInAt: isCheckingIn ? now : null,
-        checkedInBy: isCheckingIn ? userId : null,
+        checkedInBy: isCheckingIn ? user.id : null,
         checkInStation: isCheckingIn ? stationId : null,
         checkInNotes: notes || null,
       },
@@ -314,7 +311,7 @@ export async function PUT(
         participantId,
         groupRegistrationId: groupId,
         action: (action || 'check_in') as 'check_in' | 'check_out',
-        userId: userId!,
+        userId: user.id,
         station: stationId || null,
         notes: notes || null,
       })),
