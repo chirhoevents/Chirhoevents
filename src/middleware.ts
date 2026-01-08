@@ -18,6 +18,9 @@ const isPublicRoute = createRouteMatcher([
   '/invite(.*)',
   '/dashboard(.*)',  // All dashboard routes - they handle their own auth
   '/api/user/role',  // Needed by dashboard redirect page
+  '/api/master-admin(.*)',  // Master admin APIs - handle their own auth
+  '/api/admin(.*)',  // Admin APIs - handle their own auth
+  '/api/group-leader(.*)',  // Group leader APIs - handle their own auth
   '/api/registration(.*)',
   '/api/liability(.*)',
   '/api/portal/login(.*)',
