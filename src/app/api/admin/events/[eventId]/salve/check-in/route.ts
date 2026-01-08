@@ -1,16 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth-utils'
+import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@clerk/nextjs/server'
+
+// Helper function to check if user can access Salve portal
+async function requireSalveAccess(eventId: string) {
+  const user = await getCurrentUser()
+
+  if (!user) {
+    throw new Error('Unauthorized')
+  }
+
+  // Admins always have access
+  if (isAdmin(user)) {
+    return user
+  }
+
+  // Check for Salve-specific roles
+  const portalRoles = ['salve_user', 'salve_coordinator', 'portals.salve.view']
+  const hasPortalRole = user.permissions
+    ? portalRoles.some(role => user.permissions?.[role] === true)
+    : false
+
+  if (!hasPortalRole) {
+    throw new Error('Access denied')
+  }
+
+  // Verify the event belongs to the user's organization
+  const event = await prisma.event.findFirst({
+    where: {
+      id: eventId,
+      organizationId: user.organizationId,
+    },
+  })
+
+  if (!event) {
+    throw new Error('Access denied to this event')
+  }
+
+  return user
+}
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
-    const { userId } = await auth()
     const { eventId } = await params
+    await requireSalveAccess(eventId)
+    const { userId } = await auth()
     const body = await request.json()
 
     const { participantIds, action, stationId, notes, groupId, registrationType } = body
@@ -185,9 +223,9 @@ export async function PUT(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
-    const { userId } = await auth()
     const { eventId } = await params
+    await requireSalveAccess(eventId)
+    const { userId } = await auth()
     const body = await request.json()
 
     const { groupId, action, stationId, notes } = body
