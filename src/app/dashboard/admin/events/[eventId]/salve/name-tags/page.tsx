@@ -52,6 +52,8 @@ interface NameTagTemplate {
   showQrCode: boolean
   showConferenceHeader: boolean
   conferenceHeaderText: string
+  showLogo: boolean
+  logoUrl: string
   backgroundColor: string
   textColor: string
   accentColor: string
@@ -100,6 +102,8 @@ const DEFAULT_TEMPLATE: NameTagTemplate = {
   showQrCode: true,
   showConferenceHeader: true,
   conferenceHeaderText: '',
+  showLogo: false,
+  logoUrl: '',
   backgroundColor: '#FFFFFF',
   textColor: '#1E3A5F',
   accentColor: '#9C8466',
@@ -402,27 +406,15 @@ export default function NameTagDesignerPage() {
               ${template.showConferenceHeader && conferenceHeader ? `
                 <div class="conference-header">${conferenceHeader}</div>
               ` : ''}
+              ${template.showLogo && template.logoUrl ? `
+                <div class="logo-section" style="text-align: center; padding: 8px 0;">
+                  <img src="${template.logoUrl}" alt="Logo" style="max-height: 40px; max-width: 100%;" />
+                </div>
+              ` : ''}
               <div class="main-content">
                 ${template.showName ? `<div class="name">${tag.firstName} ${tag.lastName}</div>` : ''}
                 ${template.showGroup ? `<div class="group-name">${tag.groupName}</div>` : ''}
                 ${template.showDiocese && tag.diocese ? `<div class="diocese">${tag.diocese}</div>` : ''}
-                ${template.showParticipantType ? `
-                  <div class="badge">
-                    ${tag.isClergy ? 'Clergy' : tag.isChaperone ? 'Chaperone' : 'Youth'}
-                  </div>
-                ` : ''}
-              </div>
-              <div class="bottom-section">
-                ${template.showHousing && tag.housing ? `
-                  <div class="housing">
-                    <strong>Housing:</strong> ${tag.housing.fullLocation}
-                  </div>
-                ` : '<div></div>'}
-                ${template.showQrCode ? `
-                  <div class="qr-code" id="qr-${index}"></div>
-                ` : ''}
-              </div>
-              <div class="content-section">
                 ${template.showParticipantType ? `
                   <div class="badge">
                     ${tag.isClergy ? 'Clergy' : tag.isChaperone ? 'Chaperone' : 'Youth'}
@@ -580,6 +572,37 @@ export default function NameTagDesignerPage() {
               )}
             </div>
 
+            {/* Logo */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="showLogo"
+                  checked={template.showLogo}
+                  onCheckedChange={(checked) => updateTemplate('showLogo', checked)}
+                />
+                <Label htmlFor="showLogo" className="font-normal">Show Logo</Label>
+              </div>
+              {template.showLogo && (
+                <Input
+                  placeholder="Enter logo URL (e.g., https://example.com/logo.png)"
+                  value={template.logoUrl}
+                  onChange={(e) => updateTemplate('logoUrl', e.target.value)}
+                />
+              )}
+              {template.showLogo && template.logoUrl && (
+                <div className="mt-2 p-2 border rounded">
+                  <img
+                    src={template.logoUrl}
+                    alt="Logo preview"
+                    className="max-h-12 mx-auto"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none'
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+
             {/* Display Options */}
             <div className="space-y-3">
               <Label>Display Options</Label>
@@ -716,6 +739,20 @@ export default function NameTagDesignerPage() {
                   </div>
                 )}
 
+                {/* Logo */}
+                {template.showLogo && template.logoUrl && (
+                  <div className="flex justify-center py-2">
+                    <img
+                      src={template.logoUrl}
+                      alt="Logo"
+                      className="max-h-8"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none'
+                      }}
+                    />
+                  </div>
+                )}
+
                 {/* Main Content - Name Centered */}
                 <div className="flex-1 flex flex-col items-center justify-center p-3 text-center">
                   {template.showName && (
@@ -743,17 +780,6 @@ export default function NameTagDesignerPage() {
                     </span>
                   )}
                 </div>
-
-                {template.showParticipantType && (
-                  <span
-                    className={`text-white text-xs px-2 py-0.5 rounded ${
-                      template.size === 'badge_4x6' ? 'self-center' : 'self-start'
-                    }`}
-                    style={{ backgroundColor: template.accentColor }}
-                  >
-                    Youth
-                  </span>
-                )}
 
                 {(template.showQrCode || template.size === 'badge_4x6') && (
                   <div className="flex-1 flex flex-col items-center justify-center py-4">
@@ -903,6 +929,20 @@ export default function NameTagDesignerPage() {
                     style={{ backgroundColor: template.accentColor }}
                   >
                     {template.conferenceHeaderText || eventName || 'CONFERENCE'}
+                  </div>
+                )}
+
+                {/* Logo */}
+                {template.showLogo && template.logoUrl && (
+                  <div className="flex justify-center py-1">
+                    <img
+                      src={template.logoUrl}
+                      alt="Logo"
+                      className="max-h-6"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none'
+                      }}
+                    />
                   </div>
                 )}
 

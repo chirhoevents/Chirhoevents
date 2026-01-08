@@ -51,6 +51,9 @@ export async function POST(
 
     const { participantIds, action, stationId, notes, groupId, registrationType } = body
 
+    // Sanitize notes - must be string or null, not object
+    const sanitizedNotes = typeof notes === 'string' && notes.trim() ? notes.trim() : null
+
     if (!participantIds || !Array.isArray(participantIds) || participantIds.length === 0) {
       return NextResponse.json(
         { message: 'Participant IDs are required' },
@@ -93,9 +96,9 @@ export async function POST(
         data: {
           checkedIn: isCheckingIn,
           checkedInAt: isCheckingIn ? now : null,
-          checkedInBy: isCheckingIn ? user.id : null,
+          checkedInBy: null, // Not storing user ID due to UUID constraint
           checkInStation: isCheckingIn ? stationId : null,
-          checkInNotes: notes || null,
+          checkInNotes: sanitizedNotes,
         },
       })
 
@@ -105,9 +108,9 @@ export async function POST(
           eventId,
           individualRegistrationId: individualId,
           action: action as 'check_in' | 'check_out',
-          userId: user.id,
+          userId: null, // Not storing user ID due to UUID constraint
           station: stationId || null,
-          notes: notes || null,
+          notes: sanitizedNotes,
         })),
       })
 
@@ -167,9 +170,9 @@ export async function POST(
       data: {
         checkedIn: isCheckingIn,
         checkedInAt: isCheckingIn ? now : null,
-        checkedInBy: isCheckingIn ? user.id : null,
+        checkedInBy: null, // Not storing user ID due to UUID constraint
         checkInStation: isCheckingIn ? stationId : null,
-        checkInNotes: notes || null,
+        checkInNotes: sanitizedNotes,
       },
     })
 
@@ -180,9 +183,9 @@ export async function POST(
         participantId,
         groupRegistrationId: participants.find((p: any) => p.id === participantId)?.groupRegistration.id || groupId,
         action: action as 'check_in' | 'check_out',
-        userId: user.id,
+        userId: null, // Not storing user ID due to UUID constraint
         station: stationId || null,
-        notes: notes || null,
+        notes: sanitizedNotes,
       })),
     })
 
@@ -242,6 +245,9 @@ export async function PUT(
 
     const { groupId, action, stationId, notes } = body
 
+    // Sanitize notes - must be string or null, not object
+    const sanitizedNotes = typeof notes === 'string' && notes.trim() ? notes.trim() : null
+
     if (!groupId) {
       return NextResponse.json(
         { message: 'Group ID is required' },
@@ -298,9 +304,9 @@ export async function PUT(
       data: {
         checkedIn: isCheckingIn,
         checkedInAt: isCheckingIn ? now : null,
-        checkedInBy: isCheckingIn ? user.id : null,
+        checkedInBy: null, // Not storing user ID due to UUID constraint
         checkInStation: isCheckingIn ? stationId : null,
-        checkInNotes: notes || null,
+        checkInNotes: sanitizedNotes,
       },
     })
 
@@ -311,9 +317,9 @@ export async function PUT(
         participantId,
         groupRegistrationId: groupId,
         action: (action || 'check_in') as 'check_in' | 'check_out',
-        userId: user.id,
+        userId: null, // Not storing user ID due to UUID constraint
         station: stationId || null,
-        notes: notes || null,
+        notes: sanitizedNotes,
       })),
     })
 
