@@ -1,14 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth-utils'
+import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+
+// Helper function to check if user can access Salve portal
+async function requireSalveAccess(eventId: string) {
+  const user = await getCurrentUser()
+
+  if (!user) {
+    throw new Error('Unauthorized')
+  }
+
+  // Admins always have access
+  if (isAdmin(user)) {
+    return user
+  }
+
+  // Check for Salve-specific roles
+  const portalRoles = ['salve_user', 'salve_coordinator', 'portals.salve.view']
+  const hasPortalRole = user.permissions
+    ? portalRoles.some(role => user.permissions?.[role] === true)
+    : false
+
+  if (!hasPortalRole) {
+    throw new Error('Access denied')
+  }
+
+  // Verify the event belongs to the user's organization
+  const event = await prisma.event.findFirst({
+    where: {
+      id: eventId,
+      organizationId: user.organizationId,
+    },
+  })
+
+  if (!event) {
+    throw new Error('Access denied to this event')
+  }
+
+  return user
+}
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    await requireAdmin()
     const { eventId } = await params
+    await requireSalveAccess(eventId)
     const body = await request.json()
 
     const { groupId } = body
@@ -270,8 +308,8 @@ export async function GET(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    await requireAdmin()
     const { eventId } = await params
+    await requireSalveAccess(eventId)
 
     const settings = await prisma.welcomePacketSettings.findFirst({
       where: { eventId },
@@ -307,8 +345,23 @@ export async function GET(
         emergencyProcedures: !settings?.emergencyProceduresUrl,
       },
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to fetch packet settings:', error)
+
+    // Return more specific error messages
+    if (error.message === 'Unauthorized') {
+      return NextResponse.json(
+        { message: 'Please sign in to view packet settings' },
+        { status: 401 }
+      )
+    }
+    if (error.message === 'Access denied' || error.message === 'Access denied to this event') {
+      return NextResponse.json(
+        { message: 'You do not have permission to view packet settings for this event' },
+        { status: 403 }
+      )
+    }
+
     return NextResponse.json(
       { message: 'Failed to fetch packet settings' },
       { status: 500 }
