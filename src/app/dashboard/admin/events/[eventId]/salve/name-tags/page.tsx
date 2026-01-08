@@ -125,6 +125,8 @@ export default function NameTagDesignerPage() {
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
   const [previewData, setPreviewData] = useState<NameTagPreview[]>([])
 
+  const [templateSavedAt, setTemplateSavedAt] = useState<string | null>(null)
+
   useEffect(() => {
     fetchData()
   }, [eventId])
@@ -132,9 +134,10 @@ export default function NameTagDesignerPage() {
   async function fetchData() {
     setLoading(true)
     try {
-      const [eventRes, groupsRes] = await Promise.all([
+      const [eventRes, groupsRes, templateRes] = await Promise.all([
         fetch(`/api/admin/events/${eventId}`),
         fetch(`/api/admin/events/${eventId}/groups`),
+        fetch(`/api/admin/events/${eventId}/salve/name-tag-template`),
       ])
 
       if (eventRes.ok) {
@@ -151,11 +154,47 @@ export default function NameTagDesignerPage() {
           participantCount: g._count?.participants || g.participantCount || 0,
         })))
       }
+
+      // Load saved template if available
+      if (templateRes.ok) {
+        const templateData = await templateRes.json()
+        if (templateData.template) {
+          setTemplate(templateData.template)
+        }
+        if (templateData.savedAt) {
+          setTemplateSavedAt(templateData.savedAt)
+        }
+      }
     } catch (error) {
       console.error('Failed to fetch data:', error)
       toast.error('Failed to load data')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleSaveTemplate() {
+    setSaving(true)
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}/salve/name-tag-template`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ template }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setTemplateSavedAt(data.savedAt)
+        toast.success('Template saved successfully')
+      } else {
+        const error = await response.json()
+        toast.error(error.message || 'Failed to save template')
+      }
+    } catch (error) {
+      console.error('Save template error:', error)
+      toast.error('Failed to save template')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -424,7 +463,7 @@ export default function NameTagDesignerPage() {
               ${showQr && tag.qrCode ? `
                 <div class="qr-section">
                   <img class="qr-code" src="${tag.qrCode}" alt="QR Code" />
-                  <div class="qr-label">Scan for check-in</div>
+                  <div class="qr-label">Scan to connect</div>
                 </div>
               ` : ''}
               ${template.showHousing && tag.housing ? `
@@ -495,7 +534,20 @@ export default function NameTagDesignerPage() {
             <p className="text-muted-foreground">Design and print name tags for {eventName}</p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            {templateSavedAt && (
+              <span className="text-sm text-muted-foreground">
+                Last saved: {new Date(templateSavedAt).toLocaleString()}
+              </span>
+            )}
+            <Button onClick={handleSaveTemplate} disabled={saving}>
+              {saving ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              Save Template
+            </Button>
             <Link href={`/dashboard/admin/events/${eventId}/salve`}>
               <Button variant="outline">
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -792,7 +844,7 @@ export default function NameTagDesignerPage() {
                     >
                       <span className="text-[8px] text-gray-400 text-center">QR Code</span>
                     </div>
-                    <span className="text-[8px] text-gray-400 mt-1">Scan for check-in</span>
+                    <span className="text-[8px] text-gray-400 mt-1">Scan to connect</span>
                   </div>
                 )}
 
