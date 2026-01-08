@@ -33,6 +33,7 @@ import {
   FileText,
   Tag,
   Settings,
+  Undo2,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
@@ -115,6 +116,7 @@ export default function SalveDedicatedPortal() {
   const [checkedInParticipantIds, setCheckedInParticipantIds] = useState<string[]>([])
   const [printingNameTags, setPrintingNameTags] = useState(false)
   const [printingPacket, setPrintingPacket] = useState(false)
+  const [undoingCheckIn, setUndoingCheckIn] = useState(false)
 
   useEffect(() => {
     checkAuthAndFetchData()
@@ -197,13 +199,14 @@ export default function SalveDedicatedPortal() {
 
     try {
       const query = searchQuery.trim()
-      const isAccessCode = /^[A-Za-z0-9]{4,8}$/.test(query)
 
-      const url = isAccessCode
-        ? `/api/admin/events/${eventId}/salve/lookup?accessCode=${encodeURIComponent(query)}`
-        : `/api/admin/events/${eventId}/salve/lookup?search=${encodeURIComponent(query)}`
+      // Always search by name first, unless it looks like a specific access code format
+      // Access codes are typically uppercase and exactly 6-8 characters
+      const looksLikeAccessCode = /^[A-Z0-9]{6,8}$/.test(query.toUpperCase()) && !/^[A-Z]+$/.test(query.toUpperCase())
 
-      const response = await fetch(url)
+      // First try search (allows partial name matching)
+      const searchUrl = `/api/admin/events/${eventId}/salve/lookup?search=${encodeURIComponent(query)}`
+      const response = await fetch(searchUrl)
 
       if (response.ok) {
         const data = await response.json()
@@ -211,8 +214,21 @@ export default function SalveDedicatedPortal() {
 
         if (data.results) {
           if (data.results.length === 0) {
-            setStatus('not_found')
-            return
+            // If no results and looks like access code, try access code lookup
+            if (looksLikeAccessCode) {
+              const accessCodeUrl = `/api/admin/events/${eventId}/salve/lookup?accessCode=${encodeURIComponent(query)}`
+              const accessCodeResponse = await fetch(accessCodeUrl)
+              if (accessCodeResponse.ok) {
+                const accessCodeData = await accessCodeResponse.json()
+                if (accessCodeData.id) {
+                  group = accessCodeData
+                }
+              }
+            }
+            if (!group) {
+              setStatus('not_found')
+              return
+            }
           } else if (data.results.length === 1) {
             group = data.results[0]
           } else {
@@ -381,6 +397,62 @@ export default function SalveDedicatedPortal() {
     setParticipantNotes({})
   }
 
+  async function handleUndoCheckIn() {
+    if (!groupData || checkedInParticipantIds.length === 0) {
+      toast.error('No participants to undo check-in for')
+      return
+    }
+
+    setUndoingCheckIn(true)
+    try {
+      const isIndividual = (groupData as any).type === 'individual'
+
+      const response = await fetch(`/api/admin/events/${eventId}/salve/check-in`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          groupRegistrationId: isIndividual ? undefined : groupData.id,
+          participantIds: checkedInParticipantIds,
+          registrationType: isIndividual ? 'individual' : 'group',
+          action: 'check_out', // Undo = check out
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || 'Failed to undo check-in')
+      }
+
+      toast.success('Check-in undone successfully')
+      setIsSuccessModalOpen(false)
+      setCheckedInParticipantIds([])
+      setCheckedInCount(0)
+      fetchStats()
+      // Refresh the group data to show updated status
+      if (groupData) {
+        const refreshResponse = await fetch(
+          `/api/admin/events/${eventId}/salve/lookup?groupId=${groupData.id}`
+        )
+        if (refreshResponse.ok) {
+          const refreshedData = await refreshResponse.json()
+          setGroupData(refreshedData)
+          // Select all non-checked-in participants again
+          const notCheckedIn = new Set<string>(
+            refreshedData.participants
+              .filter((p: ParticipantData) => !p.checkedIn)
+              .map((p: ParticipantData) => p.id)
+          )
+          setSelectedParticipants(notCheckedIn)
+          setStatus('found')
+        }
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to undo check-in')
+    } finally {
+      setUndoingCheckIn(false)
+    }
+  }
+
   async function handlePrintNameTags() {
     if (!groupData || checkedInParticipantIds.length === 0) {
       toast.error('No participants to print name tags for')
@@ -413,62 +485,140 @@ export default function SalveDedicatedPortal() {
         const template = data.template || {}
         const nameTags = data.nameTags || []
 
+        // Template settings with defaults
+        const size = template.size || 'standard'
+        const backgroundColor = template.backgroundColor || '#FFFFFF'
+        const textColor = template.textColor || '#1E3A5F'
+        const accentColor = template.accentColor || '#9C8466'
+        const fontFamily = template.fontFamily || 'sans-serif'
+        const fontSize = template.fontSize || 'medium'
+        const showName = template.showName !== false
+        const showGroup = template.showGroup !== false
+        const showParticipantType = template.showParticipantType !== false
+        const showHousing = template.showHousing !== false
+        const showQrCode = template.showQrCode !== false
+        const showDiocese = template.showDiocese === true
+        const showConferenceHeader = template.showConferenceHeader === true
+        const conferenceHeaderText = template.conferenceHeaderText || eventName || ''
+        const showLogo = template.showLogo === true
+        const logoUrl = template.logoUrl || ''
+
+        // Size configurations
+        const sizeStyles: Record<string, { width: string; height: string; pageSize: string }> = {
+          small: { width: '2.5in', height: '1.5in', pageSize: 'letter' },
+          standard: { width: '3.5in', height: '2.25in', pageSize: 'letter' },
+          large: { width: '4in', height: '3in', pageSize: 'letter' },
+          badge_4x6: { width: '4in', height: '6in', pageSize: '4in 6in' },
+        }
+        const sizeConfig = sizeStyles[size] || sizeStyles.standard
+        const is4x6 = size === 'badge_4x6'
+
+        // Font size configurations
+        const fontSizes: Record<string, { name: string; details: string }> = {
+          small: { name: '16px', details: '10px' },
+          medium: { name: '20px', details: '12px' },
+          large: { name: '24px', details: '14px' },
+        }
+        const fonts = is4x6 ? { name: '32px', details: '16px' } : (fontSizes[fontSize] || fontSizes.medium)
+
         printWindow.document.write(`
           <!DOCTYPE html>
           <html>
           <head>
             <title>Name Tags - ${groupData.groupName}</title>
             <style>
-              @page { size: letter; margin: 0.5in; }
-              body { font-family: sans-serif; margin: 0; padding: 0; }
-              .name-tags-container { display: flex; flex-wrap: wrap; gap: 0.25in; }
+              @page {
+                size: ${sizeConfig.pageSize};
+                margin: ${is4x6 ? '0' : '0.5in'};
+              }
+              body {
+                font-family: ${fontFamily};
+                margin: 0;
+                padding: 0;
+              }
+              .name-tags-container {
+                display: flex;
+                flex-wrap: wrap;
+                gap: ${is4x6 ? '0' : '0.25in'};
+              }
               .name-tag {
-                width: 3.5in;
-                height: 2.25in;
-                border: 1px solid #ccc;
-                border-radius: 8px;
-                padding: 12px;
+                width: ${sizeConfig.width};
+                height: ${sizeConfig.height};
+                border: ${is4x6 ? 'none' : '1px solid #ccc'};
+                border-radius: ${is4x6 ? '0' : '8px'};
+                padding: ${is4x6 ? '20px' : '12px'};
                 box-sizing: border-box;
                 display: flex;
                 flex-direction: column;
                 page-break-inside: avoid;
+                ${is4x6 ? 'page-break-after: always;' : ''}
+                background-color: ${backgroundColor};
+                color: ${textColor};
+                position: relative;
+              }
+              .name-tag .conference-header {
+                text-align: center;
+                font-size: ${is4x6 ? '14px' : '10px'};
+                font-weight: bold;
+                padding: ${is4x6 ? '8px' : '4px'};
+                background-color: ${accentColor};
+                color: white;
+                margin: -${is4x6 ? '20px' : '12px'};
+                margin-bottom: ${is4x6 ? '16px' : '8px'};
+                border-radius: ${is4x6 ? '0' : '8px 8px 0 0'};
+              }
+              .name-tag .logo-section {
+                text-align: center;
+                padding: 8px 0;
+              }
+              .name-tag .logo-section img {
+                max-height: ${is4x6 ? '60px' : '30px'};
+                max-width: 100%;
+              }
+              .name-tag .main-content {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                text-align: center;
               }
               .name-tag .name {
-                font-size: 20px;
+                font-size: ${fonts.name};
                 font-weight: bold;
-                text-align: center;
               }
               .name-tag .group-name {
-                font-size: 12px;
+                font-size: ${fonts.details};
                 color: #666;
                 margin-top: 4px;
-                text-align: center;
+              }
+              .name-tag .diocese {
+                font-size: 10px;
+                color: #888;
               }
               .name-tag .badge {
                 display: inline-block;
-                background-color: #9C8466;
+                background-color: ${accentColor};
                 color: white;
-                padding: 2px 8px;
+                padding: ${is4x6 ? '6px 16px' : '2px 8px'};
                 border-radius: 4px;
-                font-size: 10px;
-                margin-top: 4px;
+                font-size: ${is4x6 ? '14px' : '10px'};
+                margin-top: ${is4x6 ? '8px' : '4px'};
                 align-self: center;
               }
-              .name-tag .housing {
+              .name-tag .bottom-section {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-end;
                 margin-top: auto;
                 padding-top: 8px;
-                border-top: 1px dashed #ccc;
-                font-size: 12px;
               }
-              .name-tag .qr-section {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                margin-top: 8px;
+              .name-tag .housing {
+                font-size: ${is4x6 ? '14px' : '10px'};
+                text-align: left;
               }
               .name-tag .qr-code {
-                width: 60px;
-                height: 60px;
+                width: ${is4x6 ? '60px' : '40px'};
+                height: ${is4x6 ? '60px' : '40px'};
               }
             </style>
           </head>
@@ -476,11 +626,18 @@ export default function SalveDedicatedPortal() {
             <div class="name-tags-container">
               ${nameTags.map((tag: any) => `
                 <div class="name-tag">
-                  <div class="name">${tag.firstName} ${tag.lastName}</div>
-                  <div class="group-name">${tag.groupName}</div>
-                  <div class="badge">${tag.isClergy ? 'Clergy' : tag.isChaperone ? 'Chaperone' : 'Youth'}</div>
-                  ${tag.housing ? `<div class="housing"><strong>Housing:</strong> ${tag.housing.fullLocation}</div>` : ''}
-                  ${tag.qrCode ? `<div class="qr-section"><img class="qr-code" src="${tag.qrCode}" alt="QR Code" /></div>` : ''}
+                  ${showConferenceHeader && conferenceHeaderText ? `<div class="conference-header">${conferenceHeaderText}</div>` : ''}
+                  ${showLogo && logoUrl ? `<div class="logo-section"><img src="${logoUrl}" alt="Logo" /></div>` : ''}
+                  <div class="main-content">
+                    ${showName ? `<div class="name">${tag.firstName} ${tag.lastName}</div>` : ''}
+                    ${showGroup ? `<div class="group-name">${tag.groupName}</div>` : ''}
+                    ${showDiocese && tag.diocese ? `<div class="diocese">${tag.diocese}</div>` : ''}
+                    ${showParticipantType ? `<div class="badge">${tag.isClergy ? 'Clergy' : tag.isChaperone ? 'Chaperone' : 'Youth'}</div>` : ''}
+                  </div>
+                  <div class="bottom-section">
+                    ${showHousing && tag.housing ? `<div class="housing"><strong>Housing:</strong> ${tag.housing.fullLocation}</div>` : '<div></div>'}
+                    ${showQrCode && tag.qrCode ? `<img class="qr-code" src="${tag.qrCode}" alt="QR" />` : ''}
+                  </div>
                 </div>
               `).join('')}
             </div>
@@ -1100,7 +1257,20 @@ export default function SalveDedicatedPortal() {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex justify-between sm:justify-between">
+            <Button
+              variant="outline"
+              onClick={handleUndoCheckIn}
+              disabled={undoingCheckIn}
+              className="text-red-600 border-red-200 hover:bg-red-50"
+            >
+              {undoingCheckIn ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Undo2 className="w-4 h-4 mr-2" />
+              )}
+              Undo Check-in
+            </Button>
             <Button
               onClick={() => {
                 setIsSuccessModalOpen(false)
