@@ -1,6 +1,21 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+
+/**
+ * Decode a JWT and extract the payload (without verification)
+ * Used as fallback when Clerk cookies aren't available
+ */
+function decodeJwtPayload(token: string): { sub?: string } | null {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    const payload = Buffer.from(parts[1], 'base64').toString('utf-8')
+    return JSON.parse(payload)
+  } catch {
+    return null
+  }
+}
 
 /**
  * GET /api/user/role
@@ -8,10 +23,26 @@ import { prisma } from '@/lib/prisma'
  * Returns the current user's role for routing purposes.
  * Used by the dashboard redirect page to route users to the correct dashboard.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Get userId from Clerk's auth()
-    const { userId: clerkUserId } = await auth()
+    let clerkUserId: string | null = null
+
+    // First try to get userId from Clerk's auth() (uses cookies)
+    const authResult = await auth()
+    clerkUserId = authResult.userId
+
+    // Fallback: If no userId from auth(), try to decode JWT from Authorization header
+    // This handles the case where cookies aren't available right after sign-in redirect
+    if (!clerkUserId) {
+      const authHeader = request.headers.get('Authorization')
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.substring(7)
+        const payload = decodeJwtPayload(token)
+        if (payload?.sub) {
+          clerkUserId = payload.sub
+        }
+      }
+    }
 
     if (!clerkUserId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
