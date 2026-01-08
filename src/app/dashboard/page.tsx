@@ -14,42 +14,51 @@ export default function DashboardRedirect() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!isLoaded) return
+    console.log('[Dashboard] isLoaded:', isLoaded, 'isSignedIn:', isSignedIn)
+
+    if (!isLoaded) {
+      console.log('[Dashboard] Still loading auth...')
+      return
+    }
 
     if (!isSignedIn) {
+      console.log('[Dashboard] Not signed in, redirecting to sign-in')
       window.location.href = '/sign-in'
       return
     }
 
     const redirectBasedOnRole = async () => {
       try {
-        // Get the session token - this should be available immediately after sign-in
+        console.log('[Dashboard] Getting token...')
         const token = await getToken()
+        console.log('[Dashboard] Token received:', token ? 'yes' : 'no')
 
         if (!token) {
-          // No token available, default to group leader
+          console.log('[Dashboard] No token, defaulting to group-leader')
           window.location.href = '/dashboard/group-leader'
           return
         }
 
-        // Call the API with the session token in Authorization header
-        // The server will decode the JWT to get the user ID
+        console.log('[Dashboard] Calling /api/user/role...')
         const response = await fetch('/api/user/role', {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
         })
 
+        console.log('[Dashboard] API response status:', response.status)
+
         if (!response.ok) {
-          // User might not exist in database yet - default to group leader
+          const errorText = await response.text()
+          console.log('[Dashboard] API error:', errorText)
           window.location.href = '/dashboard/group-leader'
           return
         }
 
         const data = await response.json()
+        console.log('[Dashboard] API data:', data)
         const role = data.role
 
-        // Route based on role
         const routes: Record<string, string> = {
           'master_admin': '/dashboard/master-admin',
           'org_admin': '/dashboard/admin',
@@ -61,9 +70,11 @@ export default function DashboardRedirect() {
           'rapha_coordinator': '/dashboard/admin/rapha',
         }
 
-        window.location.href = routes[role] || '/dashboard/group-leader'
+        const targetRoute = routes[role] || '/dashboard/group-leader'
+        console.log('[Dashboard] Redirecting to:', targetRoute)
+        window.location.href = targetRoute
       } catch (err) {
-        console.error('Error determining user role:', err)
+        console.error('[Dashboard] Error:', err)
         setError('Unable to determine your account type.')
         setTimeout(() => {
           window.location.href = '/dashboard/group-leader'
