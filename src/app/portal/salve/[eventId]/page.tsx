@@ -111,6 +111,9 @@ export default function SalveDedicatedPortal() {
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false)
   const [checkedInCount, setCheckedInCount] = useState(0)
   const [notCheckedInParticipants, setNotCheckedInParticipants] = useState<ParticipantData[]>([])
+  const [checkedInParticipantIds, setCheckedInParticipantIds] = useState<string[]>([])
+  const [printingNameTags, setPrintingNameTags] = useState(false)
+  const [printingPacket, setPrintingPacket] = useState(false)
 
   useEffect(() => {
     checkAuthAndFetchData()
@@ -356,6 +359,7 @@ export default function SalveDedicatedPortal() {
       }
 
       setCheckedInCount(selectedParticipants.size)
+      setCheckedInParticipantIds(Array.from(selectedParticipants))
       setNotCheckedInParticipants(
         groupData.participants.filter(p => !p.checkedIn && !selectedParticipants.has(p.id))
       )
@@ -374,6 +378,211 @@ export default function SalveDedicatedPortal() {
     setGroupData(null)
     setSelectedParticipants(new Set())
     setParticipantNotes({})
+  }
+
+  async function handlePrintNameTags() {
+    if (!groupData || checkedInParticipantIds.length === 0) {
+      toast.error('No participants to print name tags for')
+      return
+    }
+
+    setPrintingNameTags(true)
+    try {
+      const isIndividual = (groupData as any).type === 'individual'
+
+      const response = await fetch(`/api/admin/events/${eventId}/salve/generate-name-tags`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          participantIds: isIndividual ? undefined : checkedInParticipantIds,
+          groupId: isIndividual ? undefined : groupData.id,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || 'Failed to generate name tags')
+      }
+
+      const data = await response.json()
+
+      // Open name tags in a new window for printing
+      const printWindow = window.open('', '_blank')
+      if (printWindow) {
+        const template = data.template || {}
+        const nameTags = data.nameTags || []
+
+        printWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Name Tags - ${groupData.groupName}</title>
+            <style>
+              @page { size: letter; margin: 0.5in; }
+              body { font-family: sans-serif; margin: 0; padding: 0; }
+              .name-tags-container { display: flex; flex-wrap: wrap; gap: 0.25in; }
+              .name-tag {
+                width: 3.5in;
+                height: 2.25in;
+                border: 1px solid #ccc;
+                border-radius: 8px;
+                padding: 12px;
+                box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
+                page-break-inside: avoid;
+              }
+              .name-tag .name {
+                font-size: 20px;
+                font-weight: bold;
+                text-align: center;
+              }
+              .name-tag .group-name {
+                font-size: 12px;
+                color: #666;
+                margin-top: 4px;
+                text-align: center;
+              }
+              .name-tag .badge {
+                display: inline-block;
+                background-color: #9C8466;
+                color: white;
+                padding: 2px 8px;
+                border-radius: 4px;
+                font-size: 10px;
+                margin-top: 4px;
+                align-self: center;
+              }
+              .name-tag .housing {
+                margin-top: auto;
+                padding-top: 8px;
+                border-top: 1px dashed #ccc;
+                font-size: 12px;
+              }
+              .name-tag .qr-section {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                margin-top: 8px;
+              }
+              .name-tag .qr-code {
+                width: 60px;
+                height: 60px;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="name-tags-container">
+              ${nameTags.map((tag: any) => `
+                <div class="name-tag">
+                  <div class="name">${tag.firstName} ${tag.lastName}</div>
+                  <div class="group-name">${tag.groupName}</div>
+                  <div class="badge">${tag.isClergy ? 'Clergy' : tag.isChaperone ? 'Chaperone' : 'Youth'}</div>
+                  ${tag.housing ? `<div class="housing"><strong>Housing:</strong> ${tag.housing.fullLocation}</div>` : ''}
+                  ${tag.qrCode ? `<div class="qr-section"><img class="qr-code" src="${tag.qrCode}" alt="QR Code" /></div>` : ''}
+                </div>
+              `).join('')}
+            </div>
+          </body>
+          </html>
+        `)
+        printWindow.document.close()
+        printWindow.focus()
+        setTimeout(() => printWindow.print(), 500)
+      }
+
+      toast.success('Name tags ready for printing')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to print name tags')
+    } finally {
+      setPrintingNameTags(false)
+    }
+  }
+
+  async function handlePrintWelcomePacket() {
+    if (!groupData) {
+      toast.error('No group data to print packet for')
+      return
+    }
+
+    setPrintingPacket(true)
+    try {
+      const isIndividual = (groupData as any).type === 'individual'
+
+      const response = await fetch(`/api/admin/events/${eventId}/salve/generate-packet`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          groupId: isIndividual ? undefined : groupData.id,
+          registrationId: isIndividual ? groupData.id : undefined,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || 'Failed to generate welcome packet')
+      }
+
+      const data = await response.json()
+
+      // Open packet in a new window for printing
+      const printWindow = window.open('', '_blank')
+      if (printWindow) {
+        printWindow.document.write(data.html || `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Welcome Packet - ${groupData.groupName}</title>
+            <style>
+              body { font-family: sans-serif; padding: 1in; max-width: 8.5in; margin: 0 auto; }
+              h1 { color: #1E3A5F; margin-bottom: 0.5em; }
+              h2 { color: #9C8466; margin-top: 1.5em; }
+              .header { border-bottom: 3px solid #9C8466; margin-bottom: 1em; }
+              .welcome { font-size: 1.2em; margin-bottom: 1em; }
+              table { width: 100%; border-collapse: collapse; margin: 1em 0; }
+              th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+              th { background: #f5f5f5; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>Welcome to ${eventName}!</h1>
+            </div>
+            <p class="welcome">Salve, ${groupData.groupLeaderName}!</p>
+            <p>Welcome to ${eventName}. Your group <strong>${groupData.groupName}</strong> has ${groupData.totalParticipants} registered participants.</p>
+
+            <h2>Participant Roster</h2>
+            <table>
+              <tr><th>Name</th><th>Type</th><th>Housing</th></tr>
+              ${groupData.participants.map((p: any) => `
+                <tr>
+                  <td>${p.firstName} ${p.lastName}</td>
+                  <td>${p.participantType}</td>
+                  <td>${p.housing ? `${p.housing.buildingName} ${p.housing.roomNumber}` : 'TBD'}</td>
+                </tr>
+              `).join('')}
+            </table>
+
+            <h2>Important Information</h2>
+            <ul>
+              <li>Registration Status: ${groupData.registrationStatus}</li>
+              <li>Payment: ${groupData.payment.balanceRemaining <= 0 ? 'Paid in Full' : `$${groupData.payment.balanceRemaining.toFixed(2)} remaining`}</li>
+              <li>Forms: ${groupData.forms.completed}/${groupData.forms.completed + groupData.forms.pending} Complete</li>
+            </ul>
+          </body>
+          </html>
+        `)
+        printWindow.document.close()
+        printWindow.focus()
+        setTimeout(() => printWindow.print(), 500)
+      }
+
+      toast.success('Welcome packet ready for printing')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to print welcome packet')
+    } finally {
+      setPrintingPacket(false)
+    }
   }
 
   const totalExpected = stats?.totalExpected || 0
@@ -860,12 +1069,30 @@ export default function SalveDedicatedPortal() {
             <div className="space-y-2">
               <p className="font-medium">Next Steps:</p>
               <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" className="h-auto py-3">
-                  <Printer className="w-4 h-4 mr-2" />
+                <Button
+                  variant="outline"
+                  className="h-auto py-3"
+                  onClick={handlePrintWelcomePacket}
+                  disabled={printingPacket}
+                >
+                  {printingPacket ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Printer className="w-4 h-4 mr-2" />
+                  )}
                   Print Welcome Packet
                 </Button>
-                <Button variant="outline" className="h-auto py-3">
-                  <Printer className="w-4 h-4 mr-2" />
+                <Button
+                  variant="outline"
+                  className="h-auto py-3"
+                  onClick={handlePrintNameTags}
+                  disabled={printingNameTags}
+                >
+                  {printingNameTags ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Printer className="w-4 h-4 mr-2" />
+                  )}
                   Print Name Tags ({checkedInCount})
                 </Button>
               </div>
