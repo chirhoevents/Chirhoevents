@@ -1,14 +1,68 @@
-import { SignUp } from '@clerk/nextjs'
+'use client'
 
-export default function SignUpPage() {
+import { SignUp } from '@clerk/nextjs'
+import { useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
+import { Building2, Users, Stethoscope } from 'lucide-react'
+
+function SignUpContent() {
+  const searchParams = useSearchParams()
+  const portal = searchParams.get('portal')
+
+  // Determine redirect URL based on portal type
+  const redirectUrl = {
+    'org-admin': '/dashboard/admin',
+    'group-leader': '/dashboard/group-leader',
+    'staff': '/staff',
+  }[portal || ''] || '/dashboard/admin'
+
+  // Get portal-specific header content
+  const getPortalInfo = () => {
+    switch (portal) {
+      case 'org-admin':
+        return {
+          icon: Building2,
+          title: 'Create Admin Account',
+          subtitle: 'Set up your organization on ChiRho Events',
+        }
+      case 'group-leader':
+        return {
+          icon: Users,
+          title: 'Create Group Leader Account',
+          subtitle: 'Start managing your group registration',
+        }
+      case 'staff':
+        return {
+          icon: Stethoscope,
+          title: 'Create Staff Account',
+          subtitle: 'Get access to Rapha Medical or SALVE Check-In portals',
+        }
+      default:
+        return {
+          icon: null,
+          title: 'Create Account',
+          subtitle: 'Join ChiRho Events and manage your group',
+        }
+    }
+  }
+
+  const portalInfo = getPortalInfo()
+  const IconComponent = portalInfo.icon
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1E3A5F] via-[#2A4A6F] to-[#1E3A5F]">
       <div className="w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Create Account</h1>
-          <p className="text-[#E8DCC8]">Join ChiRho Events and manage your group</p>
+          {IconComponent && (
+            <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <IconComponent className="h-8 w-8 text-[#E8DCC8]" />
+            </div>
+          )}
+          <h1 className="text-3xl font-bold text-white mb-2">{portalInfo.title}</h1>
+          <p className="text-[#E8DCC8]">{portalInfo.subtitle}</p>
         </div>
         <SignUp
+          afterSignUpUrl={redirectUrl}
           appearance={{
             elements: {
               rootBox: "mx-auto",
@@ -22,7 +76,50 @@ export default function SignUpPage() {
             }
           }}
         />
+
+        {/* Portal-specific notes */}
+        {portal === 'group-leader' && (
+          <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <p className="text-sm text-yellow-900">
+              <strong>Note:</strong> You&apos;ll need your group access code after signing up.
+              Check your registration confirmation email.
+            </p>
+          </div>
+        )}
+
+        {portal === 'staff' && (
+          <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-sm text-blue-900">
+              <strong>Staff accounts:</strong> Your role and portal access will be configured
+              by your organization administrator after sign up.
+            </p>
+          </div>
+        )}
+
+        <div className="mt-6 text-center text-sm text-[#E8DCC8]">
+          <p>
+            Already have an account?{' '}
+            <a
+              href={portal ? `/sign-in?portal=${portal}` : '/sign-in'}
+              className="text-white hover:underline font-semibold"
+            >
+              Sign in
+            </a>
+          </p>
+        </div>
       </div>
     </div>
+  )
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1E3A5F] via-[#2A4A6F] to-[#1E3A5F]">
+        <div className="text-white">Loading...</div>
+      </div>
+    }>
+      <SignUpContent />
+    </Suspense>
   )
 }

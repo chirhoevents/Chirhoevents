@@ -3,17 +3,18 @@
 import { SignIn } from '@clerk/nextjs'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
-import { Building2, Users, Shield } from 'lucide-react'
+import { Building2, Users, Stethoscope } from 'lucide-react'
 
 function SignInContent() {
   const searchParams = useSearchParams()
   const portal = searchParams.get('portal')
 
   // Determine redirect URL based on portal type
+  // Staff portal redirects to /staff which then routes based on user role
   const redirectUrl = {
     'org-admin': '/dashboard/admin',
     'group-leader': '/dashboard/group-leader',
-    'staff': '/dashboard/master-admin',
+    'staff': '/staff',
   }[portal || ''] || '/dashboard/admin'
 
   // Get portal-specific header content
@@ -33,9 +34,9 @@ function SignInContent() {
         }
       case 'staff':
         return {
-          icon: Shield,
+          icon: Stethoscope,
           title: 'Staff Portal Sign In',
-          subtitle: 'Master admin access for ChiRho staff',
+          subtitle: 'Access Rapha Medical or SALVE Check-In portals',
         }
       default:
         return {
