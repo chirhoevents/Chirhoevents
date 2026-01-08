@@ -1027,7 +1027,7 @@ export default function NameTagDesignerPage() {
                     onCheckedChange={(checked) => updateTemplate('showHeaderBanner', checked)}
                   />
                   <Label htmlFor="showHeaderBanner" className="font-normal">
-                    Use Custom Header Banner (Top 2.5")
+                    Use Custom Header Banner (Top 2.5&quot;)
                   </Label>
                 </div>
                 <p className="text-xs text-muted-foreground">
