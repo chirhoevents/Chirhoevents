@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useAuth } from '@clerk/nextjs'
+import { useRouter } from 'next/navigation'
+import { useAuth, useUser } from '@clerk/nextjs'
 
 /**
  * Smart Dashboard Redirect
@@ -12,9 +12,10 @@ import { useAuth } from '@clerk/nextjs'
  */
 export default function DashboardRedirect() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const { isLoaded, isSignedIn } = useAuth()
+  const { isLoaded, isSignedIn, getToken } = useAuth()
+  const { user } = useUser()
   const [error, setError] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
 
   useEffect(() => {
     if (!isLoaded) return
@@ -24,13 +25,39 @@ export default function DashboardRedirect() {
       return
     }
 
-    // Check for portal parameter in URL (from sign-in redirect)
-    const portal = searchParams.get('portal')
-
     const redirectBasedOnRole = async () => {
       try {
-        // First, check user role from the API
-        const response = await fetch('/api/user/role')
+        // Wait for Clerk session to be fully established by getting a token
+        // This ensures the server-side auth() will also recognize the user
+        const token = await getToken()
+
+        if (!token) {
+          // Session not ready yet, retry after a short delay
+          if (retryCount < 5) {
+            setTimeout(() => setRetryCount(prev => prev + 1), 500)
+            return
+          }
+          // After 5 retries, default to group leader
+          router.push('/dashboard/group-leader')
+          return
+        }
+
+        // Now call the API with the token to verify auth is working
+        const response = await fetch('/api/user/role', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (response.status === 401) {
+          // Still not authenticated on server, retry
+          if (retryCount < 5) {
+            setTimeout(() => setRetryCount(prev => prev + 1), 500)
+            return
+          }
+          router.push('/dashboard/group-leader')
+          return
+        }
 
         if (!response.ok) {
           // User might not exist in database yet - default to group leader
@@ -41,7 +68,7 @@ export default function DashboardRedirect() {
         const data = await response.json()
         const role = data.role
 
-        // Route based on role (or portal param if specified)
+        // Route based on role
         switch (role) {
           case 'master_admin':
             router.push('/dashboard/master-admin')
@@ -77,7 +104,7 @@ export default function DashboardRedirect() {
     }
 
     redirectBasedOnRole()
-  }, [isLoaded, isSignedIn, router, searchParams])
+  }, [isLoaded, isSignedIn, router, getToken, retryCount, user])
 
   if (error) {
     return (
@@ -95,6 +122,9 @@ export default function DashboardRedirect() {
       <div className="text-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
         <p className="text-white">Redirecting to your dashboard...</p>
+        {retryCount > 0 && (
+          <p className="text-[#E8DCC8] text-sm mt-2">Establishing session...</p>
+        )}
       </div>
     </div>
   )

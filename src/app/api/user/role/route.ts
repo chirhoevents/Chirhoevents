@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { NextResponse, NextRequest } from 'next/server'
+import { auth, clerkClient } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 
 /**
@@ -8,9 +8,29 @@ import { prisma } from '@/lib/prisma'
  * Returns the current user's role for routing purposes.
  * Used by the dashboard redirect page to route users to the correct dashboard.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const { userId: clerkUserId } = await auth()
+    let clerkUserId: string | null = null
+
+    // First try to get userId from Clerk's auth()
+    const authResult = await auth()
+    clerkUserId = authResult.userId
+
+    // If no userId from auth(), try to verify Bearer token from header
+    if (!clerkUserId) {
+      const authHeader = request.headers.get('Authorization')
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.substring(7)
+        try {
+          // Verify the token with Clerk
+          const client = await clerkClient()
+          const verifiedToken = await client.verifyToken(token)
+          clerkUserId = verifiedToken.sub
+        } catch (tokenError) {
+          console.error('Token verification failed:', tokenError)
+        }
+      }
+    }
 
     if (!clerkUserId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
