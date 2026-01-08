@@ -208,10 +208,25 @@ export async function POST(
       count: participantIds.length,
       participants: updatedParticipants,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to process check-in:', error)
+
+    // Return more specific error messages
+    if (error.message === 'Unauthorized') {
+      return NextResponse.json(
+        { message: 'Please sign in to check in participants' },
+        { status: 401 }
+      )
+    }
+    if (error.message === 'Access denied' || error.message === 'Access denied to this event') {
+      return NextResponse.json(
+        { message: 'You do not have permission to check in participants for this event' },
+        { status: 403 }
+      )
+    }
+
     return NextResponse.json(
-      { message: 'Failed to process check-in' },
+      { message: error.message || 'Failed to process check-in' },
       { status: 500 }
     )
   }
@@ -311,10 +326,25 @@ export async function PUT(
       count: participantIds.length,
       groupId,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to process bulk check-in:', error)
+
+    // Return more specific error messages
+    if (error.message === 'Unauthorized') {
+      return NextResponse.json(
+        { message: 'Please sign in to check in participants' },
+        { status: 401 }
+      )
+    }
+    if (error.message === 'Access denied' || error.message === 'Access denied to this event') {
+      return NextResponse.json(
+        { message: 'You do not have permission to check in participants for this event' },
+        { status: 403 }
+      )
+    }
+
     return NextResponse.json(
-      { message: 'Failed to process bulk check-in' },
+      { message: error.message || 'Failed to process bulk check-in' },
       { status: 500 }
     )
   }

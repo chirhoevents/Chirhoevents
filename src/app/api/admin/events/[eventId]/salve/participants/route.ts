@@ -1,14 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth-utils'
+import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+
+// Helper function to check if user can access Salve portal
+async function requireSalveAccess(eventId: string) {
+  const user = await getCurrentUser()
+
+  if (!user) {
+    throw new Error('Unauthorized')
+  }
+
+  // Admins always have access
+  if (isAdmin(user)) {
+    return user
+  }
+
+  // Check for Salve-specific roles
+  const portalRoles = ['salve_user', 'salve_coordinator', 'portals.salve.view']
+  const hasPortalRole = user.permissions
+    ? portalRoles.some(role => user.permissions?.[role] === true)
+    : false
+
+  if (!hasPortalRole) {
+    throw new Error('Access denied')
+  }
+
+  // Verify the event belongs to the user's organization
+  const event = await prisma.event.findFirst({
+    where: {
+      id: eventId,
+      organizationId: user.organizationId,
+    },
+  })
+
+  if (!event) {
+    throw new Error('Access denied to this event')
+  }
+
+  return user
+}
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    await requireAdmin()
     const { eventId } = await params
+    await requireSalveAccess(eventId)
     const { searchParams } = new URL(request.url)
 
     const search = searchParams.get('search') || ''
