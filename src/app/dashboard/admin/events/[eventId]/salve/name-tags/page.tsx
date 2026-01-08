@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -37,6 +37,8 @@ import {
   CreditCard,
   RefreshCw,
   Download,
+  Upload,
+  X,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
@@ -126,6 +128,8 @@ export default function NameTagDesignerPage() {
   const [previewData, setPreviewData] = useState<NameTagPreview[]>([])
 
   const [templateSavedAt, setTemplateSavedAt] = useState<string | null>(null)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const logoInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     fetchData()
@@ -200,6 +204,61 @@ export default function NameTagDesignerPage() {
 
   function updateTemplate(key: keyof NameTagTemplate, value: any) {
     setTemplate((prev) => ({ ...prev, [key]: value }))
+  }
+
+  async function handleLogoUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setUploadingLogo(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', 'logo')
+
+      const response = await fetch(`/api/admin/events/${eventId}/salve/name-tag-image`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        updateTemplate('logoUrl', data.imageUrl)
+        updateTemplate('showLogo', true)
+        toast.success('Logo uploaded successfully')
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'Failed to upload logo')
+      }
+    } catch (error) {
+      console.error('Logo upload error:', error)
+      toast.error('Failed to upload logo')
+    } finally {
+      setUploadingLogo(false)
+      // Reset the input so the same file can be selected again
+      if (logoInputRef.current) {
+        logoInputRef.current.value = ''
+      }
+    }
+  }
+
+  async function handleDeleteLogo() {
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}/salve/name-tag-image?type=logo`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        updateTemplate('logoUrl', '')
+        toast.success('Logo deleted')
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'Failed to delete logo')
+      }
+    } catch (error) {
+      console.error('Logo delete error:', error)
+      toast.error('Failed to delete logo')
+    }
   }
 
   function toggleGroup(groupId: string) {
@@ -627,22 +686,70 @@ export default function NameTagDesignerPage() {
                 <Label htmlFor="showLogo" className="font-normal">Show Logo</Label>
               </div>
               {template.showLogo && (
-                <Input
-                  placeholder="Enter logo URL (e.g., https://example.com/logo.png)"
-                  value={template.logoUrl}
-                  onChange={(e) => updateTemplate('logoUrl', e.target.value)}
-                />
-              )}
-              {template.showLogo && template.logoUrl && (
-                <div className="mt-2 p-2 border rounded">
-                  <img
-                    src={template.logoUrl}
-                    alt="Logo preview"
-                    className="max-h-12 mx-auto"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none'
-                    }}
+                <div className="space-y-2">
+                  {/* Hidden file input */}
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+                    onChange={handleLogoUpload}
+                    className="hidden"
                   />
+
+                  {template.logoUrl ? (
+                    <div className="p-3 border rounded-lg bg-gray-50">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-muted-foreground">Current Logo</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleDeleteLogo}
+                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <img
+                        src={template.logoUrl}
+                        alt="Logo preview"
+                        className="max-h-16 mx-auto"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none'
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => logoInputRef.current?.click()}
+                      disabled={uploadingLogo}
+                    >
+                      {uploadingLogo ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Upload className="w-4 h-4 mr-2" />
+                      )}
+                      {uploadingLogo ? 'Uploading...' : 'Upload Logo'}
+                    </Button>
+                  )}
+
+                  {template.logoUrl && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => logoInputRef.current?.click()}
+                      disabled={uploadingLogo}
+                    >
+                      {uploadingLogo ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Upload className="w-4 h-4 mr-2" />
+                      )}
+                      Replace Logo
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
