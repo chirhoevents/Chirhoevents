@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Building2, Users, FileText, Shield, ChevronDown, Menu, X } from "lucide-react"
+import { Building2, Users, FileText, Shield, Stethoscope, ChevronDown, Menu, X } from "lucide-react"
 import { useState } from "react"
 
 interface PublicNavProps {
@@ -83,10 +83,21 @@ export function PublicNav({ currentPage }: PublicNavProps) {
           className="cursor-pointer py-3"
           onClick={() => router.push('/sign-in?portal=staff')}
         >
-          <Shield className="mr-3 h-5 w-5 text-navy" />
+          <Stethoscope className="mr-3 h-5 w-5 text-navy" />
           <div>
             <div className="font-medium">Staff Portal</div>
-            <div className="text-xs text-gray-500">Master admin access</div>
+            <div className="text-xs text-gray-500">Rapha Medical & SALVE Check-In</div>
+          </div>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem
+          className="cursor-pointer py-3"
+          onClick={() => router.push('/sign-in?portal=master-admin')}
+        >
+          <Shield className="mr-3 h-5 w-5 text-navy" />
+          <div>
+            <div className="font-medium">Master Admin</div>
+            <div className="text-xs text-gray-500">Platform administration</div>
           </div>
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -206,10 +217,21 @@ export function PublicNav({ currentPage }: PublicNavProps) {
                     className="flex items-center px-2 py-2 text-navy hover:bg-gray-50 rounded-md"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    <Shield className="mr-3 h-5 w-5" />
+                    <Stethoscope className="mr-3 h-5 w-5" />
                     <div>
                       <div className="font-medium">Staff Portal</div>
-                      <div className="text-xs text-gray-500">Master admin access</div>
+                      <div className="text-xs text-gray-500">Rapha Medical & SALVE Check-In</div>
+                    </div>
+                  </Link>
+                  <Link
+                    href="/sign-in?portal=master-admin"
+                    className="flex items-center px-2 py-2 text-navy hover:bg-gray-50 rounded-md"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <Shield className="mr-3 h-5 w-5" />
+                    <div>
+                      <div className="font-medium">Master Admin</div>
+                      <div className="text-xs text-gray-500">Platform administration</div>
                     </div>
                   </Link>
                 </div>
