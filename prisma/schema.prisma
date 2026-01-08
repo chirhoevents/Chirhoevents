@@ -1600,6 +1600,7 @@ model NameTagTemplate {
   showSmallGroup  Boolean  @default(true) @map("show_small_group")
   showHousing     Boolean  @default(false) @map("show_housing")
   showQrCode      Boolean  @default(true) @map("show_qr_code")
+  settingsJson    Json?    @map("settings_json") @db.JsonB // Full template settings as JSON
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 

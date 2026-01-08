@@ -72,16 +72,26 @@ export async function POST(
       })
     }
 
-    // If still no template, create a basic one
-    const templateConfig = template || {
+    // Use settingsJson if available, otherwise fall back to individual fields or defaults
+    const templateConfig = template?.settingsJson || template || {
       size: 'standard',
       showName: true,
       showGroup: true,
       showParticipantType: true,
       showHousing: true,
+      showDiocese: false,
+      showMealColor: false,
+      showSmallGroup: false,
+      showQrCode: true,
+      showConferenceHeader: true,
+      conferenceHeaderText: '',
+      showLogo: false,
+      logoUrl: '',
       backgroundColor: '#FFFFFF',
       textColor: '#1E3A5F',
       accentColor: '#9C8466',
+      fontFamily: 'sans-serif',
+      fontSize: 'medium',
     }
 
     // Get participants to generate name tags for
