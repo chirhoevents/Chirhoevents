@@ -3,18 +3,18 @@
 import { SignIn } from '@clerk/nextjs'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
-import { Building2, Users, Stethoscope, Shield } from 'lucide-react'
+import { Building2, Users, Stethoscope, Shield, ClipboardCheck } from 'lucide-react'
 
 function SignInContent() {
   const searchParams = useSearchParams()
   const portal = searchParams.get('portal')
 
   // Determine redirect URL based on portal type
-  // Staff portal redirects to /staff which then routes based on user role
   const redirectUrl = {
     'org-admin': '/dashboard/admin',
     'group-leader': '/dashboard/group-leader',
-    'staff': '/staff',
+    'rapha': '/dashboard/admin/rapha',
+    'salve': '/dashboard/admin/salve',
     'master-admin': '/dashboard/master-admin',
   }[portal || ''] || '/dashboard/admin'
 
@@ -33,11 +33,17 @@ function SignInContent() {
           title: 'Group Leader Sign In',
           subtitle: 'Manage your group registration and participants',
         }
-      case 'staff':
+      case 'rapha':
         return {
           icon: Stethoscope,
-          title: 'Staff Portal Sign In',
-          subtitle: 'Access Rapha Medical or SALVE Check-In portals',
+          title: 'Rapha Coordinator Sign In',
+          subtitle: 'Access medical information portal',
+        }
+      case 'salve':
+        return {
+          icon: ClipboardCheck,
+          title: 'SALVE Coordinator Sign In',
+          subtitle: 'Access check-in portal',
         }
       case 'master-admin':
         return {
