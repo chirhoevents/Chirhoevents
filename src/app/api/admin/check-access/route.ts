@@ -30,9 +30,18 @@ export async function GET(request: NextRequest) {
 
     const user = await getCurrentUser(overrideUserId)
 
-    if (!user || !isAdmin(user)) {
+    // 401 if user not found (not authenticated or timing issue)
+    if (!user) {
       return NextResponse.json(
-        { error: 'Unauthorized - Admin access required' },
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    // 403 if user exists but isn't an admin (forbidden)
+    if (!isAdmin(user)) {
+      return NextResponse.json(
+        { error: 'Access denied - Admin role required' },
         { status: 403 }
       )
     }

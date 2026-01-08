@@ -21,18 +21,50 @@ export default function DashboardRedirect() {
 
     const redirectBasedOnRole = async () => {
       try {
-        const token = await getToken()
+        // Get token - may need to wait for it after page reload (Clerk still initializing)
+        let token = await getToken()
 
+        // If token is null, wait and retry (Clerk may still be initializing)
         if (!token) {
+          await new Promise(resolve => setTimeout(resolve, 500))
+          token = await getToken()
+        }
+
+        // Still no token? Try one more time with longer wait
+        if (!token) {
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          token = await getToken()
+        }
+
+        // Final attempt after even longer wait
+        if (!token) {
+          await new Promise(resolve => setTimeout(resolve, 1500))
+          token = await getToken()
+        }
+
+        // If still no token after all retries, default to group-leader
+        if (!token) {
+          console.log('No token after retries, defaulting to group-leader')
           window.location.href = '/dashboard/group-leader'
           return
         }
 
-        const response = await fetch('/api/user/role', {
+        let response = await fetch('/api/user/role', {
           headers: { 'Authorization': `Bearer ${token}` },
         })
 
+        // If we get a 401, wait and retry once (timing issue)
+        if (response.status === 401) {
+          console.log('Got 401 from /api/user/role, retrying...')
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          const retryToken = await getToken()
+          response = await fetch('/api/user/role', {
+            headers: retryToken ? { 'Authorization': `Bearer ${retryToken}` } : {},
+          })
+        }
+
         if (!response.ok) {
+          console.log('API response not ok, defaulting to group-leader')
           window.location.href = '/dashboard/group-leader'
           return
         }

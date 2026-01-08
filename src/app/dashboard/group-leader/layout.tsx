@@ -72,17 +72,66 @@ function GroupLeaderLayoutContent({
 
     const checkAccess = async () => {
       try {
-        // Get token to pass in Authorization header (for when cookies aren't ready)
-        const token = await getToken()
+        // Get token - may need to wait for it after page reload
+        let token = await getToken()
+
+        // If token is null, wait a moment and try again (Clerk still initializing)
+        if (!token) {
+          await new Promise(resolve => setTimeout(resolve, 500))
+          token = await getToken()
+        }
+
+        // Still no token? Try one more time
+        if (!token) {
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          token = await getToken()
+        }
 
         const response = await fetch('/api/group-leader/settings', {
           headers: token ? { 'Authorization': `Bearer ${token}` } : {},
         })
 
-        if (response.status === 404 || !response.ok) {
+        if (response.status === 401) {
+          // Unauthorized - might be a timing issue, wait and retry once
+          console.log('Got 401, waiting and retrying...')
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          const retryToken = await getToken()
+          const retryResponse = await fetch('/api/group-leader/settings', {
+            headers: retryToken ? { 'Authorization': `Bearer ${retryToken}` } : {},
+          })
+
+          if (retryResponse.status === 404) {
+            router.push('/dashboard/group-leader/link-access-code')
+            return
+          }
+
+          if (!retryResponse.ok) {
+            throw new Error('Failed to load settings after retry')
+          }
+
+          const retryData = await retryResponse.json()
+          setLinkedEvents(retryData.linkedEvents || [])
+          if (retryData.branding) {
+            setBranding(retryData.branding)
+          }
+          const savedEventId = localStorage.getItem('selectedEventId')
+          const eventExists = retryData.linkedEvents?.some((e: any) => e.id === savedEventId)
+          if (savedEventId && eventExists) {
+            setSelectedEventId(savedEventId)
+          } else if (retryData.linkedEvents && retryData.linkedEvents.length > 0) {
+            setSelectedEventId(retryData.linkedEvents[0].id)
+          }
+          return
+        }
+
+        if (response.status === 404) {
           // No linked registration - redirect to link page
           router.push('/dashboard/group-leader/link-access-code')
           return
+        }
+
+        if (!response.ok) {
+          throw new Error('Failed to load settings')
         }
 
         const data = await response.json()

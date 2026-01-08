@@ -65,8 +65,20 @@ export default function MasterAdminLayout({
 
     const checkAccess = async () => {
       try {
-        // Get token to pass in Authorization header (for when cookies aren't ready)
-        const token = await getToken()
+        // Get token - may need to wait for it after page reload
+        let token = await getToken()
+
+        // If token is null, wait a moment and try again (Clerk still initializing)
+        if (!token) {
+          await new Promise(resolve => setTimeout(resolve, 500))
+          token = await getToken()
+        }
+
+        // Still no token? Try one more time
+        if (!token) {
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          token = await getToken()
+        }
 
         const response = await fetch('/api/master-admin/check-access', {
           headers: token ? { 'Authorization': `Bearer ${token}` } : {},
@@ -75,6 +87,27 @@ export default function MasterAdminLayout({
         if (response.status === 403) {
           // Not a master admin - redirect to org admin dashboard
           router.push('/dashboard/admin')
+          return
+        }
+
+        if (response.status === 401) {
+          // Unauthorized - might be a timing issue, wait and retry once
+          console.log('Got 401, waiting and retrying...')
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          const retryToken = await getToken()
+          const retryResponse = await fetch('/api/master-admin/check-access', {
+            headers: retryToken ? { 'Authorization': `Bearer ${retryToken}` } : {},
+          })
+
+          if (!retryResponse.ok) {
+            throw new Error('Failed to verify master admin access after retry')
+          }
+
+          const retryData = await retryResponse.json()
+          setUserInfo({
+            userName: retryData.userName,
+            userEmail: retryData.userEmail,
+          })
           return
         }
 
