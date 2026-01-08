@@ -16,6 +16,8 @@ const isPublicRoute = createRouteMatcher([
   '/terms(.*)',
   '/cookies(.*)',
   '/invite(.*)',
+  '/dashboard',  // Smart redirect page - handles its own auth
+  '/api/user/role',  // Needed by dashboard redirect page
   '/api/registration(.*)',
   '/api/liability(.*)',
   '/api/portal/login(.*)',
