@@ -56,6 +56,9 @@ interface NameTagTemplate {
   conferenceHeaderText: string
   showLogo: boolean
   logoUrl: string
+  // 4x6 Header Banner (top 2.5 inches)
+  showHeaderBanner: boolean
+  headerBannerUrl: string
   backgroundColor: string
   textColor: string
   accentColor: string
@@ -106,6 +109,8 @@ const DEFAULT_TEMPLATE: NameTagTemplate = {
   conferenceHeaderText: '',
   showLogo: false,
   logoUrl: '',
+  showHeaderBanner: false,
+  headerBannerUrl: '',
   backgroundColor: '#FFFFFF',
   textColor: '#1E3A5F',
   accentColor: '#9C8466',
@@ -129,7 +134,9 @@ export default function NameTagDesignerPage() {
 
   const [templateSavedAt, setTemplateSavedAt] = useState<string | null>(null)
   const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [uploadingBanner, setUploadingBanner] = useState(false)
   const logoInputRef = useRef<HTMLInputElement>(null)
+  const bannerInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     fetchData()
@@ -261,6 +268,60 @@ export default function NameTagDesignerPage() {
     }
   }
 
+  async function handleBannerUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setUploadingBanner(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', 'background') // Using 'background' type for banner
+
+      const response = await fetch(`/api/admin/events/${eventId}/salve/name-tag-image`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        updateTemplate('headerBannerUrl', data.imageUrl)
+        updateTemplate('showHeaderBanner', true)
+        toast.success('Header banner uploaded successfully')
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'Failed to upload banner')
+      }
+    } catch (error) {
+      console.error('Banner upload error:', error)
+      toast.error('Failed to upload banner')
+    } finally {
+      setUploadingBanner(false)
+      if (bannerInputRef.current) {
+        bannerInputRef.current.value = ''
+      }
+    }
+  }
+
+  async function handleDeleteBanner() {
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}/salve/name-tag-image?type=background`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        updateTemplate('headerBannerUrl', '')
+        toast.success('Header banner deleted')
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'Failed to delete banner')
+      }
+    } catch (error) {
+      console.error('Banner delete error:', error)
+      toast.error('Failed to delete banner')
+    }
+  }
+
   function toggleGroup(groupId: string) {
     setSelectedGroups((prev) => {
       const next = new Set(prev)
@@ -375,12 +436,19 @@ export default function NameTagDesignerPage() {
       large: { name: '24px', details: '14px' },
     }
 
-    // Special font sizes for 4x6 badge
-    const badge4x6Fonts = { name: '32px', details: '16px', housing: '14px' }
+    // Special font sizes for 4x6 badge - much larger for visibility
+    const badge4x6Fonts = {
+      firstName: '48px',
+      lastName: '40px',
+      details: '20px',
+      housing: '16px',
+      badge: '16px'
+    }
 
     const size = sizeStyles[template.size]
-    const fonts = template.size === 'badge_4x6' ? badge4x6Fonts : fontSizes[template.fontSize]
+    const fonts = fontSizes[template.fontSize]
     const is4x6Badge = template.size === 'badge_4x6'
+    const has4x6Banner = is4x6Badge && template.showHeaderBanner && template.headerBannerUrl
 
     // For 4x6 badges, force QR code display if it's not explicitly disabled
     const showQr = is4x6Badge || template.showQrCode
@@ -388,118 +456,330 @@ export default function NameTagDesignerPage() {
     // Conference header text
     const conferenceHeader = template.conferenceHeaderText || eventName || ''
 
+    // Generate 4x6 badge with banner layout
+    if (is4x6Badge) {
+      return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Name Tags - 4x6 Badges</title>
+          <style>
+            @page {
+              size: 4in 6in;
+              margin: 0;
+            }
+            * {
+              box-sizing: border-box;
+            }
+            body {
+              margin: 0;
+              padding: 0;
+              font-family: ${template.fontFamily === 'sans-serif' ? 'Arial, Helvetica, sans-serif' : template.fontFamily};
+            }
+            .badge {
+              width: 4in;
+              height: 6in;
+              background-color: ${template.backgroundColor};
+              color: ${template.textColor};
+              page-break-after: always;
+              position: relative;
+              overflow: hidden;
+              display: flex;
+              flex-direction: column;
+            }
+            .badge:last-child {
+              page-break-after: auto;
+            }
+            .header-banner {
+              width: 4in;
+              height: 2.5in;
+              background-size: cover;
+              background-position: center;
+              background-repeat: no-repeat;
+              flex-shrink: 0;
+            }
+            .header-banner img {
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+            }
+            .content-area {
+              flex: 1;
+              display: flex;
+              flex-direction: column;
+              padding: 16px 20px;
+              text-align: center;
+            }
+            .name-section {
+              flex: 1;
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+              align-items: center;
+            }
+            .first-name {
+              font-size: ${badge4x6Fonts.firstName};
+              font-weight: bold;
+              line-height: 1.1;
+              margin-bottom: 4px;
+            }
+            .last-name {
+              font-size: ${badge4x6Fonts.lastName};
+              font-weight: bold;
+              line-height: 1.1;
+              margin-bottom: 12px;
+            }
+            .group-name {
+              font-size: ${badge4x6Fonts.details};
+              color: #555;
+              margin-bottom: 4px;
+            }
+            .diocese {
+              font-size: 16px;
+              color: #777;
+              margin-bottom: 8px;
+            }
+            .participant-badge {
+              display: inline-block;
+              background-color: ${template.accentColor};
+              color: white;
+              padding: 8px 20px;
+              border-radius: 6px;
+              font-size: ${badge4x6Fonts.badge};
+              font-weight: 600;
+              margin-top: 8px;
+            }
+            .bottom-row {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-end;
+              padding: 12px 20px 16px;
+              flex-shrink: 0;
+            }
+            .housing-info {
+              font-size: ${badge4x6Fonts.housing};
+              text-align: left;
+              flex: 1;
+              line-height: 1.3;
+            }
+            .housing-info strong {
+              display: block;
+              margin-bottom: 2px;
+            }
+            .qr-code {
+              width: 70px;
+              height: 70px;
+              flex-shrink: 0;
+              margin-left: 12px;
+            }
+            .meal-bar {
+              position: absolute;
+              bottom: 0;
+              left: 0;
+              right: 0;
+              height: 12px;
+            }
+            /* Fallback header without banner */
+            .fallback-header {
+              height: 2.5in;
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+              align-items: center;
+              background: linear-gradient(135deg, ${template.accentColor} 0%, ${template.textColor} 100%);
+              color: white;
+            }
+            .fallback-header .event-name {
+              font-size: 28px;
+              font-weight: bold;
+              text-align: center;
+              padding: 0 20px;
+            }
+            .fallback-header .logo {
+              max-height: 80px;
+              max-width: 80%;
+              margin-bottom: 12px;
+            }
+          </style>
+        </head>
+        <body>
+          ${nameTags.map((tag) => `
+            <div class="badge">
+              ${has4x6Banner ? `
+                <div class="header-banner">
+                  <img src="${template.headerBannerUrl}" alt="" />
+                </div>
+              ` : `
+                <div class="fallback-header">
+                  ${template.showLogo && template.logoUrl ? `
+                    <img src="${template.logoUrl}" class="logo" alt="" />
+                  ` : ''}
+                  ${template.showConferenceHeader && conferenceHeader ? `
+                    <div class="event-name">${conferenceHeader}</div>
+                  ` : ''}
+                </div>
+              `}
+
+              <div class="content-area">
+                <div class="name-section">
+                  ${template.showName ? `
+                    <div class="first-name">${tag.firstName}</div>
+                    <div class="last-name">${tag.lastName}</div>
+                  ` : ''}
+                  ${template.showGroup ? `<div class="group-name">${tag.groupName}</div>` : ''}
+                  ${template.showDiocese && tag.diocese ? `<div class="diocese">${tag.diocese}</div>` : ''}
+                  ${template.showParticipantType ? `
+                    <div class="participant-badge">
+                      ${tag.isClergy ? 'Clergy' : tag.isChaperone ? 'Chaperone' : 'Youth'}
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+
+              <div class="bottom-row">
+                ${template.showHousing && tag.housing ? `
+                  <div class="housing-info">
+                    <strong>Housing:</strong>
+                    ${tag.housing.fullLocation}
+                  </div>
+                ` : '<div></div>'}
+                ${showQr && tag.qrCode ? `
+                  <img class="qr-code" src="${tag.qrCode}" alt="QR" />
+                ` : ''}
+              </div>
+
+              ${template.showMealColor && tag.mealColor ? `
+                <div class="meal-bar" style="background-color: ${tag.mealColor.hex}"></div>
+              ` : ''}
+            </div>
+          `).join('')}
+        </body>
+        </html>
+      `
+    }
+
+    // Standard layout for non-4x6 badges
     return `
       <!DOCTYPE html>
       <html>
       <head>
         <title>Name Tags</title>
-        <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
         <style>
           @page {
-            size: ${is4x6Badge ? '4in 6in' : 'letter'};
-            margin: ${is4x6Badge ? '0' : '0.5in'};
+            size: letter;
+            margin: 0.5in;
           }
           body {
             margin: 0;
             padding: 0;
-            font-family: ${template.fontFamily};
+            font-family: ${template.fontFamily === 'sans-serif' ? 'Arial, Helvetica, sans-serif' : template.fontFamily};
           }
           .name-tags-container {
             display: flex;
             flex-wrap: wrap;
-            gap: ${is4x6Badge ? '0' : '0.25in'};
+            gap: 0.25in;
           }
           .name-tag {
             width: ${size.width};
             height: ${size.height};
-            border: ${is4x6Badge ? 'none' : '1px solid #ccc'};
-            border-radius: ${is4x6Badge ? '0' : '8px'};
-            padding: ${is4x6Badge ? '20px' : '12px'};
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 12px;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
             background-color: ${template.backgroundColor};
             color: ${template.textColor};
             page-break-inside: avoid;
-            ${is4x6Badge ? 'page-break-after: always;' : ''}
+            position: relative;
+            overflow: hidden;
           }
-          .name-tag .header {
-            border-bottom: ${is4x6Badge ? '4px' : '2px'} solid ${template.accentColor};
-            padding-bottom: ${is4x6Badge ? '16px' : '8px'};
-            margin-bottom: ${is4x6Badge ? '16px' : '8px'};
-            text-align: ${is4x6Badge ? 'center' : 'left'};
+          .conference-header {
+            text-align: center;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 4px;
+            background-color: ${template.accentColor};
+            color: white;
+            margin: -12px -12px 8px -12px;
+            border-radius: 7px 7px 0 0;
           }
-          .name-tag .name {
+          .logo-section {
+            text-align: center;
+            padding: 4px 0;
+          }
+          .logo-section img {
+            max-height: 30px;
+            max-width: 100%;
+          }
+          .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+          }
+          .name {
             font-size: ${fonts.name};
             font-weight: bold;
             color: ${template.textColor};
           }
-          .name-tag .group-name {
+          .group-name {
             font-size: ${fonts.details};
             color: #666;
             margin-top: 4px;
           }
-          .name-tag .diocese {
+          .diocese {
             font-size: 10px;
             color: #888;
           }
-          .name-tag .badge {
+          .badge-label {
             display: inline-block;
             background-color: ${template.accentColor};
             color: white;
-            padding: ${is4x6Badge ? '6px 16px' : '2px 8px'};
+            padding: 2px 8px;
             border-radius: 4px;
-            font-size: ${is4x6Badge ? '14px' : '10px'};
-            margin-top: ${is4x6Badge ? '8px' : '4px'};
-            ${is4x6Badge ? 'align-self: center;' : ''}
+            font-size: 10px;
+            margin-top: 4px;
           }
-          .name-tag .meal-color-bar {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: ${is4x6Badge ? '16px' : '8px'};
-            border-radius: ${is4x6Badge ? '0' : '0 0 8px 8px'};
-          }
-          .name-tag {
-            position: relative;
-            overflow: hidden;
-          }
-          .name-tag .bottom-row {
+          .bottom-row {
             display: flex;
             justify-content: space-between;
             align-items: flex-end;
             margin-top: auto;
             padding-top: 8px;
           }
-          .name-tag .housing {
-            font-size: ${is4x6Badge ? (fonts.housing || fonts.details) : '10px'};
+          .housing {
+            font-size: 10px;
             text-align: left;
             flex: 1;
           }
-          .name-tag .qr-code {
-            width: ${is4x6Badge ? '80px' : '40px'};
-            height: ${is4x6Badge ? '80px' : '40px'};
+          .qr-code {
+            width: 40px;
+            height: 40px;
             flex-shrink: 0;
           }
-          .name-tag .content-section {
-            display: flex;
-            flex-direction: column;
-            ${is4x6Badge ? 'align-items: center;' : ''}
-            flex: 1;
+          .meal-color-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 8px;
+            border-radius: 0 0 7px 7px;
           }
         </style>
       </head>
       <body>
         <div class="name-tags-container">
-          ${nameTags.map((tag, index) => `
+          ${nameTags.map((tag) => `
             <div class="name-tag">
               ${template.showConferenceHeader && conferenceHeader ? `
                 <div class="conference-header">${conferenceHeader}</div>
               ` : ''}
               ${template.showLogo && template.logoUrl ? `
-                <div class="logo-section" style="text-align: center; padding: 8px 0;">
-                  <img src="${template.logoUrl}" alt="Logo" style="max-height: 40px; max-width: 100%;" />
+                <div class="logo-section">
+                  <img src="${template.logoUrl}" alt="Logo" />
                 </div>
               ` : ''}
               <div class="main-content">
@@ -507,7 +787,7 @@ export default function NameTagDesignerPage() {
                 ${template.showGroup ? `<div class="group-name">${tag.groupName}</div>` : ''}
                 ${template.showDiocese && tag.diocese ? `<div class="diocese">${tag.diocese}</div>` : ''}
                 ${template.showParticipantType ? `
-                  <div class="badge">
+                  <div class="badge-label">
                     ${tag.isClergy ? 'Clergy' : tag.isChaperone ? 'Chaperone' : 'Youth'}
                   </div>
                 ` : ''}
@@ -518,7 +798,7 @@ export default function NameTagDesignerPage() {
                     <strong>Housing:</strong> ${tag.housing.fullLocation}
                   </div>
                 ` : '<div></div>'}
-                ${showQr && tag.qrCode ? `
+                ${template.showQrCode && tag.qrCode ? `
                   <img class="qr-code" src="${tag.qrCode}" alt="QR" />
                 ` : ''}
               </div>
@@ -528,23 +808,6 @@ export default function NameTagDesignerPage() {
             </div>
           `).join('')}
         </div>
-        ${template.showQrCode ? `
-          <script>
-            document.addEventListener('DOMContentLoaded', function() {
-              const participants = ${JSON.stringify(nameTags.map((t, i) => ({ id: t.participantId, index: i })))};
-              participants.forEach(function(p) {
-                const el = document.getElementById('qr-' + p.index);
-                if (el) {
-                  QRCode.toCanvas(el.appendChild(document.createElement('canvas')), p.id, {
-                    width: 40,
-                    margin: 0,
-                    color: { dark: '${template.textColor}', light: '${template.backgroundColor}' }
-                  });
-                }
-              });
-            });
-          </script>
-        ` : ''}
       </body>
       </html>
     `
@@ -754,6 +1017,92 @@ export default function NameTagDesignerPage() {
               )}
             </div>
 
+            {/* 4x6 Header Banner - Only show for badge_4x6 size */}
+            {template.size === 'badge_4x6' && (
+              <div className="space-y-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="showHeaderBanner"
+                    checked={template.showHeaderBanner}
+                    onCheckedChange={(checked) => updateTemplate('showHeaderBanner', checked)}
+                  />
+                  <Label htmlFor="showHeaderBanner" className="font-normal">
+                    Use Custom Header Banner (Top 2.5")
+                  </Label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Upload a custom graphic for the top portion of the 4x6 badge. The name and info will display in the bottom half.
+                </p>
+                {template.showHeaderBanner && (
+                  <div className="space-y-2">
+                    {/* Hidden file input */}
+                    <input
+                      ref={bannerInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/gif,image/webp"
+                      onChange={handleBannerUpload}
+                      className="hidden"
+                    />
+
+                    {template.headerBannerUrl ? (
+                      <div className="p-3 border rounded-lg bg-white">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm text-muted-foreground">Current Banner</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleDeleteBanner}
+                            className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        <img
+                          src={template.headerBannerUrl}
+                          alt="Banner preview"
+                          className="max-h-24 mx-auto rounded"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none'
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        className="w-full bg-white"
+                        onClick={() => bannerInputRef.current?.click()}
+                        disabled={uploadingBanner}
+                      >
+                        {uploadingBanner ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Upload className="w-4 h-4 mr-2" />
+                        )}
+                        {uploadingBanner ? 'Uploading...' : 'Upload Header Banner (4" × 2.5")'}
+                      </Button>
+                    )}
+
+                    {template.headerBannerUrl && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full bg-white"
+                        onClick={() => bannerInputRef.current?.click()}
+                        disabled={uploadingBanner}
+                      >
+                        {uploadingBanner ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Upload className="w-4 h-4 mr-2" />
+                        )}
+                        Replace Banner
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Display Options */}
             <div className="space-y-3">
               <Label>Display Options</Label>
@@ -869,95 +1218,193 @@ export default function NameTagDesignerPage() {
           </CardHeader>
           <CardContent>
             <div className="flex justify-center">
-              <div
-                className={`border-2 border-dashed rounded-lg p-4 flex flex-col relative overflow-hidden ${
-                  template.size === 'badge_4x6' ? 'text-center' : ''
-                }`}
-                style={{
-                  backgroundColor: template.backgroundColor,
-                  color: template.textColor,
-                  width: template.size === 'small' ? '180px' : template.size === 'large' ? '280px' : template.size === 'badge_4x6' ? '200px' : '240px',
-                  minHeight: template.size === 'small' ? '108px' : template.size === 'large' ? '216px' : template.size === 'badge_4x6' ? '300px' : '162px',
-                }}
-              >
-                {/* Conference Header */}
-                {template.showConferenceHeader && (
-                  <div
-                    className="text-center py-1 text-xs font-semibold text-white"
-                    style={{ backgroundColor: template.accentColor }}
-                  >
-                    {template.conferenceHeaderText || eventName || 'CONFERENCE'}
-                  </div>
-                )}
-
-                {/* Logo */}
-                {template.showLogo && template.logoUrl && (
-                  <div className="flex justify-center py-2">
-                    <img
-                      src={template.logoUrl}
-                      alt="Logo"
-                      className="max-h-8"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none'
-                      }}
-                    />
-                  </div>
-                )}
-
-                {/* Main Content - Name Centered */}
-                <div className="flex-1 flex flex-col items-center justify-center p-3 text-center">
-                  {template.showName && (
+              {template.size === 'badge_4x6' ? (
+                /* 4x6 Badge Preview */
+                <div
+                  className="border-2 border-dashed rounded-lg flex flex-col relative overflow-hidden"
+                  style={{
+                    backgroundColor: template.backgroundColor,
+                    color: template.textColor,
+                    width: '200px',
+                    height: '300px',
+                  }}
+                >
+                  {/* Header Banner or Fallback */}
+                  {template.showHeaderBanner && template.headerBannerUrl ? (
+                    <div className="w-full" style={{ height: '125px', flexShrink: 0 }}>
+                      <img
+                        src={template.headerBannerUrl}
+                        alt="Banner"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none'
+                        }}
+                      />
+                    </div>
+                  ) : (
                     <div
-                      className="font-bold"
+                      className="w-full flex flex-col items-center justify-center"
                       style={{
-                        fontSize: template.size === 'badge_4x6' ? '20px' : template.fontSize === 'small' ? '14px' : template.fontSize === 'large' ? '18px' : '16px',
+                        height: '125px',
+                        flexShrink: 0,
+                        background: `linear-gradient(135deg, ${template.accentColor} 0%, ${template.textColor} 100%)`,
                       }}
                     >
-                      John Doe
+                      {template.showLogo && template.logoUrl && (
+                        <img
+                          src={template.logoUrl}
+                          alt="Logo"
+                          className="max-h-10 mb-1"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none'
+                          }}
+                        />
+                      )}
+                      {template.showConferenceHeader && (
+                        <div className="text-white text-sm font-bold text-center px-2">
+                          {template.conferenceHeaderText || eventName || 'CONFERENCE'}
+                        </div>
+                      )}
                     </div>
                   )}
-                  {template.showGroup && (
-                    <div className="text-sm opacity-70 mt-1">St. Mary&apos;s Parish</div>
+
+                  {/* Content Area */}
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-3">
+                    {template.showName && (
+                      <>
+                        <div className="font-bold text-xl leading-tight">John</div>
+                        <div className="font-bold text-lg leading-tight mb-2">Doe</div>
+                      </>
+                    )}
+                    {template.showGroup && (
+                      <div className="text-xs opacity-70">St. Mary&apos;s Parish</div>
+                    )}
+                    {template.showDiocese && (
+                      <div className="text-[10px] opacity-60">Diocese of Sample</div>
+                    )}
+                    {template.showParticipantType && (
+                      <span
+                        className="text-white text-[10px] px-2 py-0.5 rounded mt-2 font-medium"
+                        style={{ backgroundColor: template.accentColor }}
+                      >
+                        Youth
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Bottom Row */}
+                  <div className="flex justify-between items-end p-2 pt-0">
+                    {template.showHousing ? (
+                      <div className="text-[8px] opacity-70 leading-tight">
+                        <strong className="block">Housing:</strong>
+                        Building A 101
+                      </div>
+                    ) : <div />}
+                    {template.showQrCode && (
+                      <div
+                        className="bg-white border rounded flex items-center justify-center flex-shrink-0"
+                        style={{ width: '35px', height: '35px' }}
+                      >
+                        <span className="text-[6px] text-gray-400">QR</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {template.showMealColor && (
+                    <div
+                      className="absolute bottom-0 left-0 right-0 h-2"
+                      style={{ backgroundColor: '#3498db' }}
+                    />
                   )}
-                  {template.showDiocese && (
-                    <div className="text-xs opacity-60">Diocese of Sample</div>
-                  )}
-                  {template.showParticipantType && (
-                    <span
-                      className="text-white text-xs px-2 py-0.5 rounded mt-2"
+                </div>
+              ) : (
+                /* Standard Badge Preview */
+                <div
+                  className="border-2 border-dashed rounded-lg p-4 flex flex-col relative overflow-hidden"
+                  style={{
+                    backgroundColor: template.backgroundColor,
+                    color: template.textColor,
+                    width: template.size === 'small' ? '180px' : template.size === 'large' ? '280px' : '240px',
+                    minHeight: template.size === 'small' ? '108px' : template.size === 'large' ? '216px' : '162px',
+                  }}
+                >
+                  {/* Conference Header */}
+                  {template.showConferenceHeader && (
+                    <div
+                      className="text-center py-1 text-xs font-semibold text-white -mx-4 -mt-4 mb-2"
                       style={{ backgroundColor: template.accentColor }}
                     >
-                      Youth
-                    </span>
+                      {template.conferenceHeaderText || eventName || 'CONFERENCE'}
+                    </div>
                   )}
-                </div>
 
-                {/* Bottom row: Housing on left, QR on right */}
-                <div className="mt-auto pt-2 flex justify-between items-end">
-                  {template.showHousing ? (
-                    <div className="text-[10px] opacity-70">
-                      <strong>Housing:</strong> Building A 101
-                    </div>
-                  ) : <div />}
-                  {(template.showQrCode || template.size === 'badge_4x6') && (
-                    <div
-                      className="bg-white border rounded flex items-center justify-center flex-shrink-0"
-                      style={{
-                        width: template.size === 'badge_4x6' ? '50px' : '30px',
-                        height: template.size === 'badge_4x6' ? '50px' : '30px',
-                      }}
-                    >
-                      <span className="text-[6px] text-gray-400 text-center">QR</span>
+                  {/* Logo */}
+                  {template.showLogo && template.logoUrl && (
+                    <div className="flex justify-center py-2">
+                      <img
+                        src={template.logoUrl}
+                        alt="Logo"
+                        className="max-h-8"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none'
+                        }}
+                      />
                     </div>
                   )}
+
+                  {/* Main Content - Name Centered */}
+                  <div className="flex-1 flex flex-col items-center justify-center p-3 text-center">
+                    {template.showName && (
+                      <div
+                        className="font-bold"
+                        style={{
+                          fontSize: template.fontSize === 'small' ? '14px' : template.fontSize === 'large' ? '18px' : '16px',
+                        }}
+                      >
+                        John Doe
+                      </div>
+                    )}
+                    {template.showGroup && (
+                      <div className="text-sm opacity-70 mt-1">St. Mary&apos;s Parish</div>
+                    )}
+                    {template.showDiocese && (
+                      <div className="text-xs opacity-60">Diocese of Sample</div>
+                    )}
+                    {template.showParticipantType && (
+                      <span
+                        className="text-white text-xs px-2 py-0.5 rounded mt-2"
+                        style={{ backgroundColor: template.accentColor }}
+                      >
+                        Youth
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Bottom row: Housing on left, QR on right */}
+                  <div className="mt-auto pt-2 flex justify-between items-end">
+                    {template.showHousing ? (
+                      <div className="text-[10px] opacity-70">
+                        <strong>Housing:</strong> Building A 101
+                      </div>
+                    ) : <div />}
+                    {template.showQrCode && (
+                      <div
+                        className="bg-white border rounded flex items-center justify-center flex-shrink-0"
+                        style={{ width: '30px', height: '30px' }}
+                      >
+                        <span className="text-[6px] text-gray-400 text-center">QR</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {template.showMealColor && (
+                    <div
+                      className="absolute bottom-0 left-0 right-0 h-2 rounded-b-lg"
+                      style={{ backgroundColor: '#3498db' }}
+                    />
+                  )}
                 </div>
-                {template.showMealColor && (
-                  <div
-                    className="absolute bottom-0 left-0 right-0 h-2 rounded-b-lg"
-                    style={{ backgroundColor: '#3498db' }}
-                  />
-                )}
-              </div>
+              )}
             </div>
 
             <div className="text-center mt-4 text-sm text-muted-foreground">

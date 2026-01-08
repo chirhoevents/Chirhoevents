@@ -502,148 +502,393 @@ export default function SalveDedicatedPortal() {
         const conferenceHeaderText = template.conferenceHeaderText || eventName || ''
         const showLogo = template.showLogo === true
         const logoUrl = template.logoUrl || ''
+        const showHeaderBanner = template.showHeaderBanner === true
+        const headerBannerUrl = template.headerBannerUrl || ''
 
-        // Size configurations
-        const sizeStyles: Record<string, { width: string; height: string; pageSize: string }> = {
-          small: { width: '2.5in', height: '1.5in', pageSize: 'letter' },
-          standard: { width: '3.5in', height: '2.25in', pageSize: 'letter' },
-          large: { width: '4in', height: '3in', pageSize: 'letter' },
-          badge_4x6: { width: '4in', height: '6in', pageSize: '4in 6in' },
-        }
-        const sizeConfig = sizeStyles[size] || sizeStyles.standard
         const is4x6 = size === 'badge_4x6'
+        const has4x6Banner = is4x6 && showHeaderBanner && headerBannerUrl
+        const fontFamilyCSS = fontFamily === 'sans-serif' ? 'Arial, Helvetica, sans-serif' : fontFamily
 
-        // Font size configurations
-        const fontSizes: Record<string, { name: string; details: string }> = {
+        // Special font sizes for 4x6 badge - much larger for visibility
+        const badge4x6Fonts = {
+          firstName: '48px',
+          lastName: '40px',
+          details: '20px',
+          housing: '16px',
+          badge: '16px'
+        }
+
+        // Standard font sizes
+        const standardFonts: Record<string, { name: string; details: string }> = {
           small: { name: '16px', details: '10px' },
           medium: { name: '20px', details: '12px' },
           large: { name: '24px', details: '14px' },
         }
-        const fonts = is4x6 ? { name: '32px', details: '16px' } : (fontSizes[fontSize] || fontSizes.medium)
+        const fonts = standardFonts[fontSize] || standardFonts.medium
 
-        printWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <title>Name Tags - ${groupData.groupName}</title>
-            <style>
-              @page {
-                size: ${sizeConfig.pageSize};
-                margin: ${is4x6 ? '0' : '0.5in'};
-              }
-              body {
-                font-family: ${fontFamily};
-                margin: 0;
-                padding: 0;
-              }
-              .name-tags-container {
-                display: flex;
-                flex-wrap: wrap;
-                gap: ${is4x6 ? '0' : '0.25in'};
-              }
-              .name-tag {
-                width: ${sizeConfig.width};
-                height: ${sizeConfig.height};
-                border: ${is4x6 ? 'none' : '1px solid #ccc'};
-                border-radius: ${is4x6 ? '0' : '8px'};
-                padding: ${is4x6 ? '20px' : '12px'};
-                box-sizing: border-box;
-                display: flex;
-                flex-direction: column;
-                page-break-inside: avoid;
-                ${is4x6 ? 'page-break-after: always;' : ''}
-                background-color: ${backgroundColor};
-                color: ${textColor};
-                position: relative;
-              }
-              .name-tag .conference-header {
-                text-align: center;
-                font-size: ${is4x6 ? '14px' : '10px'};
-                font-weight: bold;
-                padding: ${is4x6 ? '8px' : '4px'};
-                background-color: ${accentColor};
-                color: white;
-                margin: -${is4x6 ? '20px' : '12px'};
-                margin-bottom: ${is4x6 ? '16px' : '8px'};
-                border-radius: ${is4x6 ? '0' : '8px 8px 0 0'};
-              }
-              .name-tag .logo-section {
-                text-align: center;
-                padding: 8px 0;
-              }
-              .name-tag .logo-section img {
-                max-height: ${is4x6 ? '60px' : '30px'};
-                max-width: 100%;
-              }
-              .name-tag .main-content {
-                flex: 1;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                text-align: center;
-              }
-              .name-tag .name {
-                font-size: ${fonts.name};
-                font-weight: bold;
-              }
-              .name-tag .group-name {
-                font-size: ${fonts.details};
-                color: #666;
-                margin-top: 4px;
-              }
-              .name-tag .diocese {
-                font-size: 10px;
-                color: #888;
-              }
-              .name-tag .badge {
-                display: inline-block;
-                background-color: ${accentColor};
-                color: white;
-                padding: ${is4x6 ? '6px 16px' : '2px 8px'};
-                border-radius: 4px;
-                font-size: ${is4x6 ? '14px' : '10px'};
-                margin-top: ${is4x6 ? '8px' : '4px'};
-                align-self: center;
-              }
-              .name-tag .bottom-section {
-                display: flex;
-                justify-content: space-between;
-                align-items: flex-end;
-                margin-top: auto;
-                padding-top: 8px;
-              }
-              .name-tag .housing {
-                font-size: ${is4x6 ? '14px' : '10px'};
-                text-align: left;
-              }
-              .name-tag .qr-code {
-                width: ${is4x6 ? '60px' : '40px'};
-                height: ${is4x6 ? '60px' : '40px'};
-              }
-            </style>
-          </head>
-          <body>
-            <div class="name-tags-container">
+        // Generate 4x6 badge HTML (matches pre-print design)
+        if (is4x6) {
+          printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <title>Name Tags - ${groupData.groupName}</title>
+              <style>
+                @page {
+                  size: 4in 6in;
+                  margin: 0;
+                }
+                * {
+                  box-sizing: border-box;
+                }
+                body {
+                  margin: 0;
+                  padding: 0;
+                  font-family: ${fontFamilyCSS};
+                }
+                .badge {
+                  width: 4in;
+                  height: 6in;
+                  background-color: ${backgroundColor};
+                  color: ${textColor};
+                  page-break-after: always;
+                  position: relative;
+                  overflow: hidden;
+                  display: flex;
+                  flex-direction: column;
+                }
+                .badge:last-child {
+                  page-break-after: auto;
+                }
+                .header-banner {
+                  width: 4in;
+                  height: 2.5in;
+                  background-size: cover;
+                  background-position: center;
+                  background-repeat: no-repeat;
+                  flex-shrink: 0;
+                }
+                .header-banner img {
+                  width: 100%;
+                  height: 100%;
+                  object-fit: cover;
+                }
+                .content-area {
+                  flex: 1;
+                  display: flex;
+                  flex-direction: column;
+                  padding: 16px 20px;
+                  text-align: center;
+                }
+                .name-section {
+                  flex: 1;
+                  display: flex;
+                  flex-direction: column;
+                  justify-content: center;
+                  align-items: center;
+                }
+                .first-name {
+                  font-size: ${badge4x6Fonts.firstName};
+                  font-weight: bold;
+                  line-height: 1.1;
+                  margin-bottom: 4px;
+                }
+                .last-name {
+                  font-size: ${badge4x6Fonts.lastName};
+                  font-weight: bold;
+                  line-height: 1.1;
+                  margin-bottom: 12px;
+                }
+                .group-name {
+                  font-size: ${badge4x6Fonts.details};
+                  color: #555;
+                  margin-bottom: 4px;
+                }
+                .diocese {
+                  font-size: 16px;
+                  color: #777;
+                  margin-bottom: 8px;
+                }
+                .participant-badge {
+                  display: inline-block;
+                  background-color: ${accentColor};
+                  color: white;
+                  padding: 8px 20px;
+                  border-radius: 6px;
+                  font-size: ${badge4x6Fonts.badge};
+                  font-weight: 600;
+                  margin-top: 8px;
+                }
+                .bottom-row {
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: flex-end;
+                  padding: 12px 20px 16px;
+                  flex-shrink: 0;
+                }
+                .housing-info {
+                  font-size: ${badge4x6Fonts.housing};
+                  text-align: left;
+                  flex: 1;
+                  line-height: 1.3;
+                }
+                .housing-info strong {
+                  display: block;
+                  margin-bottom: 2px;
+                }
+                .qr-code {
+                  width: 70px;
+                  height: 70px;
+                  flex-shrink: 0;
+                  margin-left: 12px;
+                }
+                .meal-bar {
+                  position: absolute;
+                  bottom: 0;
+                  left: 0;
+                  right: 0;
+                  height: 12px;
+                }
+                /* Fallback header without banner */
+                .fallback-header {
+                  height: 2.5in;
+                  display: flex;
+                  flex-direction: column;
+                  justify-content: center;
+                  align-items: center;
+                  background: linear-gradient(135deg, ${accentColor} 0%, ${textColor} 100%);
+                  color: white;
+                }
+                .fallback-header .event-name {
+                  font-size: 28px;
+                  font-weight: bold;
+                  text-align: center;
+                  padding: 0 20px;
+                }
+                .fallback-header .logo {
+                  max-height: 80px;
+                  max-width: 80%;
+                  margin-bottom: 12px;
+                }
+              </style>
+            </head>
+            <body>
               ${nameTags.map((tag: any) => `
-                <div class="name-tag">
-                  ${showConferenceHeader && conferenceHeaderText ? `<div class="conference-header">${conferenceHeaderText}</div>` : ''}
-                  ${showLogo && logoUrl ? `<div class="logo-section"><img src="${logoUrl}" alt="Logo" /></div>` : ''}
-                  <div class="main-content">
-                    ${showName ? `<div class="name">${tag.firstName} ${tag.lastName}</div>` : ''}
-                    ${showGroup ? `<div class="group-name">${tag.groupName}</div>` : ''}
-                    ${showDiocese && tag.diocese ? `<div class="diocese">${tag.diocese}</div>` : ''}
-                    ${showParticipantType ? `<div class="badge">${tag.isClergy ? 'Clergy' : tag.isChaperone ? 'Chaperone' : 'Youth'}</div>` : ''}
+                <div class="badge">
+                  ${has4x6Banner ? `
+                    <div class="header-banner">
+                      <img src="${headerBannerUrl}" alt="" />
+                    </div>
+                  ` : `
+                    <div class="fallback-header">
+                      ${showLogo && logoUrl ? `
+                        <img src="${logoUrl}" class="logo" alt="" />
+                      ` : ''}
+                      ${showConferenceHeader && conferenceHeaderText ? `
+                        <div class="event-name">${conferenceHeaderText}</div>
+                      ` : ''}
+                    </div>
+                  `}
+
+                  <div class="content-area">
+                    <div class="name-section">
+                      ${showName ? `
+                        <div class="first-name">${tag.firstName}</div>
+                        <div class="last-name">${tag.lastName}</div>
+                      ` : ''}
+                      ${showGroup ? `<div class="group-name">${tag.groupName}</div>` : ''}
+                      ${showDiocese && tag.diocese ? `<div class="diocese">${tag.diocese}</div>` : ''}
+                      ${showParticipantType ? `
+                        <div class="participant-badge">
+                          ${tag.isClergy ? 'Clergy' : tag.isChaperone ? 'Chaperone' : 'Youth'}
+                        </div>
+                      ` : ''}
+                    </div>
                   </div>
-                  <div class="bottom-section">
-                    ${showHousing && tag.housing ? `<div class="housing"><strong>Housing:</strong> ${tag.housing.fullLocation}</div>` : '<div></div>'}
-                    ${showQrCode && tag.qrCode ? `<img class="qr-code" src="${tag.qrCode}" alt="QR" />` : ''}
+
+                  <div class="bottom-row">
+                    ${showHousing && tag.housing ? `
+                      <div class="housing-info">
+                        <strong>Housing:</strong>
+                        ${tag.housing.fullLocation}
+                      </div>
+                    ` : '<div></div>'}
+                    ${showQrCode && tag.qrCode ? `
+                      <img class="qr-code" src="${tag.qrCode}" alt="QR" />
+                    ` : ''}
                   </div>
+
+                  ${tag.mealColor ? `
+                    <div class="meal-bar" style="background-color: ${tag.mealColor.hex || tag.mealColor}"></div>
+                  ` : ''}
                 </div>
               `).join('')}
-            </div>
-          </body>
-          </html>
-        `)
+            </body>
+            </html>
+          `)
+        } else {
+          // Standard layout for non-4x6 badges
+          const sizeStyles: Record<string, { width: string; height: string }> = {
+            small: { width: '2.5in', height: '1.5in' },
+            standard: { width: '3.5in', height: '2.25in' },
+            large: { width: '4in', height: '3in' },
+          }
+          const sizeConfig = sizeStyles[size] || sizeStyles.standard
+
+          printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <title>Name Tags - ${groupData.groupName}</title>
+              <style>
+                @page {
+                  size: letter;
+                  margin: 0.5in;
+                }
+                body {
+                  margin: 0;
+                  padding: 0;
+                  font-family: ${fontFamilyCSS};
+                }
+                .name-tags-container {
+                  display: flex;
+                  flex-wrap: wrap;
+                  gap: 0.25in;
+                }
+                .name-tag {
+                  width: ${sizeConfig.width};
+                  height: ${sizeConfig.height};
+                  border: 1px solid #ccc;
+                  border-radius: 8px;
+                  padding: 12px;
+                  box-sizing: border-box;
+                  display: flex;
+                  flex-direction: column;
+                  background-color: ${backgroundColor};
+                  color: ${textColor};
+                  page-break-inside: avoid;
+                  position: relative;
+                  overflow: hidden;
+                }
+                .conference-header {
+                  text-align: center;
+                  font-size: 10px;
+                  font-weight: 600;
+                  padding: 4px;
+                  background-color: ${accentColor};
+                  color: white;
+                  margin: -12px -12px 8px -12px;
+                  border-radius: 7px 7px 0 0;
+                }
+                .logo-section {
+                  text-align: center;
+                  padding: 4px 0;
+                }
+                .logo-section img {
+                  max-height: 30px;
+                  max-width: 100%;
+                }
+                .main-content {
+                  flex: 1;
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  justify-content: center;
+                  text-align: center;
+                }
+                .name {
+                  font-size: ${fonts.name};
+                  font-weight: bold;
+                  color: ${textColor};
+                }
+                .group-name {
+                  font-size: ${fonts.details};
+                  color: #666;
+                  margin-top: 4px;
+                }
+                .diocese {
+                  font-size: 10px;
+                  color: #888;
+                }
+                .badge-label {
+                  display: inline-block;
+                  background-color: ${accentColor};
+                  color: white;
+                  padding: 2px 8px;
+                  border-radius: 4px;
+                  font-size: 10px;
+                  margin-top: 4px;
+                }
+                .bottom-row {
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: flex-end;
+                  margin-top: auto;
+                  padding-top: 8px;
+                }
+                .housing {
+                  font-size: 10px;
+                  text-align: left;
+                  flex: 1;
+                }
+                .qr-code {
+                  width: 40px;
+                  height: 40px;
+                  flex-shrink: 0;
+                }
+                .meal-color-bar {
+                  position: absolute;
+                  bottom: 0;
+                  left: 0;
+                  right: 0;
+                  height: 8px;
+                  border-radius: 0 0 7px 7px;
+                }
+              </style>
+            </head>
+            <body>
+              <div class="name-tags-container">
+                ${nameTags.map((tag: any) => `
+                  <div class="name-tag">
+                    ${showConferenceHeader && conferenceHeaderText ? `
+                      <div class="conference-header">${conferenceHeaderText}</div>
+                    ` : ''}
+                    ${showLogo && logoUrl ? `
+                      <div class="logo-section">
+                        <img src="${logoUrl}" alt="Logo" />
+                      </div>
+                    ` : ''}
+                    <div class="main-content">
+                      ${showName ? `<div class="name">${tag.firstName} ${tag.lastName}</div>` : ''}
+                      ${showGroup ? `<div class="group-name">${tag.groupName}</div>` : ''}
+                      ${showDiocese && tag.diocese ? `<div class="diocese">${tag.diocese}</div>` : ''}
+                      ${showParticipantType ? `
+                        <div class="badge-label">
+                          ${tag.isClergy ? 'Clergy' : tag.isChaperone ? 'Chaperone' : 'Youth'}
+                        </div>
+                      ` : ''}
+                    </div>
+                    <div class="bottom-row">
+                      ${showHousing && tag.housing ? `
+                        <div class="housing">
+                          <strong>Housing:</strong> ${tag.housing.fullLocation}
+                        </div>
+                      ` : '<div></div>'}
+                      ${showQrCode && tag.qrCode ? `
+                        <img class="qr-code" src="${tag.qrCode}" alt="QR" />
+                      ` : ''}
+                    </div>
+                    ${tag.mealColor ? `
+                      <div class="meal-color-bar" style="background-color: ${tag.mealColor.hex || tag.mealColor}"></div>
+                    ` : ''}
+                  </div>
+                `).join('')}
+              </div>
+            </body>
+            </html>
+          `)
+        }
+
         printWindow.document.close()
         printWindow.focus()
         setTimeout(() => printWindow.print(), 500)
@@ -705,7 +950,7 @@ export default function SalveDedicatedPortal() {
                 .no-print { display: none !important; }
                 .page-break { page-break-before: always; }
               }
-              body { font-family: 'Georgia', serif; max-width: 8.5in; margin: 0 auto; color: #333; line-height: 1.6; }
+              body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; max-width: 8.5in; margin: 0 auto; color: #333; line-height: 1.6; font-size: 14px; }
               h1 { color: #1E3A5F; margin-bottom: 0.5em; font-size: 28px; }
               h2 { color: #9C8466; margin-top: 1.5em; font-size: 20px; border-bottom: 2px solid #9C8466; padding-bottom: 5px; }
               h3 { color: #1E3A5F; font-size: 16px; margin-top: 1em; }
