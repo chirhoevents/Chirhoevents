@@ -9,14 +9,10 @@ function SignInContent() {
   const searchParams = useSearchParams()
   const portal = searchParams.get('portal')
 
-  // Determine redirect URL based on portal type
-  const redirectUrl = {
-    'org-admin': '/dashboard/admin',
-    'group-leader': '/dashboard/group-leader',
-    'rapha': '/dashboard/admin/rapha',
-    'salve': '/dashboard/admin/salve',
-    'master-admin': '/dashboard/master-admin',
-  }[portal || ''] || '/dashboard/admin'
+  // NOTE: We intentionally DON'T use forceRedirectUrl here.
+  // This allows Clerk to use NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL ("/dashboard")
+  // The /dashboard page then routes users based on their role.
+  // This prevents CORS issues that occur when redirecting directly to protected routes.
 
   // Get portal-specific header content
   const getPortalInfo = () => {
@@ -76,7 +72,6 @@ function SignInContent() {
           <p className="text-[#E8DCC8]">{portalInfo.subtitle}</p>
         </div>
         <SignIn
-          forceRedirectUrl={redirectUrl}
           appearance={{
             elements: {
               rootBox: "mx-auto",
