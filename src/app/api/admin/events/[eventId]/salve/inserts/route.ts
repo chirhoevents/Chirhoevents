@@ -71,10 +71,14 @@ export async function POST(
         )
       }
 
-      // Validate file type (PDF only)
-      if (!file.type.includes('pdf')) {
+      // Validate file type (PDF or images)
+      const isPdf = file.type.includes('pdf')
+      const isImage = file.type.startsWith('image/')
+      const allowedImageTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
+
+      if (!isPdf && !allowedImageTypes.includes(file.type)) {
         return NextResponse.json(
-          { message: 'Only PDF files are accepted' },
+          { message: 'Only PDF and image files (PNG, JPG, WEBP) are accepted' },
           { status: 400 }
         )
       }
@@ -106,12 +110,18 @@ export async function POST(
         _max: { displayOrder: true },
       })
 
+      // Determine file type for direct embedding
+      const fileType = isImage ? 'image' : 'pdf'
+
       // Create insert record
       const insert = await prisma.welcomePacketInsert.create({
         data: {
           eventId,
           name: name.trim(),
           fileUrl,
+          fileType,
+          // Only include imageUrls for images (can be embedded directly in print)
+          ...(isImage ? { imageUrls: [fileUrl] } : {}),
           displayOrder: (maxOrder._max.displayOrder || 0) + 1,
           isActive: true,
         },

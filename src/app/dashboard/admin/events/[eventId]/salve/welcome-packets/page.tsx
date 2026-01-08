@@ -75,6 +75,8 @@ interface PacketInsert {
   id: string
   name: string
   fileUrl: string
+  fileType: 'pdf' | 'image'
+  imageUrls: string[] | null
   displayOrder: number
   isActive: boolean
 }
@@ -321,27 +323,35 @@ export default function WelcomePacketsPage() {
     setIsDraggingFile(false)
 
     const file = e.dataTransfer.files[0]
-    if (file && file.type === 'application/pdf') {
+    const isPdf = file?.type === 'application/pdf'
+    const isImage = file?.type.startsWith('image/')
+
+    if (file && (isPdf || isImage)) {
       setSelectedFile(file)
       // Use filename without extension as default name
       if (!newInsertName) {
-        setNewInsertName(file.name.replace(/\.pdf$/i, ''))
+        const nameWithoutExt = file.name.replace(/\.(pdf|png|jpg|jpeg|webp)$/i, '')
+        setNewInsertName(nameWithoutExt)
       }
     } else {
-      toast.error('Only PDF files are accepted')
+      toast.error('Only PDF and image files (PNG, JPG, WEBP) are accepted')
     }
   }, [newInsertName])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      if (file.type === 'application/pdf') {
+      const isPdf = file.type === 'application/pdf'
+      const isImage = file.type.startsWith('image/')
+
+      if (isPdf || isImage) {
         setSelectedFile(file)
         if (!newInsertName) {
-          setNewInsertName(file.name.replace(/\.pdf$/i, ''))
+          const nameWithoutExt = file.name.replace(/\.(pdf|png|jpg|jpeg|webp)$/i, '')
+          setNewInsertName(nameWithoutExt)
         }
       } else {
-        toast.error('Only PDF files are accepted')
+        toast.error('Only PDF and image files (PNG, JPG, WEBP) are accepted')
       }
     }
   }
@@ -526,6 +536,9 @@ export default function WelcomePacketsPage() {
   }
 
   function generatePrintableHTML(packets: PacketPreview[], settings: PacketSettings): string {
+    // Get active inserts that have images (can be embedded directly)
+    const activeInserts = inserts.filter(i => i.isActive)
+
     return `
       <!DOCTYPE html>
       <html>
@@ -537,9 +550,12 @@ export default function WelcomePacketsPage() {
             margin: 0.75in;
           }
           body {
-            font-family: 'Georgia', serif;
-            color: #1E3A5F;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: #333;
             line-height: 1.6;
+            font-size: 14px;
+            max-width: 8.5in;
+            margin: 0 auto;
           }
           .packet {
             page-break-after: always;
@@ -548,193 +564,182 @@ export default function WelcomePacketsPage() {
             page-break-after: auto;
           }
           .header {
-            text-align: center;
             border-bottom: 3px solid #9C8466;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+            margin-bottom: 1em;
+            padding-bottom: 1em;
           }
-          .header h1 {
+          .header img {
+            max-height: 60px;
+            margin-bottom: 10px;
+          }
+          h1 {
             color: #1E3A5F;
             font-size: 28px;
-            margin: 0 0 10px 0;
+            margin-bottom: 0.5em;
           }
-          .header .subtitle {
+          h2 {
             color: #9C8466;
-            font-size: 18px;
-          }
-          .group-name {
-            font-size: 24px;
-            color: #1E3A5F;
-            margin: 20px 0;
-            text-align: center;
-          }
-          .section {
-            margin: 25px 0;
-          }
-          .section-title {
-            color: #9C8466;
-            font-size: 16px;
-            font-weight: bold;
-            text-transform: uppercase;
-            border-bottom: 1px solid #ccc;
+            margin-top: 1.5em;
+            font-size: 20px;
+            border-bottom: 2px solid #9C8466;
             padding-bottom: 5px;
-            margin-bottom: 15px;
+          }
+          h3 {
+            color: #1E3A5F;
+            font-size: 16px;
+            margin-top: 1em;
+          }
+          .welcome {
+            font-size: 1.3em;
+            margin-bottom: 1em;
+            font-style: italic;
           }
           .info-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
+            gap: 1em;
+            margin: 1em 0;
           }
-          .info-item {
-            display: flex;
-            gap: 10px;
+          .info-box {
+            background: #f9f9f9;
+            padding: 1em;
+            border-radius: 8px;
+            border-left: 4px solid #9C8466;
           }
-          .info-label {
-            font-weight: bold;
-            min-width: 100px;
+          .info-box h3 {
+            margin-top: 0;
           }
           table {
             width: 100%;
             border-collapse: collapse;
-            margin: 10px 0;
+            margin: 1em 0;
+            font-size: 14px;
           }
           th, td {
-            border: 1px solid #ccc;
-            padding: 8px 12px;
+            padding: 10px;
             text-align: left;
+            border-bottom: 1px solid #ddd;
           }
           th {
-            background-color: #F5F1E8;
+            background: #f5f5f5;
             font-weight: bold;
           }
           .housing-room {
-            background-color: #F5F1E8;
-            padding: 15px;
-            margin: 10px 0;
+            margin-bottom: 1em;
+            padding: 10px;
+            background: #f9f9f9;
             border-radius: 8px;
           }
-          .housing-room h4 {
+          .housing-room h3 {
             margin: 0 0 10px 0;
-            color: #1E3A5F;
           }
-          .welcome-message {
-            background-color: #F5F1E8;
-            padding: 20px;
-            border-radius: 8px;
+          .housing-room p {
+            margin: 5px 0;
+            color: #666;
+          }
+          .housing-room ul {
+            margin: 5px 0;
+          }
+          .insert-page {
+            page-break-before: always;
+          }
+          .insert-image {
+            max-width: 100%;
+            height: auto;
+            margin: 20px 0;
+          }
+          .insert-title {
+            color: #1E3A5F;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #9C8466;
+          }
+          .footer {
+            margin-top: 2em;
+            padding-top: 1em;
+            border-top: 1px solid #ddd;
             text-align: center;
-            font-style: italic;
+            color: #888;
+            font-size: 12px;
           }
         </style>
       </head>
       <body>
-        ${packets.map((packet) => `
+        ${packets.map((packet, packetIndex) => `
           <div class="packet">
             <div class="header">
-              <h1>${packet.event.name}</h1>
-              <div class="subtitle">${packet.event.organizationName}</div>
+              ${packet.event.logoUrl ? `<img src="${packet.event.logoUrl}" alt="Logo" />` : ''}
+              <h1>Welcome to ${packet.event.name}!</h1>
+              ${packet.event.organizationName ? `<p style="color: #666; margin: 0;">${packet.event.organizationName}</p>` : ''}
             </div>
 
-            <div class="welcome-message">
-              <h2>Salve!</h2>
-              <p>Welcome to ${packet.event.name}. We are delighted to have you join us!</p>
-            </div>
+            <p class="welcome">Salve, ${packet.group.name}!</p>
+            <p>Welcome to ${packet.event.name}. ${packet.group.diocese ? `Your group from ${packet.group.diocese} has` : 'You have'} ${packet.participants.total} registered participants.</p>
 
-            <div class="group-name">${packet.group.name}</div>
-
-            <div class="section">
-              <div class="section-title">Group Information</div>
-              <div class="info-grid">
-                <div class="info-item">
-                  <span class="info-label">Diocese:</span>
-                  <span>${packet.group.diocese || 'N/A'}</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-label">Access Code:</span>
-                  <span>${packet.group.accessCode}</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-label">Contact Email:</span>
-                  <span>${packet.group.contactEmail}</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-label">Contact Phone:</span>
-                  <span>${packet.group.contactPhone || 'N/A'}</span>
-                </div>
+            <div class="info-grid">
+              <div class="info-box">
+                <h3>Group Information</h3>
+                <p><strong>Group:</strong> ${packet.group.name}</p>
+                ${packet.group.diocese ? `<p><strong>Diocese:</strong> ${packet.group.diocese}</p>` : ''}
+                <p><strong>Access Code:</strong> ${packet.group.accessCode}</p>
               </div>
-            </div>
-
-            <div class="section">
-              <div class="section-title">Participant Summary</div>
-              <div class="info-grid">
-                <div class="info-item">
-                  <span class="info-label">Total:</span>
-                  <span>${packet.participants.total}</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-label">Youth:</span>
-                  <span>${packet.participants.youth}</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-label">Chaperones:</span>
-                  <span>${packet.participants.chaperones}</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-label">Clergy:</span>
-                  <span>${packet.participants.clergy}</span>
-                </div>
+              <div class="info-box">
+                <h3>Contact Information</h3>
+                ${packet.group.contactEmail ? `<p><strong>Email:</strong> ${packet.group.contactEmail}</p>` : ''}
+                ${packet.group.contactPhone ? `<p><strong>Phone:</strong> ${packet.group.contactPhone}</p>` : ''}
               </div>
             </div>
 
             ${settings.includeRoster ? `
-              <div class="section">
-                <div class="section-title">Participant Roster</div>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Type</th>
-                      ${settings.includeHousingAssignments ? '<th>Housing</th>' : ''}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${packet.participants.list.map((p: any) => `
-                      <tr>
-                        <td>${p.name}</td>
-                        <td>${p.isClergy ? 'Clergy' : p.isChaperone ? 'Chaperone' : 'Youth'}</td>
-                        ${settings.includeHousingAssignments ? `
-                          <td>${p.housing ? `${p.housing.building} ${p.housing.room}${p.housing.bed ? ` - Bed ${p.housing.bed}` : ''}` : 'TBD'}</td>
-                        ` : ''}
-                      </tr>
-                    `).join('')}
-                  </tbody>
-                </table>
-              </div>
+              <h2>Participant Roster</h2>
+              <table>
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  ${settings.includeHousingAssignments ? '<th>Housing</th>' : ''}
+                </tr>
+                ${packet.participants.list.map((p: any) => `
+                  <tr>
+                    <td>${p.name}</td>
+                    <td>${p.isClergy ? 'Clergy' : p.isChaperone ? 'Chaperone' : 'Youth'}</td>
+                    ${settings.includeHousingAssignments ? `
+                      <td>${p.housing ? `${p.housing.building} ${p.housing.room}${p.housing.bed ? ` - Bed ${p.housing.bed}` : ''}` : 'TBD'}</td>
+                    ` : ''}
+                  </tr>
+                `).join('')}
+              </table>
             ` : ''}
 
             ${settings.includeHousingAssignments && packet.housing.summary.length > 0 ? `
-              <div class="section">
-                <div class="section-title">Housing Assignments</div>
-                ${packet.housing.summary.map((room: any) => `
-                  <div class="housing-room">
-                    <h4>${room.building} - Room ${room.roomNumber} (Floor ${room.floor})</h4>
-                    <p><strong>Capacity:</strong> ${room.capacity} | <strong>Gender:</strong> ${room.gender}</p>
-                    <ul>
-                      ${room.occupants.map((o: any) => `
-                        <li>${o.name}${o.bedLetter ? ` (Bed ${o.bedLetter})` : ''}</li>
-                      `).join('')}
-                    </ul>
-                  </div>
-                `).join('')}
-              </div>
+              <h2>Housing Summary</h2>
+              ${packet.housing.summary.map((room: any) => `
+                <div class="housing-room">
+                  <h3>${room.building} - Room ${room.roomNumber}</h3>
+                  <p>Floor ${room.floor || 'N/A'} | Capacity: ${room.capacity} | ${room.gender || 'Mixed'}</p>
+                  <ul>
+                    ${room.occupants.map((o: any) => `<li>${o.name}${o.bedLetter ? ` (Bed ${o.bedLetter})` : ''} - ${o.participantType || ''}</li>`).join('')}
+                  </ul>
+                </div>
+              `).join('')}
             ` : ''}
 
-            ${packet.inserts.length > 0 ? packet.inserts.map((insert: any) => `
-              <div class="section">
-                <div class="section-title">${insert.name || insert.title}</div>
-                ${insert.fileUrl ? `<p><a href="${insert.fileUrl}" target="_blank">View Attached Document</a></p>` : ''}
-              </div>
-            `).join('') : ''}
+            <div class="footer">
+              Generated on ${new Date().toLocaleString()}
+            </div>
           </div>
+
+          ${/* Embed image inserts directly after each packet - each image on its own page */
+            activeInserts.filter(insert => insert.imageUrls && insert.imageUrls.length > 0).map((insert) =>
+              (insert.imageUrls as string[]).map((imageUrl, imgIndex) => `
+                <div class="insert-page">
+                  ${imgIndex === 0 ? `<div class="insert-title">${insert.name}</div>` : ''}
+                  <img src="${imageUrl}" alt="${insert.name}" class="insert-image" />
+                </div>
+              `).join('')
+            ).join('')
+          }
         `).join('')}
       </body>
       </html>
@@ -1042,7 +1047,7 @@ export default function WelcomePacketsPage() {
       <Dialog open={isAddInsertModalOpen} onOpenChange={setIsAddInsertModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Upload PDF Insert</DialogTitle>
+            <DialogTitle>Upload Insert</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
@@ -1057,7 +1062,7 @@ export default function WelcomePacketsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>PDF File</Label>
+              <Label>File</Label>
               <div
                 className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
                   isDraggingFile
@@ -1091,7 +1096,7 @@ export default function WelcomePacketsPage() {
                   <>
                     <Upload className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
                     <p className="text-muted-foreground mb-2">
-                      Drag and drop a PDF file here, or
+                      Drag and drop a file here, or
                     </p>
                     <Button
                       variant="outline"
@@ -1102,12 +1107,12 @@ export default function WelcomePacketsPage() {
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept=".pdf,application/pdf"
+                      accept=".pdf,application/pdf,image/png,image/jpeg,image/jpg,image/webp"
                       onChange={handleFileSelect}
                       className="hidden"
                     />
                     <p className="text-xs text-muted-foreground mt-3">
-                      PDF files only, max 10MB
+                      Images (PNG, JPG, WEBP) recommended for easy printing. PDFs also accepted.
                     </p>
                   </>
                 )}
