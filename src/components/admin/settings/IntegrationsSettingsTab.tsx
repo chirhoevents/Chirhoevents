@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -90,6 +91,7 @@ function SetupInstructionItem({
 }
 
 export default function IntegrationsSettingsTab() {
+  const { getToken } = useAuth()
   const [integrations, setIntegrations] = useState<Integrations | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isConnecting, setIsConnecting] = useState(false)
@@ -104,7 +106,10 @@ export default function IntegrationsSettingsTab() {
   const fetchIntegrations = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch('/api/admin/settings/integrations')
+      const token = await getToken()
+      const response = await fetch('/api/admin/settings/integrations', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
       if (!response.ok) throw new Error('Failed to fetch integrations')
       const data = await response.json()
       setIntegrations(data.integrations)
@@ -119,8 +124,10 @@ export default function IntegrationsSettingsTab() {
   const handleConnectStripe = async () => {
     setIsConnecting(true)
     try {
+      const token = await getToken()
       const response = await fetch('/api/stripe/connect', {
         method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
       if (!response.ok) throw new Error('Failed to initiate Stripe connection')
       const data = await response.json()

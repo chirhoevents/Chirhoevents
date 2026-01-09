@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -96,6 +97,7 @@ const PORTAL_ACCESS_OPTIONS = [
 ]
 
 export default function TeamSettingsTab() {
+  const { getToken } = useAuth()
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [pendingInvites, setPendingInvites] = useState<TeamMember[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -136,7 +138,10 @@ export default function TeamSettingsTab() {
   const fetchTeamMembers = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch('/api/admin/settings/team')
+      const token = await getToken()
+      const response = await fetch('/api/admin/settings/team', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
       if (!response.ok) throw new Error('Failed to fetch team members')
       const data = await response.json()
       setTeamMembers(data.teamMembers || [])
@@ -155,9 +160,13 @@ export default function TeamSettingsTab() {
     setInviteError(null)
 
     try {
+      const token = await getToken()
       const response = await fetch('/api/admin/settings/team', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           email: inviteData.email,
           firstName: inviteData.firstName,
@@ -200,9 +209,13 @@ export default function TeamSettingsTab() {
     setEditError(null)
 
     try {
+      const token = await getToken()
       const response = await fetch(`/api/admin/settings/team/${editingMember.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           role: editData.role,
           permissions: editData.additionalPermissions.length > 0 ? editData.additionalPermissions : null,
@@ -229,8 +242,10 @@ export default function TeamSettingsTab() {
 
     setIsDeleting(true)
     try {
+      const token = await getToken()
       const response = await fetch(`/api/admin/settings/team/${deletingMember.id}`, {
         method: 'DELETE',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
 
       const data = await response.json()
@@ -257,8 +272,10 @@ export default function TeamSettingsTab() {
   const handleResendInvite = async (inviteId: string) => {
     setIsResending(inviteId)
     try {
+      const token = await getToken()
       const response = await fetch(`/api/admin/settings/team/${inviteId}/resend`, {
         method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
 
       if (!response.ok) {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -65,6 +66,7 @@ const statusColors: Record<string, string> = {
 }
 
 export default function BillingSettingsTab() {
+  const { getToken } = useAuth()
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<BillingData | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -75,7 +77,10 @@ export default function BillingSettingsTab() {
 
   const fetchBillingData = async () => {
     try {
-      const response = await fetch('/api/admin/billing')
+      const token = await getToken()
+      const response = await fetch('/api/admin/billing', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
       if (!response.ok) throw new Error('Failed to fetch billing data')
       const result = await response.json()
       setData(result)
