@@ -3,7 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { Resend } from 'resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
-import { canAccessOrganization } from '@/lib/auth-utils'
+import { canAccessOrganization, isAdmin } from '@/lib/auth-utils'
+import { hasPermission, type UserRole } from '@/lib/permissions'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -15,14 +16,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user from database to verify org admin role
+    // Get user from database
     const user = await prisma.user.findFirst({
       where: { clerkUserId: userId },
       include: { organization: true },
     })
 
-    if (!user || user.role !== 'org_admin') {
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized - User not found' }, { status: 401 })
+    }
+
+    // Check if user is an admin
+    if (!['master_admin', 'org_admin', 'event_manager', 'finance_manager', 'poros_coordinator', 'salve_coordinator', 'rapha_coordinator', 'staff'].includes(user.role)) {
       return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 })
+    }
+
+    // Check if user has payments.process permission
+    // This allows: master_admin, org_admin, finance_manager
+    if (!hasPermission(user.role as UserRole, 'payments.process')) {
+      console.error(`[Record Payment] ❌ User ${user.email} (role: ${user.role}) lacks payments.process permission`)
+      return NextResponse.json(
+        { error: 'Forbidden - Payment processing permission required. Only finance_manager, org_admin, or master_admin can record payments.' },
+        { status: 403 }
+      )
     }
 
     const organizationId = await getEffectiveOrgId(user as any)

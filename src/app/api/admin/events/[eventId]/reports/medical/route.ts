@@ -1,18 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { verifyRaphaAccess } from '@/lib/api-auth'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
     const { eventId } = await params
+
+    // Medical reports require Rapha access (HIPAA-sensitive data)
+    const { error, user, event, effectiveOrgId } = await verifyRaphaAccess(
+      request,
+      eventId,
+      '[Medical Report]'
+    )
+    if (error) return error
+
     const isPreview = request.nextUrl.searchParams.get('preview') === 'true'
-    const eventFilter = eventId === 'all' ? {} : { eventId }
+
+    // Handle "all" events - filter by organization
+    let eventFilter: { eventId?: string } = {}
+    if (eventId === 'all') {
+      // For "all", we'll filter by org in the query below
+    } else {
+      eventFilter = { eventId }
+    }
 
     // Get liability forms with medical info and participant details
     const forms = await prisma.liabilityForm.findMany({
