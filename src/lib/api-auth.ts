@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { auth } from '@clerk/nextjs/server'
 import { getCurrentUser, isAdmin, AuthUser } from '@/lib/auth-utils'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
@@ -50,22 +51,55 @@ export async function verifyEventAccess(
 ): Promise<VerifyEventAccessResult> {
   const { requireAdmin = true, logPrefix = '[verifyEventAccess]' } = options
 
-  console.log(`${logPrefix} Starting access verification for event:`, eventId)
+  console.log(`${logPrefix} ═══════════════════════════════════════════════════`)
+  console.log(`${logPrefix} 🔍 Starting access verification for event:`, eventId)
+  console.log(`${logPrefix} Request URL:`, request.url)
 
-  // Step 1: Get user from auth
+  // Debug: Check what cookies we have
+  const cookieHeader = request.headers.get('cookie')
+  console.log(`${logPrefix} 🍪 Cookie header present:`, !!cookieHeader)
+  if (cookieHeader) {
+    // List cookie names (not values for security)
+    const cookieNames = cookieHeader.split(';').map(c => c.trim().split('=')[0])
+    console.log(`${logPrefix} 🍪 Cookie names:`, cookieNames.join(', '))
+  }
+
+  // Debug: Check Authorization header
+  const authHeader = request.headers.get('Authorization')
+  console.log(`${logPrefix} 🔑 Authorization header present:`, !!authHeader)
+
+  // Step 1: Try to get userId directly from Clerk first
+  console.log(`${logPrefix} 📡 Calling Clerk auth()...`)
+  const clerkAuth = await auth()
+  console.log(`${logPrefix} 📡 Clerk auth() result:`, {
+    userId: clerkAuth.userId || 'NULL',
+    sessionId: clerkAuth.sessionId || 'NULL',
+  })
+
+  // Step 1b: Get user from auth (with JWT header fallback)
   const overrideUserId = getClerkUserIdFromHeader(request)
-  console.log(`${logPrefix} Override userId from JWT:`, overrideUserId || 'none')
+  console.log(`${logPrefix} 🔑 Override userId from JWT header:`, overrideUserId || 'none')
 
   const user = await getCurrentUser(overrideUserId)
-  console.log(`${logPrefix} User result:`, user?.email || 'NULL')
+  console.log(`${logPrefix} 👤 User result:`, user?.email || 'NULL')
 
   if (!user) {
     console.log(`${logPrefix} ❌ No user found - returning 401`)
+    console.log(`${logPrefix} ❌ This usually means:`)
+    console.log(`${logPrefix}    1. Clerk cookies not being sent (check cookie domain config)`)
+    console.log(`${logPrefix}    2. User not synced to database (run sync script)`)
+    console.log(`${logPrefix}    3. JWT token invalid or missing`)
+    console.log(`${logPrefix} ═══════════════════════════════════════════════════`)
     return {
       error: NextResponse.json(
         {
           error: 'Unauthorized - User not found',
-          details: 'Your user account was not found in the database. Please contact support.'
+          details: 'Your user account was not found in the database. Please contact support.',
+          debug: {
+            clerkUserId: clerkAuth.userId || null,
+            hasCookies: !!cookieHeader,
+            hasAuthHeader: !!authHeader,
+          }
         },
         { status: 401 }
       ),
@@ -75,11 +109,18 @@ export async function verifyEventAccess(
     }
   }
 
-  console.log(`${logPrefix} User:`, user.email, '| Role:', user.role, '| OrgId:', user.organizationId)
+  console.log(`${logPrefix} 👤 User authenticated:`, {
+    email: user.email,
+    role: user.role,
+    orgId: user.organizationId,
+    orgName: user.organization?.name,
+  })
 
   // Step 2: Check if admin is required
   if (requireAdmin && !isAdmin(user)) {
     console.log(`${logPrefix} ❌ User is not admin - returning 403`)
+    console.log(`${logPrefix} ❌ Role "${user.role}" is not an admin role`)
+    console.log(`${logPrefix} ═══════════════════════════════════════════════════`)
     return {
       error: NextResponse.json(
         {
@@ -93,12 +134,14 @@ export async function verifyEventAccess(
       effectiveOrgId: null,
     }
   }
+  console.log(`${logPrefix} ✅ Admin check passed (role: ${user.role})`)
 
   // Step 3: Get effective organization ID (handles impersonation)
   const effectiveOrgId = await getEffectiveOrgId(user)
-  console.log(`${logPrefix} Effective org ID:`, effectiveOrgId)
+  console.log(`${logPrefix} 🏢 Effective org ID:`, effectiveOrgId)
 
   // Step 4: Fetch the event with organization details
+  console.log(`${logPrefix} 📅 Looking up event:`, eventId)
   const event = await prisma.event.findUnique({
     where: { id: eventId },
     select: {
@@ -114,10 +157,16 @@ export async function verifyEventAccess(
     },
   })
 
-  console.log(`${logPrefix} Event:`, event?.name || 'NOT FOUND', '| OrgId:', event?.organizationId)
+  console.log(`${logPrefix} 📅 Event lookup result:`, {
+    found: !!event,
+    name: event?.name || 'NOT FOUND',
+    orgId: event?.organizationId || 'N/A',
+    orgName: event?.organization?.name || 'N/A',
+  })
 
   if (!event) {
     console.log(`${logPrefix} ❌ Event not found - returning 404`)
+    console.log(`${logPrefix} ═══════════════════════════════════════════════════`)
     return {
       error: NextResponse.json(
         {
@@ -133,17 +182,23 @@ export async function verifyEventAccess(
   }
 
   // Step 5: Check organization access
+  console.log(`${logPrefix} 🔐 Permission check:`)
+  console.log(`${logPrefix}    User org:  ${effectiveOrgId} (${user.organization?.name || 'unknown'})`)
+  console.log(`${logPrefix}    Event org: ${event.organizationId} (${event.organization?.name || 'unknown'})`)
+  console.log(`${logPrefix}    User role: ${user.role}`)
+  console.log(`${logPrefix}    Orgs match: ${effectiveOrgId === event.organizationId}`)
+
   // Master admin can access everything
   if (user.role === 'master_admin') {
     console.log(`${logPrefix} ✅ Master admin - access granted`)
+    console.log(`${logPrefix} ═══════════════════════════════════════════════════`)
     return { error: null, user, event, effectiveOrgId }
   }
 
   // For other admins, check organization match
   if (event.organizationId !== effectiveOrgId) {
-    console.log(`${logPrefix} ❌ Organization mismatch!`)
-    console.log(`${logPrefix}    User's org: ${effectiveOrgId} (${user.organization?.name || 'unknown'})`)
-    console.log(`${logPrefix}    Event's org: ${event.organizationId} (${event.organization?.name || 'unknown'})`)
+    console.log(`${logPrefix} ❌ Organization mismatch - ACCESS DENIED!`)
+    console.log(`${logPrefix} ═══════════════════════════════════════════════════`)
     return {
       error: NextResponse.json(
         {
@@ -164,7 +219,8 @@ export async function verifyEventAccess(
     }
   }
 
-  console.log(`${logPrefix} ✅ Access granted for user:`, user.email)
+  console.log(`${logPrefix} ✅ ACCESS GRANTED for user:`, user.email)
+  console.log(`${logPrefix} ═══════════════════════════════════════════════════`)
   return { error: null, user, event, effectiveOrgId }
 }
 
