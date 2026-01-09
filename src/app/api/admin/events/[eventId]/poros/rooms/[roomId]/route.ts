@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth-utils'
+import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 
 interface RoomRecord {
@@ -12,8 +12,12 @@ export async function PUT(
   { params }: { params: Promise<{ eventId: string; roomId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
-    const { roomId } = await params
+    const { eventId, roomId } = await params
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[PUT /api/admin/events/[eventId]/poros/rooms/[roomId]]',
+    })
+    if (error) return error
     const body = await request.json()
 
     const room = await prisma.room.update({
@@ -48,8 +52,12 @@ export async function DELETE(
   { params }: { params: Promise<{ eventId: string; roomId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
-    const { roomId } = await params
+    const { eventId, roomId } = await params
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[DELETE /api/admin/events/[eventId]/poros/rooms/[roomId]]',
+    })
+    if (error) return error
 
     const room = await prisma.room.findUnique({
       where: { id: roomId },

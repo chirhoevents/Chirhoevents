@@ -1,29 +1,18 @@
-import { requireAdmin } from '@/lib/auth-utils'
+import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 import { NextRequest, NextResponse } from 'next/server'
-import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
-    const organizationId = await getEffectiveOrgId(user as any)
     const { eventId } = await params
-
-    // Verify event belongs to user's organization
-    const event = await prisma.event.findUnique({
-      where: {
-        id: eventId,
-        organizationId: organizationId,
-      },
-      select: { id: true },
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[POST /api/admin/events/[eventId]/poros/meal-groups/import]',
     })
-
-    if (!event) {
-      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-    }
+    if (error) return error
 
     // Get form data with file
     const formData = await request.formData()

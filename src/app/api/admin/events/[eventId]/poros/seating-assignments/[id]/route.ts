@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth-utils'
+import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 
 export async function DELETE(
@@ -7,8 +7,12 @@ export async function DELETE(
   { params }: { params: Promise<{ eventId: string; id: string }> }
 ) {
   try {
-    const user = await requireAdmin()
-    const { id } = await params
+    const { eventId, id } = await params
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[Seating Assignment DELETE]',
+    })
+    if (error) return error
     const body = await request.json().catch(() => ({}))
     const { type } = body
 

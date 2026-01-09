@@ -1,38 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth-utils'
+import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 import { hasPermission } from '@/lib/permissions'
-import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string; participantId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
-    const organizationId = await getEffectiveOrgId(user as any)
     const { eventId, participantId } = await params
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[Rapha Participant Details]',
+    })
+    if (error) return error
 
     // Check Rapha access permission
     if (!hasPermission(user.role, 'rapha.access')) {
       return NextResponse.json(
         { message: 'Access denied. Rapha access required.' },
         { status: 403 }
-      )
-    }
-
-    // Verify event exists and belongs to user's org
-    const event = await prisma.event.findFirst({
-      where: {
-        id: eventId,
-        organizationId: organizationId,
-      },
-    })
-
-    if (!event) {
-      return NextResponse.json(
-        { message: 'Event not found' },
-        { status: 404 }
       )
     }
 

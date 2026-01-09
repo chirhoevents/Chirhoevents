@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth-utils'
+import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 
 // GET - Fetch allocations for a specific group
@@ -8,8 +8,12 @@ export async function GET(
   { params }: { params: Promise<{ eventId: string; groupId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
     const { eventId, groupId } = await params
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[GET Group Allocation]',
+    })
+    if (error) return error
 
     // Verify group exists and belongs to this event
     const group = await prisma.groupRegistration.findFirst({
@@ -66,8 +70,12 @@ export async function DELETE(
   { params }: { params: Promise<{ eventId: string; groupId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
     const { eventId, groupId } = await params
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[DELETE Group Allocation]',
+    })
+    if (error) return error
 
     // Verify group exists and belongs to this event
     const group = await prisma.groupRegistration.findFirst({

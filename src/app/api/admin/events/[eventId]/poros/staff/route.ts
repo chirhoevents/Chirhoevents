@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth-utils'
+import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 
 export async function GET(
@@ -7,8 +7,12 @@ export async function GET(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
     const { eventId } = await params
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[GET /api/admin/events/[eventId]/poros/staff]',
+    })
+    if (error) return error
     const { searchParams } = new URL(request.url)
     const types = searchParams.get('type')?.split(',')
 
@@ -35,8 +39,12 @@ export async function POST(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
     const { eventId } = await params
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[POST /api/admin/events/[eventId]/poros/staff]',
+    })
+    if (error) return error
     const body = await request.json()
 
     const staff = await prisma.porosStaff.create({

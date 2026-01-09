@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth-utils'
+import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 import { hasPermission } from '@/lib/permissions'
-import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { Resend } from 'resend'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 
@@ -14,10 +13,12 @@ export async function POST(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
-    const organizationId = await getEffectiveOrgId(user as any)
     const { eventId } = await params
-    const body = await request.json()
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[Rapha Email]',
+    })
+    if (error) return error
 
     // Check Rapha access permission
     if (!hasPermission(user.role, 'rapha.access')) {
@@ -27,12 +28,9 @@ export async function POST(
       )
     }
 
-    // Verify event exists and belongs to user's org
-    const event = await prisma.event.findFirst({
-      where: {
-        id: eventId,
-        organizationId: organizationId,
-      },
+    // Fetch event with organization data for email template
+    const eventWithOrg = await prisma.event.findUnique({
+      where: { id: eventId },
       include: {
         organization: {
           select: { name: true, contactEmail: true },
@@ -40,12 +38,14 @@ export async function POST(
       },
     })
 
-    if (!event) {
+    if (!eventWithOrg) {
       return NextResponse.json(
         { message: 'Event not found' },
         { status: 404 }
       )
     }
+
+    const body = await request.json()
 
     const {
       recipientEmail,
@@ -146,27 +146,27 @@ export async function POST(
         <div class="container">
           <div class="header">
             <h1>Medical Staff Update</h1>
-            <p>${event.name}</p>
+            <p>${eventWithOrg.name}</p>
           </div>
           <div class="content">
             ${participantName ? `
               <div class="participant-info">
                 <h3>Regarding: ${participantName}</h3>
-                <p>${event.name}</p>
+                <p>${eventWithOrg.name}</p>
               </div>
             ` : ''}
             <div class="message">${message.replace(/\n/g, '<br>')}</div>
             <div class="signature">
               <p><strong>${user.firstName} ${user.lastName}</strong></p>
-              <p>Medical Staff - ${event.organization.name}</p>
+              <p>Medical Staff - ${eventWithOrg.organization.name}</p>
               <p style="color: #999; font-size: 12px; margin-top: 8px;">
                 Sent via Rapha Medical Platform
               </p>
             </div>
           </div>
           <div class="footer">
-            <p>${event.organization.name}</p>
-            <p style="color: #999;">This email was sent from the Rapha Medical Platform regarding a participant at ${event.name}.</p>
+            <p>${eventWithOrg.organization.name}</p>
+            <p style="color: #999;">This email was sent from the Rapha Medical Platform regarding a participant at ${eventWithOrg.name}.</p>
           </div>
         </div>
       </body>
@@ -174,7 +174,7 @@ export async function POST(
     `
 
     // Determine from address
-    const fromName = event.organization.name
+    const fromName = eventWithOrg.organization.name
     const fromEmail = 'notifications@chirhoevents.com'
 
     // Send email via Resend
@@ -192,7 +192,7 @@ export async function POST(
       // Log failed email
       await logEmailFailure(
         {
-          organizationId: event.organizationId,
+          organizationId: eventWithOrg.organizationId,
           eventId,
           recipientEmail,
           recipientName: recipientName || participantName,
@@ -212,7 +212,7 @@ export async function POST(
 
     // Log successful email
     await logEmail({
-      organizationId: event.organizationId,
+      organizationId: eventWithOrg.organizationId,
       eventId,
       recipientEmail,
       recipientName: recipientName || participantName,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth-utils'
+import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 import { hasPermission } from '@/lib/permissions'
 
@@ -8,8 +8,12 @@ export async function POST(
   { params }: { params: Promise<{ eventId: string; incidentId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
     const { eventId, incidentId } = await params
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[Rapha Resolve Incident]',
+    })
+    if (error) return error
     const body = await request.json()
 
     // Check Rapha access permission
