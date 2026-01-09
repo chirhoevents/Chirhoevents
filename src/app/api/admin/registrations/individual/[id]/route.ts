@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
+import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { Resend } from 'resend'
@@ -62,7 +62,7 @@ export async function PUT(
       )
     }
 
-    if (existingRegistration.organizationId !== organizationId) {
+    if (!canAccessOrganization(user, existingRegistration.organizationId)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
