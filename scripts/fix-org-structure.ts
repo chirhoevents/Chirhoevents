@@ -36,13 +36,12 @@ async function main() {
 
   const orgs = await prisma.organization.findMany({
     orderBy: { name: 'asc' },
-    select: { id: true, name: true, slug: true, status: true },
+    select: { id: true, name: true, status: true },
   })
 
   for (const org of orgs) {
     console.log(`  [${org.id}]`)
     console.log(`    Name:   ${org.name}`)
-    console.log(`    Slug:   ${org.slug}`)
     console.log(`    Status: ${org.status}`)
     console.log('')
   }
@@ -104,7 +103,7 @@ async function main() {
   }
 
   // Step 2: Find the organizations
-  const testOrg = orgs.find(o => o.slug === 'chirhotestevents' || o.name.toLowerCase().includes('chirhotest'))
+  const testOrg = orgs.find(o => o.name.toLowerCase().includes('chirhotest'))
   const prodOrg = orgs.find(o => o.name.toLowerCase().includes('saint joseph'))
 
   if (!testOrg) {
