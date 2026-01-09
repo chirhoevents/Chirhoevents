@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth-utils'
+import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 
 // GET - Fetch all groups with their room allocations
@@ -8,8 +8,12 @@ export async function GET(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
     const { eventId } = await params
+    const { error, user } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[GET Group Allocations]',
+    })
+    if (error) return error
 
     // Get the event to find organizationId
     const event = await prisma.event.findUnique({
@@ -135,8 +139,12 @@ export async function POST(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
     const { eventId } = await params
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[POST Group Allocations]',
+    })
+    if (error) return error
     const body = await request.json()
 
     const { groupRegistrationId, allocations } = body

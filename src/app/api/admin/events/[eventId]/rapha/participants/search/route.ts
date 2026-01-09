@@ -1,19 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth-utils'
+import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 import { hasPermission } from '@/lib/permissions'
-import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
-    const organizationId = await getEffectiveOrgId(user as any)
     const { eventId } = await params
     const { searchParams } = new URL(request.url)
     const query = searchParams.get('q') || ''
+
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[Rapha Search Participants]',
+    })
+    if (error) return error
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     // Check Rapha access permission
     if (!hasPermission(user.role, 'rapha.access')) {
@@ -25,21 +29,6 @@ export async function GET(
 
     if (!query || query.length < 2) {
       return NextResponse.json({ participants: [] })
-    }
-
-    // Verify event exists and belongs to user's org
-    const event = await prisma.event.findFirst({
-      where: {
-        id: eventId,
-        organizationId: organizationId,
-      },
-    })
-
-    if (!event) {
-      return NextResponse.json(
-        { message: 'Event not found' },
-        { status: 404 }
-      )
     }
 
     // Search participants from liability forms (has medical data)

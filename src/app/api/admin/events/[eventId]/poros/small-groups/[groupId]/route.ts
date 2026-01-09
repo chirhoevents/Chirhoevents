@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth-utils'
+import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 
 export async function PUT(
@@ -7,8 +7,12 @@ export async function PUT(
   { params }: { params: Promise<{ eventId: string; groupId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
-    const { groupId } = await params
+    const { eventId, groupId } = await params
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[PUT /api/admin/events/[eventId]/poros/small-groups/[groupId]]',
+    })
+    if (error) return error
     const body = await request.json()
 
     const group = await prisma.smallGroup.update({
@@ -40,8 +44,12 @@ export async function DELETE(
   { params }: { params: Promise<{ eventId: string; groupId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
-    const { groupId } = await params
+    const { eventId, groupId } = await params
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[DELETE /api/admin/events/[eventId]/poros/small-groups/[groupId]]',
+    })
+    if (error) return error
 
     await prisma.smallGroup.delete({
       where: { id: groupId },

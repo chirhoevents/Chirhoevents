@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth-utils'
+import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 import { hasPermission } from '@/lib/permissions'
-import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 // GET: Get all incidents for a participant (for printing visit history)
 export async function GET(
@@ -10,11 +9,16 @@ export async function GET(
   { params }: { params: Promise<{ eventId: string; participantId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
-    const organizationId = await getEffectiveOrgId(user as any)
     const { eventId, participantId } = await params
     const { searchParams } = new URL(request.url)
     const incidentId = searchParams.get('incidentId')
+
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[Rapha Participant Incidents]',
+    })
+    if (error) return error
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     // Check Rapha access permission
     if (!hasPermission(user.role, 'rapha.access')) {
@@ -24,12 +28,9 @@ export async function GET(
       )
     }
 
-    // Verify event exists and belongs to user's org
-    const event = await prisma.event.findFirst({
-      where: {
-        id: eventId,
-        organizationId: organizationId,
-      },
+    // Fetch event with organization data for report
+    const eventWithOrg = await prisma.event.findUnique({
+      where: { id: eventId },
       include: {
         organization: {
           select: { name: true, logoUrl: true },
@@ -37,7 +38,7 @@ export async function GET(
       },
     })
 
-    if (!event) {
+    if (!eventWithOrg) {
       return NextResponse.json(
         { message: 'Event not found' },
         { status: 404 }
@@ -146,10 +147,10 @@ export async function GET(
               insurancePolicyNumber: null,
             },
             event: {
-              name: event.name,
-              organizationName: event.organization.name,
-              startDate: event.startDate,
-              endDate: event.endDate,
+              name: eventWithOrg.name,
+              organizationName: eventWithOrg.organization.name,
+              startDate: eventWithOrg.startDate,
+              endDate: eventWithOrg.endDate,
             },
             incidents: [{
               id: incident.id,
@@ -254,10 +255,10 @@ export async function GET(
         insurancePolicyNumber: liabilityForm.insurancePolicyNumber,
       },
       event: {
-        name: event.name,
-        organizationName: event.organization.name,
-        startDate: event.startDate,
-        endDate: event.endDate,
+        name: eventWithOrg.name,
+        organizationName: eventWithOrg.organization.name,
+        startDate: eventWithOrg.startDate,
+        endDate: eventWithOrg.endDate,
       },
       incidents: incidents.map((incident: any) => ({
         id: incident.id,

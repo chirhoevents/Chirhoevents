@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth-utils'
+import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 
 interface ParticipantRecord {
@@ -36,8 +36,12 @@ export async function GET(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
     const { eventId } = await params
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[Poros Participants]',
+    })
+    if (error) return error
 
     // Get participants from group registrations (on_campus only)
     const groupParticipants = await prisma.participant.findMany({

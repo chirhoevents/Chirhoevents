@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth-utils'
+import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 
 interface ParticipantWithGroup {
@@ -33,8 +33,13 @@ export async function POST(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
     const { eventId } = await params
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[Poros Auto-Assign]',
+    })
+    if (error) return error
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     const body = await request.json()
 
     const {

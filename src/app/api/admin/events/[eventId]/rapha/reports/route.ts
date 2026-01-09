@@ -1,19 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth-utils'
+import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 import { hasPermission } from '@/lib/permissions'
-import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
-    const organizationId = await getEffectiveOrgId(user as any)
     const { eventId } = await params
     const { searchParams } = new URL(request.url)
     const reportType = searchParams.get('type') || 'daily-summary'
+
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[Rapha Reports]',
+    })
+    if (error) return error
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     // Check Rapha access permission
     if (!hasPermission(user.role, 'rapha.access')) {
@@ -23,12 +27,9 @@ export async function GET(
       )
     }
 
-    // Verify event exists and belongs to user's org
-    const event = await prisma.event.findFirst({
-      where: {
-        id: eventId,
-        organizationId: organizationId,
-      },
+    // Fetch event with organization data for reports
+    const eventWithOrg = await prisma.event.findUnique({
+      where: { id: eventId },
       include: {
         organization: {
           select: { name: true, logoUrl: true },
@@ -36,7 +37,7 @@ export async function GET(
       },
     })
 
-    if (!event) {
+    if (!eventWithOrg) {
       return NextResponse.json(
         { message: 'Event not found' },
         { status: 404 }
@@ -57,17 +58,17 @@ export async function GET(
 
     switch (reportType) {
       case 'daily-summary':
-        return generateDailySummary(event)
+        return generateDailySummary(eventWithOrg)
       case 'allergy-list':
-        return generateAllergyList(event)
+        return generateAllergyList(eventWithOrg)
       case 'medication-list':
-        return generateMedicationList(event)
+        return generateMedicationList(eventWithOrg)
       case 'critical-list':
-        return generateCriticalList(event)
+        return generateCriticalList(eventWithOrg)
       case 'incident-summary':
-        return generateIncidentSummary(event, searchParams)
+        return generateIncidentSummary(eventWithOrg, searchParams)
       case 'insurance-list':
-        return generateInsuranceList(event)
+        return generateInsuranceList(eventWithOrg)
       default:
         return NextResponse.json(
           { message: 'Invalid report type' },

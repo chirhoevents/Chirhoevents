@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth-utils'
+import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 
 export async function PUT(
@@ -7,8 +7,12 @@ export async function PUT(
   { params }: { params: Promise<{ eventId: string; staffId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
-    const { staffId } = await params
+    const { eventId, staffId } = await params
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[PUT /api/admin/events/[eventId]/poros/staff/[staffId]]',
+    })
+    if (error) return error
     const body = await request.json()
 
     const staff = await prisma.porosStaff.update({
@@ -40,8 +44,12 @@ export async function DELETE(
   { params }: { params: Promise<{ eventId: string; staffId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
-    const { staffId } = await params
+    const { eventId, staffId } = await params
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[DELETE /api/admin/events/[eventId]/poros/staff/[staffId]]',
+    })
+    if (error) return error
 
     await prisma.porosStaff.delete({
       where: { id: staffId },

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth-utils'
+import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 import { hasPermission } from '@/lib/permissions'
 
@@ -9,8 +9,13 @@ export async function GET(
   { params }: { params: Promise<{ eventId: string; incidentId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
     const { eventId, incidentId } = await params
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[Rapha Get Incident]',
+    })
+    if (error) return error
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     // Check Rapha access permission
     if (!hasPermission(user.role, 'rapha.access')) {
@@ -149,8 +154,13 @@ export async function PUT(
   { params }: { params: Promise<{ eventId: string; incidentId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
     const { eventId, incidentId } = await params
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[Rapha Update Incident]',
+    })
+    if (error) return error
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     const body = await request.json()
 
     // Check Rapha access permission
