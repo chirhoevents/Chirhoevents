@@ -1,25 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
-import { getEffectiveOrgId } from '@/lib/get-effective-org'
+import { verifyFormsEditAccess } from '@/lib/api-auth'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string; formId: string }> }
 ) {
   try {
-    const user = await getCurrentUser()
-
-    if (!user || !isAdmin(user)) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Admin access required' },
-        { status: 403 }
-      )
-    }
-
-    const organizationId = await getEffectiveOrgId(user as any)
-
-    const { eventId, formId } = await Promise.resolve(params)
+    const { eventId, formId } = await params
     const body = await request.json()
     const { reason } = body
 
@@ -30,14 +18,17 @@ export async function POST(
       )
     }
 
-    // Verify form belongs to this event and organization
+    // Verify user has forms.edit permission and event access
+    const { error, user } = await verifyFormsEditAccess(
+      request,
+      eventId,
+      '[Poros Liability Deny]'
+    )
+    if (error) return error
+
+    // Verify form belongs to this event
     const form = await prisma.liabilityForm.findUnique({
       where: { id: formId },
-      include: {
-        event: {
-          select: { organizationId: true },
-        },
-      },
     })
 
     if (!form) {
@@ -51,16 +42,12 @@ export async function POST(
       )
     }
 
-    if (!canAccessOrganization(user, form.event.organizationId)) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
-    }
-
     // Update to denied
     const updated = await prisma.liabilityForm.update({
       where: { id: formId },
       data: {
         formStatus: 'denied',
-        approvedByUserId: user.id,
+        approvedByUserId: user!.id,
         approvedAt: new Date(),
         deniedReason: reason,
       },

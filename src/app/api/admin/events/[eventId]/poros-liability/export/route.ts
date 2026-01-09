@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
-import { getEffectiveOrgId } from '@/lib/get-effective-org'
+import { verifyFormsViewAccess } from '@/lib/api-auth'
 
 function escapeCSV(value: string | null | undefined): string {
   if (value === null || value === undefined) return ''
@@ -18,32 +17,17 @@ export async function GET(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const user = await getCurrentUser()
-
-    if (!user || !isAdmin(user)) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Admin access required' },
-        { status: 403 }
-      )
-    }
-
-    const organizationId = await getEffectiveOrgId(user as any)
-
-    const { eventId } = await Promise.resolve(params)
+    const { eventId } = await params
     const { searchParams } = new URL(request.url)
     const exportType = searchParams.get('type') || 'all'
 
-    // Verify event belongs to user's organization
-    const event = await prisma.event.findUnique({
-      where: {
-        id: eventId,
-        organizationId: organizationId,
-      },
-    })
-
-    if (!event) {
-      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-    }
+    // Verify user has forms.view permission and event access
+    const { error, event, effectiveOrgId } = await verifyFormsViewAccess(
+      request,
+      eventId,
+      '[Poros Liability Export]'
+    )
+    if (error) return error
 
     if (exportType === 'medical') {
       // Export medical information for Rapha
@@ -85,7 +69,7 @@ export async function GET(
       // Export Safe Environment certificates - filter through participant's group registration
       const certs = await prisma.safeEnvironmentCertificate.findMany({
         where: {
-          organizationId: organizationId,
+          organizationId: effectiveOrgId!,
           participant: {
             groupRegistration: {
               eventId,
@@ -168,7 +152,7 @@ export async function GET(
         csv += `${escapeCSV(f.groupRegistration?.groupName)},${escapeCSV(f.groupRegistration?.parishName)},${escapeCSV(f.groupRegistration?.accessCode)},${escapeCSV(f.participantFirstName)},${escapeCSV(f.participantLastName)},${f.participantAge || ''},${escapeCSV(f.participantGender)},,${escapeCSV(f.participantEmail)},${escapeCSV(f.participantPhone)},${escapeCSV(f.allergies)},${escapeCSV(f.medications)},${escapeCSV(f.medicalConditions)},${escapeCSV(f.dietaryRestrictions)},${escapeCSV(f.emergencyContact1Name)},${escapeCSV(f.emergencyContact1Phone)},${escapeCSV(f.tShirtSize)},${escapeCSV(f.formStatus)},${f.approvedBy ? `${f.approvedBy.firstName} ${f.approvedBy.lastName}` : ''},${f.approvedAt ? f.approvedAt.toISOString().split('T')[0] : ''},${f.completedAt ? f.completedAt.toISOString().split('T')[0] : ''}\n`
       }
 
-      const safeName = event.name.replace(/[^a-zA-Z0-9]/g, '-')
+      const safeName = event!.name.replace(/[^a-zA-Z0-9]/g, '-')
       return new NextResponse(csv, {
         headers: {
           'Content-Type': 'text/csv',

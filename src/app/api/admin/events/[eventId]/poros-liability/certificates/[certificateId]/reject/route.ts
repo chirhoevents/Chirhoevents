@@ -1,27 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
-import { getEffectiveOrgId } from '@/lib/get-effective-org'
+import { verifyFormsEditAccess } from '@/lib/api-auth'
+import { canAccessOrganization } from '@/lib/auth-utils'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string; certificateId: string }> }
 ) {
   try {
-    const user = await getCurrentUser()
-
-    if (!user || !isAdmin(user)) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Admin access required' },
-        { status: 403 }
-      )
-    }
-
-    const organizationId = await getEffectiveOrgId(user as any)
-
-    const resolvedParams = await Promise.resolve(params)
-    const { certificateId } = resolvedParams
-
+    const { eventId, certificateId } = await params
     const body = await request.json()
     const { reason } = body
 
@@ -32,7 +19,15 @@ export async function POST(
       )
     }
 
-    // Verify certificate belongs to user's organization
+    // Verify user has forms.edit permission and event access
+    const { error, user } = await verifyFormsEditAccess(
+      request,
+      eventId,
+      '[Poros Liability Certificate Reject]'
+    )
+    if (error) return error
+
+    // Verify certificate exists and belongs to user's organization
     const certificate = await prisma.safeEnvironmentCertificate.findUnique({
       where: { id: certificateId },
     })
@@ -53,7 +48,7 @@ export async function POST(
       where: { id: certificateId },
       data: {
         status: 'rejected',
-        verifiedByUserId: user.id,
+        verifiedByUserId: user!.id,
         verifiedAt: new Date(),
       },
     })

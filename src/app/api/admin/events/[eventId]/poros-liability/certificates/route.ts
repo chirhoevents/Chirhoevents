@@ -1,44 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
-import { getEffectiveOrgId } from '@/lib/get-effective-org'
+import { verifyFormsViewAccess } from '@/lib/api-auth'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const user = await getCurrentUser()
-
-    if (!user || !isAdmin(user)) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Admin access required' },
-        { status: 403 }
-      )
-    }
-
-    const organizationId = await getEffectiveOrgId(user as any)
-
-    const { eventId } = await Promise.resolve(params)
+    const { eventId } = await params
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status') || 'all'
     const certificateType = searchParams.get('type') || 'all'
 
-    // Verify event belongs to user's organization
-    const event = await prisma.event.findUnique({
-      where: {
-        id: eventId,
-        organizationId: organizationId,
-      },
-    })
-
-    if (!event) {
-      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-    }
+    // Verify user has forms.view permission and event access
+    const { error, effectiveOrgId } = await verifyFormsViewAccess(
+      request,
+      eventId,
+      '[Poros Liability Certificates]'
+    )
+    if (error) return error
 
     // Build where clause - filter by organization and participants in this event
     const whereClause: any = {
-      organizationId: organizationId,
+      organizationId: effectiveOrgId,
       participant: {
         groupRegistration: {
           eventId: eventId,
