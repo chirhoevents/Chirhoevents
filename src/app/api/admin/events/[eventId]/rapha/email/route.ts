@@ -178,7 +178,7 @@ export async function POST(
     const fromEmail = 'notifications@chirhoevents.com'
 
     // Send email via Resend
-    const { data, error } = await resend.emails.send({
+    const { data, error: emailError } = await resend.emails.send({
       from: `${fromName} <${fromEmail}>`,
       to: recipientEmail,
       subject: subject,
@@ -186,8 +186,8 @@ export async function POST(
       reply_to: user.email || undefined,
     })
 
-    if (error) {
-      console.error('Resend error:', error)
+    if (emailError) {
+      console.error('Resend error:', emailError)
 
       // Log failed email
       await logEmailFailure(
@@ -201,11 +201,11 @@ export async function POST(
           htmlContent,
           metadata: { liabilityFormId, sentBy: user.id },
         },
-        error.message || 'Unknown error'
+        emailError.message || 'Unknown error'
       )
 
       return NextResponse.json(
-        { message: 'Failed to send email', error: error.message },
+        { message: 'Failed to send email', error: emailError.message },
         { status: 500 }
       )
     }
