@@ -16,6 +16,7 @@ const isPublicRoute = createRouteMatcher([
   '/terms(.*)',
   '/cookies(.*)',
   '/invite(.*)',
+  '/portal(.*)',  // All portal routes (salve, rapha, youth-group) - they handle their own auth
   '/dashboard(.*)',  // All dashboard routes - they handle their own auth
   '/api/user/role',  // Needed by dashboard redirect page
   '/api/master-admin(.*)',  // Master admin APIs - handle their own auth
@@ -23,7 +24,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/group-leader(.*)',  // Group leader APIs - handle their own auth
   '/api/registration(.*)',
   '/api/liability(.*)',
-  '/api/portal/login(.*)',
+  '/api/portal(.*)',  // Portal APIs - handle their own auth
   '/api/webhooks(.*)',
   '/api/events(.*)',
   '/api/invites(.*)',

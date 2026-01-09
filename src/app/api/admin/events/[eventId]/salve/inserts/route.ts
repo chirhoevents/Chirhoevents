@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth-utils'
+import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { uploadPacketInsert, deletePacketInsert } from '@/lib/r2/upload-packet-insert'
+import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+
+// Helper to get admin user with JWT fallback
+async function getAdminUser(request: NextRequest) {
+  const overrideUserId = getClerkUserIdFromHeader(request)
+  const user = await getCurrentUser(overrideUserId)
+  if (!user || !isAdmin(user)) {
+    return null
+  }
+  return user
+}
 
 // GET - List all inserts for the event
 export async function GET(
@@ -9,7 +20,13 @@ export async function GET(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    await requireAdmin()
+    const user = await getAdminUser(request)
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Admin access required' },
+        { status: 403 }
+      )
+    }
     const { eventId } = await params
 
     const inserts = await prisma.welcomePacketInsert.findMany({
@@ -33,7 +50,13 @@ export async function POST(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    await requireAdmin()
+    const user = await getAdminUser(request)
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Admin access required' },
+        { status: 403 }
+      )
+    }
     const { eventId } = await params
 
     // Get event to find organization ID for file storage
@@ -173,7 +196,13 @@ export async function PUT(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    await requireAdmin()
+    const user = await getAdminUser(request)
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Admin access required' },
+        { status: 403 }
+      )
+    }
     const { eventId } = await params
     const body = await request.json()
     const { inserts, insertId, isActive } = body
@@ -221,7 +250,13 @@ export async function DELETE(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    await requireAdmin()
+    const user = await getAdminUser(request)
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Admin access required' },
+        { status: 403 }
+      )
+    }
     const { eventId } = await params
     const { searchParams } = new URL(request.url)
     const insertId = searchParams.get('id')

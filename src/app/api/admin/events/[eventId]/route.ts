@@ -1,14 +1,16 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
+import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const user = await getCurrentUser()
+    const overrideUserId = getClerkUserIdFromHeader(request)
+    const user = await getCurrentUser(overrideUserId)
 
     if (!user || !isAdmin(user)) {
       return NextResponse.json(
@@ -58,12 +60,13 @@ export async function GET(
 }
 
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const { eventId } = await params
-    const user = await getCurrentUser()
+    const overrideUserId = getClerkUserIdFromHeader(request)
+    const user = await getCurrentUser(overrideUserId)
 
     if (!user || !isAdmin(user)) {
       return NextResponse.json(
@@ -440,12 +443,13 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const { eventId } = await params
-    const user = await getCurrentUser()
+    const overrideUserId = getClerkUserIdFromHeader(request)
+    const user = await getCurrentUser(overrideUserId)
 
     if (!user || !isAdmin(user)) {
       return NextResponse.json(
