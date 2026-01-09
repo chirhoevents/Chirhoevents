@@ -114,7 +114,8 @@ export async function POST(request: NextRequest) {
       }
 
       // Verify the registration belongs to the user's organization
-      if (!canAccessOrganization(user, paymentBalance.organizationId)) {
+      // Cast user to any since Prisma types differ slightly from AuthUser
+      if (!canAccessOrganization(user as any, paymentBalance.organizationId)) {
         throw new Error('Forbidden')
       }
 
