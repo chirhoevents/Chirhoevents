@@ -1,23 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { verifyEventAccess } from '@/lib/api-auth'
+import { hasPermission } from '@/lib/permissions'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    // Auth check
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { eventId } = await params
+
+    // Auth check - verify user is admin and has access to this event
+    const { error, user, event, effectiveOrgId } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[GET Financial Report]',
+    })
+    if (error) return error
+
+    // Permission check - only users with reports.view_financial can access
+    if (!hasPermission(user!.role, 'reports.view_financial')) {
+      console.error(`[GET Financial Report] ❌ User ${user!.email} (role: ${user!.role}) lacks reports.view_financial permission`)
+      return NextResponse.json(
+        { error: 'Forbidden - Financial report access requires finance_manager, org_admin, or master_admin role' },
+        { status: 403 }
+      )
+    }
     const isPreview = request.nextUrl.searchParams.get('preview') === 'true'
 
-    // Handle "all" events
-    const eventFilter = eventId === 'all' ? {} : { eventId }
+    // Handle "all" events - filter by organization unless master_admin
+    let eventFilter: { eventId?: string; organizationId?: string } = {}
+    if (eventId === 'all') {
+      // For "all" events, filter by organization (unless master_admin viewing all)
+      if (user!.role !== 'master_admin' && effectiveOrgId) {
+        eventFilter = { organizationId: effectiveOrgId }
+      }
+      // master_admin with no effective org sees all
+    } else {
+      eventFilter = { eventId }
+    }
 
     // Get payment balances
     const paymentBalances = await prisma.paymentBalance.findMany({

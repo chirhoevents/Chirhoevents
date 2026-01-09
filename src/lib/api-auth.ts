@@ -277,3 +277,138 @@ export async function verifyAdminAccess(
 
   return { error: null, user, effectiveOrgId }
 }
+
+// Import permission checking functions
+import { hasPermission, type Permission, type UserRole } from '@/lib/permissions'
+
+/**
+ * Create a permission check error response
+ */
+function createPermissionError(
+  user: AuthUser,
+  permission: Permission,
+  friendlyName: string,
+  logPrefix: string
+): NextResponse {
+  console.error(`${logPrefix} ❌ User ${user.email} (role: ${user.role}) lacks ${permission} permission`)
+  return NextResponse.json(
+    { error: `Forbidden - ${friendlyName} access required` },
+    { status: 403 }
+  )
+}
+
+/**
+ * Verify event access with a specific permission check.
+ * Use this for routes that need both event access and a specific permission.
+ */
+export async function verifyEventAccessWithPermission(
+  request: NextRequest,
+  eventId: string,
+  permission: Permission,
+  options: {
+    friendlyName?: string
+    logPrefix?: string
+  } = {}
+): Promise<VerifyEventAccessResult> {
+  const { friendlyName = permission, logPrefix = `[verifyEventAccess/${permission}]` } = options
+
+  // First verify event access
+  const result = await verifyEventAccess(request, eventId, { requireAdmin: true, logPrefix })
+  if (result.error) return result
+
+  // Then check the specific permission
+  if (!hasPermission(result.user!.role as UserRole, permission)) {
+    return {
+      error: createPermissionError(result.user!, permission, friendlyName, logPrefix),
+      user: null,
+      event: null,
+      effectiveOrgId: null,
+    }
+  }
+
+  return result
+}
+
+/**
+ * Verify Poros portal access (requires poros.access permission)
+ */
+export async function verifyPorosAccess(
+  request: NextRequest,
+  eventId: string,
+  logPrefix: string = '[Poros]'
+): Promise<VerifyEventAccessResult> {
+  return verifyEventAccessWithPermission(request, eventId, 'poros.access', {
+    friendlyName: 'Poros portal',
+    logPrefix,
+  })
+}
+
+/**
+ * Verify SALVE portal access (requires salve.access permission)
+ */
+export async function verifySalveAccess(
+  request: NextRequest,
+  eventId: string,
+  logPrefix: string = '[SALVE]'
+): Promise<VerifyEventAccessResult> {
+  return verifyEventAccessWithPermission(request, eventId, 'salve.access', {
+    friendlyName: 'SALVE check-in portal',
+    logPrefix,
+  })
+}
+
+/**
+ * Verify Rapha portal access (requires rapha.access permission)
+ */
+export async function verifyRaphaAccess(
+  request: NextRequest,
+  eventId: string,
+  logPrefix: string = '[Rapha]'
+): Promise<VerifyEventAccessResult> {
+  return verifyEventAccessWithPermission(request, eventId, 'rapha.access', {
+    friendlyName: 'Rapha medical portal',
+    logPrefix,
+  })
+}
+
+/**
+ * Verify financial report access (requires reports.view_financial permission)
+ */
+export async function verifyFinancialReportAccess(
+  request: NextRequest,
+  eventId: string,
+  logPrefix: string = '[Financial Report]'
+): Promise<VerifyEventAccessResult> {
+  return verifyEventAccessWithPermission(request, eventId, 'reports.view_financial', {
+    friendlyName: 'Financial report',
+    logPrefix,
+  })
+}
+
+/**
+ * Verify basic report access (requires reports.view permission)
+ */
+export async function verifyReportAccess(
+  request: NextRequest,
+  eventId: string,
+  logPrefix: string = '[Report]'
+): Promise<VerifyEventAccessResult> {
+  return verifyEventAccessWithPermission(request, eventId, 'reports.view', {
+    friendlyName: 'Reports',
+    logPrefix,
+  })
+}
+
+/**
+ * Verify payments processing access (requires payments.process permission)
+ */
+export async function verifyPaymentsAccess(
+  request: NextRequest,
+  eventId: string,
+  logPrefix: string = '[Payments]'
+): Promise<VerifyEventAccessResult> {
+  return verifyEventAccessWithPermission(request, eventId, 'payments.process', {
+    friendlyName: 'Payment processing',
+    logPrefix,
+  })
+}

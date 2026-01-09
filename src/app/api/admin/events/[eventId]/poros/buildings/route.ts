@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
+import { hasPermission } from '@/lib/permissions'
 
 export async function GET(
   request: NextRequest,
@@ -13,6 +14,16 @@ export async function GET(
       logPrefix: '[GET Buildings]',
     })
     if (error) return error
+
+    // Permission check - only users with poros.access can view buildings
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[GET Buildings] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const includeRooms = searchParams.get('includeRooms') === 'true'
 
@@ -75,6 +86,16 @@ export async function POST(
       logPrefix: '[POST Buildings]',
     })
     if (error) return error
+
+    // Permission check - only users with poros.access can create buildings
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[POST Buildings] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
 
     const building = await prisma.building.create({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
+import { hasPermission } from '@/lib/permissions'
 
 interface RoomRecord {
   id: string
@@ -18,6 +19,15 @@ export async function GET(
       logPrefix: '[GET /api/admin/events/[eventId]/poros/rooms]',
     })
     if (error) return error
+
+    // Permission check - only users with poros.access can view rooms
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[GET Rooms] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
+    }
 
     const rooms = await prisma.room.findMany({
       where: {
@@ -51,6 +61,16 @@ export async function POST(
       logPrefix: '[POST /api/admin/events/[eventId]/poros/rooms]',
     })
     if (error) return error
+
+    // Permission check - only users with poros.access can create rooms
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[POST Rooms] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
 
     const room = await prisma.room.create({

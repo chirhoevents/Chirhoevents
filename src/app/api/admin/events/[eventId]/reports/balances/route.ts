@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { verifyFinancialReportAccess } from '@/lib/api-auth'
 
 // Define interface for payment balance data
 interface PaymentBalanceData {
@@ -38,10 +38,16 @@ export async function GET(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
     const { eventId } = await params
+
+    // Balances report requires financial report access (finance_manager, org_admin, master_admin)
+    const { error, user, event, effectiveOrgId } = await verifyFinancialReportAccess(
+      request,
+      eventId,
+      '[Balances Report]'
+    )
+    if (error) return error
+
     const isPreview = request.nextUrl.searchParams.get('preview') === 'true'
 
     // Get all group registrations with payment balances
