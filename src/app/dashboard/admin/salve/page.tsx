@@ -1,54 +1,58 @@
-import { requireAdmin } from '@/lib/auth-utils'
-import { getEffectiveOrgId } from '@/lib/get-effective-org'
-import { prisma } from '@/lib/prisma'
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { CheckSquare, Calendar, MapPin, Users, ArrowRight, ExternalLink } from 'lucide-react'
+import { CheckSquare, Calendar, MapPin, Users, ArrowRight, ExternalLink, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 
-export default async function SalveSelectEventPage() {
-  const user = await requireAdmin()
-  const organizationId = await getEffectiveOrgId(user)
+interface Event {
+  id: string
+  name: string
+  startDate: string
+  endDate: string | null
+  status: string
+  locationName: string | null
+  totalRegistrations?: number
+  _count?: {
+    groupRegistrations: number
+    individualRegistrations: number
+  }
+}
 
-  // Fetch all events for the organization
-  let events: any[] = []
-  try {
-    events = await prisma.event.findMany({
-      where: {
-        organizationId: organizationId,
-      },
-      include: {
-        _count: {
-          select: {
-            groupRegistrations: true,
-            individualRegistrations: true,
-          },
-        },
-      },
-      orderBy: {
-        startDate: 'desc',
-      },
-    })
-  } catch (error) {
-    console.error('Error fetching events:', error)
-    const basicEvents = await prisma.event.findMany({
-      where: {
-        organizationId: organizationId,
-      },
-      orderBy: {
-        startDate: 'desc',
-      },
-    })
-    events = basicEvents.map((e: any) => ({
-      ...e,
-      _count: { groupRegistrations: 0, individualRegistrations: 0 }
-    }))
+// NOTE: Auth is handled by the layout with proper retry logic.
+export default function SalveSelectEventPage() {
+  const { getToken } = useAuth()
+  const [events, setEvents] = useState<Event[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchEvents()
+  }, [])
+
+  const fetchEvents = async () => {
+    try {
+      const token = await getToken()
+      const response = await fetch('/api/admin/events', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
+      if (response.ok) {
+        const data = await response.json()
+        const eventsArray = Array.isArray(data) ? data : (data.events || [])
+        setEvents(eventsArray)
+      }
+    } catch (error) {
+      console.error('Error fetching events:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const activeEvents = events.filter((e: any) => e.status === 'registration_open' || e.status === 'registration_closed' || e.status === 'in_progress')
-  const pastEvents = events.filter((e: any) => e.status === 'completed')
-  const draftEvents = events.filter((e: any) => e.status === 'draft')
+  const activeEvents = events.filter((e) => e.status === 'registration_open' || e.status === 'registration_closed' || e.status === 'in_progress')
+  const pastEvents = events.filter((e) => e.status === 'completed')
+  const draftEvents = events.filter((e) => e.status === 'draft')
 
   function getStatusBadge(status: string) {
     const colors: Record<string, string> = {
@@ -68,8 +72,8 @@ export default async function SalveSelectEventPage() {
     return <Badge className={colors[status] || colors.draft}>{labels[status] || status}</Badge>
   }
 
-  function EventCard({ event }: { event: typeof events[0] }) {
-    const totalRegistrations = event._count.groupRegistrations + event._count.individualRegistrations
+  function EventCard({ event }: { event: Event }) {
+    const totalRegistrations = event.totalRegistrations ?? (event._count ? event._count.groupRegistrations + event._count.individualRegistrations : 0)
 
     return (
       <Card className="hover:shadow-lg transition-shadow">
@@ -126,6 +130,14 @@ export default async function SalveSelectEventPage() {
           </div>
         </CardContent>
       </Card>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+      </div>
     )
   }
 

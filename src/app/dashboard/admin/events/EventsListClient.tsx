@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -96,6 +97,7 @@ export default function EventsListClient({
   organizationId: _organizationId,  // Not used - API gets from auth context
 }: EventsListClientProps = {}) {
   const router = useRouter()
+  const { getToken } = useAuth()
   const [events, setEvents] = useState<Event[]>([])
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
@@ -121,7 +123,10 @@ export default function EventsListClient({
 
   const fetchUsageData = async () => {
     try {
-      const response = await fetch('/api/admin/events/check-limit')
+      const token = await getToken()
+      const response = await fetch('/api/admin/events/check-limit', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
       if (response.ok) {
         const data = await response.json()
         setUsageData(data)
@@ -134,7 +139,10 @@ export default function EventsListClient({
   const handleCreateEvent = async () => {
     setIsCheckingLimit(true)
     try {
-      const response = await fetch('/api/admin/events/check-limit')
+      const token = await getToken()
+      const response = await fetch('/api/admin/events/check-limit', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
       const data = await response.json()
 
       if (data.atLimit) {
@@ -172,7 +180,10 @@ export default function EventsListClient({
       params.set('sortBy', sortBy)
       params.set('sortOrder', sortOrder)
 
-      const response = await fetch(`/api/admin/events?${params.toString()}`)
+      const token = await getToken()
+      const response = await fetch(`/api/admin/events?${params.toString()}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
 
       if (!response.ok) {
         throw new Error('Failed to fetch events')
@@ -193,8 +204,10 @@ export default function EventsListClient({
     }
 
     try {
+      const token = await getToken()
       const response = await fetch(`/api/admin/events/${eventId}`, {
         method: 'DELETE',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
 
       if (!response.ok) {
