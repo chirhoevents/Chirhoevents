@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -65,6 +66,7 @@ interface Group {
 }
 
 export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps) {
+  const { getToken } = useAuth()
   const [groups, setGroups] = useState<Group[]>([])
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   const [filters, setFilters] = useState({
@@ -80,13 +82,15 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
   async function fetchGroups() {
     setLoading(true)
     try {
+      const token = await getToken()
       const params = new URLSearchParams({
         status: filters.status,
         search: filters.searchTerm
       })
 
       const response = await fetch(
-        `/api/admin/events/${eventId}/poros-liability/groups?${params}`
+        `/api/admin/events/${eventId}/poros-liability/groups?${params}`,
+        { headers: token ? { 'Authorization': `Bearer ${token}` } : {} }
       )
       if (response.ok) {
         const data = await response.json()
@@ -269,6 +273,7 @@ function ParticipantRow({
   eventId: string
   onUpdate: () => void
 }) {
+  const { getToken } = useAuth()
   const [showDetails, setShowDetails] = useState(false)
   const [processing, setProcessing] = useState(false)
 
@@ -279,9 +284,13 @@ function ParticipantRow({
 
     setProcessing(true)
     try {
+      const token = await getToken()
       const response = await fetch(
         `/api/admin/events/${eventId}/poros-liability/forms/${participant.formId}/approve`,
-        { method: 'POST' }
+        {
+          method: 'POST',
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        }
       )
 
       if (response.ok) {
@@ -305,11 +314,15 @@ function ParticipantRow({
 
     setProcessing(true)
     try {
+      const token = await getToken()
       const response = await fetch(
         `/api/admin/events/${eventId}/poros-liability/forms/${participant.formId}/deny`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
           body: JSON.stringify({ reason })
         }
       )

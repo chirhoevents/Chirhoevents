@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -40,6 +41,7 @@ export default function PorosLiabilityClient({
   eventName,
   organizationId
 }: PorosLiabilityClientProps) {
+  const { getToken } = useAuth()
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -49,7 +51,10 @@ export default function PorosLiabilityClient({
 
   async function fetchStats() {
     try {
-      const response = await fetch(`/api/admin/events/${eventId}/poros-liability/stats`)
+      const token = await getToken()
+      const response = await fetch(`/api/admin/events/${eventId}/poros-liability/stats`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
       if (response.ok) {
         const data = await response.json()
         setStats(data)

@@ -1,12 +1,20 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     console.log('[Auth Me] Request received')
 
-    const { userId } = await auth()
+    // Try to get userId from JWT token first, then fall back to cookie auth
+    let userId: string | null | undefined = await getClerkUserIdFromHeader(request)
+
+    if (!userId) {
+      const authResult = await auth()
+      userId = authResult.userId
+    }
+
     console.log('[Auth Me] Clerk userId:', userId)
 
     if (!userId) {

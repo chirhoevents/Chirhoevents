@@ -1,16 +1,19 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
+import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import Stripe from 'stripe'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-06-20',
 })
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
+    // Get userId from JWT token in Authorization header
+    const clerkUserId = await getClerkUserIdFromHeader(request)
+    const user = await getCurrentUser(clerkUserId || undefined)
 
     if (!user || !isAdmin(user)) {
       return NextResponse.json(
@@ -20,7 +23,7 @@ export async function GET() {
     }
 
     // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user as any)
+    const organizationId = await getEffectiveOrgId(user)
 
     const organization = await prisma.organization.findUnique({
       where: { id: organizationId },

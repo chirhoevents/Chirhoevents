@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -37,6 +38,7 @@ const DEFAULT_WAIVER_TEXTS = {
 }
 
 export function TemplatesTab({ eventId, organizationId }: TemplatesTabProps) {
+  const { getToken } = useAuth()
   const [templates, setTemplates] = useState<Template[]>([])
   const [currentTemplate, setCurrentTemplate] = useState<Template | null>(null)
   const [editing, setEditing] = useState(false)
@@ -49,8 +51,10 @@ export function TemplatesTab({ eventId, organizationId }: TemplatesTabProps) {
 
   async function fetchTemplates() {
     try {
+      const token = await getToken()
       const response = await fetch(
-        `/api/admin/organizations/${organizationId}/liability-templates`
+        `/api/admin/organizations/${organizationId}/liability-templates`,
+        { headers: token ? { 'Authorization': `Bearer ${token}` } : {} }
       )
       if (response.ok) {
         const data = await response.json()
@@ -94,6 +98,7 @@ export function TemplatesTab({ eventId, organizationId }: TemplatesTabProps) {
     setSaving(true)
 
     try {
+      const token = await getToken()
       const url = currentTemplate.id
         ? `/api/admin/organizations/${organizationId}/liability-templates/${currentTemplate.id}`
         : `/api/admin/organizations/${organizationId}/liability-templates`
@@ -102,7 +107,10 @@ export function TemplatesTab({ eventId, organizationId }: TemplatesTabProps) {
 
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(currentTemplate)
       })
 

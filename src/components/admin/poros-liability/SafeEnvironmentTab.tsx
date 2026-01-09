@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -49,6 +50,7 @@ interface Certificate {
 }
 
 export function SafeEnvironmentTab({ eventId, onUpdate }: SafeEnvironmentTabProps) {
+  const { getToken } = useAuth()
   const [certificates, setCertificates] = useState<Certificate[]>([])
   const [filters, setFilters] = useState({
     status: 'all',
@@ -63,13 +65,15 @@ export function SafeEnvironmentTab({ eventId, onUpdate }: SafeEnvironmentTabProp
   async function fetchCertificates() {
     setLoading(true)
     try {
+      const token = await getToken()
       const params = new URLSearchParams({
         status: filters.status,
         type: filters.certificateType
       })
 
       const response = await fetch(
-        `/api/admin/events/${eventId}/poros-liability/certificates?${params}`
+        `/api/admin/events/${eventId}/poros-liability/certificates?${params}`,
+        { headers: token ? { 'Authorization': `Bearer ${token}` } : {} }
       )
       if (response.ok) {
         const data = await response.json()
@@ -169,6 +173,7 @@ function CertificateCard({
   eventId: string
   onUpdate: () => void
 }) {
+  const { getToken } = useAuth()
   const [processing, setProcessing] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
 
@@ -186,11 +191,15 @@ function CertificateCard({
 
     setProcessing(true)
     try {
+      const token = await getToken()
       const response = await fetch(
         `/api/admin/events/${eventId}/poros-liability/certificates/${certificate.id}/verify`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
           body: JSON.stringify({ notes })
         }
       )
@@ -216,11 +225,15 @@ function CertificateCard({
 
     setProcessing(true)
     try {
+      const token = await getToken()
       const response = await fetch(
         `/api/admin/events/${eventId}/poros-liability/certificates/${certificate.id}/reject`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
           body: JSON.stringify({ reason })
         }
       )
