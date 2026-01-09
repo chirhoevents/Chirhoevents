@@ -61,11 +61,14 @@ function GroupLeaderLayoutContent({
   const [newAccessCode, setNewAccessCode] = useState('')
   const [addingCode, setAddingCode] = useState(false)
   const [addCodeError, setAddCodeError] = useState('')
+  const [authChecked, setAuthChecked] = useState(false)
   const hasRedirected = useRef(false)
 
   useEffect(() => {
     // Prevent multiple redirect attempts
     if (hasRedirected.current) return
+    // Prevent infinite loop - only check auth once
+    if (authChecked) return
     if (!isLoaded) return
 
     // NOTE: We intentionally do NOT check isSignedIn here early!
@@ -168,11 +171,12 @@ function GroupLeaderLayoutContent({
         console.error('Error:', error)
       } finally {
         setLoading(false)
+        setAuthChecked(true)  // Mark as checked to prevent infinite loop
       }
     }
 
     checkAccess()
-  }, [isLoaded, getToken, router])
+  }, [isLoaded, authChecked, router])  // Removed getToken to prevent infinite re-renders
 
   // Update groupInfo when currentEvent changes
   useEffect(() => {

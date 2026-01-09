@@ -44,8 +44,11 @@ export async function getCurrentUser(overrideUserId?: string): Promise<AuthUser 
     }
 
     if (!userId) {
+      console.log('[getCurrentUser] No Clerk userId available')
       return null
     }
+
+    console.log('[getCurrentUser] Looking up user with clerkUserId:', userId)
 
     // Find user in database by Clerk ID
     const user = await prisma.user.findFirst({
@@ -62,11 +65,19 @@ export async function getCurrentUser(overrideUserId?: string): Promise<AuthUser 
     })
 
     if (!user) {
+      console.log('[getCurrentUser] User NOT FOUND in database for clerkUserId:', userId)
+      console.log('[getCurrentUser] This usually means:')
+      console.log('  1. The Clerk webhook has not synced this user yet, OR')
+      console.log('  2. You switched from Clerk dev to production and need to sync users')
+      console.log('  Run: npx tsx scripts/sync-production-user.ts', userId, '<your-email>')
       return null
     }
 
+    console.log('[getCurrentUser] Found user:', user.email, '| Role:', user.role)
+
     // For non-master_admin users, organizationId and organization are required
     if (user.role !== 'master_admin' && (!user.organizationId || !user.organization)) {
+      console.log('[getCurrentUser] Non-admin user missing organization:', user.email)
       return null
     }
 
