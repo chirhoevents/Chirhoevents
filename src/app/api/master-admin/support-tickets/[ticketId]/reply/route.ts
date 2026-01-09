@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 
 // Add admin reply to ticket
 export async function POST(
@@ -8,7 +8,7 @@ export async function POST(
   { params }: { params: Promise<{ ticketId: string }> }
 ) {
   try {
-    const { userId: clerkUserId } = await auth()
+    const clerkUserId = await getClerkUserIdFromRequest(request)
 
     if (!clerkUserId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
