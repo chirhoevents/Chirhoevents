@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
@@ -123,6 +124,7 @@ export default function EditGroupRegistrationModal({
   eventPricing,
   onUpdate,
 }: EditGroupRegistrationModalProps) {
+  const { getToken } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [isSaving, setSaving] = useState(false)
   const [formData, setFormData] = useState({
@@ -185,16 +187,20 @@ export default function EditGroupRegistrationModal({
   useEffect(() => {
     if (registration && isOpen) {
       setLoadingRegistration(true)
-      fetch(`/api/admin/registrations/group/${registration.id}`)
-        .then(res => res.json())
-        .then(data => {
-          setFullRegistration(data.registration)
-          setLoadingRegistration(false)
+      getToken().then(token => {
+        fetch(`/api/admin/registrations/group/${registration.id}`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
         })
-        .catch(err => {
-          console.error('Error fetching registration:', err)
-          setLoadingRegistration(false)
-        })
+          .then(res => res.json())
+          .then(data => {
+            setFullRegistration(data.registration)
+            setLoadingRegistration(false)
+          })
+          .catch(err => {
+            console.error('Error fetching registration:', err)
+            setLoadingRegistration(false)
+          })
+      })
     }
   }, [registration, isOpen])
 
@@ -337,12 +343,14 @@ export default function EditGroupRegistrationModal({
 
     setSaving(true)
     try {
+      const token = await getToken()
       const response = await fetch(
         `/api/admin/registrations/group/${registration.id}`,
         {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           },
           body: JSON.stringify({
             ...formData,
@@ -380,8 +388,10 @@ export default function EditGroupRegistrationModal({
 
     setLoadingAuditTrail(true)
     try {
+      const token = await getToken()
       const response = await fetch(
-        `/api/admin/registrations/${registration.id}/audit?type=group`
+        `/api/admin/registrations/${registration.id}/audit?type=group`,
+        { headers: token ? { 'Authorization': `Bearer ${token}` } : {} }
       )
       if (response.ok) {
         const data = await response.json()

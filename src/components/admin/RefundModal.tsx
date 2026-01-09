@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,6 +29,7 @@ export default function RefundModal({
   amountPaid,
   onRefundProcessed,
 }: RefundModalProps) {
+  const { getToken } = useAuth()
   const [isProcessing, setProcessing] = useState(false)
   const [formData, setFormData] = useState({
     refundAmount: '',
@@ -62,10 +64,12 @@ export default function RefundModal({
         return
       }
 
+      const token = await getToken()
       const response = await fetch('/api/admin/refunds', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           registrationId,

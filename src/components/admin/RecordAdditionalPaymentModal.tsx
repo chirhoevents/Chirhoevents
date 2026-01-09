@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,6 +29,7 @@ export default function RecordAdditionalPaymentModal({
   balanceRemaining,
   onSuccess,
 }: RecordAdditionalPaymentModalProps) {
+  const { getToken } = useAuth()
   const [saving, setSaving] = useState(false)
   // Use ref for synchronous double-submit protection
   const isSubmittingRef = useRef(false)
@@ -74,9 +76,13 @@ export default function RecordAdditionalPaymentModal({
 
     try {
       console.log('Submitting payment:', { registrationId, amount: formData.amount })
+      const token = await getToken()
       const res = await fetch('/api/admin/payments/record', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           registrationId,
           registrationType,

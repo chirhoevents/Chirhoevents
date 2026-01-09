@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -86,6 +87,7 @@ export default function PaymentsModal({
   onUpdate,
   onSendPaymentReminder,
 }: PaymentsModalProps) {
+  const { getToken } = useAuth()
   const [data, setData] = useState<PaymentData | null>(null)
   const [loading, setLoading] = useState(true)
   const [showRefundModal, setShowRefundModal] = useState(false)
@@ -100,8 +102,10 @@ export default function PaymentsModal({
   async function fetchPaymentData() {
     setLoading(true)
     try {
+      const token = await getToken()
       const response = await fetch(
-        `/api/admin/registrations/${registrationId}/payments?type=${registrationType}`
+        `/api/admin/registrations/${registrationId}/payments?type=${registrationType}`,
+        { headers: token ? { 'Authorization': `Bearer ${token}` } : {} }
       )
       if (!response.ok) {
         throw new Error('Failed to fetch payment data')

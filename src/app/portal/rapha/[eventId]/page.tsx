@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -87,6 +88,7 @@ export default function RaphaDedicatedPortal() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { getToken } = useAuth()
   const eventId = params.eventId as string
   const initialTab = searchParams.get('tab') || 'dashboard'
 
@@ -121,15 +123,17 @@ export default function RaphaDedicatedPortal() {
   async function checkAuthAndFetchData() {
     try {
       setAuthChecking(true)
+      const token = await getToken()
+      const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
 
       // Check authorization - user must be admin, rapha_user, or rapha_coordinator
-      const authResponse = await fetch('/api/admin/check-access')
+      const authResponse = await fetch('/api/admin/check-access', { headers })
       if (authResponse.ok) {
         setIsAdmin(true)
         setIsAuthorized(true)
       } else {
         // Check if they have rapha-specific role
-        const raphaAuthResponse = await fetch(`/api/portal/rapha/check-access?eventId=${eventId}`)
+        const raphaAuthResponse = await fetch(`/api/portal/rapha/check-access?eventId=${eventId}`, { headers })
         if (raphaAuthResponse.ok) {
           const raphaData = await raphaAuthResponse.json()
           setIsAuthorized(true)
@@ -156,7 +160,9 @@ export default function RaphaDedicatedPortal() {
   async function fetchDashboardData() {
     setLoading(true)
     try {
-      const response = await fetch(`/api/admin/events/${eventId}/rapha/stats`)
+      const token = await getToken()
+      const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
+      const response = await fetch(`/api/admin/events/${eventId}/rapha/stats`, { headers })
       if (response.ok) {
         const data = await response.json()
         setEventName(data.event.name)
@@ -185,8 +191,11 @@ export default function RaphaDedicatedPortal() {
 
     setSearching(true)
     try {
+      const token = await getToken()
+      const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
       const response = await fetch(
-        `/api/admin/events/${eventId}/rapha/participants/search?q=${encodeURIComponent(query)}`
+        `/api/admin/events/${eventId}/rapha/participants/search?q=${encodeURIComponent(query)}`,
+        { headers }
       )
       if (response.ok) {
         const data = await response.json()
@@ -226,8 +235,11 @@ export default function RaphaDedicatedPortal() {
   async function handleQrScan(qrData: string) {
     setScanLoading(true)
     try {
+      const token = await getToken()
+      const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
       const response = await fetch(
-        `/api/admin/events/${eventId}/rapha/lookup?qrCode=${encodeURIComponent(qrData)}`
+        `/api/admin/events/${eventId}/rapha/lookup?qrCode=${encodeURIComponent(qrData)}`,
+        { headers }
       )
 
       if (response.ok) {

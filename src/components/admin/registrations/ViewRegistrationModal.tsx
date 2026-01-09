@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
@@ -219,6 +220,7 @@ export default function ViewRegistrationModal({
   registrationType,
   onOpenEmail,
 }: ViewRegistrationModalProps) {
+  const { getToken } = useAuth()
   const [data, setData] = useState<RegistrationData | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('details')
@@ -232,8 +234,10 @@ export default function ViewRegistrationModal({
   async function fetchRegistrationDetails() {
     setLoading(true)
     try {
+      const token = await getToken()
       const response = await fetch(
-        `/api/admin/registrations/${registrationId}/view?type=${registrationType}`
+        `/api/admin/registrations/${registrationId}/view?type=${registrationType}`,
+        { headers: token ? { 'Authorization': `Bearer ${token}` } : {} }
       )
       if (!response.ok) {
         throw new Error('Failed to fetch registration')
