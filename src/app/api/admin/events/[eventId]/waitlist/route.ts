@@ -2,14 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
+import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
+    // Try to get userId from JWT token in Authorization header
+    const overrideUserId = getClerkUserIdFromHeader(request)
     // Check admin access
-    const user = await getCurrentUser()
+    const user = await getCurrentUser(overrideUserId)
     if (!user || !isAdmin(user)) {
       return NextResponse.json(
         { error: 'Unauthorized - Admin access required' },
