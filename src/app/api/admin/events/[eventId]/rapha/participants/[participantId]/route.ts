@@ -14,6 +14,7 @@ export async function GET(
       logPrefix: '[Rapha Participant Details]',
     })
     if (error) return error
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     // Check Rapha access permission
     if (!hasPermission(user.role, 'rapha.access')) {

@@ -13,6 +13,7 @@ export async function POST(
       logPrefix: '[POST /api/admin/events/[eventId]/poros/room-assignments]',
     })
     if (error) return error
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     const body = await request.json()
 
     const { roomId, participantId, individualRegistrationId, bedNumber, notes } = body

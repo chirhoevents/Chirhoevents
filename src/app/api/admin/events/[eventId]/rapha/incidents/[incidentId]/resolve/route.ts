@@ -14,6 +14,7 @@ export async function POST(
       logPrefix: '[Rapha Resolve Incident]',
     })
     if (error) return error
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     const body = await request.json()
 
     // Check Rapha access permission

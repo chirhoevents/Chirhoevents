@@ -15,6 +15,7 @@ export async function GET(
       logPrefix: '[Rapha Get Incident]',
     })
     if (error) return error
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     // Check Rapha access permission
     if (!hasPermission(user.role, 'rapha.access')) {
@@ -159,6 +160,7 @@ export async function PUT(
       logPrefix: '[Rapha Update Incident]',
     })
     if (error) return error
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     const body = await request.json()
 
     // Check Rapha access permission

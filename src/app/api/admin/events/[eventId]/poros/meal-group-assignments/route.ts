@@ -13,6 +13,7 @@ export async function POST(
       logPrefix: '[Meal Group Assignments POST]',
     })
     if (error) return error
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     const body = await request.json()
 
     const { mealGroupId, groupRegistrationId, individualRegistrationId } = body
