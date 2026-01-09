@@ -1,11 +1,34 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
-export async function GET() {
+// Decode JWT payload to extract user ID when cookies aren't available
+function decodeJwtPayload(token: string): { sub?: string } | null {
   try {
-    const user = await getCurrentUser()
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    const payload = Buffer.from(parts[1], 'base64').toString('utf-8')
+    return JSON.parse(payload)
+  } catch {
+    return null
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    // Try to get userId from Authorization header (JWT token) as fallback
+    let overrideUserId: string | undefined
+    const authHeader = request.headers.get('Authorization')
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      const payload = decodeJwtPayload(token)
+      if (payload?.sub) {
+        overrideUserId = payload.sub
+      }
+    }
+
+    const user = await getCurrentUser(overrideUserId)
 
     if (!user || !isAdmin(user)) {
       return NextResponse.json(

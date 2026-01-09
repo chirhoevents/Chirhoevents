@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
+import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
+    // Get override user ID from JWT token if cookies not available
+    const overrideUserId = getClerkUserIdFromHeader(request)
+    const user = await getCurrentUser(overrideUserId)
 
     if (!user || !isAdmin(user)) {
       return NextResponse.json(
