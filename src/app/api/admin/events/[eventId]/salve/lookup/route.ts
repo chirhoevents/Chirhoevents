@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { parseQRCodeData } from '@/lib/qr-code'
+import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 
 // Helper function to check if user can access Salve portal
-async function requireSalveAccess(eventId: string) {
-  const user = await getCurrentUser()
+async function requireSalveAccess(request: NextRequest, eventId: string) {
+  const overrideUserId = getClerkUserIdFromHeader(request)
+  const user = await getCurrentUser(overrideUserId)
 
   if (!user) {
     throw new Error('Unauthorized')
@@ -135,7 +137,7 @@ export async function GET(
 ) {
   try {
     const { eventId } = await params
-    await requireSalveAccess(eventId)
+    await requireSalveAccess(request, eventId)
     const { searchParams } = new URL(request.url)
 
     const accessCode = searchParams.get('accessCode')

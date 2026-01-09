@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 
 // Helper function to check if user can access Salve portal
-async function requireSalveAccess(eventId: string) {
-  const user = await getCurrentUser()
+async function requireSalveAccess(request: NextRequest, eventId: string) {
+  const overrideUserId = getClerkUserIdFromHeader(request)
+  const user = await getCurrentUser(overrideUserId)
 
   if (!user) {
     throw new Error('Unauthorized')
@@ -46,7 +48,7 @@ export async function POST(
 ) {
   try {
     const { eventId } = await params
-    const user = await requireSalveAccess(eventId)
+    const user = await requireSalveAccess(request, eventId)
     const body = await request.json()
 
     const { participantIds, action, stationId, notes, groupId, registrationType } = body
@@ -240,7 +242,7 @@ export async function PUT(
 ) {
   try {
     const { eventId } = await params
-    const user = await requireSalveAccess(eventId)
+    const user = await requireSalveAccess(request, eventId)
     const body = await request.json()
 
     const { groupId, action, stationId, notes } = body

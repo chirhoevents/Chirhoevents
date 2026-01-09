@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth-utils'
+import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { hasPermission } from '@/lib/permissions'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
+import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+
+// Helper function to get authenticated admin user with JWT fallback
+async function getAdminUser(request: NextRequest) {
+  const overrideUserId = getClerkUserIdFromHeader(request)
+  const user = await getCurrentUser(overrideUserId)
+  if (!user || !isAdmin(user)) return null
+  return user
+}
 
 // GET: List all incidents
 export async function GET(
@@ -10,7 +19,10 @@ export async function GET(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
+    const user = await getAdminUser(request)
+    if (!user) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
+    }
     const organizationId = await getEffectiveOrgId(user as any)
     const { eventId } = await params
     const { searchParams } = new URL(request.url)
@@ -182,7 +194,10 @@ export async function POST(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const user = await requireAdmin()
+    const user = await getAdminUser(request)
+    if (!user) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
+    }
     const organizationId = await getEffectiveOrgId(user as any)
     const { eventId } = await params
     const body = await request.json()
