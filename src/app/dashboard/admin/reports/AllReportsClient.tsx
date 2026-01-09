@@ -353,7 +353,6 @@ export default function AllReportsClient({ organizationId: _organizationId }: Al
             onClose={() => setShowCustomBuilder(false)}
             eventId={selectedEventId}
             eventName={eventName}
-            organizationId={organizationId}
           />
         </>
       )}

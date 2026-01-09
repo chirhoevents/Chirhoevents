@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
@@ -23,7 +24,7 @@ interface ReportTemplate {
 interface CustomReportBuilderProps {
   eventId: string
   eventName: string
-  organizationId: string
+  organizationId?: string  // Optional - API gets from auth context
   open: boolean
   onClose: () => void
 }
@@ -31,10 +32,11 @@ interface CustomReportBuilderProps {
 export function CustomReportBuilder({
   eventId,
   eventName,
-  organizationId,
+  organizationId: _organizationId,  // Not used - API gets from auth context
   open,
   onClose,
 }: CustomReportBuilderProps) {
+  const { getToken } = useAuth()
   const [templates, setTemplates] = useState<ReportTemplate[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState<string>('')
   const [reportType, setReportType] = useState<string>('registration')
@@ -125,7 +127,7 @@ export function CustomReportBuilder({
     if (open) {
       loadTemplates()
     }
-  }, [open, organizationId])
+  }, [open])
 
   // Clear report data when report type changes
   useEffect(() => {
@@ -134,7 +136,10 @@ export function CustomReportBuilder({
 
   const loadTemplates = async () => {
     try {
-      const response = await fetch(`/api/admin/report-templates?organizationId=${organizationId}`)
+      const token = await getToken()
+      const response = await fetch('/api/admin/report-templates', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
       if (response.ok) {
         const data = await response.json()
         setTemplates(Array.isArray(data) ? data : [])
@@ -180,11 +185,14 @@ export function CustomReportBuilder({
         ? `/api/admin/report-templates/${selectedTemplate}`
         : '/api/admin/report-templates'
 
+      const token = await getToken()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) headers['Authorization'] = `Bearer ${token}`
+
       const response = await fetch(url, {
         method: selectedTemplate ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
-          organizationId,
           name: templateName,
           description: templateDescription,
           reportType,
@@ -218,8 +226,10 @@ export function CustomReportBuilder({
 
     setLoading(true)
     try {
+      const token = await getToken()
       const response = await fetch(`/api/admin/report-templates/${selectedTemplate}`, {
         method: 'DELETE',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
 
       if (response.ok) {
@@ -246,9 +256,13 @@ export function CustomReportBuilder({
 
       console.log('Executing report:', { url, reportType, selectedFields, selectedTemplate })
 
+      const token = await getToken()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) headers['Authorization'] = `Bearer ${token}`
+
       const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           eventId,
           configuration: selectedTemplate ? undefined : {
