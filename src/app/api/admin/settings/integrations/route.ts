@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
@@ -8,9 +8,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-06-20',
 })
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
+    const user = await getCurrentUser(request)
 
     if (!user || !isAdmin(user)) {
       return NextResponse.json(
@@ -20,7 +20,7 @@ export async function GET() {
     }
 
     // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user as any)
+    const organizationId = await getEffectiveOrgId(user as any, request)
 
     const organization = await prisma.organization.findUnique({
       where: { id: organizationId },
