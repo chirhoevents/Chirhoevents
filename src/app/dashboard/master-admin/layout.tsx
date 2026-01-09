@@ -54,11 +54,14 @@ export default function MasterAdminLayout({
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [authChecked, setAuthChecked] = useState(false)
   const hasRedirected = useRef(false)
 
   useEffect(() => {
     // Prevent multiple redirect attempts
     if (hasRedirected.current) return
+    // Prevent infinite loop - only check auth once
+    if (authChecked) return
     if (!isLoaded) return
 
     // NOTE: We intentionally do NOT check isSignedIn here early!
@@ -149,11 +152,12 @@ export default function MasterAdminLayout({
         router.replace('/')
       } finally {
         setLoading(false)
+        setAuthChecked(true)  // Mark as checked to prevent infinite loop
       }
     }
 
     checkAccess()
-  }, [isLoaded, getToken, router])
+  }, [isLoaded, authChecked, router])  // Removed getToken to prevent infinite re-renders
 
   if (loading) {
     return (

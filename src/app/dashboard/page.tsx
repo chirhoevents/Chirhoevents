@@ -14,11 +14,14 @@ export default function DashboardRedirect() {
   const { isLoaded, isSignedIn, getToken } = useAuth()
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState('Checking authentication...')
+  const [authChecked, setAuthChecked] = useState(false)
   const hasRedirected = useRef(false)
 
   useEffect(() => {
     // Prevent multiple redirects
     if (hasRedirected.current) return
+    // Prevent infinite loop - only check auth once
+    if (authChecked) return
     if (!isLoaded) return
 
     // NOTE: We intentionally do NOT check isSignedIn here early!
@@ -100,6 +103,7 @@ export default function DashboardRedirect() {
       } catch (err) {
         console.error('Dashboard redirect error:', err)
         setError('Unable to determine your account type.')
+        setAuthChecked(true)  // Mark as checked to prevent infinite loop
         setTimeout(() => {
           hasRedirected.current = true
           router.replace('/dashboard/group-leader')
@@ -108,7 +112,7 @@ export default function DashboardRedirect() {
     }
 
     redirectBasedOnRole()
-  }, [isLoaded, getToken, router])
+  }, [isLoaded, authChecked, router])  // Removed getToken to prevent infinite re-renders
 
   if (error) {
     return (

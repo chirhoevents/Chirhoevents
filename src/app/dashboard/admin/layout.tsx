@@ -73,11 +73,14 @@ export default function AdminLayout({
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [authChecked, setAuthChecked] = useState(false)
   const hasRedirected = useRef(false)
 
   useEffect(() => {
     // Prevent multiple redirect attempts
     if (hasRedirected.current) return
+    // Prevent infinite loop - only check auth once
+    if (authChecked) return
     if (!isLoaded) return
 
     const checkAccess = async () => {
@@ -170,11 +173,12 @@ export default function AdminLayout({
         router.replace('/')
       } finally {
         setLoading(false)
+        setAuthChecked(true)  // Mark as checked to prevent infinite loop
       }
     }
 
     checkAccess()
-  }, [isLoaded, getToken, router])
+  }, [isLoaded, authChecked, router])  // Removed getToken to prevent infinite re-renders
 
   // Filter navigation based on user permissions and enabled modules
   const navigation = useMemo(() => {
