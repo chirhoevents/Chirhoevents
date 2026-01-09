@@ -16,35 +16,43 @@ function decodeJwtPayload(token: string): { sub?: string } | null {
 }
 
 export async function GET(request: NextRequest) {
+  console.log('🔐 [API check-access] Request received')
   try {
     // Try to get userId from Authorization header (JWT token) as fallback
     let overrideUserId: string | undefined
     const authHeader = request.headers.get('Authorization')
+    console.log('🔐 [API check-access] Auth header present:', !!authHeader)
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.substring(7)
       const payload = decodeJwtPayload(token)
       if (payload?.sub) {
         overrideUserId = payload.sub
+        console.log('🔐 [API check-access] Extracted userId from JWT:', overrideUserId)
       }
     }
 
     const user = await getCurrentUser(overrideUserId)
+    console.log('🔐 [API check-access] getCurrentUser result:', user?.email || 'NULL')
 
     // 401 if user not found (not authenticated or timing issue)
     if (!user) {
+      console.log('❌ [API check-access] No user found - returning 401')
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
     }
 
+    console.log('🔐 [API check-access] User role:', user.role)
     // 403 if user exists but isn't an admin (forbidden)
     if (!isAdmin(user)) {
+      console.log('❌ [API check-access] User is not admin - returning 403')
       return NextResponse.json(
         { error: 'Access denied - Admin role required' },
         { status: 403 }
       )
     }
+    console.log('✅ [API check-access] User is admin, proceeding...')
 
     // Check if master admin is impersonating an organization
     const cookieStore = await cookies()
@@ -81,6 +89,7 @@ export async function GET(request: NextRequest) {
     // When impersonating, use org_admin role for permission checks
     const effectiveRole = isImpersonating ? 'org_admin' : user.role
 
+    console.log('✅ [API check-access] Returning success response for:', user.email)
     return NextResponse.json({
       userId: user.id,
       organizationId: organizationId,
@@ -98,7 +107,7 @@ export async function GET(request: NextRequest) {
       impersonatedOrgId: isImpersonating ? organizationId : null,
     })
   } catch (error) {
-    console.error('Error checking admin access:', error)
+    console.error('💥 [API check-access] Error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -77,16 +77,32 @@ export default function AdminLayout({
   const hasRedirected = useRef(false)
 
   useEffect(() => {
+    console.log('🔍 [Admin Layout] useEffect triggered')
+    console.log('🔍 [Admin Layout] hasRedirected:', hasRedirected.current)
+    console.log('🔍 [Admin Layout] authChecked:', authChecked)
+    console.log('🔍 [Admin Layout] isLoaded:', isLoaded)
+
     // Prevent multiple redirect attempts
-    if (hasRedirected.current) return
+    if (hasRedirected.current) {
+      console.log('⚠️ [Admin Layout] Already redirected, skipping')
+      return
+    }
     // Prevent infinite loop - only check auth once
-    if (authChecked) return
-    if (!isLoaded) return
+    if (authChecked) {
+      console.log('⚠️ [Admin Layout] Auth already checked, skipping')
+      return
+    }
+    if (!isLoaded) {
+      console.log('⚠️ [Admin Layout] Clerk not loaded yet, waiting...')
+      return
+    }
 
     const checkAccess = async () => {
+      console.log('🔐 [Admin Layout] Starting auth check...')
       try {
         // Get token - may need to wait for it after page reload or during navigation
         let token = await getToken()
+        console.log('🔐 [Admin Layout] Initial token:', token ? 'YES' : 'NO')
         let attempts = 0
         const maxAttempts = 5
 
@@ -94,23 +110,27 @@ export default function AdminLayout({
         while (!token && attempts < maxAttempts) {
           attempts++
           const delay = attempts * 500
+          console.log(`🔐 [Admin Layout] Token retry ${attempts}/${maxAttempts}...`)
           await new Promise(resolve => setTimeout(resolve, delay))
           token = await getToken()
         }
 
         if (!token) {
-          console.log('No token after retries in admin layout')
+          console.log('❌ [Admin Layout] No token after retries, redirecting to sign-in')
           hasRedirected.current = true
           router.replace('/sign-in')
           return
         }
 
+        console.log('🔐 [Admin Layout] Calling /api/admin/check-access...')
         const response = await fetch('/api/admin/check-access', {
           headers: { 'Authorization': `Bearer ${token}` },
         })
+        console.log('🔐 [Admin Layout] API response status:', response.status)
 
         if (response.status === 403) {
           // Not an admin - redirect appropriately
+          console.log('❌ [Admin Layout] 403 Forbidden - redirecting to group-leader')
           hasRedirected.current = true
           router.replace('/dashboard/group-leader')
           return
@@ -118,7 +138,7 @@ export default function AdminLayout({
 
         if (response.status === 401) {
           // Unauthorized - might be a timing issue, wait and retry once
-          console.log('Got 401, waiting and retrying...')
+          console.log('⚠️ [Admin Layout] Got 401, waiting and retrying...')
           await new Promise(resolve => setTimeout(resolve, 1000))
           const retryToken = await getToken()
           const retryResponse = await fetch('/api/admin/check-access', {
@@ -152,10 +172,14 @@ export default function AdminLayout({
         }
 
         if (!response.ok) {
-          throw new Error('Failed to verify admin access')
+          console.log('❌ [Admin Layout] Response not OK:', response.status)
+          throw new Error(`Failed to verify admin access: ${response.status}`)
         }
 
         const data = await response.json()
+        console.log('✅ [Admin Layout] Auth successful!')
+        console.log('✅ [Admin Layout] User:', data.email, '| Role:', data.userRole)
+        console.log('✅ [Admin Layout] Org:', data.organizationName)
         setUserInfo({
           organizationName: data.organizationName,
           userRole: data.userRole as UserRole,
@@ -168,8 +192,9 @@ export default function AdminLayout({
           impersonatedOrgId: data.impersonatedOrgId || null,
         })
       } catch (error) {
-        console.error('Error:', error)
+        console.error('💥 [Admin Layout] Error in checkAccess:', error)
         hasRedirected.current = true
+        console.log('❌ [Admin Layout] Redirecting to / due to error')
         router.replace('/')
       } finally {
         setLoading(false)
