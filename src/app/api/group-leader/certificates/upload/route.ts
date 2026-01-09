@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { uploadCertificate } from '@/lib/r2/upload-certificate'
+import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await auth()
+    const userId = await getClerkUserIdFromRequest(request)
 
     if (!userId) {
       return NextResponse.json(

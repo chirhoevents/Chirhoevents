@@ -1,6 +1,6 @@
-import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 
 // GET - List all schedule entries for an event
 export async function GET(
@@ -9,7 +9,7 @@ export async function GET(
 ) {
   try {
     const { eventId } = await params
-    const { userId } = await auth()
+    const userId = await getClerkUserIdFromRequest(request)
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -48,7 +48,7 @@ export async function POST(
 ) {
   try {
     const { eventId } = await params
-    const { userId } = await auth()
+    const userId = await getClerkUserIdFromRequest(request)
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -97,7 +97,7 @@ export async function PUT(
 ) {
   try {
     const { eventId } = await params
-    const { userId } = await auth()
+    const userId = await getClerkUserIdFromRequest(request)
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -171,7 +171,7 @@ export async function DELETE(
 ) {
   try {
     const { eventId } = await params
-    const { userId } = await auth()
+    const userId = await getClerkUserIdFromRequest(request)
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

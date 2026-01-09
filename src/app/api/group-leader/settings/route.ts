@@ -177,7 +177,23 @@ export async function GET(request: NextRequest) {
 // PUT /api/group-leader/settings - Update user preferences
 export async function PUT(request: NextRequest) {
   try {
-    const { userId } = await auth()
+    let userId: string | null = null
+
+    // Try to get userId from Clerk's auth (works when cookies are established)
+    const authResult = await auth()
+    userId = authResult.userId
+
+    // Fallback: try to get userId from Authorization header (JWT token)
+    if (!userId) {
+      const authHeader = request.headers.get('Authorization')
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.substring(7)
+        const payload = decodeJwtPayload(token)
+        if (payload?.sub) {
+          userId = payload.sub
+        }
+      }
+    }
 
     if (!userId) {
       return NextResponse.json(

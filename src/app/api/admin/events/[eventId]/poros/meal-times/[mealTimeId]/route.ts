@@ -1,6 +1,6 @@
-import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 
 // PUT - Update a meal time
 export async function PUT(
@@ -8,7 +8,7 @@ export async function PUT(
   { params }: { params: Promise<{ eventId: string; mealTimeId: string }> }
 ) {
   try {
-    const { userId } = await auth()
+    const userId = await getClerkUserIdFromRequest(request)
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -40,7 +40,7 @@ export async function DELETE(
   { params }: { params: Promise<{ eventId: string; mealTimeId: string }> }
 ) {
   try {
-    const { userId } = await auth()
+    const userId = await getClerkUserIdFromRequest(request)
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

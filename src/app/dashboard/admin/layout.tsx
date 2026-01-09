@@ -81,8 +81,20 @@ export default function AdminLayout({
     if (!isLoaded) return
 
     if (!isSignedIn) {
-      hasRedirected.current = true
-      router.replace('/sign-in')
+      // Before redirecting to sign-in, check if this might be a master admin impersonating
+      // Give Clerk a moment to hydrate the session
+      const checkAndRedirect = async () => {
+        // Wait a moment for Clerk to potentially hydrate
+        await new Promise(resolve => setTimeout(resolve, 500))
+
+        // Re-check isSignedIn after waiting
+        const token = await getToken()
+        if (!token && !hasRedirected.current) {
+          hasRedirected.current = true
+          router.replace('/sign-in')
+        }
+      }
+      checkAndRedirect()
       return
     }
 

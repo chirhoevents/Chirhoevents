@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@clerk/nextjs/server'
+import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 
 // GET single report template
 export async function GET(
@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ templateId: string }> }
 ) {
   try {
-    const { userId } = await auth()
+    const userId = await getClerkUserIdFromRequest(request)
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { templateId } = await params
@@ -58,7 +58,7 @@ export async function PUT(
   { params }: { params: Promise<{ templateId: string }> }
 ) {
   try {
-    const { userId } = await auth()
+    const userId = await getClerkUserIdFromRequest(request)
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { templateId } = await params
@@ -119,7 +119,7 @@ export async function DELETE(
   { params }: { params: Promise<{ templateId: string }> }
 ) {
   try {
-    const { userId } = await auth()
+    const userId = await getClerkUserIdFromRequest(request)
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { templateId } = await params

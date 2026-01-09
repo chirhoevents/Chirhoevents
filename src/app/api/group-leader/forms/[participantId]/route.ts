@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ participantId: string }> }
 ) {
   try {
-    const { userId } = await auth()
+    const userId = await getClerkUserIdFromRequest(req)
 
     if (!userId) {
       return NextResponse.json(

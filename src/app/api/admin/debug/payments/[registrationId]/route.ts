@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 
 // Debug endpoint to see ALL payments for a registration
 // Accepts either registration UUID or access code/confirmation code
@@ -9,7 +9,7 @@ export async function GET(
   { params }: { params: Promise<{ registrationId: string }> }
 ) {
   try {
-    const { userId } = await auth()
+    const userId = await getClerkUserIdFromRequest(request)
 
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

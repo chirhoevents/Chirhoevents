@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { generateFinancialCSV } from '@/lib/reports/generate-csv'
 import { renderToBuffer } from '@react-pdf/renderer'
 import { FinancialReportPDF } from '@/lib/reports/pdf-generator'
@@ -10,7 +10,7 @@ export async function POST(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const { userId } = await auth()
+    const userId = await getClerkUserIdFromRequest(request)
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { format } = await request.json()
