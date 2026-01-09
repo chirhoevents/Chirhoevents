@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -60,6 +61,7 @@ export default function EditIndividualRegistrationModal({
   eventId,
   onUpdate,
 }: EditIndividualRegistrationModalProps) {
+  const { getToken } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [saving, setSaving] = useState(false)
   const [showRefundModal, setShowRefundModal] = useState(false)
@@ -164,12 +166,14 @@ export default function EditIndividualRegistrationModal({
 
     setSaving(true)
     try {
+      const token = await getToken()
       const response = await fetch(
         `/api/admin/registrations/individual/${registration.id}`,
         {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           },
           body: JSON.stringify(formData),
         }
@@ -198,8 +202,10 @@ export default function EditIndividualRegistrationModal({
 
     setLoadingAuditTrail(true)
     try {
+      const token = await getToken()
       const response = await fetch(
-        `/api/admin/registrations/${registration.id}/audit?type=individual`
+        `/api/admin/registrations/${registration.id}/audit?type=individual`,
+        { headers: token ? { 'Authorization': `Bearer ${token}` } : {} }
       )
       if (response.ok) {
         const data = await response.json()
@@ -216,7 +222,10 @@ export default function EditIndividualRegistrationModal({
     if (!eventId) return
 
     try {
-      const response = await fetch(`/api/admin/events/${eventId}/pricing`)
+      const token = await getToken()
+      const response = await fetch(`/api/admin/events/${eventId}/pricing`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
       if (response.ok) {
         const data = await response.json()
         setEventPricing(data.pricing || null)

@@ -452,7 +452,7 @@ export default function SalveDedicatedPortal() {
       // Refresh the group data to show updated status
       if (groupData) {
         const refreshToken = await getToken()
-        const refreshHeaders = refreshToken ? { 'Authorization': `Bearer ${refreshToken}` } : {}
+        const refreshHeaders: Record<string, string> = refreshToken ? { 'Authorization': `Bearer ${refreshToken}` } : {}
         const refreshResponse = await fetch(
           `/api/admin/events/${eventId}/salve/lookup?groupId=${groupData.id}`,
           { headers: refreshHeaders }
