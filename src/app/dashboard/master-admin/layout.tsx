@@ -61,15 +61,15 @@ export default function MasterAdminLayout({
     if (hasRedirected.current) return
     if (!isLoaded) return
 
-    if (!isSignedIn) {
-      hasRedirected.current = true
-      router.replace('/sign-in')
-      return
-    }
+    // NOTE: We intentionally do NOT check isSignedIn here early!
+    // In production, isSignedIn can be false during hydration even when
+    // the user IS signed in. Checking it too early causes infinite redirect loops.
+    // Instead, we rely on getToken() with retries which properly waits for
+    // the session to be established.
 
     const checkAccess = async () => {
       try {
-        // Get token - may need to wait for it after page reload
+        // Get token - may need to wait for it after page reload or during navigation
         let token = await getToken()
         let attempts = 0
         const maxAttempts = 5
@@ -85,7 +85,7 @@ export default function MasterAdminLayout({
         if (!token) {
           console.log('No token after retries in master-admin layout')
           hasRedirected.current = true
-          router.replace('/dashboard')
+          router.replace('/sign-in')
           return
         }
 
@@ -153,7 +153,7 @@ export default function MasterAdminLayout({
     }
 
     checkAccess()
-  }, [isLoaded, isSignedIn, getToken, router])
+  }, [isLoaded, getToken, router])
 
   if (loading) {
     return (

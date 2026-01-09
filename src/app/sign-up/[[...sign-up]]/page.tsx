@@ -72,6 +72,8 @@ function SignUpContent() {
           <p className="text-[#E8DCC8]">{portalInfo.subtitle}</p>
         </div>
         <SignUp
+          routing="path"
+          path="/sign-up"
           appearance={{
             elements: {
               rootBox: "mx-auto",

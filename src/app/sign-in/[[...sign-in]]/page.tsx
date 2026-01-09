@@ -72,6 +72,8 @@ function SignInContent() {
           <p className="text-[#E8DCC8]">{portalInfo.subtitle}</p>
         </div>
         <SignIn
+          routing="path"
+          path="/sign-in"
           appearance={{
             elements: {
               rootBox: "mx-auto",
