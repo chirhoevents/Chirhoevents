@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth-utils'
+import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    await requireAdmin()
+    const overrideUserId = getClerkUserIdFromHeader(request)
+    const user = await getCurrentUser(overrideUserId)
+    if (!user || !isAdmin(user)) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
+    }
     const { eventId } = await params
     const { searchParams } = new URL(request.url)
 

@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
+    const overrideUserId = getClerkUserIdFromHeader(request)
+    const user = await getCurrentUser(overrideUserId)
 
     if (!user) {
       return NextResponse.json(
