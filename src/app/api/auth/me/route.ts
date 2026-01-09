@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     console.log('[Auth Me] Request received')
 
     // Try to get userId from JWT token first, then fall back to cookie auth
-    let userId: string | null = await getClerkUserIdFromHeader(request)
+    let userId: string | null | undefined = await getClerkUserIdFromHeader(request)
 
     if (!userId) {
       const authResult = await auth()
