@@ -169,11 +169,14 @@ export default function MasterAdminLayout({
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Master Admin Warning Banner */}
-      <div className="fixed top-0 left-0 right-0 z-[60] bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-2">
+      <div
+        className="fixed top-0 left-0 right-0 z-[60] bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-2"
+        style={{ background: 'linear-gradient(to right, #f97316, #f59e0b)', color: 'white' }}
+      >
         <div className="flex items-center justify-center gap-2 text-sm font-medium">
-          <AlertTriangle className="h-4 w-4" />
-          <span>Master Admin Mode - Platform-Wide Access</span>
-          <AlertTriangle className="h-4 w-4" />
+          <AlertTriangle className="h-4 w-4" style={{ color: 'white' }} />
+          <span style={{ color: 'white' }}>Master Admin Mode - Platform-Wide Access</span>
+          <AlertTriangle className="h-4 w-4" style={{ color: 'white' }} />
         </div>
       </div>
 
