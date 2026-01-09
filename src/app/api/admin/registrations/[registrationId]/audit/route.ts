@@ -55,7 +55,8 @@ export async function GET(
       )
     }
 
-    if (!canAccessOrganization(user, registration.organizationId)) {
+    // Cast user to any since Prisma types differ slightly from AuthUser
+    if (!canAccessOrganization(user as any, registration.organizationId)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

@@ -74,7 +74,8 @@ export async function GET(
       )
     }
 
-    if (!canAccessOrganization(user, registration.organizationId)) {
+    // Cast user to any since Prisma types differ slightly from AuthUser
+    if (!canAccessOrganization(user as any, registration.organizationId)) {
       console.log('[GET /emails] Organization mismatch:', { regOrg: registration.organizationId, userOrg: organizationId })
       return NextResponse.json(
         { error: 'You do not have permission to access this registration' },
@@ -190,7 +191,8 @@ export async function POST(
       eventId = individualReg.eventId
     }
 
-    if (!canAccessOrganization(user, registration.organizationId)) {
+    // Cast user to any since Prisma types differ slightly from AuthUser
+    if (!canAccessOrganization(user as any, registration.organizationId)) {
       return NextResponse.json(
         { error: 'You do not have permission to access this registration' },
         { status: 403 }
