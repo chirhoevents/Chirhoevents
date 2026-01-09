@@ -49,7 +49,44 @@ export async function GET(
       )
     }
 
-    return NextResponse.json(event)
+    // Fetch payment balances for stats calculation
+    const paymentBalances = await prisma.paymentBalance.findMany({
+      where: { eventId },
+    })
+
+    // Count participants
+    const participantCount = await prisma.participant.count({
+      where: {
+        groupRegistration: { eventId },
+      },
+    })
+
+    // Calculate stats
+    const totalRegistrations = (event._count?.groupRegistrations || 0) + (event._count?.individualRegistrations || 0)
+    const totalParticipants = participantCount + (event._count?.individualRegistrations || 0)
+    const totalRevenue = paymentBalances.reduce(
+      (sum: number, balance: any) => sum + Number(balance.totalAmountDue || 0),
+      0
+    )
+    const totalPaid = paymentBalances.reduce(
+      (sum: number, balance: any) => sum + Number(balance.amountPaid || 0),
+      0
+    )
+
+    return NextResponse.json({
+      event: {
+        ...event,
+        startDate: event.startDate?.toISOString(),
+        endDate: event.endDate?.toISOString(),
+      },
+      stats: {
+        totalRegistrations,
+        totalParticipants,
+        totalRevenue,
+        totalPaid,
+        balance: totalRevenue - totalPaid,
+      },
+    })
   } catch (error) {
     console.error('Error fetching event:', error)
     return NextResponse.json(
