@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -95,6 +96,7 @@ const ORG_TYPES = [
 ]
 
 export default function OrganizationSettingsTab() {
+  const { getToken } = useAuth()
   const [organization, setOrganization] = useState<Organization | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -121,7 +123,10 @@ export default function OrganizationSettingsTab() {
   const fetchOrganization = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch('/api/admin/settings/organization')
+      const token = await getToken()
+      const response = await fetch('/api/admin/settings/organization', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
       if (!response.ok) throw new Error('Failed to fetch organization')
       const data = await response.json()
       setOrganization(data.organization)
@@ -155,9 +160,13 @@ export default function OrganizationSettingsTab() {
     setSuccessMessage(null)
 
     try {
+      const token = await getToken()
       const response = await fetch('/api/admin/settings/organization', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           name: formData.name,
           type: formData.type,

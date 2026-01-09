@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -35,6 +36,7 @@ const DEFAULT_PRIMARY = '#1E3A5F'
 const DEFAULT_SECONDARY = '#9C8466'
 
 export default function BrandingSettingsTab() {
+  const { getToken } = useAuth()
   const [branding, setBranding] = useState<BrandingData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -59,7 +61,10 @@ export default function BrandingSettingsTab() {
   const fetchBranding = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch('/api/admin/settings/branding')
+      const token = await getToken()
+      const response = await fetch('/api/admin/settings/branding', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
       if (!response.ok) throw new Error('Failed to fetch branding settings')
       const data = await response.json()
       setBranding(data.organization)
@@ -95,11 +100,13 @@ export default function BrandingSettingsTab() {
     setError(null)
 
     try {
+      const token = await getToken()
       const formData = new FormData()
       formData.append('file', file)
 
       const response = await fetch('/api/admin/settings/branding/logo', {
         method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
         body: formData,
       })
 
@@ -127,8 +134,10 @@ export default function BrandingSettingsTab() {
     if (!confirm('Are you sure you want to remove the logo?')) return
 
     try {
+      const token = await getToken()
       const response = await fetch('/api/admin/settings/branding/logo', {
         method: 'DELETE',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
 
       if (!response.ok) throw new Error('Failed to delete logo')
@@ -148,9 +157,13 @@ export default function BrandingSettingsTab() {
     setSuccessMessage(null)
 
     try {
+      const token = await getToken()
       const response = await fetch('/api/admin/settings/branding', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           primaryColor,
           secondaryColor,
@@ -178,9 +191,13 @@ export default function BrandingSettingsTab() {
     setSuccessMessage(null)
 
     try {
+      const token = await getToken()
       const response = await fetch('/api/admin/settings/branding', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           modulesEnabled: modules,
         }),
