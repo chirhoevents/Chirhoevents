@@ -412,3 +412,33 @@ export async function verifyPaymentsAccess(
     logPrefix,
   })
 }
+
+/**
+ * Verify forms view access (requires forms.view permission)
+ * Use for viewing liability forms, certificates, etc.
+ */
+export async function verifyFormsViewAccess(
+  request: NextRequest,
+  eventId: string,
+  logPrefix: string = '[Forms View]'
+): Promise<VerifyEventAccessResult> {
+  return verifyEventAccessWithPermission(request, eventId, 'forms.view', {
+    friendlyName: 'Forms viewing',
+    logPrefix,
+  })
+}
+
+/**
+ * Verify forms edit access (requires forms.edit permission)
+ * Use for approving/denying liability forms, verifying certificates, etc.
+ */
+export async function verifyFormsEditAccess(
+  request: NextRequest,
+  eventId: string,
+  logPrefix: string = '[Forms Edit]'
+): Promise<VerifyEventAccessResult> {
+  return verifyEventAccessWithPermission(request, eventId, 'forms.edit', {
+    friendlyName: 'Forms editing',
+    logPrefix,
+  })
+}

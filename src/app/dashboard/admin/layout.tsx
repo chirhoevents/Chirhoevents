@@ -19,6 +19,7 @@ import {
   LogOut,
   CreditCard,
   HelpCircle,
+  FileText,
   LucideIcon
 } from 'lucide-react'
 import { hasPermission, getRoleName, type Permission, type UserRole } from '@/lib/permissions'
@@ -57,6 +58,7 @@ const allNavigation: NavItem[] = [
   { name: 'Poros Portal', href: '/dashboard/admin/poros', icon: Home, permission: 'portals.poros.view', module: 'poros' },
   { name: 'SALVE Check-In', href: '/dashboard/admin/salve', icon: CheckSquare, permission: 'portals.salve.view', module: 'salve' },
   { name: 'Rapha Medical', href: '/dashboard/admin/rapha', icon: Activity, permission: 'portals.rapha.view', module: 'rapha' },
+  { name: 'Liability Forms', href: '/dashboard/admin/liability-forms', icon: FileText, permission: 'forms.view' },
   { name: 'Reports', href: '/dashboard/admin/reports', icon: BarChart3, permission: 'reports.view' },
   { name: 'Support', href: '/dashboard/admin/support', icon: HelpCircle },
   { name: 'Settings', href: '/dashboard/admin/settings', icon: Settings, permission: 'settings.view' },
