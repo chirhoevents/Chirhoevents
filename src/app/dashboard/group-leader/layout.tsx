@@ -68,11 +68,11 @@ function GroupLeaderLayoutContent({
     if (hasRedirected.current) return
     if (!isLoaded) return
 
-    if (!isSignedIn) {
-      hasRedirected.current = true
-      router.replace('/sign-in')
-      return
-    }
+    // NOTE: We intentionally do NOT check isSignedIn here early!
+    // In production, isSignedIn can be false during hydration even when
+    // the user IS signed in. Checking it too early causes infinite redirect loops.
+    // Instead, we rely on getToken() with retries which properly waits for
+    // the session to be established.
 
     const checkAccess = async () => {
       try {
@@ -91,7 +91,9 @@ function GroupLeaderLayoutContent({
 
         if (!token) {
           console.log('No token after retries in group-leader layout')
-          // Still proceed with the request - the API will handle unauthorized
+          hasRedirected.current = true
+          router.replace('/sign-in')
+          return
         }
 
         const response = await fetch('/api/group-leader/settings', {
@@ -170,7 +172,7 @@ function GroupLeaderLayoutContent({
     }
 
     checkAccess()
-  }, [isLoaded, isSignedIn, getToken, router])
+  }, [isLoaded, getToken, router])
 
   // Update groupInfo when currentEvent changes
   useEffect(() => {

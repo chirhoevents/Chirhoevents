@@ -159,7 +159,9 @@ export default function OrganizationsPage() {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
       if (response.ok) {
-        router.push('/dashboard/admin')
+        // Use full page reload so browser sends the new impersonation cookies
+        // router.push() is client-side and won't pick up new cookies properly
+        window.location.href = '/dashboard/admin'
       }
     } catch (error) {
       console.error('Failed to impersonate:', error)

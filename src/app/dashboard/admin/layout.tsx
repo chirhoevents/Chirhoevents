@@ -174,7 +174,7 @@ export default function AdminLayout({
     }
 
     checkAccess()
-  }, [isLoaded, isSignedIn, getToken, router])
+  }, [isLoaded, getToken, router])
 
   // Filter navigation based on user permissions and enabled modules
   const navigation = useMemo(() => {
