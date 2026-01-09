@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
@@ -27,10 +28,11 @@ interface Event {
 }
 
 interface AllReportsClientProps {
-  organizationId: string
+  organizationId?: string  // Optional - API gets from auth context
 }
 
-export default function AllReportsClient({ organizationId }: AllReportsClientProps) {
+export default function AllReportsClient({ organizationId: _organizationId }: AllReportsClientProps = {}) {
+  const { getToken } = useAuth()
   const { canViewFinancial } = usePermissions()
   const canViewFinancialReports = canViewFinancial()
 
@@ -47,7 +49,10 @@ export default function AllReportsClient({ organizationId }: AllReportsClientPro
 
   const fetchEvents = async () => {
     try {
-      const response = await fetch('/api/admin/events?status=all')
+      const token = await getToken()
+      const response = await fetch('/api/admin/events?status=all', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
       if (response.ok) {
         const data = await response.json()
         // Handle both array and object response formats
@@ -72,8 +77,10 @@ export default function AllReportsClient({ organizationId }: AllReportsClientPro
 
     setIsExporting(true)
     try {
+      const token = await getToken()
       const response = await fetch(`/api/admin/events/${selectedEventId}/reports/export-all`, {
         method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
 
       if (!response.ok) {

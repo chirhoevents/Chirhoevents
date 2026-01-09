@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Users, User, DollarSign, FileText } from 'lucide-react'
 import AllRegistrationsFilters, {
@@ -42,6 +43,8 @@ interface Pagination {
 }
 
 export default function AllRegistrationsClient() {
+  // Auth hook for API calls
+  const { getToken } = useAuth()
   // Permission checks
   const { can, canViewPayments } = usePermissions()
   const canViewPaymentInfo = canViewPayments()
@@ -111,7 +114,10 @@ export default function AllRegistrationsClient() {
       params.set('page', String(page))
       params.set('limit', '50')
 
-      const response = await fetch(`/api/admin/registrations?${params}`)
+      const token = await getToken()
+      const response = await fetch(`/api/admin/registrations?${params}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
       if (!response.ok) throw new Error('Failed to fetch registrations')
 
       const data = await response.json()
@@ -124,7 +130,7 @@ export default function AllRegistrationsClient() {
     } finally {
       setIsLoading(false)
     }
-  }, [selectedEventId, registrationType, paymentFilter, formsFilter, housingFilter, debouncedSearch])
+  }, [selectedEventId, registrationType, paymentFilter, formsFilter, housingFilter, debouncedSearch, getToken])
 
   useEffect(() => {
     fetchRegistrations(1)
@@ -156,9 +162,13 @@ export default function AllRegistrationsClient() {
       if (housingFilter !== 'all') body.housingType = housingFilter
       if (debouncedSearch) body.search = debouncedSearch
 
+      const token = await getToken()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) headers['Authorization'] = `Bearer ${token}`
+
       const response = await fetch('/api/admin/registrations/export', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(body),
       })
 
@@ -186,9 +196,13 @@ export default function AllRegistrationsClient() {
 
     setIsExporting(true)
     try {
+      const token = await getToken()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) headers['Authorization'] = `Bearer ${token}`
+
       const response = await fetch('/api/admin/registrations/export', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           registrationIds: Array.from(selectedIds),
         }),

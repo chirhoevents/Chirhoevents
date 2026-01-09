@@ -1,13 +1,10 @@
-import { requireAdmin } from '@/lib/auth-utils'
-import { getEffectiveOrgId, getImpersonationDetails } from '@/lib/get-effective-org'
+'use client'
+
 import AllReportsClient from './AllReportsClient'
 
-export default async function AllReportsPage() {
-  const user = await requireAdmin()
-  const organizationId = await getEffectiveOrgId(user)
-  const impersonation = await getImpersonationDetails(user)
-  const orgName = impersonation.isImpersonating ? impersonation.impersonatedOrgName : user.organization.name
-
+// NOTE: Auth is handled by the layout with proper retry logic.
+// We don't call requireAdmin() here to avoid server-side redirect loops.
+export default function AllReportsPage() {
   return (
     <div className="space-y-6">
       <div>
@@ -19,7 +16,7 @@ export default async function AllReportsPage() {
         </p>
       </div>
 
-      <AllReportsClient organizationId={organizationId} />
+      <AllReportsClient />
     </div>
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useUser } from '@clerk/nextjs'
+import { useUser, useAuth } from '@clerk/nextjs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -60,6 +60,7 @@ interface DashboardData {
 
 export default function DashboardClient() {
   const { user } = useUser()
+  const { getToken } = useAuth()
   const userName = user?.firstName || 'there'
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -73,7 +74,10 @@ export default function DashboardClient() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/admin/dashboard')
+      const token = await getToken()
+      const response = await fetch('/api/admin/dashboard', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
 
       if (!response.ok) {
         throw new Error('Failed to fetch dashboard data')
