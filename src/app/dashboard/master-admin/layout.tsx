@@ -188,14 +188,14 @@ export default function MasterAdminLayout({
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-purple-900 to-purple-800 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-purple-950 to-purple-900 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         style={{ top: '40px' }}
       >
         <div className="flex flex-col h-[calc(100vh-40px)]">
           {/* Logo */}
-          <div className="flex items-center justify-between h-20 lg:h-24 px-6 border-b border-purple-700">
+          <div className="flex items-center justify-between h-20 lg:h-24 px-6 border-b border-purple-800">
             <Link href="/dashboard/master-admin" className="flex items-center">
               <div className="flex items-center gap-2">
                 <Shield className="h-8 w-8 text-cyan-400" />
@@ -215,8 +215,8 @@ export default function MasterAdminLayout({
 
           {/* User Info */}
           {userInfo && (
-            <div className="px-6 py-4 border-b border-purple-700">
-              <p className="text-xs text-purple-200 mb-1">Logged in as</p>
+            <div className="px-6 py-4 border-b border-purple-800">
+              <p className="text-xs text-gray-300 mb-1">Logged in as</p>
               <p className="text-sm font-medium text-white truncate">
                 {userInfo.userName}
               </p>
@@ -235,7 +235,7 @@ export default function MasterAdminLayout({
               <Link
                 key={item.name}
                 href={item.href}
-                className="flex items-center px-4 py-3 text-white hover:bg-purple-700/50 rounded-lg transition-colors group"
+                className="flex items-center px-4 py-3 text-white hover:bg-purple-800/50 rounded-lg transition-colors group"
                 onClick={() => setSidebarOpen(false)}
               >
                 <item.icon className="h-5 w-5 mr-3 text-cyan-400" />
@@ -245,14 +245,14 @@ export default function MasterAdminLayout({
           </nav>
 
           {/* User info */}
-          <div className="px-6 py-4 border-t border-purple-700">
+          <div className="px-6 py-4 border-t border-purple-800">
             <div className="flex items-center space-x-3">
               <UserButton afterSignOutUrl="/" />
               <div className="flex-1">
                 <p className="text-sm font-medium text-white">Account</p>
                 <button
                   onClick={() => signOut()}
-                  className="text-xs text-purple-200 hover:text-white cursor-pointer flex items-center gap-1"
+                  className="text-xs text-gray-300 hover:text-white cursor-pointer flex items-center gap-1"
                 >
                   <LogOut className="h-3 w-3" />
                   Sign out
