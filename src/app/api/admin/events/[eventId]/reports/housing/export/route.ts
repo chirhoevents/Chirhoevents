@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { verifyPorosAccess } from '@/lib/api-auth'
 import { generateHousingCSV } from '@/lib/reports/generate-csv'
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ eventId: string }> }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ eventId: string }> }
+) {
   try {
     const { eventId } = await params
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    // Verify Poros access (requires poros.access permission for housing reports)
+    const { error, user, event, effectiveOrgId } = await verifyPorosAccess(
+      request,
+      eventId,
+      '[Housing Export]'
+    )
+    if (error) return error
 
     const { format } = await request.json()
     const reportResponse = await fetch(

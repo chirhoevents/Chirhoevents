@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyEventAccess } from '@/lib/api-auth'
+import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
-import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 
 export async function GET(
   request: NextRequest,
@@ -8,9 +9,17 @@ export async function GET(
 ) {
   try {
     const { eventId } = await params
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[Poros Buildings Export]',
+    })
+    if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[Poros Buildings Export] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
     }
 
     const buildings = await prisma.building.findMany({

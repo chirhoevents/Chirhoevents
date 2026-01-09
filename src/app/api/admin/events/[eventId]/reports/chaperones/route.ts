@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils'
-import { getEffectiveOrgId } from '@/lib/get-effective-org'
+import { verifyReportAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 
 interface ChaperoneInfo {
@@ -15,24 +14,15 @@ export async function GET(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const user = await getCurrentUser()
-
-    if (!user || !isAdmin(user)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-    }
-
     const { eventId } = await params
-    const organizationId = await getEffectiveOrgId(user)
 
-    // Verify event belongs to user's organization (or impersonated org)
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
-      select: { id: true, name: true, organizationId: true },
-    })
-
-    if (!event || !canAccessOrganization(user, event.organizationId)) {
-      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-    }
+    // Verify report access (requires reports.view permission)
+    const { error, user, event, effectiveOrgId } = await verifyReportAccess(
+      request,
+      eventId,
+      '[Chaperone Report]'
+    )
+    if (error) return error
 
     // Get URL params for filters
     const { searchParams } = new URL(request.url)
@@ -136,7 +126,7 @@ export async function GET(
     })
 
     return NextResponse.json({
-      eventName: event.name,
+      eventName: event!.name,
       youth: {
         male: maleYouth,
         female: femaleYouth,

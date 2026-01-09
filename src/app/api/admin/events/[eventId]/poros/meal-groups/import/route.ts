@@ -1,4 +1,5 @@
 import { verifyEventAccess } from '@/lib/api-auth'
+import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -13,6 +14,13 @@ export async function POST(
       logPrefix: '[POST /api/admin/events/[eventId]/poros/meal-groups/import]',
     })
     if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[Meal Groups Import] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
+    }
 
     // Get form data with file
     const formData = await request.formData()

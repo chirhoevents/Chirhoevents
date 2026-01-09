@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyEventAccess } from '@/lib/api-auth'
+import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 
 interface GroupRegistrationRecord {
@@ -35,6 +36,13 @@ export async function GET(
       logPrefix: '[Meal Group Registrations GET]',
     })
     if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[Meal Group Registrations GET] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
+    }
 
     // Get group registrations
     const groupRegs = await prisma.groupRegistration.findMany({

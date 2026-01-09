@@ -1,44 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
-import { getEffectiveOrgId } from '@/lib/get-effective-org'
+import { verifyReportAccess } from '@/lib/api-auth'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { eventId } = await params
+
+    // Verify report access (requires reports.view permission)
+    const { error, user, event, effectiveOrgId } = await verifyReportAccess(
+      request,
+      eventId,
+      '[Roster Report]'
+    )
+    if (error) return error
+
     const body = await request.json()
     const { filters = {} } = body
-
-    // Verify user has access
-    const user = await prisma.user.findFirst({
-      where: { clerkUserId: userId },
-      include: { organization: true },
-    })
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const organizationId = await getEffectiveOrgId(user as any)
-
-    const event = await prisma.event.findFirst({
-      where: {
-        id: eventId,
-        organizationId: organizationId,
-      },
-    })
-
-    if (!event) {
-      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-    }
 
     // Build query filters
     const participantWhere: any = {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { verifyReportAccess } from '@/lib/api-auth'
 import { generateCSV } from '@/lib/reports/generate-csv'
 
 export async function POST(
@@ -8,10 +8,16 @@ export async function POST(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
     const { eventId } = await params
+
+    // Verify report access (requires reports.view permission)
+    const { error, user, event, effectiveOrgId } = await verifyReportAccess(
+      request,
+      eventId,
+      '[Export All]'
+    )
+    if (error) return error
+
     const eventFilter = eventId === 'all' ? {} : { eventId }
 
     // Fetch all registrations and participants

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyEventAccess } from '@/lib/api-auth'
+import { hasPermission } from '@/lib/permissions'
 
 // GET - Fetch all Poros statistics for the dashboard
 export async function GET(
@@ -18,6 +19,13 @@ export async function GET(
 
     if (error) {
       return error
+    }
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[Poros Stats] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
     }
 
     console.log('[Poros Stats] ✅ Access verified for event:', event?.name)

@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { verifyRaphaAccess } from '@/lib/api-auth'
 import { generateMedicalCSV } from '@/lib/reports/generate-csv'
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ eventId: string }> }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ eventId: string }> }
+) {
   try {
     const { eventId } = await params
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    // Verify Rapha access (requires rapha.access permission for medical reports)
+    const { error, user, event, effectiveOrgId } = await verifyRaphaAccess(
+      request,
+      eventId,
+      '[Medical Export]'
+    )
+    if (error) return error
 
     const { format } = await request.json()
     const reportResponse = await fetch(

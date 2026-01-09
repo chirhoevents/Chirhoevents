@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyEventAccess } from '@/lib/api-auth'
+import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
-import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 
 // GET - Get a single resource
 export async function GET(
@@ -9,9 +10,17 @@ export async function GET(
 ) {
   try {
     const { eventId, resourceId } = await params
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[GET Poros Resource]',
+    })
+    if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[GET Poros Resource] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
     }
 
     const resource = await prisma.porosResource.findUnique({
@@ -35,10 +44,18 @@ export async function PUT(
   { params }: { params: Promise<{ eventId: string; resourceId: string }> }
 ) {
   try {
-    const { resourceId } = await params
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { eventId, resourceId } = await params
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[PUT Poros Resource]',
+    })
+    if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[PUT Poros Resource] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
     }
 
     const body = await request.json()
@@ -68,10 +85,18 @@ export async function DELETE(
   { params }: { params: Promise<{ eventId: string; resourceId: string }> }
 ) {
   try {
-    const { resourceId } = await params
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { eventId, resourceId } = await params
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[DELETE Poros Resource]',
+    })
+    if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[DELETE Poros Resource] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
     }
 
     await prisma.porosResource.delete({

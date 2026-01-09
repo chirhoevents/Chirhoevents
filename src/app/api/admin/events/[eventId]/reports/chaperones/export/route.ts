@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils'
-import { getEffectiveOrgId } from '@/lib/get-effective-org'
+import { verifyReportAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 
 export async function POST(
@@ -8,26 +7,18 @@ export async function POST(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const user = await getCurrentUser()
-
-    if (!user || !isAdmin(user)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-    }
-
     const { eventId } = await params
-    const organizationId = await getEffectiveOrgId(user)
+
+    // Verify report access (requires reports.view permission)
+    const { error, user, event, effectiveOrgId } = await verifyReportAccess(
+      request,
+      eventId,
+      '[Chaperone Export]'
+    )
+    if (error) return error
+
     const body = await request.json()
     const { format } = body
-
-    // Verify event belongs to user's organization (or impersonated org)
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
-      select: { id: true, name: true, organizationId: true },
-    })
-
-    if (!event || !canAccessOrganization(user, event.organizationId)) {
-      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-    }
 
     // Get all liability forms for this event
     const liabilityForms = await prisma.liabilityForm.findMany({
@@ -83,7 +74,7 @@ export async function POST(
     if (format === 'csv') {
       // Generate CSV
       const lines: string[] = []
-      lines.push(`CHAPERONE SUMMARY REPORT - ${event.name}`)
+      lines.push(`CHAPERONE SUMMARY REPORT - ${event!.name}`)
       lines.push(`Generated: ${new Date().toLocaleString()}`)
       lines.push('')
       lines.push('YOUTH BREAKDOWN')
@@ -121,7 +112,7 @@ export async function POST(
       return new NextResponse(csv, {
         headers: {
           'Content-Type': 'text/csv',
-          'Content-Disposition': `attachment; filename="chaperone_report_${event.name.replace(/\s+/g, '_')}.csv"`,
+          'Content-Disposition': `attachment; filename="chaperone_report_${event!.name.replace(/\s+/g, '_')}.csv"`,
         },
       })
     } else if (format === 'pdf') {
@@ -136,7 +127,7 @@ export async function POST(
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Chaperone Summary Report - ${event.name}</title>
+  <title>Chaperone Summary Report - ${event!.name}</title>
   <style>
     body { font-family: Arial, sans-serif; padding: 40px; color: #1E3A5F; }
     h1 { color: #1E3A5F; border-bottom: 2px solid #9C8466; padding-bottom: 10px; }
@@ -155,7 +146,7 @@ export async function POST(
 </head>
 <body>
   <h1>CHAPERONE SUMMARY REPORT</h1>
-  <p><strong>${event.name}</strong></p>
+  <p><strong>${event!.name}</strong></p>
   <p>Generated: ${new Date().toLocaleString()}</p>
 
   <div class="summary-box">
@@ -220,7 +211,7 @@ export async function POST(
       return new NextResponse(html, {
         headers: {
           'Content-Type': 'text/html',
-          'Content-Disposition': `attachment; filename="chaperone_report_${event.name.replace(/\s+/g, '_')}.html"`,
+          'Content-Disposition': `attachment; filename="chaperone_report_${event!.name.replace(/\s+/g, '_')}.html"`,
         },
       })
     }

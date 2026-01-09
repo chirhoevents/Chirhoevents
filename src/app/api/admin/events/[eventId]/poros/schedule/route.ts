@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyEventAccess } from '@/lib/api-auth'
+import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
-import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 
 // GET - List all schedule entries for an event
 export async function GET(
@@ -9,9 +10,17 @@ export async function GET(
 ) {
   try {
     const { eventId } = await params
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[GET Poros Schedule]',
+    })
+    if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[GET Poros Schedule] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
     }
 
     let schedule: any[] = []
@@ -48,9 +57,17 @@ export async function POST(
 ) {
   try {
     const { eventId } = await params
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[POST Poros Schedule]',
+    })
+    if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[POST Poros Schedule] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
     }
 
     const body = await request.json()
@@ -97,9 +114,17 @@ export async function PUT(
 ) {
   try {
     const { eventId } = await params
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[PUT Poros Schedule]',
+    })
+    if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[PUT Poros Schedule] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
     }
 
     const body = await request.json()
@@ -171,9 +196,17 @@ export async function DELETE(
 ) {
   try {
     const { eventId } = await params
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[DELETE Poros Schedule]',
+    })
+    if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[DELETE Poros Schedule] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
     }
 
     await prisma.porosScheduleEntry.deleteMany({

@@ -1,41 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
+import { getCurrentUser } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { generateParticipantQRCode } from '@/lib/qr-code'
+import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+import { hasPermission } from '@/lib/permissions'
 
 // Helper function to check if user can access Salve portal
-async function requireSalveAccess(eventId: string) {
-  const user = await getCurrentUser()
+async function requireSalveAccess(request: NextRequest, eventId: string) {
+  const overrideUserId = getClerkUserIdFromHeader(request)
+  const user = await getCurrentUser(overrideUserId)
 
   if (!user) {
     throw new Error('Unauthorized')
   }
 
-  // Admins always have access
-  if (isAdmin(user)) {
-    return user
+  // Check if user has salve.access permission (covers salve_coordinator, event_manager, org_admin, master_admin)
+  // Also check custom permissions for salve_user role or explicit portal access
+  const hasSalvePermission = hasPermission(user.role, 'salve.access')
+  const hasCustomSalveAccess = user.permissions?.['salve.access'] === true ||
+    user.permissions?.['portals.salve.view'] === true
+
+  if (!hasSalvePermission && !hasCustomSalveAccess) {
+    console.error(`[SALVE] ❌ User ${user.email} (role: ${user.role}) lacks salve.access permission`)
+    throw new Error('Access denied - SALVE portal access required')
   }
 
-  // Check for Salve-specific roles
-  const portalRoles = ['salve_user', 'salve_coordinator', 'portals.salve.view']
-  const hasPortalRole = user.permissions
-    ? portalRoles.some(role => user.permissions?.[role] === true)
-    : false
+  // Verify the event belongs to the user's organization (unless master_admin)
+  if (user.role !== 'master_admin') {
+    const event = await prisma.event.findFirst({
+      where: {
+        id: eventId,
+        organizationId: user.organizationId,
+      },
+    })
 
-  if (!hasPortalRole) {
-    throw new Error('Access denied')
-  }
-
-  // Verify the event belongs to the user's organization
-  const event = await prisma.event.findFirst({
-    where: {
-      id: eventId,
-      organizationId: user.organizationId,
-    },
-  })
-
-  if (!event) {
-    throw new Error('Access denied to this event')
+    if (!event) {
+      throw new Error('Access denied to this event')
+    }
   }
 
   return user
@@ -47,7 +48,7 @@ export async function POST(
 ) {
   try {
     const { eventId } = await params
-    await requireSalveAccess(eventId)
+    await requireSalveAccess(request, eventId)
     const body = await request.json()
 
     const { participantIds, groupId, templateId } = body

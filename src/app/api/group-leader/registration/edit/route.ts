@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
+import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
 export async function PUT(request: NextRequest) {
   try {
+    // SECURITY: Authenticate the user
+    const userId = await getClerkUserIdFromRequest(request)
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Please sign in to edit your registration' },
+        { status: 401 }
+      )
+    }
+
     const body = await request.json()
 
     const {
@@ -43,9 +53,14 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // TODO: Add authentication check here to verify the user owns this registration
-    // For now, we'll trust the registrationId provided
-    // In production, you should verify the user's access code or session
+    // SECURITY: Verify the user owns this registration
+    if (existingRegistration.clerkUserId !== userId) {
+      console.error(`[Registration Edit] ❌ User ${userId} attempted to edit registration ${registrationId} owned by ${existingRegistration.clerkUserId}`)
+      return NextResponse.json(
+        { error: 'Forbidden - You do not have permission to edit this registration' },
+        { status: 403 }
+      )
+    }
 
     // Store old values for change tracking
     const oldValues = {

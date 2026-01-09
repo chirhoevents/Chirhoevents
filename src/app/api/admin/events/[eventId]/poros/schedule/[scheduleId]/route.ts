@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyEventAccess } from '@/lib/api-auth'
+import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
-import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 
 // PUT - Update a schedule entry
 export async function PUT(
@@ -8,12 +9,20 @@ export async function PUT(
   { params }: { params: Promise<{ eventId: string; scheduleId: string }> }
 ) {
   try {
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { eventId, scheduleId } = await params
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[PUT Poros Schedule Entry]',
+    })
+    if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[PUT Poros Schedule Entry] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
     }
 
-    const { scheduleId } = await Promise.resolve(params)
     const body = await request.json()
     const { day, startTime, endTime, title, location } = body
 
@@ -41,12 +50,19 @@ export async function DELETE(
   { params }: { params: Promise<{ eventId: string; scheduleId: string }> }
 ) {
   try {
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { eventId, scheduleId } = await params
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[DELETE Poros Schedule Entry]',
+    })
+    if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[DELETE Poros Schedule Entry] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
     }
-
-    const { scheduleId } = await Promise.resolve(params)
 
     await prisma.porosScheduleEntry.delete({
       where: { id: scheduleId },

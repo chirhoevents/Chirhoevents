@@ -1,18 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { verifyReportAccess } from '@/lib/api-auth'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { eventId } = await params
+
+    // Verify report access (requires reports.view permission)
+    const { error, user, event, effectiveOrgId } = await verifyReportAccess(
+      request,
+      eventId,
+      '[Registration Report]'
+    )
+    if (error) return error
+
     const isPreview = request.nextUrl.searchParams.get('preview') === 'true'
     const eventFilter = eventId === 'all' ? {} : { eventId }
 
