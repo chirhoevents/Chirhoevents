@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -93,6 +94,7 @@ type CheckInStatus = 'idle' | 'scanning' | 'loading' | 'found' | 'not_found' | '
 export default function SalveDedicatedPortal() {
   const params = useParams()
   const router = useRouter()
+  const { getToken } = useAuth()
   const eventId = params.eventId as string
 
   const [status, setStatus] = useState<CheckInStatus>('idle')
@@ -125,15 +127,17 @@ export default function SalveDedicatedPortal() {
   async function checkAuthAndFetchData() {
     try {
       setAuthChecking(true)
+      const token = await getToken()
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
 
       // Check authorization - user must be admin, salve_user, or salve_coordinator
-      const authResponse = await fetch('/api/admin/check-access')
+      const authResponse = await fetch('/api/admin/check-access', { headers })
       if (authResponse.ok) {
         setIsAdmin(true)
         setIsAuthorized(true)
       } else {
         // Check if they have salve-specific role
-        const salveAuthResponse = await fetch(`/api/portal/salve/check-access?eventId=${eventId}`)
+        const salveAuthResponse = await fetch(`/api/portal/salve/check-access?eventId=${eventId}`, { headers })
         if (salveAuthResponse.ok) {
           const salveData = await salveAuthResponse.json()
           setIsAuthorized(true)
@@ -162,7 +166,9 @@ export default function SalveDedicatedPortal() {
 
   async function fetchEventInfo() {
     try {
-      const response = await fetch(`/api/admin/events/${eventId}`)
+      const token = await getToken()
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
+      const response = await fetch(`/api/admin/events/${eventId}`, { headers })
       if (response.ok) {
         const data = await response.json()
         setEventName(data.name || 'Event')
@@ -178,7 +184,9 @@ export default function SalveDedicatedPortal() {
 
   async function fetchStats() {
     try {
-      const response = await fetch(`/api/admin/events/${eventId}/salve/stats`)
+      const token = await getToken()
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
+      const response = await fetch(`/api/admin/events/${eventId}/salve/stats`, { headers })
       if (response.ok) {
         const data = await response.json()
         setStats(data)
@@ -198,6 +206,8 @@ export default function SalveDedicatedPortal() {
     setGroupData(null)
 
     try {
+      const token = await getToken()
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
       const query = searchQuery.trim()
 
       // Always search by name first, unless it looks like a specific access code format
@@ -206,7 +216,7 @@ export default function SalveDedicatedPortal() {
 
       // First try search (allows partial name matching)
       const searchUrl = `/api/admin/events/${eventId}/salve/lookup?search=${encodeURIComponent(query)}`
-      const response = await fetch(searchUrl)
+      const response = await fetch(searchUrl, { headers })
 
       if (response.ok) {
         const data = await response.json()
@@ -217,7 +227,7 @@ export default function SalveDedicatedPortal() {
             // If no results and looks like access code, try access code lookup
             if (looksLikeAccessCode) {
               const accessCodeUrl = `/api/admin/events/${eventId}/salve/lookup?accessCode=${encodeURIComponent(query)}`
-              const accessCodeResponse = await fetch(accessCodeUrl)
+              const accessCodeResponse = await fetch(accessCodeUrl, { headers })
               if (accessCodeResponse.ok) {
                 const accessCodeData = await accessCodeResponse.json()
                 if (accessCodeData.id) {
@@ -274,8 +284,11 @@ export default function SalveDedicatedPortal() {
     setSearchQuery(accessCode)
 
     try {
+      const token = await getToken()
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
       const response = await fetch(
-        `/api/admin/events/${eventId}/salve/lookup?accessCode=${encodeURIComponent(accessCode)}`
+        `/api/admin/events/${eventId}/salve/lookup?accessCode=${encodeURIComponent(accessCode)}`,
+        { headers }
       )
 
       if (response.ok) {
@@ -352,12 +365,16 @@ export default function SalveDedicatedPortal() {
     setCheckingIn(true)
 
     try {
+      const token = await getToken()
       // Check if this is an individual registration
       const isIndividual = (groupData as any).type === 'individual'
 
       const response = await fetch(`/api/admin/events/${eventId}/salve/check-in`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           groupRegistrationId: isIndividual ? undefined : groupData.id,
           participantIds: Array.from(selectedParticipants),
@@ -405,11 +422,15 @@ export default function SalveDedicatedPortal() {
 
     setUndoingCheckIn(true)
     try {
+      const token = await getToken()
       const isIndividual = (groupData as any).type === 'individual'
 
       const response = await fetch(`/api/admin/events/${eventId}/salve/check-in`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           groupRegistrationId: isIndividual ? undefined : groupData.id,
           participantIds: checkedInParticipantIds,
@@ -430,8 +451,11 @@ export default function SalveDedicatedPortal() {
       fetchStats()
       // Refresh the group data to show updated status
       if (groupData) {
+        const refreshToken = await getToken()
+        const refreshHeaders = refreshToken ? { 'Authorization': `Bearer ${refreshToken}` } : {}
         const refreshResponse = await fetch(
-          `/api/admin/events/${eventId}/salve/lookup?groupId=${groupData.id}`
+          `/api/admin/events/${eventId}/salve/lookup?groupId=${groupData.id}`,
+          { headers: refreshHeaders }
         )
         if (refreshResponse.ok) {
           const refreshedData = await refreshResponse.json()
@@ -461,11 +485,15 @@ export default function SalveDedicatedPortal() {
 
     setPrintingNameTags(true)
     try {
+      const token = await getToken()
       const isIndividual = (groupData as any).type === 'individual'
 
       const response = await fetch(`/api/admin/events/${eventId}/salve/generate-name-tags`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           participantIds: isIndividual ? undefined : checkedInParticipantIds,
           groupId: isIndividual ? undefined : groupData.id,
@@ -910,11 +938,15 @@ export default function SalveDedicatedPortal() {
 
     setPrintingPacket(true)
     try {
+      const token = await getToken()
       const isIndividual = (groupData as any).type === 'individual'
 
       const response = await fetch(`/api/admin/events/${eventId}/salve/generate-packet`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           groupId: isIndividual ? undefined : groupData.id,
           registrationId: isIndividual ? groupData.id : undefined,

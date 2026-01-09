@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -56,6 +57,7 @@ interface Stats {
 export default function SalveAllParticipants() {
   const params = useParams()
   const router = useRouter()
+  const { getToken } = useAuth()
   const eventId = params.eventId as string
 
   const [loading, setLoading] = useState(true)
@@ -83,12 +85,14 @@ export default function SalveAllParticipants() {
   async function checkAuthAndFetchData() {
     try {
       setAuthChecking(true)
+      const token = await getToken()
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
 
-      const authResponse = await fetch('/api/admin/check-access')
+      const authResponse = await fetch('/api/admin/check-access', { headers })
       if (authResponse.ok) {
         setIsAuthorized(true)
       } else {
-        const salveAuthResponse = await fetch(`/api/portal/salve/check-access?eventId=${eventId}`)
+        const salveAuthResponse = await fetch(`/api/portal/salve/check-access?eventId=${eventId}`, { headers })
         if (salveAuthResponse.ok) {
           setIsAuthorized(true)
         } else {
@@ -103,7 +107,7 @@ export default function SalveAllParticipants() {
       setAuthChecking(false)
 
       // Fetch event info
-      const eventResponse = await fetch(`/api/admin/events/${eventId}`)
+      const eventResponse = await fetch(`/api/admin/events/${eventId}`, { headers })
       if (eventResponse.ok) {
         const data = await eventResponse.json()
         setEventName(data.name || 'Event')
@@ -121,11 +125,13 @@ export default function SalveAllParticipants() {
   async function fetchParticipants() {
     try {
       setLoading(true)
+      const token = await getToken()
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
       const params = new URLSearchParams()
       if (searchQuery) params.set('search', searchQuery)
       if (filterStatus !== 'all') params.set('status', filterStatus)
 
-      const response = await fetch(`/api/admin/events/${eventId}/salve/participants?${params}`)
+      const response = await fetch(`/api/admin/events/${eventId}/salve/participants?${params}`, { headers })
       if (response.ok) {
         const data = await response.json()
         setParticipants(data.participants)
@@ -144,9 +150,13 @@ export default function SalveAllParticipants() {
   async function handleQuickCheckIn(participant: Participant) {
     setCheckingIn(participant.id)
     try {
+      const token = await getToken()
       const response = await fetch(`/api/admin/events/${eventId}/salve/check-in`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           participantIds: [participant.id],
           registrationType: participant.registrationType,
