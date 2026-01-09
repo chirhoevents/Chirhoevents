@@ -1,8 +1,8 @@
-import { requireAdmin } from '@/lib/auth-utils'
+'use client'
+
 import AllRegistrationsClient from './AllRegistrationsClient'
 
-export default async function RegistrationsPage() {
-  await requireAdmin()
-
+// NOTE: Auth is handled by the layout with proper retry logic.
+export default function RegistrationsPage() {
   return <AllRegistrationsClient />
 }

@@ -1,8 +1,8 @@
-import { requireAdmin } from '@/lib/auth-utils'
+'use client'
+
 import SettingsClient from './SettingsClient'
 
-export default async function SettingsPage() {
-  const user = await requireAdmin()
-
-  return <SettingsClient organizationName={user.organization.name} />
+// NOTE: Auth is handled by the layout with proper retry logic.
+export default function SettingsPage() {
+  return <SettingsClient />
 }
