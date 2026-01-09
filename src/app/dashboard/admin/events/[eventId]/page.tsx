@@ -1,128 +1,149 @@
-import { requireAdmin } from '@/lib/auth-utils'
-import { prisma } from '@/lib/prisma'
-import { notFound } from 'next/navigation'
-import { getEffectiveOrgId } from '@/lib/get-effective-org'
-import EventDetailClient from './EventDetailClient'
+'use client'
 
-interface PageProps {
-  params: Promise<{
-    eventId: string
-  }>
-}
+import { useState, useEffect } from 'react'
+import { useParams, notFound } from 'next/navigation'
+import { useAuth } from '@clerk/nextjs'
+import { Loader2 } from 'lucide-react'
+import EventDetailClient from './EventDetailClient'
 
 // UUID validation regex
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-export default async function EventDetailPage({ params }: PageProps) {
-  const user = await requireAdmin()
-  const { eventId } = await params
+interface EventData {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  startDate: string
+  endDate: string
+  status: string
+  locationName: string | null
+  locationAddress: string | null
+  capacityTotal: number | null
+  capacityRemaining: number | null
+}
 
-  // Validate eventId is a valid UUID to prevent Prisma errors
-  if (!UUID_REGEX.test(eventId)) {
-    notFound()
-  }
+interface EventStats {
+  totalRegistrations: number
+  totalParticipants: number
+  totalRevenue: number
+  totalPaid: number
+  balance: number
+}
 
-  // Get effective org ID (supports impersonation)
-  const organizationId = await getEffectiveOrgId(user)
+// NOTE: Auth is handled by the layout with proper retry logic.
+// Server Components using requireAdmin() cause redirect loops in production
+// because Clerk's auth() can fail during initial session hydration.
+export default function EventDetailPage() {
+  const params = useParams()
+  const eventId = params?.eventId as string
+  const { getToken } = useAuth()
+  const [event, setEvent] = useState<EventData | null>(null)
+  const [stats, setStats] = useState<EventStats | null>(null)
+  const [settings, setSettings] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Fetch event with all related data
-  let event: any = null
-  try {
-    event = await prisma.event.findUnique({
-      where: {
-        id: eventId,
-        organizationId: organizationId, // Ensure user can only see their org's events
-      },
-      include: {
-        settings: true,
-        pricing: true,
-        groupRegistrations: {
-          include: {
-            participants: true,
-          },
-        },
-        individualRegistrations: true,
-      },
-    })
-  } catch (error) {
-    console.error('Error fetching event with includes:', error)
-    // Try without includes if there's a schema issue
-    event = await prisma.event.findUnique({
-      where: {
-        id: eventId,
-        organizationId: organizationId,
-      },
-    })
-    if (event) {
-      event.settings = null
-      event.pricing = null
-      event.groupRegistrations = []
-      event.individualRegistrations = []
+  useEffect(() => {
+    // Validate eventId is a valid UUID
+    if (!eventId || !UUID_REGEX.test(eventId)) {
+      setError('Invalid event ID')
+      setLoading(false)
+      return
+    }
+
+    fetchEventData()
+  }, [eventId])
+
+  const fetchEventData = async () => {
+    try {
+      const token = await getToken()
+      const response = await fetch(`/api/admin/events/${eventId}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
+
+      if (response.status === 404) {
+        setError('Event not found')
+        setLoading(false)
+        return
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch event')
+      }
+
+      const data = await response.json()
+
+      // Set event data
+      setEvent({
+        id: data.event.id,
+        name: data.event.name,
+        slug: data.event.slug,
+        description: data.event.description,
+        startDate: data.event.startDate,
+        endDate: data.event.endDate,
+        status: data.event.status,
+        locationName: data.event.locationName,
+        locationAddress: data.event.locationAddress,
+        capacityTotal: data.event.capacityTotal,
+        capacityRemaining: data.event.capacityRemaining,
+      })
+
+      // Set stats
+      setStats({
+        totalRegistrations: data.stats?.totalRegistrations || 0,
+        totalParticipants: data.stats?.totalParticipants || 0,
+        totalRevenue: data.stats?.totalRevenue || 0,
+        totalPaid: data.stats?.totalPaid || 0,
+        balance: data.stats?.balance || 0,
+      })
+
+      // Set settings
+      setSettings(data.event.settings || null)
+    } catch (err) {
+      console.error('Error fetching event:', err)
+      setError('Failed to load event')
+    } finally {
+      setLoading(false)
     }
   }
 
-  if (!event) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+          <p className="mt-2 text-muted-foreground">Loading event...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error === 'Event not found' || error === 'Invalid event ID') {
     notFound()
   }
 
-  // Fetch payment balances for this event
-  let paymentBalances: any[] = []
-  try {
-    paymentBalances = await prisma.paymentBalance.findMany({
-      where: {
-        eventId: eventId,
-      },
-    })
-  } catch (error) {
-    console.error('Error fetching payment balances:', error)
+  if (error || !event || !stats) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <p className="text-red-600">{error || 'Failed to load event'}</p>
+          <button
+            onClick={() => { setLoading(true); setError(null); fetchEventData(); }}
+            className="mt-4 px-4 py-2 bg-primary text-white rounded hover:bg-primary/90"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
   }
-
-  // Calculate stats
-  const totalRegistrations =
-    event.groupRegistrations.length + event.individualRegistrations.length
-
-  const totalParticipants =
-    event.groupRegistrations.reduce(
-      (sum: number, reg: any) => sum + reg.participants.length,
-      0
-    ) + event.individualRegistrations.length
-
-  // Calculate revenue from payment balances
-  const totalRevenue = paymentBalances.reduce(
-    (sum: number, balance: any) => sum + Number(balance.totalAmountDue || 0),
-    0
-  )
-
-  const totalPaid = paymentBalances.reduce(
-    (sum: number, balance: any) => sum + Number(balance.amountPaid || 0),
-    0
-  )
-
-  const balance = totalRevenue - totalPaid
 
   return (
     <EventDetailClient
-      event={{
-        id: event.id,
-        name: event.name,
-        slug: event.slug,
-        description: event.description,
-        startDate: event.startDate.toISOString(),
-        endDate: event.endDate.toISOString(),
-        status: event.status,
-        locationName: event.locationName,
-        locationAddress: event.locationAddress,
-        capacityTotal: event.capacityTotal,
-        capacityRemaining: event.capacityRemaining,
-      }}
-      stats={{
-        totalRegistrations,
-        totalParticipants,
-        totalRevenue,
-        totalPaid,
-        balance,
-      }}
-      settings={event.settings}
+      event={event}
+      stats={stats}
+      settings={settings}
     />
   )
 }
