@@ -11,10 +11,10 @@ import BrandingSettingsTab from '@/components/admin/settings/BrandingSettingsTab
 import { usePermissions } from '@/hooks/usePermissions'
 
 interface SettingsClientProps {
-  organizationName: string
+  organizationName?: string
 }
 
-export default function SettingsClient({ organizationName }: SettingsClientProps) {
+export default function SettingsClient({ organizationName = 'your organization' }: SettingsClientProps) {
   const [activeTab, setActiveTab] = useState('organization')
   const { can, canManageTeam, loading, userRole } = usePermissions()
 

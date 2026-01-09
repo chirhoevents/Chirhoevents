@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useUser } from '@clerk/nextjs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -57,7 +58,9 @@ interface DashboardData {
   pendingActions: PendingActions
 }
 
-export default function DashboardClient({ userName }: { userName: string }) {
+export default function DashboardClient() {
+  const { user } = useUser()
+  const userName = user?.firstName || 'there'
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [showExportModal, setShowExportModal] = useState(false)

@@ -59,7 +59,7 @@ interface Event {
 }
 
 interface EventsListClientProps {
-  organizationId: string
+  organizationId?: string  // Optional - API gets it from auth context
 }
 
 interface LimitData {
@@ -93,8 +93,8 @@ type SortField = 'date' | 'name' | 'registrations'
 type SortOrder = 'asc' | 'desc'
 
 export default function EventsListClient({
-  organizationId,
-}: EventsListClientProps) {
+  organizationId: _organizationId,  // Not used - API gets from auth context
+}: EventsListClientProps = {}) {
   const router = useRouter()
   const [events, setEvents] = useState<Event[]>([])
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([])
