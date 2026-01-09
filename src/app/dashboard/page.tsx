@@ -21,11 +21,11 @@ export default function DashboardRedirect() {
     if (hasRedirected.current) return
     if (!isLoaded) return
 
-    if (!isSignedIn) {
-      hasRedirected.current = true
-      router.replace('/sign-in')
-      return
-    }
+    // NOTE: We intentionally do NOT check isSignedIn here early!
+    // In production, isSignedIn can be false during hydration even when
+    // the user IS signed in. Checking it too early causes infinite redirect loops.
+    // Instead, we rely on getToken() with retries which properly waits for
+    // the session to be established.
 
     const redirectBasedOnRole = async () => {
       try {
@@ -45,12 +45,12 @@ export default function DashboardRedirect() {
           token = await getToken()
         }
 
-        // If still no token after all retries, redirect to group-leader
+        // If still no token after all retries, user is not signed in
         if (!token) {
-          console.log('No token after retries, defaulting to group-leader')
-          setStatus('Redirecting to group leader portal...')
+          console.log('No token after retries, redirecting to sign-in')
+          setStatus('Redirecting to sign in...')
           hasRedirected.current = true
-          router.replace('/dashboard/group-leader')
+          router.replace('/sign-in')
           return
         }
 
@@ -108,7 +108,7 @@ export default function DashboardRedirect() {
     }
 
     redirectBasedOnRole()
-  }, [isLoaded, isSignedIn, getToken, router])
+  }, [isLoaded, getToken, router])
 
   if (error) {
     return (
