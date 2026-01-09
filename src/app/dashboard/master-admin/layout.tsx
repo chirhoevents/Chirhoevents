@@ -216,7 +216,7 @@ export default function MasterAdminLayout({
           {/* User Info */}
           {userInfo && (
             <div className="px-6 py-4 border-b border-purple-700">
-              <p className="text-xs text-purple-300 mb-1">Logged in as</p>
+              <p className="text-xs text-purple-200 mb-1">Logged in as</p>
               <p className="text-sm font-medium text-white truncate">
                 {userInfo.userName}
               </p>
@@ -252,7 +252,7 @@ export default function MasterAdminLayout({
                 <p className="text-sm font-medium text-white">Account</p>
                 <button
                   onClick={() => signOut()}
-                  className="text-xs text-purple-300 hover:text-white cursor-pointer flex items-center gap-1"
+                  className="text-xs text-purple-200 hover:text-white cursor-pointer flex items-center gap-1"
                 >
                   <LogOut className="h-3 w-3" />
                   Sign out

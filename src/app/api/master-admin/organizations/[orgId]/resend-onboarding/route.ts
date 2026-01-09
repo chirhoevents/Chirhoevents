@@ -55,6 +55,27 @@ export async function POST(
       },
     })
 
+    // If org admin exists but organization contact email has changed, update the org admin's email
+    // This ensures the onboarding email goes to the current contact, not the original one
+    if (orgAdmin && organization.contactEmail && orgAdmin.email !== organization.contactEmail) {
+      console.log(`Updating org admin email from ${orgAdmin.email} to current contact email ${organization.contactEmail}`)
+
+      // Parse contact name for potential name update
+      const nameParts = (organization.contactName || '').split(' ')
+      const firstName = nameParts[0] || orgAdmin.firstName
+      const lastName = nameParts.slice(1).join(' ') || orgAdmin.lastName
+
+      orgAdmin = await prisma.user.update({
+        where: { id: orgAdmin.id },
+        data: {
+          email: organization.contactEmail,
+          firstName,
+          lastName,
+          phone: organization.contactPhone || orgAdmin.phone,
+        },
+      })
+    }
+
     // If no org admin exists, create one from the organization's contact info
     if (!orgAdmin) {
       if (!organization.contactEmail) {
