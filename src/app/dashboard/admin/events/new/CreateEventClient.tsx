@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@clerk/nextjs'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -133,6 +134,7 @@ export default function CreateEventClient({
   isEditMode = false,
 }: CreateEventClientProps) {
   const router = useRouter()
+  const { getToken } = useAuth()
   const [currentStep, setCurrentStep] = useState(1)
   const [saving, setSaving] = useState(false)
 
@@ -276,6 +278,7 @@ export default function CreateEventClient({
   const handleSaveDraft = async () => {
     setSaving(true)
     try {
+      const token = await getToken()
       const url = isEditMode
         ? `/api/admin/events/${eventId}`
         : '/api/admin/events/create'
@@ -283,7 +286,10 @@ export default function CreateEventClient({
 
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           ...formData,
           organizationId,
@@ -310,6 +316,7 @@ export default function CreateEventClient({
   const handlePublish = async () => {
     setSaving(true)
     try {
+      const token = await getToken()
       const url = isEditMode
         ? `/api/admin/events/${eventId}`
         : '/api/admin/events/create'
@@ -317,7 +324,10 @@ export default function CreateEventClient({
 
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           ...formData,
           organizationId,
