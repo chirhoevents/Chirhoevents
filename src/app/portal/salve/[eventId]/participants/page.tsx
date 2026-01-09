@@ -86,7 +86,7 @@ export default function SalveAllParticipants() {
     try {
       setAuthChecking(true)
       const token = await getToken()
-      const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
+      const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
 
       const authResponse = await fetch('/api/admin/check-access', { headers })
       if (authResponse.ok) {
@@ -126,7 +126,7 @@ export default function SalveAllParticipants() {
     try {
       setLoading(true)
       const token = await getToken()
-      const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
+      const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
       const params = new URLSearchParams()
       if (searchQuery) params.set('search', searchQuery)
       if (filterStatus !== 'all') params.set('status', filterStatus)

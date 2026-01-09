@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
+import { useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -120,6 +121,7 @@ const DEFAULT_TEMPLATE: NameTagTemplate = {
 
 export default function NameTagDesignerPage() {
   const params = useParams()
+  const { getToken } = useAuth()
   const eventId = params.eventId as string
 
   const [loading, setLoading] = useState(true)
@@ -145,10 +147,13 @@ export default function NameTagDesignerPage() {
   async function fetchData() {
     setLoading(true)
     try {
+      const token = await getToken()
+      const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
+
       const [eventRes, groupsRes, templateRes] = await Promise.all([
-        fetch(`/api/admin/events/${eventId}`),
-        fetch(`/api/admin/events/${eventId}/groups`),
-        fetch(`/api/admin/events/${eventId}/salve/name-tag-template`),
+        fetch(`/api/admin/events/${eventId}`, { headers }),
+        fetch(`/api/admin/events/${eventId}/groups`, { headers }),
+        fetch(`/api/admin/events/${eventId}/salve/name-tag-template`, { headers }),
       ])
 
       if (eventRes.ok) {
@@ -187,9 +192,13 @@ export default function NameTagDesignerPage() {
   async function handleSaveTemplate() {
     setSaving(true)
     try {
+      const token = await getToken()
       const response = await fetch(`/api/admin/events/${eventId}/salve/name-tag-template`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ template }),
       })
 
@@ -219,12 +228,14 @@ export default function NameTagDesignerPage() {
 
     setUploadingLogo(true)
     try {
+      const token = await getToken()
       const formData = new FormData()
       formData.append('file', file)
       formData.append('type', 'logo')
 
       const response = await fetch(`/api/admin/events/${eventId}/salve/name-tag-image`, {
         method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
         body: formData,
       })
 
@@ -251,8 +262,10 @@ export default function NameTagDesignerPage() {
 
   async function handleDeleteLogo() {
     try {
+      const token = await getToken()
       const response = await fetch(`/api/admin/events/${eventId}/salve/name-tag-image?type=logo`, {
         method: 'DELETE',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
 
       if (response.ok) {
@@ -274,12 +287,14 @@ export default function NameTagDesignerPage() {
 
     setUploadingBanner(true)
     try {
+      const token = await getToken()
       const formData = new FormData()
       formData.append('file', file)
       formData.append('type', 'background') // Using 'background' type for banner
 
       const response = await fetch(`/api/admin/events/${eventId}/salve/name-tag-image`, {
         method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
         body: formData,
       })
 
@@ -305,8 +320,10 @@ export default function NameTagDesignerPage() {
 
   async function handleDeleteBanner() {
     try {
+      const token = await getToken()
       const response = await fetch(`/api/admin/events/${eventId}/salve/name-tag-image?type=background`, {
         method: 'DELETE',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
 
       if (response.ok) {
@@ -350,11 +367,15 @@ export default function NameTagDesignerPage() {
 
     setGenerating(true)
     try {
+      const token = await getToken()
       // Fetch a sample of name tags for preview
       const firstGroupId = Array.from(selectedGroups)[0]
       const response = await fetch(`/api/admin/events/${eventId}/salve/generate-name-tags`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           groupId: firstGroupId,
           templateId: null,
@@ -384,13 +405,17 @@ export default function NameTagDesignerPage() {
 
     setGenerating(true)
     try {
+      const token = await getToken()
       // Generate name tags for all selected groups
       const allNameTags = []
 
       for (const groupId of Array.from(selectedGroups)) {
         const response = await fetch(`/api/admin/events/${eventId}/salve/generate-name-tags`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
           body: JSON.stringify({
             groupId,
             templateId: null,

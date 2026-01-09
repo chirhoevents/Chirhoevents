@@ -124,7 +124,7 @@ export default function RaphaDedicatedPortal() {
     try {
       setAuthChecking(true)
       const token = await getToken()
-      const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
+      const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
 
       // Check authorization - user must be admin, rapha_user, or rapha_coordinator
       const authResponse = await fetch('/api/admin/check-access', { headers })
@@ -161,7 +161,7 @@ export default function RaphaDedicatedPortal() {
     setLoading(true)
     try {
       const token = await getToken()
-      const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
+      const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
       const response = await fetch(`/api/admin/events/${eventId}/rapha/stats`, { headers })
       if (response.ok) {
         const data = await response.json()
@@ -192,7 +192,7 @@ export default function RaphaDedicatedPortal() {
     setSearching(true)
     try {
       const token = await getToken()
-      const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
+      const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
       const response = await fetch(
         `/api/admin/events/${eventId}/rapha/participants/search?q=${encodeURIComponent(query)}`,
         { headers }
@@ -236,7 +236,7 @@ export default function RaphaDedicatedPortal() {
     setScanLoading(true)
     try {
       const token = await getToken()
-      const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
+      const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
       const response = await fetch(
         `/api/admin/events/${eventId}/rapha/lookup?qrCode=${encodeURIComponent(qrData)}`,
         { headers }

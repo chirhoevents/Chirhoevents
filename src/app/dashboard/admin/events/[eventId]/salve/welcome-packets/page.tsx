@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams } from 'next/navigation'
+import { useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
 import {
   DndContext,
@@ -203,6 +204,7 @@ function SortableInsertItem({
 
 export default function WelcomePacketsPage() {
   const params = useParams()
+  const { getToken } = useAuth()
   const eventId = params.eventId as string
 
   const [loading, setLoading] = useState(true)
@@ -242,11 +244,14 @@ export default function WelcomePacketsPage() {
   async function fetchData() {
     setLoading(true)
     try {
+      const token = await getToken()
+      const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
+
       const [eventRes, groupsRes, insertsRes, packetRes] = await Promise.all([
-        fetch(`/api/admin/events/${eventId}`),
-        fetch(`/api/admin/events/${eventId}/groups`),
-        fetch(`/api/admin/events/${eventId}/salve/inserts`),
-        fetch(`/api/admin/events/${eventId}/salve/generate-packet`),
+        fetch(`/api/admin/events/${eventId}`, { headers }),
+        fetch(`/api/admin/events/${eventId}/groups`, { headers }),
+        fetch(`/api/admin/events/${eventId}/salve/inserts`, { headers }),
+        fetch(`/api/admin/events/${eventId}/salve/generate-packet`, { headers }),
       ])
 
       if (eventRes.ok) {
@@ -369,12 +374,14 @@ export default function WelcomePacketsPage() {
 
     setUploading(true)
     try {
+      const token = await getToken()
       const formData = new FormData()
       formData.append('file', selectedFile)
       formData.append('name', newInsertName.trim())
 
       const response = await fetch(`/api/admin/events/${eventId}/salve/inserts`, {
         method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
         body: formData,
       })
 
@@ -399,9 +406,13 @@ export default function WelcomePacketsPage() {
 
   async function handleDeleteInsert(id: string) {
     try {
+      const token = await getToken()
       const response = await fetch(
         `/api/admin/events/${eventId}/salve/inserts?id=${id}`,
-        { method: 'DELETE' }
+        {
+          method: 'DELETE',
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        }
       )
 
       if (response.ok) {
@@ -418,9 +429,13 @@ export default function WelcomePacketsPage() {
 
   async function handleToggleActive(id: string, isActive: boolean) {
     try {
+      const token = await getToken()
       const response = await fetch(`/api/admin/events/${eventId}/salve/inserts`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ insertId: id, isActive }),
       })
 
@@ -449,9 +464,13 @@ export default function WelcomePacketsPage() {
 
       // Update order in database
       try {
+        const token = await getToken()
         await fetch(`/api/admin/events/${eventId}/salve/inserts`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
           body: JSON.stringify({
             inserts: reordered.map((insert, index) => ({
               id: insert.id,
@@ -474,10 +493,14 @@ export default function WelcomePacketsPage() {
 
     setGenerating(true)
     try {
+      const token = await getToken()
       const firstGroupId = Array.from(selectedGroups)[0]
       const response = await fetch(`/api/admin/events/${eventId}/salve/generate-packet`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ groupId: firstGroupId }),
       })
 
@@ -504,12 +527,16 @@ export default function WelcomePacketsPage() {
 
     setGenerating(true)
     try {
+      const token = await getToken()
       const allPackets = []
 
       for (const groupId of Array.from(selectedGroups)) {
         const response = await fetch(`/api/admin/events/${eventId}/salve/generate-packet`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
           body: JSON.stringify({ groupId }),
         })
 

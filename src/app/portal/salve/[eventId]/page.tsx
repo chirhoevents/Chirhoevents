@@ -128,7 +128,7 @@ export default function SalveDedicatedPortal() {
     try {
       setAuthChecking(true)
       const token = await getToken()
-      const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
+      const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
 
       // Check authorization - user must be admin, salve_user, or salve_coordinator
       const authResponse = await fetch('/api/admin/check-access', { headers })
@@ -167,7 +167,7 @@ export default function SalveDedicatedPortal() {
   async function fetchEventInfo() {
     try {
       const token = await getToken()
-      const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
+      const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
       const response = await fetch(`/api/admin/events/${eventId}`, { headers })
       if (response.ok) {
         const data = await response.json()
@@ -185,7 +185,7 @@ export default function SalveDedicatedPortal() {
   async function fetchStats() {
     try {
       const token = await getToken()
-      const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
+      const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
       const response = await fetch(`/api/admin/events/${eventId}/salve/stats`, { headers })
       if (response.ok) {
         const data = await response.json()
@@ -207,7 +207,7 @@ export default function SalveDedicatedPortal() {
 
     try {
       const token = await getToken()
-      const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
+      const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
       const query = searchQuery.trim()
 
       // Always search by name first, unless it looks like a specific access code format
@@ -285,7 +285,7 @@ export default function SalveDedicatedPortal() {
 
     try {
       const token = await getToken()
-      const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
+      const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
       const response = await fetch(
         `/api/admin/events/${eventId}/salve/lookup?accessCode=${encodeURIComponent(accessCode)}`,
         { headers }
