@@ -186,12 +186,12 @@ export async function GET(
     }))
 
     return NextResponse.json({
-      event: {
+      event: event ? {
         id: event.id,
         name: event.name,
         startDate: event.startDate,
         endDate: event.endDate,
-      },
+      } : null,
       stats: {
         totalParticipants,
         participantsWithMedicalNeeds:
