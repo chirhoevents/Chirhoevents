@@ -1,6 +1,6 @@
-import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 
 // Valid staff types
 const VALID_STAFF_TYPES = ['sgl', 'co_sgl', 'seminarian', 'priest', 'deacon', 'religious', 'counselor', 'volunteer', 'other']
@@ -13,7 +13,7 @@ export async function POST(
 ) {
   try {
     const { eventId } = await params
-    const { userId } = await auth()
+    const userId = await getClerkUserIdFromRequest(request)
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

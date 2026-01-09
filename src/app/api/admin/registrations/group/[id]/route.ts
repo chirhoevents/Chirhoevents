@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { Resend } from 'resend'
+import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -12,7 +12,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const { userId } = await auth()
+    const userId = await getClerkUserIdFromRequest(request)
 
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -112,7 +112,7 @@ export async function PUT(
 ) {
   try {
     const { id } = await params
-    const { userId } = await auth()
+    const userId = await getClerkUserIdFromRequest(request)
 
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
