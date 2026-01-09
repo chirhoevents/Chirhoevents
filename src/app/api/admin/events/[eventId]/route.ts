@@ -1,26 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils'
+import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
-import { getEffectiveOrgId } from '@/lib/get-effective-org'
-import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const overrideUserId = getClerkUserIdFromHeader(request)
-    const user = await getCurrentUser(overrideUserId)
-
-    if (!user || !isAdmin(user)) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Admin access required' },
-        { status: 403 }
-      )
-    }
-
     const { eventId } = await params
 
+    // Use verifyEventAccess for consistent auth across all routes
+    const { error, user, event: eventFromAuth } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[GET Event]',
+    })
+
+    if (error) {
+      return error
+    }
+
+    // User and event are guaranteed to exist if no error
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
+    }
+
+    console.log('[GET Event] ✅ Access verified for event:', eventFromAuth?.name)
+
+    // Now fetch full event data with additional relations
     const event = await prisma.event.findUnique({
       where: { id: eventId },
       include: {
@@ -38,17 +44,6 @@ export async function GET(
     if (!event) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
-
-    // Check organization access - master_admin can access all
-    if (!canAccessOrganization(user, event.organizationId)) {
-      return NextResponse.json(
-        { error: 'You do not have permission to view this event' },
-        { status: 403 }
-      )
-    }
-
-    // Get the effective org ID (handles impersonation) - used for filtering
-    const organizationId = await getEffectiveOrgId(user as any)
 
     // Fetch payment balances for stats calculation
     const paymentBalances = await prisma.paymentBalance.findMany({
@@ -103,18 +98,22 @@ export async function PUT(
 ) {
   try {
     const { eventId } = await params
-    const overrideUserId = getClerkUserIdFromHeader(request)
-    const user = await getCurrentUser(overrideUserId)
 
-    if (!user || !isAdmin(user)) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Admin access required' },
-        { status: 403 }
-      )
+    // Use verifyEventAccess for consistent auth across all routes
+    const { error, user, effectiveOrgId } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[PUT Event]',
+    })
+
+    if (error) {
+      return error
     }
 
-    // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user as any)
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
+    }
+
+    console.log('[PUT Event] ✅ Access verified, processing update')
 
     const data = await request.json()
 
@@ -148,14 +147,6 @@ export async function PUT(
 
     if (!existingEvent) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-    }
-
-    // Check organization access - master_admin can access all
-    if (!canAccessOrganization(user, existingEvent.organizationId)) {
-      return NextResponse.json(
-        { error: 'You do not have permission to edit this event' },
-        { status: 403 }
-      )
     }
 
     // Calculate new capacity values
@@ -487,20 +478,24 @@ export async function DELETE(
 ) {
   try {
     const { eventId } = await params
-    const overrideUserId = getClerkUserIdFromHeader(request)
-    const user = await getCurrentUser(overrideUserId)
 
-    if (!user || !isAdmin(user)) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Admin access required' },
-        { status: 403 }
-      )
+    // Use verifyEventAccess for consistent auth across all routes
+    const { error, user } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[DELETE Event]',
+    })
+
+    if (error) {
+      return error
     }
 
-    // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user as any)
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
+    }
 
-    // Verify event belongs to user's organization
+    console.log('[DELETE Event] ✅ Access verified, checking registrations')
+
+    // Verify event belongs to user's organization and check registration counts
     const event = await prisma.event.findUnique({
       where: { id: eventId },
       select: {
@@ -516,14 +511,6 @@ export async function DELETE(
 
     if (!event) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-    }
-
-    // Check organization access - master_admin can access all
-    if (!canAccessOrganization(user, event.organizationId)) {
-      return NextResponse.json(
-        { error: 'You do not have permission to delete this event' },
-        { status: 403 }
-      )
     }
 
     // Check if event has registrations
