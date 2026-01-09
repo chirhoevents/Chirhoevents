@@ -18,6 +18,59 @@ export function decodeJwtPayload(token: string): { sub?: string } | null {
 }
 
 /**
+ * Try to extract Clerk user ID from any __clerk_db_jwt_* or __session_* cookie.
+ * This is a workaround for when the publishable key suffix doesn't match
+ * the cookies (e.g., after switching from dev to production keys).
+ */
+export function getClerkUserIdFromCookies(request: NextRequest): string | null {
+  const cookieHeader = request.headers.get('cookie')
+  if (!cookieHeader) {
+    console.log('[getClerkUserIdFromCookies] No cookie header')
+    return null
+  }
+
+  const cookies = cookieHeader.split(';').map(c => {
+    const [name, ...valueParts] = c.trim().split('=')
+    return { name, value: valueParts.join('=') }
+  })
+
+  // Try __clerk_db_jwt_* cookies first (these contain JWTs with user ID)
+  const jwtCookies = cookies.filter(c => c.name.startsWith('__clerk_db_jwt'))
+  console.log('[getClerkUserIdFromCookies] Found JWT cookies:', jwtCookies.map(c => c.name))
+
+  for (const cookie of jwtCookies) {
+    try {
+      const decoded = decodeJwtPayload(cookie.value)
+      if (decoded?.sub) {
+        console.log('[getClerkUserIdFromCookies] ✅ Found userId in', cookie.name, ':', decoded.sub)
+        return decoded.sub
+      }
+    } catch (e) {
+      console.log('[getClerkUserIdFromCookies] Failed to decode', cookie.name)
+    }
+  }
+
+  // Try __session_* cookies (these might also be JWTs)
+  const sessionCookies = cookies.filter(c => c.name.startsWith('__session'))
+  console.log('[getClerkUserIdFromCookies] Found session cookies:', sessionCookies.map(c => c.name))
+
+  for (const cookie of sessionCookies) {
+    try {
+      const decoded = decodeJwtPayload(cookie.value)
+      if (decoded?.sub) {
+        console.log('[getClerkUserIdFromCookies] ✅ Found userId in', cookie.name, ':', decoded.sub)
+        return decoded.sub
+      }
+    } catch (e) {
+      // Session cookies might not be JWTs, that's OK
+    }
+  }
+
+  console.log('[getClerkUserIdFromCookies] ❌ No userId found in any cookies')
+  return null
+}
+
+/**
  * Get clerk user ID from either Clerk's auth() cookies or JWT token from Authorization header.
  * This handles the timing issue where cookies may not be available immediately after login
  * in production environments.
@@ -29,7 +82,7 @@ export async function getClerkUserIdFromRequest(request: NextRequest): Promise<s
     return authResult.userId
   }
 
-  // Fallback: try to get userId from Authorization header (JWT token)
+  // Fallback 1: try to get userId from Authorization header (JWT token)
   const authHeader = request.headers.get('Authorization')
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.substring(7)
@@ -37,6 +90,12 @@ export async function getClerkUserIdFromRequest(request: NextRequest): Promise<s
     if (payload?.sub) {
       return payload.sub
     }
+  }
+
+  // Fallback 2: try to get userId from any Clerk cookies (workaround for key mismatch)
+  const cookieUserId = getClerkUserIdFromCookies(request)
+  if (cookieUserId) {
+    return cookieUserId
   }
 
   return null
