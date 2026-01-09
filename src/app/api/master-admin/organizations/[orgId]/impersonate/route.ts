@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
+import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ orgId: string }> }
 ) {
   try {
-    const { userId: clerkUserId } = await auth()
+    const clerkUserId = await getClerkUserIdFromRequest(request)
 
     if (!clerkUserId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -131,7 +131,7 @@ export async function DELETE(
   { params }: { params: Promise<{ orgId: string }> }
 ) {
   try {
-    const { userId: clerkUserId } = await auth()
+    const clerkUserId = await getClerkUserIdFromRequest(request)
 
     if (!clerkUserId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
