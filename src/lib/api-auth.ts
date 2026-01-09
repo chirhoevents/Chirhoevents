@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getCurrentUser, isAdmin, AuthUser } from '@/lib/auth-utils'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
-import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+import { getClerkUserIdFromHeader, getClerkUserIdFromCookies } from '@/lib/jwt-auth-helper'
 import { prisma } from '@/lib/prisma'
 
 export interface VerifyEventAccessResult {
@@ -76,9 +76,20 @@ export async function verifyEventAccess(
     sessionId: clerkAuth.sessionId || 'NULL',
   })
 
-  // Step 1b: Get user from auth (with JWT header fallback)
-  const overrideUserId = getClerkUserIdFromHeader(request)
+  // Step 1b: Try multiple fallbacks to get user ID
+  let overrideUserId = getClerkUserIdFromHeader(request)
   console.log(`${logPrefix} 🔑 Override userId from JWT header:`, overrideUserId || 'none')
+
+  // If Clerk auth() failed and no JWT header, try extracting from cookies directly
+  // This handles the case where publishable key suffix doesn't match cookies
+  if (!clerkAuth.userId && !overrideUserId) {
+    console.log(`${logPrefix} 🔄 Clerk auth failed, trying cookie fallback...`)
+    const cookieUserId = getClerkUserIdFromCookies(request)
+    if (cookieUserId) {
+      console.log(`${logPrefix} ✅ Found userId from cookie fallback:`, cookieUserId)
+      overrideUserId = cookieUserId
+    }
+  }
 
   const user = await getCurrentUser(overrideUserId)
   console.log(`${logPrefix} 👤 User result:`, user?.email || 'NULL')
