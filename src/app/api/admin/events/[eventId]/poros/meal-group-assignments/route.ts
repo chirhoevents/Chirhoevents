@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyEventAccess } from '@/lib/api-auth'
+import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 
 export async function POST(
@@ -14,6 +15,13 @@ export async function POST(
     })
     if (error) return error
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[Meal Group Assignments POST] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
+    }
     const body = await request.json()
 
     const { mealGroupId, groupRegistrationId, individualRegistrationId } = body

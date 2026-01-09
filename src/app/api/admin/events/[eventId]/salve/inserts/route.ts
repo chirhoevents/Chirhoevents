@@ -1,16 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
+import { getCurrentUser } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { uploadPacketInsert, deletePacketInsert } from '@/lib/r2/upload-packet-insert'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+import { hasPermission } from '@/lib/permissions'
 
-// Helper to get admin user with JWT fallback
-async function getAdminUser(request: NextRequest) {
+// Helper function to check if user can access Salve portal
+async function requireSalveAccess(request: NextRequest, eventId: string) {
   const overrideUserId = getClerkUserIdFromHeader(request)
   const user = await getCurrentUser(overrideUserId)
-  if (!user || !isAdmin(user)) {
-    return null
+
+  if (!user) {
+    throw new Error('Unauthorized')
   }
+
+  // Check if user has salve.access permission (covers salve_coordinator, event_manager, org_admin, master_admin)
+  // Also check custom permissions for salve_user role or explicit portal access
+  const hasSalvePermission = hasPermission(user.role, 'salve.access')
+  const hasCustomSalveAccess = user.permissions?.['salve.access'] === true ||
+    user.permissions?.['portals.salve.view'] === true
+
+  if (!hasSalvePermission && !hasCustomSalveAccess) {
+    console.error(`[SALVE] ❌ User ${user.email} (role: ${user.role}) lacks salve.access permission`)
+    throw new Error('Access denied - SALVE portal access required')
+  }
+
+  // Verify the event belongs to the user's organization (unless master_admin)
+  if (user.role !== 'master_admin') {
+    const event = await prisma.event.findFirst({
+      where: {
+        id: eventId,
+        organizationId: user.organizationId,
+      },
+    })
+
+    if (!event) {
+      throw new Error('Access denied to this event')
+    }
+  }
+
   return user
 }
 
@@ -20,14 +48,8 @@ export async function GET(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const user = await getAdminUser(request)
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Admin access required' },
-        { status: 403 }
-      )
-    }
     const { eventId } = await params
+    await requireSalveAccess(request, eventId)
 
     const inserts = await prisma.welcomePacketInsert.findMany({
       where: { eventId },
@@ -50,14 +72,8 @@ export async function POST(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const user = await getAdminUser(request)
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Admin access required' },
-        { status: 403 }
-      )
-    }
     const { eventId } = await params
+    await requireSalveAccess(request, eventId)
 
     // Get event to find organization ID for file storage
     const event = await prisma.event.findUnique({
@@ -196,14 +212,8 @@ export async function PUT(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const user = await getAdminUser(request)
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Admin access required' },
-        { status: 403 }
-      )
-    }
     const { eventId } = await params
+    await requireSalveAccess(request, eventId)
     const body = await request.json()
     const { inserts, insertId, isActive } = body
 
@@ -250,14 +260,8 @@ export async function DELETE(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const user = await getAdminUser(request)
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Admin access required' },
-        { status: 403 }
-      )
-    }
     const { eventId } = await params
+    await requireSalveAccess(request, eventId)
     const { searchParams } = new URL(request.url)
     const insertId = searchParams.get('id')
 

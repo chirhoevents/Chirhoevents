@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyEventAccess } from '@/lib/api-auth'
+import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 
 export async function GET(
@@ -13,6 +14,13 @@ export async function GET(
       logPrefix: '[Seating Assignments Template GET]',
     })
     if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[Seating Assignments Template] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
+    }
 
     // Fetch existing sections
     const sections = await prisma.seatingSection.findMany({

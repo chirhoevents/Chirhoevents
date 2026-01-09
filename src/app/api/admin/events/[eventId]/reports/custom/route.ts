@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
-import { getEffectiveOrgId } from '@/lib/get-effective-org'
+import { verifyReportAccess } from '@/lib/api-auth'
 
 // POST execute a custom report without saving as template
 export async function POST(
@@ -9,38 +8,21 @@ export async function POST(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
     const { eventId } = await params
+
+    // Verify report access (requires reports.view permission)
+    const { error, user, event, effectiveOrgId } = await verifyReportAccess(
+      request,
+      eventId,
+      '[Custom Report]'
+    )
+    if (error) return error
+
     const body = await request.json()
     const { configuration } = body
 
     if (!configuration) {
       return NextResponse.json({ error: 'Configuration required' }, { status: 400 })
-    }
-
-    // Verify user has access to this event
-    const user = await prisma.user.findFirst({
-      where: { clerkUserId: userId },
-      include: { organization: true },
-    })
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const organizationId = await getEffectiveOrgId(user as any)
-
-    const event = await prisma.event.findFirst({
-      where: {
-        id: eventId,
-        organizationId: organizationId,
-      },
-    })
-
-    if (!event) {
-      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 
     // Execute the report based on type

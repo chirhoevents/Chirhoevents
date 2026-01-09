@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyEventAccess } from '@/lib/api-auth'
+import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 
 // GET - Fetch allocations for a specific group
@@ -14,6 +15,13 @@ export async function GET(
       logPrefix: '[GET Group Allocation]',
     })
     if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[GET Group Allocation] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
+    }
 
     // Verify group exists and belongs to this event
     const group = await prisma.groupRegistration.findFirst({
@@ -76,6 +84,13 @@ export async function DELETE(
       logPrefix: '[DELETE Group Allocation]',
     })
     if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[DELETE Group Allocation] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
+    }
 
     // Verify group exists and belongs to this event
     const group = await prisma.groupRegistration.findFirst({

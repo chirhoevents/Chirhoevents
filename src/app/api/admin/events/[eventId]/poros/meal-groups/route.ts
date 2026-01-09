@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyEventAccess } from '@/lib/api-auth'
+import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 
 export async function GET(
@@ -13,6 +14,13 @@ export async function GET(
       logPrefix: '[GET /api/admin/events/[eventId]/poros/meal-groups]',
     })
     if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[GET Meal Groups] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
+    }
 
     const groups = await prisma.mealGroup.findMany({
       where: { eventId },
@@ -40,6 +48,13 @@ export async function POST(
       logPrefix: '[POST /api/admin/events/[eventId]/poros/meal-groups]',
     })
     if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[POST Meal Groups] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
+    }
     const body = await request.json()
 
     const group = await prisma.mealGroup.create({

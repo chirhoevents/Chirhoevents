@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyEventAccess } from '@/lib/api-auth'
+import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 
 interface SmallGroupWithAssignments {
@@ -33,6 +34,13 @@ export async function GET(
       logPrefix: '[GET /api/admin/events/[eventId]/poros/small-groups]',
     })
     if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[GET Small Groups] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
+    }
 
     const groups = await prisma.smallGroup.findMany({
       where: { eventId },
@@ -81,6 +89,13 @@ export async function POST(
       logPrefix: '[POST /api/admin/events/[eventId]/poros/small-groups]',
     })
     if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[POST Small Groups] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
+    }
     const body = await request.json()
 
     const group = await prisma.smallGroup.create({

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyEventAccess } from '@/lib/api-auth'
+import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 
 // GET - Fetch all groups with their room allocations
@@ -14,6 +15,13 @@ export async function GET(
       logPrefix: '[GET Group Allocations]',
     })
     if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[GET Group Allocations] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
+    }
 
     // Get the event to find organizationId
     const event = await prisma.event.findUnique({
@@ -145,6 +153,13 @@ export async function POST(
       logPrefix: '[POST Group Allocations]',
     })
     if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      console.error(`[POST Group Allocations] ❌ User ${user!.email} (role: ${user!.role}) lacks poros.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
+    }
     const body = await request.json()
 
     const { groupRegistrationId, allocations } = body

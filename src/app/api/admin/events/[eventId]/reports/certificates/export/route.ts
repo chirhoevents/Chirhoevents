@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { verifyReportAccess } from '@/lib/api-auth'
 import { generateCertificatesCSV } from '@/lib/reports/generate-csv'
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ eventId: string }> }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ eventId: string }> }
+) {
   try {
     const { eventId } = await params
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    // Verify report access (requires reports.view permission)
+    const { error, user, event, effectiveOrgId } = await verifyReportAccess(
+      request,
+      eventId,
+      '[Certificates Export]'
+    )
+    if (error) return error
 
     const { format } = await request.json()
     const reportResponse = await fetch(

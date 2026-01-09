@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { verifyFinancialReportAccess } from '@/lib/api-auth'
 import { generateFinancialCSV } from '@/lib/reports/generate-csv'
 import { renderToBuffer } from '@react-pdf/renderer'
 import { FinancialReportPDF } from '@/lib/reports/pdf-generator'
@@ -10,11 +10,17 @@ export async function POST(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { eventId } = await params
+
+    // Verify financial report access (requires reports.view_financial permission)
+    const { error, user, event, effectiveOrgId } = await verifyFinancialReportAccess(
+      request,
+      eventId,
+      '[Financial Export]'
+    )
+    if (error) return error
 
     const { format } = await request.json()
-    const { eventId } = await params
 
     // Fetch the report data
     const reportResponse = await fetch(
@@ -31,18 +37,7 @@ export async function POST(
     }
 
     const reportData = await reportResponse.json()
-
-    // Get event name from the API
-    const eventResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/admin/events/${eventId}`,
-      {
-        headers: {
-          Cookie: request.headers.get('cookie') || '',
-        },
-      }
-    )
-    const event = eventResponse.ok ? await eventResponse.json() : { name: 'Event' }
-    const eventName = event.name || 'Event'
+    const eventName = event!.name || 'Event'
 
     if (format === 'csv') {
       const csv = generateFinancialCSV(reportData)

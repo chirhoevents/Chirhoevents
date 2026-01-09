@@ -1,16 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { verifyPorosAccess } from '@/lib/api-auth'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
     const { eventId } = await params
+
+    // Verify Poros access (requires poros.access permission for housing reports)
+    const { error, user, event, effectiveOrgId } = await verifyPorosAccess(
+      request,
+      eventId,
+      '[Housing Report]'
+    )
+    if (error) return error
+
     const isPreview = request.nextUrl.searchParams.get('preview') === 'true'
     const eventFilter = eventId === 'all' ? {} : { eventId }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyEventAccess } from '@/lib/api-auth'
+import { hasPermission } from '@/lib/permissions'
 
 export async function GET(
   request: NextRequest,
@@ -10,13 +11,26 @@ export async function GET(
     const { eventId } = await params
 
     // Verify user has access to this event (with organization check)
-    const { error, event } = await verifyEventAccess(request, eventId, {
-      requireAdmin: true,
+    const { error, event, user } = await verifyEventAccess(request, eventId, {
+      requireAdmin: false,
       logPrefix: '[SALVE Stats]',
     })
 
     if (error) {
       return error
+    }
+
+    // Check if user has salve.access permission
+    const hasSalvePermission = hasPermission(user!.role, 'salve.access')
+    const hasCustomSalveAccess = user!.permissions?.['salve.access'] === true ||
+      user!.permissions?.['portals.salve.view'] === true
+
+    if (!hasSalvePermission && !hasCustomSalveAccess) {
+      console.error(`[SALVE Stats] ❌ User ${user!.email} (role: ${user!.role}) lacks salve.access permission`)
+      return NextResponse.json(
+        { message: 'Forbidden - SALVE portal access required' },
+        { status: 403 }
+      )
     }
 
     console.log('[SALVE Stats] ✅ Access verified for event:', event?.name)
