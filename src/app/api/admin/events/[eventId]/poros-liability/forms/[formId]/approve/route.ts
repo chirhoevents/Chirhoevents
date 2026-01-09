@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
+import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
@@ -42,7 +42,7 @@ export async function POST(
       )
     }
 
-    if (form.event.organizationId !== organizationId) {
+    if (!canAccessOrganization(user, form.event.organizationId)) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 

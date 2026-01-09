@@ -4,6 +4,7 @@ import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { Resend } from 'resend'
 import { getEmailHistory, logEmail, logEmailFailure } from '@/lib/email-logger'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { canAccessOrganization } from '@/lib/auth-utils'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -73,7 +74,7 @@ export async function GET(
       )
     }
 
-    if (registration.organizationId !== organizationId) {
+    if (!canAccessOrganization(user, registration.organizationId)) {
       console.log('[GET /emails] Organization mismatch:', { regOrg: registration.organizationId, userOrg: organizationId })
       return NextResponse.json(
         { error: 'You do not have permission to access this registration' },
@@ -189,7 +190,7 @@ export async function POST(
       eventId = individualReg.eventId
     }
 
-    if (registration.organizationId !== organizationId) {
+    if (!canAccessOrganization(user, registration.organizationId)) {
       return NextResponse.json(
         { error: 'You do not have permission to access this registration' },
         { status: 403 }

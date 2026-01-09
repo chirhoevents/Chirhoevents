@@ -4,6 +4,7 @@ import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import Stripe from 'stripe'
 import { Resend } from 'resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { canAccessOrganization } from '@/lib/auth-utils'
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (registration.organizationId !== organizationId) {
+    if (!canAccessOrganization(user, registration.organizationId)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

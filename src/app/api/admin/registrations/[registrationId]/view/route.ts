@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
+import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
@@ -35,9 +35,9 @@ export async function GET(
     }
 
     if (registrationType === 'group') {
-      return await getGroupRegistration(registrationId, organizationId)
+      return await getGroupRegistration(registrationId, organizationId, user)
     } else {
-      return await getIndividualRegistration(registrationId, organizationId)
+      return await getIndividualRegistration(registrationId, organizationId, user)
     }
   } catch (error) {
     console.error('Error fetching registration view data:', error)
@@ -48,7 +48,7 @@ export async function GET(
   }
 }
 
-async function getGroupRegistration(registrationId: string, organizationId: string) {
+async function getGroupRegistration(registrationId: string, organizationId: string, user: any) {
   const registration = await prisma.groupRegistration.findUnique({
     where: { id: registrationId },
     include: {
@@ -83,7 +83,7 @@ async function getGroupRegistration(registrationId: string, organizationId: stri
     return NextResponse.json({ error: 'Registration not found' }, { status: 404 })
   }
 
-  if (registration.organizationId !== organizationId) {
+  if (!canAccessOrganization(user, registration.organizationId)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -262,7 +262,7 @@ async function getGroupRegistration(registrationId: string, organizationId: stri
   })
 }
 
-async function getIndividualRegistration(registrationId: string, organizationId: string) {
+async function getIndividualRegistration(registrationId: string, organizationId: string, user: any) {
   const registration = await prisma.individualRegistration.findUnique({
     where: { id: registrationId },
     include: {
@@ -281,7 +281,7 @@ async function getIndividualRegistration(registrationId: string, organizationId:
     return NextResponse.json({ error: 'Registration not found' }, { status: 404 })
   }
 
-  if (registration.organizationId !== organizationId) {
+  if (!canAccessOrganization(user, registration.organizationId)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

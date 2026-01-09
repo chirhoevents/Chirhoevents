@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { Resend } from 'resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { canAccessOrganization } from '@/lib/auth-utils'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -113,7 +114,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Verify the registration belongs to the user's organization
-      if (paymentBalance.organizationId !== organizationId) {
+      if (!canAccessOrganization(user, paymentBalance.organizationId)) {
         throw new Error('Forbidden')
       }
 

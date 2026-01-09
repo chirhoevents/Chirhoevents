@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
+import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { prisma } from '@/lib/prisma'
 
@@ -30,7 +30,7 @@ export async function GET(
       select: { id: true, name: true, organizationId: true },
     })
 
-    if (!event || event.organizationId !== organizationId) {
+    if (!event || !canAccessOrganization(user, event.organizationId)) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 

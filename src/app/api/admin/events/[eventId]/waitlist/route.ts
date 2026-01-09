@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
+import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
@@ -38,7 +38,7 @@ export async function GET(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 
-    if (event.organizationId !== organizationId) {
+    if (!canAccessOrganization(user, event.organizationId)) {
       return NextResponse.json(
         { error: 'Unauthorized - Event belongs to different organization' },
         { status: 403 }

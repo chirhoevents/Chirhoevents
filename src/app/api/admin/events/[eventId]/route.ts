@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
+import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
@@ -18,9 +18,6 @@ export async function GET(
         { status: 403 }
       )
     }
-
-    // Get the effective org ID (handles impersonation)
-    const organizationId = await getEffectiveOrgId(user as any)
 
     const { eventId } = await params
 
@@ -42,12 +39,16 @@ export async function GET(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 
-    if (event.organizationId !== organizationId) {
+    // Check organization access - master_admin can access all
+    if (!canAccessOrganization(user, event.organizationId)) {
       return NextResponse.json(
         { error: 'You do not have permission to view this event' },
         { status: 403 }
       )
     }
+
+    // Get the effective org ID (handles impersonation) - used for filtering
+    const organizationId = await getEffectiveOrgId(user as any)
 
     // Fetch payment balances for stats calculation
     const paymentBalances = await prisma.paymentBalance.findMany({
@@ -149,7 +150,8 @@ export async function PUT(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 
-    if (existingEvent.organizationId !== organizationId) {
+    // Check organization access - master_admin can access all
+    if (!canAccessOrganization(user, existingEvent.organizationId)) {
       return NextResponse.json(
         { error: 'You do not have permission to edit this event' },
         { status: 403 }
@@ -516,7 +518,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 
-    if (event.organizationId !== organizationId) {
+    // Check organization access - master_admin can access all
+    if (!canAccessOrganization(user, event.organizationId)) {
       return NextResponse.json(
         { error: 'You do not have permission to delete this event' },
         { status: 403 }

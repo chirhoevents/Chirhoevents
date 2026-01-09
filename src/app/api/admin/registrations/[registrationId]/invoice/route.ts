@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
+import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 // RegistrationType is 'group' | 'individual' string literal
@@ -75,7 +75,7 @@ export async function GET(
         return NextResponse.json({ error: 'Registration not found' }, { status: 404 })
       }
 
-      if (registration.organizationId !== organizationId) {
+      if (!canAccessOrganization(user, registration.organizationId)) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
 
@@ -112,7 +112,7 @@ export async function GET(
         return NextResponse.json({ error: 'Registration not found' }, { status: 404 })
       }
 
-      if (registration.organizationId !== organizationId) {
+      if (!canAccessOrganization(user, registration.organizationId)) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
 

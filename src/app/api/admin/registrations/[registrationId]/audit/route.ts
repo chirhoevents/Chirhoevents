@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { canAccessOrganization } from '@/lib/auth-utils'
 
 export async function GET(
   request: NextRequest,
@@ -54,7 +55,7 @@ export async function GET(
       )
     }
 
-    if (registration.organizationId !== organizationId) {
+    if (!canAccessOrganization(user, registration.organizationId)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
