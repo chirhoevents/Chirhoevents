@@ -1,25 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
-import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+import { verifyEventAccess } from '@/lib/api-auth'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    // Try to get userId from JWT token in Authorization header
-    const overrideUserId = getClerkUserIdFromHeader(request)
-    const user = await getCurrentUser(overrideUserId)
+    const { eventId } = await params
 
-    if (!user || !isAdmin(user)) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Admin access required' },
-        { status: 403 }
-      )
+    // Verify user has access to this event (with organization check)
+    const { error, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[SALVE Stats]',
+    })
+
+    if (error) {
+      return error
     }
 
-    const { eventId } = await params
+    console.log('[SALVE Stats] ✅ Access verified for event:', event?.name)
 
     // Get total participants for this event
     const totalParticipants = await prisma.participant.count({

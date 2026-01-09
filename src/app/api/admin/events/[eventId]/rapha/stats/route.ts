@@ -1,54 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { hasPermission } from '@/lib/permissions'
-import { getEffectiveOrgId } from '@/lib/get-effective-org'
-import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+import { verifyEventAccess } from '@/lib/api-auth'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    // Try to get userId from JWT token in Authorization header
-    const overrideUserId = getClerkUserIdFromHeader(request)
-    const user = await getCurrentUser(overrideUserId)
-
-    if (!user || !isAdmin(user)) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Admin access required' },
-        { status: 403 }
-      )
-    }
-
-    const organizationId = await getEffectiveOrgId(user as any)
     const { eventId } = await params
 
+    // Verify user has access to this event (with organization check)
+    const { error, user } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[Rapha Stats]',
+    })
+
+    if (error) {
+      return error
+    }
+
     // Check Rapha access permission
-    if (!hasPermission(user.role, 'rapha.access')) {
+    if (!hasPermission(user!.role, 'rapha.access')) {
+      console.log('[Rapha Stats] ❌ User lacks rapha.access permission')
       return NextResponse.json(
         { message: 'Access denied. Rapha access required.' },
         { status: 403 }
       )
     }
 
-    // Verify event exists and belongs to user's org (or user is master_admin)
-    const event = await prisma.event.findFirst({
-      where: {
-        id: eventId,
-        organizationId: organizationId,
-      },
-      include: {
-        settings: true,
-      },
-    })
+    console.log('[Rapha Stats] ✅ Access verified, fetching stats...')
 
-    if (!event) {
-      return NextResponse.json(
-        { message: 'Event not found' },
-        { status: 404 }
-      )
-    }
+    // Fetch full event with settings
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      include: { settings: true },
+    })
 
     // Get participant counts with medical info from liability forms
     const [
@@ -199,12 +186,12 @@ export async function GET(
     }))
 
     return NextResponse.json({
-      event: {
+      event: event ? {
         id: event.id,
         name: event.name,
         startDate: event.startDate,
         endDate: event.endDate,
-      },
+      } : null,
       stats: {
         totalParticipants,
         participantsWithMedicalNeeds:

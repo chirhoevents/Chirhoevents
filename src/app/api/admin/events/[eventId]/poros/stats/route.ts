@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { verifyEventAccess } from '@/lib/api-auth'
 
 // GET - Fetch all Poros statistics for the dashboard
 export async function GET(
@@ -9,10 +9,18 @@ export async function GET(
 ) {
   try {
     const { eventId } = await params
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    // Verify user has access to this event (with organization check)
+    const { error, user, event } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[Poros Stats]',
+    })
+
+    if (error) {
+      return error
     }
+
+    console.log('[Poros Stats] ✅ Access verified for event:', event?.name)
 
     // Fetch all data in parallel for performance
     const [
