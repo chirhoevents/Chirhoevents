@@ -1152,6 +1152,281 @@ export function generatePasswordResetEmail({
 }
 
 /**
+ * Master Admin Email Templates
+ * These templates are available for the master admin to send to any email address
+ */
+
+export interface MasterAdminEmailTemplate {
+  id: string
+  name: string
+  description: string
+  category: 'invitation' | 'announcement' | 'follow_up' | 'general'
+  defaultSubject: string
+  generateHtml: (data: {
+    recipientName?: string
+    customMessage?: string
+    eventName?: string
+    eventDate?: string
+    eventLocation?: string
+    eventDescription?: string
+    ctaUrl?: string
+    ctaText?: string
+    senderName?: string
+  }) => string
+}
+
+export const masterAdminEmailTemplates: MasterAdminEmailTemplate[] = [
+  {
+    id: 'event_invitation',
+    name: 'Event Invitation',
+    category: 'invitation',
+    description: 'Invite someone to register for an event',
+    defaultSubject: "You're Invited: {{eventName}}",
+    generateHtml: (data) => wrapEmail(`
+      <h1 style="color: #1E3A5F; margin-top: 0;">You're Invited!</h1>
+
+      ${data.recipientName ? `<p>Dear ${data.recipientName},</p>` : '<p>Hello,</p>'}
+
+      <p>We are excited to invite you to <strong>${data.eventName || 'our upcoming event'}</strong>!</p>
+
+      ${data.eventDate || data.eventLocation ? `
+        <div style="background-color: #F5F1E8; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h3 style="color: #9C8466; margin-top: 0;">Event Details</h3>
+          ${data.eventDate ? `<p style="margin: 5px 0;"><strong>Date:</strong> ${data.eventDate}</p>` : ''}
+          ${data.eventLocation ? `<p style="margin: 5px 0;"><strong>Location:</strong> ${data.eventLocation}</p>` : ''}
+        </div>
+      ` : ''}
+
+      ${data.eventDescription ? `
+        <div style="margin: 20px 0;">
+          ${data.eventDescription}
+        </div>
+      ` : ''}
+
+      ${data.customMessage ? `
+        <div style="margin: 20px 0;">
+          ${data.customMessage}
+        </div>
+      ` : ''}
+
+      ${data.ctaUrl ? `
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${data.ctaUrl}" style="display: inline-block; background-color: #1E3A5F; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+            ${data.ctaText || 'Register Now'}
+          </a>
+        </div>
+      ` : ''}
+
+      <p>We hope to see you there!</p>
+
+      ${data.senderName ? `
+        <p style="margin-top: 30px;">
+          Warmly,<br>
+          <strong>${data.senderName}</strong><br>
+          ChiRho Events
+        </p>
+      ` : ''}
+    `, { organizationName: 'ChiRho Events', preheader: `You're invited to ${data.eventName || 'an upcoming event'}` }),
+  },
+  {
+    id: 'general_invitation',
+    name: 'General Invitation',
+    category: 'invitation',
+    description: 'A flexible invitation template for any purpose',
+    defaultSubject: 'Invitation from ChiRho Events',
+    generateHtml: (data) => wrapEmail(`
+      <h1 style="color: #1E3A5F; margin-top: 0;">You're Invited</h1>
+
+      ${data.recipientName ? `<p>Dear ${data.recipientName},</p>` : '<p>Hello,</p>'}
+
+      <div style="margin: 20px 0;">
+        ${data.customMessage || '<p>We would like to invite you to learn more about what we have to offer.</p>'}
+      </div>
+
+      ${data.ctaUrl ? `
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${data.ctaUrl}" style="display: inline-block; background-color: #1E3A5F; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+            ${data.ctaText || 'Learn More'}
+          </a>
+        </div>
+      ` : ''}
+
+      ${data.senderName ? `
+        <p style="margin-top: 30px;">
+          Best regards,<br>
+          <strong>${data.senderName}</strong><br>
+          ChiRho Events
+        </p>
+      ` : ''}
+    `, { organizationName: 'ChiRho Events', preheader: 'You have received an invitation from ChiRho Events' }),
+  },
+  {
+    id: 'organization_invitation',
+    name: 'Organization Invitation',
+    category: 'invitation',
+    description: 'Invite a diocese or organization to join ChiRho Events',
+    defaultSubject: 'Invitation to Join ChiRho Events',
+    generateHtml: (data) => wrapEmail(`
+      <h1 style="color: #1E3A5F; margin-top: 0;">Join ChiRho Events</h1>
+
+      ${data.recipientName ? `<p>Dear ${data.recipientName},</p>` : '<p>Hello,</p>'}
+
+      <p>We would like to invite you to join <strong>ChiRho Events</strong> - the premier Catholic event management platform built by ministry, for ministry.</p>
+
+      <div style="background-color: #F5F1E8; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #9C8466; margin-top: 0;">What ChiRho Events Offers</h3>
+        <ul style="margin: 10px 0; padding-left: 20px; color: #1E3A5F;">
+          <li><strong>Registration Management</strong> - Group and individual registrations with flexible pricing</li>
+          <li><strong>Payment Processing</strong> - Secure credit card and check payments via Stripe</li>
+          <li><strong>Digital Liability Forms</strong> - Automated PDF generation with e-signatures</li>
+          <li><strong>Housing Management</strong> - Room assignments and meal groups</li>
+          <li><strong>Check-In System</strong> - QR codes and name tag printing</li>
+          <li><strong>Medical Platform</strong> - Track medical info and incidents</li>
+        </ul>
+      </div>
+
+      ${data.customMessage ? `
+        <div style="margin: 20px 0;">
+          ${data.customMessage}
+        </div>
+      ` : ''}
+
+      ${data.ctaUrl ? `
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${data.ctaUrl}" style="display: inline-block; background-color: #1E3A5F; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+            ${data.ctaText || 'Get Started'}
+          </a>
+        </div>
+      ` : ''}
+
+      <p>We'd love to help you streamline your event management. Reply to this email or visit our website to learn more.</p>
+
+      ${data.senderName ? `
+        <p style="margin-top: 30px;">
+          God bless,<br>
+          <strong>${data.senderName}</strong><br>
+          ChiRho Events Team
+        </p>
+      ` : ''}
+    `, { organizationName: 'ChiRho Events', preheader: 'Discover how ChiRho Events can help your ministry' }),
+  },
+  {
+    id: 'announcement',
+    name: 'General Announcement',
+    category: 'announcement',
+    description: 'Send an announcement or update',
+    defaultSubject: 'Important Announcement from ChiRho Events',
+    generateHtml: (data) => wrapEmail(`
+      <h1 style="color: #1E3A5F; margin-top: 0;">${data.eventName || 'Announcement'}</h1>
+
+      ${data.recipientName ? `<p>Dear ${data.recipientName},</p>` : '<p>Hello,</p>'}
+
+      <div style="margin: 20px 0;">
+        ${data.customMessage || '<p>We have an important update to share with you.</p>'}
+      </div>
+
+      ${data.ctaUrl ? `
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${data.ctaUrl}" style="display: inline-block; background-color: #1E3A5F; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+            ${data.ctaText || 'Learn More'}
+          </a>
+        </div>
+      ` : ''}
+
+      ${data.senderName ? `
+        <p style="margin-top: 30px;">
+          Best regards,<br>
+          <strong>${data.senderName}</strong><br>
+          ChiRho Events
+        </p>
+      ` : ''}
+    `, { organizationName: 'ChiRho Events' }),
+  },
+  {
+    id: 'follow_up',
+    name: 'Follow Up',
+    category: 'follow_up',
+    description: 'Follow up with someone after a meeting or conversation',
+    defaultSubject: 'Following Up - ChiRho Events',
+    generateHtml: (data) => wrapEmail(`
+      <h1 style="color: #1E3A5F; margin-top: 0;">Following Up</h1>
+
+      ${data.recipientName ? `<p>Dear ${data.recipientName},</p>` : '<p>Hello,</p>'}
+
+      <p>Thank you for taking the time to speak with us about ChiRho Events. We wanted to follow up on our conversation.</p>
+
+      ${data.customMessage ? `
+        <div style="margin: 20px 0;">
+          ${data.customMessage}
+        </div>
+      ` : ''}
+
+      ${data.ctaUrl ? `
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${data.ctaUrl}" style="display: inline-block; background-color: #1E3A5F; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+            ${data.ctaText || 'Get Started'}
+          </a>
+        </div>
+      ` : ''}
+
+      <p>Please don't hesitate to reach out if you have any questions. We're here to help!</p>
+
+      ${data.senderName ? `
+        <p style="margin-top: 30px;">
+          Best regards,<br>
+          <strong>${data.senderName}</strong><br>
+          ChiRho Events
+        </p>
+      ` : ''}
+    `, { organizationName: 'ChiRho Events', preheader: 'Following up on our conversation' }),
+  },
+  {
+    id: 'custom',
+    name: 'Custom Email',
+    category: 'general',
+    description: 'A blank template for custom messages',
+    defaultSubject: 'Message from ChiRho Events',
+    generateHtml: (data) => wrapEmail(`
+      ${data.recipientName ? `<p>Dear ${data.recipientName},</p>` : ''}
+
+      <div style="margin: 20px 0;">
+        ${data.customMessage || '<p>Please compose your message.</p>'}
+      </div>
+
+      ${data.ctaUrl ? `
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${data.ctaUrl}" style="display: inline-block; background-color: #1E3A5F; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+            ${data.ctaText || 'Click Here'}
+          </a>
+        </div>
+      ` : ''}
+
+      ${data.senderName ? `
+        <p style="margin-top: 30px;">
+          Best regards,<br>
+          <strong>${data.senderName}</strong><br>
+          ChiRho Events
+        </p>
+      ` : ''}
+    `, { organizationName: 'ChiRho Events' }),
+  },
+]
+
+/**
+ * Get master admin template by ID
+ */
+export function getMasterAdminTemplateById(templateId: string): MasterAdminEmailTemplate | undefined {
+  return masterAdminEmailTemplates.find(t => t.id === templateId)
+}
+
+/**
+ * Get master admin templates by category
+ */
+export function getMasterAdminTemplatesByCategory(category: MasterAdminEmailTemplate['category']): MasterAdminEmailTemplate[] {
+  return masterAdminEmailTemplates.filter(t => t.category === category)
+}
+
+/**
  * Generate event reminder email
  */
 export function generateEventReminderEmail({
