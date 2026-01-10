@@ -1,15 +1,18 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isFullAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import Stripe from 'stripe'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-06-20',
 })
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
+    // Try to get userId from JWT token in Authorization header
+    const overrideUserId = getClerkUserIdFromHeader(request)
+    const user = await getCurrentUser(overrideUserId)
 
     // Only org_admin or master_admin can configure Stripe
     if (!user || !isFullAdmin(user)) {
