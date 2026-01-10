@@ -87,12 +87,12 @@ export async function POST(request: NextRequest) {
             organizationId: organizationId,
             invoiceId: invoiceId,
             amount: session.amount_total! / 100,
-            paymentType: invoiceType === 'setup_fee' ? 'setup_fee' : invoiceType === 'subscription' ? 'subscription' : 'custom',
+            paymentType: 'balance', // Platform invoice payment
             paymentMethod: 'credit_card',
             paymentStatus: 'succeeded',
             stripePaymentIntentId: session.payment_intent as string,
             processedAt: new Date(),
-            notes: `Online payment for Invoice #${invoiceNumber}`,
+            notes: `Online payment for Invoice #${invoiceNumber} (${invoiceType})`,
           },
         })
         console.log('✅ Payment record created for invoice:', invoiceNumber)
