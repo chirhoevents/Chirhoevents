@@ -33,7 +33,7 @@ export default function InvoicePaymentPage() {
   const [processingPayment, setProcessingPayment] = useState(false)
 
   const isSuccess = searchParams.get('success') === 'true'
-  const isCancelled = searchParams.get('cancelled') === 'true'
+  const paymentCancelled = searchParams.get('cancelled') === 'true'
 
   useEffect(() => {
     async function fetchInvoice() {
@@ -170,7 +170,7 @@ export default function InvoicePaymentPage() {
               <p className="text-sm opacity-90">Thank you for your payment. A confirmation email has been sent.</p>
             </div>
           )}
-          {isCancelled && !isPaid && (
+          {paymentCancelled && !isPaid && (
             <div className="bg-yellow-500 text-white py-3 px-6 text-center font-semibold">
               Payment was cancelled. You can try again below.
             </div>
