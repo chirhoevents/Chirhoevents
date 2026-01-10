@@ -66,6 +66,15 @@ export async function POST(
 
     const { invoiceId } = await params
 
+    // Parse optional body for custom email
+    let customEmail: string | null = null
+    try {
+      const body = await request.json()
+      customEmail = body.email || null
+    } catch {
+      // No body or invalid JSON - use default org email
+    }
+
     const invoice = await prisma.invoice.findUnique({
       where: { id: invoiceId },
       select: {
@@ -115,9 +124,11 @@ export async function POST(
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
     }
 
-    if (!invoice.organization.contactEmail) {
+    // Determine recipient email
+    const recipientEmail = customEmail || invoice.organization.contactEmail
+    if (!recipientEmail) {
       return NextResponse.json(
-        { error: 'Organization does not have a contact email address' },
+        { error: 'No email address provided and organization does not have a contact email' },
         { status: 400 }
       )
     }
@@ -147,10 +158,20 @@ export async function POST(
     }
 
     // Generate PDF using renderToBuffer for server-side rendering
-    const { renderToBuffer } = await import('@react-pdf/renderer')
-    const pdfBuffer = await renderToBuffer(
-      React.createElement(InvoicePDF, { invoice: invoiceData }) as React.ReactElement
-    )
+    let pdfBuffer: Buffer
+    try {
+      const { renderToBuffer } = await import('@react-pdf/renderer')
+      pdfBuffer = await renderToBuffer(
+        React.createElement(InvoicePDF, { invoice: invoiceData }) as React.ReactElement
+      )
+    } catch (pdfError: unknown) {
+      console.error('PDF generation error:', pdfError)
+      const errorMessage = pdfError instanceof Error ? pdfError.message : 'Unknown PDF error'
+      return NextResponse.json(
+        { error: `Failed to generate PDF: ${errorMessage}` },
+        { status: 500 }
+      )
+    }
 
     // Generate email HTML
     const emailHtml = `
@@ -261,18 +282,28 @@ export async function POST(
     `
 
     // Send email with PDF attachment
-    const emailResult = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'billing@chirhoevents.com',
-      to: invoice.organization.contactEmail,
-      subject: `Invoice #${invoice.invoiceNumber} - ChirhoEvents`,
-      html: emailHtml,
-      attachments: [
-        {
-          filename: `invoice-${invoice.invoiceNumber}.pdf`,
-          content: Buffer.from(pdfBuffer),
-        },
-      ],
-    })
+    let emailResult
+    try {
+      emailResult = await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL || 'billing@chirhoevents.com',
+        to: recipientEmail,
+        subject: `Invoice #${invoice.invoiceNumber} - ChirhoEvents`,
+        html: emailHtml,
+        attachments: [
+          {
+            filename: `invoice-${invoice.invoiceNumber}.pdf`,
+            content: Buffer.from(pdfBuffer),
+          },
+        ],
+      })
+    } catch (emailError: unknown) {
+      console.error('Resend email error:', emailError)
+      const errorMessage = emailError instanceof Error ? emailError.message : 'Unknown email error'
+      return NextResponse.json(
+        { error: `Failed to send email: ${errorMessage}` },
+        { status: 500 }
+      )
+    }
 
     // Log the email send
     await prisma.platformActivityLog.create({
@@ -280,14 +311,14 @@ export async function POST(
         organizationId: invoice.organizationId,
         userId: user.id,
         activityType: 'invoice_emailed',
-        description: `Invoice #${invoice.invoiceNumber} emailed to ${invoice.organization.contactEmail}`,
-        metadata: { invoiceId: invoice.id, emailId: emailResult.data?.id },
+        description: `Invoice #${invoice.invoiceNumber} emailed to ${recipientEmail}${customEmail ? ' (custom recipient)' : ''}`,
+        metadata: { invoiceId: invoice.id, emailId: emailResult?.data?.id, recipientEmail },
       },
     })
 
     return NextResponse.json({
       success: true,
-      message: `Invoice emailed to ${invoice.organization.contactEmail}`,
+      message: `Invoice emailed to ${recipientEmail}`,
     })
   } catch (error) {
     console.error('Invoice email error:', error)

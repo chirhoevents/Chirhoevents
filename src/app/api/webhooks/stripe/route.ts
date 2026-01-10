@@ -49,22 +49,53 @@ export async function POST(request: NextRequest) {
 
       try {
         // Update invoice status to paid
-        const invoice = await prisma.invoice.update({
+        await prisma.invoice.update({
           where: { id: invoiceId },
           data: {
             status: 'paid',
             paidAt: new Date(),
             paymentMethod: 'credit_card',
             stripePaymentIntentId: session.payment_intent as string,
+            stripeCheckoutSessionId: session.id,
           },
-          include: {
+        })
+
+        // Fetch invoice and organization separately to avoid schema mismatch
+        const invoice = await prisma.invoice.findUnique({
+          where: { id: invoiceId },
+          select: {
+            id: true,
+            invoiceNumber: true,
+            amount: true,
+            organizationId: true,
             organization: {
               select: { id: true, name: true, contactEmail: true },
             },
           },
         })
 
+        if (!invoice) {
+          console.error('❌ Invoice not found after update:', invoiceId)
+          return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+        }
+
         console.log('✅ Invoice marked as paid:', invoiceNumber)
+
+        // Create Payment record
+        await prisma.payment.create({
+          data: {
+            organizationId: organizationId,
+            invoiceId: invoiceId,
+            amount: session.amount_total! / 100,
+            paymentType: invoiceType === 'setup_fee' ? 'setup_fee' : invoiceType === 'subscription' ? 'subscription' : 'custom',
+            paymentMethod: 'credit_card',
+            paymentStatus: 'succeeded',
+            stripePaymentIntentId: session.payment_intent as string,
+            processedAt: new Date(),
+            notes: `Online payment for Invoice #${invoiceNumber}`,
+          },
+        })
+        console.log('✅ Payment record created for invoice:', invoiceNumber)
 
         // Handle subscription activation if this is a subscription invoice
         if (invoiceType === 'subscription') {

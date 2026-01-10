@@ -631,19 +631,36 @@ export default function BillingDashboard() {
     }
   }
 
-  const handleSendInvoiceEmail = async (invoice: Invoice) => {
+  const handleSendInvoiceEmail = async (invoice: Invoice, customEmail?: string) => {
     try {
       const token = await getToken()
       const res = await fetch(`/api/admin/invoices/${invoice.id}/send-email`, {
         method: 'POST',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: customEmail ? JSON.stringify({ email: customEmail }) : undefined,
       })
-      if (!res.ok) throw new Error('Failed to send invoice email')
-      alert(`Invoice email sent to ${invoice.organization?.name}!`)
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to send invoice email')
+      }
+      const data = await res.json()
+      alert(data.message || `Invoice email sent!`)
     } catch (err) {
       console.error('Error sending invoice email:', err)
-      alert('Failed to send invoice email')
+      alert(err instanceof Error ? err.message : 'Failed to send invoice email')
     }
+  }
+
+  const promptAndSendInvoiceEmail = (invoice: Invoice) => {
+    const email = prompt(
+      `Send invoice to email address:\n(Leave blank to use organization's contact email)`,
+      ''
+    )
+    if (email === null) return // User cancelled
+    handleSendInvoiceEmail(invoice, email || undefined)
   }
 
   const handleOpenPaymentLink = (invoice: Invoice) => {
@@ -1136,7 +1153,7 @@ export default function BillingDashboard() {
                                   </button>
                                 )}
                                 <button
-                                  onClick={() => handleSendInvoiceEmail(invoice)}
+                                  onClick={() => promptAndSendInvoiceEmail(invoice)}
                                   className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
                                   title="Send Invoice Email"
                                 >
