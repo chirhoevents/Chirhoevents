@@ -518,7 +518,7 @@ export default function ComposeEmailPage() {
             <ul className="space-y-3 text-sm text-purple-800">
               <li className="flex items-start gap-2">
                 <span className="text-purple-600 mt-0.5">•</span>
-                <span>Personalize with the recipient's name for better engagement</span>
+                <span>Personalize with the recipient&apos;s name for better engagement</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-purple-600 mt-0.5">•</span>
