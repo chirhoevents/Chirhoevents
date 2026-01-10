@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
           data: {
             status: 'paid',
             paidAt: new Date(),
-            paymentMethod: 'credit_card',
+            paymentMethod: 'card',
             stripePaymentIntentId: session.payment_intent as string,
             stripeCheckoutSessionId: session.id,
           },
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
             invoiceId: invoiceId,
             amount: session.amount_total! / 100,
             paymentType: 'balance', // Platform invoice payment
-            paymentMethod: 'credit_card',
+            paymentMethod: 'card',
             paymentStatus: 'succeeded',
             stripePaymentIntentId: session.payment_intent as string,
             processedAt: new Date(),
