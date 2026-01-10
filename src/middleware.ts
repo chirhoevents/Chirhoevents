@@ -29,6 +29,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/events(.*)',
   '/api/invites(.*)',
   '/api/stripe(.*)',  // Stripe APIs - handle their own auth
+  '/api/onboarding-requests(.*)',  // Public onboarding form submission
 ])
 
 export default clerkMiddleware((auth, request) => {
