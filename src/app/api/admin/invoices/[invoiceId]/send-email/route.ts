@@ -115,6 +115,13 @@ export async function POST(
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
     }
 
+    if (!invoice.organization.contactEmail) {
+      return NextResponse.json(
+        { error: 'Organization does not have a contact email address' },
+        { status: 400 }
+      )
+    }
+
     // Prepare invoice data for PDF
     const invoiceData = {
       invoiceNumber: invoice.invoiceNumber,
