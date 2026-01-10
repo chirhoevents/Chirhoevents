@@ -74,6 +74,7 @@ export default function AdminLayout({
   const { isLoaded, isSignedIn, getToken } = useAuth()
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
   const [loading, setLoading] = useState(true)
+  const [authError, setAuthError] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
   const hasRedirected = useRef(false)
@@ -195,9 +196,11 @@ export default function AdminLayout({
         })
       } catch (error) {
         console.error('💥 [Admin Layout] Error in checkAccess:', error)
-        hasRedirected.current = true
-        console.log('❌ [Admin Layout] Redirecting to / due to error')
-        router.replace('/')
+        // Don't redirect to home on network/transient errors - stay on page and let user retry
+        // Only redirect if we know for sure the user shouldn't be here (403, 401 handled above)
+        console.log('⚠️ [Admin Layout] Error occurred, showing error state for retry')
+        setAuthError(true)
+        setUserInfo(null)
       } finally {
         setLoading(false)
         setAuthChecked(true)  // Mark as checked to prevent infinite loop
@@ -231,6 +234,27 @@ export default function AdminLayout({
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F5F1E8]">
         <div className="text-[#1E3A5F]">Loading admin portal...</div>
+      </div>
+    )
+  }
+
+  // Show error state with retry option instead of redirecting to home
+  if (authError && !userInfo) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F5F1E8]">
+        <div className="text-center">
+          <p className="text-[#1E3A5F] mb-4">Unable to load admin portal. Please try again.</p>
+          <button
+            onClick={() => {
+              setAuthError(false)
+              setAuthChecked(false)
+              setLoading(true)
+            }}
+            className="px-4 py-2 bg-[#1E3A5F] text-white rounded-lg hover:bg-[#1E3A5F]/90 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     )
   }
