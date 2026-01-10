@@ -1,8 +1,7 @@
-import { requireAdmin } from '@/lib/auth-utils'
-import { getEffectiveOrgId } from '@/lib/get-effective-org'
-import { prisma } from '@/lib/prisma'
-import { notFound } from 'next/navigation'
-import PorosLiabilityClient from './PorosLiabilityClient'
+'use client'
+
+import { use } from 'react'
+import PorosLiabilityClientWrapper from './PorosLiabilityClientWrapper'
 
 interface PageProps {
   params: Promise<{
@@ -10,31 +9,9 @@ interface PageProps {
   }>
 }
 
-export default async function PorosLiabilityPage({ params }: PageProps) {
-  const user = await requireAdmin()
-  const organizationId = await getEffectiveOrgId(user)
-  const { eventId } = await params
-
-  // Fetch event with settings
-  const event = await prisma.event.findUnique({
-    where: {
-      id: eventId,
-      organizationId: organizationId,
-    },
-    include: {
-      settings: true,
-    },
-  })
-
-  if (!event) {
-    notFound()
-  }
-
-  return (
-    <PorosLiabilityClient
-      eventId={eventId}
-      eventName={event.name}
-      organizationId={organizationId}
-    />
-  )
+// NOTE: Auth is handled by the layout with proper retry logic.
+// This pattern avoids server-side auth issues during client navigation.
+export default function PorosLiabilityPage({ params }: PageProps) {
+  const { eventId } = use(params)
+  return <PorosLiabilityClientWrapper eventId={eventId} />
 }

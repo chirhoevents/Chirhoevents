@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import {
   type Permission,
   type UserRole,
@@ -23,7 +24,11 @@ interface UserInfo {
   lastName: string
   role: UserRole
   organizationId: string
-  organizationName: string
+  organization?: {
+    id: string
+    name: string
+    type: string
+  }
 }
 
 interface UsePermissionsReturn {
@@ -54,6 +59,7 @@ interface UsePermissionsReturn {
 }
 
 export function usePermissions(): UsePermissionsReturn {
+  const { getToken, isLoaded } = useAuth()
   const [user, setUser] = useState<UserInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -63,7 +69,14 @@ export function usePermissions(): UsePermissionsReturn {
       setLoading(true)
       setError(null)
 
-      const response = await fetch('/api/auth/me')
+      // Get auth token for the request
+      const token = await getToken()
+      const headers: HeadersInit = {}
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
+      const response = await fetch('/api/auth/me', { headers })
 
       if (!response.ok) {
         if (response.status === 401) {
@@ -74,7 +87,7 @@ export function usePermissions(): UsePermissionsReturn {
       }
 
       const data = await response.json()
-      setUser(data.user)
+      setUser(data)
     } catch (err) {
       console.error('Error fetching user info:', err)
       setError(err instanceof Error ? err.message : 'Unknown error')
@@ -82,11 +95,14 @@ export function usePermissions(): UsePermissionsReturn {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [getToken])
 
   useEffect(() => {
-    fetchUserInfo()
-  }, [fetchUserInfo])
+    // Wait for Clerk to be loaded before fetching user info
+    if (isLoaded) {
+      fetchUserInfo()
+    }
+  }, [isLoaded, fetchUserInfo])
 
   const userRole = user?.role || null
 
