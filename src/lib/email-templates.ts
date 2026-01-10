@@ -1381,6 +1381,61 @@ export const masterAdminEmailTemplates: MasterAdminEmailTemplate[] = [
     `, { organizationName: 'ChiRho Events', preheader: 'Following up on our conversation' }),
   },
   {
+    id: 'welcome',
+    name: 'Welcome Email',
+    category: 'general',
+    description: 'Welcome a new user or contact to ChiRho Events',
+    defaultSubject: 'Welcome to ChiRho Events!',
+    generateHtml: (data) => wrapEmail(`
+      <h1 style="color: #1E3A5F; margin-top: 0;">Welcome to ChiRho Events!</h1>
+
+      ${data.recipientName ? `<p>Dear ${data.recipientName},</p>` : '<p>Hello,</p>'}
+
+      <p>We are thrilled to welcome you to the <strong>ChiRho Events</strong> family! Whether you are here to organize events, manage registrations, or participate in life-changing experiences, we are here to support you every step of the way.</p>
+
+      <div style="background-color: #F5F1E8; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #9C8466; margin-top: 0;">Getting Started</h3>
+        <ul style="margin: 10px 0; padding-left: 20px; color: #1E3A5F;">
+          <li>Explore your dashboard to see available events</li>
+          <li>Set up your profile and preferences</li>
+          <li>Browse our help resources if you need guidance</li>
+          <li>Reach out to our support team anytime</li>
+        </ul>
+      </div>
+
+      ${data.customMessage ? `
+        <div style="margin: 20px 0;">
+          ${data.customMessage}
+        </div>
+      ` : ''}
+
+      ${data.ctaUrl ? `
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${data.ctaUrl}" style="display: inline-block; background-color: #1E3A5F; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+            ${data.ctaText || 'Get Started'}
+          </a>
+        </div>
+      ` : ''}
+
+      <p>We are committed to helping you create meaningful, faith-filled experiences. If you have any questions, simply reply to this email or visit our support center.</p>
+
+      <p>Welcome aboard!</p>
+
+      ${data.senderName ? `
+        <p style="margin-top: 30px;">
+          God bless,<br>
+          <strong>${data.senderName}</strong><br>
+          ChiRho Events Team
+        </p>
+      ` : `
+        <p style="margin-top: 30px;">
+          God bless,<br>
+          <strong>The ChiRho Events Team</strong>
+        </p>
+      `}
+    `, { organizationName: 'ChiRho Events', preheader: 'Welcome to the ChiRho Events family!' }),
+  },
+  {
     id: 'custom',
     name: 'Custom Email',
     category: 'general',
