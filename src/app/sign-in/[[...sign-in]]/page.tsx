@@ -8,6 +8,13 @@ import { Building2, Users, Stethoscope, Shield, ClipboardCheck } from 'lucide-re
 function SignInContent() {
   const searchParams = useSearchParams()
   const portal = searchParams.get('portal')
+  const accessCode = searchParams.get('code')
+
+  // Save access code to sessionStorage so it persists through Clerk redirect
+  // This allows the link-access-code page to auto-fill the code
+  if (typeof window !== 'undefined' && accessCode) {
+    sessionStorage.setItem('pendingAccessCode', accessCode)
+  }
 
   // NOTE: We intentionally DON'T use forceRedirectUrl here.
   // This allows Clerk to use NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL ("/dashboard")
