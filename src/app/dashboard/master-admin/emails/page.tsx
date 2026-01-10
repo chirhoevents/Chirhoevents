@@ -19,6 +19,7 @@ import {
   ExternalLink,
   Reply,
   Loader2,
+  PenSquare,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -212,9 +213,18 @@ export default function EmailsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Emails</h1>
-        <p className="text-gray-600">View all incoming and outgoing emails processed through Resend</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Emails</h1>
+          <p className="text-gray-600">View all incoming and outgoing emails processed through Resend</p>
+        </div>
+        <Link
+          href="/dashboard/master-admin/emails/compose"
+          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+        >
+          <PenSquare className="h-4 w-4" />
+          Compose Email
+        </Link>
       </div>
 
       {/* Tabs */}
