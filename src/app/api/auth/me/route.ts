@@ -1,52 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
-import { prisma } from '@/lib/prisma'
+import { getCurrentUser } from '@/lib/auth-utils'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 
 export async function GET(request: NextRequest) {
   try {
     console.log('[Auth Me] Request received')
 
-    // Try to get userId from JWT token first, then fall back to cookie auth
-    let userId: string | null | undefined = await getClerkUserIdFromHeader(request)
+    // Get userId from Authorization header as fallback (for client-side requests)
+    const overrideUserId = getClerkUserIdFromHeader(request)
+    console.log('[Auth Me] Override userId from header:', overrideUserId || 'none')
 
-    if (!userId) {
-      const authResult = await auth()
-      userId = authResult.userId
-    }
+    // Use getCurrentUser for consistent auth handling across all routes
+    const user = await getCurrentUser(overrideUserId)
 
-    console.log('[Auth Me] Clerk userId:', userId)
-
-    if (!userId) {
-      console.error('[Auth Me] No userId from Clerk')
+    if (!user) {
+      console.error('[Auth Me] User not found - either not authenticated or not in database')
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const user = await prisma.user.findFirst({
-      where: { clerkUserId: userId },
-      include: {
-        organization: {
-          select: {
-            id: true,
-            name: true,
-            type: true,
-          },
-        },
-      },
+    console.log('[Auth Me] User found:', {
+      email: user.email,
+      role: user.role,
+      org: user.organization?.name,
     })
 
-    console.log('[Auth Me] User:', {
-      email: user?.email,
-      role: user?.role,
-      org: user?.organization?.name,
-    })
-
-    if (!user) {
-      console.error('[Auth Me] User not found in database')
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
-
-    console.log('[Auth Me] Returning user data')
     return NextResponse.json({
       id: user.id,
       email: user.email,
