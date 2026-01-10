@@ -1,12 +1,20 @@
-import { requireAdmin } from '@/lib/auth-utils'
-import { getEffectiveOrgId } from '@/lib/get-effective-org'
+'use client'
+
+import { useAdminContext } from '@/contexts/AdminContext'
 import CreateEventClient from './CreateEventClient'
+import { Loader2 } from 'lucide-react'
 
-export const dynamic = 'force-dynamic'
+export default function CreateEventPage() {
+  const { organizationId } = useAdminContext()
 
-export default async function CreateEventPage() {
-  const user = await requireAdmin()
-  const organizationId = await getEffectiveOrgId(user)
+  // Show loading state while context is being populated
+  if (!organizationId) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-[#1E3A5F]" />
+      </div>
+    )
+  }
 
   return <CreateEventClient organizationId={organizationId} />
 }
