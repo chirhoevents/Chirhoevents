@@ -105,15 +105,9 @@ export async function POST(request: NextRequest) {
           },
         })
 
-        // Create billing note
-        await prisma.billingNote.create({
-          data: {
-            organizationId: organizationId,
-            invoiceId: invoiceId,
-            noteType: 'general',
-            content: `Online payment received for Invoice #${invoiceNumber}: $${(session.amount_total! / 100).toFixed(2)} via credit card`,
-          },
-        })
+        // Note: Billing notes require a createdByUserId, so we skip creating
+        // one for automated webhook payments. The payment is recorded in the
+        // Payment table and invoice status is updated to 'paid'.
 
         // Send payment confirmation email
         try {
