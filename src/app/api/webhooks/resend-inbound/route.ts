@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleInboundEmail(emailData: any) {
-  console.log('[Resend Webhook] Processing inbound email...')
+  console.log('[Resend Webhook] === Processing inbound email ===')
   console.log('[Resend Webhook] Full payload:', JSON.stringify(emailData, null, 2))
 
   try {
