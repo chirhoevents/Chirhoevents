@@ -81,21 +81,9 @@ export async function POST(request: NextRequest) {
 
         console.log('✅ Invoice marked as paid:', invoiceNumber)
 
-        // Create Payment record
-        await prisma.payment.create({
-          data: {
-            organizationId: organizationId,
-            invoiceId: invoiceId,
-            amount: session.amount_total! / 100,
-            paymentType: 'balance', // Platform invoice payment
-            paymentMethod: 'card',
-            paymentStatus: 'succeeded',
-            stripePaymentIntentId: session.payment_intent as string,
-            processedAt: new Date(),
-            notes: `Online payment for Invoice #${invoiceNumber} (${invoiceType})`,
-          },
-        })
-        console.log('✅ Payment record created for invoice:', invoiceNumber)
+        // Note: The Payment model is for event registration payments, not platform invoices.
+        // Platform invoice payments are tracked via the Invoice record itself (status, paidAt,
+        // stripePaymentIntentId, stripeCheckoutSessionId fields).
 
         // Handle subscription activation if this is a subscription invoice
         if (invoiceType === 'subscription') {
