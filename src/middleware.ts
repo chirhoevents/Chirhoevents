@@ -28,6 +28,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/webhooks(.*)',
   '/api/events(.*)',
   '/api/invites(.*)',
+  '/api/stripe(.*)',  // Stripe APIs - handle their own auth
 ])
 
 export default clerkMiddleware((auth, request) => {
