@@ -84,6 +84,8 @@ export async function POST(
       },
     })
 
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
+
     if (!invoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
     }
@@ -188,7 +190,25 @@ export async function POST(
               </div>
 
               ${invoice.status !== 'paid' ? `
-                <p>Please submit payment by the due date. If you have any questions about this invoice, please contact us at support@chirhoevents.com.</p>
+                ${invoice.paymentToken ? `
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="${appUrl}/pay/invoice/${invoice.paymentToken}"
+                       style="display: inline-block; background: #1E3A5F; color: white; padding: 16px 40px;
+                              text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 18px;">
+                      Pay Now
+                    </a>
+                  </div>
+                  <p style="text-align: center; color: #666; font-size: 14px;">
+                    Click the button above to pay securely online with a credit card.
+                  </p>
+                  <hr style="border: none; border-top: 1px solid #E5E7EB; margin: 20px 0;" />
+                ` : ''}
+                <p><strong>Other Payment Options:</strong></p>
+                <ul style="color: #666;">
+                  <li><strong>Check:</strong> Make payable to "ChirhoEvents" and mail to our billing address</li>
+                  <li><strong>ACH/Wire:</strong> Contact support@chirhoevents.com for banking details</li>
+                </ul>
+                <p>If you have any questions about this invoice, please contact us at support@chirhoevents.com.</p>
               ` : `
                 <p>Thank you for your payment!</p>
               `}

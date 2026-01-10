@@ -23,6 +23,10 @@ import {
   StickyNote,
   RefreshCcw,
   Building2,
+  Link,
+  Copy,
+  Mail,
+  ExternalLink,
 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -150,6 +154,7 @@ interface Invoice {
   status: string
   paidAt: string | null
   createdAt: string
+  paymentLink: string | null
 }
 
 interface Payment {
@@ -550,6 +555,51 @@ export default function BillingDashboard() {
     a.href = url
     a.download = `payments-export-${format(new Date(), 'yyyy-MM-dd')}.csv`
     a.click()
+  }
+
+  const handleCopyPaymentLink = async (invoice: Invoice) => {
+    if (invoice.paymentLink) {
+      await navigator.clipboard.writeText(invoice.paymentLink)
+      alert('Payment link copied to clipboard!')
+    } else {
+      // Generate payment link first
+      try {
+        const token = await getToken()
+        const res = await fetch(`/api/master-admin/invoices/${invoice.id}/payment-link`, {
+          method: 'POST',
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        })
+        if (!res.ok) throw new Error('Failed to generate payment link')
+        const data = await res.json()
+        await navigator.clipboard.writeText(data.paymentLink)
+        alert('Payment link generated and copied to clipboard!')
+        fetchInvoices() // Refresh to get the new payment link
+      } catch (err) {
+        console.error('Error generating payment link:', err)
+        alert('Failed to generate payment link')
+      }
+    }
+  }
+
+  const handleSendInvoiceEmail = async (invoice: Invoice) => {
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/admin/invoices/${invoice.id}/send-email`, {
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
+      if (!res.ok) throw new Error('Failed to send invoice email')
+      alert(`Invoice email sent to ${invoice.organization?.name}!`)
+    } catch (err) {
+      console.error('Error sending invoice email:', err)
+      alert('Failed to send invoice email')
+    }
+  }
+
+  const handleOpenPaymentLink = (invoice: Invoice) => {
+    if (invoice.paymentLink) {
+      window.open(invoice.paymentLink, '_blank')
+    }
   }
 
   if (loading) {
@@ -1007,30 +1057,49 @@ export default function BillingDashboard() {
                           </Badge>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <button
-                              className="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg"
-                              title="View"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </button>
-                            {invoice.status !== 'paid' && (
-                              <button
-                                onClick={() => {
-                                  setSelectedInvoice(invoice)
-                                  setShowMarkPaidModal(true)
-                                }}
-                                className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg"
-                                title="Mark Paid"
-                              >
-                                <CheckCircle className="h-4 w-4" />
-                              </button>
+                          <div className="flex items-center gap-1">
+                            {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
+                              <>
+                                <button
+                                  onClick={() => handleCopyPaymentLink(invoice)}
+                                  className="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg"
+                                  title={invoice.paymentLink ? 'Copy Payment Link' : 'Generate & Copy Payment Link'}
+                                >
+                                  {invoice.paymentLink ? <Copy className="h-4 w-4" /> : <Link className="h-4 w-4" />}
+                                </button>
+                                {invoice.paymentLink && (
+                                  <button
+                                    onClick={() => handleOpenPaymentLink(invoice)}
+                                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                                    title="Open Payment Page"
+                                  >
+                                    <ExternalLink className="h-4 w-4" />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleSendInvoiceEmail(invoice)}
+                                  className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                                  title="Send Invoice Email"
+                                >
+                                  <Mail className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setSelectedInvoice(invoice)
+                                    setShowMarkPaidModal(true)
+                                  }}
+                                  className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg"
+                                  title="Mark Paid"
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </button>
+                              </>
                             )}
                             <button
-                              className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
-                              title="Download PDF"
+                              className="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg"
+                              title="View Details"
                             >
-                              <Download className="h-4 w-4" />
+                              <Eye className="h-4 w-4" />
                             </button>
                           </div>
                         </td>
