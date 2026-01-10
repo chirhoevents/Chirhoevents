@@ -105,12 +105,18 @@ async function handleInboundEmail(emailData: any) {
   console.log('[Resend Webhook] To:', emailData.to)
   console.log('[Resend Webhook] Subject:', emailData.subject)
   console.log('[Resend Webhook] Email ID:', emailData.email_id)
+  console.log('[Resend Webhook] Available fields:', Object.keys(emailData))
 
   try {
-    // Fetch full email content from Resend API if we have an email_id
-    let textBody = emailData.text || null
-    let htmlBody = emailData.html || null
+    // Try to get content from various possible fields
+    let textBody = emailData.text || emailData.text_body || emailData.body || null
+    let htmlBody = emailData.html || emailData.html_body || null
 
+    // Log what content we found directly
+    console.log('[Resend Webhook] Direct text body:', textBody ? 'found' : 'not found')
+    console.log('[Resend Webhook] Direct html body:', htmlBody ? 'found' : 'not found')
+
+    // If no content found, try to fetch from Resend API
     if (emailData.email_id && (!textBody && !htmlBody)) {
       try {
         console.log('[Resend Webhook] Fetching full email from Resend API...')
@@ -122,15 +128,28 @@ async function handleInboundEmail(emailData: any) {
 
         if (emailResponse.ok) {
           const fullEmail = await emailResponse.json()
-          console.log('[Resend Webhook] Full email fetched:', Object.keys(fullEmail))
-          textBody = fullEmail.text || fullEmail.text_body || null
+          console.log('[Resend Webhook] Full email fields:', Object.keys(fullEmail))
+          textBody = fullEmail.text || fullEmail.text_body || fullEmail.body || null
           htmlBody = fullEmail.html || fullEmail.html_body || null
         } else {
-          console.error('[Resend Webhook] Failed to fetch full email:', emailResponse.status)
+          const errorText = await emailResponse.text()
+          console.error('[Resend Webhook] Failed to fetch full email:', emailResponse.status, errorText)
         }
       } catch (fetchError) {
         console.error('[Resend Webhook] Error fetching full email:', fetchError)
       }
+    }
+
+    // If still no content, check if there's raw content
+    if (!textBody && !htmlBody && emailData.raw) {
+      console.log('[Resend Webhook] Attempting to parse raw email content')
+      textBody = emailData.raw
+    }
+
+    // Last resort: create a summary from available data
+    if (!textBody && !htmlBody) {
+      console.log('[Resend Webhook] No body content found, creating placeholder')
+      textBody = `Email received from ${emailData.from}\nSubject: ${emailData.subject || '(No subject)'}\n\n[Email body not available - check Resend dashboard for full content]`
     }
 
     // 1. Save raw email to database
