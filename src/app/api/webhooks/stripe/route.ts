@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
           data: {
             status: 'paid',
             paidAt: new Date(),
-            paymentMethod: 'card',
+            paymentMethod: 'credit_card',
             stripePaymentIntentId: session.payment_intent as string,
           },
           include: {
