@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import React from 'react'
@@ -48,7 +48,7 @@ export async function POST(
   { params }: { params: Promise<{ invoiceId: string }> }
 ) {
   try {
-    const { userId: clerkUserId } = await auth()
+    const clerkUserId = await getClerkUserIdFromRequest(request)
 
     if (!clerkUserId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -68,7 +68,20 @@ export async function POST(
 
     const invoice = await prisma.invoice.findUnique({
       where: { id: invoiceId },
-      include: {
+      select: {
+        id: true,
+        invoiceNumber: true,
+        invoiceType: true,
+        amount: true,
+        description: true,
+        lineItems: true,
+        dueDate: true,
+        status: true,
+        paidAt: true,
+        createdAt: true,
+        periodStart: true,
+        periodEnd: true,
+        organizationId: true,
         organization: {
           select: {
             id: true,
@@ -83,6 +96,18 @@ export async function POST(
         },
       },
     })
+
+    // Try to get payment token separately (may fail if column doesn't exist)
+    let paymentToken: string | null = null
+    try {
+      const tokenResult = await prisma.$queryRawUnsafe<{ payment_token: string | null }[]>(
+        `SELECT payment_token FROM invoices WHERE id = $1::uuid`,
+        invoiceId
+      )
+      paymentToken = tokenResult[0]?.payment_token || null
+    } catch {
+      // Column may not exist yet
+    }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
 
@@ -190,9 +215,9 @@ export async function POST(
               </div>
 
               ${invoice.status !== 'paid' ? `
-                ${invoice.paymentToken ? `
+                ${paymentToken ? `
                   <div style="text-align: center; margin: 30px 0;">
-                    <a href="${appUrl}/pay/invoice/${invoice.paymentToken}"
+                    <a href="${appUrl}/pay/invoice/${paymentToken}"
                        style="display: inline-block; background: #1E3A5F; color: white; padding: 16px 40px;
                               text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 18px;">
                       Pay Now

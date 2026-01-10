@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { prisma } from '@/lib/prisma'
 import crypto from 'crypto'
 
@@ -14,7 +14,7 @@ export async function POST(
   { params }: { params: Promise<{ invoiceId: string }> }
 ) {
   try {
-    const { userId: clerkUserId } = await auth()
+    const clerkUserId = await getClerkUserIdFromRequest(request)
 
     if (!clerkUserId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -108,7 +108,7 @@ export async function GET(
   { params }: { params: Promise<{ invoiceId: string }> }
 ) {
   try {
-    const { userId: clerkUserId } = await auth()
+    const clerkUserId = await getClerkUserIdFromRequest(request)
 
     if (!clerkUserId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
