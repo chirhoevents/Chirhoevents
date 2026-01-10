@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
           data: {
             organizationId: organizationId,
             invoiceId: invoiceId,
-            noteType: 'payment_received',
+            noteType: 'general',
             content: `Online payment received for Invoice #${invoiceNumber}: $${(session.amount_total! / 100).toFixed(2)} via credit card`,
           },
         })
