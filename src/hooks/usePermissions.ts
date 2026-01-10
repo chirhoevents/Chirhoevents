@@ -79,7 +79,9 @@ export function usePermissions(): UsePermissionsReturn {
       const response = await fetch('/api/auth/me', { headers })
 
       if (!response.ok) {
-        if (response.status === 401) {
+        // 401 = not authenticated, 404 = user not found in database
+        // Both cases mean we can't get user permissions, so just set user to null
+        if (response.status === 401 || response.status === 404) {
           setUser(null)
           return
         }
