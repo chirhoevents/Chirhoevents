@@ -572,15 +572,16 @@ export default function GetStartedPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tell us about your needs (optional)
+                  Tell us about yourself and how you plan to use ChiRho Events *
                 </label>
                 <textarea
                   name="additionalNotes"
                   value={formData.additionalNotes}
                   onChange={handleChange}
+                  required
                   rows={4}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1E3A5F] focus:border-[#1E3A5F]"
-                  placeholder="Any specific requirements or questions?"
+                  placeholder="What types of events do you run? What challenges are you hoping ChiRho Events will help you solve?"
                 />
               </div>
             </div>
