@@ -251,14 +251,50 @@ const getStatusStyle = (status: string) => {
 }
 
 export const InvoicePDF = ({ invoice }: InvoicePDFProps) => {
-  const address = invoice.organization.address
-  const addressString = address
-    ? [address.street, address.city, address.state, address.zip].filter(Boolean).join(', ')
-    : ''
+  // Safely extract organization data with string fallbacks
+  const org = invoice.organization || {}
+  const orgName = String(org.legalName || org.name || 'Organization')
+  const orgContactName = org.contactName ? String(org.contactName) : ''
+  const orgContactEmail = String(org.contactEmail || '')
+  const orgContactPhone = org.contactPhone ? String(org.contactPhone) : ''
+  const orgTier = String(org.tier || 'Standard')
 
-  const lineItems = invoice.lineItems || [
-    { description: invoice.description || invoice.invoiceType, amount: invoice.amount },
-  ]
+  // Safely build address string
+  const address = org.address
+  let addressString = ''
+  if (address && typeof address === 'object') {
+    addressString = [address.street, address.city, address.state, address.zip]
+      .filter(Boolean)
+      .map(s => String(s))
+      .join(', ')
+  }
+
+  // Safely extract invoice data
+  const invoiceNumber = String(invoice.invoiceNumber || '')
+  const invoiceStatus = String(invoice.status || 'pending')
+
+  // Safely parse line items - ensure they're valid primitives
+  let lineItems: Array<{ description: string; amount: number }> = []
+  try {
+    if (invoice.lineItems && Array.isArray(invoice.lineItems)) {
+      lineItems = invoice.lineItems.map(item => ({
+        description: String(item.description || ''),
+        amount: Number(item.amount) || 0,
+      }))
+    }
+  } catch {
+    // Fall back to default
+  }
+
+  // If no valid line items, create a default one
+  if (lineItems.length === 0) {
+    lineItems = [
+      {
+        description: String(invoice.description || invoice.invoiceType || 'Service'),
+        amount: Number(invoice.amount) || 0
+      },
+    ]
+  }
 
   return (
     <Document>
@@ -271,10 +307,10 @@ export const InvoicePDF = ({ invoice }: InvoicePDFProps) => {
           </View>
           <View>
             <Text style={styles.invoiceTitle}>INVOICE</Text>
-            <Text style={styles.invoiceNumber}>#{invoice.invoiceNumber}</Text>
-            <View style={[styles.statusBadge, getStatusStyle(invoice.status)]}>
+            <Text style={styles.invoiceNumber}>#{invoiceNumber}</Text>
+            <View style={[styles.statusBadge, getStatusStyle(invoiceStatus)]}>
               <Text style={{ fontSize: 9, fontWeight: 'bold' }}>
-                {invoice.status.toUpperCase()}
+                {invoiceStatus.toUpperCase()}
               </Text>
             </View>
           </View>
@@ -286,14 +322,14 @@ export const InvoicePDF = ({ invoice }: InvoicePDFProps) => {
         <View style={styles.infoSection}>
           <View style={styles.infoBlock}>
             <Text style={styles.infoLabel}>Bill To</Text>
-            <Text style={styles.infoText}>{invoice.organization.legalName}</Text>
-            {invoice.organization.contactName && (
-              <Text style={styles.infoText}>Attn: {invoice.organization.contactName}</Text>
+            <Text style={styles.infoText}>{orgName}</Text>
+            {orgContactName && (
+              <Text style={styles.infoText}>Attn: {orgContactName}</Text>
             )}
             {addressString && <Text style={styles.infoText}>{addressString}</Text>}
-            <Text style={styles.infoText}>{invoice.organization.contactEmail}</Text>
-            {invoice.organization.contactPhone && (
-              <Text style={styles.infoText}>{invoice.organization.contactPhone}</Text>
+            {orgContactEmail && <Text style={styles.infoText}>{orgContactEmail}</Text>}
+            {orgContactPhone && (
+              <Text style={styles.infoText}>{orgContactPhone}</Text>
             )}
           </View>
           <View style={styles.infoBlock}>
@@ -303,7 +339,7 @@ export const InvoicePDF = ({ invoice }: InvoicePDFProps) => {
             {invoice.paidAt && (
               <Text style={styles.infoText}>Paid On: {formatDate(invoice.paidAt)}</Text>
             )}
-            <Text style={styles.infoText}>Plan: {invoice.organization.tier}</Text>
+            <Text style={styles.infoText}>Plan: {orgTier}</Text>
             {invoice.periodStart && invoice.periodEnd && (
               <Text style={styles.periodText}>
                 Service Period: {formatDate(invoice.periodStart)} - {formatDate(invoice.periodEnd)}
