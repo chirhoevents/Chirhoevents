@@ -17,6 +17,8 @@ import {
   X,
   Ticket,
   ExternalLink,
+  Reply,
+  Loader2,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -77,6 +79,9 @@ export default function EmailsPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [selectedEmail, setSelectedEmail] = useState<ReceivedEmail | SentEmail | null>(null)
   const [viewModalOpen, setViewModalOpen] = useState(false)
+  const [replyMode, setReplyMode] = useState(false)
+  const [replyMessage, setReplyMessage] = useState('')
+  const [sendingReply, setSendingReply] = useState(false)
 
   useEffect(() => {
     fetchEmails()
@@ -142,6 +147,49 @@ export default function EmailsPage() {
   const openEmailPreview = (email: ReceivedEmail | SentEmail) => {
     setSelectedEmail(email)
     setViewModalOpen(true)
+    setReplyMode(false)
+    setReplyMessage('')
+  }
+
+  const closeModal = () => {
+    setViewModalOpen(false)
+    setReplyMode(false)
+    setReplyMessage('')
+    setSelectedEmail(null)
+  }
+
+  const sendReply = async () => {
+    if (!selectedEmail || !('fromAddress' in selectedEmail) || !replyMessage.trim()) return
+
+    setSendingReply(true)
+    try {
+      const token = await getToken()
+      const response = await fetch(`/api/master-admin/emails/received/${selectedEmail.id}/reply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          message: replyMessage,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to send reply')
+      }
+
+      // Success - close modal and show success
+      alert('Reply sent successfully!')
+      closeModal()
+      fetchEmails() // Refresh to show the sent reply
+    } catch (error) {
+      console.error('Error sending reply:', error)
+      alert(error instanceof Error ? error.message : 'Failed to send reply')
+    } finally {
+      setSendingReply(false)
+    }
   }
 
   const statusConfig = {
@@ -473,7 +521,7 @@ export default function EmailsPage() {
           <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
             <div
               className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-              onClick={() => setViewModalOpen(false)}
+              onClick={closeModal}
             />
 
             <div className="relative inline-block w-full max-w-4xl p-6 my-8 text-left align-middle bg-white rounded-xl shadow-xl transform transition-all">
@@ -481,7 +529,7 @@ export default function EmailsPage() {
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">
-                    {'fromAddress' in selectedEmail ? 'Received Email' : 'Sent Email'}
+                    {replyMode ? 'Reply to Email' : ('fromAddress' in selectedEmail ? 'Received Email' : 'Sent Email')}
                   </h3>
                   <p className="text-sm text-gray-500">
                     {'fromAddress' in selectedEmail
@@ -491,7 +539,7 @@ export default function EmailsPage() {
                   </p>
                 </div>
                 <button
-                  onClick={() => setViewModalOpen(false)}
+                  onClick={closeModal}
                   className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
                 >
                   <X className="h-5 w-5" />
@@ -601,14 +649,70 @@ export default function EmailsPage() {
                 )}
               </div>
 
+              {/* Reply Form (for received emails) */}
+              {'fromAddress' in selectedEmail && replyMode && (
+                <div className="mt-4 border-t border-gray-200 pt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Your Reply
+                  </label>
+                  <textarea
+                    value={replyMessage}
+                    onChange={(e) => setReplyMessage(e.target.value)}
+                    placeholder="Type your reply here..."
+                    rows={6}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+                    disabled={sendingReply}
+                  />
+                </div>
+              )}
+
               {/* Modal Footer */}
-              <div className="mt-6 flex justify-end">
-                <button
-                  onClick={() => setViewModalOpen(false)}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                >
-                  Close
-                </button>
+              <div className="mt-6 flex justify-end gap-3">
+                {'fromAddress' in selectedEmail && !replyMode && (
+                  <button
+                    onClick={() => setReplyMode(true)}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+                  >
+                    <Reply className="h-4 w-4" />
+                    Reply
+                  </button>
+                )}
+                {'fromAddress' in selectedEmail && replyMode && (
+                  <>
+                    <button
+                      onClick={() => setReplyMode(false)}
+                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                      disabled={sendingReply}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={sendReply}
+                      disabled={sendingReply || !replyMessage.trim()}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {sendingReply ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4" />
+                          Send Reply
+                        </>
+                      )}
+                    </button>
+                  </>
+                )}
+                {!replyMode && (
+                  <button
+                    onClick={closeModal}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    Close
+                  </button>
+                )}
               </div>
             </div>
           </div>

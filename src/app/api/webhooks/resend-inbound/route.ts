@@ -104,8 +104,35 @@ async function handleInboundEmail(emailData: any) {
   console.log('[Resend Webhook] From:', emailData.from)
   console.log('[Resend Webhook] To:', emailData.to)
   console.log('[Resend Webhook] Subject:', emailData.subject)
+  console.log('[Resend Webhook] Email ID:', emailData.email_id)
 
   try {
+    // Fetch full email content from Resend API if we have an email_id
+    let textBody = emailData.text || null
+    let htmlBody = emailData.html || null
+
+    if (emailData.email_id && (!textBody && !htmlBody)) {
+      try {
+        console.log('[Resend Webhook] Fetching full email from Resend API...')
+        const emailResponse = await fetch(`https://api.resend.com/emails/${emailData.email_id}`, {
+          headers: {
+            'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          },
+        })
+
+        if (emailResponse.ok) {
+          const fullEmail = await emailResponse.json()
+          console.log('[Resend Webhook] Full email fetched:', Object.keys(fullEmail))
+          textBody = fullEmail.text || fullEmail.text_body || null
+          htmlBody = fullEmail.html || fullEmail.html_body || null
+        } else {
+          console.error('[Resend Webhook] Failed to fetch full email:', emailResponse.status)
+        }
+      } catch (fetchError) {
+        console.error('[Resend Webhook] Error fetching full email:', fetchError)
+      }
+    }
+
     // 1. Save raw email to database
     const receivedEmail = await prisma.receivedEmail.create({
       data: {
@@ -115,8 +142,8 @@ async function handleInboundEmail(emailData: any) {
         ccAddresses: emailData.cc || [],
         bccAddresses: emailData.bcc || [],
         subject: emailData.subject || '(No Subject)',
-        textBody: emailData.text || null,
-        htmlBody: emailData.html || null,
+        textBody: textBody,
+        htmlBody: htmlBody,
         messageId: emailData.message_id || null,
         attachments: emailData.attachments || null,
       },
@@ -140,7 +167,7 @@ async function handleInboundEmail(emailData: any) {
     // 3. Create support ticket if configured (or by default)
     let ticket = null
     if (!forwardConfig || forwardConfig.createTicket) {
-      ticket = await createInboundTicket(emailData, receivedEmail.id)
+      ticket = await createInboundTicket(emailData, receivedEmail.id, textBody, htmlBody)
       console.log('[Resend Webhook] Inbound ticket created:', ticket.ticketNumber)
 
       // 4. Send auto-reply if configured
@@ -173,7 +200,12 @@ async function handleInboundEmail(emailData: any) {
   }
 }
 
-async function createInboundTicket(emailData: any, receivedEmailId: string) {
+async function createInboundTicket(
+  emailData: any,
+  receivedEmailId: string,
+  textBody: string | null,
+  htmlBody: string | null
+) {
   // Extract sender name from "Name <email>" format
   const fromMatch = (emailData.from || '').match(/^(.*?)\s*<(.+?)>$/)
   const fromName = fromMatch ? fromMatch[1].trim() : null
@@ -194,13 +226,16 @@ async function createInboundTicket(emailData: any, receivedEmailId: string) {
     category = 'legal'
   }
 
+  // Use the fetched body content
+  const messageBody = textBody || htmlBody || '(No message body)'
+
   const ticket = await prisma.inboundSupportTicket.create({
     data: {
       receivedEmailId,
       fromEmail,
       fromName: fromName || null,
       subject: emailData.subject || '(No Subject)',
-      message: emailData.text || emailData.html || '(No message body)',
+      message: messageBody,
       category,
       status: 'open',
       priority: 'normal',

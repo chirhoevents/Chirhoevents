@@ -76,9 +76,8 @@ export function wrapEmail(content: string, options?: {
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center">
-                    <!-- Logo/Icon -->
-                    <div style="font-size: 40px; margin-bottom: 8px;">⚓</div>
-                    <div style="color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: 0.5px;">ChiRho Events</div>
+                    <!-- Logo -->
+                    <img src="${APP_URL}/light-logo-horizontal.png" alt="ChiRho Events" width="200" style="max-width: 200px; height: auto; margin-bottom: 8px;" />
                     <div style="color: #9C8466; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px;">Catholic Event Management</div>
                   </td>
                 </tr>
