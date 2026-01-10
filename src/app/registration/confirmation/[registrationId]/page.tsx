@@ -237,7 +237,10 @@ export default function ConfirmationPage() {
               <Download className="mr-2 h-4 w-4" />
               Download Receipt
             </Button>
-            <Button size="lg" onClick={() => window.location.href = '/sign-in'}>
+            <Button
+              size="lg"
+              onClick={() => window.open(`/sign-in?portal=group-leader&code=${encodeURIComponent(registration.accessCode)}`, '_blank')}
+            >
               Access Group Portal
             </Button>
           </div>
