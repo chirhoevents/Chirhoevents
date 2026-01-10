@@ -2,13 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
+import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ organizationId: string; templateId: string }> }
 ) {
   try {
-    const user = await getCurrentUser()
+    // Get userId from Authorization header as fallback (for client-side requests)
+    const overrideUserId = getClerkUserIdFromHeader(request)
+    const user = await getCurrentUser(overrideUserId)
 
     if (!user || !isAdmin(user)) {
       return NextResponse.json(
@@ -57,7 +60,9 @@ export async function PUT(
   { params }: { params: Promise<{ organizationId: string; templateId: string }> }
 ) {
   try {
-    const user = await getCurrentUser()
+    // Get userId from Authorization header as fallback (for client-side requests)
+    const overrideUserId = getClerkUserIdFromHeader(request)
+    const user = await getCurrentUser(overrideUserId)
 
     if (!user || !isAdmin(user)) {
       return NextResponse.json(
@@ -136,7 +141,9 @@ export async function DELETE(
   { params }: { params: Promise<{ organizationId: string; templateId: string }> }
 ) {
   try {
-    const user = await getCurrentUser()
+    // Get userId from Authorization header as fallback (for client-side requests)
+    const overrideUserId = getClerkUserIdFromHeader(request)
+    const user = await getCurrentUser(overrideUserId)
 
     if (!user || !isAdmin(user)) {
       return NextResponse.json(
