@@ -24,8 +24,10 @@ import {
 } from 'lucide-react'
 import { hasPermission, getRoleName, type Permission, type UserRole } from '@/lib/permissions'
 import ImpersonationBanner from '@/components/admin/ImpersonationBanner'
+import { AdminProvider } from '@/contexts/AdminContext'
 
 interface UserInfo {
+  organizationId: string
   organizationName: string
   userRole: UserRole
   permissions?: string[]
@@ -160,6 +162,7 @@ export default function AdminLayout({
 
           const retryData = await retryResponse.json()
           setUserInfo({
+            organizationId: retryData.organizationId,
             organizationName: retryData.organizationName,
             userRole: retryData.userRole as UserRole,
             permissions: retryData.permissions,
@@ -184,6 +187,7 @@ export default function AdminLayout({
         console.log('✅ [Admin Layout] User:', data.email, '| Role:', data.userRole)
         console.log('✅ [Admin Layout] Org:', data.organizationName)
         setUserInfo({
+          organizationId: data.organizationId,
           organizationName: data.organizationName,
           userRole: data.userRole as UserRole,
           permissions: data.permissions,
@@ -434,7 +438,17 @@ export default function AdminLayout({
 
         {/* Page content */}
         <main className="p-4 lg:p-8">
-          {children}
+          <AdminProvider
+            value={{
+              userRole: userInfo?.userRole || null,
+              organizationId: userInfo?.organizationId || null,
+              organizationName: userInfo?.organizationName || null,
+              isImpersonating: userInfo?.isImpersonating || false,
+              impersonatedOrgId: userInfo?.impersonatedOrgId || null,
+            }}
+          >
+            {children}
+          </AdminProvider>
         </main>
       </div>
     </div>

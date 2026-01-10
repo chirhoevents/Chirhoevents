@@ -2,13 +2,14 @@
 
 import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Building2, Users, Plug, Loader2, CreditCard, Palette } from 'lucide-react'
+import { Building2, Users, Plug, CreditCard, Palette } from 'lucide-react'
 import OrganizationSettingsTab from '@/components/admin/settings/OrganizationSettingsTab'
 import TeamSettingsTab from '@/components/admin/settings/TeamSettingsTab'
 import IntegrationsSettingsTab from '@/components/admin/settings/IntegrationsSettingsTab'
 import BillingSettingsTab from '@/components/admin/settings/BillingSettingsTab'
 import BrandingSettingsTab from '@/components/admin/settings/BrandingSettingsTab'
-import { usePermissions } from '@/hooks/usePermissions'
+import { useAdminContext } from '@/contexts/AdminContext'
+import { canManageTeam } from '@/lib/permissions'
 
 interface SettingsClientProps {
   organizationName?: string
@@ -16,19 +17,14 @@ interface SettingsClientProps {
 
 export default function SettingsClient({ organizationName = 'your organization' }: SettingsClientProps) {
   const [activeTab, setActiveTab] = useState('organization')
-  const { can, canManageTeam, loading, userRole } = usePermissions()
+  const { userRole, organizationName: contextOrgName } = useAdminContext()
+
+  // Use organization name from context if available
+  const displayOrgName = contextOrgName || organizationName
 
   // Only org_admin and master_admin can access integrations (Stripe)
   const canAccessIntegrations = userRole === 'org_admin' || userRole === 'master_admin'
-  const canAccessTeam = canManageTeam()
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-[#1E3A5F]" />
-      </div>
-    )
-  }
+  const canAccessTeam = userRole ? canManageTeam(userRole) : false
 
   return (
     <div className="space-y-6">
@@ -38,7 +34,7 @@ export default function SettingsClient({ organizationName = 'your organization' 
           Organization Settings
         </h1>
         <p className="text-[#6B7280]">
-          Manage settings for {organizationName}
+          Manage settings for {displayOrgName}
         </p>
       </div>
 
