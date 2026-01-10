@@ -95,7 +95,12 @@ export async function GET(request: NextRequest) {
       where: {
         status: { in: ['pending', 'overdue'] },
       },
-      include: {
+      select: {
+        id: true,
+        invoiceNumber: true,
+        amount: true,
+        dueDate: true,
+        status: true,
         organization: {
           select: { id: true, name: true },
         },
@@ -126,6 +131,7 @@ export async function GET(request: NextRequest) {
           lt: endOfMonth,
         },
       },
+      select: { id: true, amount: true },
     })
     const subscriptionRevenue = subscriptionInvoicesPaidThisMonth.reduce(
       (sum, inv) => sum + Number(inv.amount),
@@ -142,6 +148,7 @@ export async function GET(request: NextRequest) {
           lt: endOfMonth,
         },
       },
+      select: { id: true, amount: true },
     })
     const setupFeeRevenue = setupFeeInvoicesPaidThisMonth.reduce(
       (sum, inv) => sum + Number(inv.amount),
@@ -186,7 +193,13 @@ export async function GET(request: NextRequest) {
 
     // Last 5 invoices created
     const recentInvoices = await prisma.invoice.findMany({
-      include: {
+      select: {
+        id: true,
+        invoiceNumber: true,
+        amount: true,
+        invoiceType: true,
+        status: true,
+        createdAt: true,
         organization: {
           select: { name: true },
         },

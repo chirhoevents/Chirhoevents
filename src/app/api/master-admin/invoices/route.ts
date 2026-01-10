@@ -75,7 +75,20 @@ export async function GET(request: NextRequest) {
 
     const invoices = await prisma.invoice.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        invoiceNumber: true,
+        invoiceType: true,
+        amount: true,
+        status: true,
+        dueDate: true,
+        paidAt: true,
+        description: true,
+        lineItems: true,
+        periodStart: true,
+        periodEnd: true,
+        createdAt: true,
+        updatedAt: true,
         organization: {
           select: { id: true, name: true },
         },
@@ -86,12 +99,26 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     })
 
+    // Try to get payment tokens using raw SQL - handles missing column gracefully
+    let paymentTokenMap: Record<string, string> = {}
+    try {
+      const tokenResults = await prisma.$queryRawUnsafe<{ id: string; payment_token: string | null }[]>(
+        `SELECT id, payment_token FROM invoices WHERE id = ANY($1::uuid[])`,
+        invoices.map(i => i.id)
+      )
+      paymentTokenMap = Object.fromEntries(
+        tokenResults.filter(r => r.payment_token).map(r => [r.id, r.payment_token!])
+      )
+    } catch {
+      // Column may not exist yet, payment links will be null
+    }
+
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
 
     // Add payment links to invoices
     const invoicesWithLinks = invoices.map(invoice => ({
       ...invoice,
-      paymentLink: invoice.paymentToken ? `${appUrl}/pay/invoice/${invoice.paymentToken}` : null,
+      paymentLink: paymentTokenMap[invoice.id] ? `${appUrl}/pay/invoice/${paymentTokenMap[invoice.id]}` : null,
     }))
 
     return NextResponse.json({ invoices: invoicesWithLinks })
