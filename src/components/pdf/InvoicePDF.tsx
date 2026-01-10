@@ -224,19 +224,32 @@ interface InvoicePDFProps {
   invoice: InvoiceData
 }
 
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
+const formatDate = (dateInput: unknown): string => {
+  try {
+    if (!dateInput) return 'N/A'
+    const dateStr = String(dateInput)
+    const date = new Date(dateStr)
+    if (isNaN(date.getTime())) return 'N/A'
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+  } catch {
+    return 'N/A'
+  }
 }
 
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount)
+const formatCurrency = (amount: unknown): string => {
+  try {
+    const num = Number(amount) || 0
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(num)
+  } catch {
+    return '$0.00'
+  }
 }
 
 const getStatusStyle = (status: string) => {
@@ -251,50 +264,55 @@ const getStatusStyle = (status: string) => {
 }
 
 export const InvoicePDF = ({ invoice }: InvoicePDFProps) => {
-  // Safely extract organization data with string fallbacks
-  const org = invoice.organization || {}
-  const orgName = String(org.legalName || org.name || 'Organization')
-  const orgContactName = org.contactName ? String(org.contactName) : ''
-  const orgContactEmail = String(org.contactEmail || '')
-  const orgContactPhone = org.contactPhone ? String(org.contactPhone) : ''
-  const orgTier = String(org.tier || 'Standard')
+  // Safely extract ALL data as primitives upfront
+  // This prevents any objects from being rendered as React children
 
-  // Safely build address string
-  const address = org.address
+  const safeInvoice = invoice || {} as InvoiceData
+  const safeOrg = (safeInvoice.organization || {}) as InvoiceData['organization']
+
+  // Organization data - all converted to strings
+  const orgName = String(safeOrg.legalName || safeOrg.name || 'Organization')
+  const orgContactName = safeOrg.contactName ? String(safeOrg.contactName) : ''
+  const orgContactEmail = safeOrg.contactEmail ? String(safeOrg.contactEmail) : ''
+  const orgContactPhone = safeOrg.contactPhone ? String(safeOrg.contactPhone) : ''
+  const orgTier = String(safeOrg.tier || 'Standard')
+
+  // Build address string safely
   let addressString = ''
-  if (address && typeof address === 'object') {
-    addressString = [address.street, address.city, address.state, address.zip]
-      .filter(Boolean)
-      .map(s => String(s))
-      .join(', ')
+  const addr = safeOrg.address
+  if (addr && typeof addr === 'object' && !Array.isArray(addr)) {
+    const parts: string[] = []
+    if (addr.street) parts.push(String(addr.street))
+    if (addr.city) parts.push(String(addr.city))
+    if (addr.state) parts.push(String(addr.state))
+    if (addr.zip) parts.push(String(addr.zip))
+    addressString = parts.join(', ')
   }
 
-  // Safely extract invoice data
-  const invoiceNumber = String(invoice.invoiceNumber || '')
-  const invoiceStatus = String(invoice.status || 'pending')
+  // Invoice data - all converted to safe primitives
+  const invoiceNumber = String(safeInvoice.invoiceNumber || '')
+  const invoiceStatus = String(safeInvoice.status || 'pending').toLowerCase()
+  const invoiceAmount = Number(safeInvoice.amount) || 0
+  const invoiceDescription = String(safeInvoice.description || safeInvoice.invoiceType || 'Service')
 
-  // Safely parse line items - ensure they're valid primitives
-  let lineItems: Array<{ description: string; amount: number }> = []
-  try {
-    if (invoice.lineItems && Array.isArray(invoice.lineItems)) {
-      lineItems = invoice.lineItems.map(item => ({
-        description: String(item.description || ''),
-        amount: Number(item.amount) || 0,
-      }))
-    }
-  } catch {
-    // Fall back to default
-  }
+  // Date fields - convert to strings for formatDate
+  const createdAtStr = safeInvoice.createdAt ? String(safeInvoice.createdAt) : ''
+  const dueDateStr = safeInvoice.dueDate ? String(safeInvoice.dueDate) : ''
+  const paidAtStr = safeInvoice.paidAt ? String(safeInvoice.paidAt) : ''
+  const periodStartStr = safeInvoice.periodStart ? String(safeInvoice.periodStart) : ''
+  const periodEndStr = safeInvoice.periodEnd ? String(safeInvoice.periodEnd) : ''
 
-  // If no valid line items, create a default one
-  if (lineItems.length === 0) {
-    lineItems = [
-      {
-        description: String(invoice.description || invoice.invoiceType || 'Service'),
-        amount: Number(invoice.amount) || 0
-      },
-    ]
-  }
+  // Boolean flags for conditional rendering
+  const hasContactName = orgContactName.length > 0
+  const hasAddress = addressString.length > 0
+  const hasContactEmail = orgContactEmail.length > 0
+  const hasContactPhone = orgContactPhone.length > 0
+  const hasPaidAt = paidAtStr.length > 0
+  const hasPeriod = periodStartStr.length > 0 && periodEndStr.length > 0
+
+  // Create a single line item from invoice data (skip database lineItems to avoid issues)
+  const lineItemDescription = invoiceDescription
+  const lineItemAmount = invoiceAmount
 
   return (
     <Document>
@@ -323,28 +341,28 @@ export const InvoicePDF = ({ invoice }: InvoicePDFProps) => {
           <View style={styles.infoBlock}>
             <Text style={styles.infoLabel}>Bill To</Text>
             <Text style={styles.infoText}>{orgName}</Text>
-            {orgContactName && (
+            {hasContactName ? (
               <Text style={styles.infoText}>Attn: {orgContactName}</Text>
-            )}
-            {addressString && <Text style={styles.infoText}>{addressString}</Text>}
-            {orgContactEmail && <Text style={styles.infoText}>{orgContactEmail}</Text>}
-            {orgContactPhone && (
+            ) : null}
+            {hasAddress ? <Text style={styles.infoText}>{addressString}</Text> : null}
+            {hasContactEmail ? <Text style={styles.infoText}>{orgContactEmail}</Text> : null}
+            {hasContactPhone ? (
               <Text style={styles.infoText}>{orgContactPhone}</Text>
-            )}
+            ) : null}
           </View>
           <View style={styles.infoBlock}>
             <Text style={styles.infoLabel}>Invoice Details</Text>
-            <Text style={styles.infoText}>Invoice Date: {formatDate(invoice.createdAt)}</Text>
-            <Text style={styles.infoText}>Due Date: {formatDate(invoice.dueDate)}</Text>
-            {invoice.paidAt && (
-              <Text style={styles.infoText}>Paid On: {formatDate(invoice.paidAt)}</Text>
-            )}
+            <Text style={styles.infoText}>Invoice Date: {formatDate(createdAtStr)}</Text>
+            <Text style={styles.infoText}>Due Date: {formatDate(dueDateStr)}</Text>
+            {hasPaidAt ? (
+              <Text style={styles.infoText}>Paid On: {formatDate(paidAtStr)}</Text>
+            ) : null}
             <Text style={styles.infoText}>Plan: {orgTier}</Text>
-            {invoice.periodStart && invoice.periodEnd && (
+            {hasPeriod ? (
               <Text style={styles.periodText}>
-                Service Period: {formatDate(invoice.periodStart)} - {formatDate(invoice.periodEnd)}
+                Service Period: {formatDate(periodStartStr)} - {formatDate(periodEndStr)}
               </Text>
-            )}
+            ) : null}
           </View>
         </View>
 
@@ -354,27 +372,25 @@ export const InvoicePDF = ({ invoice }: InvoicePDFProps) => {
             <Text style={[styles.tableHeaderText, styles.tableCellDescription]}>Description</Text>
             <Text style={[styles.tableHeaderText, styles.tableCellAmount]}>Amount</Text>
           </View>
-          {lineItems.map((item, index) => (
-            <View key={index} style={styles.tableRow}>
-              <Text style={[styles.tableCell, styles.tableCellDescription]}>
-                {item.description}
-              </Text>
-              <Text style={[styles.tableCell, styles.tableCellAmount]}>
-                {formatCurrency(item.amount)}
-              </Text>
-            </View>
-          ))}
+          <View style={styles.tableRow}>
+            <Text style={[styles.tableCell, styles.tableCellDescription]}>
+              {lineItemDescription}
+            </Text>
+            <Text style={[styles.tableCell, styles.tableCellAmount]}>
+              {formatCurrency(lineItemAmount)}
+            </Text>
+          </View>
         </View>
 
         {/* Totals */}
         <View style={styles.totalsSection}>
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Subtotal</Text>
-            <Text style={styles.totalValue}>{formatCurrency(invoice.amount)}</Text>
+            <Text style={styles.totalValue}>{formatCurrency(invoiceAmount)}</Text>
           </View>
           <View style={styles.grandTotalRow}>
             <Text style={styles.grandTotalLabel}>Total Due</Text>
-            <Text style={styles.grandTotalValue}>{formatCurrency(invoice.amount)}</Text>
+            <Text style={styles.grandTotalValue}>{formatCurrency(invoiceAmount)}</Text>
           </View>
         </View>
 
@@ -382,7 +398,7 @@ export const InvoicePDF = ({ invoice }: InvoicePDFProps) => {
         <View style={styles.paymentInfo}>
           <Text style={styles.paymentTitle}>Payment Information</Text>
           <Text style={styles.paymentText}>
-            Payment is due by {formatDate(invoice.dueDate)}.
+            Payment is due by {formatDate(dueDateStr)}.
           </Text>
           <Text style={styles.paymentText}>
             For questions about this invoice, please contact support@chirhoevents.com
