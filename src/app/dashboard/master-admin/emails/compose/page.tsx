@@ -71,6 +71,7 @@ export default function ComposeEmailPage() {
     try {
       const token = await getToken()
       const response = await fetch('/api/master-admin/emails/send', {
+        credentials: 'include',
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
 
@@ -126,6 +127,7 @@ export default function ComposeEmailPage() {
       const token = await getToken()
       const response = await fetch('/api/master-admin/emails/send', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
