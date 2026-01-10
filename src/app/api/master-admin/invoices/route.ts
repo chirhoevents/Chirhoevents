@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+import crypto from 'crypto'
+
+// Generate a secure random payment token
+function generatePaymentToken(): string {
+  return crypto.randomBytes(32).toString('hex')
+}
 
 // Decode JWT payload to extract user ID when cookies aren't available
 function decodeJwtPayload(token: string): { sub?: string } | null {
@@ -80,7 +86,15 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     })
 
-    return NextResponse.json({ invoices })
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
+
+    // Add payment links to invoices
+    const invoicesWithLinks = invoices.map(invoice => ({
+      ...invoice,
+      paymentLink: invoice.paymentToken ? `${appUrl}/pay/invoice/${invoice.paymentToken}` : null,
+    }))
+
+    return NextResponse.json({ invoices: invoicesWithLinks })
   } catch (error) {
     console.error('List invoices error:', error)
     return NextResponse.json(
@@ -147,6 +161,9 @@ export async function POST(request: NextRequest) {
     })
     const nextInvoiceNumber = (lastInvoice?.invoiceNumber || 1000) + 1
 
+    // Generate payment token for online payment link
+    const paymentToken = generatePaymentToken()
+
     const invoice = await prisma.invoice.create({
       data: {
         organizationId,
@@ -159,6 +176,7 @@ export async function POST(request: NextRequest) {
         dueDate: dueDate ? new Date(dueDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         periodStart: periodStart ? new Date(periodStart) : null,
         periodEnd: periodEnd ? new Date(periodEnd) : null,
+        paymentToken: paymentToken,
         createdByUserId: user.id,
       },
       include: {
@@ -178,6 +196,8 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
+
     return NextResponse.json({
       success: true,
       invoice: {
@@ -185,6 +205,7 @@ export async function POST(request: NextRequest) {
         invoiceNumber: invoice.invoiceNumber,
         amount: invoice.amount,
         status: invoice.status,
+        paymentLink: `${appUrl}/pay/invoice/${paymentToken}`,
       },
     })
   } catch (error) {

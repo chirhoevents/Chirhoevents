@@ -16,6 +16,7 @@ const isPublicRoute = createRouteMatcher([
   '/terms(.*)',
   '/cookies(.*)',
   '/invite(.*)',
+  '/pay(.*)',  // Public invoice payment pages
   '/portal(.*)',  // All portal routes (salve, rapha, youth-group) - they handle their own auth
   '/dashboard(.*)',  // All dashboard routes - they handle their own auth
   '/api/user/role',  // Needed by dashboard redirect page
@@ -28,6 +29,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/webhooks(.*)',
   '/api/events(.*)',
   '/api/invites(.*)',
+  '/api/invoices(.*)',  // Public invoice APIs for payment page
   '/api/stripe(.*)',  // Stripe APIs - handle their own auth
 ])
 

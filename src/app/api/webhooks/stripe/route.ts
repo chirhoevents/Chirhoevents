@@ -33,6 +33,139 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // Handle Platform Invoice Payments (checkout.session.completed with platform_invoice type)
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object as Stripe.Checkout.Session
+
+    // Check if this is a platform invoice payment
+    if (session.metadata?.type === 'platform_invoice' || session.metadata?.invoiceId) {
+      console.log('💳 Processing platform invoice payment')
+      const { invoiceId, invoiceNumber, organizationId, invoiceType } = session.metadata
+
+      if (!invoiceId) {
+        console.error('❌ No invoiceId in session metadata for platform invoice')
+        return NextResponse.json({ error: 'Missing invoice metadata' }, { status: 400 })
+      }
+
+      try {
+        // Update invoice status to paid
+        const invoice = await prisma.invoice.update({
+          where: { id: invoiceId },
+          data: {
+            status: 'paid',
+            paidAt: new Date(),
+            paymentMethod: 'card',
+            stripePaymentIntentId: session.payment_intent as string,
+          },
+          include: {
+            organization: {
+              select: { id: true, name: true, contactEmail: true },
+            },
+          },
+        })
+
+        console.log('✅ Invoice marked as paid:', invoiceNumber)
+
+        // Handle subscription activation if this is a subscription invoice
+        if (invoiceType === 'subscription') {
+          await prisma.organization.update({
+            where: { id: organizationId },
+            data: {
+              subscriptionStatus: 'active',
+              subscriptionStartedAt: new Date(),
+            },
+          })
+          console.log('✅ Subscription activated for org:', organizationId)
+        }
+
+        // Handle setup fee
+        if (invoiceType === 'setup_fee') {
+          await prisma.organization.update({
+            where: { id: organizationId },
+            data: {
+              setupFeePaid: true,
+            },
+          })
+          console.log('✅ Setup fee marked as paid for org:', organizationId)
+        }
+
+        // Log platform activity
+        await prisma.platformActivityLog.create({
+          data: {
+            organizationId: organizationId,
+            activityType: 'invoice_paid',
+            description: `Invoice #${invoiceNumber} paid via online payment - $${(session.amount_total! / 100).toFixed(2)}`,
+            metadata: {
+              invoiceId,
+              invoiceNumber,
+              amount: session.amount_total! / 100,
+              paymentMethod: 'card',
+              stripeSessionId: session.id,
+            },
+          },
+        })
+
+        // Create billing note
+        await prisma.billingNote.create({
+          data: {
+            organizationId: organizationId,
+            invoiceId: invoiceId,
+            noteType: 'payment_received',
+            content: `Online payment received for Invoice #${invoiceNumber}: $${(session.amount_total! / 100).toFixed(2)} via credit card`,
+          },
+        })
+
+        // Send payment confirmation email
+        try {
+          await resend.emails.send({
+            from: process.env.RESEND_FROM_EMAIL || 'billing@chirhoevents.com',
+            to: invoice.organization.contactEmail,
+            subject: `Payment Received - Invoice #${invoiceNumber}`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
+                  <h1 style="color: white; margin: 0;">ChirhoEvents</h1>
+                </div>
+
+                <div style="padding: 30px 20px;">
+                  <div style="background-color: #D4EDDA; padding: 20px; border-left: 4px solid #28A745; margin-bottom: 20px;">
+                    <h2 style="color: #155724; margin-top: 0;">Payment Received!</h2>
+                    <p style="margin: 0; color: #155724;">Thank you for your payment.</p>
+                  </div>
+
+                  <div style="background-color: #F5F5F5; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                    <p style="margin: 5px 0;"><strong>Invoice #:</strong> ${invoiceNumber}</p>
+                    <p style="margin: 5px 0;"><strong>Amount Paid:</strong> $${(session.amount_total! / 100).toFixed(2)}</p>
+                    <p style="margin: 5px 0;"><strong>Payment Method:</strong> Credit Card</p>
+                    <p style="margin: 5px 0;"><strong>Date:</strong> ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                  </div>
+
+                  <p>This email serves as your receipt. If you have any questions, please contact us at support@chirhoevents.com.</p>
+
+                  <p>Best regards,<br><strong>ChirhoEvents Team</strong></p>
+                </div>
+
+                <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
+                  <p>&copy; ${new Date().getFullYear()} ChirhoEvents. All rights reserved.</p>
+                </div>
+              </div>
+            `,
+          })
+          console.log('✅ Payment confirmation email sent to:', invoice.organization.contactEmail)
+        } catch (emailError) {
+          console.error('⚠️ Failed to send payment confirmation email:', emailError)
+        }
+
+        return NextResponse.json({ received: true })
+      } catch (error) {
+        console.error('❌ Error processing platform invoice payment:', error)
+        return NextResponse.json({ error: 'Processing failed' }, { status: 500 })
+      }
+    }
+
+    // Continue to existing checkout.session.completed handling for registrations...
+  }
+
   // Handle the event
   if (event.type === 'payment_intent.succeeded') {
     console.log('💳 Processing payment_intent.succeeded event')
@@ -138,8 +271,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Processing failed' }, { status: 500 })
     }
   } else if (event.type === 'checkout.session.completed') {
-    console.log('💳 Processing checkout.session.completed event')
+    console.log('💳 Processing checkout.session.completed event for registration')
     const session = event.data.object as Stripe.Checkout.Session
+
+    // Skip if this is a platform invoice payment (already handled above)
+    if (session.metadata?.type === 'platform_invoice' || session.metadata?.invoiceId) {
+      console.log('⏭️ Skipping - already handled as platform invoice payment')
+      return NextResponse.json({ received: true })
+    }
 
     const { registrationId, accessCode, groupName, registrationType } = session.metadata || {}
     console.log('📋 Session metadata:', { registrationId, accessCode, groupName, registrationType })
