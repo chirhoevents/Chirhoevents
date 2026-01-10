@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useAuth } from '@clerk/nextjs'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useEvent } from '@/contexts/EventContext'
@@ -50,6 +51,7 @@ interface DashboardData {
 
 export default function GroupLeaderDashboard() {
   const { selectedEventId, linkedEvents } = useEvent()
+  const { getToken } = useAuth()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -66,8 +68,12 @@ export default function GroupLeaderDashboard() {
       setLoading(true)
       setError(null)
       try {
+        // Get token for Authorization header (needed in production where cookies may not work)
+        const token = await getToken()
         const url = `/api/group-leader/dashboard?eventId=${selectedEventId}`
-        const response = await fetch(url)
+        const response = await fetch(url, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        })
         if (response.ok) {
           const dashboardData = await response.json()
           setData(dashboardData)
@@ -90,7 +96,7 @@ export default function GroupLeaderDashboard() {
     }
 
     fetchDashboard()
-  }, [selectedEventId])
+  }, [selectedEventId, getToken])
 
   // Listen for event changes from other components
   useEffect(() => {
@@ -506,23 +512,23 @@ export default function GroupLeaderDashboard() {
         <EditRegistrationModal
           registrationId={selectedEventId}
           onClose={() => setShowEditModal(false)}
-          onSaved={() => {
+          onSaved={async () => {
             setShowEditModal(false)
             // Refetch dashboard data
-            const fetchDashboard = async () => {
-              if (!selectedEventId) return
-              try {
-                const url = `/api/group-leader/dashboard?eventId=${selectedEventId}`
-                const response = await fetch(url)
-                if (response.ok) {
-                  const dashboardData = await response.json()
-                  setData(dashboardData)
-                }
-              } catch (error) {
-                console.error('Error fetching dashboard:', error)
+            if (!selectedEventId) return
+            try {
+              const token = await getToken()
+              const url = `/api/group-leader/dashboard?eventId=${selectedEventId}`
+              const response = await fetch(url, {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+              })
+              if (response.ok) {
+                const dashboardData = await response.json()
+                setData(dashboardData)
               }
+            } catch (error) {
+              console.error('Error fetching dashboard:', error)
             }
-            fetchDashboard()
           }}
         />
       )}
