@@ -42,3 +42,38 @@ export function generateIndividualConfirmationCode(eventYear?: string): string {
 
   return `IND-${year}-${code}`
 }
+
+// Vendor Code Generation Utility
+// Format: VND-XXXXXX (6 random characters)
+// Example: VND-A7B9C2
+export function generateVendorCode(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  const code = Array.from({ length: 6 }, () =>
+    chars.charAt(Math.floor(Math.random() * chars.length))
+  ).join('')
+
+  return `VND-${code}`
+}
+
+// Vendor Access Code Generation Utility (for portal login)
+// Format: VNDACC-XXXXXX
+export function generateVendorAccessCode(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  const code = Array.from({ length: 8 }, () =>
+    chars.charAt(Math.floor(Math.random() * chars.length))
+  ).join('')
+
+  return `VNDACC-${code}`
+}
+
+// Staff Poros Access Code Generation Utility
+// Format: STF-YYYY-XXXXXX
+export function generateStaffPorosCode(eventYear?: string): string {
+  const year = eventYear || new Date().getFullYear().toString()
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  const code = Array.from({ length: 6 }, () =>
+    chars.charAt(Math.floor(Math.random() * chars.length))
+  ).join('')
+
+  return `STF-${year}-${code}`
+}
