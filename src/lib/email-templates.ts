@@ -1649,7 +1649,7 @@ export function generateGroupRegistrationConfirmationEmail({
   groupLeaderName,
   eventName,
   accessCode,
-  qrCodeDataUrl,
+  confirmationPageUrl,
   totalParticipants,
   totalAmount,
   depositAmount,
@@ -1658,6 +1658,7 @@ export function generateGroupRegistrationConfirmationEmail({
   checkPayableTo,
   checkMailingAddress,
   registrationInstructions,
+  customMessage,
   organizationName,
   porosLiabilityUrl,
   groupLeaderPortalUrl,
@@ -1666,7 +1667,7 @@ export function generateGroupRegistrationConfirmationEmail({
   groupLeaderName: string
   eventName: string
   accessCode: string
-  qrCodeDataUrl: string
+  confirmationPageUrl: string
   totalParticipants: number
   totalAmount: number
   depositAmount: number
@@ -1675,6 +1676,7 @@ export function generateGroupRegistrationConfirmationEmail({
   checkPayableTo?: string
   checkMailingAddress?: string
   registrationInstructions?: string
+  customMessage?: string
   organizationName: string
   porosLiabilityUrl: string
   groupLeaderPortalUrl: string
@@ -1706,15 +1708,15 @@ export function generateGroupRegistrationConfirmationEmail({
 
     <p>Thank you for registering <strong>${groupName}</strong> for <strong>${eventName}</strong>!</p>
 
-    <!-- QR Code Section -->
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0; text-align: center;">
+    ${customMessage ? `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0; background: #f0f7ff; border-radius: 8px; padding: 16px; border-left: 4px solid #1a73e8;">
       <tr>
-        <td align="center">
-          <img src="${qrCodeDataUrl}" alt="Registration QR Code" width="200" height="200" style="display: block; margin: 0 auto;" />
-          <p style="margin: 12px 0 0 0; font-size: 14px; color: #666;">Scan this QR code at check-in</p>
+        <td>
+          <p style="margin: 0;">${customMessage.replace(/\n/g, '<br>')}</p>
         </td>
       </tr>
     </table>
+    ` : ''}
 
     <!-- Access Code -->
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0; background: #e8f4fd; border-radius: 8px; padding: 20px; text-align: center;">
@@ -1722,6 +1724,16 @@ export function generateGroupRegistrationConfirmationEmail({
         <td>
           <p style="margin: 0; font-size: 14px; color: #666;">Your Group Access Code</p>
           <p style="margin: 8px 0 0 0; font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #1a73e8;">${accessCode}</p>
+        </td>
+      </tr>
+    </table>
+
+    <!-- View QR Code Button -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0; text-align: center;">
+      <tr>
+        <td align="center">
+          <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Your QR code for check-in is available on your confirmation page</p>
+          ${emailButton('View QR Code & Confirmation', confirmationPageUrl, 'primary')}
         </td>
       </tr>
     </table>

@@ -562,6 +562,7 @@ export async function POST(request: NextRequest) {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
       const porosLiabilityUrl = `${appUrl}/poros/liability?code=${registration.accessCode}`
       const groupLeaderPortalUrl = `${appUrl}/dashboard/group-leader`
+      const confirmationPageUrl = `${appUrl}/registration/confirmation/${registration.id}`
 
       // Generate email using the template
       const emailHtml = generateGroupRegistrationConfirmationEmail({
@@ -569,13 +570,14 @@ export async function POST(request: NextRequest) {
         groupLeaderName: registration.groupLeaderName,
         eventName: registration.event.name,
         accessCode: registration.accessCode,
-        qrCodeDataUrl,
+        confirmationPageUrl,
         totalParticipants: registration.totalParticipants,
         totalAmount,
         depositAmount: depositPaid,
         balanceRemaining,
         paymentMethod: 'card',
         registrationInstructions: registration.event.settings?.registrationInstructions || undefined,
+        customMessage: registration.event.settings?.confirmationEmailMessage || undefined,
         organizationName: registration.event.organization.name,
         porosLiabilityUrl,
         groupLeaderPortalUrl,

@@ -290,6 +290,7 @@ export async function POST(request: NextRequest) {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
       const porosLiabilityUrl = `${appUrl}/poros/liability?code=${accessCode}`
       const groupLeaderPortalUrl = `${appUrl}/dashboard/group-leader`
+      const confirmationPageUrl = `${appUrl}/registration/confirmation/${registration.id}`
 
       // Prepare email content using new template
       const emailSubject = `Registration Received - ${event.name}`
@@ -298,7 +299,7 @@ export async function POST(request: NextRequest) {
         groupLeaderName,
         eventName: event.name,
         accessCode: registration.accessCode,
-        qrCodeDataUrl,
+        confirmationPageUrl,
         totalParticipants,
         totalAmount,
         depositAmount,
@@ -307,6 +308,7 @@ export async function POST(request: NextRequest) {
         checkPayableTo: eventSettings?.checkPaymentPayableTo || event.organization.name,
         checkMailingAddress: eventSettings?.checkPaymentAddress || undefined,
         registrationInstructions: eventSettings?.registrationInstructions || undefined,
+        customMessage: eventSettings?.confirmationEmailMessage || undefined,
         organizationName: event.organization.name,
         porosLiabilityUrl,
         groupLeaderPortalUrl,

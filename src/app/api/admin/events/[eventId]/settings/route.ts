@@ -29,6 +29,7 @@ const VALID_SETTINGS_FIELDS = [
   'tshirtsEnabled',
   'individualMealsEnabled',
   'registrationInstructions',
+  'confirmationEmailMessage',
   'checkPaymentEnabled',
   'checkPaymentPayableTo',
   'checkPaymentAddress',

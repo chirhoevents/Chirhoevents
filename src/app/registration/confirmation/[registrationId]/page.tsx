@@ -11,9 +11,11 @@ interface RegistrationData {
   id: string
   groupName: string
   accessCode: string
+  qrCode: string | null
   groupLeaderEmail: string
   totalParticipants: number
   eventName: string
+  eventId: string
   depositPaid: number
   totalAmount: number
   balanceRemaining: number
@@ -97,13 +99,28 @@ export default function ConfirmationPage() {
             </p>
           </div>
 
-          {/* Access Code Card */}
+          {/* QR Code & Access Code Card */}
           <Card className="mb-6 border-2 border-gold">
             <CardHeader className="bg-gold-50">
-              <CardTitle className="text-center">Your Access Code</CardTitle>
+              <CardTitle className="text-center">Check-In Information</CardTitle>
             </CardHeader>
             <CardContent className="p-8">
               <div className="text-center">
+                {/* QR Code */}
+                {registration.qrCode && (
+                  <div className="mb-6">
+                    <img
+                      src={registration.qrCode}
+                      alt="Registration QR Code"
+                      className="w-48 h-48 mx-auto border-2 border-gray-200 rounded-lg p-2 bg-white"
+                    />
+                    <p className="text-sm text-gray-600 mt-2">
+                      Scan this QR code at check-in
+                    </p>
+                  </div>
+                )}
+
+                {/* Access Code */}
                 <div className="inline-block bg-white px-8 py-4 rounded-lg border-2 border-gold mb-4">
                   <p className="text-sm text-gray-600 mb-1">Group Access Code</p>
                   <p className="text-3xl font-bold text-navy font-mono tracking-wider">

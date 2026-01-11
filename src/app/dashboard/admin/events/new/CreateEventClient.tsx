@@ -90,6 +90,7 @@ interface EventFormData {
   contactEmail: string
   contactPhone: string
   registrationInstructions: string
+  confirmationEmailMessage: string
   checkPaymentEnabled: boolean
   checkPaymentPayableTo: string
   checkPaymentAddress: string
@@ -212,6 +213,7 @@ export default function CreateEventClient({
     contactEmail: '',
     contactPhone: '',
     registrationInstructions: '',
+    confirmationEmailMessage: '',
     checkPaymentEnabled: true,
     checkPaymentPayableTo: '',
     checkPaymentAddress: '',
@@ -1711,6 +1713,27 @@ export default function CreateEventClient({
                   <p className="text-sm text-gray-500 mt-1">
                     These instructions will appear on the invoice page before
                     payment
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="confirmationEmailMessage">
+                    Confirmation Email Custom Message
+                  </Label>
+                  <Textarea
+                    id="confirmationEmailMessage"
+                    value={formData.confirmationEmailMessage}
+                    onChange={(e) =>
+                      updateFormData({
+                        confirmationEmailMessage: e.target.value,
+                      })
+                    }
+                    placeholder="We're excited to have your group join us! Please complete liability forms as soon as possible..."
+                    rows={4}
+                    className="mt-1"
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    This message will appear in the confirmation email sent to group leaders after registration. Leave blank to use the standard template.
                   </p>
                 </div>
 
