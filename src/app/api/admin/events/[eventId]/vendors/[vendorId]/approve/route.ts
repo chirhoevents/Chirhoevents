@@ -130,18 +130,20 @@ export async function POST(
       })
     } catch (emailError) {
       console.error('Failed to send vendor approval email:', emailError)
-      await logEmailFailure({
-        organizationId: vendor.event.organizationId,
-        eventId: vendor.eventId,
-        registrationId: vendor.id,
-        registrationType: 'vendor',
-        recipientEmail: vendor.email,
-        recipientName: `${vendor.contactFirstName} ${vendor.contactLastName}`,
-        emailType: 'vendor_approved',
-        subject: `Vendor Application Approved - ${vendor.event.name}`,
-        htmlContent: '',
-        errorMessage: emailError instanceof Error ? emailError.message : 'Unknown error',
-      })
+      await logEmailFailure(
+        {
+          organizationId: vendor.event.organizationId,
+          eventId: vendor.eventId,
+          registrationId: vendor.id,
+          registrationType: 'vendor',
+          recipientEmail: vendor.email,
+          recipientName: `${vendor.contactFirstName} ${vendor.contactLastName}`,
+          emailType: 'vendor_approved',
+          subject: `Vendor Application Approved - ${vendor.event.name}`,
+          htmlContent: '',
+        },
+        emailError instanceof Error ? emailError.message : 'Unknown error'
+      )
     }
 
     return NextResponse.json({ vendor: updatedVendor })
