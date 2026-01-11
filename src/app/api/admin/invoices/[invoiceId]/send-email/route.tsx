@@ -161,9 +161,7 @@ export async function POST(
     let pdfBuffer: Buffer
     try {
       const { renderToBuffer } = await import('@react-pdf/renderer')
-      pdfBuffer = await renderToBuffer(
-        React.createElement(InvoicePDF, { invoice: invoiceData }) as React.ReactElement
-      )
+      pdfBuffer = await renderToBuffer(<InvoicePDF invoice={invoiceData} />)
     } catch (pdfError: unknown) {
       console.error('PDF generation error:', pdfError)
       const errorMessage = pdfError instanceof Error ? pdfError.message : 'Unknown PDF error'
