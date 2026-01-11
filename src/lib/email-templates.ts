@@ -1154,6 +1154,212 @@ export function generatePasswordResetEmail({
 }
 
 /**
+ * Generate group registration confirmation email with QR code and next steps
+ */
+export function generateGroupRegistrationConfirmationEmail({
+  groupName,
+  groupLeaderName,
+  eventName,
+  accessCode,
+  qrCodeDataUrl,
+  totalParticipants,
+  totalAmount,
+  depositAmount,
+  balanceRemaining,
+  paymentMethod,
+  checkPayableTo,
+  checkMailingAddress,
+  registrationInstructions,
+  organizationName,
+  porosLiabilityUrl,
+  groupLeaderPortalUrl,
+}: {
+  groupName: string
+  groupLeaderName: string
+  eventName: string
+  accessCode: string
+  qrCodeDataUrl: string
+  totalParticipants: number
+  totalAmount: number
+  depositAmount: number
+  balanceRemaining: number
+  paymentMethod: 'check' | 'card'
+  checkPayableTo?: string
+  checkMailingAddress?: string
+  registrationInstructions?: string
+  organizationName: string
+  porosLiabilityUrl: string
+  groupLeaderPortalUrl: string
+}): string {
+  const isCheckPayment = paymentMethod === 'check'
+
+  return wrapEmail(`
+    <h1 style="color: #1E3A5F; margin-top: 0;">Registration ${isCheckPayment ? 'Received' : 'Confirmed'}!</h1>
+
+    <p>Thank you for registering <strong>${groupName}</strong> for ${eventName}!</p>
+
+    <!-- QR Code Section -->
+    <div style="background-color: #F5F1E8; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+      <h2 style="color: #9C8466; margin-top: 0;">Your Check-In QR Code</h2>
+      <img src="${qrCodeDataUrl}" alt="Registration QR Code" style="max-width: 200px; height: auto; margin: 0 auto;" />
+      <p style="font-size: 14px; color: #666; margin-top: 10px;">
+        Save this QR code! You'll need it for check-in at the event using SALVE.
+      </p>
+    </div>
+
+    <!-- Access Code -->
+    <div style="background-color: #E8F4F8; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+      <h3 style="color: #1E3A5F; margin-top: 0;">Your Access Code</h3>
+      <p style="font-size: 28px; font-weight: bold; color: #1E3A5F; font-family: monospace; letter-spacing: 3px; margin: 10px 0;">
+        ${accessCode}
+      </p>
+      <p style="font-size: 14px; color: #666;">
+        Share this code with your group members to complete liability forms.
+      </p>
+    </div>
+
+    ${isCheckPayment ? `
+    <div style="background-color: #FFF3CD; padding: 20px; border-left: 4px solid #FFC107; margin: 20px 0;">
+      <h3 style="color: #856404; margin-top: 0;">⚠️ Payment Required</h3>
+      <p style="color: #856404; margin: 0;">
+        <strong>Your registration is PENDING until we receive your check payment.</strong>
+      </p>
+    </div>
+
+    <div style="background-color: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
+      <h3 style="color: #1E3A5F; margin-top: 0;">Check Payment Instructions</h3>
+      <p style="margin: 5px 0;"><strong>Make check payable to:</strong> ${checkPayableTo || organizationName}</p>
+      <p style="margin: 5px 0;"><strong>Amount:</strong> $${depositAmount.toFixed(2)} (deposit) or $${totalAmount.toFixed(2)} (full payment)</p>
+      <p style="margin: 5px 0;"><strong>Write on check memo:</strong> ${groupName}</p>
+      ${checkMailingAddress ? `
+        <p style="margin: 10px 0 5px 0;"><strong>Mail to:</strong></p>
+        <p style="margin: 0; white-space: pre-line;">${checkMailingAddress}</p>
+      ` : ''}
+    </div>
+    ` : ''}
+
+    <!-- Registration Summary -->
+    <h3 style="color: #1E3A5F;">Registration Summary</h3>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0; background: #f9f9f9; border-radius: 8px;">
+      <tr>
+        <td style="padding: 20px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            ${emailDetailRow('Group', groupName)}
+            ${emailDetailRow('Participants', totalParticipants.toString())}
+            ${emailDetailRow('Total Cost', `$${totalAmount.toFixed(2)}`)}
+            ${emailDetailRow('Deposit Amount', `$${depositAmount.toFixed(2)}`)}
+            ${emailDetailRow('Balance Remaining', `$${balanceRemaining.toFixed(2)}`)}
+            ${emailDetailRow('Payment Method', isCheckPayment ? 'Check (Pending)' : 'Credit Card')}
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Next Steps -->
+    <h2 style="color: #1E3A5F;">Next Steps</h2>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 20px 0;">
+      ${isCheckPayment ? `
+      <tr>
+        <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e5;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td width="40" style="vertical-align: top; padding-right: 12px;">
+                <div style="background: #1E3A5F; color: white; width: 28px; height: 28px; border-radius: 50%; text-align: center; line-height: 28px; font-weight: bold;">1</div>
+              </td>
+              <td>
+                <strong style="color: #1E3A5F;">Mail Your Check</strong>
+                <p style="margin: 4px 0 0; color: #666; font-size: 14px;">Send your check using the instructions above.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      ` : ''}
+
+      <tr>
+        <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e5;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td width="40" style="vertical-align: top; padding-right: 12px;">
+                <div style="background: #1E3A5F; color: white; width: 28px; height: 28px; border-radius: 50%; text-align: center; line-height: 28px; font-weight: bold;">${isCheckPayment ? '2' : '1'}</div>
+              </td>
+              <td>
+                <strong style="color: #1E3A5F;">Complete Liability Forms</strong>
+                <p style="margin: 4px 0 8px; color: #666; font-size: 14px;">Each participant must complete their liability form using your access code.</p>
+                ${emailButton('Complete Liability Forms', porosLiabilityUrl, 'secondary')}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <tr>
+        <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e5;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td width="40" style="vertical-align: top; padding-right: 12px;">
+                <div style="background: #1E3A5F; color: white; width: 28px; height: 28px; border-radius: 50%; text-align: center; line-height: 28px; font-weight: bold;">${isCheckPayment ? '3' : '2'}</div>
+              </td>
+              <td>
+                <strong style="color: #1E3A5F;">Set Up Your Group Leader Dashboard</strong>
+                <p style="margin: 4px 0 8px; color: #666; font-size: 14px;">Sign in if you have used ChiRho in the past and add your new access code, or sign up to create an account.</p>
+                ${emailButton('Access Group Leader Portal', groupLeaderPortalUrl, 'primary')}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      ${isCheckPayment ? `
+      <tr>
+        <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e5;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td width="40" style="vertical-align: top; padding-right: 12px;">
+                <div style="background: #1E3A5F; color: white; width: 28px; height: 28px; border-radius: 50%; text-align: center; line-height: 28px; font-weight: bold;">4</div>
+              </td>
+              <td>
+                <strong style="color: #1E3A5F;">Sent a Check?</strong>
+                <p style="margin: 4px 0 0; color: #666; font-size: 14px;">We'll email you once your check is received and processed.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      ` : ''}
+
+      <tr>
+        <td style="padding: 12px 0;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td width="40" style="vertical-align: top; padding-right: 12px;">
+                <div style="background: #9C8466; color: white; width: 28px; height: 28px; border-radius: 50%; text-align: center; line-height: 28px; font-weight: bold;">✓</div>
+              </td>
+              <td>
+                <strong style="color: #1E3A5F;">Check-In Information Coming Soon</strong>
+                <p style="margin: 4px 0 0; color: #666; font-size: 14px;">You will receive an email with your QR code for check-in and further instructions closer to the event!</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    ${registrationInstructions ? `
+      <div style="background-color: #F0F8FF; padding: 15px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #1E3A5F; margin-top: 0;">Important Information</h3>
+        <p style="white-space: pre-line;">${registrationInstructions}</p>
+      </div>
+    ` : ''}
+
+    ${emailInfoBox(`
+      <strong>Questions?</strong> Reply to this email or contact the event organizer.
+    `, 'info')}
+  `, { organizationName })
+}
+
+/**
  * Generate event reminder email
  */
 export function generateEventReminderEmail({
