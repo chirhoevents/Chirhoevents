@@ -2,14 +2,27 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
+import { Resend } from 'resend'
+import { generateWaitlistInvitationEmail } from '@/lib/email-templates'
+import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+import crypto from 'crypto'
+
+const resend = new Resend(process.env.RESEND_API_KEY!)
+
+// Generate a secure random token
+function generateRegistrationToken(): string {
+  return crypto.randomBytes(32).toString('hex')
+}
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ entryId: string }> }
 ) {
   try {
+    // Try to get userId from JWT token in Authorization header
+    const overrideUserId = getClerkUserIdFromHeader(request)
     // Check admin access
-    const user = await getCurrentUser()
+    const user = await getCurrentUser(overrideUserId)
     if (!user || !isAdmin(user)) {
       return NextResponse.json(
         { error: 'Unauthorized - Admin access required' },
@@ -21,7 +34,7 @@ export async function POST(
 
     const { entryId } = await params
 
-    // Fetch waitlist entry with event
+    // Fetch waitlist entry with event and organization
     const entry = await prisma.waitlistEntry.findUnique({
       where: { id: entryId },
       include: {
@@ -29,7 +42,13 @@ export async function POST(
           select: {
             id: true,
             name: true,
+            slug: true,
             organizationId: true,
+            organization: {
+              select: {
+                name: true,
+              },
+            },
           },
         },
       },
@@ -50,20 +69,55 @@ export async function POST(
       )
     }
 
-    // Update entry status to contacted
+    // Generate token and set expiration (48 hours from now)
+    const registrationToken = generateRegistrationToken()
+    const invitationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000) // 48 hours
+
+    // Update entry status to contacted with token
     const updatedEntry = await prisma.waitlistEntry.update({
       where: { id: entryId },
       data: {
         status: 'contacted',
         notifiedAt: new Date(),
+        registrationToken,
+        invitationExpires,
       },
     })
 
-    // TODO: Send notification email to waitlist entry
+    // Send invitation email with token URL
+    const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
+    const registrationUrl = `${APP_URL}/waitlist/register/${registrationToken}`
+    let emailSent = false
+
+    try {
+      const emailHtml = generateWaitlistInvitationEmail({
+        name: entry.name,
+        eventName: entry.event.name,
+        partySize: entry.partySize,
+        organizationName: entry.event.organization.name,
+        registrationUrl,
+        expiresIn: '48 hours',
+      })
+
+      await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+        to: entry.email,
+        subject: `A Spot is Available! - ${entry.event.name}`,
+        html: emailHtml,
+      })
+
+      emailSent = true
+      console.log(`[Waitlist] Invitation email sent to ${entry.email} for event ${entry.event.name}`)
+    } catch (emailError) {
+      console.error('Error sending waitlist invitation email:', emailError)
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Waitlist entry marked as contacted',
+      message: emailSent
+        ? 'Invitation email sent successfully'
+        : 'Marked as contacted but email failed to send',
+      emailSent,
       entry: {
         id: updatedEntry.id,
         name: updatedEntry.name,
