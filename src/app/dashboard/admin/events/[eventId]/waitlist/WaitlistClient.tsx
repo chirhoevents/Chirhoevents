@@ -49,6 +49,9 @@ import {
   Phone,
   Timer,
   AlertTriangle,
+  TrendingUp,
+  Hourglass,
+  BarChart3,
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -77,6 +80,17 @@ interface WaitlistSummary {
   expired: number
 }
 
+interface WaitlistAnalytics {
+  conversionRate: number
+  totalInvited: number
+  spotsConverted: number
+  averageWaitTime: {
+    hours: number
+    days: number
+    sampleSize: number
+  }
+}
+
 interface WaitlistClientProps {
   eventId: string
   eventName: string
@@ -92,6 +106,12 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
     contacted: 0,
     registered: 0,
     expired: 0,
+  })
+  const [analytics, setAnalytics] = useState<WaitlistAnalytics>({
+    conversionRate: 0,
+    totalInvited: 0,
+    spotsConverted: 0,
+    averageWaitTime: { hours: 0, days: 0, sampleSize: 0 },
   })
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -115,6 +135,9 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
       const data = await response.json()
       setEntries(data.entries)
       setSummary(data.summary)
+      if (data.analytics) {
+        setAnalytics(data.analytics)
+      }
     } catch (error) {
       console.error('Error fetching waitlist:', error)
     } finally {
@@ -400,6 +423,66 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
           </CardContent>
         </Card>
       </div>
+
+      {/* Analytics Cards */}
+      {(analytics.totalInvited > 0 || analytics.averageWaitTime.sampleSize > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="bg-gradient-to-br from-purple-50 to-white border-purple-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-purple-600 font-medium">Conversion Rate</p>
+                  <p className="text-3xl font-bold text-purple-700">{analytics.conversionRate}%</p>
+                  <p className="text-xs text-purple-500 mt-1">
+                    {summary.registered} of {analytics.totalInvited} invited
+                  </p>
+                </div>
+                <div className="bg-purple-100 rounded-full p-3">
+                  <TrendingUp className="h-6 w-6 text-purple-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-amber-50 to-white border-amber-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-amber-600 font-medium">Average Wait Time</p>
+                  <p className="text-3xl font-bold text-amber-700">
+                    {analytics.averageWaitTime.days > 1
+                      ? `${analytics.averageWaitTime.days}d`
+                      : `${analytics.averageWaitTime.hours}h`}
+                  </p>
+                  <p className="text-xs text-amber-500 mt-1">
+                    Based on {analytics.averageWaitTime.sampleSize} invitation{analytics.averageWaitTime.sampleSize !== 1 ? 's' : ''}
+                  </p>
+                </div>
+                <div className="bg-amber-100 rounded-full p-3">
+                  <Hourglass className="h-6 w-6 text-amber-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-emerald-50 to-white border-emerald-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-emerald-600 font-medium">Spots Filled from Waitlist</p>
+                  <p className="text-3xl font-bold text-emerald-700">{analytics.spotsConverted}</p>
+                  <p className="text-xs text-emerald-500 mt-1">
+                    Total registrations via waitlist
+                  </p>
+                </div>
+                <div className="bg-emerald-100 rounded-full p-3">
+                  <BarChart3 className="h-6 w-6 text-emerald-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Filters */}
       <Card className="bg-white border-[#D1D5DB]">
