@@ -106,6 +106,7 @@ export async function POST(
       cancel_url: `${appUrl}/pay/invoice/${token}?cancelled=true`,
       customer_email: invoice.organization.contactEmail,
       metadata: {
+        type: 'platform_invoice',
         invoiceId: invoice.id,
         invoiceNumber: invoice.invoiceNumber.toString(),
         organizationId: invoice.organizationId,
@@ -114,12 +115,12 @@ export async function POST(
       },
       payment_intent_data: {
         metadata: {
+          type: 'platform_invoice',
           invoiceId: invoice.id,
           invoiceNumber: invoice.invoiceNumber.toString(),
           organizationId: invoice.organizationId,
           invoiceType: invoice.invoiceType,
           paymentToken: token,
-          type: 'platform_invoice',
         },
       },
     })
