@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
-import React from 'react'
-import { InvoicePDF } from '@/components/pdf/InvoicePDF'
 
 // Must use Node.js runtime for @react-pdf/renderer (not Edge)
 export const runtime = 'nodejs'
@@ -48,7 +46,7 @@ export async function POST(
   { params }: { params: Promise<{ invoiceId: string }> }
 ) {
   try {
-    const { userId: clerkUserId } = await auth()
+    const clerkUserId = await getClerkUserIdFromRequest(request)
 
     if (!clerkUserId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -66,9 +64,31 @@ export async function POST(
 
     const { invoiceId } = await params
 
+    // Parse optional body for custom email
+    let customEmail: string | null = null
+    try {
+      const body = await request.json()
+      customEmail = body.email || null
+    } catch {
+      // No body or invalid JSON - use default org email
+    }
+
     const invoice = await prisma.invoice.findUnique({
       where: { id: invoiceId },
-      include: {
+      select: {
+        id: true,
+        invoiceNumber: true,
+        invoiceType: true,
+        amount: true,
+        description: true,
+        lineItems: true,
+        dueDate: true,
+        status: true,
+        paidAt: true,
+        createdAt: true,
+        periodStart: true,
+        periodEnd: true,
+        organizationId: true,
         organization: {
           select: {
             id: true,
@@ -84,8 +104,31 @@ export async function POST(
       },
     })
 
+    // Try to get payment token separately (may fail if column doesn't exist)
+    let paymentToken: string | null = null
+    try {
+      const tokenResult = await prisma.$queryRawUnsafe<{ payment_token: string | null }[]>(
+        `SELECT payment_token FROM invoices WHERE id = $1::uuid`,
+        invoiceId
+      )
+      paymentToken = tokenResult[0]?.payment_token || null
+    } catch {
+      // Column may not exist yet
+    }
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
+
     if (!invoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+    }
+
+    // Determine recipient email
+    const recipientEmail = customEmail || invoice.organization.contactEmail
+    if (!recipientEmail) {
+      return NextResponse.json(
+        { error: 'No email address provided and organization does not have a contact email' },
+        { status: 400 }
+      )
     }
 
     // Prepare invoice data for PDF
@@ -112,11 +155,8 @@ export async function POST(
       },
     }
 
-    // Generate PDF using renderToBuffer for server-side rendering
-    const { renderToBuffer } = await import('@react-pdf/renderer')
-    const pdfBuffer = await renderToBuffer(
-      React.createElement(InvoicePDF, { invoice: invoiceData }) as React.ReactElement
-    )
+    // Skip PDF for now - send email without attachment
+    // TODO: Fix PDF generation later
 
     // Generate email HTML
     const emailHtml = `
@@ -156,7 +196,7 @@ export async function POST(
             <div class="content">
               <p>Dear ${invoice.organization.contactName || 'Valued Customer'},</p>
 
-              <p>Please find your invoice attached to this email.</p>
+              <p>Please find your invoice details below.</p>
 
               <div class="invoice-box">
                 <div style="display: flex; justify-content: space-between; align-items: start;">
@@ -188,7 +228,25 @@ export async function POST(
               </div>
 
               ${invoice.status !== 'paid' ? `
-                <p>Please submit payment by the due date. If you have any questions about this invoice, please contact us at support@chirhoevents.com.</p>
+                ${paymentToken ? `
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="${appUrl}/pay/invoice/${paymentToken}"
+                       style="display: inline-block; background: #1E3A5F; color: white; padding: 16px 40px;
+                              text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 18px;">
+                      Pay Now
+                    </a>
+                  </div>
+                  <p style="text-align: center; color: #666; font-size: 14px;">
+                    Click the button above to pay securely online with a credit card.
+                  </p>
+                  <hr style="border: none; border-top: 1px solid #E5E7EB; margin: 20px 0;" />
+                ` : ''}
+                <p><strong>Other Payment Options:</strong></p>
+                <ul style="color: #666;">
+                  <li><strong>Check:</strong> Make payable to "ChirhoEvents" and mail to our billing address</li>
+                  <li><strong>ACH/Wire:</strong> Contact support@chirhoevents.com for banking details</li>
+                </ul>
+                <p>If you have any questions about this invoice, please contact us at support@chirhoevents.com.</p>
               ` : `
                 <p>Thank you for your payment!</p>
               `}
@@ -208,19 +266,23 @@ export async function POST(
       </html>
     `
 
-    // Send email with PDF attachment
-    const emailResult = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'billing@chirhoevents.com',
-      to: invoice.organization.contactEmail,
-      subject: `Invoice #${invoice.invoiceNumber} - ChirhoEvents`,
-      html: emailHtml,
-      attachments: [
-        {
-          filename: `invoice-${invoice.invoiceNumber}.pdf`,
-          content: Buffer.from(pdfBuffer),
-        },
-      ],
-    })
+    // Send email (without PDF attachment for now)
+    let emailResult
+    try {
+      emailResult = await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL || 'billing@chirhoevents.com',
+        to: recipientEmail,
+        subject: `Invoice #${invoice.invoiceNumber} - ChirhoEvents`,
+        html: emailHtml,
+      })
+    } catch (emailError: unknown) {
+      console.error('Resend email error:', emailError)
+      const errorMessage = emailError instanceof Error ? emailError.message : 'Unknown email error'
+      return NextResponse.json(
+        { error: `Failed to send email: ${errorMessage}` },
+        { status: 500 }
+      )
+    }
 
     // Log the email send
     await prisma.platformActivityLog.create({
@@ -228,14 +290,14 @@ export async function POST(
         organizationId: invoice.organizationId,
         userId: user.id,
         activityType: 'invoice_emailed',
-        description: `Invoice #${invoice.invoiceNumber} emailed to ${invoice.organization.contactEmail}`,
-        metadata: { invoiceId: invoice.id, emailId: emailResult.data?.id },
+        description: `Invoice #${invoice.invoiceNumber} emailed to ${recipientEmail}${customEmail ? ' (custom recipient)' : ''}`,
+        metadata: { invoiceId: invoice.id, emailId: emailResult?.data?.id, recipientEmail },
       },
     })
 
     return NextResponse.json({
       success: true,
-      message: `Invoice emailed to ${invoice.organization.contactEmail}`,
+      message: `Invoice emailed to ${recipientEmail}`,
     })
   } catch (error) {
     console.error('Invoice email error:', error)

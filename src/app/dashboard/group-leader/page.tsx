@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useAuth } from '@clerk/nextjs'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useEvent } from '@/contexts/EventContext'
@@ -49,33 +50,53 @@ interface DashboardData {
 }
 
 export default function GroupLeaderDashboard() {
-  const { selectedEventId } = useEvent()
+  const { selectedEventId, linkedEvents } = useEvent()
+  const { getToken } = useAuth()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [copySuccess, setCopySuccess] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
 
   useEffect(() => {
     const fetchDashboard = async () => {
-      if (!selectedEventId) return
+      if (!selectedEventId) {
+        setLoading(false)
+        return
+      }
 
       setLoading(true)
+      setError(null)
       try {
+        // Get token for Authorization header (needed in production where cookies may not work)
+        const token = await getToken()
         const url = `/api/group-leader/dashboard?eventId=${selectedEventId}`
-        const response = await fetch(url)
+        const response = await fetch(url, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        })
         if (response.ok) {
           const dashboardData = await response.json()
           setData(dashboardData)
+        } else {
+          const errorData = await response.json().catch(() => ({}))
+          if (response.status === 401) {
+            setError('Your session has expired. Please sign in again.')
+          } else if (response.status === 404) {
+            setError('No registration found for this event. The access code may not be linked to your account.')
+          } else {
+            setError(errorData.error || 'Failed to load dashboard data. Please try refreshing the page.')
+          }
         }
-      } catch (error) {
-        console.error('Error fetching dashboard:', error)
+      } catch (err) {
+        console.error('Error fetching dashboard:', err)
+        setError('Network error. Please check your connection and try again.')
       } finally {
         setLoading(false)
       }
     }
 
     fetchDashboard()
-  }, [selectedEventId])
+  }, [selectedEventId, getToken])
 
   // Listen for event changes from other components
   useEffect(() => {
@@ -106,7 +127,33 @@ export default function GroupLeaderDashboard() {
   if (!data) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-red-600">Failed to load dashboard data</div>
+        <Card className="p-8 max-w-md text-center">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-lg font-semibold text-[#1E3A5F] mb-2">
+            {error ? 'Unable to Load Dashboard' : 'No Event Selected'}
+          </h2>
+          <p className="text-[#6B7280] mb-4">
+            {error || 'Please select an event from the sidebar or link your access code to get started.'}
+          </p>
+          <div className="space-y-2">
+            <Button
+              onClick={() => window.location.reload()}
+              className="w-full bg-[#9C8466] hover:bg-[#8B7355] text-white"
+            >
+              Refresh Page
+            </Button>
+            {(!linkedEvents || linkedEvents.length === 0) && (
+              <Link href="/dashboard/group-leader/link-access-code">
+                <Button
+                  variant="outline"
+                  className="w-full border-[#1E3A5F] text-[#1E3A5F]"
+                >
+                  Link Access Code
+                </Button>
+              </Link>
+            )}
+          </div>
+        </Card>
       </div>
     )
   }
@@ -465,23 +512,23 @@ export default function GroupLeaderDashboard() {
         <EditRegistrationModal
           registrationId={selectedEventId}
           onClose={() => setShowEditModal(false)}
-          onSaved={() => {
+          onSaved={async () => {
             setShowEditModal(false)
             // Refetch dashboard data
-            const fetchDashboard = async () => {
-              if (!selectedEventId) return
-              try {
-                const url = `/api/group-leader/dashboard?eventId=${selectedEventId}`
-                const response = await fetch(url)
-                if (response.ok) {
-                  const dashboardData = await response.json()
-                  setData(dashboardData)
-                }
-              } catch (error) {
-                console.error('Error fetching dashboard:', error)
+            if (!selectedEventId) return
+            try {
+              const token = await getToken()
+              const url = `/api/group-leader/dashboard?eventId=${selectedEventId}`
+              const response = await fetch(url, {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+              })
+              if (response.ok) {
+                const dashboardData = await response.json()
+                setData(dashboardData)
               }
+            } catch (error) {
+              console.error('Error fetching dashboard:', error)
             }
-            fetchDashboard()
           }}
         />
       )}

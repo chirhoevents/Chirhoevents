@@ -23,6 +23,10 @@ import {
   StickyNote,
   RefreshCcw,
   Building2,
+  Link,
+  Copy,
+  Mail,
+  ExternalLink,
 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -150,6 +154,7 @@ interface Invoice {
   status: string
   paidAt: string | null
   createdAt: string
+  paymentLink: string | null
 }
 
 interface Payment {
@@ -257,6 +262,7 @@ export default function BillingDashboard() {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
   const [showProcessPaymentModal, setShowProcessPaymentModal] = useState(false)
   const [showAddNoteModal, setShowAddNoteModal] = useState(false)
+  const [showCreateInvoiceModal, setShowCreateInvoiceModal] = useState(false)
 
   // Form states
   const [markPaidForm, setMarkPaidForm] = useState({
@@ -293,6 +299,16 @@ export default function BillingDashboard() {
     organizationId: '',
     noteType: 'general',
     note: '',
+  })
+
+  const [createInvoiceForm, setCreateInvoiceForm] = useState({
+    organizationId: '',
+    invoiceType: 'subscription',
+    amount: '',
+    description: '',
+    dueDate: format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
+    periodStart: format(new Date(), 'yyyy-MM-dd'),
+    periodEnd: format(new Date(new Date().setFullYear(new Date().getFullYear() + 1)), 'yyyy-MM-dd'),
   })
 
   // Fetch functions
@@ -510,6 +526,45 @@ export default function BillingDashboard() {
     }
   }
 
+  const handleCreateInvoice = async () => {
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/master-admin/invoices', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          ...createInvoiceForm,
+          lineItems: createInvoiceForm.description ? [
+            { description: createInvoiceForm.description, amount: parseFloat(createInvoiceForm.amount) }
+          ] : null,
+        }),
+      })
+
+      if (!res.ok) throw new Error('Failed to create invoice')
+
+      const data = await res.json()
+      setShowCreateInvoiceModal(false)
+      setCreateInvoiceForm({
+        organizationId: '',
+        invoiceType: 'subscription',
+        amount: '',
+        description: '',
+        dueDate: format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
+        periodStart: format(new Date(), 'yyyy-MM-dd'),
+        periodEnd: format(new Date(new Date().setFullYear(new Date().getFullYear() + 1)), 'yyyy-MM-dd'),
+      })
+      fetchInvoices()
+      fetchOverview()
+      alert(`Invoice #${data.invoice.invoiceNumber} created successfully!`)
+    } catch (err) {
+      console.error('Error creating invoice:', err)
+      alert('Failed to create invoice')
+    }
+  }
+
   const handleSubscriptionAction = async (subscriptionId: string, action: string) => {
     try {
       const token = await getToken()
@@ -550,6 +605,68 @@ export default function BillingDashboard() {
     a.href = url
     a.download = `payments-export-${format(new Date(), 'yyyy-MM-dd')}.csv`
     a.click()
+  }
+
+  const handleCopyPaymentLink = async (invoice: Invoice) => {
+    if (invoice.paymentLink) {
+      await navigator.clipboard.writeText(invoice.paymentLink)
+      alert('Payment link copied to clipboard!')
+    } else {
+      // Generate payment link first
+      try {
+        const token = await getToken()
+        const res = await fetch(`/api/master-admin/invoices/${invoice.id}/payment-link`, {
+          method: 'POST',
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        })
+        if (!res.ok) throw new Error('Failed to generate payment link')
+        const data = await res.json()
+        await navigator.clipboard.writeText(data.paymentLink)
+        alert('Payment link generated and copied to clipboard!')
+        fetchInvoices() // Refresh to get the new payment link
+      } catch (err) {
+        console.error('Error generating payment link:', err)
+        alert('Failed to generate payment link')
+      }
+    }
+  }
+
+  const handleSendInvoiceEmail = async (invoice: Invoice, customEmail?: string) => {
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/admin/invoices/${invoice.id}/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: customEmail ? JSON.stringify({ email: customEmail }) : undefined,
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to send invoice email')
+      }
+      const data = await res.json()
+      alert(data.message || `Invoice email sent!`)
+    } catch (err) {
+      console.error('Error sending invoice email:', err)
+      alert(err instanceof Error ? err.message : 'Failed to send invoice email')
+    }
+  }
+
+  const promptAndSendInvoiceEmail = (invoice: Invoice) => {
+    const email = prompt(
+      `Send invoice to email address:\n(Leave blank to use organization's contact email)`,
+      ''
+    )
+    if (email === null) return // User cancelled
+    handleSendInvoiceEmail(invoice, email || undefined)
+  }
+
+  const handleOpenPaymentLink = (invoice: Invoice) => {
+    if (invoice.paymentLink) {
+      window.open(invoice.paymentLink, '_blank')
+    }
   }
 
   if (loading) {
@@ -934,22 +1051,31 @@ export default function BillingDashboard() {
         <TabsContent value="invoices">
           <div className="space-y-4">
             {/* Filters */}
-            <div className="flex flex-wrap gap-4 items-center bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-gray-500" />
-                <span className="text-sm text-gray-500">Filters:</span>
+            <div className="flex flex-wrap gap-4 items-center justify-between bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+              <div className="flex flex-wrap gap-4 items-center">
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm text-gray-500">Filters:</span>
+                </div>
+                <select
+                  value={invoiceStatusFilter}
+                  onChange={(e) => setInvoiceStatusFilter(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="all">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="paid">Paid</option>
+                  <option value="overdue">Overdue</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
               </div>
-              <select
-                value={invoiceStatusFilter}
-                onChange={(e) => setInvoiceStatusFilter(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              <Button
+                onClick={() => setShowCreateInvoiceModal(true)}
+                className="bg-purple-600 hover:bg-purple-700 text-white"
               >
-                <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="paid">Paid</option>
-                <option value="overdue">Overdue</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Invoice
+              </Button>
             </div>
 
             {/* Invoices Table */}
@@ -1007,30 +1133,49 @@ export default function BillingDashboard() {
                           </Badge>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <button
-                              className="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg"
-                              title="View"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </button>
-                            {invoice.status !== 'paid' && (
-                              <button
-                                onClick={() => {
-                                  setSelectedInvoice(invoice)
-                                  setShowMarkPaidModal(true)
-                                }}
-                                className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg"
-                                title="Mark Paid"
-                              >
-                                <CheckCircle className="h-4 w-4" />
-                              </button>
+                          <div className="flex items-center gap-1">
+                            {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
+                              <>
+                                <button
+                                  onClick={() => handleCopyPaymentLink(invoice)}
+                                  className="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg"
+                                  title={invoice.paymentLink ? 'Copy Payment Link' : 'Generate & Copy Payment Link'}
+                                >
+                                  {invoice.paymentLink ? <Copy className="h-4 w-4" /> : <Link className="h-4 w-4" />}
+                                </button>
+                                {invoice.paymentLink && (
+                                  <button
+                                    onClick={() => handleOpenPaymentLink(invoice)}
+                                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                                    title="Open Payment Page"
+                                  >
+                                    <ExternalLink className="h-4 w-4" />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => promptAndSendInvoiceEmail(invoice)}
+                                  className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                                  title="Send Invoice Email"
+                                >
+                                  <Mail className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setSelectedInvoice(invoice)
+                                    setShowMarkPaidModal(true)
+                                  }}
+                                  className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg"
+                                  title="Mark Paid"
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </button>
+                              </>
                             )}
                             <button
-                              className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
-                              title="Download PDF"
+                              className="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg"
+                              title="View Details"
                             >
-                              <Download className="h-4 w-4" />
+                              <Eye className="h-4 w-4" />
                             </button>
                           </div>
                         </td>
@@ -1878,6 +2023,155 @@ export default function BillingDashboard() {
               className="bg-purple-600 hover:bg-purple-700 text-white"
             >
               Add Note
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Invoice Modal */}
+      <Dialog open={showCreateInvoiceModal} onOpenChange={setShowCreateInvoiceModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Create Invoice</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="invoiceOrg" className="text-sm font-medium text-gray-700">
+                Organization *
+              </Label>
+              <select
+                id="invoiceOrg"
+                value={createInvoiceForm.organizationId}
+                onChange={(e) => {
+                  const org = organizations.find((o) => o.id === e.target.value)
+                  setCreateInvoiceForm({
+                    ...createInvoiceForm,
+                    organizationId: e.target.value,
+                    amount: org
+                      ? org.billingCycle === 'annual'
+                        ? String(org.annualPrice)
+                        : String(org.monthlyFee)
+                      : '',
+                  })
+                }}
+                className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2"
+              >
+                <option value="">Select an organization...</option>
+                {organizations.map((org) => (
+                  <option key={org.id} value={org.id}>
+                    {org.name} - {formatTierName(org.subscriptionTier)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium text-gray-700">Invoice Type *</Label>
+              <select
+                value={createInvoiceForm.invoiceType}
+                onChange={(e) => {
+                  let amount = createInvoiceForm.amount
+                  if (e.target.value === 'setup_fee') {
+                    amount = '250'
+                  }
+                  setCreateInvoiceForm({
+                    ...createInvoiceForm,
+                    invoiceType: e.target.value,
+                    amount,
+                  })
+                }}
+                className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2"
+              >
+                <option value="subscription">Subscription</option>
+                <option value="setup_fee">Setup Fee</option>
+                <option value="reactivation_fee">Reactivation Fee</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+
+            <div>
+              <Label htmlFor="invoiceAmount" className="text-sm font-medium text-gray-700">
+                Amount *
+              </Label>
+              <div className="mt-1 relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                <Input
+                  id="invoiceAmount"
+                  type="number"
+                  step="0.01"
+                  value={createInvoiceForm.amount}
+                  onChange={(e) => setCreateInvoiceForm({ ...createInvoiceForm, amount: e.target.value })}
+                  className="pl-8"
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="invoiceDescription" className="text-sm font-medium text-gray-700">
+                Description
+              </Label>
+              <Input
+                id="invoiceDescription"
+                value={createInvoiceForm.description}
+                onChange={(e) => setCreateInvoiceForm({ ...createInvoiceForm, description: e.target.value })}
+                className="mt-1"
+                placeholder="e.g., Annual subscription for 2026"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="invoiceDueDate" className="text-sm font-medium text-gray-700">
+                Due Date *
+              </Label>
+              <Input
+                id="invoiceDueDate"
+                type="date"
+                value={createInvoiceForm.dueDate}
+                onChange={(e) => setCreateInvoiceForm({ ...createInvoiceForm, dueDate: e.target.value })}
+                className="mt-1"
+              />
+            </div>
+
+            {createInvoiceForm.invoiceType === 'subscription' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="invoicePeriodStart" className="text-sm font-medium text-gray-700">
+                    Period Start
+                  </Label>
+                  <Input
+                    id="invoicePeriodStart"
+                    type="date"
+                    value={createInvoiceForm.periodStart}
+                    onChange={(e) => setCreateInvoiceForm({ ...createInvoiceForm, periodStart: e.target.value })}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="invoicePeriodEnd" className="text-sm font-medium text-gray-700">
+                    Period End
+                  </Label>
+                  <Input
+                    id="invoicePeriodEnd"
+                    type="date"
+                    value={createInvoiceForm.periodEnd}
+                    onChange={(e) => setCreateInvoiceForm({ ...createInvoiceForm, periodEnd: e.target.value })}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateInvoiceModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateInvoice}
+              disabled={!createInvoiceForm.organizationId || !createInvoiceForm.amount}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              Create Invoice
             </Button>
           </DialogFooter>
         </DialogContent>
