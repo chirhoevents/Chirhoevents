@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { Resend } from 'resend'
+import { generateWaitlistConfirmationEmail } from '@/lib/email-templates'
+
+const resend = new Resend(process.env.RESEND_API_KEY!)
 
 export async function POST(
   request: NextRequest,
@@ -42,9 +46,15 @@ export async function POST(
       select: {
         id: true,
         name: true,
+        slug: true,
         enableWaitlist: true,
         capacityTotal: true,
         capacityRemaining: true,
+        organization: {
+          select: {
+            name: true,
+          },
+        },
       },
     })
 
@@ -77,6 +87,15 @@ export async function POST(
       )
     }
 
+    // Calculate position (count of pending entries before this one + 1)
+    const pendingCount = await prisma.waitlistEntry.count({
+      where: {
+        eventId,
+        status: 'pending',
+      },
+    })
+    const position = pendingCount + 1
+
     // Create waitlist entry
     const waitlistEntry = await prisma.waitlistEntry.create({
       data: {
@@ -90,7 +109,32 @@ export async function POST(
       },
     })
 
-    // TODO: Send confirmation email to user
+    // Send confirmation email
+    const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
+    const eventUrl = `${APP_URL}/events/${event.slug}`
+
+    try {
+      const emailHtml = generateWaitlistConfirmationEmail({
+        name,
+        eventName: event.name,
+        position,
+        partySize: parseInt(partySize),
+        organizationName: event.organization.name,
+        eventUrl,
+      })
+
+      await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+        to: email.toLowerCase(),
+        subject: `You're on the Waitlist - ${event.name}`,
+        html: emailHtml,
+      })
+
+      console.log(`[Waitlist] Confirmation email sent to ${email} for event ${event.name}`)
+    } catch (emailError) {
+      // Log but don't fail the request if email fails
+      console.error('Error sending waitlist confirmation email:', emailError)
+    }
 
     return NextResponse.json(
       {
@@ -102,6 +146,7 @@ export async function POST(
           email: waitlistEntry.email,
           partySize: waitlistEntry.partySize,
           status: waitlistEntry.status,
+          position,
           createdAt: waitlistEntry.createdAt,
         },
       },
