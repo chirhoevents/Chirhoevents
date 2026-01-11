@@ -149,7 +149,7 @@ function VendorPortalLandingContent() {
 
               <div className="mt-8 text-center">
                 <p className="text-sm text-gray-600">
-                  Don't have an access code? Your code is sent via email when your vendor application is approved.
+                  Don&apos;t have an access code? Your code is sent via email when your vendor application is approved.
                 </p>
               </div>
             </div>
