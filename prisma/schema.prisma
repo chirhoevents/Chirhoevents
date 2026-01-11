@@ -238,7 +238,7 @@ model EventSettings {
   secondaryColor                  String   @default("#9C8466") @map("secondary_color") @db.VarChar(7)
   overlayColor                    String   @default("#000000") @map("overlay_color") @db.VarChar(7)
   overlayOpacity                  Int      @default(40) @map("overlay_opacity")
-  waitlistEnabled                 Boolean  @default(false) @map("waitlist_enabled")
+  waitlistEnabled                 Boolean  @default(true) @map("waitlist_enabled")
   registrationClosedMessage       String?  @map("registration_closed_message") @db.Text
 
   // Allow login when registration is closed (for group leaders to access dashboard)
