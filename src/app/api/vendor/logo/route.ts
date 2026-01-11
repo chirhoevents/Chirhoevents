@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { put, del } from '@vercel/blob'
+import { uploadVendorLogo, deleteVendorLogo } from '@/lib/r2/upload-vendor-logo'
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,28 +50,26 @@ export async function POST(request: NextRequest) {
     // Delete old logo if exists
     if (vendor.logoUrl) {
       try {
-        await del(vendor.logoUrl)
+        await deleteVendorLogo(vendor.id)
       } catch (e) {
         console.error('Failed to delete old logo:', e)
       }
     }
 
-    // Upload new logo
-    const timestamp = Date.now()
-    const filename = `vendor-logos/${vendor.id}-${timestamp}.${file.type.split('/')[1]}`
+    // Convert file to buffer
+    const arrayBuffer = await file.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
 
-    const blob = await put(filename, file, {
-      access: 'public',
-      contentType: file.type,
-    })
+    // Upload new logo to R2
+    const logoUrl = await uploadVendorLogo(buffer, file.name, vendor.id)
 
     // Update vendor with new logo URL
     await prisma.vendorRegistration.update({
       where: { id: vendor.id },
-      data: { logoUrl: blob.url },
+      data: { logoUrl },
     })
 
-    return NextResponse.json({ logoUrl: blob.url })
+    return NextResponse.json({ logoUrl })
   } catch (error) {
     console.error('Error uploading vendor logo:', error)
     return NextResponse.json(
@@ -102,7 +100,7 @@ export async function DELETE(request: NextRequest) {
 
     if (vendor.logoUrl) {
       try {
-        await del(vendor.logoUrl)
+        await deleteVendorLogo(vendor.id)
       } catch (e) {
         console.error('Failed to delete logo:', e)
       }
