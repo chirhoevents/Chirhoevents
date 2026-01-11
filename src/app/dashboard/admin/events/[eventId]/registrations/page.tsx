@@ -40,10 +40,11 @@ export default async function EventRegistrationsPage({ params }: PageProps) {
     notFound()
   }
 
-  // Fetch registrations with payment data
+  // Fetch registrations with payment data - filter by organizationId for security
   const groupRegistrations = await prisma.groupRegistration.findMany({
     where: {
       eventId: eventId,
+      organizationId: organizationId,
     },
     include: {
       participants: {
@@ -61,6 +62,7 @@ export default async function EventRegistrationsPage({ params }: PageProps) {
   const individualRegistrations = await prisma.individualRegistration.findMany({
     where: {
       eventId: eventId,
+      organizationId: organizationId,
     },
     include: {
       liabilityForms: {
