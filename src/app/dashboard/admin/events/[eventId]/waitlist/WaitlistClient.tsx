@@ -47,6 +47,8 @@ import {
   UserCheck,
   UserX,
   Phone,
+  Timer,
+  AlertTriangle,
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -61,6 +63,8 @@ interface WaitlistEntry {
   status: 'pending' | 'contacted' | 'registered' | 'expired'
   position: number
   notifiedAt: string | null
+  invitationExpires: string | null
+  hasToken: boolean
   createdAt: string
   updatedAt: string
 }
@@ -224,7 +228,28 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
     link.click()
   }
 
-  const getStatusBadge = (status: string) => {
+  const getInvitationTimeRemaining = (expiresAt: string | null) => {
+    if (!expiresAt) return null
+    const expires = new Date(expiresAt).getTime()
+    const now = Date.now()
+    const remaining = expires - now
+
+    if (remaining <= 0) return { expired: true, text: 'Expired' }
+
+    const hours = Math.floor(remaining / (1000 * 60 * 60))
+    const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60))
+
+    if (hours > 24) {
+      const days = Math.floor(hours / 24)
+      return { expired: false, text: `${days}d ${hours % 24}h` }
+    }
+    return { expired: false, text: `${hours}h ${minutes}m`, urgent: hours < 6 }
+  }
+
+  const getStatusBadge = (entry: WaitlistEntry) => {
+    const { status, invitationExpires, hasToken } = entry
+    const timeInfo = status === 'contacted' ? getInvitationTimeRemaining(invitationExpires) : null
+
     const statusConfig: Record<string, { label: string; className: string; icon: React.ReactNode }> = {
       pending: {
         label: 'Waiting',
@@ -232,9 +257,13 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
         icon: <Clock className="h-3 w-3" />,
       },
       contacted: {
-        label: 'Contacted',
-        className: 'bg-blue-100 text-blue-800 border-blue-200',
-        icon: <Mail className="h-3 w-3" />,
+        label: timeInfo?.expired ? 'Invite Expired' : 'Invited',
+        className: timeInfo?.expired
+          ? 'bg-orange-100 text-orange-800 border-orange-200'
+          : timeInfo?.urgent
+          ? 'bg-red-100 text-red-800 border-red-200'
+          : 'bg-blue-100 text-blue-800 border-blue-200',
+        icon: timeInfo?.expired ? <AlertTriangle className="h-3 w-3" /> : <Timer className="h-3 w-3" />,
       },
       registered: {
         label: 'Registered',
@@ -250,10 +279,17 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
 
     const config = statusConfig[status] || statusConfig.pending
     return (
-      <Badge variant="outline" className={`${config.className} flex items-center gap-1`}>
-        {config.icon}
-        {config.label}
-      </Badge>
+      <div className="flex flex-col gap-1">
+        <Badge variant="outline" className={`${config.className} flex items-center gap-1`}>
+          {config.icon}
+          {config.label}
+        </Badge>
+        {status === 'contacted' && timeInfo && !timeInfo.expired && (
+          <span className={`text-xs ${timeInfo.urgent ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
+            {timeInfo.text} left
+          </span>
+        )}
+      </div>
     )
   }
 
@@ -475,7 +511,7 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
                           {entry.partySize} {entry.partySize === 1 ? 'spot' : 'spots'}
                         </Badge>
                       </TableCell>
-                      <TableCell>{getStatusBadge(entry.status)}</TableCell>
+                      <TableCell>{getStatusBadge(entry)}</TableCell>
                       <TableCell>
                         <div className="text-sm">
                           <p className="text-[#1E3A5F]">

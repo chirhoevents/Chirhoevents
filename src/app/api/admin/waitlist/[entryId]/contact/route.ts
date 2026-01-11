@@ -5,8 +5,14 @@ import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { Resend } from 'resend'
 import { generateWaitlistInvitationEmail } from '@/lib/email-templates'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+import crypto from 'crypto'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
+
+// Generate a secure random token
+function generateRegistrationToken(): string {
+  return crypto.randomBytes(32).toString('hex')
+}
 
 export async function POST(
   request: NextRequest,
@@ -63,18 +69,24 @@ export async function POST(
       )
     }
 
-    // Update entry status to contacted
+    // Generate token and set expiration (48 hours from now)
+    const registrationToken = generateRegistrationToken()
+    const invitationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000) // 48 hours
+
+    // Update entry status to contacted with token
     const updatedEntry = await prisma.waitlistEntry.update({
       where: { id: entryId },
       data: {
         status: 'contacted',
         notifiedAt: new Date(),
+        registrationToken,
+        invitationExpires,
       },
     })
 
-    // Send invitation email
+    // Send invitation email with token URL
     const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
-    const registrationUrl = `${APP_URL}/events/${entry.event.slug}`
+    const registrationUrl = `${APP_URL}/waitlist/register/${registrationToken}`
     let emailSent = false
 
     try {

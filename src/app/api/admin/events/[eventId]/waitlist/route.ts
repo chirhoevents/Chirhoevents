@@ -68,6 +68,8 @@ export async function GET(
         status: entry.status,
         position: index + 1,
         notifiedAt: entry.notifiedAt,
+        invitationExpires: entry.invitationExpires,
+        hasToken: !!entry.registrationToken,
         createdAt: entry.createdAt,
         updatedAt: entry.updatedAt,
       })),
