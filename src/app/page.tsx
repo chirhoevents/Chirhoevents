@@ -632,7 +632,7 @@ export default function LandingPage() {
               <video
                 ref={videoRef}
                 className="w-full aspect-video"
-                src="/videos/features-demo.mp4"
+                src="/Videos/features-demo.mp4"
                 muted
                 loop
                 playsInline
