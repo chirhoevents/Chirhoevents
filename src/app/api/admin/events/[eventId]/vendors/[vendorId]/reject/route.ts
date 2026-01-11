@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAuth } from '@/lib/auth-utils'
+import { verifyEventAccess } from '@/lib/api-auth'
 import { Resend } from 'resend'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 
@@ -11,10 +11,18 @@ export async function POST(
   { params }: { params: Promise<{ eventId: string; vendorId: string }> }
 ) {
   try {
-    const authResult = await requireAuth(request, ['org_admin', 'event_manager', 'finance_manager'])
-    if (authResult instanceof NextResponse) return authResult
-
     const { eventId, vendorId } = await params
+
+    // Verify event access
+    const { error, user, effectiveOrgId } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[Reject Vendor]',
+    })
+
+    if (error) return error
+    if (!user || !effectiveOrgId) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
+    }
     const body = await request.json()
     const { reason } = body
 

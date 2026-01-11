@@ -1,25 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAuth } from '@/lib/auth-utils'
+import { verifyEventAccess } from '@/lib/api-auth'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const authResult = await requireAuth(request, ['org_admin', 'event_manager', 'finance_manager'])
-    if (authResult instanceof NextResponse) return authResult
-
     const { eventId } = await params
 
-    // Verify event exists
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
-      select: { organizationId: true },
+    // Verify event access
+    const { error, user, effectiveOrgId } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[GET Event Vendors]',
     })
 
-    if (!event) {
-      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+    if (error) return error
+    if (!user || !effectiveOrgId) {
+      return NextResponse.json({ error: 'User not found' }, { status: 401 })
     }
 
     // Fetch vendor registrations
