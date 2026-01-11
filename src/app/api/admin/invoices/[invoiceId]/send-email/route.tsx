@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
-import React from 'react'
-import { InvoicePDF } from '@/components/pdf/InvoicePDF'
 
 // Must use Node.js runtime for @react-pdf/renderer (not Edge)
 export const runtime = 'nodejs'
@@ -157,11 +155,80 @@ export async function POST(
       },
     }
 
-    // Generate PDF using renderToBuffer for server-side rendering
+    // Generate PDF using @react-pdf/renderer with inline components
     let pdfBuffer: Buffer
     try {
-      const { renderToBuffer } = await import('@react-pdf/renderer')
-      pdfBuffer = await renderToBuffer(<InvoicePDF invoice={invoiceData} />)
+      const ReactPDF = await import('@react-pdf/renderer')
+      const { Document, Page, Text, View, StyleSheet, renderToBuffer } = ReactPDF
+
+      // Create styles inline
+      const pdfStyles = StyleSheet.create({
+        page: { padding: 40, fontFamily: 'Helvetica', fontSize: 10 },
+        header: { marginBottom: 20 },
+        title: { fontSize: 24, fontWeight: 'bold', color: '#1E3A5F' },
+        subtitle: { fontSize: 10, color: '#666', marginTop: 4 },
+        invoiceTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 10 },
+        row: { flexDirection: 'row', marginBottom: 8 },
+        label: { width: 120, fontWeight: 'bold' },
+        value: { flex: 1 },
+        divider: { borderBottomWidth: 1, borderBottomColor: '#E5E7EB', marginVertical: 15 },
+        total: { fontSize: 16, fontWeight: 'bold', marginTop: 20, textAlign: 'right' },
+        footer: { position: 'absolute', bottom: 40, left: 40, right: 40, textAlign: 'center', fontSize: 9, color: '#666' },
+      })
+
+      // Extract safe string values
+      const invNum = String(invoice.invoiceNumber || '')
+      const orgName = String(invoice.organization?.name || 'Organization')
+      const invType = String(invoiceTypeLabels[invoice.invoiceType] || invoice.invoiceType || '')
+      const amount = formatCurrency(Number(invoice.amount) || 0)
+      const dueDate = formatDate(invoice.dueDate.toISOString())
+      const status = String(invoice.status || 'pending').toUpperCase()
+
+      // Create the PDF document inline
+      const MyDocument = (
+        <Document>
+          <Page size="LETTER" style={pdfStyles.page}>
+            <View style={pdfStyles.header}>
+              <Text style={pdfStyles.title}>ChirhoEvents</Text>
+              <Text style={pdfStyles.subtitle}>Event Management Platform</Text>
+            </View>
+
+            <Text style={pdfStyles.invoiceTitle}>INVOICE #{invNum}</Text>
+
+            <View style={pdfStyles.divider} />
+
+            <View style={pdfStyles.row}>
+              <Text style={pdfStyles.label}>Bill To:</Text>
+              <Text style={pdfStyles.value}>{orgName}</Text>
+            </View>
+
+            <View style={pdfStyles.row}>
+              <Text style={pdfStyles.label}>Invoice Type:</Text>
+              <Text style={pdfStyles.value}>{invType}</Text>
+            </View>
+
+            <View style={pdfStyles.row}>
+              <Text style={pdfStyles.label}>Status:</Text>
+              <Text style={pdfStyles.value}>{status}</Text>
+            </View>
+
+            <View style={pdfStyles.row}>
+              <Text style={pdfStyles.label}>Due Date:</Text>
+              <Text style={pdfStyles.value}>{dueDate}</Text>
+            </View>
+
+            <View style={pdfStyles.divider} />
+
+            <Text style={pdfStyles.total}>Amount Due: {amount}</Text>
+
+            <View style={pdfStyles.footer}>
+              <Text>ChirhoEvents - www.chirhoevents.com - support@chirhoevents.com</Text>
+            </View>
+          </Page>
+        </Document>
+      )
+
+      pdfBuffer = await renderToBuffer(MyDocument)
     } catch (pdfError: unknown) {
       console.error('PDF generation error:', pdfError)
       const errorMessage = pdfError instanceof Error ? pdfError.message : 'Unknown PDF error'
