@@ -25,9 +25,11 @@ import {
   BarChart3,
   UserPlus,
   Settings,
+  Mail,
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
+import SendReminderEmailModal from '@/components/admin/SendReminderEmailModal'
 
 interface EventDetailClientProps {
   event: {
@@ -71,6 +73,7 @@ export default function EventDetailClient({
   const [waitlistEnabled, setWaitlistEnabled] = useState(settings?.waitlistEnabled ?? false)
   const [closedMessage, setClosedMessage] = useState(settings?.registrationClosedMessage ?? '')
   const [savingSettings, setSavingSettings] = useState(false)
+  const [reminderModalOpen, setReminderModalOpen] = useState(false)
 
   const handleStatusUpdate = async (newStatus: string) => {
     if (updatingStatus) return
@@ -432,15 +435,26 @@ export default function EventDetailClient({
                 <CardTitle className="text-lg text-[#1E3A5F]">
                   Registrations Management
                 </CardTitle>
-                <Link href={`/dashboard/admin/events/${event.id}/registrations/new`}>
+                <div className="flex gap-2">
                   <Button
                     size="sm"
-                    className="bg-[#9C8466] hover:bg-[#8a7559] text-white"
+                    variant="outline"
+                    className="border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
+                    onClick={() => setReminderModalOpen(true)}
                   >
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Manual Registration
+                    <Mail className="h-4 w-4 mr-2" />
+                    Send Reminder Emails
                   </Button>
-                </Link>
+                  <Link href={`/dashboard/admin/events/${event.id}/registrations/new`}>
+                    <Button
+                      size="sm"
+                      className="bg-[#9C8466] hover:bg-[#8a7559] text-white"
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Manual Registration
+                    </Button>
+                  </Link>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="p-8 text-center">
@@ -448,13 +462,23 @@ export default function EventDetailClient({
               <p className="text-[#6B7280] mb-4">
                 View and manage all registrations for this event
               </p>
-              <Link href={`/dashboard/admin/events/${event.id}/registrations`}>
-                <Button className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
-                  View All Registrations
-                </Button>
-              </Link>
+              <div className="flex justify-center gap-3">
+                <Link href={`/dashboard/admin/events/${event.id}/registrations`}>
+                  <Button className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
+                    View All Registrations
+                  </Button>
+                </Link>
+              </div>
             </CardContent>
           </Card>
+
+          {/* Send Reminder Email Modal */}
+          <SendReminderEmailModal
+            open={reminderModalOpen}
+            onOpenChange={setReminderModalOpen}
+            eventId={event.id}
+            eventName={event.name}
+          />
         </TabsContent>
 
         {/* Poros Tab */}
