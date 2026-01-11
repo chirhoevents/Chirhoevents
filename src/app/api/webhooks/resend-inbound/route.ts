@@ -112,18 +112,17 @@ async function handleInboundEmail(emailData: any) {
       try {
         console.log('[Resend Webhook] Fetching content from Receiving API...')
 
-        // Use the correct Receiving API endpoint
-        const response = await fetch(`https://api.resend.com/emails/${emailData.email_id}`, {
+        // Correct endpoint: GET /emails/receiving/{email_id}
+        const response = await fetch(`https://api.resend.com/emails/receiving/${emailData.email_id}`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-            'Content-Type': 'application/json',
           },
         })
 
         if (response.ok) {
           const emailContent = await response.json()
-          console.log('[Resend Webhook] Received content fields:', Object.keys(emailContent))
+          console.log('[Resend Webhook] Received email content fields:', Object.keys(emailContent))
           textBody = emailContent.text || null
           htmlBody = emailContent.html || null
           console.log('[Resend Webhook] Text length:', textBody?.length || 0)
