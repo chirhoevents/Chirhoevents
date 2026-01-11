@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
             individualRegistrationEnabled:
               data.individualRegistrationEnabled !== false,
             liabilityFormsRequiredGroup: true,
-            liabilityFormsRequiredIndividual: false,
+            liabilityFormsRequiredIndividual: data.liabilityFormsRequiredIndividual || false,
             showDietaryRestrictions: true,
             dietaryRestrictionsRequired: false,
             showAdaAccommodations: true,

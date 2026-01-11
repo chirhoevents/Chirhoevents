@@ -346,10 +346,32 @@ export async function POST(request: NextRequest) {
               <h3 style="color: #1E3A5F;">Next Steps:</h3>
               <ol>
                 <li><strong>Mail Your Check:</strong> Send your check using the instructions above.</li>
-                <li><strong>Complete Your Liability Form:</strong> You'll receive a separate email with instructions to complete your liability form.</li>
+                ${liabilityFormsRequired ? `
+                <li><strong>Complete Your Liability Form:</strong> Click the button below to complete your required liability form.</li>
+                ` : ''}
                 <li><strong>Wait for Confirmation:</strong> We'll email you once your check is received and processed.</li>
                 <li><strong>Check-In:</strong> Bring your QR code (save this email or download the QR code) to check in at the event.</li>
               </ol>
+
+              ${liabilityFormsRequired ? `
+              <div style="background-color: #FEF3C7; padding: 20px; border-radius: 8px; margin: 20px 0; border: 2px solid #F59E0B;">
+                <h3 style="color: #92400E; margin-top: 0;">📋 Liability Form Required</h3>
+                <p style="color: #92400E; margin-bottom: 15px;">
+                  ${body.age && body.age < 18
+                    ? 'Since you are under 18, a parent or guardian must complete and sign your liability form.'
+                    : 'Please complete your liability form before the event.'}
+                </p>
+                <div style="text-align: center;">
+                  <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/poros/${confirmationCode}"
+                     style="display: inline-block; background-color: #1E3A5F; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                    Complete Liability Form
+                  </a>
+                </div>
+                <p style="color: #78716C; font-size: 12px; margin-top: 15px; text-align: center;">
+                  Or copy this link: ${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/poros/${confirmationCode}
+                </p>
+              </div>
+              ` : ''}
 
               ${eventSettings?.registrationInstructions ? `
                 <div style="background-color: #F0F8FF; padding: 15px; border-radius: 8px; margin: 20px 0;">

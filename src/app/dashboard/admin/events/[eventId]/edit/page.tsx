@@ -28,6 +28,7 @@ interface FormData {
   lateFeeAutoApply: boolean
   groupRegistrationEnabled: boolean
   individualRegistrationEnabled: boolean
+  liabilityFormsRequiredIndividual: boolean
   porosHousingEnabled: boolean
   tshirtsEnabled: boolean
   individualMealsEnabled: boolean
@@ -179,6 +180,7 @@ export default function EditEventPage() {
         // Step 3: Features & Modules
         groupRegistrationEnabled: event.settings?.groupRegistrationEnabled ?? true,
         individualRegistrationEnabled: event.settings?.individualRegistrationEnabled ?? false,
+        liabilityFormsRequiredIndividual: event.settings?.liabilityFormsRequiredIndividual ?? false,
         porosHousingEnabled: event.settings?.porosHousingEnabled || false,
         tshirtsEnabled: event.settings?.tshirtsEnabled || false,
         individualMealsEnabled: event.settings?.individualMealsEnabled || false,
