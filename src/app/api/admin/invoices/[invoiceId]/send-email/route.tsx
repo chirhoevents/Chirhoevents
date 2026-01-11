@@ -155,88 +155,8 @@ export async function POST(
       },
     }
 
-    // Generate PDF using @react-pdf/renderer with inline components
-    let pdfBuffer: Buffer
-    try {
-      const ReactPDF = await import('@react-pdf/renderer')
-      const { Document, Page, Text, View, StyleSheet, renderToBuffer } = ReactPDF
-
-      // Create styles inline
-      const pdfStyles = StyleSheet.create({
-        page: { padding: 40, fontFamily: 'Helvetica', fontSize: 10 },
-        header: { marginBottom: 20 },
-        title: { fontSize: 24, fontWeight: 'bold', color: '#1E3A5F' },
-        subtitle: { fontSize: 10, color: '#666', marginTop: 4 },
-        invoiceTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 10 },
-        row: { flexDirection: 'row', marginBottom: 8 },
-        label: { width: 120, fontWeight: 'bold' },
-        value: { flex: 1 },
-        divider: { borderBottomWidth: 1, borderBottomColor: '#E5E7EB', marginVertical: 15 },
-        total: { fontSize: 16, fontWeight: 'bold', marginTop: 20, textAlign: 'right' },
-        footer: { position: 'absolute', bottom: 40, left: 40, right: 40, textAlign: 'center', fontSize: 9, color: '#666' },
-      })
-
-      // Extract safe string values
-      const invNum = String(invoice.invoiceNumber || '')
-      const orgName = String(invoice.organization?.name || 'Organization')
-      const invType = String(invoiceTypeLabels[invoice.invoiceType] || invoice.invoiceType || '')
-      const amount = formatCurrency(Number(invoice.amount) || 0)
-      const dueDate = formatDate(invoice.dueDate.toISOString())
-      const status = String(invoice.status || 'pending').toUpperCase()
-
-      // Create the PDF document inline
-      const MyDocument = (
-        <Document>
-          <Page size="LETTER" style={pdfStyles.page}>
-            <View style={pdfStyles.header}>
-              <Text style={pdfStyles.title}>ChirhoEvents</Text>
-              <Text style={pdfStyles.subtitle}>Event Management Platform</Text>
-            </View>
-
-            <Text style={pdfStyles.invoiceTitle}>INVOICE #{invNum}</Text>
-
-            <View style={pdfStyles.divider} />
-
-            <View style={pdfStyles.row}>
-              <Text style={pdfStyles.label}>Bill To:</Text>
-              <Text style={pdfStyles.value}>{orgName}</Text>
-            </View>
-
-            <View style={pdfStyles.row}>
-              <Text style={pdfStyles.label}>Invoice Type:</Text>
-              <Text style={pdfStyles.value}>{invType}</Text>
-            </View>
-
-            <View style={pdfStyles.row}>
-              <Text style={pdfStyles.label}>Status:</Text>
-              <Text style={pdfStyles.value}>{status}</Text>
-            </View>
-
-            <View style={pdfStyles.row}>
-              <Text style={pdfStyles.label}>Due Date:</Text>
-              <Text style={pdfStyles.value}>{dueDate}</Text>
-            </View>
-
-            <View style={pdfStyles.divider} />
-
-            <Text style={pdfStyles.total}>Amount Due: {amount}</Text>
-
-            <View style={pdfStyles.footer}>
-              <Text>ChirhoEvents - www.chirhoevents.com - support@chirhoevents.com</Text>
-            </View>
-          </Page>
-        </Document>
-      )
-
-      pdfBuffer = await renderToBuffer(MyDocument)
-    } catch (pdfError: unknown) {
-      console.error('PDF generation error:', pdfError)
-      const errorMessage = pdfError instanceof Error ? pdfError.message : 'Unknown PDF error'
-      return NextResponse.json(
-        { error: `Failed to generate PDF: ${errorMessage}` },
-        { status: 500 }
-      )
-    }
+    // Skip PDF for now - send email without attachment
+    // TODO: Fix PDF generation later
 
     // Generate email HTML
     const emailHtml = `
@@ -276,7 +196,7 @@ export async function POST(
             <div class="content">
               <p>Dear ${invoice.organization.contactName || 'Valued Customer'},</p>
 
-              <p>Please find your invoice attached to this email.</p>
+              <p>Please find your invoice details below.</p>
 
               <div class="invoice-box">
                 <div style="display: flex; justify-content: space-between; align-items: start;">
@@ -346,7 +266,7 @@ export async function POST(
       </html>
     `
 
-    // Send email with PDF attachment
+    // Send email (without PDF attachment for now)
     let emailResult
     try {
       emailResult = await resend.emails.send({
@@ -354,12 +274,6 @@ export async function POST(
         to: recipientEmail,
         subject: `Invoice #${invoice.invoiceNumber} - ChirhoEvents`,
         html: emailHtml,
-        attachments: [
-          {
-            filename: `invoice-${invoice.invoiceNumber}.pdf`,
-            content: Buffer.from(pdfBuffer),
-          },
-        ],
       })
     } catch (emailError: unknown) {
       console.error('Resend email error:', emailError)
