@@ -19,7 +19,20 @@ import {
   MapPin,
   Link as LinkIcon,
   User,
+  Users,
+  Radio,
 } from 'lucide-react'
+
+interface Organization {
+  id: string
+  name: string
+  users: {
+    id: string
+    email: string
+    firstName: string | null
+    lastName: string | null
+  }[]
+}
 
 interface EmailTemplate {
   id: string
@@ -42,6 +55,7 @@ export default function ComposeEmailPage() {
 
   // State
   const [templates, setTemplates] = useState<EmailTemplate[]>([])
+  const [organizations, setOrganizations] = useState<Organization[]>([])
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [showTemplateSelector, setShowTemplateSelector] = useState(false)
@@ -51,6 +65,7 @@ export default function ComposeEmailPage() {
 
   // Form state
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null)
+  const [broadcastToAllOrgs, setBroadcastToAllOrgs] = useState(false)
   const [recipientEmail, setRecipientEmail] = useState('')
   const [recipientName, setRecipientName] = useState('')
   const [subject, setSubject] = useState('')
@@ -79,6 +94,7 @@ export default function ComposeEmailPage() {
 
       const data = await response.json()
       setTemplates(data.templates)
+      setOrganizations(data.organizations || [])
 
       // Auto-select first template
       if (data.templates.length > 0) {
@@ -105,12 +121,20 @@ export default function ComposeEmailPage() {
   }
 
   const validateForm = (): string | null => {
-    if (!recipientEmail) return 'Recipient email is required'
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)) return 'Invalid email address'
+    if (!broadcastToAllOrgs) {
+      if (!recipientEmail) return 'Recipient email is required'
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)) return 'Invalid email address'
+    }
     if (!subject) return 'Subject is required'
     if (!selectedTemplate) return 'Please select a template'
     return null
   }
+
+  // Count total admin recipients for broadcast
+  const totalBroadcastRecipients = organizations.reduce(
+    (sum, org) => sum + org.users.length,
+    0
+  )
 
   const handleSend = async () => {
     const validationError = validateForm()
@@ -134,8 +158,8 @@ export default function ComposeEmailPage() {
         },
         body: JSON.stringify({
           templateId: selectedTemplate?.id,
-          recipientEmail,
-          recipientName: recipientName || undefined,
+          recipientEmail: broadcastToAllOrgs ? undefined : recipientEmail,
+          recipientName: broadcastToAllOrgs ? undefined : (recipientName || undefined),
           subject,
           customMessage: customMessage || undefined,
           eventName: eventName || undefined,
@@ -145,6 +169,7 @@ export default function ComposeEmailPage() {
           ctaUrl: ctaUrl || undefined,
           ctaText: ctaText || undefined,
           senderName: senderName || undefined,
+          broadcastToAllOrgs,
         }),
       })
 
@@ -321,32 +346,68 @@ export default function ComposeEmailPage() {
               Recipient
             </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email Address <span className="text-red-500">*</span>
-                </label>
+            {/* Broadcast Toggle */}
+            <div className="mb-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
+              <label className="flex items-center gap-3 cursor-pointer">
                 <input
-                  type="email"
-                  value={recipientEmail}
-                  onChange={(e) => setRecipientEmail(e.target.value)}
-                  placeholder="recipient@example.com"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  type="checkbox"
+                  checked={broadcastToAllOrgs}
+                  onChange={(e) => setBroadcastToAllOrgs(e.target.checked)}
+                  className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Recipient Name
-                </label>
-                <input
-                  type="text"
-                  value={recipientName}
-                  onChange={(e) => setRecipientName(e.target.value)}
-                  placeholder="John Doe"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                />
-              </div>
+                <div className="flex items-center gap-2">
+                  <Radio className="h-5 w-5 text-purple-600" />
+                  <div>
+                    <span className="font-medium text-purple-900">Broadcast to All Organizations</span>
+                    <p className="text-sm text-purple-700">
+                      Send to all org admins ({organizations.length} orgs, {totalBroadcastRecipients} recipients)
+                    </p>
+                  </div>
+                </div>
+              </label>
             </div>
+
+            {!broadcastToAllOrgs && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email Address <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={recipientEmail}
+                    onChange={(e) => setRecipientEmail(e.target.value)}
+                    placeholder="recipient@example.com"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Recipient Name
+                  </label>
+                  <input
+                    type="text"
+                    value={recipientName}
+                    onChange={(e) => setRecipientName(e.target.value)}
+                    placeholder="John Doe"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  />
+                </div>
+              </div>
+            )}
+
+            {broadcastToAllOrgs && organizations.length > 0 && (
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg max-h-40 overflow-y-auto">
+                <p className="text-sm font-medium text-gray-700 mb-2">Will send to admins at:</p>
+                <div className="flex flex-wrap gap-2">
+                  {organizations.map((org) => (
+                    <span key={org.id} className="px-2 py-1 bg-white border border-gray-200 rounded text-xs text-gray-600">
+                      {org.name} ({org.users.length})
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Subject */}

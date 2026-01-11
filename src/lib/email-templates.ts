@@ -1265,50 +1265,146 @@ export const masterAdminEmailTemplates: MasterAdminEmailTemplate[] = [
     name: 'Organization Invitation',
     category: 'invitation',
     description: 'Invite a diocese or organization to join ChiRho Events',
-    defaultSubject: 'Invitation to Join ChiRho Events',
+    defaultSubject: 'Invitation to Join ChiRho Events - Technology Built for Catholic Ministry',
     generateHtml: (data) => wrapEmail(`
-      <h1 style="color: #1E3A5F; margin-top: 0;">Join ChiRho Events</h1>
+      <h1 style="color: #1E3A5F; margin-top: 0; text-align: center;">Join the ChiRho Events Family</h1>
 
-      ${data.recipientName ? `<p>Dear ${data.recipientName},</p>` : '<p>Hello,</p>'}
+      <p style="text-align: center; font-style: italic; color: #9C8466; margin-bottom: 30px;">
+        "For where two or three gather in my name, there am I with them." - Matthew 18:20
+      </p>
 
-      <p>We would like to invite you to join <strong>ChiRho Events</strong> - the premier Catholic event management platform built by ministry, for ministry.</p>
+      ${data.recipientName ? `<p>Dear ${data.recipientName},</p>` : '<p>Dear Friend in Christ,</p>'}
 
-      <div style="background-color: #F5F1E8; padding: 20px; border-radius: 8px; margin: 20px 0;">
-        <h3 style="color: #9C8466; margin-top: 0;">What ChiRho Events Offers</h3>
+      <p>Grace and peace to you!</p>
+
+      <p>We are reaching out with great joy to invite your organization to join <strong>ChiRho Events</strong> - a comprehensive event management platform created by Catholic ministry leaders, for Catholic ministry leaders. Our name comes from the ancient Chi-Rho symbol, one of the earliest Christograms used by early Christians, reminding us that Christ is at the center of everything we do.</p>
+
+      <p>We understand the unique challenges of organizing faith-based events - from youth retreats and confirmation camps to diocesan conferences and parish gatherings. That is why we built ChiRho Events: to handle the administrative burdens so you can focus on what matters most - <strong>bringing people closer to Christ</strong>.</p>
+
+      <div style="background-color: #1E3A5F; color: white; padding: 25px; border-radius: 8px; margin: 30px 0; text-align: center;">
+        <h2 style="margin-top: 0; color: white;">Our Mission</h2>
+        <p style="font-size: 18px; margin-bottom: 0;">To serve the Church by providing exceptional technology that empowers ministries to create transformative faith experiences.</p>
+      </div>
+
+      <h2 style="color: #1E3A5F; border-bottom: 2px solid #9C8466; padding-bottom: 10px;">Complete Event Management Suite</h2>
+
+      <div style="background-color: #F5F1E8; padding: 25px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #9C8466; margin-top: 0;">Registration Management</h3>
         <ul style="margin: 10px 0; padding-left: 20px; color: #1E3A5F;">
-          <li><strong>Registration Management</strong> - Group and individual registrations with flexible pricing</li>
-          <li><strong>Payment Processing</strong> - Secure credit card and check payments via Stripe</li>
-          <li><strong>Digital Liability Forms</strong> - Automated PDF generation with e-signatures</li>
-          <li><strong>Housing Management</strong> - Room assignments and meal groups</li>
-          <li><strong>Check-In System</strong> - QR codes and name tag printing</li>
-          <li><strong>Medical Platform</strong> - Track medical info and incidents</li>
+          <li>Group registrations for parishes, schools, and youth groups</li>
+          <li>Individual registrations with customizable forms</li>
+          <li>Flexible pricing tiers and early bird discounts</li>
+          <li>Automatic confirmation emails and reminders</li>
+          <li>Waitlist management for popular events</li>
         </ul>
       </div>
 
+      <div style="background-color: #F5F1E8; padding: 25px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #9C8466; margin-top: 0;">Secure Payment Processing</h3>
+        <ul style="margin: 10px 0; padding-left: 20px; color: #1E3A5F;">
+          <li>Credit card payments via Stripe (PCI compliant)</li>
+          <li>Check and cash payment tracking</li>
+          <li>Payment plans and partial payments</li>
+          <li>Automatic invoicing and receipts</li>
+          <li>Financial reporting and reconciliation</li>
+        </ul>
+      </div>
+
+      <div style="background-color: #F5F1E8; padding: 25px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #9C8466; margin-top: 0;">Digital Liability Forms</h3>
+        <ul style="margin: 10px 0; padding-left: 20px; color: #1E3A5F;">
+          <li>Custom liability and medical release forms</li>
+          <li>Electronic signatures from parents/guardians</li>
+          <li>Automatic PDF generation and storage</li>
+          <li>Safe Environment certification tracking</li>
+        </ul>
+      </div>
+
+      <div style="background-color: #F5F1E8; padding: 25px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #9C8466; margin-top: 0;">POROS - Housing and Logistics</h3>
+        <p style="color: #666; font-style: italic; margin-top: 5px;">Named after the Greek word for "passage" or "way"</p>
+        <ul style="margin: 10px 0; padding-left: 20px; color: #1E3A5F;">
+          <li>Room and bed assignments</li>
+          <li>Meal group organization</li>
+          <li>Small group assignments</li>
+          <li>ADA accommodation tracking</li>
+          <li>Staff and volunteer management</li>
+        </ul>
+      </div>
+
+      <div style="background-color: #F5F1E8; padding: 25px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #9C8466; margin-top: 0;">SALVE - Check-In System</h3>
+        <p style="color: #666; font-style: italic; margin-top: 5px;">The traditional Catholic greeting meaning "Hail" or "Welcome"</p>
+        <ul style="margin: 10px 0; padding-left: 20px; color: #1E3A5F;">
+          <li>QR code check-in for fast processing</li>
+          <li>Professional name tag printing</li>
+          <li>Real-time attendance tracking</li>
+          <li>Welcome packet generation</li>
+        </ul>
+      </div>
+
+      <div style="background-color: #F5F1E8; padding: 25px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #9C8466; margin-top: 0;">RAPHA - Medical Management</h3>
+        <p style="color: #666; font-style: italic; margin-top: 5px;">Hebrew for "healer" - as in Jehovah Rapha, "The Lord Who Heals"</p>
+        <ul style="margin: 10px 0; padding-left: 20px; color: #1E3A5F;">
+          <li>Secure medical information access</li>
+          <li>Allergy and dietary restriction tracking</li>
+          <li>Medical incident reporting and documentation</li>
+          <li>Emergency contact quick access</li>
+        </ul>
+      </div>
+
+      <h2 style="color: #1E3A5F; border-bottom: 2px solid #9C8466; padding-bottom: 10px;">Why Organizations Choose ChiRho Events</h2>
+
+      <div style="margin: 20px 0;">
+        <p><strong style="color: #1E3A5F;">Built for Catholic Ministry</strong> - We understand the unique needs of dioceses, parishes, and Catholic organizations because we come from that world.</p>
+        <p><strong style="color: #1E3A5F;">Secure and Compliant</strong> - Your data is protected with enterprise-grade security. We take the protection of minor information seriously.</p>
+        <p><strong style="color: #1E3A5F;">Easy to Use</strong> - Intuitive interfaces for administrators and group leaders. No technical expertise required.</p>
+        <p><strong style="color: #1E3A5F;">Dedicated Support</strong> - Our team is here to help you succeed with training, onboarding, and ongoing support.</p>
+      </div>
+
       ${data.customMessage ? `
-        <div style="margin: 20px 0;">
+        <div style="background-color: #fff; border-left: 4px solid #9C8466; padding: 20px; margin: 30px 0;">
           ${data.customMessage}
         </div>
       ` : ''}
 
-      ${data.ctaUrl ? `
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${data.ctaUrl}" style="display: inline-block; background-color: #1E3A5F; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
-            ${data.ctaText || 'Get Started'}
-          </a>
-        </div>
-      ` : ''}
+      <div style="text-align: center; margin: 40px 0;">
+        <p style="font-size: 18px; color: #1E3A5F; margin-bottom: 20px;"><strong>Ready to transform how you manage events?</strong></p>
+        <a href="${data.ctaUrl || 'https://chirhoevents.com'}" style="display: inline-block; background-color: #1E3A5F; color: white; padding: 16px 40px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 18px;">
+          ${data.ctaText || 'Schedule a Demo'}
+        </a>
+        <p style="margin-top: 15px; color: #666;">
+          Or visit us at <a href="https://chirhoevents.com" style="color: #1E3A5F;">chirhoevents.com</a>
+        </p>
+      </div>
 
-      <p>We'd love to help you streamline your event management. Reply to this email or visit our website to learn more.</p>
+      <div style="background-color: #1E3A5F; color: white; padding: 25px; border-radius: 8px; margin: 30px 0; text-align: center;">
+        <p style="font-size: 16px; margin: 0; font-style: italic;">
+          "Whatever you do, work at it with all your heart, as working for the Lord, not for human masters."
+          <br>- Colossians 3:23
+        </p>
+      </div>
+
+      <p>We would be honored to serve your organization and support your mission of bringing souls to Christ. Please do not hesitate to reach out with any questions - we are here to help!</p>
+
+      <p>May God bless your ministry abundantly.</p>
 
       ${data.senderName ? `
         <p style="margin-top: 30px;">
-          God bless,<br>
+          In Christ,<br>
           <strong>${data.senderName}</strong><br>
-          ChiRho Events Team
+          ChiRho Events Team<br>
+          <a href="https://chirhoevents.com" style="color: #1E3A5F;">chirhoevents.com</a>
         </p>
-      ` : ''}
-    `, { organizationName: 'ChiRho Events', preheader: 'Discover how ChiRho Events can help your ministry' }),
+      ` : `
+        <p style="margin-top: 30px;">
+          In Christ,<br>
+          <strong>The ChiRho Events Team</strong><br>
+          <a href="https://chirhoevents.com" style="color: #1E3A5F;">chirhoevents.com</a>
+        </p>
+      `}
+    `, { organizationName: 'ChiRho Events', preheader: 'Discover how ChiRho Events can help your Catholic ministry thrive' }),
   },
   {
     id: 'announcement',

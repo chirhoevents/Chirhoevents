@@ -41,7 +41,7 @@ async function getClerkUserId(request: NextRequest): Promise<string | null> {
 
 interface SendEmailRequest {
   templateId: string
-  recipientEmail: string
+  recipientEmail?: string
   recipientName?: string
   subject: string
   // Template data
@@ -53,10 +53,12 @@ interface SendEmailRequest {
   ctaUrl?: string
   ctaText?: string
   senderName?: string
+  // Broadcast options
+  broadcastToAllOrgs?: boolean
 }
 
 /**
- * GET - Fetch available templates for master admin
+ * GET - Fetch available templates and organizations for master admin
  */
 export async function GET(request: NextRequest) {
   try {
@@ -90,7 +92,28 @@ export async function GET(request: NextRequest) {
       defaultSubject: t.defaultSubject,
     }))
 
-    return NextResponse.json({ templates })
+    // Get all organizations with their admin users for broadcast feature
+    const organizations = await prisma.organization.findMany({
+      select: {
+        id: true,
+        name: true,
+        users: {
+          where: {
+            role: 'org_admin',
+            email: { not: null },
+          },
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+      orderBy: { name: 'asc' },
+    })
+
+    return NextResponse.json({ templates, organizations })
   } catch (error) {
     console.error('Error fetching templates:', error)
     return NextResponse.json(
@@ -140,23 +163,33 @@ export async function POST(request: NextRequest) {
       ctaUrl,
       ctaText,
       senderName,
+      broadcastToAllOrgs,
     } = body
 
     // Validate required fields
-    if (!recipientEmail || !subject) {
+    if (!subject) {
       return NextResponse.json(
-        { error: 'Recipient email and subject are required' },
+        { error: 'Subject is required' },
         { status: 400 }
       )
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(recipientEmail)) {
+    if (!broadcastToAllOrgs && !recipientEmail) {
       return NextResponse.json(
-        { error: 'Invalid email address format' },
+        { error: 'Recipient email is required' },
         { status: 400 }
       )
+    }
+
+    // Validate email format for single recipient
+    if (recipientEmail) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(recipientEmail)) {
+        return NextResponse.json(
+          { error: 'Invalid email address format' },
+          { status: 400 }
+        )
+      }
     }
 
     // Get template
@@ -168,7 +201,110 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate HTML content
+    // Get a default organization ID for logging (use first org or user's org)
+    let defaultOrgId = user.organizationId
+    if (!defaultOrgId) {
+      const firstOrg = await prisma.organization.findFirst({
+        select: { id: true },
+      })
+      defaultOrgId = firstOrg?.id || null
+    }
+
+    const senderFullName = senderName || `${user.firstName} ${user.lastName}`
+
+    // Handle broadcast to all organizations
+    if (broadcastToAllOrgs) {
+      const organizations = await prisma.organization.findMany({
+        select: {
+          id: true,
+          name: true,
+          users: {
+            where: {
+              role: 'org_admin',
+              email: { not: null },
+            },
+            select: {
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      })
+
+      const results = {
+        sent: 0,
+        failed: 0,
+        errors: [] as string[],
+      }
+
+      for (const org of organizations) {
+        for (const admin of org.users) {
+          if (!admin.email) continue
+
+          try {
+            const htmlContent = template.generateHtml({
+              recipientName: admin.firstName || undefined,
+              customMessage,
+              eventName,
+              eventDate,
+              eventLocation,
+              eventDescription,
+              ctaUrl,
+              ctaText,
+              senderName: senderFullName,
+            })
+
+            const { error } = await resend.emails.send({
+              from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+              to: admin.email,
+              subject: subject,
+              html: htmlContent,
+            })
+
+            if (error) {
+              results.failed++
+              results.errors.push(`${admin.email}: ${error.message}`)
+            } else {
+              results.sent++
+
+              // Log successful email
+              if (defaultOrgId) {
+                await prisma.emailLog.create({
+                  data: {
+                    organizationId: org.id,
+                    recipientEmail: admin.email,
+                    recipientName: `${admin.firstName || ''} ${admin.lastName || ''}`.trim() || null,
+                    emailType: `master_admin_broadcast_${templateId}`,
+                    subject,
+                    htmlContent,
+                    sentStatus: 'sent',
+                    metadata: {
+                      sentByUserId: user.id,
+                      sentByUserName: senderFullName,
+                      templateId,
+                      masterAdminEmail: true,
+                      broadcast: true,
+                    },
+                  },
+                })
+              }
+            }
+          } catch (err) {
+            results.failed++
+            results.errors.push(`${admin.email}: ${err instanceof Error ? err.message : 'Unknown error'}`)
+          }
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `Broadcast complete: ${results.sent} sent, ${results.failed} failed`,
+        results,
+      })
+    }
+
+    // Single recipient email
     const htmlContent = template.generateHtml({
       recipientName,
       customMessage,
@@ -178,13 +314,13 @@ export async function POST(request: NextRequest) {
       eventDescription,
       ctaUrl,
       ctaText,
-      senderName: senderName || `${user.firstName} ${user.lastName}`,
+      senderName: senderFullName,
     })
 
     // Send email via Resend
     const { data, error } = await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
-      to: recipientEmail,
+      to: recipientEmail!,
       subject: subject,
       html: htmlContent,
     })
@@ -192,25 +328,27 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Resend error:', error)
 
-      // Log failed email
-      await prisma.emailLog.create({
-        data: {
-          organizationId: user.organizationId || 'master-admin',
-          recipientEmail,
-          recipientName: recipientName || null,
-          emailType: `master_admin_${templateId}`,
-          subject,
-          htmlContent,
-          sentStatus: 'failed',
-          errorMessage: error.message,
-          metadata: {
-            sentByUserId: user.id,
-            sentByUserName: `${user.firstName} ${user.lastName}`,
-            templateId,
-            masterAdminEmail: true,
+      // Log failed email if we have an org ID
+      if (defaultOrgId) {
+        await prisma.emailLog.create({
+          data: {
+            organizationId: defaultOrgId,
+            recipientEmail: recipientEmail!,
+            recipientName: recipientName || null,
+            emailType: `master_admin_${templateId}`,
+            subject,
+            htmlContent,
+            sentStatus: 'failed',
+            errorMessage: error.message,
+            metadata: {
+              sentByUserId: user.id,
+              sentByUserName: senderFullName,
+              templateId,
+              masterAdminEmail: true,
+            },
           },
-        },
-      })
+        })
+      }
 
       return NextResponse.json(
         { error: 'Failed to send email', details: error.message },
@@ -218,25 +356,32 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Log successful email
-    await prisma.emailLog.create({
-      data: {
-        organizationId: user.organizationId || 'master-admin',
-        recipientEmail,
-        recipientName: recipientName || null,
-        emailType: `master_admin_${templateId}`,
-        subject,
-        htmlContent,
-        sentStatus: 'sent',
-        metadata: {
-          resendId: data?.id,
-          sentByUserId: user.id,
-          sentByUserName: `${user.firstName} ${user.lastName}`,
-          templateId,
-          masterAdminEmail: true,
-        },
-      },
-    })
+    // Log successful email if we have an org ID
+    if (defaultOrgId) {
+      try {
+        await prisma.emailLog.create({
+          data: {
+            organizationId: defaultOrgId,
+            recipientEmail: recipientEmail!,
+            recipientName: recipientName || null,
+            emailType: `master_admin_${templateId}`,
+            subject,
+            htmlContent,
+            sentStatus: 'sent',
+            metadata: {
+              resendId: data?.id,
+              sentByUserId: user.id,
+              sentByUserName: senderFullName,
+              templateId,
+              masterAdminEmail: true,
+            },
+          },
+        })
+      } catch (logError) {
+        // Don't fail the request if logging fails
+        console.error('Failed to log email:', logError)
+      }
+    }
 
     return NextResponse.json({
       success: true,
