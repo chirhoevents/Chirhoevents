@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@clerk/nextjs/server'
+import { verifyFormsViewAccess } from '@/lib/api-auth'
 import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
@@ -10,12 +10,15 @@ export async function POST(
   { params }: { params: Promise<{ eventId: string; registrationId: string }> }
 ) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { eventId, registrationId } = await params
+
+    // Verify user has forms.view permission and event access
+    const { error } = await verifyFormsViewAccess(
+      request,
+      eventId,
+      '[Individual Resend Email]'
+    )
+    if (error) return error
 
     // Fetch the individual registration with event info
     const registration = await prisma.individualRegistration.findUnique({
@@ -24,13 +27,6 @@ export async function POST(
         event: {
           include: {
             settings: true,
-            organization: {
-              include: {
-                members: {
-                  where: { userId },
-                },
-              },
-            },
           },
         },
       },
@@ -38,11 +34,6 @@ export async function POST(
 
     if (!registration) {
       return NextResponse.json({ error: 'Registration not found' }, { status: 404 })
-    }
-
-    // Check if user has access
-    if (registration.event.organization.members.length === 0) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
     // Check if event ID matches

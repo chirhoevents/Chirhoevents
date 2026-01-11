@@ -1,48 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@clerk/nextjs/server'
+import { verifyFormsViewAccess } from '@/lib/api-auth'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { eventId } = await params
+
+    // Verify user has forms.view permission and event access
+    const { error } = await verifyFormsViewAccess(
+      request,
+      eventId,
+      '[Individual Forms List]'
+    )
+    if (error) return error
+
     const searchParams = request.nextUrl.searchParams
     const status = searchParams.get('status') || 'all'
     const search = searchParams.get('search') || ''
 
-    // Check if user has access to this event
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
-      include: {
-        organization: {
-          include: {
-            members: {
-              where: { userId },
-            },
-          },
-        },
-        settings: true,
-      },
+    // Check if liability forms are required for this event
+    const eventSettings = await prisma.eventSettings.findUnique({
+      where: { eventId },
     })
 
-    if (!event) {
-      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-    }
-
-    // Check if user is a member of the organization
-    if (event.organization.members.length === 0) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
-    }
-
-    // Check if liability forms are required for individuals
-    if (!event.settings?.liabilityFormsRequiredIndividual) {
+    if (!eventSettings?.liabilityFormsRequiredIndividual) {
       return NextResponse.json([])
     }
 
