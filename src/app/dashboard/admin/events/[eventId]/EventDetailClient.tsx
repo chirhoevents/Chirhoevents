@@ -26,6 +26,7 @@ import {
   UserPlus,
   Settings,
   Mail,
+  Key,
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -364,6 +365,15 @@ export default function EventDetailClient({
                   >
                     <Users className="h-4 w-4 mr-2" />
                     View All Registrations
+                  </Button>
+                </Link>
+                <Link href={`/dashboard/admin/events/${event.id}/access-codes`}>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
+                  >
+                    <Key className="h-4 w-4 mr-2" />
+                    Manage Access Codes
                   </Button>
                 </Link>
                 {settings?.porosHousingEnabled && (
