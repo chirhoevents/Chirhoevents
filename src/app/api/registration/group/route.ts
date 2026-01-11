@@ -107,6 +107,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check capacity before allowing registration
+    if (event.capacityTotal !== null && event.capacityRemaining !== null) {
+      if (event.capacityRemaining <= 0) {
+        return NextResponse.json(
+          { error: 'Event is at full capacity. Please join the waitlist if available.' },
+          { status: 400 }
+        )
+      }
+      if (event.capacityRemaining < totalParticipants) {
+        return NextResponse.json(
+          {
+            error: `Not enough spots available. Only ${event.capacityRemaining} spot${event.capacityRemaining === 1 ? '' : 's'} remaining, but ${totalParticipants} requested.`,
+            spotsRemaining: event.capacityRemaining
+          },
+          { status: 400 }
+        )
+      }
+    }
+
     // Check for early bird pricing
     const now = new Date()
     const earlyBirdDeadline = event.pricing.earlyBirdDeadline
