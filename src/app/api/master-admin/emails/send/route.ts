@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
         users: {
           where: {
             role: 'org_admin',
-            email: { not: null },
+            email: { not: '' },
           },
           select: {
             id: true,
