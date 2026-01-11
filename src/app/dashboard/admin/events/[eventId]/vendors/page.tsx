@@ -114,7 +114,7 @@ export default function VendorsManagementPage() {
   const loadData = async () => {
     try {
       const token = await getToken()
-      const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
+      const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
 
       // Fetch event
       const eventResponse = await fetch(`/api/admin/events/${eventId}`, { headers })
