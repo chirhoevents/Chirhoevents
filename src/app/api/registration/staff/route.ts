@@ -243,18 +243,20 @@ export async function POST(request: NextRequest) {
       })
     } catch (emailError) {
       console.error('Failed to send confirmation email:', emailError)
-      await logEmailFailure({
-        organizationId: event.organizationId,
-        eventId: event.id,
-        registrationId: registration.id,
-        registrationType: 'staff',
-        recipientEmail: email,
-        recipientName: `${firstName} ${lastName}`,
-        emailType: 'staff_registration_confirmation',
-        subject: `Staff Registration Confirmed - ${event.name}`,
-        htmlContent: '',
-        errorMessage: emailError instanceof Error ? emailError.message : 'Unknown error',
-      })
+      await logEmailFailure(
+        {
+          organizationId: event.organizationId,
+          eventId: event.id,
+          registrationId: registration.id,
+          registrationType: 'staff',
+          recipientEmail: email,
+          recipientName: `${firstName} ${lastName}`,
+          emailType: 'staff_registration_confirmation',
+          subject: `Staff Registration Confirmed - ${event.name}`,
+          htmlContent: '',
+        },
+        emailError instanceof Error ? emailError.message : 'Unknown error'
+      )
     }
 
     return NextResponse.json({ registration })
