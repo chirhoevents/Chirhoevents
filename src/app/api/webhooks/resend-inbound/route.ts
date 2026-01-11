@@ -101,15 +101,44 @@ export async function POST(request: NextRequest) {
 
 async function handleInboundEmail(emailData: any) {
   console.log('[Resend Webhook] === Processing inbound email ===')
-  console.log('[Resend Webhook] Full payload:', JSON.stringify(emailData, null, 2))
+  console.log('[Resend Webhook] Email ID:', emailData.email_id)
 
   try {
-    // Get text content - Resend sends it directly in the webhook
-    const textBody = emailData.text || null
-    const htmlBody = emailData.html || null
+    // Webhook only sends metadata - must fetch content from Receiving API
+    let textBody: string | null = null
+    let htmlBody: string | null = null
 
-    console.log('[Resend Webhook] Text body length:', textBody?.length || 0)
-    console.log('[Resend Webhook] HTML body length:', htmlBody?.length || 0)
+    if (emailData.email_id) {
+      try {
+        console.log('[Resend Webhook] Fetching content from Receiving API...')
+
+        // Use the correct Receiving API endpoint
+        const response = await fetch(`https://api.resend.com/emails/${emailData.email_id}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+        })
+
+        if (response.ok) {
+          const emailContent = await response.json()
+          console.log('[Resend Webhook] Received content fields:', Object.keys(emailContent))
+          textBody = emailContent.text || null
+          htmlBody = emailContent.html || null
+          console.log('[Resend Webhook] Text length:', textBody?.length || 0)
+          console.log('[Resend Webhook] HTML length:', htmlBody?.length || 0)
+        } else {
+          const errorText = await response.text()
+          console.error('[Resend Webhook] API error:', response.status, errorText)
+        }
+      } catch (fetchError) {
+        console.error('[Resend Webhook] Fetch error:', fetchError)
+      }
+    }
+
+    console.log('[Resend Webhook] Final text body:', textBody ? 'present' : 'null')
+    console.log('[Resend Webhook] Final html body:', htmlBody ? 'present' : 'null')
 
     // 1. Save raw email to database
     const receivedEmail = await prisma.receivedEmail.create({
