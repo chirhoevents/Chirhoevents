@@ -205,6 +205,7 @@ model EventSettings {
   tshirtsEnabled                  Boolean  @default(false) @map("tshirts_enabled")
   individualMealsEnabled          Boolean  @default(false) @map("individual_meals_enabled")
   registrationInstructions        String?  @map("registration_instructions") @db.Text
+  confirmationEmailMessage        String?  @map("confirmation_email_message") @db.Text
   checkPaymentEnabled             Boolean  @default(true) @map("check_payment_enabled")
   checkPaymentPayableTo           String?  @map("check_payment_payable_to") @db.VarChar(255)
   checkPaymentAddress             String?  @map("check_payment_address") @db.Text

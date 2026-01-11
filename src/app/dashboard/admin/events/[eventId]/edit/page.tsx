@@ -63,6 +63,7 @@ interface FormData {
   contactEmail: string
   contactPhone: string
   registrationInstructions: string
+  confirmationEmailMessage: string
   checkPaymentEnabled: boolean
   checkPaymentPayableTo: string
   checkPaymentAddress: string
@@ -227,6 +228,7 @@ export default function EditEventPage() {
         contactEmail: event.settings?.registrationInstructions || '',
         contactPhone: '',
         registrationInstructions: event.settings?.registrationInstructions || '',
+        confirmationEmailMessage: event.settings?.confirmationEmailMessage || '',
         checkPaymentEnabled: event.settings?.checkPaymentEnabled ?? true,
         checkPaymentPayableTo: event.settings?.checkPaymentPayableTo || '',
         checkPaymentAddress: event.settings?.checkPaymentAddress || '',

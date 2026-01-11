@@ -128,6 +128,7 @@ export async function POST(request: NextRequest) {
             tshirtsEnabled: data.tshirtsEnabled || false,
             individualMealsEnabled: data.individualMealsEnabled || false,
             registrationInstructions: data.registrationInstructions || null,
+            confirmationEmailMessage: data.confirmationEmailMessage || null,
             checkPaymentEnabled: data.checkPaymentEnabled !== false,
             checkPaymentPayableTo: data.checkPaymentPayableTo || null,
             checkPaymentAddress: data.checkPaymentAddress || null,
