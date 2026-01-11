@@ -28,6 +28,7 @@ interface FormData {
   lateFeeAutoApply: boolean
   groupRegistrationEnabled: boolean
   individualRegistrationEnabled: boolean
+  liabilityFormsRequiredIndividual: boolean
   porosHousingEnabled: boolean
   tshirtsEnabled: boolean
   individualMealsEnabled: boolean
