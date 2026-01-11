@@ -226,7 +226,34 @@ export async function PUT(
               checkPaymentAddress: data.checkPaymentAddress || null,
               allowOnCampus: data.allowOnCampus !== false,
               allowOffCampus: data.allowOffCampus !== false,
-              allowDayPass: data.allowDayPass !== false,
+              allowDayPass: data.allowDayPass || false,
+              allowIndividualDayPass: data.allowIndividualDayPass || false,
+              allowSingleRoom: data.allowSingleRoom !== false,
+              allowDoubleRoom: data.allowDoubleRoom !== false,
+              allowTripleRoom: data.allowTripleRoom !== false,
+              allowQuadRoom: data.allowQuadRoom !== false,
+              singleRoomLabel: data.singleRoomLabel || null,
+              doubleRoomLabel: data.doubleRoomLabel || null,
+              tripleRoomLabel: data.tripleRoomLabel || null,
+              quadRoomLabel: data.quadRoomLabel || null,
+              allowLoginWhenClosed: data.allowLoginWhenClosed !== false,
+              // Add-ons
+              addOn1Enabled: data.addOn1Enabled || false,
+              addOn1Title: data.addOn1Title || null,
+              addOn1Description: data.addOn1Description || null,
+              addOn1Price: data.addOn1Price ? parseFloat(data.addOn1Price) : null,
+              addOn2Enabled: data.addOn2Enabled || false,
+              addOn2Title: data.addOn2Title || null,
+              addOn2Description: data.addOn2Description || null,
+              addOn2Price: data.addOn2Price ? parseFloat(data.addOn2Price) : null,
+              addOn3Enabled: data.addOn3Enabled || false,
+              addOn3Title: data.addOn3Title || null,
+              addOn3Description: data.addOn3Description || null,
+              addOn3Price: data.addOn3Price ? parseFloat(data.addOn3Price) : null,
+              addOn4Enabled: data.addOn4Enabled || false,
+              addOn4Title: data.addOn4Title || null,
+              addOn4Description: data.addOn4Description || null,
+              addOn4Price: data.addOn4Price ? parseFloat(data.addOn4Price) : null,
               landingPageShowPrice: data.landingPageShowPrice !== false,
               landingPageShowSchedule: data.landingPageShowSchedule !== false,
               landingPageShowFaq: data.landingPageShowFaq !== false,
@@ -236,10 +263,23 @@ export async function PUT(
               landingPageShowGallery: data.landingPageShowGallery || false,
               landingPageShowSponsors: data.landingPageShowSponsors || false,
               showAvailability: data.showAvailability !== false,
+              showCapacity: data.showCapacity !== false,
               availabilityThreshold: parseInt(data.availabilityThreshold) || 20,
               countdownLocation: data.countdownLocation || 'hero',
               countdownBeforeOpen: data.countdownBeforeOpen !== false,
               countdownBeforeClose: data.countdownBeforeClose !== false,
+              // Landing page content
+              faqContent: data.faqContent || null,
+              scheduleContent: data.scheduleContent || null,
+              includedContent: data.includedContent || null,
+              bringContent: data.bringContent || null,
+              contactInfo: data.contactInfo || null,
+              // Email options
+              showFaqInEmail: data.showFaqInEmail || false,
+              showBringInEmail: data.showBringInEmail || false,
+              showScheduleInEmail: data.showScheduleInEmail || false,
+              showIncludedInEmail: data.showIncludedInEmail || false,
+              showContactInEmail: data.showContactInEmail !== false,
               backgroundImageUrl: data.backgroundImageUrl || null,
               primaryColor: data.primaryColor || '#1E3A5F',
               secondaryColor: data.secondaryColor || '#9C8466',
@@ -272,7 +312,34 @@ export async function PUT(
               checkPaymentAddress: data.checkPaymentAddress || null,
               allowOnCampus: data.allowOnCampus !== false,
               allowOffCampus: data.allowOffCampus !== false,
-              allowDayPass: data.allowDayPass !== false,
+              allowDayPass: data.allowDayPass || false,
+              allowIndividualDayPass: data.allowIndividualDayPass || false,
+              allowSingleRoom: data.allowSingleRoom !== false,
+              allowDoubleRoom: data.allowDoubleRoom !== false,
+              allowTripleRoom: data.allowTripleRoom !== false,
+              allowQuadRoom: data.allowQuadRoom !== false,
+              singleRoomLabel: data.singleRoomLabel || null,
+              doubleRoomLabel: data.doubleRoomLabel || null,
+              tripleRoomLabel: data.tripleRoomLabel || null,
+              quadRoomLabel: data.quadRoomLabel || null,
+              allowLoginWhenClosed: data.allowLoginWhenClosed !== false,
+              // Add-ons
+              addOn1Enabled: data.addOn1Enabled || false,
+              addOn1Title: data.addOn1Title || null,
+              addOn1Description: data.addOn1Description || null,
+              addOn1Price: data.addOn1Price ? parseFloat(data.addOn1Price) : null,
+              addOn2Enabled: data.addOn2Enabled || false,
+              addOn2Title: data.addOn2Title || null,
+              addOn2Description: data.addOn2Description || null,
+              addOn2Price: data.addOn2Price ? parseFloat(data.addOn2Price) : null,
+              addOn3Enabled: data.addOn3Enabled || false,
+              addOn3Title: data.addOn3Title || null,
+              addOn3Description: data.addOn3Description || null,
+              addOn3Price: data.addOn3Price ? parseFloat(data.addOn3Price) : null,
+              addOn4Enabled: data.addOn4Enabled || false,
+              addOn4Title: data.addOn4Title || null,
+              addOn4Description: data.addOn4Description || null,
+              addOn4Price: data.addOn4Price ? parseFloat(data.addOn4Price) : null,
               landingPageShowPrice: data.landingPageShowPrice !== false,
               landingPageShowSchedule: data.landingPageShowSchedule !== false,
               landingPageShowFaq: data.landingPageShowFaq !== false,
@@ -280,10 +347,23 @@ export async function PUT(
               landingPageShowBring: data.landingPageShowBring !== false,
               landingPageShowContact: data.landingPageShowContact !== false,
               showAvailability: data.showAvailability !== false,
+              showCapacity: data.showCapacity !== false,
               availabilityThreshold: parseInt(data.availabilityThreshold) || 20,
               countdownLocation: data.countdownLocation || 'hero',
               countdownBeforeOpen: data.countdownBeforeOpen !== false,
               countdownBeforeClose: data.countdownBeforeClose !== false,
+              // Landing page content
+              faqContent: data.faqContent || null,
+              scheduleContent: data.scheduleContent || null,
+              includedContent: data.includedContent || null,
+              bringContent: data.bringContent || null,
+              contactInfo: data.contactInfo || null,
+              // Email options
+              showFaqInEmail: data.showFaqInEmail || false,
+              showBringInEmail: data.showBringInEmail || false,
+              showScheduleInEmail: data.showScheduleInEmail || false,
+              showIncludedInEmail: data.showIncludedInEmail || false,
+              showContactInEmail: data.showContactInEmail !== false,
               backgroundImageUrl: data.backgroundImageUrl || null,
               primaryColor: data.primaryColor || '#1E3A5F',
               secondaryColor: data.secondaryColor || '#9C8466',
@@ -331,8 +411,14 @@ export async function PUT(
               dayPassChaperonePrice: data.dayPassChaperonePrice
                 ? parseFloat(data.dayPassChaperonePrice)
                 : null,
+              individualEarlyBirdPrice: data.individualEarlyBirdPrice
+                ? parseFloat(data.individualEarlyBirdPrice)
+                : null,
               individualBasePrice: data.individualBasePrice
                 ? parseFloat(data.individualBasePrice)
+                : null,
+              individualLatePrice: data.individualLatePrice
+                ? parseFloat(data.individualLatePrice)
                 : null,
               singleRoomPrice: data.singleRoomPrice
                 ? parseFloat(data.singleRoomPrice)
@@ -348,6 +434,9 @@ export async function PUT(
                 : null,
               individualOffCampusPrice: data.individualOffCampusPrice
                 ? parseFloat(data.individualOffCampusPrice)
+                : null,
+              individualDayPassPrice: data.individualDayPassPrice
+                ? parseFloat(data.individualDayPassPrice)
                 : null,
               individualMealPackagePrice: data.individualMealPackagePrice
                 ? parseFloat(data.individualMealPackagePrice)
@@ -412,8 +501,14 @@ export async function PUT(
               dayPassChaperonePrice: data.dayPassChaperonePrice
                 ? parseFloat(data.dayPassChaperonePrice)
                 : null,
+              individualEarlyBirdPrice: data.individualEarlyBirdPrice
+                ? parseFloat(data.individualEarlyBirdPrice)
+                : null,
               individualBasePrice: data.individualBasePrice
                 ? parseFloat(data.individualBasePrice)
+                : null,
+              individualLatePrice: data.individualLatePrice
+                ? parseFloat(data.individualLatePrice)
                 : null,
               singleRoomPrice: data.singleRoomPrice
                 ? parseFloat(data.singleRoomPrice)
@@ -429,6 +524,9 @@ export async function PUT(
                 : null,
               individualOffCampusPrice: data.individualOffCampusPrice
                 ? parseFloat(data.individualOffCampusPrice)
+                : null,
+              individualDayPassPrice: data.individualDayPassPrice
+                ? parseFloat(data.individualDayPassPrice)
                 : null,
               individualMealPackagePrice: data.individualMealPackagePrice
                 ? parseFloat(data.individualMealPackagePrice)

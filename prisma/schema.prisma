@@ -240,6 +240,51 @@ model EventSettings {
   overlayOpacity                  Int      @default(40) @map("overlay_opacity")
   waitlistEnabled                 Boolean  @default(false) @map("waitlist_enabled")
   registrationClosedMessage       String?  @map("registration_closed_message") @db.Text
+
+  // Allow login when registration is closed (for group leaders to access dashboard)
+  allowLoginWhenClosed            Boolean  @default(true) @map("allow_login_when_closed")
+
+  // Show/hide capacity on landing page
+  showCapacity                    Boolean  @default(true) @map("show_capacity")
+
+  // Day pass as ticket type for individual registration
+  allowIndividualDayPass          Boolean  @default(false) @map("allow_individual_day_pass")
+
+  // Landing page content fields
+  faqContent                      String?  @map("faq_content") @db.Text
+  scheduleContent                 String?  @map("schedule_content") @db.Text
+  includedContent                 String?  @map("included_content") @db.Text
+  bringContent                    String?  @map("bring_content") @db.Text
+  contactInfo                     String?  @map("contact_info") @db.Text
+
+  // Confirmation email content options
+  showFaqInEmail                  Boolean  @default(false) @map("show_faq_in_email")
+  showBringInEmail                Boolean  @default(false) @map("show_bring_in_email")
+  showScheduleInEmail             Boolean  @default(false) @map("show_schedule_in_email")
+  showIncludedInEmail             Boolean  @default(false) @map("show_included_in_email")
+  showContactInEmail              Boolean  @default(true) @map("show_contact_in_email")
+
+  // Add-ons (up to 4)
+  addOn1Enabled                   Boolean  @default(false) @map("add_on_1_enabled")
+  addOn1Title                     String?  @map("add_on_1_title") @db.VarChar(100)
+  addOn1Description               String?  @map("add_on_1_description") @db.Text
+  addOn1Price                     Decimal? @map("add_on_1_price") @db.Decimal(10, 2)
+
+  addOn2Enabled                   Boolean  @default(false) @map("add_on_2_enabled")
+  addOn2Title                     String?  @map("add_on_2_title") @db.VarChar(100)
+  addOn2Description               String?  @map("add_on_2_description") @db.Text
+  addOn2Price                     Decimal? @map("add_on_2_price") @db.Decimal(10, 2)
+
+  addOn3Enabled                   Boolean  @default(false) @map("add_on_3_enabled")
+  addOn3Title                     String?  @map("add_on_3_title") @db.VarChar(100)
+  addOn3Description               String?  @map("add_on_3_description") @db.Text
+  addOn3Price                     Decimal? @map("add_on_3_price") @db.Decimal(10, 2)
+
+  addOn4Enabled                   Boolean  @default(false) @map("add_on_4_enabled")
+  addOn4Title                     String?  @map("add_on_4_title") @db.VarChar(100)
+  addOn4Description               String?  @map("add_on_4_description") @db.Text
+  addOn4Price                     Decimal? @map("add_on_4_price") @db.Decimal(10, 2)
+
   createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -265,7 +310,10 @@ model EventPricing {
   onCampusChaperonePrice    Decimal? @map("on_campus_chaperone_price") @db.Decimal(10, 2)
   offCampusChaperonePrice   Decimal? @map("off_campus_chaperone_price") @db.Decimal(10, 2)
   dayPassChaperonePrice     Decimal? @map("day_pass_chaperone_price") @db.Decimal(10, 2)
+  // Individual registration pricing tiers
+  individualEarlyBirdPrice  Decimal? @map("individual_early_bird_price") @db.Decimal(10, 2)
   individualBasePrice       Decimal? @map("individual_base_price") @db.Decimal(10, 2)
+  individualLatePrice       Decimal? @map("individual_late_price") @db.Decimal(10, 2)
   singleRoomPrice           Decimal? @map("single_room_price") @db.Decimal(10, 2)
   doubleRoomPrice           Decimal? @map("double_room_price") @db.Decimal(10, 2)
   tripleRoomPrice           Decimal? @map("triple_room_price") @db.Decimal(10, 2)
