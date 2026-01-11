@@ -31,7 +31,7 @@ export async function GET(
         },
         liabilityForm: {
           select: {
-            status: true,
+            completed: true,
           },
         },
       },

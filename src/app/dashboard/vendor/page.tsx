@@ -468,10 +468,10 @@ function VendorPortalContent() {
                             </td>
                             <td className="py-3 px-2 text-[#1F2937]">{staff.role}</td>
                             <td className="py-3 px-2">
-                              {staff.liabilityStatus === 'signed' ? (
+                              {staff.liabilityStatus === 'completed' ? (
                                 <span className="text-green-600 flex items-center gap-1">
                                   <CheckCircle className="h-4 w-4" />
-                                  Signed
+                                  Completed
                                 </span>
                               ) : (
                                 <span className="text-amber-600 flex items-center gap-1">

@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
             checkedIn: true,
             liabilityForm: {
               select: {
-                status: true,
+                completed: true,
               },
             },
           },
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
         role: staff.role,
         tshirtSize: staff.tshirtSize,
         checkedIn: staff.checkedIn,
-        liabilityStatus: staff.liabilityForm?.status || 'pending',
+        liabilityStatus: staff.liabilityForm?.completed ? 'completed' : 'pending',
       })),
     })
   } catch (error) {
