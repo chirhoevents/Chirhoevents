@@ -37,48 +37,121 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Find group registration by access code
-    const groupRegistration = await prisma.groupRegistration.findUnique({
-      where: { accessCode: access_code },
-      include: {
-        event: true,
-        organization: true,
-      },
-    })
-
-    if (!groupRegistration) {
-      return NextResponse.json(
-        { error: 'Invalid access code' },
-        { status: 404 }
-      )
-    }
-
     // Generate parent token (expires in 7 days)
     const parentToken = randomUUID()
     const parentTokenExpiresAt = new Date()
     parentTokenExpiresAt.setDate(parentTokenExpiresAt.getDate() + 7)
 
-    // Create liability form record
-    const liabilityForm = await prisma.liabilityForm.create({
-      data: {
-        organizationId: groupRegistration.organizationId,
-        eventId: groupRegistration.eventId,
-        groupRegistrationId: groupRegistration.id,
-        formType: 'youth_u18',
-        participantFirstName: first_name,
-        participantLastName: last_name,
-        participantPreferredName: preferred_name || null,
-        participantAge: age,
-        participantGender: gender,
-        participantEmail: null,
-        tShirtSize: t_shirt_size,
-        parentEmail: parent_email,
-        parentToken: parentToken,
-        parentTokenExpiresAt: parentTokenExpiresAt,
-        signatureData: {}, // Will be filled by parent
-        completed: false,
-      },
-    })
+    let liabilityForm
+    let eventName: string
+    let contactEmail: string
+
+    // Check if this is an individual registration code (starts with "IND-")
+    if (access_code.startsWith('IND-')) {
+      // Find individual registration by confirmation code
+      const individualRegistration = await prisma.individualRegistration.findUnique({
+        where: { confirmationCode: access_code },
+        include: {
+          event: true,
+          organization: true,
+          liabilityForms: true,
+        },
+      })
+
+      if (!individualRegistration) {
+        return NextResponse.json(
+          { error: 'Invalid access code' },
+          { status: 404 }
+        )
+      }
+
+      eventName = individualRegistration.event.name
+      contactEmail = individualRegistration.email
+
+      // Check if a liability form already exists for this individual
+      const existingForm = individualRegistration.liabilityForms[0]
+
+      if (existingForm) {
+        // Update the existing form with new data and parent token
+        liabilityForm = await prisma.liabilityForm.update({
+          where: { id: existingForm.id },
+          data: {
+            participantFirstName: first_name,
+            participantLastName: last_name,
+            participantPreferredName: preferred_name || null,
+            participantAge: age,
+            participantGender: gender,
+            tShirtSize: t_shirt_size,
+            parentEmail: parent_email,
+            parentToken: parentToken,
+            parentTokenExpiresAt: parentTokenExpiresAt,
+          },
+        })
+      } else {
+        // Create new liability form for individual
+        liabilityForm = await prisma.liabilityForm.create({
+          data: {
+            organizationId: individualRegistration.organizationId,
+            eventId: individualRegistration.eventId,
+            individualRegistrationId: individualRegistration.id,
+            formType: 'youth_u18',
+            participantFirstName: first_name,
+            participantLastName: last_name,
+            participantPreferredName: preferred_name || null,
+            participantAge: age,
+            participantGender: gender,
+            participantEmail: individualRegistration.email,
+            tShirtSize: t_shirt_size,
+            parentEmail: parent_email,
+            parentToken: parentToken,
+            parentTokenExpiresAt: parentTokenExpiresAt,
+            signatureData: {},
+            completed: false,
+          },
+        })
+      }
+    } else {
+      // Original group registration flow
+      const groupRegistration = await prisma.groupRegistration.findUnique({
+        where: { accessCode: access_code },
+        include: {
+          event: true,
+          organization: true,
+        },
+      })
+
+      if (!groupRegistration) {
+        return NextResponse.json(
+          { error: 'Invalid access code' },
+          { status: 404 }
+        )
+      }
+
+      eventName = groupRegistration.event.name
+      contactEmail = groupRegistration.groupLeaderEmail
+
+      // Create liability form record for group participant
+      liabilityForm = await prisma.liabilityForm.create({
+        data: {
+          organizationId: groupRegistration.organizationId,
+          eventId: groupRegistration.eventId,
+          groupRegistrationId: groupRegistration.id,
+          formType: 'youth_u18',
+          participantFirstName: first_name,
+          participantLastName: last_name,
+          participantPreferredName: preferred_name || null,
+          participantAge: age,
+          participantGender: gender,
+          participantEmail: null,
+          tShirtSize: t_shirt_size,
+          parentEmail: parent_email,
+          parentToken: parentToken,
+          parentTokenExpiresAt: parentTokenExpiresAt,
+          signatureData: {},
+          completed: false,
+        },
+      })
+    }
 
     // Send email to parent
     const parentLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/poros/parent/${parentToken}`
@@ -86,7 +159,7 @@ export async function POST(request: NextRequest) {
     await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
       to: parent_email,
-      subject: `Complete Liability Form for ${first_name} ${last_name} - ${groupRegistration.event.name}`,
+      subject: `Complete Liability Form for ${first_name} ${last_name} - ${eventName}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <!-- ChiRho Events Logo Header -->
@@ -99,7 +172,7 @@ export async function POST(request: NextRequest) {
 
             <p>Hi,</p>
 
-            <p><strong>${first_name} ${last_name}</strong> has started registration for <strong>${groupRegistration.event.name}</strong> and needs you to complete their liability form.</p>
+            <p><strong>${first_name} ${last_name}</strong> has started registration for <strong>${eventName}</strong> and needs you to complete their liability form.</p>
 
             <p>This form includes:</p>
             <ul>
@@ -122,12 +195,12 @@ export async function POST(request: NextRequest) {
 
             <div style="background-color: #FFF3CD; padding: 15px; border-left: 4px solid #FFC107; margin: 20px 0;">
               <p style="color: #856404; margin: 0; font-size: 14px;">
-                ⏰ This link expires in 7 days.
+                This link expires in 7 days.
               </p>
             </div>
 
             <p style="font-size: 14px; color: #666;">
-              If you didn't expect this email, please contact the event organizer at ${groupRegistration.groupLeaderEmail}.
+              If you didn't expect this email, please contact ${contactEmail}.
             </p>
 
             <p>Pax Christi,<br><strong>ChiRho Events Team</strong></p>

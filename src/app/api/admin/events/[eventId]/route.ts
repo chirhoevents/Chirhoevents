@@ -200,7 +200,7 @@ export async function PUT(
               individualRegistrationEnabled:
                 data.individualRegistrationEnabled !== false,
               liabilityFormsRequiredGroup: true,
-              liabilityFormsRequiredIndividual: false,
+              liabilityFormsRequiredIndividual: data.liabilityFormsRequiredIndividual || false,
               showDietaryRestrictions: true,
               dietaryRestrictionsRequired: false,
               showAdaAccommodations: true,
@@ -250,6 +250,7 @@ export async function PUT(
               groupRegistrationEnabled: data.groupRegistrationEnabled !== false,
               individualRegistrationEnabled:
                 data.individualRegistrationEnabled !== false,
+              liabilityFormsRequiredIndividual: data.liabilityFormsRequiredIndividual || false,
               porosHousingEnabled: data.porosHousingEnabled || false,
               porosPriestHousingEnabled: data.porosHousingEnabled || false,
               porosSeatingEnabled: data.porosHousingEnabled || false,

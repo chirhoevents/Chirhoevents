@@ -13,7 +13,81 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Find the group registration by access code
+    // Check if this is an individual registration code (starts with "IND-")
+    if (access_code.startsWith('IND-')) {
+      // Look up individual registration by confirmation code
+      const individualRegistration = await prisma.individualRegistration.findUnique({
+        where: { confirmationCode: access_code },
+        include: {
+          event: {
+            include: {
+              settings: true,
+            },
+          },
+          liabilityForms: {
+            select: {
+              id: true,
+              completed: true,
+              formType: true,
+            },
+          },
+        },
+      })
+
+      if (!individualRegistration) {
+        return NextResponse.json(
+          { error: 'Invalid access code. Please check and try again.' },
+          { status: 404 }
+        )
+      }
+
+      // Check if liability forms are required for this event
+      const liabilityRequired = individualRegistration.event.settings?.liabilityFormsRequiredIndividual ?? false
+
+      if (!liabilityRequired) {
+        return NextResponse.json(
+          { error: 'Liability forms are not required for this event.' },
+          { status: 400 }
+        )
+      }
+
+      // Check if form is already completed
+      const existingForm = individualRegistration.liabilityForms[0]
+      const formCompleted = existingForm?.completed ?? false
+
+      // Format event dates
+      const startDate = new Date(individualRegistration.event.startDate)
+      const endDate = new Date(individualRegistration.event.endDate)
+      const eventDates = `${startDate.toLocaleDateString('en-US', {
+        month: 'numeric',
+        day: 'numeric',
+        year: 'numeric'
+      })} - ${endDate.toLocaleDateString('en-US', {
+        month: 'numeric',
+        day: 'numeric',
+        year: 'numeric'
+      })}`
+
+      return NextResponse.json({
+        success: true,
+        registrationType: 'individual',
+        individualId: individualRegistration.id,
+        participantName: `${individualRegistration.firstName} ${individualRegistration.lastName}`,
+        participantEmail: individualRegistration.email,
+        participantAge: individualRegistration.age,
+        participantGender: individualRegistration.gender,
+        eventId: individualRegistration.event.id,
+        eventName: individualRegistration.event.name,
+        eventDates,
+        formCompleted,
+        existingFormId: existingForm?.id || null,
+        // For individuals, we auto-determine form type based on age
+        // No role selection needed
+        autoFormType: individualRegistration.age && individualRegistration.age < 18 ? 'youth_u18' : 'youth_o18_chaperone',
+      })
+    }
+
+    // Otherwise, treat as a group registration access code
     const groupRegistration = await prisma.groupRegistration.findUnique({
       where: { accessCode: access_code },
       include: {
@@ -55,6 +129,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      registrationType: 'group',
       groupId: groupRegistration.id,
       groupName: groupRegistration.groupName,
       eventName: groupRegistration.event.name,

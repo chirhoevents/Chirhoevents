@@ -68,6 +68,7 @@ interface EventFormData {
   // Step 3: Features & Modules (swapped with Pricing)
   groupRegistrationEnabled: boolean
   individualRegistrationEnabled: boolean
+  liabilityFormsRequiredIndividual: boolean
   porosHousingEnabled: boolean
   tshirtsEnabled: boolean
   individualMealsEnabled: boolean
@@ -191,6 +192,7 @@ export default function CreateEventClient({
     // Step 3: Features
     groupRegistrationEnabled: true,
     individualRegistrationEnabled: false,
+    liabilityFormsRequiredIndividual: false,
     porosHousingEnabled: false,
     tshirtsEnabled: false,
     individualMealsEnabled: false,
@@ -482,6 +484,37 @@ export default function CreateEventClient({
                         </p>
                       </div>
                     </div>
+
+                    {/* Youth Event Toggle - Only show when Individual Registration is selected */}
+                    {formData.individualRegistrationEnabled && (
+                      <div className="ml-7 mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                        <div className="flex items-start space-x-3">
+                          <input
+                            type="checkbox"
+                            id="liabilityFormsRequiredIndividual"
+                            checked={formData.liabilityFormsRequiredIndividual}
+                            onChange={(e) =>
+                              updateFormData({
+                                liabilityFormsRequiredIndividual: e.target.checked,
+                              })
+                            }
+                            className="w-4 h-4 mt-1 text-[#1E3A5F] border-gray-300 rounded"
+                          />
+                          <div className="flex-1">
+                            <Label
+                              htmlFor="liabilityFormsRequiredIndividual"
+                              className="mb-0 font-medium text-amber-900 cursor-pointer"
+                            >
+                              📋 Youth Event (Participants Under 18)
+                            </Label>
+                            <p className="text-sm text-amber-700 mt-1">
+                              Enable this if your event includes participants under 18 years old.
+                              This will require liability forms with parental consent for minors.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 

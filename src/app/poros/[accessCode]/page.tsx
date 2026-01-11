@@ -6,11 +6,26 @@ import Image from 'next/image'
 import Link from 'next/link'
 
 interface GroupData {
+  registrationType: 'group'
   groupName: string
   eventName: string
   eventDates: string
   priestCount: number
 }
+
+interface IndividualData {
+  registrationType: 'individual'
+  individualId: string
+  participantName: string
+  participantEmail: string
+  participantAge: number | null
+  eventName: string
+  eventDates: string
+  formCompleted: boolean
+  autoFormType: 'youth_u18' | 'youth_o18_chaperone'
+}
+
+type PortalData = GroupData | IndividualData
 
 export default function PorosRoleSelection() {
   const params = useParams()
@@ -19,7 +34,7 @@ export default function PorosRoleSelection() {
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [groupData, setGroupData] = useState<GroupData | null>(null)
+  const [portalData, setPortalData] = useState<PortalData | null>(null)
 
   useEffect(() => {
     async function validateAccessCode() {
@@ -30,19 +45,44 @@ export default function PorosRoleSelection() {
           body: JSON.stringify({ access_code: accessCode }),
         })
 
+        const data = await response.json()
+
         if (!response.ok) {
-          throw new Error('Invalid access code')
+          throw new Error(data.error || 'Invalid access code')
         }
 
-        const data = await response.json()
-        setGroupData({
-          groupName: data.groupName,
-          eventName: data.eventName,
-          eventDates: data.eventDates,
-          priestCount: data.priestCount || 0,
-        })
-      } catch (err) {
-        setError('Invalid or expired access code')
+        if (data.registrationType === 'individual') {
+          // For individual registrations, check if form is already completed
+          if (data.formCompleted) {
+            setError('Your liability form has already been completed.')
+            setLoading(false)
+            return
+          }
+
+          // Store the individual data
+          setPortalData({
+            registrationType: 'individual',
+            individualId: data.individualId,
+            participantName: data.participantName,
+            participantEmail: data.participantEmail,
+            participantAge: data.participantAge,
+            eventName: data.eventName,
+            eventDates: data.eventDates,
+            formCompleted: data.formCompleted,
+            autoFormType: data.autoFormType,
+          })
+        } else {
+          // Group registration
+          setPortalData({
+            registrationType: 'group',
+            groupName: data.groupName,
+            eventName: data.eventName,
+            eventDates: data.eventDates,
+            priestCount: data.priestCount || 0,
+          })
+        }
+      } catch (err: any) {
+        setError(err.message || 'Invalid or expired access code')
       } finally {
         setLoading(false)
       }
@@ -102,15 +142,23 @@ export default function PorosRoleSelection() {
   ]
 
   const handleRoleSelect = (roleType: string) => {
+    if (!portalData || portalData.registrationType !== 'group') return
+
     // Check if clergy form is allowed
-    if (roleType === 'clergy' && groupData && groupData.priestCount === 0) {
+    if (roleType === 'clergy' && portalData.priestCount === 0) {
       setError('Your group registration does not include any clergy members. Please select a different form type.')
       return
     }
     router.push(`/poros/${accessCode}/forms/${roleType}/new`)
   }
 
-  const isClergyAllowed = groupData ? groupData.priestCount > 0 : true
+  const handleIndividualContinue = () => {
+    if (!portalData || portalData.registrationType !== 'individual') return
+
+    // Convert form type format for URL (youth_u18 -> youth-u18)
+    const formTypeUrl = portalData.autoFormType.replace('_', '-')
+    router.push(`/poros/${accessCode}/forms/${formTypeUrl}/new?individual=true`)
+  }
 
   if (loading) {
     return (
@@ -123,7 +171,7 @@ export default function PorosRoleSelection() {
     )
   }
 
-  if (error || !groupData) {
+  if (error || !portalData) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
@@ -132,18 +180,140 @@ export default function PorosRoleSelection() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-navy mb-2">Invalid Access Code</h2>
+          <h2 className="text-2xl font-bold text-navy mb-2">
+            {error?.includes('already been completed') ? 'Form Already Completed' : 'Invalid Access Code'}
+          </h2>
           <p className="text-gray-600 mb-6">{error}</p>
           <button
             onClick={() => router.push('/poros')}
             className="bg-navy text-white px-6 py-3 rounded-lg font-semibold hover:bg-navy/90 transition-colors"
           >
-            Try Again
+            {error?.includes('already been completed') ? 'Return Home' : 'Try Again'}
           </button>
         </div>
       </div>
     )
   }
+
+  // Individual Registration Flow - Show a simpler UI and proceed directly
+  if (portalData.registrationType === 'individual') {
+    const isUnder18 = portalData.autoFormType === 'youth_u18'
+
+    return (
+      <div className="min-h-screen bg-gray-50">
+        {/* Header with Logo */}
+        <div className="bg-navy py-6 shadow-md">
+          <div className="container mx-auto px-4">
+            <div className="flex justify-center">
+              <Link href="/poros">
+                <Image
+                  src="/Poros logo.png"
+                  alt="Poros - ChiRho Events"
+                  width={350}
+                  height={105}
+                  className="h-16 md:h-20 w-auto cursor-pointer hover:opacity-90 transition-opacity"
+                />
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="container mx-auto px-4 py-12">
+          <div className="max-w-2xl mx-auto">
+            {/* Title Section */}
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-bold text-navy mb-3">
+                Liability Form
+              </h1>
+              <p className="text-xl text-gray-700 mb-2">{portalData.eventName}</p>
+              <p className="text-lg text-gray-600">{portalData.eventDates}</p>
+            </div>
+
+            {/* Participant Info Card */}
+            <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
+              <div className="text-center mb-6">
+                <div className="w-20 h-20 bg-navy/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-10 h-10 text-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-navy mb-1">{portalData.participantName}</h2>
+                <p className="text-gray-600">{portalData.participantEmail}</p>
+              </div>
+
+              <div className={`p-4 rounded-lg mb-6 ${isUnder18 ? 'bg-blue-50 border border-blue-200' : 'bg-green-50 border border-green-200'}`}>
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  {isUnder18 ? (
+                    <>
+                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                      </svg>
+                      <span className="font-semibold text-blue-900">Youth Under 18</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      <span className="font-semibold text-green-900">Adult (18+)</span>
+                    </>
+                  )}
+                </div>
+                <p className={`text-sm text-center ${isUnder18 ? 'text-blue-700' : 'text-green-700'}`}>
+                  {isUnder18
+                    ? 'A parent or guardian will need to complete and sign this form.'
+                    : 'You can complete this form yourself.'}
+                </p>
+              </div>
+
+              <button
+                onClick={handleIndividualContinue}
+                className="w-full bg-navy text-white py-4 rounded-lg font-semibold text-lg hover:bg-navy/90 transition-colors flex items-center justify-center gap-2"
+              >
+                Continue to Form
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Help Text for Under 18 */}
+            {isUnder18 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <svg className="h-6 w-6 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-lg font-semibold text-amber-900 mb-2">Parent/Guardian Required</h3>
+                    <p className="text-sm text-amber-700">
+                      Since you are under 18, you will enter your parent or guardian&apos;s email address on the next page.
+                      They will receive a link to complete and sign the liability form on your behalf.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="bg-white border-t border-gray-200 py-6 mt-12">
+          <div className="container mx-auto px-4 text-center">
+            <p className="text-sm text-gray-500">
+              © 2025 ChiRho Events. All rights reserved.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Group Registration Flow - Show role selection
+  const isClergyAllowed = portalData.priestCount > 0
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -172,8 +342,8 @@ export default function PorosRoleSelection() {
             <h1 className="text-4xl font-bold text-navy mb-3">
               Fill Out Your Liability Form
             </h1>
-            <p className="text-xl text-gray-700 mb-2">{groupData.eventName}</p>
-            <p className="text-lg text-gray-600">Group: {groupData.groupName}</p>
+            <p className="text-xl text-gray-700 mb-2">{portalData.eventName}</p>
+            <p className="text-lg text-gray-600">Group: {portalData.groupName}</p>
           </div>
 
           {/* Question */}
