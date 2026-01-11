@@ -24,7 +24,6 @@ export async function POST(request: NextRequest) {
             organization: {
               select: {
                 stripeAccountId: true,
-                stripeFeePassthrough: true,
               },
             },
           },
@@ -65,16 +64,8 @@ export async function POST(request: NextRequest) {
       apiVersion: '2024-12-18.acacia',
     })
 
-    // Calculate fees if passthrough is enabled
-    const stripeFeePassthrough = vendor.event.organization.stripeFeePassthrough
-    let finalAmount = amount
-    let processingFee = 0
-
-    if (stripeFeePassthrough) {
-      // Stripe fee is 2.9% + $0.30
-      processingFee = Math.ceil(amount * 0.029 + 30) / 100
-      finalAmount = amount + processingFee * 100
-    }
+    // Use the amount directly (no fee passthrough)
+    const finalAmount = amount
 
     // Create payment intent
     const paymentIntent = await stripe.paymentIntents.create(
@@ -104,7 +95,6 @@ export async function POST(request: NextRequest) {
       clientSecret: paymentIntent.client_secret,
       stripeAccountId,
       paymentAmount: amount / 100,
-      processingFee,
       totalAmount: finalAmount / 100,
     })
   } catch (error) {
