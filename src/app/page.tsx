@@ -1,16 +1,53 @@
 'use client'
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Check, Users, FileText, Home, Clipboard, Heart, BarChart3, Mail, Phone, MapPin } from "lucide-react";
+import { Check, Users, FileText, Home, Clipboard, Heart, BarChart3, Mail, Phone, MapPin, Play, Pause, Volume2, VolumeX } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { PublicNav } from "@/components/PublicNav";
 
 export default function LandingPage() {
   const [contactFormSubmitted, setContactFormSubmitted] = useState(false);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [isVideoMuted, setIsVideoMuted] = useState(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    // Attempt autoplay when component mounts
+    const video = videoRef.current;
+    if (video) {
+      video.play().then(() => {
+        setIsVideoPlaying(true);
+      }).catch(() => {
+        // Autoplay was prevented, user will need to click play
+        setIsVideoPlaying(false);
+      });
+    }
+  }, []);
+
+  const toggleVideoPlay = () => {
+    const video = videoRef.current;
+    if (video) {
+      if (video.paused) {
+        video.play();
+        setIsVideoPlaying(true);
+      } else {
+        video.pause();
+        setIsVideoPlaying(false);
+      }
+    }
+  };
+
+  const toggleVideoMute = () => {
+    const video = videoRef.current;
+    if (video) {
+      video.muted = !video.muted;
+      setIsVideoMuted(video.muted);
+    }
+  };
 
   const handleContactSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -575,6 +612,62 @@ export default function LandingPage() {
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
+          </div>
+        </div>
+      </section>
+
+      {/* Section: Video Demo */}
+      <section className="py-16 bg-white">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto text-center mb-8">
+            <h2 className="text-3xl sm:text-4xl font-bold text-navy mb-4">
+              See ChiRho Events in Action
+            </h2>
+            <p className="text-gray-600">
+              Watch a quick overview of how ChiRho Events simplifies event management for your organization.
+            </p>
+          </div>
+          <div className="max-w-4xl mx-auto">
+            <div className="relative rounded-xl overflow-hidden shadow-2xl bg-navy">
+              <video
+                ref={videoRef}
+                className="w-full aspect-video"
+                src="/videos/features-demo.mp4"
+                muted
+                loop
+                playsInline
+                poster="/og-image.png"
+              />
+              {/* Video Controls Overlay */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                {/* Play/Pause Button - Center */}
+                <button
+                  onClick={toggleVideoPlay}
+                  className={`bg-white/90 hover:bg-white rounded-full p-4 shadow-lg transition-all duration-300 ${
+                    isVideoPlaying ? 'opacity-0 hover:opacity-100' : 'opacity-100'
+                  }`}
+                  aria-label={isVideoPlaying ? 'Pause video' : 'Play video'}
+                >
+                  {isVideoPlaying ? (
+                    <Pause className="h-8 w-8 text-navy" />
+                  ) : (
+                    <Play className="h-8 w-8 text-navy ml-1" />
+                  )}
+                </button>
+              </div>
+              {/* Mute/Unmute Button - Bottom Right */}
+              <button
+                onClick={toggleVideoMute}
+                className="absolute bottom-4 right-4 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg transition-all duration-300"
+                aria-label={isVideoMuted ? 'Unmute video' : 'Mute video'}
+              >
+                {isVideoMuted ? (
+                  <VolumeX className="h-5 w-5 text-navy" />
+                ) : (
+                  <Volume2 className="h-5 w-5 text-navy" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </section>
