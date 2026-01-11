@@ -66,8 +66,9 @@ export async function POST(
       groupRegistrations = await prisma.groupRegistration.findMany({
         where: {
           eventId,
+          // Include all active registration statuses
           registrationStatus: {
-            notIn: ['cancelled'],
+            in: ['pending_forms', 'pending_payment', 'complete'],
           },
         },
         select: {
@@ -85,8 +86,9 @@ export async function POST(
       individualRegistrations = await prisma.individualRegistration.findMany({
         where: {
           eventId,
+          // Include all active registration statuses
           registrationStatus: {
-            notIn: ['cancelled'],
+            in: ['pending_forms', 'pending_payment', 'complete'],
           },
         },
         select: {
