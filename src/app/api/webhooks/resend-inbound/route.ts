@@ -112,61 +112,25 @@ async function handleInboundEmail(emailData: any) {
       try {
         console.log('[Resend Webhook] Fetching content from Receiving API...')
 
-        // Try the Resend SDK's receiving.get method
-        try {
-          // @ts-ignore - receiving might not be in types yet
-          if (resend.emails.receiving?.get) {
-            const result = await resend.emails.receiving.get(emailData.email_id)
-            if (result.data) {
-              console.log('[Resend Webhook] SDK receiving.get fields:', Object.keys(result.data))
-              textBody = result.data.text || null
-              htmlBody = result.data.html || null
-            }
-          }
-        } catch (sdkError) {
-          console.log('[Resend Webhook] SDK receiving.get not available:', sdkError)
+        // Correct endpoint: GET /emails/receiving/{email_id}
+        const response = await fetch(`https://api.resend.com/emails/receiving/${emailData.email_id}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          },
+        })
+
+        if (response.ok) {
+          const emailContent = await response.json()
+          console.log('[Resend Webhook] Received email content fields:', Object.keys(emailContent))
+          textBody = emailContent.text || null
+          htmlBody = emailContent.html || null
+          console.log('[Resend Webhook] Text length:', textBody?.length || 0)
+          console.log('[Resend Webhook] HTML length:', htmlBody?.length || 0)
+        } else {
+          const errorText = await response.text()
+          console.error('[Resend Webhook] API error:', response.status, errorText)
         }
-
-        // If SDK didn't work, try the inbound-specific REST endpoint
-        if (!textBody && !htmlBody) {
-          const response = await fetch(`https://api.resend.com/emails/received/${emailData.email_id}`, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-            },
-          })
-
-          if (response.ok) {
-            const emailContent = await response.json()
-            console.log('[Resend Webhook] REST received endpoint fields:', Object.keys(emailContent))
-            textBody = emailContent.text || emailContent.body || null
-            htmlBody = emailContent.html || null
-          } else {
-            console.log('[Resend Webhook] REST received endpoint error:', response.status)
-          }
-        }
-
-        // Try yet another endpoint format
-        if (!textBody && !htmlBody) {
-          const response = await fetch(`https://api.resend.com/inbound/emails/${emailData.email_id}`, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-            },
-          })
-
-          if (response.ok) {
-            const emailContent = await response.json()
-            console.log('[Resend Webhook] REST inbound endpoint fields:', Object.keys(emailContent))
-            textBody = emailContent.text || emailContent.body || null
-            htmlBody = emailContent.html || null
-          } else {
-            console.log('[Resend Webhook] REST inbound endpoint error:', response.status)
-          }
-        }
-
-        console.log('[Resend Webhook] Text length:', textBody?.length || 0)
-        console.log('[Resend Webhook] HTML length:', htmlBody?.length || 0)
       } catch (fetchError) {
         console.error('[Resend Webhook] Fetch error:', fetchError)
       }
