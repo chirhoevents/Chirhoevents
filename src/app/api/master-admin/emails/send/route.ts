@@ -221,7 +221,7 @@ export async function POST(request: NextRequest) {
           users: {
             where: {
               role: 'org_admin',
-              email: { not: null },
+              email: { not: '' },
             },
             select: {
               email: true,
