@@ -62,7 +62,7 @@ export default function VendorRegistrationPage() {
   useEffect(() => {
     async function loadEvent() {
       try {
-        const response = await fetch(`/api/events/${eventId}`)
+        const response = await fetch(`/api/events/${eventId}/staff-vendor-settings`)
         if (!response.ok) throw new Error('Event not found')
         const data = await response.json()
 
