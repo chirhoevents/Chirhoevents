@@ -1644,6 +1644,117 @@ export function generateEventReminderEmail({
 /**
  * Generate group registration confirmation email with QR code and next steps
  */
+/**
+ * Generate waitlist confirmation email when someone joins the waitlist
+ */
+export function generateWaitlistConfirmationEmail({
+  name,
+  eventName,
+  position,
+  partySize,
+  organizationName,
+  eventUrl,
+}: {
+  name: string
+  eventName: string
+  position: number
+  partySize: number
+  organizationName: string
+  eventUrl?: string
+}): string {
+  return wrapEmail(`
+    <h1>You're on the Waitlist!</h1>
+
+    <p>Dear ${name},</p>
+
+    <p>Thank you for your interest in <strong>${eventName}</strong>. You have been added to the waitlist.</p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0; background: #f0f7ff; border-radius: 8px; padding: 20px; text-align: center;">
+      <tr>
+        <td>
+          <p style="margin: 0; font-size: 14px; color: #666;">Your Position in Line</p>
+          <p style="margin: 8px 0 0 0; font-size: 48px; font-weight: bold; color: #1E3A5F;">#${position}</p>
+          ${partySize > 1 ? `<p style="margin: 8px 0 0 0; font-size: 14px; color: #666;">Requesting ${partySize} spots</p>` : ''}
+        </td>
+      </tr>
+    </table>
+
+    <h2>What Happens Next?</h2>
+    <ul>
+      <li><strong>We'll notify you</strong> if a spot becomes available</li>
+      <li><strong>Check your email</strong> - you'll receive an invitation to register when it's your turn</li>
+      <li><strong>Act quickly</strong> - invitations are time-sensitive</li>
+    </ul>
+
+    ${emailInfoBox(`
+      <strong>No action required right now.</strong><br>
+      We'll contact you as soon as a spot opens up. Make sure to add our email to your contacts so you don't miss the notification!
+    `, 'info')}
+
+    ${eventUrl ? emailButton('View Event Details', eventUrl, 'secondary') : ''}
+
+    <p>Thank you for your patience. We hope to see you at the event!</p>
+
+    <p style="font-size: 14px; color: #666;">
+      — ${organizationName}
+    </p>
+  `, { organizationName, preheader: `You're #${position} on the waitlist for ${eventName}` })
+}
+
+/**
+ * Generate waitlist invitation email when a spot opens up
+ */
+export function generateWaitlistInvitationEmail({
+  name,
+  eventName,
+  partySize,
+  organizationName,
+  registrationUrl,
+  expiresIn,
+}: {
+  name: string
+  eventName: string
+  partySize: number
+  organizationName: string
+  registrationUrl: string
+  expiresIn?: string
+}): string {
+  return wrapEmail(`
+    <h1>A Spot is Available!</h1>
+
+    <p>Dear ${name},</p>
+
+    <p>Great news! A spot has opened up for <strong>${eventName}</strong>, and you're next in line!</p>
+
+    ${emailInfoBox(`
+      <strong>You have been invited to register!</strong><br>
+      ${partySize > 1 ? `We have ${partySize} spots reserved for you.` : 'Your spot is reserved.'}
+      ${expiresIn ? ` Please complete your registration within ${expiresIn}.` : ''}
+    `, 'success')}
+
+    <div style="text-align: center; margin: 30px 0;">
+      ${emailButton('Register Now', registrationUrl, 'primary')}
+    </div>
+
+    <h2>Important Notes</h2>
+    <ul>
+      <li><strong>Don't wait</strong> - this invitation is time-sensitive</li>
+      <li><strong>Complete your registration</strong> to secure your spot</li>
+      <li>If you no longer wish to attend, simply ignore this email and the spot will go to the next person</li>
+    </ul>
+
+    ${expiresIn ? emailInfoBox(`
+      <strong>Time-Sensitive:</strong> This invitation expires in ${expiresIn}. After that, your spot will be offered to the next person on the waitlist.
+    `, 'warning') : ''}
+
+    <p>If you have any questions, please don't hesitate to reach out.</p>
+
+    <p style="font-size: 14px; color: #666;">
+      — ${organizationName}
+    </p>
+  `, { organizationName, preheader: `A spot opened up for ${eventName} - Register now!` })
+}
+
 export function generateGroupRegistrationConfirmationEmail({
   groupName,
   groupLeaderName,

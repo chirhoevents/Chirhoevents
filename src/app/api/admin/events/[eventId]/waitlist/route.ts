@@ -53,6 +53,35 @@ export async function GET(
       orderBy: [{ status: 'asc' }, { createdAt: 'asc' }],
     })
 
+    // Calculate analytics
+    const contactedEntries = entries.filter((e: any) => e.status === 'contacted' || e.status === 'registered' || e.status === 'expired')
+    const registeredEntries = entries.filter((e: any) => e.status === 'registered')
+
+    // Conversion rate: registered / (contacted + registered + expired) - people who received an invitation
+    const totalInvited = contactedEntries.length
+    const conversionRate = totalInvited > 0
+      ? Math.round((registeredEntries.length / totalInvited) * 100)
+      : 0
+
+    // Average wait time: from createdAt to notifiedAt for entries that were contacted
+    const entriesWithWaitTime = entries.filter((e: any) => e.notifiedAt && e.createdAt)
+    let averageWaitTimeHours = 0
+    let averageWaitTimeDays = 0
+
+    if (entriesWithWaitTime.length > 0) {
+      const totalWaitTimeMs = entriesWithWaitTime.reduce((sum: number, e: any) => {
+        const waitTime = new Date(e.notifiedAt).getTime() - new Date(e.createdAt).getTime()
+        return sum + waitTime
+      }, 0)
+
+      const avgMs = totalWaitTimeMs / entriesWithWaitTime.length
+      averageWaitTimeHours = Math.round(avgMs / (1000 * 60 * 60))
+      averageWaitTimeDays = Math.round((avgMs / (1000 * 60 * 60 * 24)) * 10) / 10 // One decimal place
+    }
+
+    // Total spots converted (party sizes of registered entries)
+    const spotsConverted = registeredEntries.reduce((sum: number, e: any) => sum + e.partySize, 0)
+
     return NextResponse.json({
       event: {
         id: event.id,
@@ -68,6 +97,8 @@ export async function GET(
         status: entry.status,
         position: index + 1,
         notifiedAt: entry.notifiedAt,
+        invitationExpires: entry.invitationExpires,
+        hasToken: !!entry.registrationToken,
         createdAt: entry.createdAt,
         updatedAt: entry.updatedAt,
       })),
@@ -77,6 +108,16 @@ export async function GET(
         contacted: entries.filter((e: any) => e.status === 'contacted').length,
         registered: entries.filter((e: any) => e.status === 'registered').length,
         expired: entries.filter((e: any) => e.status === 'expired').length,
+      },
+      analytics: {
+        conversionRate, // Percentage
+        totalInvited,
+        spotsConverted,
+        averageWaitTime: {
+          hours: averageWaitTimeHours,
+          days: averageWaitTimeDays,
+          sampleSize: entriesWithWaitTime.length,
+        },
       },
     })
   } catch (error) {

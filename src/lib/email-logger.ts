@@ -4,7 +4,7 @@ export interface EmailLogData {
   organizationId: string
   eventId?: string
   registrationId?: string
-  registrationType?: 'group' | 'individual'
+  registrationType?: 'group' | 'individual' | 'vendor' | 'staff'
   recipientEmail: string
   recipientName?: string
   emailType: string

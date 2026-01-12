@@ -88,6 +88,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check capacity before allowing registration
+    if (event.capacityTotal !== null && event.capacityRemaining !== null) {
+      if (event.capacityRemaining <= 0) {
+        return NextResponse.json(
+          { error: 'Event is at full capacity. Please join the waitlist if available.' },
+          { status: 400 }
+        )
+      }
+    }
+
     // Calculate price for individual registration based on housing type and add-ons
     let totalAmount = 0
 

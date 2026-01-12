@@ -355,6 +355,37 @@ export default async function EventLandingPage({ params }: EventPageProps) {
             </CardContent>
           </Card>
         )}
+
+        {/* Staff & Vendor Registration Links */}
+        <div className="mt-8 text-center space-y-2">
+          <div className="flex items-center justify-center gap-4 text-sm text-[#6B7280]">
+            <a
+              href={`/events/${event.slug || event.id}/register-staff`}
+              className="hover:text-[#1E3A5F] hover:underline transition-colors"
+            >
+              Register as staff
+            </a>
+            <span className="text-[#D1D5DB]">|</span>
+            <a
+              href={`/events/${event.slug || event.id}/register-vendor`}
+              className="hover:text-[#1E3A5F] hover:underline transition-colors"
+            >
+              Register vendor booth
+            </a>
+          </div>
+        </div>
+
+        {/* Powered by ChiRho Events */}
+        <div className="mt-8 pt-6 border-t border-[#E5E7EB] text-center">
+          <a
+            href="https://chirhoevents.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-[#9CA3AF] hover:text-[#6B7280] transition-colors"
+          >
+            Powered by ChiRho Events
+          </a>
+        </div>
       </div>
     </div>
   )
