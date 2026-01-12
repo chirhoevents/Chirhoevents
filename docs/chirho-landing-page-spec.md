@@ -77,11 +77,13 @@ Gothic Catholic cathedral (black & white with dark overlay)
 
 | Platform | Fee | Monthly | Total (1K people) |
 |----------|-----|---------|-------------------|
-| **ChiRho** | 3.06% | $29-$99 | **$3,060 + monthly** ✅ |
+| **ChiRho** | 3.9%* | $29-$99 | **$3,900 + monthly** ✅ |
 | Eventbrite | 4.30% | $0 | $4,300 |
 | Cvent | 6.20%+ | $500+ | $6,200+ |
 
-**Callout:** "💰 Save $1,240+ per event"
+*3.9% = 2.9% Stripe processing + 1% ChiRho platform fee (+ $0.30/transaction)
+
+**Callout:** "💰 Save $400+ per event vs Eventbrite"
 
 ---
 
