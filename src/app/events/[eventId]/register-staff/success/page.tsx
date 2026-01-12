@@ -145,7 +145,7 @@ export default function StaffRegistrationSuccessPage() {
 
             <div className="flex flex-col gap-3 pt-4">
               <Link href={`/events/${eventId}`}>
-                <Button className="w-full bg-[#1E3A5F] hover:bg-[#2d4a6f]">
+                <Button className="w-full bg-[#1E3A5F] hover:bg-[#2d4a6f] text-white">
                   <Home className="h-4 w-4 mr-2" />
                   Back to Event Page
                 </Button>
