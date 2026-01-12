@@ -22,6 +22,8 @@ interface ReportsClientProps {
   organizationId: string
   startDate: string
   endDate: string
+  groupRegistrationEnabled?: boolean
+  individualRegistrationEnabled?: boolean
 }
 
 export default function ReportsClient({
@@ -30,6 +32,8 @@ export default function ReportsClient({
   organizationId,
   startDate,
   endDate,
+  groupRegistrationEnabled = true,
+  individualRegistrationEnabled = true,
 }: ReportsClientProps) {
   const { canViewFinancial } = usePermissions()
   const canViewFinancialReports = canViewFinancial()
@@ -231,6 +235,8 @@ export default function ReportsClient({
         eventId={eventId}
         eventName={eventName}
         organizationId={organizationId}
+        groupRegistrationEnabled={groupRegistrationEnabled}
+        individualRegistrationEnabled={individualRegistrationEnabled}
       />
     </>
   )

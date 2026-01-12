@@ -27,6 +27,12 @@ export default async function EventReportsPage({ params }: PageProps) {
       startDate: true,
       endDate: true,
       organizationId: true,
+      settings: {
+        select: {
+          groupRegistrationEnabled: true,
+          individualRegistrationEnabled: true,
+        },
+      },
     },
   })
 
@@ -51,6 +57,8 @@ export default async function EventReportsPage({ params }: PageProps) {
         organizationId={event.organizationId}
         startDate={event.startDate.toISOString()}
         endDate={event.endDate.toISOString()}
+        groupRegistrationEnabled={event.settings?.groupRegistrationEnabled ?? true}
+        individualRegistrationEnabled={event.settings?.individualRegistrationEnabled ?? true}
       />
     </div>
   )
