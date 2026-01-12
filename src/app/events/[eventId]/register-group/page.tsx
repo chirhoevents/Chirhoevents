@@ -20,12 +20,17 @@ interface EventPricing {
   dayPassChaperonePrice?: number
 }
 
+interface EventSettings {
+  couponsEnabled?: boolean
+}
+
 interface EventData {
   id: string
   name: string
   startDate: string
   endDate: string
   pricing: EventPricing
+  settings?: EventSettings
 }
 
 export default function GroupRegistrationPage() {
@@ -37,6 +42,16 @@ export default function GroupRegistrationPage() {
   const [event, setEvent] = useState<EventData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
+
+  // Coupon verification state
+  const [verifyingCoupon, setVerifyingCoupon] = useState(false)
+  const [couponVerified, setCouponVerified] = useState(false)
+  const [couponError, setCouponError] = useState<string | null>(null)
+  const [couponData, setCouponData] = useState<{
+    name: string
+    discountType: string
+    discountValue: number
+  } | null>(null)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -148,6 +163,47 @@ export default function GroupRegistrationPage() {
     formData.chaperoneCount +
     formData.priestCount
 
+  // Verify coupon code
+  const verifyCoupon = async () => {
+    if (!formData.couponCode.trim()) {
+      setCouponError('Please enter a coupon code')
+      return
+    }
+
+    setVerifyingCoupon(true)
+    setCouponError(null)
+    setCouponVerified(false)
+    setCouponData(null)
+
+    try {
+      const response = await fetch(`/api/events/${eventId}/coupons/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: formData.couponCode,
+          email: formData.groupLeaderEmail,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.valid) {
+        setCouponVerified(true)
+        setCouponData({
+          name: data.coupon.name,
+          discountType: data.coupon.discountType,
+          discountValue: data.coupon.discountValue,
+        })
+      } else {
+        setCouponError(data.error || 'Invalid coupon code')
+      }
+    } catch {
+      setCouponError('Failed to verify coupon. Please try again.')
+    } finally {
+      setVerifyingCoupon(false)
+    }
+  }
+
   // Handle form submission - navigate to review page
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -175,6 +231,7 @@ export default function GroupRegistrationPage() {
       priestCount: formData.priestCount.toString(),
       housingType: formData.housingType,
       specialRequests: formData.specialRequests,
+      couponCode: formData.couponCode,
     })
 
     router.push(`/events/${eventId}/register-group/review?${params.toString()}`)
@@ -627,18 +684,64 @@ export default function GroupRegistrationPage() {
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-navy mb-2">
-                        Coupon Code (Optional)
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
-                        value={formData.couponCode}
-                        onChange={(e) => setFormData({ ...formData, couponCode: e.target.value.toUpperCase() })}
-                        placeholder="EARLYBIRD"
-                      />
-                    </div>
+                    {event?.settings?.couponsEnabled && (
+                      <div>
+                        <label className="block text-sm font-medium text-navy mb-2">
+                          Coupon Code (Optional)
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            className={`flex-1 px-4 py-2 border rounded-md focus:ring-2 focus:ring-gold focus:border-gold ${
+                              couponVerified
+                                ? 'border-green-500 bg-green-50'
+                                : couponError
+                                ? 'border-red-300'
+                                : 'border-gray-300'
+                            }`}
+                            value={formData.couponCode}
+                            onChange={(e) => {
+                              setFormData({ ...formData, couponCode: e.target.value.toUpperCase() })
+                              setCouponVerified(false)
+                              setCouponError(null)
+                              setCouponData(null)
+                            }}
+                            placeholder="Enter coupon code"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={verifyCoupon}
+                            disabled={verifyingCoupon || !formData.couponCode.trim()}
+                            className="whitespace-nowrap"
+                          >
+                            {verifyingCoupon ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Verifying...
+                              </>
+                            ) : (
+                              'Verify Code'
+                            )}
+                          </Button>
+                        </div>
+                        {couponError && (
+                          <p className="mt-2 text-sm text-red-600">{couponError}</p>
+                        )}
+                        {couponVerified && couponData && (
+                          <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-md">
+                            <p className="text-sm text-green-700 font-medium">
+                              ✓ Coupon &quot;{couponData.name}&quot; applied!
+                            </p>
+                            <p className="text-sm text-green-600">
+                              {couponData.discountType === 'percentage'
+                                ? `${couponData.discountValue}% off`
+                                : `$${couponData.discountValue.toFixed(2)} off`}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { Resend } from 'resend'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
+import { wrapEmail, emailButton, emailInfoBox } from '@/lib/email-templates'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -69,46 +70,69 @@ export async function POST(
 
     // Send approval email
     try {
-      const portalUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard/vendor?code=${vendor.accessCode}`
+      const portalUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/vendor-dashboard?code=${vendor.accessCode}`
       const staffRegUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/events/${vendor.event.slug}/register-staff`
 
-      const emailContent = `
-        <h2>Vendor Application Approved!</h2>
+      const emailContent = wrapEmail(`
+        <h1>Vendor Application Approved!</h1>
+
         <p>Hi ${vendor.contactFirstName},</p>
+
         <p>Great news! Your vendor booth application for <strong>${vendor.event.name}</strong> has been approved!</p>
 
-        <h3>Your Vendor Code</h3>
-        <p style="font-size: 24px; font-weight: bold; background: #f0f0f0; padding: 15px; text-align: center; letter-spacing: 2px;">
-          ${vendor.vendorCode}
-        </p>
-        <p>Share this code with everyone who will be working at your booth so they can register.</p>
+        ${emailInfoBox(`
+          <strong>Application Status:</strong> Approved<br>
+          You're all set to be a vendor at this event!
+        `, 'success')}
 
-        <h3>Staff Registration Link</h3>
-        <p>Your booth staff should register using this link:</p>
-        <p><a href="${staffRegUrl}">${staffRegUrl}</a></p>
-        <p>They will need to enter the vendor code above during registration.</p>
-
-        <h3>Invoice Details</h3>
-        <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
-          ${(invoiceLineItems || []).map((item: { description: string; amount: number }) => `
-            <tr>
-              <td style="padding: 8px; border-bottom: 1px solid #ddd;">${item.description}</td>
-              <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">$${Number(item.amount).toFixed(2)}</td>
-            </tr>
-          `).join('')}
-          <tr style="font-weight: bold;">
-            <td style="padding: 8px; border-top: 2px solid #333;">Total</td>
-            <td style="padding: 8px; border-top: 2px solid #333; text-align: right;">$${invoiceTotal.toFixed(2)}</td>
+        <h2>Your Vendor Code</h2>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0; background: #e8f4fd; border-radius: 8px; padding: 20px; text-align: center;">
+          <tr>
+            <td>
+              <p style="margin: 0; font-size: 14px; color: #666;">Share this code with your booth staff</p>
+              <p style="margin: 8px 0 0 0; font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #1E3A5F;">${vendor.vendorCode}</p>
+            </td>
           </tr>
         </table>
-        ${invoiceNotes ? `<p><strong>Notes:</strong> ${invoiceNotes}</p>` : ''}
 
-        <h3>Vendor Portal</h3>
+        <h2>Staff Registration</h2>
+        <p>Your booth staff should register using this link and enter the vendor code above:</p>
+        ${emailButton('Register Booth Staff', staffRegUrl, 'secondary')}
+        <p style="font-size: 14px; color: #666; text-align: center;">
+          Or copy this link: <a href="${staffRegUrl}">${staffRegUrl}</a>
+        </p>
+
+        <h2>Invoice Details</h2>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0; background: #f9f9f9; border-radius: 8px; padding: 20px;">
+          <tr>
+            <td>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                ${(invoiceLineItems || []).map((item: { description: string; amount: number }) => `
+                <tr>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #e5e5e5; color: #666666; font-size: 14px;">${item.description}</td>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #e5e5e5; text-align: right; font-weight: 600; color: #1E3A5F;">$${Number(item.amount).toFixed(2)}</td>
+                </tr>
+                `).join('')}
+                <tr>
+                  <td style="padding: 12px 0; font-weight: 700; font-size: 16px; color: #1E3A5F;">Total Due</td>
+                  <td style="padding: 12px 0; text-align: right; font-weight: 700; font-size: 18px; color: #1E3A5F;">$${invoiceTotal.toFixed(2)}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+        ${invoiceNotes ? `<p style="font-size: 14px; color: #666;"><strong>Notes:</strong> ${invoiceNotes}</p>` : ''}
+
+        <h2>Vendor Portal</h2>
         <p>Access your vendor portal to pay your invoice, upload your logo, and see your registered booth staff:</p>
-        <p><a href="${portalUrl}" style="display: inline-block; background: #1E3A5F; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Access Vendor Portal</a></p>
+        ${emailButton('Access Vendor Portal', portalUrl, 'primary')}
 
         <p>We look forward to having you at the event!</p>
-      `
+
+        <p style="font-size: 14px; color: #666;">
+          If you have any questions, please contact the event organizers.
+        </p>
+      `, { preheader: `Your vendor application for ${vendor.event.name} has been approved!` })
 
       await resend.emails.send({
         from: 'ChiRho Events <noreply@chirhoevents.com>',

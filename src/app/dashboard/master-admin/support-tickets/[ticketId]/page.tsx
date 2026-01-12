@@ -14,6 +14,10 @@ import {
   Building2,
   User,
   Mail,
+  Calendar,
+  ExternalLink,
+  Copy,
+  Check,
 } from 'lucide-react'
 
 interface Message {
@@ -38,12 +42,18 @@ interface Ticket {
   createdAt: string
   updatedAt: string
   resolvedAt?: string
+  issueUrl?: string
   organization: {
     id: string
     name: string
     contactEmail: string
     subscriptionTier: string
   }
+  event?: {
+    id: string
+    name: string
+    slug: string
+  } | null
   submittedByUser: {
     firstName: string
     lastName: string
@@ -82,6 +92,23 @@ export default function TicketDetailPage({ params }: { params: Promise<{ ticketI
   const [newStatus, setNewStatus] = useState('')
   const [sending, setSending] = useState(false)
   const [updating, setUpdating] = useState(false)
+  const [copiedOrgId, setCopiedOrgId] = useState(false)
+  const [copiedEventId, setCopiedEventId] = useState(false)
+
+  const copyToClipboard = async (text: string, type: 'org' | 'event') => {
+    try {
+      await navigator.clipboard.writeText(text)
+      if (type === 'org') {
+        setCopiedOrgId(true)
+        setTimeout(() => setCopiedOrgId(false), 2000)
+      } else {
+        setCopiedEventId(true)
+        setTimeout(() => setCopiedEventId(false), 2000)
+      }
+    } catch (error) {
+      console.error('Failed to copy:', error)
+    }
+  }
 
   useEffect(() => {
     fetchTicket()
@@ -307,6 +334,22 @@ export default function TicketDetailPage({ params }: { params: Promise<{ ticketI
             <div className="space-y-2">
               <p className="font-medium text-gray-900">{ticket.organization.name}</p>
               <p className="text-sm text-gray-600">{ticket.organization.contactEmail}</p>
+              <div className="flex items-center gap-1 mt-1">
+                <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded font-mono text-gray-600">
+                  {ticket.organization.id.slice(0, 8)}...
+                </code>
+                <button
+                  onClick={() => copyToClipboard(ticket.organization.id, 'org')}
+                  className="p-0.5 hover:bg-gray-100 rounded"
+                  title="Copy full UUID"
+                >
+                  {copiedOrgId ? (
+                    <Check className="h-3 w-3 text-green-600" />
+                  ) : (
+                    <Copy className="h-3 w-3 text-gray-400" />
+                  )}
+                </button>
+              </div>
               <span className="inline-block text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded capitalize">
                 {ticket.organization.subscriptionTier.replace('_', ' ')}
               </span>
@@ -318,6 +361,48 @@ export default function TicketDetailPage({ params }: { params: Promise<{ ticketI
               View organization
             </Link>
           </div>
+
+          {/* Event Info */}
+          {ticket.event && (
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <h3 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Related Event
+              </h3>
+              <div className="space-y-2">
+                <p className="font-medium text-gray-900">{ticket.event.name}</p>
+                <div className="flex items-center gap-1 mt-1">
+                  <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded font-mono text-gray-600">
+                    {ticket.event.id.slice(0, 8)}...
+                  </code>
+                  <button
+                    onClick={() => copyToClipboard(ticket.event!.id, 'event')}
+                    className="p-0.5 hover:bg-gray-100 rounded"
+                    title="Copy full UUID"
+                  >
+                    {copiedEventId ? (
+                      <Check className="h-3 w-3 text-green-600" />
+                    ) : (
+                      <Copy className="h-3 w-3 text-gray-400" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Issue URL */}
+          {ticket.issueUrl && (
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <h3 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+                <ExternalLink className="h-4 w-4" />
+                Issue Page
+              </h3>
+              <p className="text-sm text-gray-700 font-mono break-all" title={ticket.issueUrl}>
+                {ticket.issueUrl.replace(/^https?:\/\/[^\/]+/, '')}
+              </p>
+            </div>
+          )}
 
           {/* Submitter Info */}
           <div className="bg-white rounded-lg border border-gray-200 p-4">

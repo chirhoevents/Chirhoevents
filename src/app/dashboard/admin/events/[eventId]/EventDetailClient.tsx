@@ -28,6 +28,13 @@ import {
   Mail,
   Key,
   ListOrdered,
+  Ticket,
+  Eye,
+  EyeOff,
+  Globe,
+  Lock,
+  Info,
+  AlertCircle,
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -42,6 +49,7 @@ interface EventDetailClientProps {
     startDate: string
     endDate: string
     status: string
+    isPublished: boolean
     locationName: string | null
     locationAddress: any
     capacityTotal: number | null
@@ -63,6 +71,7 @@ interface EventDetailClientProps {
     raphaMedicalEnabled?: boolean
     staffRegistrationEnabled?: boolean
     vendorRegistrationEnabled?: boolean
+    couponsEnabled?: boolean
   } | null
 }
 
@@ -74,13 +83,22 @@ export default function EventDetailClient({
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('overview')
   const [updatingStatus, setUpdatingStatus] = useState(false)
+  const [updatingPublish, setUpdatingPublish] = useState(false)
+  const [currentStatus, setCurrentStatus] = useState(event.status)
+  const [currentIsPublished, setCurrentIsPublished] = useState(event.isPublished)
   const [waitlistEnabled, setWaitlistEnabled] = useState(settings?.waitlistEnabled ?? false)
   const [closedMessage, setClosedMessage] = useState(settings?.registrationClosedMessage ?? '')
   const [savingSettings, setSavingSettings] = useState(false)
   const [reminderModalOpen, setReminderModalOpen] = useState(false)
 
+  // Derived state for registration toggle
+  const isRegistrationOpen = currentStatus === 'registration_open'
+
   const handleStatusUpdate = async (newStatus: string) => {
     if (updatingStatus) return
+
+    const previousStatus = currentStatus
+    setCurrentStatus(newStatus) // Optimistic update
 
     try {
       setUpdatingStatus(true)
@@ -97,9 +115,50 @@ export default function EventDetailClient({
       router.refresh()
     } catch (error) {
       console.error('Error updating event status:', error)
+      setCurrentStatus(previousStatus) // Revert on error
       alert('Failed to update event status. Please try again.')
     } finally {
       setUpdatingStatus(false)
+    }
+  }
+
+  // Handle publish toggle - only controls visibility (isPublished field), independent of registration status
+  const handlePublishToggle = async (checked: boolean) => {
+    if (updatingPublish) return
+
+    const previousPublished = currentIsPublished
+    setCurrentIsPublished(checked) // Optimistic update
+
+    try {
+      setUpdatingPublish(true)
+      const response = await fetch(`/api/admin/events/${event.id}/publish`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isPublished: checked }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update publish status')
+      }
+
+      router.refresh()
+    } catch (error) {
+      console.error('Error updating publish status:', error)
+      setCurrentIsPublished(previousPublished) // Revert on error
+      alert('Failed to update publish status. Please try again.')
+    } finally {
+      setUpdatingPublish(false)
+    }
+  }
+
+  // Handle registration toggle - only controls registration status, independent of visibility
+  const handleRegistrationToggle = (checked: boolean) => {
+    if (checked) {
+      // Opening registration
+      handleStatusUpdate('registration_open')
+    } else {
+      // Closing registration
+      handleStatusUpdate('registration_closed')
     }
   }
 
@@ -137,9 +196,10 @@ export default function EventDetailClient({
       { label: string; className: string }
     > = {
       draft: { label: 'Draft', className: 'bg-gray-500' },
-      published: { label: 'Active', className: 'bg-green-500' },
+      published: { label: 'Published', className: 'bg-blue-500' },
       registration_open: { label: 'Registration Open', className: 'bg-green-500' },
       registration_closed: { label: 'Registration Closed', className: 'bg-yellow-500' },
+      in_progress: { label: 'In Progress', className: 'bg-purple-500' },
       completed: { label: 'Completed', className: 'bg-blue-500' },
       cancelled: { label: 'Cancelled', className: 'bg-red-500' },
     }
@@ -150,6 +210,28 @@ export default function EventDetailClient({
     )
   }
 
+  // Helper to get status description
+  const getStatusDescription = (status: string) => {
+    switch (status) {
+      case 'draft':
+        return 'This event is in draft mode and not visible to the public.'
+      case 'published':
+        return 'This event is published and visible to the public, but registration is not yet open.'
+      case 'registration_open':
+        return 'This event is live! Registration is open and participants can sign up.'
+      case 'registration_closed':
+        return 'This event is visible but registration is currently closed.'
+      case 'in_progress':
+        return 'This event is currently in progress.'
+      case 'completed':
+        return 'This event has been completed.'
+      case 'cancelled':
+        return 'This event has been cancelled.'
+      default:
+        return ''
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -158,7 +240,7 @@ export default function EventDetailClient({
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-2xl font-bold text-[#1E3A5F]">{event.name}</h1>
-              {getStatusBadge(event.status)}
+              {getStatusBadge(currentStatus)}
             </div>
             <div className="flex items-center gap-4 text-sm text-[#6B7280]">
               <div className="flex items-center gap-1">
@@ -396,6 +478,17 @@ export default function EventDetailClient({
                     >
                       <ListOrdered className="h-4 w-4 mr-2" />
                       Manage Waitlist
+                    </Button>
+                  </Link>
+                )}
+                {settings?.couponsEnabled && (
+                  <Link href={`/dashboard/admin/events/${event.id}/coupons`}>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
+                    >
+                      <Ticket className="h-4 w-4 mr-2" />
+                      Manage Coupons
                     </Button>
                   </Link>
                 )}
@@ -694,52 +787,114 @@ export default function EventDetailClient({
 
         {/* Settings Tab */}
         <TabsContent value="settings" className="space-y-6">
+          {/* Current Status Overview */}
+          <Card className="bg-white border-[#D1D5DB]">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg text-[#1E3A5F]">
+                  Current Status
+                </CardTitle>
+                {getStatusBadge(currentStatus)}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-[#6B7280]">
+                {getStatusDescription(currentStatus)}
+              </p>
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Event Visibility */}
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardHeader>
+                <CardTitle className="text-lg text-[#1E3A5F] flex items-center gap-2">
+                  <Globe className="h-5 w-5" />
+                  Event Visibility
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    {currentIsPublished ? (
+                      <Eye className="h-5 w-5 text-green-600" />
+                    ) : (
+                      <EyeOff className="h-5 w-5 text-gray-500" />
+                    )}
+                    <div>
+                      <p className="font-medium text-[#1E3A5F]">
+                        {currentIsPublished ? 'Published' : 'Unpublished'}
+                      </p>
+                      <p className="text-xs text-[#6B7280]">
+                        {currentIsPublished
+                          ? 'Visible on public events page'
+                          : 'Not visible on public events page'}
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="publish-toggle"
+                    checked={currentIsPublished}
+                    onCheckedChange={handlePublishToggle}
+                    disabled={updatingPublish || currentStatus === 'completed' || currentStatus === 'cancelled'}
+                  />
+                </div>
+                <p className="text-xs text-[#6B7280]">
+                  When published, the event will appear on the public <Link href="/events" className="text-[#9C8466] hover:underline">/events</Link> page and can be accessed via its direct link.
+                </p>
+              </CardContent>
+            </Card>
+
             {/* Registration Status */}
             <Card className="bg-white border-[#D1D5DB]">
               <CardHeader>
-                <CardTitle className="text-lg text-[#1E3A5F]">
+                <CardTitle className="text-lg text-[#1E3A5F] flex items-center gap-2">
+                  <Users className="h-5 w-5" />
                   Registration Status
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <p className="text-sm text-[#6B7280] mb-3">
-                    Control whether participants can register for this event
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-[#1E3A5F]">
-                      Current Status:
-                    </span>
-                    {getStatusBadge(event.status)}
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    {isRegistrationOpen ? (
+                      <CheckSquare className="h-5 w-5 text-green-600" />
+                    ) : (
+                      <Lock className="h-5 w-5 text-orange-500" />
+                    )}
+                    <div>
+                      <p className="font-medium text-[#1E3A5F]">
+                        {isRegistrationOpen ? 'Registration Open' : 'Registration Closed'}
+                      </p>
+                      <p className="text-xs text-[#6B7280]">
+                        {isRegistrationOpen
+                          ? 'Participants can register for this event'
+                          : 'New registrations are not accepted'}
+                      </p>
+                    </div>
                   </div>
+                  <Switch
+                    id="registration-toggle"
+                    checked={isRegistrationOpen}
+                    onCheckedChange={handleRegistrationToggle}
+                    disabled={updatingStatus || currentStatus === 'completed' || currentStatus === 'cancelled'}
+                  />
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => handleStatusUpdate('registration_open')}
-                    className={event.status === 'registration_open'
-                      ? 'bg-green-600 hover:bg-green-700 text-white'
-                      : 'bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white'
-                    }
-                    disabled={event.status === 'registration_open' || updatingStatus}
-                  >
-                    {updatingStatus ? 'Updating...' : 'Open Registration'}
-                  </Button>
-                  <Button
-                    onClick={() => handleStatusUpdate('registration_closed')}
-                    variant="outline"
-                    className={event.status === 'registration_closed'
-                      ? 'border-orange-600 text-orange-600'
-                      : 'border-[#1E3A5F] text-[#1E3A5F]'
-                    }
-                    disabled={event.status === 'registration_closed' || event.status === 'draft' || updatingStatus}
-                  >
-                    {updatingStatus ? 'Updating...' : 'Close Registration'}
-                  </Button>
-                </div>
+                {!currentIsPublished && isRegistrationOpen && (
+                  <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-amber-700">
+                      Registration is open but the event is not published. Users with a direct link can register, but the event will not appear on the public events page.
+                    </p>
+                  </div>
+                )}
+                <p className="text-xs text-[#6B7280]">
+                  Control whether participants can submit new registrations. Existing registrations are not affected.
+                </p>
               </CardContent>
             </Card>
+          </div>
 
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Capacity & Waitlist */}
             <Card className="bg-white border-[#D1D5DB]">
               <CardHeader>
@@ -782,43 +937,89 @@ export default function EventDetailClient({
                 </div>
               </CardContent>
             </Card>
+
+            {/* Closed Message */}
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardHeader>
+                <CardTitle className="text-lg text-[#1E3A5F]">
+                  Closed Registration Message
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="closed-message" className="text-sm text-[#6B7280]">
+                    Custom message to display when registration is closed
+                  </Label>
+                  <Textarea
+                    id="closed-message"
+                    value={closedMessage}
+                    onChange={(e) => setClosedMessage(e.target.value)}
+                    placeholder="Enter a custom message (leave blank for default)"
+                    className="mt-2 min-h-[80px]"
+                  />
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Closed Message */}
+          {/* Status Reference Guide */}
           <Card className="bg-white border-[#D1D5DB]">
             <CardHeader>
-              <CardTitle className="text-lg text-[#1E3A5F]">
-                Closed Registration Message
+              <CardTitle className="text-lg text-[#1E3A5F] flex items-center gap-2">
+                <Info className="h-5 w-5" />
+                Toggle Reference Guide
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="closed-message" className="text-sm text-[#6B7280]">
-                  Custom message to display when registration is closed
-                </Label>
-                <Textarea
-                  id="closed-message"
-                  value={closedMessage}
-                  onChange={(e) => setClosedMessage(e.target.value)}
-                  placeholder="Enter a custom message (leave blank for default message)"
-                  className="mt-2 min-h-[100px]"
-                />
-                <p className="text-xs text-[#6B7280] mt-2">
-                  This message will be shown on the event landing page when registration is manually closed.
-                  Leave blank to use the default message: &ldquo;Registration is closed&rdquo;
-                </p>
+              <p className="text-sm text-[#6B7280]">
+                Visibility and registration are controlled independently, allowing you to test registration before making the event public.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-2 pr-4 font-medium text-[#1E3A5F]">Setting</th>
+                      <th className="text-left py-2 pr-4 font-medium text-[#1E3A5F]">Effect</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-[#6B7280]">
+                    <tr className="border-b border-gray-100">
+                      <td className="py-2 pr-4 font-medium">Published: ON</td>
+                      <td className="py-2">Event appears on public /events page</td>
+                    </tr>
+                    <tr className="border-b border-gray-100">
+                      <td className="py-2 pr-4 font-medium">Published: OFF</td>
+                      <td className="py-2">Event hidden from public /events page (but direct links still work)</td>
+                    </tr>
+                    <tr className="border-b border-gray-100">
+                      <td className="py-2 pr-4 font-medium">Registration: OPEN</td>
+                      <td className="py-2">Users can submit new registrations</td>
+                    </tr>
+                    <tr className="border-b border-gray-100">
+                      <td className="py-2 pr-4 font-medium">Registration: CLOSED</td>
+                      <td className="py-2">New registrations blocked (existing ones unaffected)</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-              <div className="flex justify-end">
-                <Button
-                  onClick={handleSaveSettings}
-                  disabled={savingSettings}
-                  className="bg-[#9C8466] hover:bg-[#8a7559] text-white"
-                >
-                  {savingSettings ? 'Saving...' : 'Save Settings'}
-                </Button>
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Tip:</strong> You can have registration open while unpublished for testing, then publish when ready to go live.
+                </p>
               </div>
             </CardContent>
           </Card>
+
+          {/* Save Settings Button */}
+          <div className="flex justify-end">
+            <Button
+              onClick={handleSaveSettings}
+              disabled={savingSettings}
+              className="bg-[#9C8466] hover:bg-[#8a7559] text-white"
+            >
+              {savingSettings ? 'Saving...' : 'Save Settings'}
+            </Button>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

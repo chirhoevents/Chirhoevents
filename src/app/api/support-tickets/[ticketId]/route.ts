@@ -25,25 +25,64 @@ export async function GET(
 
     const { ticketId } = await params
 
-    const ticket = await prisma.supportTicket.findFirst({
-      where: {
-        id: ticketId,
-        organizationId: user.organizationId,
-      },
-      include: {
-        submittedByUser: {
-          select: { firstName: true, lastName: true, email: true },
+    // Try to fetch with event relation, fall back without if migration not applied
+    let ticket
+    try {
+      ticket = await prisma.supportTicket.findFirst({
+        where: {
+          id: ticketId,
+          organizationId: user.organizationId,
         },
-        messages: {
+        include: {
+          organization: {
+            select: { id: true, name: true },
+          },
+          event: {
+            select: { id: true, name: true, slug: true },
+          },
+          submittedByUser: {
+            select: { firstName: true, lastName: true, email: true },
+          },
+          messages: {
+            include: {
+              user: {
+                select: { firstName: true, lastName: true },
+              },
+            },
+            orderBy: { createdAt: 'asc' },
+          },
+        },
+      })
+    } catch (fetchError: unknown) {
+      const errorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError)
+      if (errorMessage.includes('event') || errorMessage.includes('event_id')) {
+        console.warn('Event field not in database yet, fetching ticket without it')
+        ticket = await prisma.supportTicket.findFirst({
+          where: {
+            id: ticketId,
+            organizationId: user.organizationId,
+          },
           include: {
-            user: {
-              select: { firstName: true, lastName: true },
+            organization: {
+              select: { id: true, name: true },
+            },
+            submittedByUser: {
+              select: { firstName: true, lastName: true, email: true },
+            },
+            messages: {
+              include: {
+                user: {
+                  select: { firstName: true, lastName: true },
+                },
+              },
+              orderBy: { createdAt: 'asc' },
             },
           },
-          orderBy: { createdAt: 'asc' },
-        },
-      },
-    })
+        })
+      } else {
+        throw fetchError
+      }
+    }
 
     if (!ticket) {
       return NextResponse.json({ error: 'Ticket not found' }, { status: 404 })

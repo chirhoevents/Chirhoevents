@@ -5,6 +5,7 @@ import { Resend } from 'resend'
 import QRCode from 'qrcode'
 import { generateStaffPorosCode } from '@/lib/access-code'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
+import { wrapEmail, emailInfoBox } from '@/lib/email-templates'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -38,9 +39,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if eventId is a UUID or a slug
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId)
+
     // Fetch event and settings
     const event = await prisma.event.findUnique({
-      where: { id: eventId },
+      where: isUuid ? { id: eventId } : { slug: eventId },
       include: {
         settings: true,
         organization: {
@@ -199,29 +203,72 @@ export async function POST(request: NextRequest) {
 
     // Free registration - send confirmation email
     try {
-      const emailContent = `
-        <h2>Staff Registration Confirmed!</h2>
+      const emailContent = wrapEmail(`
+        <h1>Staff Registration Confirmed!</h1>
+
         <p>Hi ${firstName},</p>
+
         <p>Thank you for registering as a ${isVendorStaff ? 'vendor booth staff member' : 'staff/volunteer'} for <strong>${event.name}</strong>.</p>
 
-        <h3>Registration Details:</h3>
-        <ul>
-          <li><strong>Name:</strong> ${firstName} ${lastName}</li>
-          <li><strong>Role:</strong> ${role}</li>
-          <li><strong>Email:</strong> ${email}</li>
-          <li><strong>T-Shirt Size:</strong> ${tshirtSize}</li>
-          ${isVendorStaff && vendorRegistration ? `<li><strong>Vendor Booth:</strong> ${vendorRegistration.businessName}</li>` : ''}
-        </ul>
+        ${emailInfoBox(`
+          <strong>Registration Status:</strong> Confirmed<br>
+          You're all set to participate in this event!
+        `, 'success')}
+
+        <h2>Registration Details</h2>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0; background: #f9f9f9; border-radius: 8px; padding: 20px;">
+          <tr>
+            <td>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #e5e5e5; color: #666666; font-size: 14px;">Name</td>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #e5e5e5; text-align: right; font-weight: 600; color: #1E3A5F;">${firstName} ${lastName}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #e5e5e5; color: #666666; font-size: 14px;">Role</td>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #e5e5e5; text-align: right; font-weight: 600; color: #1E3A5F;">${role}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #e5e5e5; color: #666666; font-size: 14px;">Email</td>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #e5e5e5; text-align: right; font-weight: 600; color: #1E3A5F;">${email}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 0; ${isVendorStaff && vendorRegistration ? 'border-bottom: 1px solid #e5e5e5;' : ''} color: #666666; font-size: 14px;">T-Shirt Size</td>
+                  <td style="padding: 10px 0; ${isVendorStaff && vendorRegistration ? 'border-bottom: 1px solid #e5e5e5;' : ''} text-align: right; font-weight: 600; color: #1E3A5F;">${tshirtSize}</td>
+                </tr>
+                ${isVendorStaff && vendorRegistration ? `
+                <tr>
+                  <td style="padding: 10px 0; color: #666666; font-size: 14px;">Vendor Booth</td>
+                  <td style="padding: 10px 0; text-align: right; font-weight: 600; color: #1E3A5F;">${vendorRegistration.businessName}</td>
+                </tr>
+                ` : ''}
+              </table>
+            </td>
+          </tr>
+        </table>
 
         ${porosAccessCode ? `
-        <h3>Liability Form</h3>
-        <p>Please complete your liability form using the following access code:</p>
-        <p style="font-size: 18px; font-weight: bold; background: #f0f0f0; padding: 10px; text-align: center;">${porosAccessCode}</p>
-        <p>Visit the liability form portal and enter this code to complete your form.</p>
+        <h2>Liability Form Required</h2>
+        ${emailInfoBox(`
+          <strong>Action Required:</strong> Please complete your liability form before the event.
+        `, 'warning')}
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0; background: #e8f4fd; border-radius: 8px; padding: 20px; text-align: center;">
+          <tr>
+            <td>
+              <p style="margin: 0; font-size: 14px; color: #666;">Your Liability Form Access Code</p>
+              <p style="margin: 8px 0 0 0; font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #1E3A5F;">${porosAccessCode}</p>
+            </td>
+          </tr>
+        </table>
+        <p style="text-align: center; font-size: 14px; color: #666;">Visit the liability form portal and enter this code to complete your form.</p>
         ` : ''}
 
         <p>We look forward to seeing you at the event!</p>
-      `
+
+        <p style="font-size: 14px; color: #666;">
+          If you have any questions, please contact the event organizers.
+        </p>
+      `, { organizationName: event.organization?.name || 'ChiRho Events', preheader: `Staff registration confirmed for ${event.name}` })
 
       await resend.emails.send({
         from: 'ChiRho Events <noreply@chirhoevents.com>',

@@ -36,6 +36,13 @@ interface FormData {
   salveCheckinEnabled: boolean
   raphaMedicalEnabled: boolean
   publicPortalEnabled: boolean
+  staffRegistrationEnabled: boolean
+  vendorRegistrationEnabled: boolean
+  couponsEnabled: boolean
+  staffVolunteerPrice: string
+  vendorStaffPrice: string
+  staffRoles: string[]
+  vendorTiers: Array<{ id: string; name: string; price: string; description: string; active: boolean; quantityLimit: string }>
   allowOnCampus: boolean
   allowOffCampus: boolean
   allowDayPass: boolean
@@ -177,6 +184,15 @@ export default function EditEventPage() {
       const event = data.event
       const stats = data.stats
 
+      // Debug: Log key fields loaded from API
+      console.log('[Edit Page] Key fields loaded from API:', {
+        backgroundImageUrl: event.settings?.backgroundImageUrl,
+        contactInfo: event.settings?.contactInfo,
+        confirmationEmailMessage: event.settings?.confirmationEmailMessage?.substring(0, 50),
+        primaryColor: event.settings?.primaryColor,
+        faqContent: event.settings?.faqContent?.substring(0, 50),
+      })
+
       // Check if event has registrations (to lock registration type)
       if (stats && stats.totalRegistrations > 0) {
         setHasRegistrations(true)
@@ -238,6 +254,17 @@ export default function EditEventPage() {
         salveCheckinEnabled: event.settings?.salveCheckinEnabled || false,
         raphaMedicalEnabled: event.settings?.raphaMedicalEnabled || false,
         publicPortalEnabled: event.settings?.publicPortalEnabled || false,
+        staffRegistrationEnabled: event.settings?.staffRegistrationEnabled || false,
+        vendorRegistrationEnabled: event.settings?.vendorRegistrationEnabled || false,
+        couponsEnabled: event.settings?.couponsEnabled || false,
+        staffVolunteerPrice: event.settings?.staffVolunteerPrice?.toString() || '0',
+        vendorStaffPrice: event.settings?.vendorStaffPrice?.toString() || '0',
+        staffRoles: (event.settings?.staffRoles as string[]) || ['Registration Desk', 'Setup Crew', 'Kitchen Staff', 'Security', 'Emcee', 'General Volunteer'],
+        vendorTiers: (event.settings?.vendorTiers as Array<{ id: string; name: string; price: string; description: string; active: boolean; quantityLimit: string }>) || [
+          { id: '1', name: 'Small Booth', price: '200', description: '10x10, no electricity', active: true, quantityLimit: '' },
+          { id: '2', name: 'Medium Booth', price: '350', description: '10x20, includes electricity', active: true, quantityLimit: '' },
+          { id: '3', name: 'Large Booth', price: '500', description: '20x20, includes electricity', active: false, quantityLimit: '' },
+        ],
         allowOnCampus: event.settings?.allowOnCampus ?? true,
         allowOffCampus: event.settings?.allowOffCampus ?? true,
         allowDayPass: event.settings?.allowDayPass ?? false,

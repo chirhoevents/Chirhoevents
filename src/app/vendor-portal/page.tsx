@@ -60,7 +60,7 @@ function VendorPortalLandingContent() {
 
   const handleConfirm = () => {
     if (vendorInfo) {
-      router.push(`/dashboard/vendor?code=${vendorInfo.accessCode}`)
+      router.push(`/vendor-dashboard?code=${vendorInfo.accessCode}`)
     }
   }
 

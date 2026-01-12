@@ -117,6 +117,16 @@ export async function PUT(
 
     const data = await request.json()
 
+    // Debug: Log key fields being saved
+    console.log('[PUT Event] 📝 Key fields received:', {
+      backgroundImageUrl: data.backgroundImageUrl,
+      contactInfo: data.contactInfo,
+      confirmationEmailMessage: data.confirmationEmailMessage?.substring(0, 50),
+      primaryColor: data.primaryColor,
+      secondaryColor: data.secondaryColor,
+      faqContent: data.faqContent?.substring(0, 50),
+    })
+
     // Validate required fields based on status
     if (!data.name || !data.slug) {
       return NextResponse.json(
@@ -215,6 +225,13 @@ export async function PUT(
               porosReligiousStaffEnabled: data.porosHousingEnabled || false,
               porosAdaEnabled: data.porosHousingEnabled || false,
               publicPortalEnabled: data.publicPortalEnabled || false,
+              staffRegistrationEnabled: data.staffRegistrationEnabled || false,
+              vendorRegistrationEnabled: data.vendorRegistrationEnabled || false,
+              couponsEnabled: data.couponsEnabled || false,
+              staffVolunteerPrice: data.staffVolunteerPrice ? parseFloat(data.staffVolunteerPrice) : 0,
+              vendorStaffPrice: data.vendorStaffPrice ? parseFloat(data.vendorStaffPrice) : 0,
+              staffRoles: data.staffRoles || null,
+              vendorTiers: data.vendorTiers || null,
               salveCheckinEnabled: data.salveCheckinEnabled || false,
               raphaMedicalEnabled: data.raphaMedicalEnabled || false,
               tshirtsEnabled: data.tshirtsEnabled || false,
@@ -301,6 +318,13 @@ export async function PUT(
               porosReligiousStaffEnabled: data.porosHousingEnabled || false,
               porosAdaEnabled: data.porosHousingEnabled || false,
               publicPortalEnabled: data.publicPortalEnabled || false,
+              staffRegistrationEnabled: data.staffRegistrationEnabled || false,
+              vendorRegistrationEnabled: data.vendorRegistrationEnabled || false,
+              couponsEnabled: data.couponsEnabled || false,
+              staffVolunteerPrice: data.staffVolunteerPrice ? parseFloat(data.staffVolunteerPrice) : 0,
+              vendorStaffPrice: data.vendorStaffPrice ? parseFloat(data.vendorStaffPrice) : 0,
+              staffRoles: data.staffRoles || null,
+              vendorTiers: data.vendorTiers || null,
               salveCheckinEnabled: data.salveCheckinEnabled || false,
               raphaMedicalEnabled: data.raphaMedicalEnabled || false,
               tshirtsEnabled: data.tshirtsEnabled || false,

@@ -62,7 +62,7 @@ export default function VendorRegistrationPage() {
   useEffect(() => {
     async function loadEvent() {
       try {
-        const response = await fetch(`/api/events/${eventId}`)
+        const response = await fetch(`/api/events/${eventId}/staff-vendor-settings`)
         if (!response.ok) throw new Error('Event not found')
         const data = await response.json()
 
@@ -195,7 +195,7 @@ export default function VendorRegistrationPage() {
               </div>
 
               <Link href={`/events/${eventId}`}>
-                <Button className="w-full bg-[#1E3A5F] hover:bg-[#2d4a6f]">
+                <Button className="w-full bg-[#1E3A5F] hover:bg-[#2d4a6f] text-white">
                   Back to Event Page
                 </Button>
               </Link>

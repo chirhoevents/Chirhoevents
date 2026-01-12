@@ -40,9 +40,12 @@ export async function POST(
       )
     }
 
+    // Check if eventId is a UUID or a slug
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId)
+
     // Check if event exists and has waitlist enabled
     const event = await prisma.event.findUnique({
-      where: { id: eventId },
+      where: isUuid ? { id: eventId } : { slug: eventId },
       select: {
         id: true,
         name: true,
@@ -72,7 +75,7 @@ export async function POST(
     // Check if user is already on waitlist for this event
     const existingEntry = await prisma.waitlistEntry.findFirst({
       where: {
-        eventId,
+        eventId: event.id,
         email: email.toLowerCase(),
         status: {
           in: ['pending', 'contacted'],
@@ -90,7 +93,7 @@ export async function POST(
     // Calculate position (count of pending entries before this one + 1)
     const pendingCount = await prisma.waitlistEntry.count({
       where: {
-        eventId,
+        eventId: event.id,
         status: 'pending',
       },
     })
@@ -99,7 +102,7 @@ export async function POST(
     // Create waitlist entry
     const waitlistEntry = await prisma.waitlistEntry.create({
       data: {
-        eventId,
+        eventId: event.id,
         name,
         email: email.toLowerCase(),
         phone: phone || null,

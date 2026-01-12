@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Check, ChevronLeft, ChevronRight, Loader2, Upload, X, Image as ImageIcon } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Loader2, Upload, Trash2, Image as ImageIcon } from 'lucide-react'
 
 interface CreateEventClientProps {
   organizationId: string
@@ -164,6 +165,9 @@ interface EventFormData {
   staffRoles: string[] // Role options for dropdown
   vendorRegistrationEnabled: boolean
   vendorTiers: VendorTier[]
+
+  // Coupon Settings
+  couponsEnabled: boolean
 }
 
 interface VendorTier {
@@ -196,6 +200,10 @@ export default function CreateEventClient({
   const { getToken } = useAuth()
   const [currentStep, setCurrentStep] = useState(1)
   const [saving, setSaving] = useState(false)
+  const [backgroundFile, setBackgroundFile] = useState<File | null>(null)
+  const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null)
+  const [uploadingBackground, setUploadingBackground] = useState(false)
+  const backgroundInputRef = useRef<HTMLInputElement>(null)
 
   // Background image upload state
   const [backgroundFile, setBackgroundFile] = useState<File | null>(null)
@@ -354,6 +362,9 @@ export default function CreateEventClient({
       { id: '2', name: 'Medium Booth', price: '350', description: '10x20, includes electricity', active: true, quantityLimit: '' },
       { id: '3', name: 'Large Booth', price: '500', description: '20x20, includes electricity', active: false, quantityLimit: '' },
     ],
+
+    // Coupon Settings
+    couponsEnabled: false,
   }
 
   const [formData, setFormData] = useState<EventFormData>({
@@ -417,6 +428,67 @@ export default function CreateEventClient({
   // Upload background image to R2
   const uploadBackgroundImage = async (targetEventId: string): Promise<string | null> => {
     if (!backgroundFile) return formData.backgroundImageUrl || null
+  const handleBackgroundSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    const validTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
+    if (!validTypes.includes(file.type)) {
+      alert('Invalid file type. Please upload PNG, JPEG, GIF, or WebP.')
+      return
+    }
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB')
+      return
+    }
+
+    setBackgroundFile(file)
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file)
+    setBackgroundPreview(previewUrl)
+  }
+
+  // Upload background image to server
+  const uploadBackgroundImage = async (targetEventId: string): Promise<string | null> => {
+    if (!backgroundFile) return null
+
+    const token = await getToken()
+    const formData = new FormData()
+    formData.append('file', backgroundFile)
+
+    const response = await fetch(`/api/admin/events/${targetEventId}/background`, {
+      method: 'POST',
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const data = await response.json()
+      throw new Error(data.error || 'Failed to upload background image')
+    }
+
+    const data = await response.json()
+    return data.backgroundImageUrl
+  }
+
+  // Delete background image
+  const handleDeleteBackground = async () => {
+    if (backgroundFile) {
+      // Just clear the local file, nothing uploaded yet
+      setBackgroundFile(null)
+      setBackgroundPreview(null)
+      if (backgroundInputRef.current) {
+        backgroundInputRef.current.value = ''
+      }
+      return
+    }
+
+    if (!isEditMode || !eventId) return
+
+    if (!confirm('Are you sure you want to remove the background image?')) return
 
     setUploadingBackground(true)
     try {
@@ -442,6 +514,18 @@ export default function CreateEventClient({
     } catch (error) {
       console.error('Error uploading background:', error)
       throw error
+      const response = await fetch(`/api/admin/events/${eventId}/background`, {
+        method: 'DELETE',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
+
+      if (!response.ok) throw new Error('Failed to delete background')
+
+      updateFormData({ backgroundImageUrl: '' })
+      setBackgroundPreview(null)
+    } catch (err) {
+      console.error('Error deleting background:', err)
+      alert('Failed to delete background image')
     } finally {
       setUploadingBackground(false)
     }
@@ -469,10 +553,38 @@ export default function CreateEventClient({
       } catch (error) {
         console.error('Error deleting background:', error)
       }
+  // Upload background immediately in edit mode
+  const handleBackgroundUpload = async () => {
+    if (!backgroundFile || !isEditMode || !eventId) return
+
+    setUploadingBackground(true)
+    try {
+      const newUrl = await uploadBackgroundImage(eventId)
+      if (newUrl) {
+        updateFormData({ backgroundImageUrl: newUrl })
+        setBackgroundFile(null)
+        if (backgroundInputRef.current) {
+          backgroundInputRef.current.value = ''
+        }
+      }
+    } catch (err) {
+      console.error('Error uploading background:', err)
+      alert(err instanceof Error ? err.message : 'Failed to upload background')
+    } finally {
+      setUploadingBackground(false)
     }
   }
 
   const handleSaveDraft = async () => {
+    console.log('[SaveDraft] Starting save...', { isEditMode, eventId, organizationId })
+    console.log('[SaveDraft] Key fields being sent:', {
+      backgroundImageUrl: formData.backgroundImageUrl,
+      contactInfo: formData.contactInfo,
+      confirmationEmailMessage: formData.confirmationEmailMessage?.substring(0, 50),
+      primaryColor: formData.primaryColor,
+      secondaryColor: formData.secondaryColor,
+      faqContent: formData.faqContent?.substring(0, 50),
+    })
     setSaving(true)
     try {
       const token = await getToken()
@@ -483,11 +595,14 @@ export default function CreateEventClient({
       if (isEditMode && currentEventId && backgroundFile) {
         backgroundUrl = await uploadBackgroundImage(currentEventId) || ''
       }
+      console.log('[SaveDraft] Got token:', !!token)
 
       const url = isEditMode
         ? `/api/admin/events/${currentEventId}`
         : '/api/admin/events/create'
       const method = isEditMode ? 'PUT' : 'POST'
+
+      console.log('[SaveDraft] Making request:', { url, method })
 
       const response = await fetch(url, {
         method,
@@ -503,9 +618,32 @@ export default function CreateEventClient({
         }),
       })
 
+      console.log('[SaveDraft] Response:', response.status, response.statusText)
+
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to save draft')
+        const errorText = await response.text()
+        console.error('[SaveDraft] Error response:', errorText)
+        let errorMessage = 'Failed to save draft'
+        try {
+          const errorData = JSON.parse(errorText)
+          errorMessage = errorData.error || errorMessage
+        } catch {
+          errorMessage = errorText || errorMessage
+        }
+        throw new Error(errorMessage)
+      }
+
+      const data = await response.json()
+      console.log('[SaveDraft] Success:', data)
+      const { event } = data
+
+      // Upload background image if one was selected (for new events)
+      if (backgroundFile && !isEditMode) {
+        try {
+          await uploadBackgroundImage(event.id)
+        } catch (err) {
+          console.error('Failed to upload background, but event was saved:', err)
+        }
       }
 
       const { event } = await response.json()
@@ -522,7 +660,7 @@ export default function CreateEventClient({
       // Redirect to event detail page
       router.push(`/dashboard/admin/events/${event.id}`)
     } catch (error) {
-      console.error('Error saving draft:', error)
+      console.error('[SaveDraft] Error:', error)
       alert(error instanceof Error ? error.message : 'Failed to save draft. Please try again.')
     } finally {
       setSaving(false)
@@ -530,6 +668,15 @@ export default function CreateEventClient({
   }
 
   const handlePublish = async () => {
+    console.log('[Publish] Starting publish...', { isEditMode, eventId, organizationId })
+    console.log('[Publish] Key fields being sent:', {
+      backgroundImageUrl: formData.backgroundImageUrl,
+      contactInfo: formData.contactInfo,
+      confirmationEmailMessage: formData.confirmationEmailMessage?.substring(0, 50),
+      primaryColor: formData.primaryColor,
+      secondaryColor: formData.secondaryColor,
+      faqContent: formData.faqContent?.substring(0, 50),
+    })
     setSaving(true)
     try {
       const token = await getToken()
@@ -540,11 +687,14 @@ export default function CreateEventClient({
       if (isEditMode && currentEventId && backgroundFile) {
         backgroundUrl = await uploadBackgroundImage(currentEventId) || ''
       }
+      console.log('[Publish] Got token:', !!token)
 
       const url = isEditMode
         ? `/api/admin/events/${currentEventId}`
         : '/api/admin/events/create'
       const method = isEditMode ? 'PUT' : 'POST'
+
+      console.log('[Publish] Making request:', { url, method })
 
       const response = await fetch(url, {
         method,
@@ -560,9 +710,32 @@ export default function CreateEventClient({
         }),
       })
 
+      console.log('[Publish] Response:', response.status, response.statusText)
+
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to publish event')
+        const errorText = await response.text()
+        console.error('[Publish] Error response:', errorText)
+        let errorMessage = 'Failed to publish event'
+        try {
+          const errorData = JSON.parse(errorText)
+          errorMessage = errorData.error || errorMessage
+        } catch {
+          errorMessage = errorText || errorMessage
+        }
+        throw new Error(errorMessage)
+      }
+
+      const data = await response.json()
+      console.log('[Publish] Success:', data)
+      const { event } = data
+
+      // Upload background image if one was selected (for new events)
+      if (backgroundFile && !isEditMode) {
+        try {
+          await uploadBackgroundImage(event.id)
+        } catch (err) {
+          console.error('Failed to upload background, but event was saved:', err)
+        }
       }
 
       const { event } = await response.json()
@@ -579,7 +752,7 @@ export default function CreateEventClient({
       // Redirect to event detail page
       router.push(`/dashboard/admin/events/${event.id}`)
     } catch (error) {
-      console.error('Error publishing event:', error)
+      console.error('[Publish] Error:', error)
       alert(error instanceof Error ? error.message : 'Failed to publish event. Please try again.')
     } finally {
       setSaving(false)
@@ -1841,6 +2014,29 @@ export default function CreateEventClient({
                           </Button>
                         </div>
                       )}
+                    </div>
+
+                    {/* Coupon Codes Toggle */}
+                    <div className="bg-white p-4 rounded-lg border border-purple-200">
+                      <div className="flex items-center space-x-2 mb-3">
+                        <input
+                          type="checkbox"
+                          id="couponsEnabled"
+                          checked={formData.couponsEnabled}
+                          onChange={(e) =>
+                            updateFormData({
+                              couponsEnabled: e.target.checked,
+                            })
+                          }
+                          className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                        />
+                        <Label htmlFor="couponsEnabled" className="mb-0 font-medium">
+                          Enable Coupon Codes
+                        </Label>
+                      </div>
+                      <p className="text-sm text-gray-600 ml-6">
+                        Allow registrants to enter coupon codes for discounts during registration. Coupons can be managed in the Coupons section after creating the event.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -3161,7 +3357,7 @@ export default function CreateEventClient({
                     🎨 Theme Customization
                   </h3>
                   <p className="text-sm text-purple-800 mb-4">
-                    Customize the look and feel of your event landing page
+                    Customize the look and feel of your event landing page. Upload a background image or use a gradient based on your colors.
                   </p>
 
                   <div className="space-y-4">
@@ -3229,6 +3425,115 @@ export default function CreateEventClient({
                             <span className="text-sm">Uploading image...</span>
                           </div>
                         )}
+                      <Label>Background Image (Optional)</Label>
+                      <p className="text-sm text-gray-500 mb-3">
+                        Upload an image for your hero section. If no image is uploaded, a gradient using your colors will be displayed.
+                      </p>
+
+                      <div className="flex items-start gap-6">
+                        {/* Preview */}
+                        <div className="flex-shrink-0">
+                          {(backgroundPreview || formData.backgroundImageUrl) ? (
+                            <div className="relative">
+                              <img
+                                src={backgroundPreview || formData.backgroundImageUrl}
+                                alt="Background Preview"
+                                className="w-40 h-24 rounded-lg border border-gray-200 object-cover"
+                              />
+                              <div
+                                className="absolute inset-0 rounded-lg"
+                                style={{
+                                  backgroundColor: formData.overlayColor,
+                                  opacity: parseInt(formData.overlayOpacity) / 100,
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div
+                              className="w-40 h-24 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center"
+                              style={{
+                                background: `linear-gradient(135deg, ${formData.primaryColor} 0%, ${formData.secondaryColor} 100%)`,
+                              }}
+                            >
+                              <span className="text-white text-xs font-medium">Gradient Preview</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Upload Controls */}
+                        <div className="space-y-3">
+                          <input
+                            ref={backgroundInputRef}
+                            type="file"
+                            accept="image/png,image/jpeg,image/gif,image/webp"
+                            onChange={handleBackgroundSelect}
+                            className="hidden"
+                          />
+
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => backgroundInputRef.current?.click()}
+                              disabled={uploadingBackground}
+                              className="border-purple-400 text-purple-700 hover:bg-purple-100"
+                            >
+                              {uploadingBackground ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  Uploading...
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="h-4 w-4 mr-2" />
+                                  {(backgroundPreview || formData.backgroundImageUrl) ? 'Change Image' : 'Upload Image'}
+                                </>
+                              )}
+                            </Button>
+
+                            {/* Show upload button in edit mode if file selected */}
+                            {isEditMode && backgroundFile && (
+                              <Button
+                                type="button"
+                                onClick={handleBackgroundUpload}
+                                disabled={uploadingBackground}
+                                className="bg-purple-600 hover:bg-purple-700 text-white"
+                              >
+                                {uploadingBackground ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Saving...
+                                  </>
+                                ) : (
+                                  'Save Image'
+                                )}
+                              </Button>
+                            )}
+
+                            {(backgroundPreview || formData.backgroundImageUrl) && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleDeleteBackground}
+                                disabled={uploadingBackground}
+                                className="border-red-300 text-red-600 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Remove
+                              </Button>
+                            )}
+                          </div>
+
+                          <p className="text-xs text-gray-500">
+                            PNG, JPEG, GIF, or WebP. Max 5MB. Recommended: 1920x1080px
+                          </p>
+
+                          {backgroundFile && !isEditMode && (
+                            <p className="text-xs text-amber-600">
+                              Image will be uploaded when you save the event.
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
 

@@ -17,6 +17,7 @@ interface EventData {
   startDate: string
   endDate: string
   status: string
+  isPublished: boolean
   locationName: string | null
   locationAddress: string | null
   capacityTotal: number | null
@@ -83,6 +84,7 @@ export default function EventDetailPage() {
         startDate: data.event.startDate,
         endDate: data.event.endDate,
         status: data.event.status,
+        isPublished: data.event.isPublished ?? false,
         locationName: data.event.locationName,
         locationAddress: data.event.locationAddress,
         capacityTotal: data.event.capacityTotal,
