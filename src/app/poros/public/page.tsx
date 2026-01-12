@@ -8,8 +8,8 @@ export const metadata: Metadata = {
   description: 'Access event resources, schedules, and meal times',
   manifest: '/poros-manifest.json',
   icons: {
-    icon: '/poros-icon.png',
-    apple: '/poros-icon.png',
+    icon: '/poros-icons/favicon-96x96.png',
+    apple: '/poros-icons/apple-touch-icon.png',
   },
   appleWebApp: {
     capable: true,
