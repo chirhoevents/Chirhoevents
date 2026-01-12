@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
       emergencyContact1Phone,
       emergencyContact1Relation,
       paymentMethod = 'card', // 'card' or 'check'
+      couponCode = '',
     } = body
 
     if (!eventId || !firstName || !lastName || !email || !phone || !housingType ||
@@ -130,6 +131,63 @@ export async function POST(request: NextRequest) {
     // Add meal package if included
     if (body.includeMealPackage && event.pricing.individualMealPackagePrice) {
       totalAmount += Number(event.pricing.individualMealPackagePrice)
+    }
+
+    // Validate and apply coupon if provided
+    let appliedCoupon: { id: string; code: string; discountAmount: number } | null = null
+
+    if (couponCode && event.settings?.couponsEnabled) {
+      const coupon = await prisma.coupon.findFirst({
+        where: {
+          eventId: event.id,
+          code: couponCode.toUpperCase(),
+          active: true,
+        },
+      })
+
+      if (coupon) {
+        // Check expiration
+        const isExpired = coupon.expirationDate && new Date(coupon.expirationDate) < new Date()
+
+        // Check usage limits
+        let hasUsesLeft = true
+        if (coupon.usageLimitType === 'single_use' && coupon.usageCount >= 1) {
+          hasUsesLeft = false
+        } else if (coupon.usageLimitType === 'limited' && coupon.maxUses && coupon.usageCount >= coupon.maxUses) {
+          hasUsesLeft = false
+        }
+
+        // Check email restriction
+        let emailAllowed = true
+        if (coupon.restrictToEmail) {
+          emailAllowed = coupon.restrictToEmail.toLowerCase() === email.toLowerCase()
+        }
+
+        if (!isExpired && hasUsesLeft && emailAllowed) {
+          // Calculate discount
+          let discountAmount = 0
+          if (coupon.discountType === 'percentage') {
+            discountAmount = (totalAmount * Number(coupon.discountValue)) / 100
+          } else {
+            discountAmount = Math.min(Number(coupon.discountValue), totalAmount)
+          }
+
+          // Apply discount
+          totalAmount = Math.max(0, totalAmount - discountAmount)
+
+          appliedCoupon = {
+            id: coupon.id,
+            code: coupon.code,
+            discountAmount,
+          }
+
+          // Increment coupon usage count
+          await prisma.coupon.update({
+            where: { id: coupon.id },
+            data: { usageCount: { increment: 1 } },
+          })
+        }
+      }
     }
 
     // Determine registration status based on payment method
