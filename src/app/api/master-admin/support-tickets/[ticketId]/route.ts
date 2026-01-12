@@ -25,36 +25,74 @@ export async function GET(
 
     const { ticketId } = await params
 
-    const ticket = await prisma.supportTicket.findUnique({
-      where: { id: ticketId },
-      include: {
-        organization: {
-          select: {
-            id: true,
-            name: true,
-            contactEmail: true,
-            subscriptionTier: true,
-          },
-        },
-        event: {
-          select: { id: true, name: true, slug: true },
-        },
-        submittedByUser: {
-          select: { firstName: true, lastName: true, email: true },
-        },
-        assignedToUser: {
-          select: { id: true, firstName: true, lastName: true },
-        },
-        messages: {
-          include: {
-            user: {
-              select: { firstName: true, lastName: true, role: true },
+    // Try to fetch with event relation, fall back without if migration not applied
+    let ticket
+    try {
+      ticket = await prisma.supportTicket.findUnique({
+        where: { id: ticketId },
+        include: {
+          organization: {
+            select: {
+              id: true,
+              name: true,
+              contactEmail: true,
+              subscriptionTier: true,
             },
           },
-          orderBy: { createdAt: 'asc' },
+          event: {
+            select: { id: true, name: true, slug: true },
+          },
+          submittedByUser: {
+            select: { firstName: true, lastName: true, email: true },
+          },
+          assignedToUser: {
+            select: { id: true, firstName: true, lastName: true },
+          },
+          messages: {
+            include: {
+              user: {
+                select: { firstName: true, lastName: true, role: true },
+              },
+            },
+            orderBy: { createdAt: 'asc' },
+          },
         },
-      },
-    })
+      })
+    } catch (fetchError: unknown) {
+      const errorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError)
+      if (errorMessage.includes('event') || errorMessage.includes('event_id')) {
+        console.warn('Event field not in database yet, fetching ticket without it')
+        ticket = await prisma.supportTicket.findUnique({
+          where: { id: ticketId },
+          include: {
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                contactEmail: true,
+                subscriptionTier: true,
+              },
+            },
+            submittedByUser: {
+              select: { firstName: true, lastName: true, email: true },
+            },
+            assignedToUser: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+            messages: {
+              include: {
+                user: {
+                  select: { firstName: true, lastName: true, role: true },
+                },
+              },
+              orderBy: { createdAt: 'asc' },
+            },
+          },
+        })
+      } else {
+        throw fetchError
+      }
+    }
 
     if (!ticket) {
       return NextResponse.json({ error: 'Ticket not found' }, { status: 404 })
