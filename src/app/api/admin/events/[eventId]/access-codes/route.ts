@@ -3,6 +3,21 @@ import { clerkClient } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { verifyEventAccess } from '@/lib/api-auth'
 
+// Type for group registration with selected fields
+interface GroupRegistrationSelect {
+  id: string
+  accessCode: string
+  groupName: string
+  parishName: string | null
+  groupLeaderName: string
+  groupLeaderEmail: string
+  groupLeaderPhone: string | null
+  clerkUserId: string | null
+  dashboardLastAccessedAt: Date | null
+  registeredAt: Date
+  totalParticipants: number
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
@@ -75,7 +90,7 @@ export async function GET(
     })
 
     // Fetch Clerk user emails for linked accounts
-    const clerkUserIds = registrations
+    const clerkUserIds: string[] = (registrations as GroupRegistrationSelect[])
       .filter((r) => r.clerkUserId)
       .map((r) => r.clerkUserId as string)
 
@@ -85,7 +100,7 @@ export async function GET(
       try {
         const client = await clerkClient()
         // Fetch users individually (batch API requires different approach)
-        const uniqueIds = [...new Set(clerkUserIds)]
+        const uniqueIds: string[] = [...new Set(clerkUserIds)]
         for (const userId of uniqueIds) {
           try {
             const clerkUser = await client.users.getUser(userId)
@@ -105,7 +120,7 @@ export async function GET(
     }
 
     // Build response with linked account info
-    const accessCodes = registrations.map((reg) => ({
+    const accessCodes = (registrations as GroupRegistrationSelect[]).map((reg) => ({
       id: reg.id,
       accessCode: reg.accessCode,
       groupName: reg.groupName,
@@ -134,8 +149,8 @@ export async function GET(
 
     const stats = {
       total: allForStats.length,
-      linked: allForStats.filter((r) => r.clerkUserId).length,
-      unlinked: allForStats.filter((r) => !r.clerkUserId).length,
+      linked: allForStats.filter((r: { clerkUserId: string | null }) => r.clerkUserId).length,
+      unlinked: allForStats.filter((r: { clerkUserId: string | null }) => !r.clerkUserId).length,
     }
 
     return NextResponse.json({

@@ -165,9 +165,10 @@ export default function EditEventPage() {
     try {
       const token = await getToken()
 
-      // Fetch event data
+      // Fetch event data with cache-busting to ensure fresh data
       const response = await fetch(`/api/admin/events/${eventId}`, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        cache: 'no-store',
       })
 
       if (response.status === 404) {

@@ -16,6 +16,10 @@ interface EventData {
     onCampusYouthPrice?: number
     offCampusYouthPrice?: number
     dayPassYouthPrice?: number
+    // Early bird pricing
+    earlyBirdDeadline?: string
+    individualEarlyBirdPrice?: number
+    individualBasePrice?: number
   }
   settings: {
     registrationInstructions: string | null
@@ -157,22 +161,29 @@ export default function IndividualInvoiceReviewPage() {
     }
   }, [event, eventId, registrationData.couponCode, registrationData.email])
 
-  // Calculate pricing based on housing type
+  // Calculate pricing based on housing type and early bird
   const calculatePricing = () => {
-    if (!event) return { subtotal: 0, couponDiscount: 0, total: 0 }
+    if (!event) return { subtotal: 0, couponDiscount: 0, total: 0, isEarlyBird: false }
 
     const { pricing } = event
 
-    // Default to youth regular price
-    let subtotal = pricing.youthRegularPrice
+    // Check for early bird pricing
+    const now = new Date()
+    const earlyBirdDeadline = pricing.earlyBirdDeadline ? new Date(pricing.earlyBirdDeadline) : null
+    const isEarlyBird = earlyBirdDeadline && now <= earlyBirdDeadline
 
-    // Adjust based on housing type
+    // Determine base price - use individual early bird price if applicable, with fallback
+    let subtotal = isEarlyBird
+      ? Number(pricing.individualEarlyBirdPrice || pricing.individualBasePrice || pricing.youthRegularPrice)
+      : Number(pricing.individualBasePrice || pricing.youthRegularPrice)
+
+    // Adjust based on housing type (housing-specific pricing overrides early bird)
     if (registrationData.housingType === 'on_campus' && pricing.onCampusYouthPrice) {
-      subtotal = pricing.onCampusYouthPrice
+      subtotal = Number(pricing.onCampusYouthPrice)
     } else if (registrationData.housingType === 'off_campus' && pricing.offCampusYouthPrice) {
-      subtotal = pricing.offCampusYouthPrice
+      subtotal = Number(pricing.offCampusYouthPrice)
     } else if (registrationData.housingType === 'day_pass' && pricing.dayPassYouthPrice) {
-      subtotal = pricing.dayPassYouthPrice
+      subtotal = Number(pricing.dayPassYouthPrice)
     }
 
     // Calculate coupon discount
@@ -187,7 +198,7 @@ export default function IndividualInvoiceReviewPage() {
 
     const total = Math.max(0, subtotal - couponDiscount)
 
-    return { subtotal, couponDiscount, total }
+    return { subtotal, couponDiscount, total, isEarlyBird }
   }
 
   const pricing = calculatePricing()

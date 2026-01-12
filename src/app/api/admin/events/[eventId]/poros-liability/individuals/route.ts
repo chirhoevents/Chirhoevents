@@ -53,7 +53,7 @@ export async function GET(
     })
 
     // Transform data for the frontend
-    const result = individuals.map((individual) => {
+    const result = individuals.map((individual: any) => {
       const form = individual.liabilityForms[0]
 
       let formStatus: string

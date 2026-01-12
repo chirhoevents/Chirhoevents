@@ -183,7 +183,10 @@ export default function InvoiceReviewPage() {
     const isEarlyBird = earlyBirdDeadline && now <= earlyBirdDeadline
 
     // Determine youth price - housing-specific pricing overrides early bird
-    let youthPrice = isEarlyBird ? Number(event.pricing.youthEarlyBirdPrice) : Number(event.pricing.youthRegularPrice)
+    // Use fallback to regular price if early bird price is not set
+    let youthPrice = isEarlyBird
+      ? Number(event.pricing.youthEarlyBirdPrice || event.pricing.youthRegularPrice)
+      : Number(event.pricing.youthRegularPrice)
     if (registrationData.housingType === 'on_campus' && event.pricing.onCampusYouthPrice) {
       youthPrice = Number(event.pricing.onCampusYouthPrice)
     } else if (registrationData.housingType === 'off_campus' && event.pricing.offCampusYouthPrice) {
@@ -193,7 +196,10 @@ export default function InvoiceReviewPage() {
     }
 
     // Determine chaperone price - housing-specific pricing overrides early bird
-    let chaperonePrice = isEarlyBird ? Number(event.pricing.chaperoneEarlyBirdPrice) : Number(event.pricing.chaperoneRegularPrice)
+    // Use fallback to regular price if early bird price is not set
+    let chaperonePrice = isEarlyBird
+      ? Number(event.pricing.chaperoneEarlyBirdPrice || event.pricing.chaperoneRegularPrice)
+      : Number(event.pricing.chaperoneRegularPrice)
     if (registrationData.housingType === 'on_campus' && event.pricing.onCampusChaperonePrice) {
       chaperonePrice = Number(event.pricing.onCampusChaperonePrice)
     } else if (registrationData.housingType === 'off_campus' && event.pricing.offCampusChaperonePrice) {

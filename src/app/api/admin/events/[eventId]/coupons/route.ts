@@ -26,7 +26,7 @@ export async function GET(
     })
 
     // Convert Decimal to number for JSON serialization
-    const serializedCoupons = coupons.map((coupon) => ({
+    const serializedCoupons = coupons.map((coupon: { discountValue: unknown; [key: string]: unknown }) => ({
       ...coupon,
       discountValue: Number(coupon.discountValue),
     }))
