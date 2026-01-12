@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams, useRouter } from 'next/navigation'
 import {
   Ticket,
   Plus,
@@ -80,6 +80,8 @@ const categories = [
 
 export default function SupportPage() {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const [tickets, setTickets] = useState<SupportTicket[]>([])
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
@@ -88,6 +90,7 @@ export default function SupportPage() {
   const [copiedOrgId, setCopiedOrgId] = useState(false)
   const [copiedEventId, setCopiedEventId] = useState(false)
   const [organizationId, setOrganizationId] = useState<string | null>(null)
+  const [referrerUrl, setReferrerUrl] = useState<string | null>(null)
 
   // New ticket form state
   const [subject, setSubject] = useState('')
@@ -100,14 +103,33 @@ export default function SupportPage() {
   useEffect(() => {
     fetchTickets()
     fetchEvents()
+
+    // Capture the referrer URL (the page user was on before clicking "+")
+    if (typeof document !== 'undefined' && document.referrer) {
+      const ref = document.referrer
+      // Only capture if it's from the same origin and not the support page itself
+      if (ref.includes(window.location.origin) && !ref.includes('/support')) {
+        setReferrerUrl(ref)
+      }
+    }
   }, [])
+
+  // Auto-open modal if ?new=true is in URL (from the "+" button)
+  useEffect(() => {
+    if (searchParams.get('new') === 'true') {
+      setShowNewTicket(true)
+      // Clean up the URL
+      router.replace('/dashboard/admin/support', { scroll: false })
+    }
+  }, [searchParams, router])
 
   // Capture current URL when modal opens
   useEffect(() => {
     if (showNewTicket && typeof window !== 'undefined') {
-      setIssueUrl(window.location.href)
+      // Use the referrer URL if we came from the "+" button, otherwise use current URL
+      setIssueUrl(referrerUrl || window.location.href)
     }
-  }, [showNewTicket])
+  }, [showNewTicket, referrerUrl])
 
   const fetchTickets = async () => {
     try {
@@ -254,6 +276,25 @@ export default function SupportPage() {
           <Plus className="h-5 w-5" />
           New Ticket
         </button>
+      </div>
+
+      {/* Quick Tip */}
+      <div className="bg-[#F5F1E8] border border-[#9C8466]/30 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <div className="bg-[#1E3A5F] rounded-lg p-2 mt-0.5">
+            <Plus className="h-4 w-4 text-white" />
+          </div>
+          <div>
+            <h3 className="font-medium text-[#1E3A5F]">Quick Tip: Need help on a specific page?</h3>
+            <p className="text-sm text-gray-600 mt-1">
+              Click the <strong>+</strong> button in the top-right corner from anywhere in your dashboard to open a support ticket.
+              This automatically captures which page you were on, making it easier for us to help you!
+            </p>
+            <p className="text-sm text-gray-500 mt-2">
+              For general questions, you can create a ticket directly from this page.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Stats */}
