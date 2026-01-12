@@ -101,7 +101,6 @@ const DATA_SOURCES: Record<string, { label: string; description: string; fields:
       { value: 'liabilityForm.emergencyContact1Name', label: 'Emergency Contact Name', category: 'Emergency' },
       { value: 'liabilityForm.emergencyContact1Phone', label: 'Emergency Contact Phone', category: 'Emergency' },
       { value: 'liabilityForm.emergencyContact1Relation', label: 'Emergency Contact Relation', category: 'Emergency' },
-      { value: 'liabilityForm.status', label: 'Liability Form Status', category: 'Forms' },
       { value: 'roomAssignment', label: 'Room Assignment', category: 'Housing' },
       { value: 'smallGroup', label: 'Small Group', category: 'Groups' },
       { value: 'mealGroup', label: 'Meal Group', category: 'Groups' },
@@ -357,10 +356,10 @@ const FILTER_OPTIONS: Record<string, { value: string; label: string; type: 'sele
       { value: 'true', label: 'Checked In' },
       { value: 'false', label: 'Not Checked In' },
     ]},
-    { value: 'liabilityFormStatus', label: 'Liability Form Status', type: 'select', options: [
+    { value: 'liabilityFormStatus', label: 'Liability Form', type: 'select', options: [
       { value: 'all', label: 'All' },
-      { value: 'completed', label: 'Completed' },
-      { value: 'pending', label: 'Pending' },
+      { value: 'completed', label: 'Has Form' },
+      { value: 'pending', label: 'Missing Form' },
     ]},
     { value: 'hasMedicalNeeds', label: 'Has Medical Needs', type: 'boolean' },
     { value: 'minAge', label: 'Minimum Age', type: 'text' },

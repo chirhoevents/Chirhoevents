@@ -229,7 +229,6 @@ async function executeParticipantsReport(eventId: string, config: any) {
           emergencyContact1Name: true,
           emergencyContact1Phone: true,
           emergencyContact1Relation: true,
-          status: true,
         },
         take: 1,
       },
@@ -269,12 +268,12 @@ async function executeParticipantsReport(eventId: string, config: any) {
     )
   }
 
-  // Filter by liability form status
+  // Filter by liability form status (checks if form exists)
   if (config.filters?.liabilityFormStatus && config.filters.liabilityFormStatus !== 'all') {
     if (config.filters.liabilityFormStatus === 'completed') {
-      results = results.filter(p => p.liabilityForm?.status === 'completed')
+      results = results.filter(p => p.liabilityForm !== null)
     } else {
-      results = results.filter(p => !p.liabilityForm || p.liabilityForm.status !== 'completed')
+      results = results.filter(p => !p.liabilityForm)
     }
   }
 
