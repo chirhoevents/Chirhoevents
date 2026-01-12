@@ -15,6 +15,7 @@ interface CreateEventClientProps {
   eventId?: string
   initialData?: Partial<EventFormData>
   isEditMode?: boolean
+  hasRegistrations?: boolean
 }
 
 interface EventFormData {
@@ -172,6 +173,7 @@ export default function CreateEventClient({
   eventId,
   initialData,
   isEditMode = false,
+  hasRegistrations = false,
 }: CreateEventClientProps) {
   const router = useRouter()
   const { getToken } = useAuth()
@@ -499,13 +501,24 @@ export default function CreateEventClient({
             <>
               <div className="space-y-4">
                 {/* Registration Type - FIRST QUESTION */}
-                <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
-                  <h3 className="font-semibold text-blue-900 mb-3">
+                <div className={`p-4 rounded-lg border-2 ${hasRegistrations ? 'bg-gray-100 border-gray-300' : 'bg-blue-50 border-blue-200'}`}>
+                  <h3 className={`font-semibold mb-3 ${hasRegistrations ? 'text-gray-700' : 'text-blue-900'}`}>
                     📝 Registration Type <span className="text-red-500">*</span>
                   </h3>
-                  <p className="text-sm text-blue-800 mb-4">
-                    Choose ONE registration type for this event (you cannot enable both)
-                  </p>
+                  {hasRegistrations ? (
+                    <div className="bg-amber-100 border border-amber-300 p-3 rounded-lg mb-4">
+                      <p className="text-amber-800 text-sm font-medium">
+                        🔒 Registration type is locked because this event has registrations.
+                      </p>
+                      <p className="text-amber-700 text-xs mt-1">
+                        Changing the registration type would cause data inconsistencies.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-blue-800 mb-4">
+                      Choose ONE registration type for this event (you cannot enable both)
+                    </p>
+                  )}
                   <div className="space-y-4">
                     <div className="flex items-start space-x-3">
                       <input
@@ -513,13 +526,14 @@ export default function CreateEventClient({
                         id="registrationType-group"
                         name="registrationType"
                         checked={formData.groupRegistrationEnabled && !formData.individualRegistrationEnabled}
+                        disabled={hasRegistrations}
                         onChange={() =>
                           updateFormData({
                             groupRegistrationEnabled: true,
                             individualRegistrationEnabled: false,
                           })
                         }
-                        className="w-4 h-4 mt-1 text-[#1E3A5F] border-gray-300"
+                        className={`w-4 h-4 mt-1 border-gray-300 ${hasRegistrations ? 'text-gray-400 cursor-not-allowed' : 'text-[#1E3A5F]'}`}
                       />
                       <div className="flex-1">
                         <Label
@@ -540,13 +554,14 @@ export default function CreateEventClient({
                         id="registrationType-individual"
                         name="registrationType"
                         checked={!formData.groupRegistrationEnabled && formData.individualRegistrationEnabled}
+                        disabled={hasRegistrations}
                         onChange={() =>
                           updateFormData({
                             groupRegistrationEnabled: false,
                             individualRegistrationEnabled: true,
                           })
                         }
-                        className="w-4 h-4 mt-1 text-[#1E3A5F] border-gray-300"
+                        className={`w-4 h-4 mt-1 border-gray-300 ${hasRegistrations ? 'text-gray-400 cursor-not-allowed' : 'text-[#1E3A5F]'}`}
                       />
                       <div className="flex-1">
                         <Label

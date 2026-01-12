@@ -140,6 +140,7 @@ export default function EditEventPage() {
   const { getToken } = useAuth()
   const [formData, setFormData] = useState<FormData | null>(null)
   const [organizationId, setOrganizationId] = useState<string>('')
+  const [hasRegistrations, setHasRegistrations] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -174,6 +175,12 @@ export default function EditEventPage() {
 
       const data = await response.json()
       const event = data.event
+      const stats = data.stats
+
+      // Check if event has registrations (to lock registration type)
+      if (stats && stats.totalRegistrations > 0) {
+        setHasRegistrations(true)
+      }
 
       // Also fetch org info for organizationId
       const accessResponse = await fetch('/api/admin/check-access', {
@@ -397,6 +404,7 @@ export default function EditEventPage() {
         eventId={eventId}
         initialData={formData}
         isEditMode={true}
+        hasRegistrations={hasRegistrations}
       />
     </div>
   )
