@@ -1,6 +1,6 @@
 {
-  "name": "Poros Portal",
-  "short_name": "Poros",
+  "name": "ChiRho Poros Portal",
+  "short_name": "ChiRho",
   "description": "Event resources, schedules, and meal times",
   "start_url": "/poros/public",
   "display": "standalone",
