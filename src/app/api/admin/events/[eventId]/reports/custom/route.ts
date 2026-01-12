@@ -250,7 +250,7 @@ async function executeParticipantsReport(eventId: string, config: any) {
 
   // Filter by medical needs
   if (config.filters?.hasMedicalNeeds) {
-    results = results.filter((p: { liabilityForm: { allergies?: string; medications?: string; medicalConditions?: string } | null }) =>
+    results = results.filter((p: { liabilityForm: { allergies?: string | null; medications?: string | null; medicalConditions?: string | null } | null }) =>
       p.liabilityForm?.allergies ||
       p.liabilityForm?.medications ||
       p.liabilityForm?.medicalConditions
