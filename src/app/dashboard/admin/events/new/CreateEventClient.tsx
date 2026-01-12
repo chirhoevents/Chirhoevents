@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
 import { Button } from '@/components/ui/button'
@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Check, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Loader2, Upload, Trash2, Image as ImageIcon } from 'lucide-react'
 
 interface CreateEventClientProps {
   organizationId: string
@@ -179,6 +179,10 @@ export default function CreateEventClient({
   const { getToken } = useAuth()
   const [currentStep, setCurrentStep] = useState(1)
   const [saving, setSaving] = useState(false)
+  const [backgroundFile, setBackgroundFile] = useState<File | null>(null)
+  const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null)
+  const [uploadingBackground, setUploadingBackground] = useState(false)
+  const backgroundInputRef = useRef<HTMLInputElement>(null)
 
   // Use initialData if provided (edit mode), otherwise use defaults
   const defaultFormData: EventFormData = {
@@ -357,6 +361,111 @@ export default function CreateEventClient({
     }
   }
 
+  // Handle background image file selection
+  const handleBackgroundSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    const validTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
+    if (!validTypes.includes(file.type)) {
+      alert('Invalid file type. Please upload PNG, JPEG, GIF, or WebP.')
+      return
+    }
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB')
+      return
+    }
+
+    setBackgroundFile(file)
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file)
+    setBackgroundPreview(previewUrl)
+  }
+
+  // Upload background image to server
+  const uploadBackgroundImage = async (targetEventId: string): Promise<string | null> => {
+    if (!backgroundFile) return null
+
+    const token = await getToken()
+    const formData = new FormData()
+    formData.append('file', backgroundFile)
+
+    const response = await fetch(`/api/admin/events/${targetEventId}/background`, {
+      method: 'POST',
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const data = await response.json()
+      throw new Error(data.error || 'Failed to upload background image')
+    }
+
+    const data = await response.json()
+    return data.backgroundImageUrl
+  }
+
+  // Delete background image
+  const handleDeleteBackground = async () => {
+    if (backgroundFile) {
+      // Just clear the local file, nothing uploaded yet
+      setBackgroundFile(null)
+      setBackgroundPreview(null)
+      if (backgroundInputRef.current) {
+        backgroundInputRef.current.value = ''
+      }
+      return
+    }
+
+    if (!isEditMode || !eventId) return
+
+    if (!confirm('Are you sure you want to remove the background image?')) return
+
+    setUploadingBackground(true)
+    try {
+      const token = await getToken()
+      const response = await fetch(`/api/admin/events/${eventId}/background`, {
+        method: 'DELETE',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
+
+      if (!response.ok) throw new Error('Failed to delete background')
+
+      updateFormData({ backgroundImageUrl: '' })
+      setBackgroundPreview(null)
+    } catch (err) {
+      console.error('Error deleting background:', err)
+      alert('Failed to delete background image')
+    } finally {
+      setUploadingBackground(false)
+    }
+  }
+
+  // Upload background immediately in edit mode
+  const handleBackgroundUpload = async () => {
+    if (!backgroundFile || !isEditMode || !eventId) return
+
+    setUploadingBackground(true)
+    try {
+      const newUrl = await uploadBackgroundImage(eventId)
+      if (newUrl) {
+        updateFormData({ backgroundImageUrl: newUrl })
+        setBackgroundFile(null)
+        if (backgroundInputRef.current) {
+          backgroundInputRef.current.value = ''
+        }
+      }
+    } catch (err) {
+      console.error('Error uploading background:', err)
+      alert(err instanceof Error ? err.message : 'Failed to upload background')
+    } finally {
+      setUploadingBackground(false)
+    }
+  }
+
   const handleSaveDraft = async () => {
     setSaving(true)
     try {
@@ -385,6 +494,16 @@ export default function CreateEventClient({
       }
 
       const { event } = await response.json()
+
+      // Upload background image if one was selected (for new events)
+      if (backgroundFile && !isEditMode) {
+        try {
+          await uploadBackgroundImage(event.id)
+        } catch (err) {
+          console.error('Failed to upload background, but event was saved:', err)
+        }
+      }
+
       // Redirect to event detail page
       router.push(`/dashboard/admin/events/${event.id}`)
     } catch (error) {
@@ -423,6 +542,16 @@ export default function CreateEventClient({
       }
 
       const { event } = await response.json()
+
+      // Upload background image if one was selected (for new events)
+      if (backgroundFile && !isEditMode) {
+        try {
+          await uploadBackgroundImage(event.id)
+        } catch (err) {
+          console.error('Failed to upload background, but event was saved:', err)
+        }
+      }
+
       // Redirect to event detail page
       router.push(`/dashboard/admin/events/${event.id}`)
     } catch (error) {
@@ -2739,30 +2868,122 @@ export default function CreateEventClient({
                     🎨 Theme Customization
                   </h3>
                   <p className="text-sm text-purple-800 mb-4">
-                    Customize the look and feel of your event landing page
+                    Customize the look and feel of your event landing page. Upload a background image or use a gradient based on your colors.
                   </p>
 
                   <div className="space-y-4">
-                    {/* Background Image */}
+                    {/* Background Image Upload */}
                     <div>
-                      <Label htmlFor="backgroundImageUrl">
-                        Background Image URL
-                      </Label>
-                      <Input
-                        id="backgroundImageUrl"
-                        type="url"
-                        value={formData.backgroundImageUrl}
-                        onChange={(e) =>
-                          updateFormData({
-                            backgroundImageUrl: e.target.value,
-                          })
-                        }
-                        placeholder="https://example.com/image.jpg"
-                        className="mt-1"
-                      />
-                      <p className="text-sm text-gray-500 mt-1">
-                        Enter the URL of your hero background image (recommended: 1920x1080px)
+                      <Label>Background Image (Optional)</Label>
+                      <p className="text-sm text-gray-500 mb-3">
+                        Upload an image for your hero section. If no image is uploaded, a gradient using your colors will be displayed.
                       </p>
+
+                      <div className="flex items-start gap-6">
+                        {/* Preview */}
+                        <div className="flex-shrink-0">
+                          {(backgroundPreview || formData.backgroundImageUrl) ? (
+                            <div className="relative">
+                              <img
+                                src={backgroundPreview || formData.backgroundImageUrl}
+                                alt="Background Preview"
+                                className="w-40 h-24 rounded-lg border border-gray-200 object-cover"
+                              />
+                              <div
+                                className="absolute inset-0 rounded-lg"
+                                style={{
+                                  backgroundColor: formData.overlayColor,
+                                  opacity: parseInt(formData.overlayOpacity) / 100,
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div
+                              className="w-40 h-24 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center"
+                              style={{
+                                background: `linear-gradient(135deg, ${formData.primaryColor} 0%, ${formData.secondaryColor} 100%)`,
+                              }}
+                            >
+                              <span className="text-white text-xs font-medium">Gradient Preview</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Upload Controls */}
+                        <div className="space-y-3">
+                          <input
+                            ref={backgroundInputRef}
+                            type="file"
+                            accept="image/png,image/jpeg,image/gif,image/webp"
+                            onChange={handleBackgroundSelect}
+                            className="hidden"
+                          />
+
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => backgroundInputRef.current?.click()}
+                              disabled={uploadingBackground}
+                              className="border-purple-400 text-purple-700 hover:bg-purple-100"
+                            >
+                              {uploadingBackground ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  Uploading...
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="h-4 w-4 mr-2" />
+                                  {(backgroundPreview || formData.backgroundImageUrl) ? 'Change Image' : 'Upload Image'}
+                                </>
+                              )}
+                            </Button>
+
+                            {/* Show upload button in edit mode if file selected */}
+                            {isEditMode && backgroundFile && (
+                              <Button
+                                type="button"
+                                onClick={handleBackgroundUpload}
+                                disabled={uploadingBackground}
+                                className="bg-purple-600 hover:bg-purple-700 text-white"
+                              >
+                                {uploadingBackground ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Saving...
+                                  </>
+                                ) : (
+                                  'Save Image'
+                                )}
+                              </Button>
+                            )}
+
+                            {(backgroundPreview || formData.backgroundImageUrl) && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleDeleteBackground}
+                                disabled={uploadingBackground}
+                                className="border-red-300 text-red-600 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Remove
+                              </Button>
+                            )}
+                          </div>
+
+                          <p className="text-xs text-gray-500">
+                            PNG, JPEG, GIF, or WebP. Max 5MB. Recommended: 1920x1080px
+                          </p>
+
+                          {backgroundFile && !isEditMode && (
+                            <p className="text-xs text-amber-600">
+                              Image will be uploaded when you save the event.
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     {/* Color Pickers */}
