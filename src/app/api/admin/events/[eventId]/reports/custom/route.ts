@@ -213,8 +213,6 @@ async function executeParticipantsReport(eventId: string, config: any) {
           groupName: true,
           parishName: true,
           dioceseName: true,
-          city: true,
-          state: true,
           groupLeaderName: true,
           groupLeaderEmail: true,
           groupLeaderPhone: true,
