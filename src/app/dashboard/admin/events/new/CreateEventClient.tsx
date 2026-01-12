@@ -502,13 +502,18 @@ export default function CreateEventClient({
   }
 
   const handleSaveDraft = async () => {
+    console.log('[SaveDraft] Starting save...', { isEditMode, eventId, organizationId })
     setSaving(true)
     try {
       const token = await getToken()
+      console.log('[SaveDraft] Got token:', !!token)
+
       const url = isEditMode
         ? `/api/admin/events/${eventId}`
         : '/api/admin/events/create'
       const method = isEditMode ? 'PUT' : 'POST'
+
+      console.log('[SaveDraft] Making request:', { url, method })
 
       const response = await fetch(url, {
         method,
@@ -523,12 +528,24 @@ export default function CreateEventClient({
         }),
       })
 
+      console.log('[SaveDraft] Response:', response.status, response.statusText)
+
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to save draft')
+        const errorText = await response.text()
+        console.error('[SaveDraft] Error response:', errorText)
+        let errorMessage = 'Failed to save draft'
+        try {
+          const errorData = JSON.parse(errorText)
+          errorMessage = errorData.error || errorMessage
+        } catch {
+          errorMessage = errorText || errorMessage
+        }
+        throw new Error(errorMessage)
       }
 
-      const { event } = await response.json()
+      const data = await response.json()
+      console.log('[SaveDraft] Success:', data)
+      const { event } = data
 
       // Upload background image if one was selected (for new events)
       if (backgroundFile && !isEditMode) {
@@ -542,7 +559,7 @@ export default function CreateEventClient({
       // Redirect to event detail page
       router.push(`/dashboard/admin/events/${event.id}`)
     } catch (error) {
-      console.error('Error saving draft:', error)
+      console.error('[SaveDraft] Error:', error)
       alert(error instanceof Error ? error.message : 'Failed to save draft. Please try again.')
     } finally {
       setSaving(false)
@@ -550,13 +567,18 @@ export default function CreateEventClient({
   }
 
   const handlePublish = async () => {
+    console.log('[Publish] Starting publish...', { isEditMode, eventId, organizationId })
     setSaving(true)
     try {
       const token = await getToken()
+      console.log('[Publish] Got token:', !!token)
+
       const url = isEditMode
         ? `/api/admin/events/${eventId}`
         : '/api/admin/events/create'
       const method = isEditMode ? 'PUT' : 'POST'
+
+      console.log('[Publish] Making request:', { url, method })
 
       const response = await fetch(url, {
         method,
@@ -571,12 +593,24 @@ export default function CreateEventClient({
         }),
       })
 
+      console.log('[Publish] Response:', response.status, response.statusText)
+
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to publish event')
+        const errorText = await response.text()
+        console.error('[Publish] Error response:', errorText)
+        let errorMessage = 'Failed to publish event'
+        try {
+          const errorData = JSON.parse(errorText)
+          errorMessage = errorData.error || errorMessage
+        } catch {
+          errorMessage = errorText || errorMessage
+        }
+        throw new Error(errorMessage)
       }
 
-      const { event } = await response.json()
+      const data = await response.json()
+      console.log('[Publish] Success:', data)
+      const { event } = data
 
       // Upload background image if one was selected (for new events)
       if (backgroundFile && !isEditMode) {
@@ -590,7 +624,7 @@ export default function CreateEventClient({
       // Redirect to event detail page
       router.push(`/dashboard/admin/events/${event.id}`)
     } catch (error) {
-      console.error('Error publishing event:', error)
+      console.error('[Publish] Error:', error)
       alert(error instanceof Error ? error.message : 'Failed to publish event. Please try again.')
     } finally {
       setSaving(false)
