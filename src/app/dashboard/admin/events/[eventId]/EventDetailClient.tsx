@@ -82,13 +82,21 @@ export default function EventDetailClient({
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('overview')
   const [updatingStatus, setUpdatingStatus] = useState(false)
+  const [currentStatus, setCurrentStatus] = useState(event.status)
   const [waitlistEnabled, setWaitlistEnabled] = useState(settings?.waitlistEnabled ?? false)
   const [closedMessage, setClosedMessage] = useState(settings?.registrationClosedMessage ?? '')
   const [savingSettings, setSavingSettings] = useState(false)
   const [reminderModalOpen, setReminderModalOpen] = useState(false)
 
+  // Derived state for toggles
+  const isPublished = currentStatus !== 'draft'
+  const isRegistrationOpen = currentStatus === 'registration_open'
+
   const handleStatusUpdate = async (newStatus: string) => {
     if (updatingStatus) return
+
+    const previousStatus = currentStatus
+    setCurrentStatus(newStatus) // Optimistic update
 
     try {
       setUpdatingStatus(true)
@@ -105,9 +113,32 @@ export default function EventDetailClient({
       router.refresh()
     } catch (error) {
       console.error('Error updating event status:', error)
+      setCurrentStatus(previousStatus) // Revert on error
       alert('Failed to update event status. Please try again.')
     } finally {
       setUpdatingStatus(false)
+    }
+  }
+
+  // Handle publish toggle - only controls visibility, preserves registration state
+  const handlePublishToggle = (checked: boolean) => {
+    if (checked) {
+      // Publishing: set to 'published' (visible but registration closed)
+      handleStatusUpdate('published')
+    } else {
+      // Unpublishing: set to 'draft' (hidden)
+      handleStatusUpdate('draft')
+    }
+  }
+
+  // Handle registration toggle - only controls registration, preserves visibility
+  const handleRegistrationToggle = (checked: boolean) => {
+    if (checked) {
+      // Opening registration
+      handleStatusUpdate('registration_open')
+    } else {
+      // Closing registration: if currently open, close it but keep published
+      handleStatusUpdate('registration_closed')
     }
   }
 
@@ -159,6 +190,28 @@ export default function EventDetailClient({
     )
   }
 
+  // Helper to get status description
+  const getStatusDescription = (status: string) => {
+    switch (status) {
+      case 'draft':
+        return 'This event is in draft mode and not visible to the public.'
+      case 'published':
+        return 'This event is published and visible to the public, but registration is not yet open.'
+      case 'registration_open':
+        return 'This event is live! Registration is open and participants can sign up.'
+      case 'registration_closed':
+        return 'This event is visible but registration is currently closed.'
+      case 'in_progress':
+        return 'This event is currently in progress.'
+      case 'completed':
+        return 'This event has been completed.'
+      case 'cancelled':
+        return 'This event has been cancelled.'
+      default:
+        return ''
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -167,7 +220,7 @@ export default function EventDetailClient({
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-2xl font-bold text-[#1E3A5F]">{event.name}</h1>
-              {getStatusBadge(event.status)}
+              {getStatusBadge(currentStatus)}
             </div>
             <div className="flex items-center gap-4 text-sm text-[#6B7280]">
               <div className="flex items-center gap-1">
@@ -721,18 +774,12 @@ export default function EventDetailClient({
                 <CardTitle className="text-lg text-[#1E3A5F]">
                   Current Status
                 </CardTitle>
-                {getStatusBadge(event.status)}
+                {getStatusBadge(currentStatus)}
               </div>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-[#6B7280]">
-                {event.status === 'draft' && 'This event is in draft mode and not visible to the public.'}
-                {event.status === 'published' && 'This event is published and visible to the public, but registration is not yet open.'}
-                {event.status === 'registration_open' && 'This event is live! Registration is open and participants can sign up.'}
-                {event.status === 'registration_closed' && 'This event is visible but registration is currently closed.'}
-                {event.status === 'in_progress' && 'This event is currently in progress.'}
-                {event.status === 'completed' && 'This event has been completed.'}
-                {event.status === 'cancelled' && 'This event has been cancelled.'}
+                {getStatusDescription(currentStatus)}
               </p>
             </CardContent>
           </Card>
@@ -749,33 +796,27 @@ export default function EventDetailClient({
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">
-                    {event.status === 'draft' ? (
-                      <EyeOff className="h-5 w-5 text-gray-500" />
-                    ) : (
+                    {isPublished ? (
                       <Eye className="h-5 w-5 text-green-600" />
+                    ) : (
+                      <EyeOff className="h-5 w-5 text-gray-500" />
                     )}
                     <div>
                       <p className="font-medium text-[#1E3A5F]">
-                        {event.status === 'draft' ? 'Unpublished' : 'Published'}
+                        {isPublished ? 'Published' : 'Unpublished'}
                       </p>
                       <p className="text-xs text-[#6B7280]">
-                        {event.status === 'draft'
-                          ? 'Not visible on public events page'
-                          : 'Visible on public events page'}
+                        {isPublished
+                          ? 'Visible on public events page'
+                          : 'Not visible on public events page'}
                       </p>
                     </div>
                   </div>
                   <Switch
                     id="publish-toggle"
-                    checked={event.status !== 'draft'}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        handleStatusUpdate('published')
-                      } else {
-                        handleStatusUpdate('draft')
-                      }
-                    }}
-                    disabled={updatingStatus || event.status === 'completed' || event.status === 'cancelled'}
+                    checked={isPublished}
+                    onCheckedChange={handlePublishToggle}
+                    disabled={updatingStatus || currentStatus === 'completed' || currentStatus === 'cancelled'}
                   />
                 </div>
                 <p className="text-xs text-[#6B7280]">
@@ -795,17 +836,17 @@ export default function EventDetailClient({
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">
-                    {event.status === 'registration_open' ? (
+                    {isRegistrationOpen ? (
                       <CheckSquare className="h-5 w-5 text-green-600" />
                     ) : (
                       <Lock className="h-5 w-5 text-orange-500" />
                     )}
                     <div>
                       <p className="font-medium text-[#1E3A5F]">
-                        {event.status === 'registration_open' ? 'Registration Open' : 'Registration Closed'}
+                        {isRegistrationOpen ? 'Registration Open' : 'Registration Closed'}
                       </p>
                       <p className="text-xs text-[#6B7280]">
-                        {event.status === 'registration_open'
+                        {isRegistrationOpen
                           ? 'Participants can register for this event'
                           : 'New registrations are not accepted'}
                       </p>
@@ -813,18 +854,12 @@ export default function EventDetailClient({
                   </div>
                   <Switch
                     id="registration-toggle"
-                    checked={event.status === 'registration_open'}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        handleStatusUpdate('registration_open')
-                      } else {
-                        handleStatusUpdate('registration_closed')
-                      }
-                    }}
-                    disabled={updatingStatus || event.status === 'completed' || event.status === 'cancelled'}
+                    checked={isRegistrationOpen}
+                    onCheckedChange={handleRegistrationToggle}
+                    disabled={updatingStatus || currentStatus === 'completed' || currentStatus === 'cancelled'}
                   />
                 </div>
-                {event.status === 'draft' && (
+                {currentStatus === 'draft' && (
                   <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
                     <p className="text-xs text-blue-700">
