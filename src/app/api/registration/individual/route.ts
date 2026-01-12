@@ -99,19 +99,29 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Calculate price for individual registration based on housing type and add-ons
+    // Calculate price for individual registration based on housing type, early bird, and add-ons
     let totalAmount = 0
 
-    // Base price by housing type
+    // Check for early bird pricing
+    const now = new Date()
+    const earlyBirdDeadline = event.pricing.earlyBirdDeadline ? new Date(event.pricing.earlyBirdDeadline) : null
+    const isEarlyBird = earlyBirdDeadline && now <= earlyBirdDeadline
+
+    // Base price by housing type (with early bird support for default)
     if (housingType === 'on_campus' && event.pricing.individualBasePrice) {
-      totalAmount = Number(event.pricing.individualBasePrice)
+      // For on-campus, use individual base price (early bird is typically for base registration)
+      totalAmount = isEarlyBird
+        ? Number(event.pricing.individualEarlyBirdPrice || event.pricing.individualBasePrice)
+        : Number(event.pricing.individualBasePrice)
     } else if (housingType === 'off_campus' && event.pricing.individualOffCampusPrice) {
       totalAmount = Number(event.pricing.individualOffCampusPrice)
     } else if (housingType === 'day_pass' && event.pricing.individualDayPassPrice) {
       totalAmount = Number(event.pricing.individualDayPassPrice)
     } else {
-      // Fallback to individual base price or youth price
-      totalAmount = Number(event.pricing.individualBasePrice || event.pricing.youthRegularPrice)
+      // Fallback to early bird price if applicable, then individual base price or youth price
+      totalAmount = isEarlyBird
+        ? Number(event.pricing.individualEarlyBirdPrice || event.pricing.individualBasePrice || event.pricing.youthRegularPrice)
+        : Number(event.pricing.individualBasePrice || event.pricing.youthRegularPrice)
     }
 
     // Add room type pricing (for on-campus housing)
