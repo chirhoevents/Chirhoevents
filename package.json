@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "build": "prisma migrate deploy && next build",
     "build": "prisma db execute --file prisma/pre-push-cleanup.sql && prisma db push --accept-data-loss && next build",
     "build": "bash scripts/build.sh",
     "start": "next start",
