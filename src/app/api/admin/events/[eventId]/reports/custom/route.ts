@@ -797,12 +797,9 @@ async function executeTShirtsReport(eventId: string, config: any) {
     },
   })
 
-  // Get staff
+  // Get staff (tshirtSize is required on StaffRegistration, so no null filter needed)
   const staff = await prisma.staffRegistration.findMany({
-    where: {
-      eventId,
-      tshirtSize: { not: null },
-    },
+    where: { eventId },
     select: {
       firstName: true,
       lastName: true,
