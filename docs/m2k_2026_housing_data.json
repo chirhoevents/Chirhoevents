@@ -18,9 +18,9 @@
       "id": "2",
       "parish": "Archbishop Curley High School - Baltimore",
       "leader": "Christopher  Dudek",
-      "seminarianSgl": "",
-      "religious": "",
-      "phone": "",
+      "seminarianSgl": "Kaz",
+      "religious": "Father Test",
+      "phone": "405901278",
       "maleTeens": 12,
       "femaleTeens": 0,
       "maleChaperones": 1,
@@ -214,9 +214,9 @@
       "id": "16",
       "parish": "Pastorate of St. John and St. Joseph - Frederick",
       "leader": "Megan  McQuin",
-      "seminarianSgl": "",
-      "religious": "",
-      "phone": "",
+      "seminarianSgl": "test",
+      "religious": "sister test",
+      "phone": "4059001278",
       "maleTeens": 4,
       "femaleTeens": 5,
       "maleChaperones": 2,
@@ -1397,6 +1397,9 @@
       "15": [
         "Off Campus-Male"
       ],
+      "16": [
+        "Knott Academic Center-224"
+      ],
       "17": [
         "Off Campus-Male"
       ],
@@ -1475,6 +1478,10 @@
         "Off Campus-Female"
       ],
       "15": [
+        "Off Campus-Female"
+      ],
+      "16": [
+        "ARCC-GYM FLOOR",
         "Off Campus-Female"
       ],
       "17": [
@@ -2877,8 +2884,28 @@
       "entityType": "meal-color",
       "entityId": "3",
       "details": "Assigned Orange meal color to Ascension Catholic Teens - BOWIE"
+    },
+    {
+      "id": "1768249440859_7t0m2c81d",
+      "timestamp": "2026-01-12T20:24:00.859Z",
+      "username": "juang",
+      "fullName": "Mr. Juan Galindo",
+      "action": "update",
+      "entityType": "youth-group",
+      "entityId": "2",
+      "details": "Updated youth group: Archbishop Curley High School - Baltimore (ID: 2)"
+    },
+    {
+      "id": "1768249458304_wffb0h8uo",
+      "timestamp": "2026-01-12T20:24:18.304Z",
+      "username": "juang",
+      "fullName": "Mr. Juan Galindo",
+      "action": "update",
+      "entityType": "youth-group",
+      "entityId": "16",
+      "details": "Updated youth group: Pastorate of St. John and St. Joseph - Frederick (ID: 16)"
     }
   ],
-  "timestamp": "2026-01-12T18:44:54.374Z",
+  "timestamp": "2026-01-12T20:27:19.686Z",
   "version": "3.0"
 }
