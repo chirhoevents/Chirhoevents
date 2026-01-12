@@ -133,13 +133,13 @@ async function main() {
   }
 
   // Ensure chirhoevents@gmail.com is in test org
-  const testOrgAdmin = users.find((u: { email: string; organizationId: string }) => u.email === 'chirhoevents@gmail.com')
+  const testOrgAdmin = users.find((u: { email: string; organizationId: string | null }) => u.email === 'chirhoevents@gmail.com')
   if (testOrgAdmin && testOrgAdmin.organizationId !== testOrg.id) {
     changes.push(`\nAssign chirhoevents@gmail.com to ${testOrg.name}`)
   }
 
   // Ensure juanitohola13@gmail.com is in prod org (if prod org exists)
-  const prodOrgAdmin = users.find((u: { email: string; organizationId: string }) => u.email === 'juanitohola13@gmail.com')
+  const prodOrgAdmin = users.find((u: { email: string; organizationId: string | null }) => u.email === 'juanitohola13@gmail.com')
   if (prodOrg && prodOrgAdmin && prodOrgAdmin.organizationId !== prodOrg.id) {
     changes.push(`\nAssign juanitohola13@gmail.com to ${prodOrg.name}`)
   }
