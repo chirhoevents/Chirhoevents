@@ -866,7 +866,7 @@ export default function RegistrationDetailClient({
                   <Button
                     onClick={handleSave}
                     disabled={saving}
-                    className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90"
+                    className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white"
                   >
                     {saving ? (
                       <>Saving...</>

@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
       housingType,
       specialRequests = '',
       paymentMethod = 'card', // 'card' or 'check'
+      couponCode = '',
     } = body
 
     if (!eventId || !groupName || !groupLeaderName || !groupLeaderEmail || !groupLeaderPhone || !housingType || !alternativeContact1Name || !alternativeContact1Email || !alternativeContact1Phone) {
@@ -161,11 +162,76 @@ export async function POST(request: NextRequest) {
 
     const priestPrice = Number(event.pricing.priestPrice)
 
-    // Calculate total amount
-    const totalAmount =
+    // Calculate total amount before coupon
+    let totalAmount =
       youthCount * youthPrice +
       chaperoneCount * chaperonePrice +
       priestCount * priestPrice
+
+    // Validate and apply coupon if provided
+    let appliedCoupon: { id: string; code: string; discountAmount: number } | null = null
+
+    if (couponCode) {
+      // Check if coupons are enabled
+      const eventSettings = await prisma.eventSettings.findUnique({
+        where: { eventId: event.id },
+        select: { couponsEnabled: true },
+      })
+
+      if (eventSettings?.couponsEnabled) {
+        const coupon = await prisma.coupon.findFirst({
+          where: {
+            eventId: event.id,
+            code: couponCode.toUpperCase(),
+            active: true,
+          },
+        })
+
+        if (coupon) {
+          // Check expiration
+          const isExpired = coupon.expirationDate && new Date(coupon.expirationDate) < new Date()
+
+          // Check usage limits
+          let hasUsesLeft = true
+          if (coupon.usageLimitType === 'single_use' && coupon.usageCount >= 1) {
+            hasUsesLeft = false
+          } else if (coupon.usageLimitType === 'limited' && coupon.maxUses && coupon.usageCount >= coupon.maxUses) {
+            hasUsesLeft = false
+          }
+
+          // Check email restriction
+          let emailAllowed = true
+          if (coupon.restrictToEmail) {
+            emailAllowed = coupon.restrictToEmail.toLowerCase() === groupLeaderEmail.toLowerCase()
+          }
+
+          if (!isExpired && hasUsesLeft && emailAllowed) {
+            // Calculate discount
+            let discountAmount = 0
+            if (coupon.discountType === 'percentage') {
+              discountAmount = (totalAmount * Number(coupon.discountValue)) / 100
+            } else {
+              discountAmount = Math.min(Number(coupon.discountValue), totalAmount)
+            }
+
+            // Apply discount
+            totalAmount = Math.max(0, totalAmount - discountAmount)
+
+            appliedCoupon = {
+              id: coupon.id,
+              code: coupon.code,
+              discountAmount,
+            }
+
+            // Increment coupon usage count
+            await prisma.coupon.update({
+              where: { id: coupon.id },
+              data: { usageCount: { increment: 1 } },
+            })
+          }
+        }
+      }
+    }
 
     // Calculate deposit based on settings
     let depositAmount = 0
@@ -183,6 +249,9 @@ export async function POST(request: NextRequest) {
         : baseDepositAmount
     }
     // else Option 4: No deposit required (depositAmount = 0)
+
+    // Ensure deposit doesn't exceed total (important when coupon applied)
+    depositAmount = Math.min(depositAmount, totalAmount)
 
     const balanceRemaining = totalAmount - depositAmount
 

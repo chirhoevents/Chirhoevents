@@ -14,11 +14,13 @@ import {
   Eye,
   Download,
   Loader2,
+  Store,
+  UserCog,
 } from 'lucide-react'
 
 interface ReportCardProps {
   title: string
-  reportType: 'financial' | 'registrations' | 'forms' | 'housing' | 'medical' | 'certificates' | 'chaperones'
+  reportType: 'financial' | 'registrations' | 'forms' | 'housing' | 'medical' | 'certificates' | 'chaperones' | 'vendors' | 'staff'
   eventId: string
   onViewReport: () => void
 }
@@ -37,6 +39,8 @@ const ICONS = {
   medical: Heart,
   certificates: Shield,
   chaperones: UserCheck,
+  vendors: Store,
+  staff: UserCog,
 }
 
 export default function ReportCard({
@@ -118,6 +122,18 @@ export default function ReportCard({
           stat1: { label: 'Total Youth', value: data.youth?.total || 0 },
           stat2: { label: 'Male Chaperones', value: data.chaperones?.male?.count || 0 },
           stat3: { label: 'Female Chaperones', value: data.chaperones?.female?.count || 0 },
+        }
+      case 'vendors':
+        return {
+          stat1: { label: 'Total Vendors', value: data.totalVendors || 0 },
+          stat2: { label: 'Approved', value: data.approvedVendors || 0 },
+          stat3: { label: 'Booth Staff', value: data.totalBoothStaff || 0 },
+        }
+      case 'staff':
+        return {
+          stat1: { label: 'Total Staff', value: data.totalStaff || 0 },
+          stat2: { label: 'Volunteers', value: data.volunteerStaff || 0 },
+          stat3: { label: 'Vendor Staff', value: data.vendorStaff || 0 },
         }
       default:
         return {

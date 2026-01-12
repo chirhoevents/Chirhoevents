@@ -1873,45 +1873,85 @@ export function generateGroupRegistrationConfirmationEmail({
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0;">
       <tr>
         <td>
+          <!-- Step 1: Mail Your Check -->
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 12px;">
             <tr>
               <td width="40" valign="top" style="padding-right: 12px;">
                 <div style="width: 32px; height: 32px; background: #1a73e8; border-radius: 50%; color: white; font-weight: bold; text-align: center; line-height: 32px;">1</div>
               </td>
               <td valign="top">
-                <p style="margin: 0; font-weight: bold;">Complete Liability Forms via Poros</p>
-                <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">All participants must have completed liability forms before the event.</p>
-                ${emailButton('Complete Forms', porosLiabilityUrl, 'primary')}
+                <p style="margin: 0; font-weight: bold;">Mail Your Check</p>
+                <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">Send your check using the instructions above.</p>
               </td>
             </tr>
           </table>
 
+          <!-- Step 2: Complete Liability Forms -->
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 12px;">
             <tr>
               <td width="40" valign="top" style="padding-right: 12px;">
                 <div style="width: 32px; height: 32px; background: #1a73e8; border-radius: 50%; color: white; font-weight: bold; text-align: center; line-height: 32px;">2</div>
               </td>
               <td valign="top">
-                <p style="margin: 0; font-weight: bold;">Set Up Your Group Leader Dashboard</p>
-                <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">Manage your group, track forms, and view event details.</p>
-                ${emailButton('Access Dashboard', groupLeaderPortalUrl, 'secondary')}
+                <p style="margin: 0; font-weight: bold;">Complete Liability Forms</p>
+                <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">Each participant must complete their liability form using your access code. They can go to the Poros liability platform.</p>
+                ${emailButton('Go to Poros Liability', porosLiabilityUrl, 'primary')}
               </td>
             </tr>
           </table>
 
-          ${paymentMethod === 'check' ? `
+          <!-- Step 3: Set Up Group Leader Dashboard -->
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 12px;">
             <tr>
               <td width="40" valign="top" style="padding-right: 12px;">
                 <div style="width: 32px; height: 32px; background: #1a73e8; border-radius: 50%; color: white; font-weight: bold; text-align: center; line-height: 32px;">3</div>
               </td>
               <td valign="top">
-                <p style="margin: 0; font-weight: bold;">Mail Your Check Payment</p>
-                <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">Please send your check payment as soon as possible to secure your registration.</p>
+                <p style="margin: 0; font-weight: bold;">Set Up Your Group Leader Dashboard</p>
+                <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">Sign in if you have used Chiro in the past and add your new access code, or sign up using Clerk!</p>
+                ${emailButton('Go to Group Leader Portal', groupLeaderPortalUrl, 'secondary')}
               </td>
             </tr>
           </table>
-          ` : ''}
+
+          <!-- Step 4: Sent a Check? -->
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 12px;">
+            <tr>
+              <td width="40" valign="top" style="padding-right: 12px;">
+                <div style="width: 32px; height: 32px; background: #1a73e8; border-radius: 50%; color: white; font-weight: bold; text-align: center; line-height: 32px;">4</div>
+              </td>
+              <td valign="top">
+                <p style="margin: 0; font-weight: bold;">Sent a Check?</p>
+                <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">We'll email you once your check is received and processed.</p>
+              </td>
+            </tr>
+          </table>
+
+          <!-- Step 5: QR Code Email -->
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 12px;">
+            <tr>
+              <td width="40" valign="top" style="padding-right: 12px;">
+                <div style="width: 32px; height: 32px; background: #1a73e8; border-radius: 50%; color: white; font-weight: bold; text-align: center; line-height: 32px;">5</div>
+              </td>
+              <td valign="top">
+                <p style="margin: 0; font-weight: bold;">Check-In Information Coming Soon</p>
+                <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">You will receive an email with your QR code for check-in and further instructions closer to the Conference!</p>
+              </td>
+            </tr>
+          </table>
+
+          <!-- Step 6: Questions -->
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 12px;">
+            <tr>
+              <td width="40" valign="top" style="padding-right: 12px;">
+                <div style="width: 32px; height: 32px; background: #1a73e8; border-radius: 50%; color: white; font-weight: bold; text-align: center; line-height: 32px;">6</div>
+              </td>
+              <td valign="top">
+                <p style="margin: 0; font-weight: bold;">Questions?</p>
+                <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">Reply to this email or contact the event organizer.</p>
+              </td>
+            </tr>
+          </table>
         </td>
       </tr>
     </table>
@@ -1920,19 +1960,6 @@ export function generateGroupRegistrationConfirmationEmail({
       <h2>Additional Instructions</h2>
       <p>${registrationInstructions}</p>
     ` : ''}
-
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0; background: #e8f5e9; border-radius: 8px; padding: 16px; border-left: 4px solid #4caf50;">
-      <tr>
-        <td>
-          <p style="margin: 0; font-weight: bold;">Check-in Information</p>
-          <p style="margin: 8px 0 0 0; font-size: 14px;">Detailed check-in instructions will be sent closer to the event date. Keep your QR code and access code handy!</p>
-        </td>
-      </tr>
-    </table>
-
-    <p style="font-size: 14px; color: #666;">
-      If you have any questions, please don't hesitate to reach out.
-    </p>
 
     <p style="font-size: 14px; color: #666;">
       — ${organizationName}

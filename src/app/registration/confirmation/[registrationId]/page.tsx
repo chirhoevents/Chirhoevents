@@ -189,19 +189,10 @@ export default function ConfirmationPage() {
                     1
                   </div>
                   <div>
-                    <p className="font-semibold text-navy">Complete Liability Forms</p>
+                    <p className="font-semibold text-navy">Mail Your Check</p>
                     <p className="text-sm text-gray-600">
-                      Each participant must complete their liability form. Under 18? Parents will receive an email.
-                      Over 18? They can complete it themselves.
+                      Send your check using the instructions above.
                     </p>
-                    <Button
-                      variant="outline"
-                      className="mt-2"
-                      size="sm"
-                      onClick={() => window.open(`/poros?code=${registration.accessCode}`, '_blank')}
-                    >
-                      Start Liability Forms
-                    </Button>
                   </div>
                 </li>
 
@@ -210,10 +201,18 @@ export default function ConfirmationPage() {
                     2
                   </div>
                   <div>
-                    <p className="font-semibold text-navy">Pay Remaining Balance</p>
+                    <p className="font-semibold text-navy">Complete Liability Forms</p>
                     <p className="text-sm text-gray-600">
-                      Pay your balance before the event using the Group Leader Portal with your access code.
+                      Each participant must complete their liability form using your access code. They can go to the Poros liability platform.
                     </p>
+                    <Button
+                      variant="outline"
+                      className="mt-2"
+                      size="sm"
+                      onClick={() => window.open(`/poros?code=${registration.accessCode}`, '_blank')}
+                    >
+                      Go to Poros Liability
+                    </Button>
                   </div>
                 </li>
 
@@ -222,9 +221,53 @@ export default function ConfirmationPage() {
                     3
                   </div>
                   <div>
-                    <p className="font-semibold text-navy">Check-In at Event</p>
+                    <p className="font-semibold text-navy">Set Up Your Group Leader Dashboard</p>
                     <p className="text-sm text-gray-600">
-                      Arrive at the event and check in with your access code to receive your group packet.
+                      Sign in if you have used Chiro in the past and add your new access code, or sign up using Clerk!
+                    </p>
+                    <Button
+                      variant="outline"
+                      className="mt-2"
+                      size="sm"
+                      onClick={() => window.open(`/sign-in?portal=group-leader&code=${encodeURIComponent(registration.accessCode)}`, '_blank')}
+                    >
+                      Go to Group Leader Portal
+                    </Button>
+                  </div>
+                </li>
+
+                <li className="flex items-start">
+                  <div className="flex-shrink-0 w-8 h-8 bg-navy text-white rounded-full flex items-center justify-center font-bold mr-3">
+                    4
+                  </div>
+                  <div>
+                    <p className="font-semibold text-navy">Sent a Check?</p>
+                    <p className="text-sm text-gray-600">
+                      We&apos;ll email you once your check is received and processed.
+                    </p>
+                  </div>
+                </li>
+
+                <li className="flex items-start">
+                  <div className="flex-shrink-0 w-8 h-8 bg-navy text-white rounded-full flex items-center justify-center font-bold mr-3">
+                    5
+                  </div>
+                  <div>
+                    <p className="font-semibold text-navy">Check-In Information Coming Soon</p>
+                    <p className="text-sm text-gray-600">
+                      You will receive an email with your QR code for check-in and further instructions closer to the Conference!
+                    </p>
+                  </div>
+                </li>
+
+                <li className="flex items-start">
+                  <div className="flex-shrink-0 w-8 h-8 bg-navy text-white rounded-full flex items-center justify-center font-bold mr-3">
+                    6
+                  </div>
+                  <div>
+                    <p className="font-semibold text-navy">Questions?</p>
+                    <p className="text-sm text-gray-600">
+                      Reply to the confirmation email or contact the event organizer.
                     </p>
                   </div>
                 </li>

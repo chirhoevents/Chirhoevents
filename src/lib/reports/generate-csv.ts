@@ -216,3 +216,109 @@ export function generateCertificatesCSV(reportData: any): string {
 
   return generateCSV(rows, ['Metric', 'Value'])
 }
+
+export function generateVendorCSV(reportData: any): string {
+  // Generate detailed vendor list CSV
+  if (reportData.vendorList && reportData.vendorList.length > 0) {
+    const headers = [
+      'Business Name',
+      'Contact Name',
+      'Email',
+      'Phone',
+      'Booth Tier',
+      'Status',
+      'Payment Status',
+      'Invoice Total',
+      'Amount Paid',
+      'Balance Due',
+      'Vendor Code',
+      'Booth Staff Count',
+      'Created Date',
+    ]
+
+    const rows = reportData.vendorList.map((vendor: any) => ({
+      'Business Name': vendor.businessName,
+      'Contact Name': vendor.contactName,
+      'Email': vendor.email,
+      'Phone': vendor.phone,
+      'Booth Tier': vendor.selectedTier,
+      'Status': vendor.status,
+      'Payment Status': vendor.paymentStatus,
+      'Invoice Total': `$${vendor.invoiceTotal.toFixed(2)}`,
+      'Amount Paid': `$${vendor.amountPaid.toFixed(2)}`,
+      'Balance Due': `$${vendor.balance.toFixed(2)}`,
+      'Vendor Code': vendor.vendorCode,
+      'Booth Staff Count': vendor.boothStaffCount,
+      'Created Date': new Date(vendor.createdAt).toLocaleDateString(),
+    }))
+
+    return generateCSV(rows, headers)
+  }
+
+  // Fallback to summary CSV
+  const summaryRows: any[] = [
+    { Metric: 'Total Vendors', Value: reportData.totalVendors },
+    { Metric: 'Approved', Value: reportData.approvedVendors },
+    { Metric: 'Pending', Value: reportData.pendingVendors },
+    { Metric: 'Rejected', Value: reportData.rejectedVendors },
+    { Metric: 'Total Invoiced', Value: `$${reportData.totalInvoiced.toFixed(2)}` },
+    { Metric: 'Total Paid', Value: `$${reportData.totalPaid.toFixed(2)}` },
+    { Metric: 'Total Balance', Value: `$${reportData.totalBalance.toFixed(2)}` },
+    { Metric: 'Total Booth Staff', Value: reportData.totalBoothStaff },
+  ]
+
+  return generateCSV(summaryRows, ['Metric', 'Value'])
+}
+
+export function generateStaffCSV(reportData: any): string {
+  // Generate detailed staff list CSV
+  if (reportData.staffList && reportData.staffList.length > 0) {
+    const headers = [
+      'First Name',
+      'Last Name',
+      'Email',
+      'Phone',
+      'Role',
+      'Type',
+      'Vendor Business',
+      'T-Shirt Size',
+      'Dietary Restrictions',
+      'Price Paid',
+      'Payment Status',
+      'Checked In',
+      'Liability Form',
+      'Created Date',
+    ]
+
+    const rows = reportData.staffList.map((staff: any) => ({
+      'First Name': staff.firstName,
+      'Last Name': staff.lastName,
+      'Email': staff.email,
+      'Phone': staff.phone,
+      'Role': staff.role,
+      'Type': staff.isVendorStaff ? 'Vendor Staff' : 'Volunteer',
+      'Vendor Business': staff.vendorBusinessName || '',
+      'T-Shirt Size': staff.tshirtSize,
+      'Dietary Restrictions': staff.dietaryRestrictions || '',
+      'Price Paid': `$${staff.pricePaid.toFixed(2)}`,
+      'Payment Status': staff.paymentStatus,
+      'Checked In': staff.checkedIn ? 'Yes' : 'No',
+      'Liability Form': staff.liabilityFormCompleted ? 'Completed' : (staff.porosAccessCode ? 'Pending' : 'N/A'),
+      'Created Date': new Date(staff.createdAt).toLocaleDateString(),
+    }))
+
+    return generateCSV(rows, headers)
+  }
+
+  // Fallback to summary CSV
+  const summaryRows: any[] = [
+    { Metric: 'Total Staff', Value: reportData.totalStaff },
+    { Metric: 'Volunteers', Value: reportData.volunteerStaff },
+    { Metric: 'Vendor Staff', Value: reportData.vendorStaff },
+    { Metric: 'Checked In', Value: reportData.checkedInStaff },
+    { Metric: 'Forms Completed', Value: reportData.formsCompleted },
+    { Metric: 'Total Revenue', Value: `$${reportData.totalRevenue.toFixed(2)}` },
+  ]
+
+  return generateCSV(summaryRows, ['Metric', 'Value'])
+}

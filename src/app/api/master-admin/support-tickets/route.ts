@@ -72,27 +72,62 @@ export async function GET(request: NextRequest) {
       where.organizationId = orgId
     }
 
-    const tickets = await prisma.supportTicket.findMany({
-      where,
-      include: {
-        organization: {
-          select: { id: true, name: true },
+    // Try to fetch with event relation, fall back without if migration not applied
+    let tickets
+    try {
+      tickets = await prisma.supportTicket.findMany({
+        where,
+        include: {
+          organization: {
+            select: { id: true, name: true },
+          },
+          event: {
+            select: { id: true, name: true, slug: true },
+          },
+          submittedByUser: {
+            select: { firstName: true, lastName: true, email: true },
+          },
+          assignedToUser: {
+            select: { firstName: true, lastName: true },
+          },
+          _count: {
+            select: { messages: true },
+          },
         },
-        submittedByUser: {
-          select: { firstName: true, lastName: true, email: true },
-        },
-        assignedToUser: {
-          select: { firstName: true, lastName: true },
-        },
-        _count: {
-          select: { messages: true },
-        },
-      },
-      orderBy: [
-        { priority: 'desc' },
-        { updatedAt: 'desc' },
-      ],
-    })
+        orderBy: [
+          { priority: 'desc' },
+          { updatedAt: 'desc' },
+        ],
+      })
+    } catch (fetchError: unknown) {
+      const errorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError)
+      if (errorMessage.includes('event') || errorMessage.includes('event_id')) {
+        console.warn('Event field not in database yet, fetching tickets without it')
+        tickets = await prisma.supportTicket.findMany({
+          where,
+          include: {
+            organization: {
+              select: { id: true, name: true },
+            },
+            submittedByUser: {
+              select: { firstName: true, lastName: true, email: true },
+            },
+            assignedToUser: {
+              select: { firstName: true, lastName: true },
+            },
+            _count: {
+              select: { messages: true },
+            },
+          },
+          orderBy: [
+            { priority: 'desc' },
+            { updatedAt: 'desc' },
+          ],
+        })
+      } else {
+        throw fetchError
+      }
+    }
 
     // Get counts by status
     const counts = await prisma.supportTicket.groupBy({

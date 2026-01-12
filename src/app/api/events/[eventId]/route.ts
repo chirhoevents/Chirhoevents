@@ -7,8 +7,12 @@ export async function GET(
 ) {
   try {
     const { eventId } = await params
+
+    // Check if eventId is a UUID or a slug
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId)
+
     const event = await prisma.event.findUnique({
-      where: { id: eventId },
+      where: isUuid ? { id: eventId } : { slug: eventId },
       include: {
         pricing: true,
         settings: true,
@@ -36,7 +40,7 @@ export async function GET(
 
     // Fetch depositPerPerson directly via raw query (Prisma client may not have this field)
     const depositPerPersonResult = await prisma.$queryRaw<Array<{ deposit_per_person: boolean | null }>>`
-      SELECT deposit_per_person FROM event_pricing WHERE event_id = ${eventId}::uuid LIMIT 1
+      SELECT deposit_per_person FROM event_pricing WHERE event_id = ${event.id}::uuid LIMIT 1
     `
     const depositPerPerson = depositPerPersonResult[0]?.deposit_per_person ?? true
 

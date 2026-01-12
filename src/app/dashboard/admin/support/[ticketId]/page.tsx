@@ -9,6 +9,11 @@ import {
   AlertCircle,
   CheckCircle,
   MessageSquare,
+  Building2,
+  Calendar,
+  ExternalLink,
+  Copy,
+  Check,
 } from 'lucide-react'
 
 interface Message {
@@ -32,6 +37,16 @@ interface Ticket {
   createdAt: string
   updatedAt: string
   resolvedAt?: string
+  issueUrl?: string
+  organization?: {
+    id: string
+    name: string
+  }
+  event?: {
+    id: string
+    name: string
+    slug: string
+  } | null
   submittedByUser: {
     firstName: string
     lastName: string
@@ -61,6 +76,23 @@ export default function TicketDetailPage({ params }: { params: Promise<{ ticketI
   const [loading, setLoading] = useState(true)
   const [replyMessage, setReplyMessage] = useState('')
   const [sending, setSending] = useState(false)
+  const [copiedOrgId, setCopiedOrgId] = useState(false)
+  const [copiedEventId, setCopiedEventId] = useState(false)
+
+  const copyToClipboard = async (text: string, type: 'org' | 'event') => {
+    try {
+      await navigator.clipboard.writeText(text)
+      if (type === 'org') {
+        setCopiedOrgId(true)
+        setTimeout(() => setCopiedOrgId(false), 2000)
+      } else {
+        setCopiedEventId(true)
+        setTimeout(() => setCopiedEventId(false), 2000)
+      }
+    } catch (error) {
+      console.error('Failed to copy:', error)
+    }
+  }
 
   useEffect(() => {
     fetchTicket()
@@ -251,6 +283,76 @@ export default function TicketDetailPage({ params }: { params: Promise<{ ticketI
 
         {/* Sidebar - Ticket Info */}
         <div className="space-y-6">
+          {/* Context Info */}
+          {(ticket.organization || ticket.event || ticket.issueUrl) && (
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <h3 className="font-medium text-gray-900 mb-3">Ticket Context</h3>
+              <div className="space-y-3">
+                {ticket.organization && (
+                  <div className="flex items-start gap-2">
+                    <Building2 className="h-4 w-4 text-gray-400 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">Organization</p>
+                      <p className="font-medium text-gray-900">{ticket.organization.name}</p>
+                      <div className="flex items-center gap-1 mt-1">
+                        <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded font-mono text-gray-600">
+                          {ticket.organization.id.slice(0, 8)}...
+                        </code>
+                        <button
+                          onClick={() => copyToClipboard(ticket.organization!.id, 'org')}
+                          className="p-0.5 hover:bg-gray-100 rounded"
+                          title="Copy full UUID"
+                        >
+                          {copiedOrgId ? (
+                            <Check className="h-3 w-3 text-green-600" />
+                          ) : (
+                            <Copy className="h-3 w-3 text-gray-400" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {ticket.event && (
+                  <div className="flex items-start gap-2">
+                    <Calendar className="h-4 w-4 text-gray-400 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">Related Event</p>
+                      <p className="font-medium text-gray-900">{ticket.event.name}</p>
+                      <div className="flex items-center gap-1 mt-1">
+                        <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded font-mono text-gray-600">
+                          {ticket.event.id.slice(0, 8)}...
+                        </code>
+                        <button
+                          onClick={() => copyToClipboard(ticket.event!.id, 'event')}
+                          className="p-0.5 hover:bg-gray-100 rounded"
+                          title="Copy full UUID"
+                        >
+                          {copiedEventId ? (
+                            <Check className="h-3 w-3 text-green-600" />
+                          ) : (
+                            <Copy className="h-3 w-3 text-gray-400" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {ticket.issueUrl && (
+                  <div className="flex items-start gap-2">
+                    <ExternalLink className="h-4 w-4 text-gray-400 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">Issue Page</p>
+                      <p className="text-sm text-gray-700 font-mono truncate" title={ticket.issueUrl}>
+                        {ticket.issueUrl.replace(/^https?:\/\/[^\/]+/, '')}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Ticket Details */}
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <h3 className="font-medium text-gray-900 mb-3">Ticket Details</h3>
