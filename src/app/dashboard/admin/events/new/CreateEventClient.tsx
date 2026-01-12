@@ -156,6 +156,23 @@ interface EventFormData {
   secondaryColor: string
   overlayColor: string
   overlayOpacity: string
+
+  // Staff/Vendor Registration
+  staffRegistrationEnabled: boolean
+  staffVolunteerPrice: string
+  vendorStaffPrice: string
+  staffRoles: string[] // Role options for dropdown
+  vendorRegistrationEnabled: boolean
+  vendorTiers: VendorTier[]
+}
+
+interface VendorTier {
+  id: string
+  name: string
+  price: string
+  description: string
+  active: boolean
+  quantityLimit: string
 }
 
 const STEPS = [
@@ -319,6 +336,18 @@ export default function CreateEventClient({
     secondaryColor: '#9C8466', // Default gold
     overlayColor: '#000000', // Default black overlay
     overlayOpacity: '40', // 40% opacity
+
+    // Staff/Vendor Registration
+    staffRegistrationEnabled: false,
+    staffVolunteerPrice: '0',
+    vendorStaffPrice: '0',
+    staffRoles: ['Registration Desk', 'Setup Crew', 'Kitchen Staff', 'Security', 'Emcee', 'General Volunteer'],
+    vendorRegistrationEnabled: false,
+    vendorTiers: [
+      { id: '1', name: 'Small Booth', price: '200', description: '10x10, no electricity', active: true, quantityLimit: '' },
+      { id: '2', name: 'Medium Booth', price: '350', description: '10x20, includes electricity', active: true, quantityLimit: '' },
+      { id: '3', name: 'Large Booth', price: '500', description: '20x20, includes electricity', active: false, quantityLimit: '' },
+    ],
   }
 
   const [formData, setFormData] = useState<EventFormData>({
@@ -1421,6 +1450,275 @@ export default function CreateEventClient({
                   <p className="text-sm text-gray-600 ml-6 mt-2">
                     Allows group leaders to view seating, meal times, and schedule
                   </p>
+                </div>
+
+                {/* Staff/Vendor Registration */}
+                <div className="bg-emerald-50 p-4 rounded-lg border-2 border-emerald-200">
+                  <h3 className="font-semibold text-emerald-900 mb-3">
+                    👷 Staff & Vendor Registration
+                  </h3>
+                  <p className="text-sm text-emerald-800 mb-4">
+                    Enable registration for event staff, volunteers, and vendors (separate from attendees)
+                  </p>
+
+                  {/* Staff/Volunteer Registration Toggle */}
+                  <div className="space-y-4">
+                    <div className="bg-white p-4 rounded-lg border border-emerald-200">
+                      <div className="flex items-center space-x-2 mb-3">
+                        <input
+                          type="checkbox"
+                          id="staffRegistrationEnabled"
+                          checked={formData.staffRegistrationEnabled}
+                          onChange={(e) =>
+                            updateFormData({
+                              staffRegistrationEnabled: e.target.checked,
+                            })
+                          }
+                          className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                        />
+                        <Label htmlFor="staffRegistrationEnabled" className="mb-0 font-medium">
+                          Enable Staff/Volunteer Registration
+                        </Label>
+                      </div>
+                      <p className="text-sm text-gray-600 ml-6 mb-3">
+                        Create a separate registration link for staff and volunteers working the event
+                      </p>
+
+                      {formData.staffRegistrationEnabled && (
+                        <div className="ml-6 space-y-4 pt-3 border-t border-emerald-200">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="staffVolunteerPrice">General Staff/Volunteer Price</Label>
+                              <div className="relative mt-1">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                                <Input
+                                  id="staffVolunteerPrice"
+                                  type="number"
+                                  value={formData.staffVolunteerPrice}
+                                  onChange={(e) => updateFormData({ staffVolunteerPrice: e.target.value })}
+                                  placeholder="0"
+                                  className="pl-7"
+                                />
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">Set to 0 for free registration</p>
+                            </div>
+                            <div>
+                              <Label htmlFor="vendorStaffPrice">Vendor Booth Staff Price</Label>
+                              <div className="relative mt-1">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                                <Input
+                                  id="vendorStaffPrice"
+                                  type="number"
+                                  value={formData.vendorStaffPrice}
+                                  onChange={(e) => updateFormData({ vendorStaffPrice: e.target.value })}
+                                  placeholder="0"
+                                  className="pl-7"
+                                />
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">Price for people working vendor booths</p>
+                            </div>
+                          </div>
+
+                          {/* Staff Roles */}
+                          <div>
+                            <Label className="mb-2 block">Staff Roles (for dropdown)</Label>
+                            <div className="flex flex-wrap gap-2">
+                              {formData.staffRoles.map((role, index) => (
+                                <span
+                                  key={index}
+                                  className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-emerald-100 text-emerald-800"
+                                >
+                                  {role}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newRoles = formData.staffRoles.filter((_, i) => i !== index)
+                                      updateFormData({ staffRoles: newRoles })
+                                    }}
+                                    className="ml-1 text-emerald-600 hover:text-emerald-900"
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                            <div className="flex gap-2 mt-2">
+                              <Input
+                                id="newStaffRole"
+                                placeholder="Add new role..."
+                                className="flex-1"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault()
+                                    const input = e.target as HTMLInputElement
+                                    if (input.value.trim()) {
+                                      updateFormData({ staffRoles: [...formData.staffRoles, input.value.trim()] })
+                                      input.value = ''
+                                    }
+                                  }
+                                }}
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                  const input = document.getElementById('newStaffRole') as HTMLInputElement
+                                  if (input?.value.trim()) {
+                                    updateFormData({ staffRoles: [...formData.staffRoles, input.value.trim()] })
+                                    input.value = ''
+                                  }
+                                }}
+                              >
+                                Add
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Vendor Registration Toggle */}
+                    <div className="bg-white p-4 rounded-lg border border-emerald-200">
+                      <div className="flex items-center space-x-2 mb-3">
+                        <input
+                          type="checkbox"
+                          id="vendorRegistrationEnabled"
+                          checked={formData.vendorRegistrationEnabled}
+                          onChange={(e) =>
+                            updateFormData({
+                              vendorRegistrationEnabled: e.target.checked,
+                            })
+                          }
+                          className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                        />
+                        <Label htmlFor="vendorRegistrationEnabled" className="mb-0 font-medium">
+                          Enable Vendor Registration
+                        </Label>
+                      </div>
+                      <p className="text-sm text-gray-600 ml-6 mb-3">
+                        Allow businesses to register for vendor booths at your event
+                      </p>
+
+                      {formData.vendorRegistrationEnabled && (
+                        <div className="ml-6 space-y-4 pt-3 border-t border-emerald-200">
+                          <Label className="mb-2 block font-medium">Vendor Tiers</Label>
+                          <p className="text-xs text-gray-500 mb-3">
+                            Define booth options and pricing. Vendors select a tier when registering. You can adjust pricing when creating their invoice.
+                          </p>
+
+                          {formData.vendorTiers.map((tier, index) => (
+                            <div key={tier.id} className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center space-x-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={tier.active}
+                                    onChange={(e) => {
+                                      const newTiers = [...formData.vendorTiers]
+                                      newTiers[index] = { ...tier, active: e.target.checked }
+                                      updateFormData({ vendorTiers: newTiers })
+                                    }}
+                                    className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                                  />
+                                  <span className={`text-sm font-medium ${tier.active ? 'text-gray-900' : 'text-gray-400'}`}>
+                                    {tier.active ? 'Active' : 'Inactive'}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newTiers = formData.vendorTiers.filter((_, i) => i !== index)
+                                    updateFormData({ vendorTiers: newTiers })
+                                  }}
+                                  className="text-red-500 hover:text-red-700 text-sm"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                <div>
+                                  <Label className="text-xs">Tier Name</Label>
+                                  <Input
+                                    value={tier.name}
+                                    onChange={(e) => {
+                                      const newTiers = [...formData.vendorTiers]
+                                      newTiers[index] = { ...tier, name: e.target.value }
+                                      updateFormData({ vendorTiers: newTiers })
+                                    }}
+                                    placeholder="Small Booth"
+                                    className="mt-1"
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-xs">Price</Label>
+                                  <div className="relative mt-1">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                                    <Input
+                                      type="number"
+                                      value={tier.price}
+                                      onChange={(e) => {
+                                        const newTiers = [...formData.vendorTiers]
+                                        newTiers[index] = { ...tier, price: e.target.value }
+                                        updateFormData({ vendorTiers: newTiers })
+                                      }}
+                                      placeholder="200"
+                                      className="pl-7"
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <Label className="text-xs">Description</Label>
+                                  <Input
+                                    value={tier.description}
+                                    onChange={(e) => {
+                                      const newTiers = [...formData.vendorTiers]
+                                      newTiers[index] = { ...tier, description: e.target.value }
+                                      updateFormData({ vendorTiers: newTiers })
+                                    }}
+                                    placeholder="10x10, no electricity"
+                                    className="mt-1"
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-xs">Quantity Limit</Label>
+                                  <Input
+                                    type="number"
+                                    value={tier.quantityLimit}
+                                    onChange={(e) => {
+                                      const newTiers = [...formData.vendorTiers]
+                                      newTiers[index] = { ...tier, quantityLimit: e.target.value }
+                                      updateFormData({ vendorTiers: newTiers })
+                                    }}
+                                    placeholder="Unlimited"
+                                    className="mt-1"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              const newTier: VendorTier = {
+                                id: String(Date.now()),
+                                name: '',
+                                price: '',
+                                description: '',
+                                active: true,
+                                quantityLimit: '',
+                              }
+                              updateFormData({ vendorTiers: [...formData.vendorTiers, newTier] })
+                            }}
+                            className="w-full"
+                          >
+                            + Add Vendor Tier
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </>

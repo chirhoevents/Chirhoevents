@@ -61,6 +61,8 @@ interface EventDetailClientProps {
     porosHousingEnabled?: boolean
     salveCheckinEnabled?: boolean
     raphaMedicalEnabled?: boolean
+    staffRegistrationEnabled?: boolean
+    vendorRegistrationEnabled?: boolean
   } | null
 }
 
@@ -291,6 +293,12 @@ export default function EventDetailClient({
           )}
           {settings?.raphaMedicalEnabled && (
             <TabsTrigger value="rapha">Rapha Medical</TabsTrigger>
+          )}
+          {settings?.staffRegistrationEnabled && (
+            <TabsTrigger value="staff">Staff</TabsTrigger>
+          )}
+          {settings?.vendorRegistrationEnabled && (
+            <TabsTrigger value="vendors">Vendors</TabsTrigger>
           )}
           <TabsTrigger value="reports">Reports</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -589,6 +597,76 @@ export default function EventDetailClient({
                     Open Rapha Medical
                   </Button>
                 </Link>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {/* Staff Tab */}
+        {settings?.staffRegistrationEnabled && (
+          <TabsContent value="staff">
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardContent className="p-8 text-center">
+                <Users className="h-16 w-16 text-[#9C8466] mx-auto mb-4" />
+                <h3 className="font-semibold text-[#1E3A5F] mb-2">
+                  Staff & Volunteer Management
+                </h3>
+                <p className="text-[#6B7280] mb-4">
+                  View and manage staff and volunteer registrations
+                </p>
+                <div className="flex gap-4 justify-center">
+                  <Link href={`/dashboard/admin/events/${event.id}/staff`}>
+                    <Button className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
+                      Manage Staff
+                    </Button>
+                  </Link>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const url = `${window.location.origin}/events/${event.slug}/register-staff`
+                      navigator.clipboard.writeText(url)
+                      alert('Staff registration link copied!')
+                    }}
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy Registration Link
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {/* Vendors Tab */}
+        {settings?.vendorRegistrationEnabled && (
+          <TabsContent value="vendors">
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardContent className="p-8 text-center">
+                <UserPlus className="h-16 w-16 text-[#9C8466] mx-auto mb-4" />
+                <h3 className="font-semibold text-[#1E3A5F] mb-2">
+                  Vendor Management
+                </h3>
+                <p className="text-[#6B7280] mb-4">
+                  Review applications, approve vendors, and manage invoices
+                </p>
+                <div className="flex gap-4 justify-center">
+                  <Link href={`/dashboard/admin/events/${event.id}/vendors`}>
+                    <Button className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
+                      Manage Vendors
+                    </Button>
+                  </Link>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const url = `${window.location.origin}/events/${event.slug}/register-vendor`
+                      navigator.clipboard.writeText(url)
+                      alert('Vendor registration link copied!')
+                    }}
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy Registration Link
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

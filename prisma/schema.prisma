@@ -171,6 +171,8 @@ model Event {
   liabilityForms            LiabilityForm[]
   liabilityFormTemplates    LiabilityFormTemplate[]
   waitlistEntries           WaitlistEntry[]
+  vendorRegistrations       VendorRegistration[]
+  staffRegistrations        StaffRegistration[]
 
   @@index([organizationId], name: "idx_event_org")
   @@index([slug], name: "idx_event_slug")
@@ -241,6 +243,15 @@ model EventSettings {
   waitlistEnabled                 Boolean  @default(true) @map("waitlist_enabled")
   registrationClosedMessage       String?  @map("registration_closed_message") @db.Text
 
+  // Staff/Volunteer Registration Settings
+  staffRegistrationEnabled        Boolean  @default(false) @map("staff_registration_enabled")
+  staffVolunteerPrice             Decimal  @default(0) @map("staff_volunteer_price") @db.Decimal(10, 2)
+  vendorStaffPrice                Decimal  @default(0) @map("vendor_staff_price") @db.Decimal(10, 2)
+  staffRoles                      Json?    @map("staff_roles") @db.JsonB // ["Registration Desk", "Setup Crew", "Kitchen Staff", ...]
+
+  // Vendor Registration Settings
+  vendorRegistrationEnabled       Boolean  @default(false) @map("vendor_registration_enabled")
+  vendorTiers                     Json?    @map("vendor_tiers") @db.JsonB // [{id, name, price, description, active, quantityLimit?, quantityUsed?}]
   // Allow login when registration is closed (for group leaders to access dashboard)
   allowLoginWhenClosed            Boolean  @default(true) @map("allow_login_when_closed")
 
@@ -628,6 +639,7 @@ model LiabilityForm {
   participant            Participant?            @relation(fields: [participantId], references: [id])
   individualRegistration IndividualRegistration? @relation(fields: [individualRegistrationId], references: [id])
   safeEnvironmentCertificates SafeEnvironmentCertificate[]
+  staffRegistrations     StaffRegistration[]
 
   @@index([organizationId], name: "idx_liability_org")
   @@index([eventId], name: "idx_liability_event")
@@ -848,6 +860,8 @@ enum PaymentStatus {
 enum RegistrationType {
   group
   individual
+  vendor
+  staff
 }
 
 enum PaymentBalanceStatus {
@@ -2182,5 +2196,137 @@ enum InboundTicketPriority {
   normal
   high
   urgent
+}
+
+// ===================================
+// STAFF & VENDOR REGISTRATION SYSTEM
+// ===================================
+
+model VendorRegistration {
+  id                  String   @id @default(uuid()) @db.Uuid
+  eventId             String   @map("event_id") @db.Uuid
+  organizationId      String   @map("organization_id") @db.Uuid
+
+  // Business Info
+  businessName        String   @map("business_name") @db.VarChar(255)
+  contactFirstName    String   @map("contact_first_name") @db.VarChar(255)
+  contactLastName     String   @map("contact_last_name") @db.VarChar(255)
+  email               String   @db.VarChar(255)
+  phone               String   @db.VarChar(20)
+
+  // Booth Details
+  boothDescription    String   @map("booth_description") @db.Text
+  selectedTier        String   @map("selected_tier") @db.VarChar(255)
+  tierPrice           Decimal  @map("tier_price") @db.Decimal(10, 2)
+  additionalNeeds     String?  @map("additional_needs") @db.Text
+
+  // Business Logo
+  logoUrl             String?  @map("logo_url") @db.Text
+
+  // Status & Approval
+  status              VendorStatus @default(pending)
+  rejectionReason     String?  @map("rejection_reason") @db.Text
+  approvedAt          DateTime? @map("approved_at") @db.Timestamptz(6)
+
+  // Invoice (for booth itself)
+  invoiceLineItems    Json?    @map("invoice_line_items") @db.JsonB // [{description: string, amount: number}]
+  invoiceTotal        Decimal? @map("invoice_total") @db.Decimal(10, 2)
+  invoiceNotes        String?  @map("invoice_notes") @db.Text
+  paymentStatus       VendorPaymentStatus @default(unpaid) @map("payment_status")
+  amountPaid          Decimal  @default(0) @map("amount_paid") @db.Decimal(10, 2)
+  stripePaymentIntentId String? @map("stripe_payment_intent_id") @db.VarChar(255)
+  paidAt              DateTime? @map("paid_at") @db.Timestamptz(6)
+
+  // Vendor Code (for booth workers to use when registering)
+  vendorCode          String   @unique @map("vendor_code") @db.VarChar(50)
+
+  // Portal Access Code
+  accessCode          String   @unique @map("access_code") @db.VarChar(50)
+
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  event               Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  boothStaff          StaffRegistration[]
+
+  @@index([eventId], name: "idx_vendor_reg_event")
+  @@index([organizationId], name: "idx_vendor_reg_org")
+  @@index([status], name: "idx_vendor_reg_status")
+  @@index([vendorCode], name: "idx_vendor_reg_vendor_code")
+  @@index([accessCode], name: "idx_vendor_reg_access_code")
+  @@map("vendor_registrations")
+}
+
+model StaffRegistration {
+  id                  String   @id @default(uuid()) @db.Uuid
+  eventId             String   @map("event_id") @db.Uuid
+  organizationId      String   @map("organization_id") @db.Uuid
+
+  // Personal Info
+  firstName           String   @map("first_name") @db.VarChar(255)
+  lastName            String   @map("last_name") @db.VarChar(255)
+  email               String   @db.VarChar(255)
+  phone               String   @db.VarChar(20)
+
+  // Role
+  role                String   @db.VarChar(255) // From admin-defined dropdown
+
+  // Vendor Association
+  isVendorStaff       Boolean  @default(false) @map("is_vendor_staff")
+  vendorCode          String?  @map("vendor_code") @db.VarChar(50)
+  vendorRegistrationId String? @map("vendor_registration_id") @db.Uuid
+
+  // Preferences
+  tshirtSize          String   @map("tshirt_size") @db.VarChar(10)
+  dietaryRestrictions String?  @map("dietary_restrictions") @db.Text
+
+  // Payment (individual person fee)
+  pricePaid           Decimal  @map("price_paid") @db.Decimal(10, 2)
+  paymentStatus       StaffPaymentStatus @default(paid) @map("payment_status")
+  stripePaymentIntentId String? @map("stripe_payment_intent_id") @db.VarChar(255)
+
+  // Poros Integration (liability forms)
+  porosAccessCode     String?  @unique @map("poros_access_code") @db.VarChar(50)
+  liabilityFormId     String?  @map("liability_form_id") @db.Uuid
+
+  // Check-in fields (SALVE integration)
+  checkedIn           Boolean  @default(false) @map("checked_in")
+  checkedInAt         DateTime? @map("checked_in_at") @db.Timestamptz(6)
+  checkedInBy         String?  @map("checked_in_by") @db.Uuid
+  qrCode              String?  @map("qr_code") @db.Text
+
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  event               Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  vendorRegistration  VendorRegistration? @relation(fields: [vendorRegistrationId], references: [id], onDelete: SetNull)
+  liabilityForm       LiabilityForm? @relation(fields: [liabilityFormId], references: [id], onDelete: SetNull)
+
+  @@index([eventId], name: "idx_staff_reg_event")
+  @@index([organizationId], name: "idx_staff_reg_org")
+  @@index([vendorCode], name: "idx_staff_reg_vendor_code")
+  @@index([porosAccessCode], name: "idx_staff_reg_poros_code")
+  @@index([checkedIn], name: "idx_staff_reg_checked_in")
+  @@map("staff_registrations")
+}
+
+enum VendorStatus {
+  pending
+  approved
+  rejected
+}
+
+enum VendorPaymentStatus {
+  unpaid
+  partial
+  paid
+}
+
+enum StaffPaymentStatus {
+  pending
+  paid
+  waived
 }
 
