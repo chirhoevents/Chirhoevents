@@ -125,6 +125,7 @@ export async function POST(request: NextRequest) {
             publicPortalEnabled: data.publicPortalEnabled || false,
             staffRegistrationEnabled: data.staffRegistrationEnabled || false,
             vendorRegistrationEnabled: data.vendorRegistrationEnabled || false,
+            couponsEnabled: data.couponsEnabled || false,
             staffVolunteerPrice: data.staffVolunteerPrice ? parseFloat(data.staffVolunteerPrice) : 0,
             vendorStaffPrice: data.vendorStaffPrice ? parseFloat(data.vendorStaffPrice) : 0,
             staffRoles: data.staffRoles || null,

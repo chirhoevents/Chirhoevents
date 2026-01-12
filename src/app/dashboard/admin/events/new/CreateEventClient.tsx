@@ -164,6 +164,9 @@ interface EventFormData {
   staffRoles: string[] // Role options for dropdown
   vendorRegistrationEnabled: boolean
   vendorTiers: VendorTier[]
+
+  // Coupon Settings
+  couponsEnabled: boolean
 }
 
 interface VendorTier {
@@ -348,6 +351,9 @@ export default function CreateEventClient({
       { id: '2', name: 'Medium Booth', price: '350', description: '10x20, includes electricity', active: true, quantityLimit: '' },
       { id: '3', name: 'Large Booth', price: '500', description: '20x20, includes electricity', active: false, quantityLimit: '' },
     ],
+
+    // Coupon Settings
+    couponsEnabled: false,
   }
 
   const [formData, setFormData] = useState<EventFormData>({
@@ -1717,6 +1723,29 @@ export default function CreateEventClient({
                           </Button>
                         </div>
                       )}
+                    </div>
+
+                    {/* Coupon Codes Toggle */}
+                    <div className="bg-white p-4 rounded-lg border border-purple-200">
+                      <div className="flex items-center space-x-2 mb-3">
+                        <input
+                          type="checkbox"
+                          id="couponsEnabled"
+                          checked={formData.couponsEnabled}
+                          onChange={(e) =>
+                            updateFormData({
+                              couponsEnabled: e.target.checked,
+                            })
+                          }
+                          className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                        />
+                        <Label htmlFor="couponsEnabled" className="mb-0 font-medium">
+                          Enable Coupon Codes
+                        </Label>
+                      </div>
+                      <p className="text-sm text-gray-600 ml-6">
+                        Allow registrants to enter coupon codes for discounts during registration. Coupons can be managed in the Coupons section after creating the event.
+                      </p>
                     </div>
                   </div>
                 </div>

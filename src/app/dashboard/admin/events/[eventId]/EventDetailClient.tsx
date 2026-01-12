@@ -28,6 +28,7 @@ import {
   Mail,
   Key,
   ListOrdered,
+  Ticket,
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -63,6 +64,7 @@ interface EventDetailClientProps {
     raphaMedicalEnabled?: boolean
     staffRegistrationEnabled?: boolean
     vendorRegistrationEnabled?: boolean
+    couponsEnabled?: boolean
   } | null
 }
 
@@ -396,6 +398,17 @@ export default function EventDetailClient({
                     >
                       <ListOrdered className="h-4 w-4 mr-2" />
                       Manage Waitlist
+                    </Button>
+                  </Link>
+                )}
+                {settings?.couponsEnabled && (
+                  <Link href={`/dashboard/admin/events/${event.id}/coupons`}>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
+                    >
+                      <Ticket className="h-4 w-4 mr-2" />
+                      Manage Coupons
                     </Button>
                   </Link>
                 )}
