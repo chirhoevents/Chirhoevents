@@ -18,12 +18,17 @@ interface EventPricing {
   dayPassChaperonePrice?: number
 }
 
+interface EventSettings {
+  couponsEnabled?: boolean
+}
+
 interface EventData {
   id: string
   name: string
   startDate: string
   endDate: string
   pricing: EventPricing
+  settings?: EventSettings
 }
 
 export default function IndividualRegistrationPage() {
@@ -61,6 +66,7 @@ export default function IndividualRegistrationPage() {
     city: '',
     state: '',
     zip: '',
+    couponCode: '',
   })
 
   // Load event data
@@ -132,6 +138,7 @@ export default function IndividualRegistrationPage() {
       emergencyContact2Name: formData.emergencyContact2Name,
       emergencyContact2Phone: formData.emergencyContact2Phone,
       emergencyContact2Relation: formData.emergencyContact2Relation,
+      couponCode: formData.couponCode,
     })
 
     router.push(`/events/${eventId}/register-individual/review?${params.toString()}`)
@@ -620,6 +627,29 @@ export default function IndividualRegistrationPage() {
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Coupon Code - only show if enabled */}
+                {event?.settings?.couponsEnabled && (
+                  <Card className="mb-6">
+                    <CardHeader>
+                      <CardTitle className="text-lg text-navy">Coupon Code</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div>
+                        <label className="block text-sm font-medium text-navy mb-2">
+                          Coupon Code (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                          value={formData.couponCode}
+                          onChange={(e) => setFormData({ ...formData, couponCode: e.target.value.toUpperCase() })}
+                          placeholder="Enter coupon code"
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* Terms and Privacy Agreement */}
                 <Card className="mb-6">

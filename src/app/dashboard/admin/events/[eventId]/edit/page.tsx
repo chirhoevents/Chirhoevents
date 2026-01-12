@@ -38,6 +38,7 @@ interface FormData {
   publicPortalEnabled: boolean
   staffRegistrationEnabled: boolean
   vendorRegistrationEnabled: boolean
+  couponsEnabled: boolean
   staffVolunteerPrice: string
   vendorStaffPrice: string
   staffRoles: string[]
@@ -246,6 +247,7 @@ export default function EditEventPage() {
         publicPortalEnabled: event.settings?.publicPortalEnabled || false,
         staffRegistrationEnabled: event.settings?.staffRegistrationEnabled || false,
         vendorRegistrationEnabled: event.settings?.vendorRegistrationEnabled || false,
+        couponsEnabled: event.settings?.couponsEnabled || false,
         staffVolunteerPrice: event.settings?.staffVolunteerPrice?.toString() || '0',
         vendorStaffPrice: event.settings?.vendorStaffPrice?.toString() || '0',
         staffRoles: (event.settings?.staffRoles as string[]) || ['Registration Desk', 'Setup Crew', 'Kitchen Staff', 'Security', 'Emcee', 'General Volunteer'],

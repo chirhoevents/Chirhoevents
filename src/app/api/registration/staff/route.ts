@@ -38,9 +38,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if eventId is a UUID or a slug
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId)
+
     // Fetch event and settings
     const event = await prisma.event.findUnique({
-      where: { id: eventId },
+      where: isUuid ? { id: eventId } : { slug: eventId },
       include: {
         settings: true,
         organization: {

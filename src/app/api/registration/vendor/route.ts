@@ -32,9 +32,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if eventId is a UUID or a slug
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId)
+
     // Fetch event and settings
     const event = await prisma.event.findUnique({
-      where: { id: eventId },
+      where: isUuid ? { id: eventId } : { slug: eventId },
       include: {
         settings: true,
         organization: {
@@ -92,31 +95,46 @@ export async function POST(request: NextRequest) {
       price: string
       description: string
     }> | null
+
+    console.log('Vendor registration request:', {
+      eventId: event.id,
+      organizationId: event.organizationId,
+      selectedTier,
+      vendorTiers: vendorTiers ? vendorTiers.length : 'null',
+      tierPrice,
+    })
+
     const tier = vendorTiers?.find(t => t.id === selectedTier)
-    const tierName = tier?.name || 'Custom'
+    const tierName = tier?.name || selectedTier || 'Custom'
     const price = Number(tierPrice || tier?.price || 0)
 
     // Create vendor registration
-    const registration = await prisma.vendorRegistration.create({
-      data: {
-        eventId: event.id,
-        organizationId: event.organizationId,
-        businessName,
-        contactFirstName,
-        contactLastName,
-        email,
-        phone,
-        boothDescription,
-        selectedTier: tierName,
-        tierPrice: price,
-        additionalNeeds: additionalNeeds || null,
-        status: 'pending',
-        vendorCode,
-        accessCode,
-        paymentStatus: 'unpaid',
-        amountPaid: 0,
-      },
-    })
+    let registration
+    try {
+      registration = await prisma.vendorRegistration.create({
+        data: {
+          eventId: event.id,
+          organizationId: event.organizationId,
+          businessName,
+          contactFirstName,
+          contactLastName,
+          email,
+          phone,
+          boothDescription,
+          selectedTier: tierName,
+          tierPrice: price,
+          additionalNeeds: additionalNeeds || null,
+          status: 'pending',
+          vendorCode,
+          accessCode,
+          paymentStatus: 'unpaid',
+          amountPaid: 0,
+        },
+      })
+    } catch (dbError) {
+      console.error('Database error creating vendor registration:', dbError)
+      throw dbError
+    }
 
     // Send confirmation email
     try {
@@ -193,8 +211,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ registration })
   } catch (error) {
     console.error('Vendor registration error:', error)
+    // Return more detailed error for debugging
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { error: 'Failed to process application' },
+      { error: 'Failed to process application', details: errorMessage },
       { status: 500 }
     )
   }
