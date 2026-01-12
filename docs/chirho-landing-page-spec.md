@@ -77,7 +77,7 @@ Gothic Catholic cathedral (black & white with dark overlay)
 
 | Platform | Fee | Monthly | Total (1K people) |
 |----------|-----|---------|-------------------|
-| **ChiRho** | 3.06% | $49-$149 | **$3,060 + monthly** ✅ |
+| **ChiRho** | 3.06% | $29-$99 | **$3,060 + monthly** ✅ |
 | Eventbrite | 4.30% | $0 | $4,300 |
 | Cvent | 6.20%+ | $500+ | $6,200+ |
 
@@ -153,27 +153,27 @@ specifically built for Catholic events.
 
 ### **5 Tiers:**
 
-**Starter: $49/mo**
-- 2 events/year
+**Starter: $29/mo**
+- 3 events/year
 - 500 people max
 - 5GB storage
 
-**Small Diocese: $99/mo**
+**Small Diocese: $49/mo**
 - 5 events/year
 - 1,000 people max
-- 15GB storage
+- 10GB storage
 
-**Growing: $149/mo**
+**Growing: $79/mo**
 - 10 events/year
 - 3,000 people max
-- 40GB storage
+- 25GB storage
 
-**Conference: $249/mo**
+**Conference: $99/mo**
 - 25 events/year
 - 8,000 people max
 - 100GB storage
 
-**Enterprise: Custom**
+**Enterprise: Custom Pricing (starting at $199/mo)**
 - Unlimited everything
 - Dedicated support
 
