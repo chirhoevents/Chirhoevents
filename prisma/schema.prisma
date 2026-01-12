@@ -296,6 +296,9 @@ model EventSettings {
   addOn4Description               String?  @map("add_on_4_description") @db.Text
   addOn4Price                     Decimal? @map("add_on_4_price") @db.Decimal(10, 2)
 
+  // Coupon Settings
+  couponsEnabled                  Boolean  @default(false) @map("coupons_enabled")
+
   createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 

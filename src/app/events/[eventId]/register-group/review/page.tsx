@@ -62,6 +62,7 @@ interface RegistrationData {
   priestCount: number
   housingType: string
   specialRequests: string
+  couponCode: string
 }
 
 export default function InvoiceReviewPage() {
@@ -100,6 +101,7 @@ export default function InvoiceReviewPage() {
     priestCount: parseInt(searchParams.get('priestCount') || '0'),
     housingType: searchParams.get('housingType') || 'on_campus',
     specialRequests: searchParams.get('specialRequests') || '',
+    couponCode: searchParams.get('couponCode') || '',
   }
 
   // Load event data

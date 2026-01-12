@@ -20,12 +20,17 @@ interface EventPricing {
   dayPassChaperonePrice?: number
 }
 
+interface EventSettings {
+  couponsEnabled?: boolean
+}
+
 interface EventData {
   id: string
   name: string
   startDate: string
   endDate: string
   pricing: EventPricing
+  settings?: EventSettings
 }
 
 export default function GroupRegistrationPage() {
@@ -175,6 +180,7 @@ export default function GroupRegistrationPage() {
       priestCount: formData.priestCount.toString(),
       housingType: formData.housingType,
       specialRequests: formData.specialRequests,
+      couponCode: formData.couponCode,
     })
 
     router.push(`/events/${eventId}/register-group/review?${params.toString()}`)
@@ -627,18 +633,20 @@ export default function GroupRegistrationPage() {
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-navy mb-2">
-                        Coupon Code (Optional)
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
-                        value={formData.couponCode}
-                        onChange={(e) => setFormData({ ...formData, couponCode: e.target.value.toUpperCase() })}
-                        placeholder="EARLYBIRD"
-                      />
-                    </div>
+                    {event?.settings?.couponsEnabled && (
+                      <div>
+                        <label className="block text-sm font-medium text-navy mb-2">
+                          Coupon Code (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                          value={formData.couponCode}
+                          onChange={(e) => setFormData({ ...formData, couponCode: e.target.value.toUpperCase() })}
+                          placeholder="Enter coupon code"
+                        />
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 

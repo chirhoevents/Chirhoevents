@@ -46,6 +46,7 @@ interface RegistrationData {
   emergencyContact2Name: string
   emergencyContact2Phone: string
   emergencyContact2Relation: string
+  couponCode: string
 }
 
 export default function IndividualInvoiceReviewPage() {
@@ -83,6 +84,7 @@ export default function IndividualInvoiceReviewPage() {
     emergencyContact2Name: searchParams.get('emergencyContact2Name') || '',
     emergencyContact2Phone: searchParams.get('emergencyContact2Phone') || '',
     emergencyContact2Relation: searchParams.get('emergencyContact2Relation') || '',
+    couponCode: searchParams.get('couponCode') || '',
   }
 
   // Load event data

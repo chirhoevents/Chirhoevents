@@ -38,6 +38,7 @@ interface FormData {
   publicPortalEnabled: boolean
   staffRegistrationEnabled: boolean
   vendorRegistrationEnabled: boolean
+  couponsEnabled: boolean
   allowOnCampus: boolean
   allowOffCampus: boolean
   allowDayPass: boolean
@@ -242,6 +243,7 @@ export default function EditEventPage() {
         publicPortalEnabled: event.settings?.publicPortalEnabled || false,
         staffRegistrationEnabled: event.settings?.staffRegistrationEnabled || false,
         vendorRegistrationEnabled: event.settings?.vendorRegistrationEnabled || false,
+        couponsEnabled: event.settings?.couponsEnabled || false,
         allowOnCampus: event.settings?.allowOnCampus ?? true,
         allowOffCampus: event.settings?.allowOffCampus ?? true,
         allowDayPass: event.settings?.allowDayPass ?? false,
