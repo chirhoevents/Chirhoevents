@@ -157,17 +157,23 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
   const isM2KEvent = eventId === M2K_EVENT_ID && event.organizationId === M2K_ORG_ID
 
   if (isM2KEvent) {
-    // Try to load the imported JSON data
-    let dataImport: any = null
+    // Try to load the imported JSON data using raw SQL (Prisma model may not exist yet)
+    let jsonData: any = null
     try {
-      dataImport = await prisma.porosEventDataImport.findUnique({
-        where: { eventId }
-      })
+      const results = await prisma.$queryRaw<any[]>`
+        SELECT json_data as "jsonData"
+        FROM poros_event_data_imports
+        WHERE event_id = ${eventId}::uuid
+        LIMIT 1
+      `
+      if (results.length > 0) {
+        jsonData = results[0].jsonData
+      }
     } catch (error) {
       console.error('Error loading M2K data import:', error)
     }
 
-    if (dataImport?.jsonData) {
+    if (jsonData) {
       // Render the custom M2K view
       return (
         <M2KPublicView
@@ -178,7 +184,7 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
             endDate: event.endDate?.toISOString() || null,
             locationName: event.locationName
           }}
-          data={dataImport.jsonData}
+          data={jsonData}
         />
       )
     }
