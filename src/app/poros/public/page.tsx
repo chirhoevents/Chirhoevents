@@ -8,13 +8,13 @@ export const metadata: Metadata = {
   description: 'Access event resources, schedules, and meal times',
   manifest: '/poros-manifest.json',
   icons: {
-    icon: '/poros-icons/favicon-96x96.png',
-    apple: '/poros-icons/apple-touch-icon.png',
+    icon: '/AppIcons/android/mipmap-xxxhdpi/Chirho.png',
+    apple: '/AppIcons/Assets.xcassets/AppIcon.appiconset/180.png',
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Poros Portal',
+    title: 'ChiRho',
   },
   other: {
     'mobile-web-app-capable': 'yes',

@@ -1,6 +1,6 @@
 {
-  "name": "Poros Portal",
-  "short_name": "Poros",
+  "name": "ChiRho Poros Portal",
+  "short_name": "ChiRho",
   "description": "Event resources, schedules, and meal times",
   "start_url": "/poros/public",
   "display": "standalone",
@@ -9,19 +9,19 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/poros-icons/web-app-manifest-192x192.png",
+      "src": "/AppIcons/android/mipmap-xxxhdpi/Chirho.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/poros-icons/web-app-manifest-512x512.png",
+      "src": "/AppIcons/playstore.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/poros-icons/apple-touch-icon.png",
+      "src": "/AppIcons/Assets.xcassets/AppIcon.appiconset/180.png",
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "any"
