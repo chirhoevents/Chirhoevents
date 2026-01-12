@@ -69,7 +69,17 @@ export async function GET(request: NextRequest) {
       events = await prisma.event.findMany({
         where: whereClause,
         include: {
-          settings: true,
+          settings: {
+            select: {
+              id: true,
+              eventId: true,
+              groupRegistrationEnabled: true,
+              individualRegistrationEnabled: true,
+              vendorRegistrationEnabled: true,
+              waitlistEnabled: true,
+              housingEnabled: true,
+            },
+          },
           pricing: true,
           groupRegistrations: {
             select: {
