@@ -19,7 +19,7 @@ export default async function PorosPublicLandingPage() {
   try {
     events = await prisma.event.findMany({
       where: {
-        status: { in: ['registration_open', 'registration_closed', 'in_progress'] },
+        status: { in: ['published', 'registration_open', 'registration_closed', 'in_progress'] },
         settings: {
           porosPublicPortalEnabled: true
         }
