@@ -117,6 +117,16 @@ export async function PUT(
 
     const data = await request.json()
 
+    // Debug: Log key fields being saved
+    console.log('[PUT Event] 📝 Key fields received:', {
+      backgroundImageUrl: data.backgroundImageUrl,
+      contactInfo: data.contactInfo,
+      confirmationEmailMessage: data.confirmationEmailMessage?.substring(0, 50),
+      primaryColor: data.primaryColor,
+      secondaryColor: data.secondaryColor,
+      faqContent: data.faqContent?.substring(0, 50),
+    })
+
     // Validate required fields based on status
     if (!data.name || !data.slug) {
       return NextResponse.json(
