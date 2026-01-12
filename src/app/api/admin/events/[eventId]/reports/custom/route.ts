@@ -25,43 +25,70 @@ export async function POST(
       return NextResponse.json({ error: 'Configuration required' }, { status: 400 })
     }
 
-    // Execute the report based on type
     const config = configuration
-    const reportType = config.reportType || 'registration'
-    console.log('Executing report type:', reportType, 'with config:', JSON.stringify(config))
+    const dataSource = config.dataSource || config.reportType || 'participants'
+    console.log('Executing custom report:', dataSource, 'with config:', JSON.stringify(config))
+
     let reportData: any
 
-    switch (reportType) {
-      case 'registration':
-        reportData = await executeRegistrationReport(eventId, config)
+    switch (dataSource) {
+      case 'registrations':
+        reportData = await executeRegistrationsReport(eventId, config)
+        break
+      case 'participants':
+      case 'roster':
+        reportData = await executeParticipantsReport(eventId, config)
+        break
+      case 'individuals':
+        reportData = await executeIndividualsReport(eventId, config)
+        break
+      case 'vendors':
+        reportData = await executeVendorsReport(eventId, config)
+        break
+      case 'staff':
+        reportData = await executeStaffReport(eventId, config)
         break
       case 'financial':
         reportData = await executeFinancialReport(eventId, config)
         break
-      case 'tshirts':
-        reportData = await executeTShirtReport(eventId, config)
-        break
-      case 'balances':
-        reportData = await executeBalancesReport(eventId, config)
+      case 'checkins':
+        reportData = await executeCheckinsReport(eventId, config)
         break
       case 'medical':
         reportData = await executeMedicalReport(eventId, config)
         break
-      case 'roster':
-        reportData = await executeRosterReport(eventId, config)
+      case 'incidents':
+        reportData = await executeIncidentsReport(eventId, config)
         break
-      case 'custom':
-        reportData = await executeCustomReport(eventId, config)
+      case 'housing':
+        reportData = await executeHousingReport(eventId, config)
+        break
+      case 'tshirts':
+        reportData = await executeTShirtsReport(eventId, config)
+        break
+      case 'coupons':
+        reportData = await executeCouponsReport(eventId, config)
+        break
+      // Legacy support
+      case 'registration':
+        reportData = await executeRegistrationsReport(eventId, config)
+        break
+      case 'balances':
+        reportData = await executeBalancesReport(eventId, config)
         break
       default:
-        return NextResponse.json({ error: 'Unsupported report type' }, { status: 400 })
+        return NextResponse.json({ error: `Unsupported data source: ${dataSource}` }, { status: 400 })
     }
 
-    console.log('Report data generated:', reportType, 'rows:', Array.isArray(reportData) ? reportData.length : typeof reportData)
+    const totalCount = Array.isArray(reportData) ? reportData.length :
+                       reportData?.items?.length ||
+                       reportData?.data?.length || 0
 
     return NextResponse.json({
-      reportType,
+      reportType: dataSource,
       data: reportData,
+      totalCount,
+      grouped: config.groupBy && config.groupBy !== 'none',
       generatedAt: new Date().toISOString(),
     })
   } catch (error) {
@@ -70,141 +97,857 @@ export async function POST(
   }
 }
 
-// Helper functions to execute different report types
-async function executeRegistrationReport(eventId: string, config: any) {
+// ============================================
+// REGISTRATIONS REPORT (Group Registrations)
+// ============================================
+async function executeRegistrationsReport(eventId: string, config: any) {
   const where: any = { eventId }
 
-  // Apply filters from config
-  if (config.filters?.housingType) {
-    where.housingType = config.filters.housingType
+  // Apply filters
+  if (config.filters?.registrationStatus?.length > 0) {
+    where.registrationStatus = { in: config.filters.registrationStatus }
   }
-  if (config.filters?.registrationStatus) {
-    where.registrationStatus = config.filters.registrationStatus
+  if (config.filters?.housingType?.length > 0) {
+    where.housingType = { in: config.filters.housingType }
+  }
+  if (config.filters?.search) {
+    const search = config.filters.search
+    where.OR = [
+      { groupName: { contains: search, mode: 'insensitive' } },
+      { parishName: { contains: search, mode: 'insensitive' } },
+      { groupLeaderEmail: { contains: search, mode: 'insensitive' } },
+      { groupLeaderName: { contains: search, mode: 'insensitive' } },
+    ]
   }
 
-  const groupRegistrations = await prisma.groupRegistration.findMany({
+  const registrations = await prisma.groupRegistration.findMany({
     where,
     include: {
-      participants: config.includeParticipants !== false,
+      participants: { select: { id: true, participantType: true } },
     },
-    orderBy: config.sortBy || { createdAt: 'desc' },
+    orderBy: getSortOrder(config.sortBy, config.sortDirection) || { createdAt: 'desc' },
   })
 
-  // Filter fields based on config
-  return filterFields(groupRegistrations, config.fields)
-}
+  // Get payment balances
+  const regIds = registrations.map(r => r.id)
+  const balances = await prisma.paymentBalance.findMany({
+    where: { registrationId: { in: regIds }, registrationType: 'group' },
+  })
+  const balanceMap = new Map(balances.map(b => [b.registrationId, b]))
 
-async function executeFinancialReport(eventId: string, config: any) {
-  // Fetch payments and balances
-  const payments = await prisma.payment.findMany({
-    where: { eventId },
-    orderBy: { createdAt: 'desc' },
+  // Transform with balance info and counts
+  let results = registrations.map(reg => {
+    const balance = balanceMap.get(reg.id)
+    const youthCount = reg.participants.filter((p: any) =>
+      p.participantType === 'youth_u18' || p.participantType === 'youth_o18'
+    ).length
+    const chaperoneCount = reg.participants.filter((p: any) => p.participantType === 'chaperone').length
+    const priestCount = reg.participants.filter((p: any) => p.participantType === 'priest').length
+
+    return {
+      ...reg,
+      youthCount,
+      chaperoneCount,
+      priestCount,
+      totalParticipants: reg.participants.length,
+      paymentStatus: balance?.paymentStatus || 'unpaid',
+      totalAmountDue: balance ? Number(balance.totalAmountDue) : 0,
+      amountPaid: balance ? Number(balance.amountPaid) : 0,
+      amountRemaining: balance ? Number(balance.amountRemaining) : 0,
+      participants: undefined, // Remove participants array for cleaner output
+    }
   })
 
-  const paymentBalances = await prisma.paymentBalance.findMany({
-    where: { eventId },
-  })
-
-  return {
-    payments: filterFields(payments, config.fields?.payments),
-    balances: filterFields(paymentBalances, config.fields?.balances),
+  // Apply payment status filter after joining with balances
+  if (config.filters?.paymentStatus?.length > 0) {
+    results = results.filter(r => config.filters.paymentStatus.includes(r.paymentStatus))
   }
+
+  // Apply grouping
+  if (config.groupBy) {
+    return groupResults(results, config.groupBy)
+  }
+
+  return filterFields(results, config.fields)
 }
 
-interface ParticipantWithSize {
-  id: string
-  firstName: string | null
-  lastName: string | null
-  tShirtSize: string | null
-  participantType: string | null
-  groupRegistration: { groupName: string | null; parishName: string | null } | null
+// ============================================
+// PARTICIPANTS REPORT (Participant Roster)
+// ============================================
+async function executeParticipantsReport(eventId: string, config: any) {
+  const where: any = {
+    groupRegistration: { eventId },
+  }
+
+  // Apply filters
+  if (config.filters?.participantType?.length > 0) {
+    where.participantType = { in: config.filters.participantType }
+  }
+  if (config.filters?.gender?.length > 0) {
+    where.gender = { in: config.filters.gender }
+  }
+  if (config.filters?.checkedIn && config.filters.checkedIn !== 'all') {
+    where.checkedIn = config.filters.checkedIn === 'true'
+  }
+  if (config.filters?.minAge) {
+    where.age = { ...where.age, gte: parseInt(config.filters.minAge) }
+  }
+  if (config.filters?.maxAge) {
+    where.age = { ...where.age, lte: parseInt(config.filters.maxAge) }
+  }
+  if (config.filters?.search) {
+    const search = config.filters.search
+    where.OR = [
+      { firstName: { contains: search, mode: 'insensitive' } },
+      { lastName: { contains: search, mode: 'insensitive' } },
+    ]
+  }
+
+  const participants = await prisma.participant.findMany({
+    where,
+    include: {
+      groupRegistration: {
+        select: {
+          id: true,
+          accessCode: true,
+          groupName: true,
+          parishName: true,
+          dioceseName: true,
+          groupLeaderName: true,
+          groupLeaderEmail: true,
+          groupLeaderPhone: true,
+          housingType: true,
+        },
+      },
+      liabilityForms: {
+        select: {
+          allergies: true,
+          medications: true,
+          medicalConditions: true,
+          dietaryRestrictions: true,
+          adaAccommodations: true,
+          emergencyContact1Name: true,
+          emergencyContact1Phone: true,
+          emergencyContact1Relation: true,
+        },
+        take: 1,
+      },
+    },
+    orderBy: getSortOrder(config.sortBy, config.sortDirection) || { lastName: 'asc' },
+  })
+
+  // Transform data
+  let results = participants.map(p => ({
+    ...p,
+    liabilityForm: p.liabilityForms?.[0] || null,
+    liabilityForms: undefined,
+  }))
+
+  // Filter by medical needs
+  if (config.filters?.hasMedicalNeeds) {
+    results = results.filter(p =>
+      p.liabilityForm?.allergies ||
+      p.liabilityForm?.medications ||
+      p.liabilityForm?.medicalConditions
+    )
+  }
+
+  // Filter by liability form status (checks if form exists)
+  if (config.filters?.liabilityFormStatus && config.filters.liabilityFormStatus !== 'all') {
+    if (config.filters.liabilityFormStatus === 'completed') {
+      results = results.filter(p => p.liabilityForm !== null)
+    } else {
+      results = results.filter(p => !p.liabilityForm)
+    }
+  }
+
+  // Apply grouping
+  if (config.groupBy) {
+    return groupParticipants(results, config.groupBy)
+  }
+
+  return filterFields(results, config.fields)
 }
 
-interface IndividualWithSize {
-  id: string
-  firstName: string | null
-  lastName: string | null
-  tShirtSize: string | null
-  age: number | null
+// ============================================
+// INDIVIDUALS REPORT (Individual Registrations)
+// ============================================
+async function executeIndividualsReport(eventId: string, config: any) {
+  const where: any = { eventId }
+
+  if (config.filters?.registrationStatus?.length > 0) {
+    where.registrationStatus = { in: config.filters.registrationStatus }
+  }
+  if (config.filters?.checkedIn && config.filters.checkedIn !== 'all') {
+    where.checkedIn = config.filters.checkedIn === 'true'
+  }
+  if (config.filters?.search) {
+    const search = config.filters.search
+    where.OR = [
+      { firstName: { contains: search, mode: 'insensitive' } },
+      { lastName: { contains: search, mode: 'insensitive' } },
+      { email: { contains: search, mode: 'insensitive' } },
+    ]
+  }
+
+  const individuals = await prisma.individualRegistration.findMany({
+    where,
+    include: {
+      liabilityForms: {
+        select: {
+          allergies: true,
+          medications: true,
+          dietaryRestrictions: true,
+        },
+        take: 1,
+      },
+    },
+    orderBy: getSortOrder(config.sortBy, config.sortDirection) || { lastName: 'asc' },
+  })
+
+  // Get payment balances
+  const indIds = individuals.map(i => i.id)
+  const balances = await prisma.paymentBalance.findMany({
+    where: { registrationId: { in: indIds }, registrationType: 'individual' },
+  })
+  const balanceMap = new Map(balances.map(b => [b.registrationId, b]))
+
+  let results = individuals.map(ind => {
+    const balance = balanceMap.get(ind.id)
+    return {
+      ...ind,
+      liabilityForm: ind.liabilityForms?.[0] || null,
+      paymentStatus: balance?.paymentStatus || 'unpaid',
+      totalAmountDue: balance ? Number(balance.totalAmountDue) : 0,
+      amountPaid: balance ? Number(balance.amountPaid) : 0,
+      liabilityForms: undefined,
+    }
+  })
+
+  if (config.groupBy) {
+    return groupResults(results, config.groupBy)
+  }
+
+  return filterFields(results, config.fields)
 }
 
-async function executeTShirtReport(eventId: string, config: { filters?: { onlyWithSizes?: boolean }; fields?: { participants?: string[]; individuals?: string[] } }) {
+// ============================================
+// VENDORS REPORT
+// ============================================
+async function executeVendorsReport(eventId: string, config: any) {
+  const where: any = { eventId }
+
+  if (config.filters?.status?.length > 0) {
+    where.status = { in: config.filters.status }
+  }
+  if (config.filters?.paymentStatus?.length > 0) {
+    where.paymentStatus = { in: config.filters.paymentStatus }
+  }
+  if (config.filters?.search) {
+    const search = config.filters.search
+    where.OR = [
+      { businessName: { contains: search, mode: 'insensitive' } },
+      { contactFirstName: { contains: search, mode: 'insensitive' } },
+      { contactLastName: { contains: search, mode: 'insensitive' } },
+      { email: { contains: search, mode: 'insensitive' } },
+    ]
+  }
+
+  const vendors = await prisma.vendorRegistration.findMany({
+    where,
+    include: {
+      boothStaff: { select: { id: true } },
+    },
+    orderBy: getSortOrder(config.sortBy, config.sortDirection) || { businessName: 'asc' },
+  })
+
+  let results = vendors.map(v => ({
+    ...v,
+    staffCount: v.boothStaff.length,
+    tierPrice: Number(v.tierPrice),
+    invoiceTotal: v.invoiceTotal ? Number(v.invoiceTotal) : null,
+    amountPaid: Number(v.amountPaid),
+    boothStaff: undefined,
+  }))
+
+  if (config.groupBy) {
+    return groupResults(results, config.groupBy)
+  }
+
+  return filterFields(results, config.fields)
+}
+
+// ============================================
+// STAFF REPORT
+// ============================================
+async function executeStaffReport(eventId: string, config: any) {
+  const where: any = { eventId }
+
+  if (config.filters?.isVendorStaff && config.filters.isVendorStaff !== 'all') {
+    where.isVendorStaff = config.filters.isVendorStaff === 'true'
+  }
+  if (config.filters?.checkedIn && config.filters.checkedIn !== 'all') {
+    where.checkedIn = config.filters.checkedIn === 'true'
+  }
+  if (config.filters?.paymentStatus?.length > 0) {
+    where.paymentStatus = { in: config.filters.paymentStatus }
+  }
+  if (config.filters?.role) {
+    where.role = { contains: config.filters.role, mode: 'insensitive' }
+  }
+  if (config.filters?.search) {
+    const search = config.filters.search
+    where.OR = [
+      { firstName: { contains: search, mode: 'insensitive' } },
+      { lastName: { contains: search, mode: 'insensitive' } },
+      { email: { contains: search, mode: 'insensitive' } },
+    ]
+  }
+
+  const staff = await prisma.staffRegistration.findMany({
+    where,
+    include: {
+      vendorRegistration: {
+        select: { businessName: true },
+      },
+    },
+    orderBy: getSortOrder(config.sortBy, config.sortDirection) || { lastName: 'asc' },
+  })
+
+  let results = staff.map(s => ({
+    ...s,
+    pricePaid: Number(s.pricePaid),
+  }))
+
+  if (config.groupBy) {
+    return groupResults(results, config.groupBy)
+  }
+
+  return filterFields(results, config.fields)
+}
+
+// ============================================
+// FINANCIAL REPORT (Payments & Balances)
+// ============================================
+async function executeFinancialReport(eventId: string, config: any) {
+  const paymentWhere: any = { eventId }
+
+  if (config.filters?.paymentMethod?.length > 0) {
+    paymentWhere.paymentMethod = { in: config.filters.paymentMethod }
+  }
+  if (config.filters?.status?.length > 0) {
+    paymentWhere.status = { in: config.filters.status }
+  }
+  if (config.filters?.dateRange?.start) {
+    paymentWhere.createdAt = { ...paymentWhere.createdAt, gte: new Date(config.filters.dateRange.start) }
+  }
+  if (config.filters?.dateRange?.end) {
+    paymentWhere.createdAt = { ...paymentWhere.createdAt, lte: new Date(config.filters.dateRange.end) }
+  }
+
+  const payments = await prisma.payment.findMany({
+    where: paymentWhere,
+    orderBy: getSortOrder(config.sortBy, config.sortDirection) || { createdAt: 'desc' },
+  })
+
+  // Get registration names for context
+  const groupRegIds = payments.filter(p => p.registrationType === 'group').map(p => p.registrationId)
+  const indRegIds = payments.filter(p => p.registrationType === 'individual').map(p => p.registrationId)
+
+  const [groupRegs, indRegs] = await Promise.all([
+    prisma.groupRegistration.findMany({
+      where: { id: { in: groupRegIds } },
+      select: { id: true, groupName: true, groupLeaderEmail: true },
+    }),
+    prisma.individualRegistration.findMany({
+      where: { id: { in: indRegIds } },
+      select: { id: true, firstName: true, lastName: true, email: true },
+    }),
+  ])
+
+  const groupMap = new Map(groupRegs.map(g => [g.id, g]))
+  const indMap = new Map(indRegs.map(i => [i.id, i]))
+
+  let results = payments.map(p => {
+    let registrationName = 'Unknown'
+    let contactEmail = ''
+
+    if (p.registrationType === 'group') {
+      const group = groupMap.get(p.registrationId)
+      registrationName = group?.groupName || 'Unknown Group'
+      contactEmail = group?.groupLeaderEmail || ''
+    } else if (p.registrationType === 'individual') {
+      const ind = indMap.get(p.registrationId)
+      registrationName = ind ? `${ind.firstName} ${ind.lastName}` : 'Unknown Individual'
+      contactEmail = ind?.email || ''
+    }
+
+    return {
+      ...p,
+      registrationName,
+      contactEmail,
+      amount: Number(p.amount),
+    }
+  })
+
+  // Filter by registration type
+  if (config.filters?.registrationType?.length > 0) {
+    results = results.filter(r => config.filters.registrationType.includes(r.registrationType))
+  }
+
+  if (config.groupBy) {
+    return groupResults(results, config.groupBy)
+  }
+
+  return filterFields(results, config.fields)
+}
+
+// ============================================
+// CHECKINS REPORT
+// ============================================
+async function executeCheckinsReport(eventId: string, config: any) {
+  const where: any = { eventId }
+
+  if (config.filters?.action?.length > 0) {
+    where.action = { in: config.filters.action }
+  }
+  if (config.filters?.station) {
+    where.station = { contains: config.filters.station, mode: 'insensitive' }
+  }
+  if (config.filters?.dateRange?.start) {
+    where.createdAt = { ...where.createdAt, gte: new Date(config.filters.dateRange.start) }
+  }
+  if (config.filters?.dateRange?.end) {
+    where.createdAt = { ...where.createdAt, lte: new Date(config.filters.dateRange.end) }
+  }
+
+  const logs = await prisma.checkInLog.findMany({
+    where,
+    orderBy: getSortOrder(config.sortBy, config.sortDirection) || { createdAt: 'desc' },
+  })
+
+  // Get participant and group info
+  const participantIds = logs.filter(l => l.participantId).map(l => l.participantId!)
+  const groupIds = logs.filter(l => l.groupRegistrationId).map(l => l.groupRegistrationId!)
+  const individualIds = logs.filter(l => l.individualRegistrationId).map(l => l.individualRegistrationId!)
+  const userIds = logs.filter(l => l.userId).map(l => l.userId!)
+
+  const [participants, groups, individuals, users] = await Promise.all([
+    prisma.participant.findMany({
+      where: { id: { in: participantIds } },
+      select: { id: true, firstName: true, lastName: true, groupRegistration: { select: { groupName: true } } },
+    }),
+    prisma.groupRegistration.findMany({
+      where: { id: { in: groupIds } },
+      select: { id: true, groupName: true },
+    }),
+    prisma.individualRegistration.findMany({
+      where: { id: { in: individualIds } },
+      select: { id: true, firstName: true, lastName: true },
+    }),
+    prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, firstName: true, lastName: true },
+    }),
+  ])
+
+  const participantMap = new Map(participants.map(p => [p.id, p]))
+  const groupMap = new Map(groups.map(g => [g.id, g]))
+  const individualMap = new Map(individuals.map(i => [i.id, i]))
+  const userMap = new Map(users.map(u => [u.id, u]))
+
+  let results = logs.map(log => {
+    let personName = 'Unknown'
+    let personType = 'Unknown'
+    let groupName = ''
+
+    if (log.participantId) {
+      const p = participantMap.get(log.participantId)
+      personName = p ? `${p.firstName} ${p.lastName}` : 'Unknown Participant'
+      personType = 'Participant'
+      groupName = p?.groupRegistration?.groupName || ''
+    } else if (log.groupRegistrationId) {
+      const g = groupMap.get(log.groupRegistrationId)
+      personName = g?.groupName || 'Unknown Group'
+      personType = 'Group'
+      groupName = g?.groupName || ''
+    } else if (log.individualRegistrationId) {
+      const i = individualMap.get(log.individualRegistrationId)
+      personName = i ? `${i.firstName} ${i.lastName}` : 'Unknown Individual'
+      personType = 'Individual'
+    }
+
+    const performer = log.userId ? userMap.get(log.userId) : null
+    const performedBy = performer ? `${performer.firstName} ${performer.lastName}` : ''
+
+    return {
+      ...log,
+      personName,
+      personType,
+      groupName,
+      performedBy,
+    }
+  })
+
+  if (config.groupBy) {
+    return groupResults(results, config.groupBy)
+  }
+
+  return filterFields(results, config.fields)
+}
+
+// ============================================
+// MEDICAL REPORT (Liability Forms)
+// ============================================
+async function executeMedicalReport(eventId: string, config: any) {
+  const where: any = {
+    participant: { groupRegistration: { eventId } },
+  }
+
+  const forms = await prisma.liabilityForm.findMany({
+    where,
+    include: {
+      participant: {
+        select: {
+          firstName: true,
+          lastName: true,
+          age: true,
+          participantType: true,
+          groupRegistration: {
+            select: {
+              groupName: true,
+              groupLeaderName: true,
+              groupLeaderPhone: true,
+            },
+          },
+        },
+      },
+    },
+  })
+
+  let results = forms
+
+  // Apply medical filters
+  if (config.filters?.hasAllergies) {
+    results = results.filter(f => f.allergies && f.allergies.trim() !== '')
+  }
+  if (config.filters?.hasMedications) {
+    results = results.filter(f => f.medications && f.medications.trim() !== '')
+  }
+  if (config.filters?.hasMedicalConditions) {
+    results = results.filter(f => f.medicalConditions && f.medicalConditions.trim() !== '')
+  }
+  if (config.filters?.hasDietaryRestrictions) {
+    results = results.filter(f => f.dietaryRestrictions && f.dietaryRestrictions.trim() !== '')
+  }
+  if (config.filters?.participantType?.length > 0) {
+    results = results.filter(f => config.filters.participantType.includes(f.participant?.participantType))
+  }
+
+  if (config.groupBy) {
+    return groupResults(results, config.groupBy)
+  }
+
+  return filterFields(results, config.fields)
+}
+
+// ============================================
+// INCIDENTS REPORT (Medical Incidents - Rapha)
+// ============================================
+async function executeIncidentsReport(eventId: string, config: any) {
+  const where: any = { eventId }
+
+  if (config.filters?.incidentType?.length > 0) {
+    where.incidentType = { in: config.filters.incidentType }
+  }
+  if (config.filters?.severity?.length > 0) {
+    where.severity = { in: config.filters.severity }
+  }
+  if (config.filters?.status?.length > 0) {
+    where.status = { in: config.filters.status }
+  }
+  if (config.filters?.dateRange?.start) {
+    where.incidentDate = { ...where.incidentDate, gte: new Date(config.filters.dateRange.start) }
+  }
+  if (config.filters?.dateRange?.end) {
+    where.incidentDate = { ...where.incidentDate, lte: new Date(config.filters.dateRange.end) }
+  }
+
+  const incidents = await prisma.medicalIncident.findMany({
+    where,
+    orderBy: getSortOrder(config.sortBy, config.sortDirection) || { incidentDate: 'desc' },
+  })
+
+  if (config.groupBy) {
+    return groupResults(incidents, config.groupBy)
+  }
+
+  return filterFields(incidents, config.fields)
+}
+
+// ============================================
+// HOUSING REPORT
+// ============================================
+async function executeHousingReport(eventId: string, config: any) {
+  const rooms = await prisma.room.findMany({
+    where: {
+      building: { eventId },
+    },
+    include: {
+      building: { select: { name: true } },
+      roomAssignments: true,
+    },
+    orderBy: [{ building: { name: 'asc' } }, { roomNumber: 'asc' }],
+  })
+
+  // Collect all participant IDs from room assignments
+  const participantIds = rooms.flatMap(room =>
+    room.roomAssignments
+      .filter(a => a.participantId)
+      .map(a => a.participantId!)
+  )
+
+  // Fetch participant details separately
+  const participants = await prisma.participant.findMany({
+    where: { id: { in: participantIds } },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      participantType: true,
+      gender: true,
+      groupRegistration: { select: { groupName: true } },
+    },
+  })
+  const participantMap = new Map(participants.map(p => [p.id, p]))
+
+  // Flatten to assignments
+  let results: any[] = []
+  rooms.forEach(room => {
+    room.roomAssignments.forEach(assignment => {
+      const participant = assignment.participantId
+        ? participantMap.get(assignment.participantId)
+        : null
+
+      results.push({
+        building: { name: room.building.name },
+        room: {
+          roomNumber: room.roomNumber,
+          floor: room.floor,
+          capacity: room.capacity,
+          currentOccupancy: room.roomAssignments.length,
+          roomType: room.roomType,
+          gender: room.gender,
+          isAdaAccessible: room.isAdaAccessible,
+        },
+        participant: participant || null,
+        assignedAt: assignment.assignedAt,
+      })
+    })
+  })
+
+  // Apply filters
+  if (config.filters?.building) {
+    results = results.filter(r =>
+      r.building.name.toLowerCase().includes(config.filters.building.toLowerCase())
+    )
+  }
+  if (config.filters?.gender && config.filters.gender !== 'all') {
+    results = results.filter(r => r.room.gender === config.filters.gender)
+  }
+
+  if (config.groupBy) {
+    return groupResults(results, config.groupBy)
+  }
+
+  return filterFields(results, config.fields)
+}
+
+// ============================================
+// T-SHIRTS REPORT
+// ============================================
+async function executeTShirtsReport(eventId: string, config: any) {
+  // Get participants
   const participants = await prisma.participant.findMany({
     where: {
       groupRegistration: { eventId },
-      tShirtSize: config.filters?.onlyWithSizes ? { not: null } : undefined,
+      tShirtSize: { not: null },
     },
     select: {
-      id: true,
       firstName: true,
       lastName: true,
       tShirtSize: true,
       participantType: true,
       groupRegistration: {
-        select: {
-          groupName: true,
-          parishName: true,
-        },
+        select: { groupName: true, parishName: true },
       },
     },
-  }) as ParticipantWithSize[]
+  })
 
-  const individualRegs = await prisma.individualRegistration.findMany({
+  // Get individual registrations
+  const individuals = await prisma.individualRegistration.findMany({
     where: {
       eventId,
-      tShirtSize: config.filters?.onlyWithSizes ? { not: null } : undefined,
+      tShirtSize: { not: null },
     },
     select: {
-      id: true,
       firstName: true,
       lastName: true,
       tShirtSize: true,
-      age: true,
     },
-  }) as IndividualWithSize[]
-
-  // Aggregate by size
-  const sizeCounts: Record<string, number> = {}
-  participants.forEach((p: ParticipantWithSize) => {
-    if (p.tShirtSize) {
-      sizeCounts[p.tShirtSize] = (sizeCounts[p.tShirtSize] || 0) + 1
-    }
-  })
-  individualRegs.forEach((i: IndividualWithSize) => {
-    if (i.tShirtSize) {
-      sizeCounts[i.tShirtSize] = (sizeCounts[i.tShirtSize] || 0) + 1
-    }
   })
 
-  return {
-    participants: filterFields(participants, config.fields?.participants),
-    individualRegs: filterFields(individualRegs, config.fields?.individuals),
-    sizeCounts,
-    totalCount: participants.length + individualRegs.length,
+  // Get staff (tshirtSize is required on StaffRegistration, so no null filter needed)
+  const staff = await prisma.staffRegistration.findMany({
+    where: { eventId },
+    select: {
+      firstName: true,
+      lastName: true,
+      tshirtSize: true,
+    },
+  })
+
+  let results: any[] = [
+    ...participants.map(p => ({
+      firstName: p.firstName,
+      lastName: p.lastName,
+      tShirtSize: p.tShirtSize,
+      participantType: p.participantType,
+      groupName: p.groupRegistration?.groupName,
+      parishName: p.groupRegistration?.parishName,
+      registrationType: 'participant',
+    })),
+    ...individuals.map(i => ({
+      firstName: i.firstName,
+      lastName: i.lastName,
+      tShirtSize: i.tShirtSize,
+      participantType: 'individual',
+      groupName: null,
+      parishName: null,
+      registrationType: 'individual',
+    })),
+    ...staff.map(s => ({
+      firstName: s.firstName,
+      lastName: s.lastName,
+      tShirtSize: s.tshirtSize,
+      participantType: 'staff',
+      groupName: null,
+      parishName: null,
+      registrationType: 'staff',
+    })),
+  ]
+
+  // Apply filters
+  if (config.filters?.sizes?.length > 0) {
+    results = results.filter(r => config.filters.sizes.includes(r.tShirtSize))
   }
+  if (config.filters?.personType?.length > 0) {
+    results = results.filter(r => config.filters.personType.includes(r.registrationType))
+  }
+
+  if (config.groupBy) {
+    return groupResults(results, config.groupBy)
+  }
+
+  return filterFields(results, config.fields)
 }
 
-async function executeBalancesReport(eventId: string, config: any) {
-  // Get group registrations
-  const groupRegs = await prisma.groupRegistration.findMany({
+// ============================================
+// COUPONS REPORT
+// ============================================
+async function executeCouponsReport(eventId: string, config: any) {
+  // Get coupons for this event
+  const coupons = await prisma.coupon.findMany({
     where: { eventId },
     include: {
-      participants: true,
+      redemptions: true,
     },
   })
 
-  const groupIds = groupRegs.map((g: { id: string }) => g.id)
-  const groupPaymentBalances = await prisma.paymentBalance.findMany({
-    where: {
-      registrationId: { in: groupIds },
-      registrationType: 'group',
-    },
+  const couponMap = new Map(coupons.map(c => [c.id, c]))
+
+  // Get all redemptions
+  const redemptions = coupons.flatMap(c => c.redemptions)
+
+  // Get registration info
+  const groupRegIds = redemptions.filter(r => r.registrationType === 'group').map(r => r.registrationId)
+  const indRegIds = redemptions.filter(r => r.registrationType === 'individual').map(r => r.registrationId)
+
+  const [groupRegs, indRegs] = await Promise.all([
+    prisma.groupRegistration.findMany({
+      where: { id: { in: groupRegIds } },
+      select: { id: true, groupName: true },
+    }),
+    prisma.individualRegistration.findMany({
+      where: { id: { in: indRegIds } },
+      select: { id: true, firstName: true, lastName: true },
+    }),
+  ])
+
+  const groupMap = new Map(groupRegs.map(g => [g.id, g]))
+  const indMap = new Map(indRegs.map(i => [i.id, i]))
+
+  let results = redemptions.map(r => {
+    const coupon = couponMap.get(r.couponId)
+    let registrationName = 'Unknown'
+
+    if (r.registrationType === 'group') {
+      const group = groupMap.get(r.registrationId)
+      registrationName = group?.groupName || 'Unknown Group'
+    } else if (r.registrationType === 'individual') {
+      const ind = indMap.get(r.registrationId)
+      registrationName = ind ? `${ind.firstName} ${ind.lastName}` : 'Unknown Individual'
+    }
+
+    return {
+      coupon: {
+        code: coupon?.code,
+        name: coupon?.name,
+        discountType: coupon?.discountType,
+        discountValue: coupon ? Number(coupon.discountValue) : 0,
+      },
+      registrationType: r.registrationType,
+      registrationName,
+      discountApplied: Number(r.discountApplied),
+      redeemedAt: r.redeemedAt,
+    }
   })
 
-  const groupBalanceMap = new Map(groupPaymentBalances.map((pb: { registrationId: string }) => [pb.registrationId, pb]))
+  // Apply filters
+  if (config.filters?.registrationType?.length > 0) {
+    results = results.filter(r => config.filters.registrationType.includes(r.registrationType))
+  }
+  if (config.filters?.dateRange?.start) {
+    results = results.filter(r => new Date(r.redeemedAt) >= new Date(config.filters.dateRange.start))
+  }
+  if (config.filters?.dateRange?.end) {
+    results = results.filter(r => new Date(r.redeemedAt) <= new Date(config.filters.dateRange.end))
+  }
 
-  const groupBalances = groupRegs.map((group: any) => {
-    const balance: any = groupBalanceMap.get(group.id)
+  if (config.groupBy) {
+    return groupResults(results, config.groupBy)
+  }
+
+  return filterFields(results, config.fields)
+}
+
+// ============================================
+// LEGACY: BALANCES REPORT
+// ============================================
+async function executeBalancesReport(eventId: string, config: any) {
+  const groupRegs = await prisma.groupRegistration.findMany({
+    where: { eventId },
+    include: { participants: true },
+  })
+
+  const groupIds = groupRegs.map(g => g.id)
+  const balances = await prisma.paymentBalance.findMany({
+    where: { registrationId: { in: groupIds }, registrationType: 'group' },
+  })
+  const balanceMap = new Map(balances.map(b => [b.registrationId, b]))
+
+  let results = groupRegs.map(group => {
+    const balance = balanceMap.get(group.id)
     return {
       groupId: group.id,
       groupName: group.groupName,
@@ -218,349 +961,121 @@ async function executeBalancesReport(eventId: string, config: any) {
       amountRemaining: balance ? Number(balance.amountRemaining) : 0,
       paymentStatus: balance?.paymentStatus || 'unpaid',
       lastPaymentDate: balance?.lastPaymentDate,
-      _type: 'group',
     }
   })
 
-  // Get individual registrations
-  const individualRegs = await prisma.individualRegistration.findMany({
-    where: { eventId },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-      phone: true,
-    },
-  })
-
-  const individualIds = individualRegs.map((i: { id: string }) => i.id)
-  const individualPaymentBalances = await prisma.paymentBalance.findMany({
-    where: {
-      registrationId: { in: individualIds },
-      registrationType: 'individual',
-    },
-  })
-
-  const individualBalanceMap = new Map(individualPaymentBalances.map((pb: { registrationId: string }) => [pb.registrationId, pb]))
-
-  const individualBalances = individualRegs.map((individual: any) => {
-    const balance: any = individualBalanceMap.get(individual.id)
-    return {
-      groupId: individual.id,
-      groupName: `${individual.firstName} ${individual.lastName}`,
-      parishName: 'Individual Registration',
-      groupLeaderName: `${individual.firstName} ${individual.lastName}`,
-      groupLeaderEmail: individual.email,
-      groupLeaderPhone: individual.phone,
-      participantCount: 1,
-      totalDue: balance ? Number(balance.totalAmountDue) : 0,
-      amountPaid: balance ? Number(balance.amountPaid) : 0,
-      amountRemaining: balance ? Number(balance.amountRemaining) : 0,
-      paymentStatus: balance?.paymentStatus || 'unpaid',
-      lastPaymentDate: balance?.lastPaymentDate,
-      _type: 'individual',
-    }
-  })
-
-  // Combine both arrays
-  const allBalances = [...groupBalances, ...individualBalances]
-
-  // Filter by payment status if specified
-  const filtered = config.filters?.paymentStatus
-    ? allBalances.filter(g => g.paymentStatus === config.filters.paymentStatus)
-    : allBalances
-
-  return filterFields(filtered, config.fields)
-}
-
-async function executeMedicalReport(eventId: string, config: any) {
-  const forms = await prisma.liabilityForm.findMany({
-    where: {
-      participant: {
-        groupRegistration: { eventId },
-      },
-    },
-    include: {
-      participant: {
-        select: {
-          firstName: true,
-          lastName: true,
-          groupRegistration: {
-            select: {
-              groupName: true,
-              parishName: true,
-              groupLeaderEmail: true,
-              groupLeaderPhone: true,
-            },
-          },
-        },
-      },
-    },
-  })
-
-  // Filter based on what medical info is requested
-  const filtered = forms.filter((f: any) => {
-    if (config.filters?.onlyAllergies && (!f.allergies || f.allergies === '')) return false
-    if (config.filters?.onlyMedications && (!f.medications || f.medications === '')) return false
-    if (config.filters?.onlyConditions && (!f.medicalConditions || f.medicalConditions === '')) return false
-    return true
-  })
-
-  return filterFields(filtered, config.fields)
-}
-
-async function executeRosterReport(eventId: string, config: any) {
-  // Build participant query filters
-  const participantWhere: any = {
-    groupRegistration: { eventId },
+  if (config.filters?.paymentStatus) {
+    results = results.filter(g => g.paymentStatus === config.filters.paymentStatus)
   }
-
-  // Apply filters
-  if (config.filters?.participantTypes && config.filters.participantTypes.length > 0) {
-    participantWhere.participantType = { in: config.filters.participantTypes }
-  }
-
-  if (config.filters?.minAge) {
-    participantWhere.age = { ...participantWhere.age, gte: config.filters.minAge }
-  }
-  if (config.filters?.maxAge) {
-    participantWhere.age = { ...participantWhere.age, lte: config.filters.maxAge }
-  }
-
-  if (config.filters?.tShirtSizes && config.filters.tShirtSizes.length > 0) {
-    participantWhere.tShirtSize = { in: config.filters.tShirtSizes }
-  }
-
-  // Fetch group participants with comprehensive data
-  const participantsRaw = await prisma.participant.findMany({
-    where: participantWhere,
-    include: {
-      groupRegistration: {
-        select: {
-          id: true,
-          accessCode: true,
-          groupName: true,
-          parishName: true,
-          dioceseName: true,
-          groupLeaderName: true,
-          groupLeaderEmail: true,
-          groupLeaderPhone: true,
-          housingType: true,
-          registrationStatus: true,
-        },
-      },
-      liabilityForms: {
-        select: {
-          allergies: true,
-          medications: true,
-          medicalConditions: true,
-          dietaryRestrictions: true,
-          emergencyContact1Name: true,
-          emergencyContact1Phone: true,
-          emergencyContact1Relation: true,
-        },
-        take: 1, // Get only the first liability form
-      },
-    },
-    orderBy: config.filters?.sortBy === 'firstName' ? { firstName: 'asc' } :
-              config.filters?.sortBy === 'age' ? { age: 'asc' } :
-              { lastName: 'asc' },
-  })
-
-  // Build individual registration query filters
-  const individualWhere: any = { eventId }
-
-  if (config.filters?.minAge) {
-    individualWhere.age = { ...individualWhere.age, gte: config.filters.minAge }
-  }
-  if (config.filters?.maxAge) {
-    individualWhere.age = { ...individualWhere.age, lte: config.filters.maxAge }
-  }
-
-  if (config.filters?.tShirtSizes && config.filters.tShirtSizes.length > 0) {
-    individualWhere.tShirtSize = { in: config.filters.tShirtSizes }
-  }
-
-  // Fetch individual registrations
-  const individualRegs = await prisma.individualRegistration.findMany({
-    where: individualWhere,
-    include: {
-      liabilityForms: {
-        select: {
-          allergies: true,
-          medications: true,
-          medicalConditions: true,
-          dietaryRestrictions: true,
-        },
-        take: 1,
-      },
-    },
-    orderBy: config.filters?.sortBy === 'firstName' ? { firstName: 'asc' } :
-              config.filters?.sortBy === 'age' ? { age: 'asc' } :
-              { lastName: 'asc' },
-  })
-
-  // Transform group participants - liabilityForms array to single liabilityForm object
-  const groupParticipants = participantsRaw.map((p: any) => ({
-    ...p,
-    liabilityForm: p.liabilityForms?.[0] || null,
-  }))
-
-  // Transform individual registrations to match participant structure
-  const individualParticipants = individualRegs.map((ind: any) => ({
-    id: ind.id,
-    firstName: ind.firstName,
-    lastName: ind.lastName,
-    preferredName: ind.preferredName,
-    age: ind.age,
-    gender: ind.gender,
-    tShirtSize: ind.tShirtSize,
-    participantType: null, // Individual registrations don't have participantType
-    groupRegistration: null, // No group for individual registrations
-    liabilityForm: {
-      // Emergency contacts are on IndividualRegistration model directly
-      emergencyContact1Name: ind.emergencyContact1Name,
-      emergencyContact1Phone: ind.emergencyContact1Phone,
-      emergencyContact1Relation: ind.emergencyContact1Relation,
-      // Medical info comes from their liability form if exists
-      allergies: ind.liabilityForms?.[0]?.allergies || null,
-      medications: ind.liabilityForms?.[0]?.medications || null,
-      medicalConditions: ind.liabilityForms?.[0]?.medicalConditions || null,
-      dietaryRestrictions: ind.liabilityForms?.[0]?.dietaryRestrictions || null,
-    },
-    _isIndividual: true, // Flag to identify individual registrations
-  }))
-
-  // Combine both arrays
-  const participants = [...groupParticipants, ...individualParticipants]
-
-  // Apply additional filters
-  let filtered = participants
-
-  if (config.filters?.groupIds && config.filters.groupIds.length > 0) {
-    filtered = filtered.filter((p: any) => config.filters.groupIds.includes(p.groupRegistration?.id))
-  }
-
-  if (config.filters?.parishes && config.filters.parishes.length > 0) {
-    filtered = filtered.filter((p: any) => config.filters.parishes.includes(p.groupRegistration?.parishName))
-  }
-
-  if (config.filters?.housingTypes && config.filters.housingTypes.length > 0) {
-    filtered = filtered.filter((p: any) => config.filters.housingTypes.includes(p.groupRegistration?.housingType))
-  }
-
-  if (config.filters?.onlyWithMedicalNeeds) {
-    filtered = filtered.filter((p: any) =>
-      p.liabilityForm && (
-        (p.liabilityForm.allergies && p.liabilityForm.allergies !== '') ||
-        (p.liabilityForm.medications && p.liabilityForm.medications !== '') ||
-        (p.liabilityForm.medicalConditions && p.liabilityForm.medicalConditions !== '')
-      )
-    )
-  }
-
-  // Group data if requested
-  if (config.filters?.groupBy === 'group') {
-    const groupedData = new Map<string, any>()
-
-    filtered.forEach((p: any) => {
-      const groupId = p.groupRegistration?.id || 'no-group'
-      const groupName = p.groupRegistration?.groupName || 'Individual Registrations'
-
-      if (!groupedData.has(groupId)) {
-        groupedData.set(groupId, {
-          groupId,
-          groupName,
-          accessCode: p.groupRegistration?.accessCode,
-          parishName: p.groupRegistration?.parishName,
-          groupLeaderName: p.groupRegistration?.groupLeaderName,
-          groupLeaderEmail: p.groupRegistration?.groupLeaderEmail,
-          groupLeaderPhone: p.groupRegistration?.groupLeaderPhone,
-          participants: [],
-        })
-      }
-
-      groupedData.get(groupId).participants.push(p)
-    })
-
-    return Array.from(groupedData.values())
-  } else if (config.filters?.groupBy === 'participantType') {
-    const typeGroups = new Map<string, any>()
-
-    filtered.forEach((p: any) => {
-      const type = p.participantType || 'unknown'
-
-      if (!typeGroups.has(type)) {
-        typeGroups.set(type, {
-          participantType: type,
-          participants: [],
-        })
-      }
-
-      typeGroups.get(type).participants.push(p)
-    })
-
-    return Array.from(typeGroups.values())
-  } else if (config.filters?.groupBy === 'parish') {
-    const parishGroups = new Map<string, any>()
-
-    filtered.forEach(p => {
-      const parish = p.groupRegistration?.parishName || 'Unknown Parish'
-
-      if (!parishGroups.has(parish)) {
-        parishGroups.set(parish, {
-          parishName: parish,
-          participants: [],
-        })
-      }
-
-      parishGroups.get(parish).participants.push(p)
-    })
-
-    return Array.from(parishGroups.values())
-  }
-
-  return filterFields(filtered, config.fields)
-}
-
-async function executeCustomReport(eventId: string, config: any) {
-  // For fully custom reports, execute based on the configuration
-  const modelName = config.query?.model || 'groupRegistration'
-  const includeRelations = config.query?.include || {}
-  const whereClause = { ...config.query?.where, eventId }
-
-  // Execute dynamic query (simplified version)
-  const results = await (prisma as any)[modelName].findMany({
-    where: whereClause,
-    include: includeRelations,
-    orderBy: config.query?.orderBy || { createdAt: 'desc' },
-  })
 
   return filterFields(results, config.fields)
 }
 
-// Helper to filter fields from results
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+function getSortOrder(sortBy: string | undefined, sortDirection: 'asc' | 'desc' = 'asc') {
+  if (!sortBy) return undefined
+
+  // Handle nested paths
+  if (sortBy.includes('.')) {
+    const parts = sortBy.split('.')
+    let orderBy: any = { [parts[parts.length - 1]]: sortDirection }
+    for (let i = parts.length - 2; i >= 0; i--) {
+      orderBy = { [parts[i]]: orderBy }
+    }
+    return orderBy
+  }
+
+  return { [sortBy]: sortDirection }
+}
+
+function groupResults(data: any[], groupBy: string) {
+  if (!groupBy || groupBy === 'none') return data
+
+  const grouped = new Map<string, any>()
+
+  data.forEach(item => {
+    let groupKey = getNestedValue(item, groupBy) || 'Other'
+    if (typeof groupKey !== 'string') groupKey = String(groupKey)
+
+    if (!grouped.has(groupKey)) {
+      grouped.set(groupKey, {
+        groupKey,
+        items: [],
+      })
+    }
+    grouped.get(groupKey).items.push(item)
+  })
+
+  return Array.from(grouped.values())
+}
+
+function groupParticipants(participants: any[], groupBy: string) {
+  if (!groupBy || groupBy === 'none') return participants
+
+  const grouped = new Map<string, any>()
+
+  participants.forEach(p => {
+    let groupKey = ''
+    let groupInfo: any = {}
+
+    switch (groupBy) {
+      case 'group':
+        groupKey = p.groupRegistration?.groupName || 'No Group'
+        groupInfo = {
+          groupName: p.groupRegistration?.groupName,
+          parishName: p.groupRegistration?.parishName,
+          groupLeaderName: p.groupRegistration?.groupLeaderName,
+          groupLeaderEmail: p.groupRegistration?.groupLeaderEmail,
+          accessCode: p.groupRegistration?.accessCode,
+        }
+        break
+      case 'participantType':
+        groupKey = p.participantType || 'Unknown'
+        groupInfo = { participantType: p.participantType }
+        break
+      case 'gender':
+        groupKey = p.gender || 'Unknown'
+        groupInfo = { gender: p.gender }
+        break
+      case 'housingType':
+        groupKey = p.groupRegistration?.housingType || 'Unknown'
+        groupInfo = { housingType: p.groupRegistration?.housingType }
+        break
+      default:
+        groupKey = 'All'
+    }
+
+    if (!grouped.has(groupKey)) {
+      grouped.set(groupKey, {
+        groupKey,
+        ...groupInfo,
+        participants: [],
+      })
+    }
+    grouped.get(groupKey).participants.push(p)
+  })
+
+  return Array.from(grouped.values())
+}
+
 function filterFields(data: any[], fields: string[] | undefined) {
   if (!fields || fields.length === 0) return data
 
   return data.map(item => {
     const filtered: any = {}
     fields.forEach(field => {
-      if (field.includes('.')) {
-        // Handle nested fields like "groupRegistration.groupName"
-        const parts = field.split('.')
-        let value = item
-        for (const part of parts) {
-          value = value?.[part]
-        }
-        setNestedValue(filtered, parts, value)
-      } else {
-        filtered[field] = item[field]
-      }
+      const value = getNestedValue(item, field)
+      setNestedValue(filtered, field.split('.'), value)
     })
     return filtered
   })
+}
+
+function getNestedValue(obj: any, path: string): any {
+  return path.split('.').reduce((acc, part) => acc?.[part], obj)
 }
 
 function setNestedValue(obj: any, path: string[], value: any) {
