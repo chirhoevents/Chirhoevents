@@ -37,6 +37,7 @@ interface EventFormData {
   fullPaymentDeadline: string
   lateFeePercentage: string
   lateFeeAutoApply: boolean
+  allowLoginWhenClosed: boolean
 
   // Step 3: Pricing
   youthEarlyBirdPrice: string
@@ -57,12 +58,15 @@ interface EventFormData {
   depositAmount: string
 
   // Individual Registration Pricing
+  individualEarlyBirdPrice: string
   individualBasePrice: string
+  individualLatePrice: string
   singleRoomPrice: string
   doubleRoomPrice: string
   tripleRoomPrice: string
   quadRoomPrice: string
   individualOffCampusPrice: string
+  individualDayPassPrice: string
   individualMealPackagePrice: string
 
   // Step 3: Features & Modules (swapped with Pricing)
@@ -78,6 +82,7 @@ interface EventFormData {
   allowOnCampus: boolean
   allowOffCampus: boolean
   allowDayPass: boolean
+  allowIndividualDayPass: boolean
   allowSingleRoom: boolean
   allowDoubleRoom: boolean
   allowTripleRoom: boolean
@@ -86,6 +91,24 @@ interface EventFormData {
   doubleRoomLabel: string
   tripleRoomLabel: string
   quadRoomLabel: string
+
+  // Add-ons
+  addOn1Enabled: boolean
+  addOn1Title: string
+  addOn1Description: string
+  addOn1Price: string
+  addOn2Enabled: boolean
+  addOn2Title: string
+  addOn2Description: string
+  addOn2Price: string
+  addOn3Enabled: boolean
+  addOn3Title: string
+  addOn3Description: string
+  addOn3Price: string
+  addOn4Enabled: boolean
+  addOn4Title: string
+  addOn4Description: string
+  addOn4Price: string
 
   // Step 5: Contact & Instructions
   contactEmail: string
@@ -104,12 +127,27 @@ interface EventFormData {
   landingPageShowBring: boolean
   landingPageShowContact: boolean
   showAvailability: boolean
+  showCapacity: boolean
   availabilityThreshold: string
   countdownLocation: 'hero' | 'sticky' | 'registration'
   countdownBeforeOpen: boolean
   countdownBeforeClose: boolean
   enableWaitlist: boolean
   waitlistCapacity: string
+
+  // Landing page content fields
+  faqContent: string
+  scheduleContent: string
+  includedContent: string
+  bringContent: string
+  contactInfo: string
+
+  // Confirmation email options
+  showFaqInEmail: boolean
+  showBringInEmail: boolean
+  showScheduleInEmail: boolean
+  showIncludedInEmail: boolean
+  showContactInEmail: boolean
 
   // Theme Customization
   backgroundImageUrl: string
@@ -178,6 +216,7 @@ export default function CreateEventClient({
     fullPaymentDeadline: '',
     lateFeePercentage: '20',
     lateFeeAutoApply: false,
+    allowLoginWhenClosed: true,
 
     // Step 3
     youthEarlyBirdPrice: '90',
@@ -198,12 +237,15 @@ export default function CreateEventClient({
     depositAmount: '500',
 
     // Individual Registration Pricing
+    individualEarlyBirdPrice: '',
     individualBasePrice: '100',
+    individualLatePrice: '',
     singleRoomPrice: '100',
     doubleRoomPrice: '50',
     tripleRoomPrice: '40',
     quadRoomPrice: '30',
     individualOffCampusPrice: '100',
+    individualDayPassPrice: '50',
     individualMealPackagePrice: '50',
 
     // Step 3: Features
@@ -219,6 +261,7 @@ export default function CreateEventClient({
     allowOnCampus: true,
     allowOffCampus: true,
     allowDayPass: false,
+    allowIndividualDayPass: false,
     allowSingleRoom: true,
     allowDoubleRoom: true,
     allowTripleRoom: true,
@@ -227,6 +270,24 @@ export default function CreateEventClient({
     doubleRoomLabel: '',
     tripleRoomLabel: '',
     quadRoomLabel: '',
+
+    // Add-ons
+    addOn1Enabled: false,
+    addOn1Title: '',
+    addOn1Description: '',
+    addOn1Price: '',
+    addOn2Enabled: false,
+    addOn2Title: '',
+    addOn2Description: '',
+    addOn2Price: '',
+    addOn3Enabled: false,
+    addOn3Title: '',
+    addOn3Description: '',
+    addOn3Price: '',
+    addOn4Enabled: false,
+    addOn4Title: '',
+    addOn4Description: '',
+    addOn4Price: '',
 
     // Step 5
     contactEmail: '',
@@ -245,12 +306,27 @@ export default function CreateEventClient({
     landingPageShowBring: true,
     landingPageShowContact: true,
     showAvailability: true,
+    showCapacity: true,
     availabilityThreshold: '20',
     countdownLocation: 'hero',
     countdownBeforeOpen: true,
     countdownBeforeClose: true,
     enableWaitlist: false,
     waitlistCapacity: '',
+
+    // Landing page content
+    faqContent: '',
+    scheduleContent: '',
+    includedContent: '',
+    bringContent: '',
+    contactInfo: '',
+
+    // Confirmation email options
+    showFaqInEmail: false,
+    showBringInEmail: false,
+    showScheduleInEmail: false,
+    showIncludedInEmail: false,
+    showContactInEmail: true,
 
     // Theme Customization
     backgroundImageUrl: '',
@@ -858,6 +934,30 @@ export default function CreateEventClient({
                     </div>
                   </div>
                 )}
+
+                {/* Login Access When Registration Closed */}
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <h3 className="font-semibold text-gray-900 mb-2">
+                    🔐 Access Settings
+                  </h3>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="allowLoginWhenClosed"
+                      checked={formData.allowLoginWhenClosed}
+                      onChange={(e) =>
+                        updateFormData({ allowLoginWhenClosed: e.target.checked })
+                      }
+                      className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                    />
+                    <Label htmlFor="allowLoginWhenClosed" className="mb-0">
+                      Allow group leaders to login when registration is closed
+                    </Label>
+                  </div>
+                  <p className="text-sm text-gray-500 ml-6 mt-2">
+                    When enabled, group leaders can still access their dashboard to manage participants, even after registration closes
+                  </p>
+                </div>
               </div>
             </>
           )}
@@ -995,6 +1095,271 @@ export default function CreateEventClient({
                     <p className="text-sm text-gray-600 ml-6 mt-2">
                       Individuals can add a meal package during registration (with dietary restrictions option)
                     </p>
+                  </div>
+                )}
+
+                {/* Day Pass Ticket for Individual Registration */}
+                {formData.individualRegistrationEnabled && (
+                  <div className="bg-cyan-50 p-4 rounded-lg border-2 border-cyan-200">
+                    <h3 className="font-semibold text-cyan-900 mb-3">
+                      🎫 Day Pass Ticket Option
+                    </h3>
+                    <p className="text-sm text-cyan-800 mb-3">
+                      Allow individuals to register for a day pass (attending without overnight stay or housing)
+                    </p>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="allowIndividualDayPass"
+                        checked={formData.allowIndividualDayPass}
+                        onChange={(e) =>
+                          updateFormData({ allowIndividualDayPass: e.target.checked })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="allowIndividualDayPass" className="mb-0 font-medium">
+                        Enable Day Pass as a Ticket Option
+                      </Label>
+                    </div>
+                    <p className="text-sm text-gray-600 ml-6 mt-2">
+                      Day pass is a ticket type - individuals choose between General Admission or Day Pass during registration
+                    </p>
+                  </div>
+                )}
+
+                {/* Add-ons Section - Primarily for Individual Registration */}
+                {formData.individualRegistrationEnabled && (
+                  <div className="bg-violet-50 p-4 rounded-lg border-2 border-violet-200">
+                    <h3 className="font-semibold text-violet-900 mb-3">
+                      ✨ Event Add-Ons
+                    </h3>
+                    <p className="text-sm text-violet-800 mb-4">
+                      Add optional items that individuals can purchase during registration (up to 4 add-ons)
+                    </p>
+
+                    {/* Add-on 1 */}
+                    <div className="border-l-4 border-violet-400 pl-4 mb-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <input
+                          type="checkbox"
+                          id="addOn1Enabled"
+                          checked={formData.addOn1Enabled}
+                          onChange={(e) => updateFormData({ addOn1Enabled: e.target.checked })}
+                          className="w-4 h-4 text-violet-600 rounded"
+                        />
+                        <Label htmlFor="addOn1Enabled" className="font-semibold cursor-pointer">
+                          Add-On 1
+                        </Label>
+                      </div>
+                      {formData.addOn1Enabled && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 ml-6">
+                          <div>
+                            <Label htmlFor="addOn1Title" className="text-sm">Title</Label>
+                            <Input
+                              id="addOn1Title"
+                              type="text"
+                              value={formData.addOn1Title}
+                              onChange={(e) => updateFormData({ addOn1Title: e.target.value })}
+                              placeholder="e.g., Event T-Shirt"
+                              className="mt-1"
+                            />
+                          </div>
+                          <div className="md:col-span-1">
+                            <Label htmlFor="addOn1Price" className="text-sm">Price</Label>
+                            <div className="relative mt-1">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                              <Input
+                                id="addOn1Price"
+                                type="number"
+                                value={formData.addOn1Price}
+                                onChange={(e) => updateFormData({ addOn1Price: e.target.value })}
+                                placeholder="25"
+                                className="pl-7"
+                              />
+                            </div>
+                          </div>
+                          <div className="md:col-span-3">
+                            <Label htmlFor="addOn1Description" className="text-sm">Description</Label>
+                            <Input
+                              id="addOn1Description"
+                              type="text"
+                              value={formData.addOn1Description}
+                              onChange={(e) => updateFormData({ addOn1Description: e.target.value })}
+                              placeholder="Optional description..."
+                              className="mt-1"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Add-on 2 */}
+                    <div className="border-l-4 border-violet-400 pl-4 mb-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <input
+                          type="checkbox"
+                          id="addOn2Enabled"
+                          checked={formData.addOn2Enabled}
+                          onChange={(e) => updateFormData({ addOn2Enabled: e.target.checked })}
+                          className="w-4 h-4 text-violet-600 rounded"
+                        />
+                        <Label htmlFor="addOn2Enabled" className="font-semibold cursor-pointer">
+                          Add-On 2
+                        </Label>
+                      </div>
+                      {formData.addOn2Enabled && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 ml-6">
+                          <div>
+                            <Label htmlFor="addOn2Title" className="text-sm">Title</Label>
+                            <Input
+                              id="addOn2Title"
+                              type="text"
+                              value={formData.addOn2Title}
+                              onChange={(e) => updateFormData({ addOn2Title: e.target.value })}
+                              placeholder="e.g., Parking Pass"
+                              className="mt-1"
+                            />
+                          </div>
+                          <div className="md:col-span-1">
+                            <Label htmlFor="addOn2Price" className="text-sm">Price</Label>
+                            <div className="relative mt-1">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                              <Input
+                                id="addOn2Price"
+                                type="number"
+                                value={formData.addOn2Price}
+                                onChange={(e) => updateFormData({ addOn2Price: e.target.value })}
+                                placeholder="15"
+                                className="pl-7"
+                              />
+                            </div>
+                          </div>
+                          <div className="md:col-span-3">
+                            <Label htmlFor="addOn2Description" className="text-sm">Description</Label>
+                            <Input
+                              id="addOn2Description"
+                              type="text"
+                              value={formData.addOn2Description}
+                              onChange={(e) => updateFormData({ addOn2Description: e.target.value })}
+                              placeholder="Optional description..."
+                              className="mt-1"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Add-on 3 */}
+                    <div className="border-l-4 border-violet-400 pl-4 mb-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <input
+                          type="checkbox"
+                          id="addOn3Enabled"
+                          checked={formData.addOn3Enabled}
+                          onChange={(e) => updateFormData({ addOn3Enabled: e.target.checked })}
+                          className="w-4 h-4 text-violet-600 rounded"
+                        />
+                        <Label htmlFor="addOn3Enabled" className="font-semibold cursor-pointer">
+                          Add-On 3
+                        </Label>
+                      </div>
+                      {formData.addOn3Enabled && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 ml-6">
+                          <div>
+                            <Label htmlFor="addOn3Title" className="text-sm">Title</Label>
+                            <Input
+                              id="addOn3Title"
+                              type="text"
+                              value={formData.addOn3Title}
+                              onChange={(e) => updateFormData({ addOn3Title: e.target.value })}
+                              placeholder="e.g., Extra Materials"
+                              className="mt-1"
+                            />
+                          </div>
+                          <div className="md:col-span-1">
+                            <Label htmlFor="addOn3Price" className="text-sm">Price</Label>
+                            <div className="relative mt-1">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                              <Input
+                                id="addOn3Price"
+                                type="number"
+                                value={formData.addOn3Price}
+                                onChange={(e) => updateFormData({ addOn3Price: e.target.value })}
+                                placeholder="10"
+                                className="pl-7"
+                              />
+                            </div>
+                          </div>
+                          <div className="md:col-span-3">
+                            <Label htmlFor="addOn3Description" className="text-sm">Description</Label>
+                            <Input
+                              id="addOn3Description"
+                              type="text"
+                              value={formData.addOn3Description}
+                              onChange={(e) => updateFormData({ addOn3Description: e.target.value })}
+                              placeholder="Optional description..."
+                              className="mt-1"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Add-on 4 */}
+                    <div className="border-l-4 border-violet-400 pl-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <input
+                          type="checkbox"
+                          id="addOn4Enabled"
+                          checked={formData.addOn4Enabled}
+                          onChange={(e) => updateFormData({ addOn4Enabled: e.target.checked })}
+                          className="w-4 h-4 text-violet-600 rounded"
+                        />
+                        <Label htmlFor="addOn4Enabled" className="font-semibold cursor-pointer">
+                          Add-On 4
+                        </Label>
+                      </div>
+                      {formData.addOn4Enabled && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 ml-6">
+                          <div>
+                            <Label htmlFor="addOn4Title" className="text-sm">Title</Label>
+                            <Input
+                              id="addOn4Title"
+                              type="text"
+                              value={formData.addOn4Title}
+                              onChange={(e) => updateFormData({ addOn4Title: e.target.value })}
+                              placeholder="e.g., Photo Package"
+                              className="mt-1"
+                            />
+                          </div>
+                          <div className="md:col-span-1">
+                            <Label htmlFor="addOn4Price" className="text-sm">Price</Label>
+                            <div className="relative mt-1">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                              <Input
+                                id="addOn4Price"
+                                type="number"
+                                value={formData.addOn4Price}
+                                onChange={(e) => updateFormData({ addOn4Price: e.target.value })}
+                                placeholder="35"
+                                className="pl-7"
+                              />
+                            </div>
+                          </div>
+                          <div className="md:col-span-3">
+                            <Label htmlFor="addOn4Description" className="text-sm">Description</Label>
+                            <Input
+                              id="addOn4Description"
+                              type="text"
+                              value={formData.addOn4Description}
+                              onChange={(e) => updateFormData({ addOn4Description: e.target.value })}
+                              placeholder="Optional description..."
+                              className="mt-1"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -1667,32 +2032,97 @@ export default function CreateEventClient({
                     {/* Individual Base Pricing */}
                     <div className="bg-purple-50 p-4 rounded-lg border-2 border-purple-200">
                       <h3 className="font-semibold text-purple-900 mb-2">
-                        🧑 Individual General Admission
+                        🧑 Individual General Admission Pricing
                       </h3>
                       <p className="text-sm text-purple-800 mb-4">
-                        Base price for event attendance only (does NOT include housing or meals)
+                        Base price for event attendance only (does NOT include housing or meals). Set early bird and late pricing based on your registration deadlines.
                       </p>
 
-                      <div className="max-w-md">
-                        <Label htmlFor="individualBasePrice">
-                          General Admission Price <span className="text-red-500">*</span>
-                        </Label>
-                        <div className="relative mt-1">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
-                          <Input
-                            id="individualBasePrice"
-                            type="number"
-                            value={formData.individualBasePrice}
-                            onChange={(e) => updateFormData({ individualBasePrice: e.target.value })}
-                            placeholder="100"
-                            className="pl-7"
-                          />
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor="individualEarlyBirdPrice">Early Bird</Label>
+                          <div className="relative mt-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                            <Input
+                              id="individualEarlyBirdPrice"
+                              type="number"
+                              value={formData.individualEarlyBirdPrice}
+                              onChange={(e) => updateFormData({ individualEarlyBirdPrice: e.target.value })}
+                              placeholder="80"
+                              className="pl-7"
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">Before early bird deadline</p>
                         </div>
-                        <p className="text-sm text-gray-500 mt-1">
-                          Includes event attendance and materials only. Housing and meals are separate add-ons.
-                        </p>
+                        <div>
+                          <Label htmlFor="individualBasePrice">
+                            Regular <span className="text-red-500">*</span>
+                          </Label>
+                          <div className="relative mt-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                            <Input
+                              id="individualBasePrice"
+                              type="number"
+                              value={formData.individualBasePrice}
+                              onChange={(e) => updateFormData({ individualBasePrice: e.target.value })}
+                              placeholder="100"
+                              className="pl-7"
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">Standard pricing</p>
+                        </div>
+                        <div>
+                          <Label htmlFor="individualLatePrice">Late</Label>
+                          <div className="relative mt-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                            <Input
+                              id="individualLatePrice"
+                              type="number"
+                              value={formData.individualLatePrice}
+                              onChange={(e) => updateFormData({ individualLatePrice: e.target.value })}
+                              placeholder="120"
+                              className="pl-7"
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">After regular deadline</p>
+                        </div>
                       </div>
+                      <p className="text-sm text-gray-500 mt-3">
+                        Includes event attendance and materials only. Housing and meals are separate add-ons.
+                      </p>
                     </div>
+
+                    {/* Day Pass Pricing - Only if Day Pass is enabled */}
+                    {formData.allowIndividualDayPass && (
+                      <div className="bg-cyan-50 p-4 rounded-lg border-2 border-cyan-200">
+                        <h3 className="font-semibold text-cyan-900 mb-2">
+                          🎫 Day Pass Pricing
+                        </h3>
+                        <p className="text-sm text-cyan-800 mb-4">
+                          Price for attending without overnight stay (no housing required)
+                        </p>
+
+                        <div className="max-w-md">
+                          <Label htmlFor="individualDayPassPrice">
+                            Day Pass Price <span className="text-red-500">*</span>
+                          </Label>
+                          <div className="relative mt-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                            <Input
+                              id="individualDayPassPrice"
+                              type="number"
+                              value={formData.individualDayPassPrice}
+                              onChange={(e) => updateFormData({ individualDayPassPrice: e.target.value })}
+                              placeholder="50"
+                              className="pl-7"
+                            />
+                          </div>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Day pass attendees select this as their ticket type (no housing or overnight stay)
+                          </p>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Room Type Add-Ons */}
                     {formData.porosHousingEnabled && formData.allowOnCampus && (
@@ -2144,17 +2574,18 @@ export default function CreateEventClient({
           {currentStep === 6 && (
             <>
               <div className="space-y-6">
+                {/* Landing Page Content Sections */}
                 <div className="bg-blue-50 p-4 rounded-lg">
                   <h3 className="font-semibold text-blue-900 mb-3">
-                    Landing Page Visibility Toggles
+                    Landing Page Content Sections
                   </h3>
                   <p className="text-sm text-blue-800 mb-4">
-                    Choose what sections to show on your public event landing
-                    page
+                    Toggle which sections appear on your landing page and customize their content
                   </p>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="flex items-center space-x-2">
+                  {/* Show Price */}
+                  <div className="border-b border-blue-200 pb-4 mb-4">
+                    <div className="flex items-center space-x-2 mb-2">
                       <input
                         type="checkbox"
                         id="landingPageShowPrice"
@@ -2166,101 +2597,277 @@ export default function CreateEventClient({
                         }
                         className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
                       />
-                      <Label htmlFor="landingPageShowPrice" className="mb-0">
+                      <Label htmlFor="landingPageShowPrice" className="mb-0 font-medium">
                         Show Price
                       </Label>
                     </div>
+                    <p className="text-xs text-gray-500 ml-6">Pricing is configured in the Pricing step</p>
+                  </div>
 
+                  {/* Show Schedule */}
+                  <div className="border-b border-blue-200 pb-4 mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="landingPageShowSchedule"
+                          checked={formData.landingPageShowSchedule}
+                          onChange={(e) =>
+                            updateFormData({
+                              landingPageShowSchedule: e.target.checked,
+                            })
+                          }
+                          className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                        />
+                        <Label htmlFor="landingPageShowSchedule" className="mb-0 font-medium">
+                          Show Schedule
+                        </Label>
+                      </div>
+                      {formData.landingPageShowSchedule && (
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id="showScheduleInEmail"
+                            checked={formData.showScheduleInEmail}
+                            onChange={(e) => updateFormData({ showScheduleInEmail: e.target.checked })}
+                            className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                          />
+                          <Label htmlFor="showScheduleInEmail" className="mb-0 text-xs text-gray-600">
+                            Include in confirmation email
+                          </Label>
+                        </div>
+                      )}
+                    </div>
+                    {formData.landingPageShowSchedule && (
+                      <div className="ml-6">
+                        <Textarea
+                          id="scheduleContent"
+                          value={formData.scheduleContent}
+                          onChange={(e) => updateFormData({ scheduleContent: e.target.value })}
+                          placeholder="Day 1: Check-in at 2pm, Welcome Mass at 5pm, Dinner at 6pm&#10;Day 2: Breakfast at 8am, Sessions at 9am..."
+                          rows={4}
+                          className="mt-2"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Show FAQ */}
+                  <div className="border-b border-blue-200 pb-4 mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="landingPageShowFaq"
+                          checked={formData.landingPageShowFaq}
+                          onChange={(e) =>
+                            updateFormData({
+                              landingPageShowFaq: e.target.checked,
+                            })
+                          }
+                          className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                        />
+                        <Label htmlFor="landingPageShowFaq" className="mb-0 font-medium">
+                          Show FAQ
+                        </Label>
+                      </div>
+                      {formData.landingPageShowFaq && (
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id="showFaqInEmail"
+                            checked={formData.showFaqInEmail}
+                            onChange={(e) => updateFormData({ showFaqInEmail: e.target.checked })}
+                            className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                          />
+                          <Label htmlFor="showFaqInEmail" className="mb-0 text-xs text-gray-600">
+                            Include in confirmation email
+                          </Label>
+                        </div>
+                      )}
+                    </div>
+                    {formData.landingPageShowFaq && (
+                      <div className="ml-6">
+                        <Textarea
+                          id="faqContent"
+                          value={formData.faqContent}
+                          onChange={(e) => updateFormData({ faqContent: e.target.value })}
+                          placeholder="Q: What should I bring?&#10;A: Pack comfortable clothes, toiletries, and a Bible.&#10;&#10;Q: Can I arrive early?&#10;A: Check-in begins at 2pm on the first day."
+                          rows={4}
+                          className="mt-2"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Format as Q: and A: for best display</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Show What's Included */}
+                  <div className="border-b border-blue-200 pb-4 mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="landingPageShowIncluded"
+                          checked={formData.landingPageShowIncluded}
+                          onChange={(e) =>
+                            updateFormData({
+                              landingPageShowIncluded: e.target.checked,
+                            })
+                          }
+                          className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                        />
+                        <Label htmlFor="landingPageShowIncluded" className="mb-0 font-medium">
+                          Show What&apos;s Included
+                        </Label>
+                      </div>
+                      {formData.landingPageShowIncluded && (
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id="showIncludedInEmail"
+                            checked={formData.showIncludedInEmail}
+                            onChange={(e) => updateFormData({ showIncludedInEmail: e.target.checked })}
+                            className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                          />
+                          <Label htmlFor="showIncludedInEmail" className="mb-0 text-xs text-gray-600">
+                            Include in confirmation email
+                          </Label>
+                        </div>
+                      )}
+                    </div>
+                    {formData.landingPageShowIncluded && (
+                      <div className="ml-6">
+                        <Textarea
+                          id="includedContent"
+                          value={formData.includedContent}
+                          onChange={(e) => updateFormData({ includedContent: e.target.value })}
+                          placeholder="- Lodging for 3 nights&#10;- All meals (Friday dinner through Sunday lunch)&#10;- Event t-shirt&#10;- Conference materials&#10;- Access to all sessions"
+                          rows={4}
+                          className="mt-2"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Use bullet points (-) for list items</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Show What to Bring */}
+                  <div className="border-b border-blue-200 pb-4 mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="landingPageShowBring"
+                          checked={formData.landingPageShowBring}
+                          onChange={(e) =>
+                            updateFormData({
+                              landingPageShowBring: e.target.checked,
+                            })
+                          }
+                          className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                        />
+                        <Label htmlFor="landingPageShowBring" className="mb-0 font-medium">
+                          Show What to Bring
+                        </Label>
+                      </div>
+                      {formData.landingPageShowBring && (
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id="showBringInEmail"
+                            checked={formData.showBringInEmail}
+                            onChange={(e) => updateFormData({ showBringInEmail: e.target.checked })}
+                            className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                          />
+                          <Label htmlFor="showBringInEmail" className="mb-0 text-xs text-gray-600">
+                            Include in confirmation email
+                          </Label>
+                        </div>
+                      )}
+                    </div>
+                    {formData.landingPageShowBring && (
+                      <div className="ml-6">
+                        <Textarea
+                          id="bringContent"
+                          value={formData.bringContent}
+                          onChange={(e) => updateFormData({ bringContent: e.target.value })}
+                          placeholder="- Comfortable clothes for activities&#10;- Toiletries and personal items&#10;- Bible and notebook&#10;- Sleeping bag or bedding (if camping)&#10;- Modest swimwear (if pool available)"
+                          rows={4}
+                          className="mt-2"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Show Contact Information */}
+                  <div className="border-b border-blue-200 pb-4 mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="landingPageShowContact"
+                          checked={formData.landingPageShowContact}
+                          onChange={(e) =>
+                            updateFormData({
+                              landingPageShowContact: e.target.checked,
+                            })
+                          }
+                          className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                        />
+                        <Label htmlFor="landingPageShowContact" className="mb-0 font-medium">
+                          Show Contact Information
+                        </Label>
+                      </div>
+                      {formData.landingPageShowContact && (
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id="showContactInEmail"
+                            checked={formData.showContactInEmail}
+                            onChange={(e) => updateFormData({ showContactInEmail: e.target.checked })}
+                            className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                          />
+                          <Label htmlFor="showContactInEmail" className="mb-0 text-xs text-gray-600">
+                            Include in confirmation email
+                          </Label>
+                        </div>
+                      )}
+                    </div>
+                    {formData.landingPageShowContact && (
+                      <div className="ml-6">
+                        <Textarea
+                          id="contactInfo"
+                          value={formData.contactInfo}
+                          onChange={(e) => updateFormData({ contactInfo: e.target.value })}
+                          placeholder="For questions about registration, contact:&#10;Email: info@example.com&#10;Phone: (555) 123-4567&#10;Office hours: Monday-Friday, 9am-5pm"
+                          rows={3}
+                          className="mt-2"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Leave blank to use the contact info from Step 5</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Show Capacity */}
+                  <div>
                     <div className="flex items-center space-x-2">
                       <input
                         type="checkbox"
-                        id="landingPageShowSchedule"
-                        checked={formData.landingPageShowSchedule}
+                        id="showCapacity"
+                        checked={formData.showCapacity}
                         onChange={(e) =>
                           updateFormData({
-                            landingPageShowSchedule: e.target.checked,
+                            showCapacity: e.target.checked,
                           })
                         }
                         className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
                       />
-                      <Label
-                        htmlFor="landingPageShowSchedule"
-                        className="mb-0"
-                      >
-                        Show Schedule
+                      <Label htmlFor="showCapacity" className="mb-0 font-medium">
+                        Show Event Capacity
                       </Label>
                     </div>
-
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="landingPageShowFaq"
-                        checked={formData.landingPageShowFaq}
-                        onChange={(e) =>
-                          updateFormData({
-                            landingPageShowFaq: e.target.checked,
-                          })
-                        }
-                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
-                      />
-                      <Label htmlFor="landingPageShowFaq" className="mb-0">
-                        Show FAQ
-                      </Label>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="landingPageShowIncluded"
-                        checked={formData.landingPageShowIncluded}
-                        onChange={(e) =>
-                          updateFormData({
-                            landingPageShowIncluded: e.target.checked,
-                          })
-                        }
-                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
-                      />
-                      <Label
-                        htmlFor="landingPageShowIncluded"
-                        className="mb-0"
-                      >
-                        Show What&apos;s Included
-                      </Label>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="landingPageShowBring"
-                        checked={formData.landingPageShowBring}
-                        onChange={(e) =>
-                          updateFormData({
-                            landingPageShowBring: e.target.checked,
-                          })
-                        }
-                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
-                      />
-                      <Label htmlFor="landingPageShowBring" className="mb-0">
-                        Show What to Bring
-                      </Label>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="landingPageShowContact"
-                        checked={formData.landingPageShowContact}
-                        onChange={(e) =>
-                          updateFormData({
-                            landingPageShowContact: e.target.checked,
-                          })
-                        }
-                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
-                      />
-                      <Label htmlFor="landingPageShowContact" className="mb-0">
-                        Show Contact Information
-                      </Label>
-                    </div>
+                    <p className="text-xs text-gray-500 ml-6 mt-1">
+                      Display the total event capacity (e.g., &quot;1000 attendees&quot;) on the landing page
+                    </p>
                   </div>
                 </div>
 

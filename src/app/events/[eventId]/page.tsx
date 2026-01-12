@@ -207,7 +207,7 @@ export default async function EventLandingPage({ params }: EventPageProps) {
               </div>
             )}
 
-            {event.capacityTotal && (
+            {event.capacityTotal && (event.settings?.showCapacity !== false) && (
               <div className="flex items-center justify-center md:justify-start gap-3 bg-white/10 p-4 rounded-lg">
                 <Users className="h-6 w-6 text-[#9C8466]" />
                 <div>
@@ -275,23 +275,82 @@ export default async function EventLandingPage({ params }: EventPageProps) {
           </CardContent>
         </Card>
 
-        {/* Additional Sections - Coming in next iteration */}
+        {/* Content Sections */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          {/* Schedule */}
+          {event.settings?.landingPageShowSchedule && event.settings?.scheduleContent && (
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardContent className="p-6">
+                <h3 className="text-xl font-bold text-[#1E3A5F] mb-4">Schedule</h3>
+                <div className="text-[#6B7280] whitespace-pre-line">
+                  {event.settings.scheduleContent}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* What's Included */}
+          {event.settings?.landingPageShowIncluded && event.settings?.includedContent && (
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardContent className="p-6">
+                <h3 className="text-xl font-bold text-[#1E3A5F] mb-4">What&apos;s Included</h3>
+                <div className="text-[#6B7280] whitespace-pre-line">
+                  {event.settings.includedContent}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* What to Bring */}
+          {event.settings?.landingPageShowBring && event.settings?.bringContent && (
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardContent className="p-6">
+                <h3 className="text-xl font-bold text-[#1E3A5F] mb-4">What to Bring</h3>
+                <div className="text-[#6B7280] whitespace-pre-line">
+                  {event.settings.bringContent}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* FAQ */}
+          {event.settings?.landingPageShowFaq && event.settings?.faqContent && (
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardContent className="p-6">
+                <h3 className="text-xl font-bold text-[#1E3A5F] mb-4">FAQ</h3>
+                <div className="text-[#6B7280] whitespace-pre-line">
+                  {event.settings.faqContent}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Contact Section */}
         {event.settings?.landingPageShowContact && (
           <Card className="bg-white border-[#D1D5DB]">
             <CardContent className="p-6">
               <h3 className="text-xl font-bold text-[#1E3A5F] mb-4">
                 Questions?
               </h3>
-              <p className="text-[#6B7280] mb-2">
-                Contact {event.organization.name} for more information:
-              </p>
-              <p className="text-[#1E3A5F] font-medium">
-                {event.organization.contactEmail}
-              </p>
-              {event.organization.contactPhone && (
-                <p className="text-[#1E3A5F] font-medium">
-                  {event.organization.contactPhone}
-                </p>
+              {event.settings?.contactInfo ? (
+                <div className="text-[#6B7280] whitespace-pre-line">
+                  {event.settings.contactInfo}
+                </div>
+              ) : (
+                <>
+                  <p className="text-[#6B7280] mb-2">
+                    Contact {event.organization.name} for more information:
+                  </p>
+                  <p className="text-[#1E3A5F] font-medium">
+                    {event.organization.contactEmail}
+                  </p>
+                  {event.organization.contactPhone && (
+                    <p className="text-[#1E3A5F] font-medium">
+                      {event.organization.contactPhone}
+                    </p>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>

@@ -27,6 +27,7 @@ import {
   Settings,
   Mail,
   Key,
+  ListOrdered,
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -281,6 +282,9 @@ export default function EventDetailClient({
         <TabsList className="bg-white border border-[#D1D5DB]">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="registrations">Registrations</TabsTrigger>
+          {waitlistEnabled && (
+            <TabsTrigger value="waitlist">Waitlist</TabsTrigger>
+          )}
           {settings?.porosHousingEnabled && (
             <TabsTrigger value="poros">Poros Portal</TabsTrigger>
           )}
@@ -384,6 +388,17 @@ export default function EventDetailClient({
                     Manage Access Codes
                   </Button>
                 </Link>
+                {waitlistEnabled && (
+                  <Link href={`/dashboard/admin/events/${event.id}/waitlist`}>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
+                    >
+                      <ListOrdered className="h-4 w-4 mr-2" />
+                      Manage Waitlist
+                    </Button>
+                  </Link>
+                )}
                 {settings?.porosHousingEnabled && (
                   <Link href={`/dashboard/admin/events/${event.id}/poros`}>
                     <Button
@@ -498,6 +513,28 @@ export default function EventDetailClient({
             eventName={event.name}
           />
         </TabsContent>
+
+        {/* Waitlist Tab */}
+        {waitlistEnabled && (
+          <TabsContent value="waitlist">
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardContent className="p-8 text-center">
+                <ListOrdered className="h-16 w-16 text-[#9C8466] mx-auto mb-4" />
+                <h3 className="font-semibold text-[#1E3A5F] mb-2">
+                  Waitlist Management
+                </h3>
+                <p className="text-[#6B7280] mb-4">
+                  View and manage people waiting for spots to open up
+                </p>
+                <Link href={`/dashboard/admin/events/${event.id}/waitlist`}>
+                  <Button className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
+                    Manage Waitlist
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         {/* Poros Tab */}
         {settings?.porosHousingEnabled && (
