@@ -356,24 +356,32 @@ export default async function EventLandingPage({ params }: EventPageProps) {
           </Card>
         )}
 
-        {/* Staff & Vendor Registration Links */}
-        <div className="mt-8 text-center space-y-2">
-          <div className="flex items-center justify-center gap-4 text-sm text-[#6B7280]">
-            <a
-              href={`/events/${event.slug || event.id}/register-staff`}
-              className="hover:text-[#1E3A5F] hover:underline transition-colors"
-            >
-              Register as staff
-            </a>
-            <span className="text-[#D1D5DB]">|</span>
-            <a
-              href={`/events/${event.slug || event.id}/register-vendor`}
-              className="hover:text-[#1E3A5F] hover:underline transition-colors"
-            >
-              Register vendor booth
-            </a>
+        {/* Staff & Vendor Registration Links - Only show when enabled */}
+        {(event.settings?.staffRegistrationEnabled || event.settings?.vendorRegistrationEnabled) && (
+          <div className="mt-8 text-center space-y-2">
+            <div className="flex items-center justify-center gap-4 text-sm text-[#6B7280]">
+              {event.settings?.staffRegistrationEnabled && (
+                <a
+                  href={`/events/${event.slug || event.id}/register-staff`}
+                  className="hover:text-[#1E3A5F] hover:underline transition-colors"
+                >
+                  Register as staff
+                </a>
+              )}
+              {event.settings?.staffRegistrationEnabled && event.settings?.vendorRegistrationEnabled && (
+                <span className="text-[#D1D5DB]">|</span>
+              )}
+              {event.settings?.vendorRegistrationEnabled && (
+                <a
+                  href={`/events/${event.slug || event.id}/register-vendor`}
+                  className="hover:text-[#1E3A5F] hover:underline transition-colors"
+                >
+                  Register vendor booth
+                </a>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Powered by ChiRho Events */}
         <div className="mt-8 pt-6 border-t border-[#E5E7EB] text-center">
