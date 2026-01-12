@@ -16,6 +16,10 @@ interface EventData {
     onCampusYouthPrice?: number
     offCampusYouthPrice?: number
     dayPassYouthPrice?: number
+    // Early bird pricing
+    earlyBirdDeadline?: string
+    individualEarlyBirdPrice?: number
+    individualBasePrice?: number
   }
   settings: {
     registrationInstructions: string | null

@@ -103,12 +103,12 @@ async function main() {
   }
 
   // Step 2: Find the organizations
-  const testOrg = orgs.find(o => o.name.toLowerCase().includes('chirhotest'))
-  const prodOrg = orgs.find(o => o.name.toLowerCase().includes('saint joseph'))
+  const testOrg = orgs.find((o: { name: string }) => o.name.toLowerCase().includes('chirhotest'))
+  const prodOrg = orgs.find((o: { name: string }) => o.name.toLowerCase().includes('saint joseph'))
 
   if (!testOrg) {
     console.error('❌ Could not find Chirhotestevents organization!')
-    console.log('   Available organizations:', orgs.map(o => o.name).join(', '))
+    console.log('   Available organizations:', orgs.map((o: { name: string }) => o.name).join(', '))
     process.exit(1)
   }
 
@@ -124,7 +124,7 @@ async function main() {
   const changes: string[] = []
 
   // Move all events to test org
-  const eventsToMove = events.filter(e => e.organizationId !== testOrg.id)
+  const eventsToMove = events.filter((e: { organizationId: string }) => e.organizationId !== testOrg.id)
   if (eventsToMove.length > 0) {
     changes.push(`Move ${eventsToMove.length} events to ${testOrg.name}:`)
     for (const event of eventsToMove) {
@@ -133,13 +133,13 @@ async function main() {
   }
 
   // Ensure chirhoevents@gmail.com is in test org
-  const testOrgAdmin = users.find(u => u.email === 'chirhoevents@gmail.com')
+  const testOrgAdmin = users.find((u: { email: string; organizationId: string }) => u.email === 'chirhoevents@gmail.com')
   if (testOrgAdmin && testOrgAdmin.organizationId !== testOrg.id) {
     changes.push(`\nAssign chirhoevents@gmail.com to ${testOrg.name}`)
   }
 
   // Ensure juanitohola13@gmail.com is in prod org (if prod org exists)
-  const prodOrgAdmin = users.find(u => u.email === 'juanitohola13@gmail.com')
+  const prodOrgAdmin = users.find((u: { email: string; organizationId: string }) => u.email === 'juanitohola13@gmail.com')
   if (prodOrg && prodOrgAdmin && prodOrgAdmin.organizationId !== prodOrg.id) {
     changes.push(`\nAssign juanitohola13@gmail.com to ${prodOrg.name}`)
   }
@@ -172,7 +172,7 @@ async function main() {
   if (eventsToMove.length > 0) {
     await prisma.event.updateMany({
       where: {
-        id: { in: eventsToMove.map(e => e.id) },
+        id: { in: eventsToMove.map((e: { id: string }) => e.id) },
       },
       data: {
         organizationId: testOrg.id,
