@@ -36,6 +36,8 @@ interface FormData {
   salveCheckinEnabled: boolean
   raphaMedicalEnabled: boolean
   publicPortalEnabled: boolean
+  staffRegistrationEnabled: boolean
+  vendorRegistrationEnabled: boolean
   allowOnCampus: boolean
   allowOffCampus: boolean
   allowDayPass: boolean
@@ -231,6 +233,8 @@ export default function EditEventPage() {
         salveCheckinEnabled: event.settings?.salveCheckinEnabled || false,
         raphaMedicalEnabled: event.settings?.raphaMedicalEnabled || false,
         publicPortalEnabled: event.settings?.publicPortalEnabled || false,
+        staffRegistrationEnabled: event.settings?.staffRegistrationEnabled || false,
+        vendorRegistrationEnabled: event.settings?.vendorRegistrationEnabled || false,
         allowOnCampus: event.settings?.allowOnCampus ?? true,
         allowOffCampus: event.settings?.allowOffCampus ?? true,
         allowDayPass: event.settings?.allowDayPass ?? false,
