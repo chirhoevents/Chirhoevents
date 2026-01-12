@@ -70,7 +70,7 @@ export async function POST(
 
     // Send approval email
     try {
-      const portalUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard/vendor?code=${vendor.accessCode}`
+      const portalUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/vendor-dashboard?code=${vendor.accessCode}`
       const staffRegUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/events/${vendor.event.slug}/register-staff`
 
       const emailContent = wrapEmail(`
