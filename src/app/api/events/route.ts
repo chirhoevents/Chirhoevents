@@ -54,7 +54,8 @@ export async function GET(request: NextRequest) {
     })
 
     // Transform events for public consumption
-    const publicEvents = events.map((event) => ({
+    type EventType = typeof events[number]
+    const publicEvents = events.map((event: EventType) => ({
       id: event.id,
       slug: event.slug,
       name: event.name,

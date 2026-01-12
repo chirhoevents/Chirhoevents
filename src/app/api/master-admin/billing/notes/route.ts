@@ -48,8 +48,9 @@ export async function GET(request: NextRequest) {
       take: 100,
     })
 
+    type NoteType = typeof notes[number]
     return NextResponse.json({
-      notes: notes.map((note) => ({
+      notes: notes.map((note: NoteType) => ({
         id: note.id,
         organizationId: note.organizationId,
         organizationName: note.organization?.name || 'Unknown',

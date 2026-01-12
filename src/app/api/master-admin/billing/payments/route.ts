@@ -76,22 +76,25 @@ export async function GET(request: NextRequest) {
       take: 500, // Limit for performance
     })
 
+    // Type definition for payment operations
+    type PaymentType = typeof payments[number]
+
     // Get summary stats
     const stats = {
       total: payments.length,
-      succeeded: payments.filter((p) => p.paymentStatus === 'succeeded').length,
-      pending: payments.filter((p) => p.paymentStatus === 'pending').length,
-      failed: payments.filter((p) => p.paymentStatus === 'failed').length,
+      succeeded: payments.filter((p: PaymentType) => p.paymentStatus === 'succeeded').length,
+      pending: payments.filter((p: PaymentType) => p.paymentStatus === 'pending').length,
+      failed: payments.filter((p: PaymentType) => p.paymentStatus === 'failed').length,
       totalAmount: payments
-        .filter((p) => p.paymentStatus === 'succeeded')
-        .reduce((sum, p) => sum + Number(p.amount), 0),
+        .filter((p: PaymentType) => p.paymentStatus === 'succeeded')
+        .reduce((sum: number, p: PaymentType) => sum + Number(p.amount), 0),
       totalPlatformFees: payments
-        .filter((p) => p.paymentStatus === 'succeeded' && p.platformFeeAmount)
-        .reduce((sum, p) => sum + Number(p.platformFeeAmount || 0), 0),
+        .filter((p: PaymentType) => p.paymentStatus === 'succeeded' && p.platformFeeAmount)
+        .reduce((sum: number, p: PaymentType) => sum + Number(p.platformFeeAmount || 0), 0),
     }
 
     return NextResponse.json({
-      payments: payments.map((p) => ({
+      payments: payments.map((p: PaymentType) => ({
         id: p.id,
         amount: Number(p.amount),
         paymentType: p.paymentType,

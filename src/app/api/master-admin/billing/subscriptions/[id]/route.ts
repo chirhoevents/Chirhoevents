@@ -82,6 +82,11 @@ export async function GET(
       orderBy: { createdAt: 'desc' },
     })
 
+    // Type definitions for map operations
+    type PaymentType = typeof payments[number]
+    type InvoiceType = typeof invoices[number]
+    type BillingNoteType = typeof billingNotes[number]
+
     return NextResponse.json({
       subscription: {
         ...organization,
@@ -90,16 +95,16 @@ export async function GET(
         setupFeeAmount: Number(organization.setupFeeAmount) || 250,
         storageUsedGb: Number(organization.storageUsedGb) || 0,
       },
-      payments: payments.map((p) => ({
+      payments: payments.map((p: PaymentType) => ({
         ...p,
         amount: Number(p.amount),
         platformFeeAmount: p.platformFeeAmount ? Number(p.platformFeeAmount) : null,
       })),
-      invoices: invoices.map((inv) => ({
+      invoices: invoices.map((inv: InvoiceType) => ({
         ...inv,
         amount: Number(inv.amount),
       })),
-      billingNotes: billingNotes.map((note) => ({
+      billingNotes: billingNotes.map((note: BillingNoteType) => ({
         ...note,
         createdByName: `${note.createdBy.firstName} ${note.createdBy.lastName}`,
       })),

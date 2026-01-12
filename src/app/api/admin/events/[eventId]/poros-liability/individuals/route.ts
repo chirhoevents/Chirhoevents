@@ -95,7 +95,7 @@ export async function GET(
     // Filter by status if specified
     let filtered = result
     if (status !== 'all') {
-      filtered = result.filter((r) => r.formStatus === status)
+      filtered = result.filter((r: { formStatus: string }) => r.formStatus === status)
     }
 
     return NextResponse.json(filtered)

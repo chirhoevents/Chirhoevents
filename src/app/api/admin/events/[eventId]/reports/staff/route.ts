@@ -47,25 +47,28 @@ export async function GET(
       orderBy: { createdAt: 'desc' },
     })
 
+    // Define type for staff registration filter operations
+    type StaffReg = typeof staffRegistrations[number]
+
     // Calculate statistics
     const totalStaff = staffRegistrations.length
-    const volunteerStaff = staffRegistrations.filter(s => !s.isVendorStaff).length
-    const vendorStaff = staffRegistrations.filter(s => s.isVendorStaff).length
+    const volunteerStaff = staffRegistrations.filter((s: StaffReg) => !s.isVendorStaff).length
+    const vendorStaff = staffRegistrations.filter((s: StaffReg) => s.isVendorStaff).length
 
     // Payment statistics
-    const paidStaff = staffRegistrations.filter(s => s.paymentStatus === 'paid').length
-    const pendingPayment = staffRegistrations.filter(s => s.paymentStatus === 'pending').length
+    const paidStaff = staffRegistrations.filter((s: StaffReg) => s.paymentStatus === 'paid').length
+    const pendingPayment = staffRegistrations.filter((s: StaffReg) => s.paymentStatus === 'pending').length
 
     // Check-in statistics
-    const checkedInStaff = staffRegistrations.filter(s => s.checkedIn).length
+    const checkedInStaff = staffRegistrations.filter((s: StaffReg) => s.checkedIn).length
     const notCheckedIn = totalStaff - checkedInStaff
 
     // Liability form statistics
-    const formsCompleted = staffRegistrations.filter(s => s.liabilityForm?.completed).length
-    const formsPending = staffRegistrations.filter(s => s.porosAccessCode && !s.liabilityForm?.completed).length
+    const formsCompleted = staffRegistrations.filter((s: StaffReg) => s.liabilityForm?.completed).length
+    const formsPending = staffRegistrations.filter((s: StaffReg) => s.porosAccessCode && !s.liabilityForm?.completed).length
 
     // Financial calculations
-    const totalRevenue = staffRegistrations.reduce((sum, s) => sum + Number(s.pricePaid || 0), 0)
+    const totalRevenue = staffRegistrations.reduce((sum: number, s: StaffReg) => sum + Number(s.pricePaid || 0), 0)
 
     if (isPreview) {
       return NextResponse.json({
@@ -91,7 +94,7 @@ export async function GET(
     }
 
     // Detailed staff list
-    const staffList = staffRegistrations.map(s => ({
+    const staffList = staffRegistrations.map((s: StaffReg) => ({
       id: s.id,
       firstName: s.firstName,
       lastName: s.lastName,

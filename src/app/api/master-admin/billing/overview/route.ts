@@ -80,7 +80,8 @@ export async function GET(request: NextRequest) {
     })
 
     let lastMonthMRR = 0
-    orgsLastMonth.forEach((org) => {
+    type OrgLastMonthType = typeof orgsLastMonth[number]
+    orgsLastMonth.forEach((org: OrgLastMonthType) => {
       if (org.billingCycle === 'monthly') {
         lastMonthMRR += Number(org.monthlyFee) || Number(org.monthlyPrice) || 0
       } else {
@@ -108,8 +109,9 @@ export async function GET(request: NextRequest) {
       orderBy: { dueDate: 'asc' },
     })
 
+    type InvoiceType = typeof pendingInvoices[number]
     const pendingTotal = pendingInvoices.reduce(
-      (sum, inv) => sum + Number(inv.amount),
+      (sum: number, inv: InvoiceType) => sum + Number(inv.amount),
       0
     )
 
@@ -133,8 +135,9 @@ export async function GET(request: NextRequest) {
       },
       select: { id: true, amount: true },
     })
+    type SubInvoiceType = typeof subscriptionInvoicesPaidThisMonth[number]
     const subscriptionRevenue = subscriptionInvoicesPaidThisMonth.reduce(
-      (sum, inv) => sum + Number(inv.amount),
+      (sum: number, inv: SubInvoiceType) => sum + Number(inv.amount),
       0
     )
 
@@ -150,8 +153,9 @@ export async function GET(request: NextRequest) {
       },
       select: { id: true, amount: true },
     })
+    type SetupFeeInvoiceType = typeof setupFeeInvoicesPaidThisMonth[number]
     const setupFeeRevenue = setupFeeInvoicesPaidThisMonth.reduce(
-      (sum, inv) => sum + Number(inv.amount),
+      (sum: number, inv: SetupFeeInvoiceType) => sum + Number(inv.amount),
       0
     )
 
@@ -166,8 +170,9 @@ export async function GET(request: NextRequest) {
         },
       },
     })
+    type PaymentType = typeof paymentsThisMonth[number]
     const platformFeeRevenue = paymentsThisMonth.reduce(
-      (sum, p) => sum + Number(p.platformFeeAmount || 0),
+      (sum: number, p: PaymentType) => sum + Number(p.platformFeeAmount || 0),
       0
     )
 
@@ -224,6 +229,11 @@ export async function GET(request: NextRequest) {
       take: 5,
     })
 
+    // Type definitions for map operations
+    type RecentPaymentType = typeof recentPayments[number]
+    type RecentInvoiceType = typeof recentInvoices[number]
+    type SubscriptionChangeType = typeof recentSubscriptionChanges[number]
+
     return NextResponse.json({
       mrr: {
         current: currentMRR,
@@ -234,7 +244,7 @@ export async function GET(request: NextRequest) {
       pendingInvoices: {
         count: pendingInvoices.length,
         total: pendingTotal,
-        items: pendingInvoices.slice(0, 5).map((inv) => ({
+        items: pendingInvoices.slice(0, 5).map((inv: InvoiceType) => ({
           id: inv.id,
           invoiceNumber: inv.invoiceNumber,
           amount: Number(inv.amount),
@@ -251,7 +261,7 @@ export async function GET(request: NextRequest) {
         total: totalMonthlyRevenue,
       },
       recentActivity: {
-        payments: recentPayments.map((p) => ({
+        payments: recentPayments.map((p: RecentPaymentType) => ({
           id: p.id,
           amount: Number(p.amount),
           type: p.paymentType,
@@ -259,7 +269,7 @@ export async function GET(request: NextRequest) {
           organizationName: p.organization?.name || 'Unknown',
           date: p.createdAt,
         })),
-        invoices: recentInvoices.map((inv) => ({
+        invoices: recentInvoices.map((inv: RecentInvoiceType) => ({
           id: inv.id,
           invoiceNumber: inv.invoiceNumber,
           amount: Number(inv.amount),
@@ -268,7 +278,7 @@ export async function GET(request: NextRequest) {
           organizationName: inv.organization?.name || 'Unknown',
           date: inv.createdAt,
         })),
-        subscriptionChanges: recentSubscriptionChanges.map((org) => ({
+        subscriptionChanges: recentSubscriptionChanges.map((org: SubscriptionChangeType) => ({
           id: org.id,
           name: org.name,
           tier: org.subscriptionTier,

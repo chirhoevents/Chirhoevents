@@ -335,8 +335,8 @@ export default function EditEventPage() {
         depositAmount: event.pricing?.depositAmount?.toString() || '500',
 
         // Step 5: Contact & Instructions
-        contactEmail: event.settings?.registrationInstructions || '',
-        contactPhone: '',
+        contactEmail: event.settings?.contactEmail || '',
+        contactPhone: event.settings?.contactPhone || '',
         registrationInstructions: event.settings?.registrationInstructions || '',
         confirmationEmailMessage: event.settings?.confirmationEmailMessage || '',
         checkPaymentEnabled: event.settings?.checkPaymentEnabled ?? true,

@@ -45,24 +45,27 @@ export async function GET(
       orderBy: { createdAt: 'desc' },
     })
 
+    // Define type for vendor filter operations
+    type VendorReg = typeof vendors[number]
+
     // Calculate statistics
     const totalVendors = vendors.length
-    const pendingVendors = vendors.filter(v => v.status === 'pending').length
-    const approvedVendors = vendors.filter(v => v.status === 'approved').length
-    const rejectedVendors = vendors.filter(v => v.status === 'rejected').length
+    const pendingVendors = vendors.filter((v: VendorReg) => v.status === 'pending').length
+    const approvedVendors = vendors.filter((v: VendorReg) => v.status === 'approved').length
+    const rejectedVendors = vendors.filter((v: VendorReg) => v.status === 'rejected').length
 
     // Payment statistics
-    const paidVendors = vendors.filter(v => v.paymentStatus === 'paid').length
-    const unpaidVendors = vendors.filter(v => v.paymentStatus === 'unpaid').length
-    const partialVendors = vendors.filter(v => v.paymentStatus === 'partial').length
+    const paidVendors = vendors.filter((v: VendorReg) => v.paymentStatus === 'paid').length
+    const unpaidVendors = vendors.filter((v: VendorReg) => v.paymentStatus === 'unpaid').length
+    const partialVendors = vendors.filter((v: VendorReg) => v.paymentStatus === 'partial').length
 
     // Financial calculations
-    const totalInvoiced = vendors.reduce((sum, v) => sum + Number(v.invoiceTotal || 0), 0)
-    const totalPaid = vendors.reduce((sum, v) => sum + Number(v.amountPaid || 0), 0)
+    const totalInvoiced = vendors.reduce((sum: number, v: VendorReg) => sum + Number(v.invoiceTotal || 0), 0)
+    const totalPaid = vendors.reduce((sum: number, v: VendorReg) => sum + Number(v.amountPaid || 0), 0)
     const totalBalance = totalInvoiced - totalPaid
 
     // Staff count
-    const totalBoothStaff = vendors.reduce((sum, v) => sum + v.boothStaff.length, 0)
+    const totalBoothStaff = vendors.reduce((sum: number, v: VendorReg) => sum + v.boothStaff.length, 0)
 
     if (isPreview) {
       return NextResponse.json({
@@ -81,7 +84,8 @@ export async function GET(
     }
 
     // Detailed vendor list
-    const vendorList = vendors.map(v => ({
+    type BoothStaff = VendorReg['boothStaff'][number]
+    const vendorList = vendors.map((v: VendorReg) => ({
       id: v.id,
       businessName: v.businessName,
       contactName: `${v.contactFirstName} ${v.contactLastName}`,
@@ -95,7 +99,7 @@ export async function GET(
       balance: Number(v.invoiceTotal || 0) - Number(v.amountPaid || 0),
       vendorCode: v.vendorCode,
       boothStaffCount: v.boothStaff.length,
-      boothStaff: v.boothStaff.map(s => ({
+      boothStaff: v.boothStaff.map((s: BoothStaff) => ({
         name: `${s.firstName} ${s.lastName}`,
         email: s.email,
         role: s.role,

@@ -107,10 +107,10 @@ export async function POST(
     // Try to get payment token separately (may fail if column doesn't exist)
     let paymentToken: string | null = null
     try {
-      const tokenResult = await prisma.$queryRawUnsafe<{ payment_token: string | null }[]>(
+      const tokenResult = await prisma.$queryRawUnsafe(
         `SELECT payment_token FROM invoices WHERE id = $1::uuid`,
         invoiceId
-      )
+      ) as { payment_token: string | null }[]
       paymentToken = tokenResult[0]?.payment_token || null
     } catch {
       // Column may not exist yet
