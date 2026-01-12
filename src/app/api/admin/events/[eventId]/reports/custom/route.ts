@@ -695,27 +695,40 @@ async function executeHousingReport(eventId: string, config: any) {
     },
     include: {
       building: { select: { name: true } },
-      roomAssignments: {
-        include: {
-          participant: {
-            select: {
-              firstName: true,
-              lastName: true,
-              participantType: true,
-              gender: true,
-              groupRegistration: { select: { groupName: true } },
-            },
-          },
-        },
-      },
+      roomAssignments: true,
     },
     orderBy: [{ building: { name: 'asc' } }, { name: 'asc' }],
   })
+
+  // Collect all participant IDs from room assignments
+  const participantIds = rooms.flatMap(room =>
+    room.roomAssignments
+      .filter(a => a.participantId)
+      .map(a => a.participantId!)
+  )
+
+  // Fetch participant details separately
+  const participants = await prisma.participant.findMany({
+    where: { id: { in: participantIds } },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      participantType: true,
+      gender: true,
+      groupRegistration: { select: { groupName: true } },
+    },
+  })
+  const participantMap = new Map(participants.map(p => [p.id, p]))
 
   // Flatten to assignments
   let results: any[] = []
   rooms.forEach(room => {
     room.roomAssignments.forEach(assignment => {
+      const participant = assignment.participantId
+        ? participantMap.get(assignment.participantId)
+        : null
+
       results.push({
         building: { name: room.building.name },
         room: {
@@ -727,7 +740,7 @@ async function executeHousingReport(eventId: string, config: any) {
           gender: room.gender,
           isAdaAccessible: room.isAdaAccessible,
         },
-        participant: assignment.participant,
+        participant: participant || null,
         assignedAt: assignment.createdAt,
       })
     })
