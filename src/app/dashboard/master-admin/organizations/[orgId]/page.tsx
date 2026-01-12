@@ -1020,10 +1020,10 @@ export default function OrganizationDetailPage() {
                               </div>
                               <button
                                 onClick={() => handleToggleEventRegistration(event.id, event.status)}
-                                disabled={isUpdating || event.status === 'draft' || event.status === 'completed' || event.status === 'cancelled'}
+                                disabled={isUpdating || event.status === 'completed' || event.status === 'cancelled'}
                                 className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                                   isRegOpen ? 'bg-green-500' : 'bg-gray-300'
-                                } ${isUpdating || event.status === 'draft' || event.status === 'completed' || event.status === 'cancelled' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                                } ${isUpdating || event.status === 'completed' || event.status === 'cancelled' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                               >
                                 <span
                                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${

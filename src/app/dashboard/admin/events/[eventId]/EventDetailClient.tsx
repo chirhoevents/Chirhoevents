@@ -793,7 +793,7 @@ export default function EventDetailClient({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className={`flex items-center justify-between p-4 rounded-lg ${event.status === 'draft' ? 'bg-gray-100' : 'bg-gray-50'}`}>
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">
                     {event.status === 'registration_open' ? (
                       <CheckSquare className="h-5 w-5 text-green-600" />
@@ -821,14 +821,14 @@ export default function EventDetailClient({
                         handleStatusUpdate('registration_closed')
                       }
                     }}
-                    disabled={updatingStatus || event.status === 'draft' || event.status === 'completed' || event.status === 'cancelled'}
+                    disabled={updatingStatus || event.status === 'completed' || event.status === 'cancelled'}
                   />
                 </div>
                 {event.status === 'draft' && (
-                  <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
-                    <p className="text-xs text-yellow-700">
-                      You must publish the event before you can open registration.
+                  <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-blue-700">
+                      Opening registration will also publish the event (make it visible on the public events page).
                     </p>
                   </div>
                 )}
