@@ -561,12 +561,28 @@ export function PorosSettings({ eventId, settings: initialSettings, onUpdate }: 
                       <span className="font-medium">{jsonImportData.rooms?.length || 0}</span>
                     </div>
                     <div className="p-2 bg-white rounded">
+                      <span className="text-muted-foreground">Meal Colors: </span>
+                      <span className="font-medium">{jsonImportData.activeColors?.length || Object.keys(jsonImportData.mealTimes || {}).length}</span>
+                    </div>
+                    <div className="p-2 bg-white rounded">
                       <span className="text-muted-foreground">Resources: </span>
                       <span className="font-medium">{jsonImportData.resources?.length || 0}</span>
                     </div>
                     <div className="p-2 bg-white rounded">
                       <span className="text-muted-foreground">Schedule Days: </span>
                       <span className="font-medium">{Object.keys(jsonImportData.schedule || {}).length}</span>
+                    </div>
+                    <div className="p-2 bg-white rounded">
+                      <span className="text-muted-foreground">With Seminarian: </span>
+                      <span className="font-medium">{jsonImportData.youthGroups?.filter((g: any) => g.seminarianSgl)?.length || 0}</span>
+                    </div>
+                    <div className="p-2 bg-white rounded">
+                      <span className="text-muted-foreground">With Religious: </span>
+                      <span className="font-medium">{jsonImportData.youthGroups?.filter((g: any) => g.religious)?.length || 0}</span>
+                    </div>
+                    <div className="p-2 bg-white rounded">
+                      <span className="text-muted-foreground">Off-Campus: </span>
+                      <span className="font-medium">{jsonImportData.youthGroups?.filter((g: any) => g.stayingOffCampus)?.length || 0}</span>
                     </div>
                   </div>
 
