@@ -20,11 +20,19 @@ import {
   CreditCard,
   HelpCircle,
   FileText,
-  LucideIcon
+  LucideIcon,
+  Plus,
+  Ticket,
 } from 'lucide-react'
 import { hasPermission, getRoleName, type Permission, type UserRole } from '@/lib/permissions'
 import ImpersonationBanner from '@/components/admin/ImpersonationBanner'
 import { AdminProvider } from '@/contexts/AdminContext'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 interface UserInfo {
   organizationId: string
@@ -423,6 +431,33 @@ export default function AdminLayout({
             )}
 
             <div className="ml-auto flex items-center gap-4">
+              {/* Quick Actions Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="flex items-center justify-center h-9 w-9 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                    style={{ borderColor: `${primaryColor}30` }}
+                    title="Quick Actions"
+                  >
+                    <Plus className="h-5 w-5" style={{ color: primaryColor }} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href="/dashboard/admin/support?new=true"
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
+                      <Ticket className="h-4 w-4" />
+                      <div>
+                        <p className="font-medium">Open Support Ticket</p>
+                        <p className="text-xs text-gray-500">Get help from our team</p>
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               {/* Show org logo in top bar on desktop if they have one */}
               {userInfo?.logoUrl && (
                 <img
