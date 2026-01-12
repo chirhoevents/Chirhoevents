@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { format } from 'date-fns'
@@ -42,6 +42,12 @@ interface Event {
     primaryColor: string | null
     secondaryColor: string | null
   } | null
+}
+
+interface PorosPublicClientProps {
+  initialEvents: Event[]
+  availableCities: string[]
+  availableStates: string[]
 }
 
 // US States for dropdown
@@ -99,9 +105,11 @@ const US_STATES = [
   { value: 'DC', label: 'Washington D.C.' },
 ]
 
-export default function PorosPublicClient() {
-  const [events, setEvents] = useState<Event[]>([])
-  const [loading, setLoading] = useState(true)
+export default function PorosPublicClient({
+  initialEvents,
+  availableCities,
+  availableStates,
+}: PorosPublicClientProps) {
   const [searchQuery, setSearchQuery] = useState('')
 
   // Advanced filters
@@ -110,8 +118,6 @@ export default function PorosPublicClient() {
   const [startDateTo, setStartDateTo] = useState('')
   const [selectedState, setSelectedState] = useState('')
   const [selectedCity, setSelectedCity] = useState('')
-  const [availableCities, setAvailableCities] = useState<string[]>([])
-  const [availableStates, setAvailableStates] = useState<string[]>([])
 
   // Geolocation
   const [userCity, setUserCity] = useState<string | null>(null)
@@ -120,62 +126,48 @@ export default function PorosPublicClient() {
   const [locationError, setLocationError] = useState<string | null>(null)
   const [nearMeActive, setNearMeActive] = useState(false)
 
-  // Fetch available locations on mount
-  useEffect(() => {
-    fetchLocationOptions()
-  }, [])
+  // Filter events client-side
+  const filteredEvents = useMemo(() => {
+    let events = [...initialEvents]
 
-  useEffect(() => {
-    fetchEvents()
-  }, [searchQuery, startDateFrom, startDateTo, selectedState, selectedCity])
-
-  const fetchLocationOptions = async () => {
-    try {
-      const response = await fetch('/api/poros/public/events?getLocations=true')
-      if (response.ok) {
-        const data = await response.json()
-        setAvailableCities(data.cities || [])
-        setAvailableStates(data.states || [])
-      }
-    } catch (error) {
-      console.error('Error fetching location options:', error)
+    // Apply search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      events = events.filter((event) =>
+        event.name.toLowerCase().includes(query) ||
+        (event.locationName && event.locationName.toLowerCase().includes(query)) ||
+        (event.locationCity && event.locationCity.toLowerCase().includes(query)) ||
+        (event.locationState && event.locationState.toLowerCase().includes(query)) ||
+        (event.organization?.name && event.organization.name.toLowerCase().includes(query))
+      )
     }
-  }
 
-  const fetchEvents = async () => {
-    try {
-      setLoading(true)
-      const params = new URLSearchParams()
-
-      if (searchQuery) {
-        params.set('search', searchQuery)
-      }
-      if (startDateFrom) {
-        params.set('startDateFrom', startDateFrom)
-      }
-      if (startDateTo) {
-        params.set('startDateTo', startDateTo)
-      }
-      if (selectedState) {
-        params.set('state', selectedState)
-      }
-      if (selectedCity) {
-        params.set('city', selectedCity)
-      }
-
-      const response = await fetch(`/api/poros/public/events?${params.toString()}`)
-      if (!response.ok) {
-        throw new Error('Failed to fetch events')
-      }
-
-      const data = await response.json()
-      setEvents(data.events || [])
-    } catch (error) {
-      console.error('Error fetching events:', error)
-    } finally {
-      setLoading(false)
+    // Apply date range filter
+    if (startDateFrom || startDateTo) {
+      events = events.filter((event) => {
+        const eventStart = new Date(event.startDate)
+        if (startDateFrom && eventStart < new Date(startDateFrom)) return false
+        if (startDateTo && eventStart > new Date(startDateTo)) return false
+        return true
+      })
     }
-  }
+
+    // Apply state filter
+    if (selectedState) {
+      events = events.filter((event) =>
+        event.locationState?.toLowerCase() === selectedState.toLowerCase()
+      )
+    }
+
+    // Apply city filter
+    if (selectedCity) {
+      events = events.filter((event) =>
+        event.locationCity?.toLowerCase() === selectedCity.toLowerCase()
+      )
+    }
+
+    return events
+  }, [initialEvents, searchQuery, startDateFrom, startDateTo, selectedState, selectedCity])
 
   // Reverse geocode using OpenStreetMap Nominatim API
   const reverseGeocode = async (lat: number, lng: number) => {
@@ -469,15 +461,8 @@ export default function PorosPublicClient() {
           )}
         </div>
 
-        {/* Loading State */}
-        {loading && (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-white/60" />
-          </div>
-        )}
-
         {/* No Events State */}
-        {!loading && events.length === 0 && (
+        {filteredEvents.length === 0 && (
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 text-center">
             <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <Calendar className="w-8 h-8 text-white/60" />
@@ -504,9 +489,9 @@ export default function PorosPublicClient() {
         )}
 
         {/* Events List */}
-        {!loading && events.length > 0 && (
+        {filteredEvents.length > 0 && (
           <div className="space-y-4">
-            {events.map((event) => (
+            {filteredEvents.map((event) => (
               <Link
                 key={event.id}
                 href={`/poros/public/${event.id}`}
@@ -546,7 +531,7 @@ export default function PorosPublicClient() {
 
             {/* Results Count */}
             <div className="text-center text-sm text-white/50 pt-2">
-              Showing {events.length} event{events.length !== 1 ? 's' : ''}
+              Showing {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''}
               {hasActiveFilters && ' matching your filters'}
             </div>
           </div>
