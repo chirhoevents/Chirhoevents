@@ -26,6 +26,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/registration(.*)',
   '/api/liability(.*)',
   '/api/portal(.*)',  // Portal APIs - handle their own auth
+  '/api/vendor(.*)',  // Vendor portal APIs - use access code auth
   '/api/webhooks(.*)',
   '/api/events(.*)',
   '/api/invites(.*)',
