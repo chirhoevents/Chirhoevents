@@ -38,6 +38,10 @@ interface FormData {
   publicPortalEnabled: boolean
   staffRegistrationEnabled: boolean
   vendorRegistrationEnabled: boolean
+  staffVolunteerPrice: string
+  vendorStaffPrice: string
+  staffRoles: string[]
+  vendorTiers: Array<{ id: string; name: string; price: string; description: string; active: boolean; quantityLimit: string }>
   allowOnCampus: boolean
   allowOffCampus: boolean
   allowDayPass: boolean
@@ -235,6 +239,14 @@ export default function EditEventPage() {
         publicPortalEnabled: event.settings?.publicPortalEnabled || false,
         staffRegistrationEnabled: event.settings?.staffRegistrationEnabled || false,
         vendorRegistrationEnabled: event.settings?.vendorRegistrationEnabled || false,
+        staffVolunteerPrice: event.settings?.staffVolunteerPrice?.toString() || '0',
+        vendorStaffPrice: event.settings?.vendorStaffPrice?.toString() || '0',
+        staffRoles: (event.settings?.staffRoles as string[]) || ['Registration Desk', 'Setup Crew', 'Kitchen Staff', 'Security', 'Emcee', 'General Volunteer'],
+        vendorTiers: (event.settings?.vendorTiers as Array<{ id: string; name: string; price: string; description: string; active: boolean; quantityLimit: string }>) || [
+          { id: '1', name: 'Small Booth', price: '200', description: '10x10, no electricity', active: true, quantityLimit: '' },
+          { id: '2', name: 'Medium Booth', price: '350', description: '10x20, includes electricity', active: true, quantityLimit: '' },
+          { id: '3', name: 'Large Booth', price: '500', description: '20x20, includes electricity', active: false, quantityLimit: '' },
+        ],
         allowOnCampus: event.settings?.allowOnCampus ?? true,
         allowOffCampus: event.settings?.allowOffCampus ?? true,
         allowDayPass: event.settings?.allowDayPass ?? false,
