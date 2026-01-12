@@ -33,6 +33,7 @@ export async function GET(
         name: true,
         slug: true,
         status: true,
+        isPublished: true,
         startDate: true,
         endDate: true,
         capacityTotal: true,

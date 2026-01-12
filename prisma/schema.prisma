@@ -156,6 +156,7 @@ model Event {
   registrationOpenDate   DateTime? @map("registration_open_date") @db.Timestamptz(6)
   registrationCloseDate  DateTime? @map("registration_close_date") @db.Timestamptz(6)
   status                 EventStatus @default(draft)
+  isPublished            Boolean  @default(false) @map("is_published")
   enableWaitlist         Boolean  @default(false) @map("enable_waitlist")
   waitlistCapacity       Int?     @map("waitlist_capacity")
   createdBy              String   @map("created_by") @db.Uuid
