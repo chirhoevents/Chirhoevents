@@ -1,14 +1,24 @@
--- CreateEnum
-CREATE TYPE "DiscountType" AS ENUM ('percentage', 'fixed_amount');
+-- CreateEnum (if not exists)
+DO $$ BEGIN
+    CREATE TYPE "DiscountType" AS ENUM ('percentage', 'fixed_amount');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
--- CreateEnum
-CREATE TYPE "UsageLimitType" AS ENUM ('unlimited', 'single_use', 'limited');
+DO $$ BEGIN
+    CREATE TYPE "UsageLimitType" AS ENUM ('unlimited', 'single_use', 'limited');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
--- CreateEnum
-CREATE TYPE "CouponRegistrationType" AS ENUM ('group', 'individual', 'staff', 'vendor');
+DO $$ BEGIN
+    CREATE TYPE "CouponRegistrationType" AS ENUM ('group', 'individual', 'staff', 'vendor');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "coupons" (
+CREATE TABLE IF NOT EXISTS "coupons" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "organization_id" UUID NOT NULL,
     "event_id" UUID,
@@ -31,7 +41,7 @@ CREATE TABLE "coupons" (
 );
 
 -- CreateTable
-CREATE TABLE "coupon_redemptions" (
+CREATE TABLE IF NOT EXISTS "coupon_redemptions" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "coupon_id" UUID NOT NULL,
     "registration_id" UUID NOT NULL,
@@ -42,35 +52,36 @@ CREATE TABLE "coupon_redemptions" (
     CONSTRAINT "coupon_redemptions_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
-CREATE INDEX "idx_coupon_org" ON "coupons"("organization_id");
+-- CreateIndex (if not exists)
+CREATE INDEX IF NOT EXISTS "idx_coupon_org" ON "coupons"("organization_id");
+CREATE INDEX IF NOT EXISTS "idx_coupon_event" ON "coupons"("event_id");
+CREATE INDEX IF NOT EXISTS "idx_coupon_code" ON "coupons"("code");
+CREATE INDEX IF NOT EXISTS "idx_coupon_active" ON "coupons"("active");
+CREATE UNIQUE INDEX IF NOT EXISTS "unique_coupon_code_per_event" ON "coupons"("event_id", "code");
+CREATE INDEX IF NOT EXISTS "idx_redemption_coupon" ON "coupon_redemptions"("coupon_id");
+CREATE INDEX IF NOT EXISTS "idx_redemption_registration" ON "coupon_redemptions"("registration_id");
 
--- CreateIndex
-CREATE INDEX "idx_coupon_event" ON "coupons"("event_id");
+-- AddForeignKey (if not exists)
+DO $$ BEGIN
+    ALTER TABLE "coupons" ADD CONSTRAINT "coupons_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
--- CreateIndex
-CREATE INDEX "idx_coupon_code" ON "coupons"("code");
+DO $$ BEGIN
+    ALTER TABLE "coupons" ADD CONSTRAINT "coupons_event_id_fkey" FOREIGN KEY ("event_id") REFERENCES "events"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
--- CreateIndex
-CREATE INDEX "idx_coupon_active" ON "coupons"("active");
+DO $$ BEGIN
+    ALTER TABLE "coupons" ADD CONSTRAINT "coupons_created_by_user_id_fkey" FOREIGN KEY ("created_by_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
--- CreateIndex
-CREATE UNIQUE INDEX "unique_coupon_code_per_event" ON "coupons"("event_id", "code");
-
--- CreateIndex
-CREATE INDEX "idx_redemption_coupon" ON "coupon_redemptions"("coupon_id");
-
--- CreateIndex
-CREATE INDEX "idx_redemption_registration" ON "coupon_redemptions"("registration_id");
-
--- AddForeignKey
-ALTER TABLE "coupons" ADD CONSTRAINT "coupons_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "coupons" ADD CONSTRAINT "coupons_event_id_fkey" FOREIGN KEY ("event_id") REFERENCES "events"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "coupons" ADD CONSTRAINT "coupons_created_by_user_id_fkey" FOREIGN KEY ("created_by_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "coupon_redemptions" ADD CONSTRAINT "coupon_redemptions_coupon_id_fkey" FOREIGN KEY ("coupon_id") REFERENCES "coupons"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+    ALTER TABLE "coupon_redemptions" ADD CONSTRAINT "coupon_redemptions_coupon_id_fkey" FOREIGN KEY ("coupon_id") REFERENCES "coupons"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
