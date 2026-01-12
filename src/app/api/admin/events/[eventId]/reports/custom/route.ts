@@ -741,7 +741,7 @@ async function executeHousingReport(eventId: string, config: any) {
           isAdaAccessible: room.isAdaAccessible,
         },
         participant: participant || null,
-        assignedAt: assignment.createdAt,
+        assignedAt: assignment.assignedAt,
       })
     })
   })
