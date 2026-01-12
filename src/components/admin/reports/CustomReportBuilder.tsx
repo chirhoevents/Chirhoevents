@@ -37,15 +37,19 @@ interface CustomReportBuilderProps {
   eventId: string
   eventName: string
   organizationId?: string
+  groupRegistrationEnabled?: boolean
+  individualRegistrationEnabled?: boolean
   open: boolean
   onClose: () => void
 }
 
 // Data source definitions with their available fields
-const DATA_SOURCES: Record<string, { label: string; description: string; fields: FieldOption[] }> = {
+// registrationType: 'group' = only for group registrations, 'individual' = only for individual, 'both' = works with either
+const DATA_SOURCES: Record<string, { label: string; description: string; registrationType: 'group' | 'individual' | 'both'; fields: FieldOption[] }> = {
   registrations: {
     label: 'Group Registrations',
     description: 'All group registration records with leader info and participant counts',
+    registrationType: 'group',
     fields: [
       { value: 'accessCode', label: 'Registration Code', category: 'Basic' },
       { value: 'groupName', label: 'Group Name', category: 'Basic' },
@@ -74,6 +78,7 @@ const DATA_SOURCES: Record<string, { label: string; description: string; fields:
   participants: {
     label: 'Participant Roster',
     description: 'Individual participant details from group registrations',
+    registrationType: 'group',
     fields: [
       { value: 'firstName', label: 'First Name', category: 'Basic' },
       { value: 'lastName', label: 'Last Name', category: 'Basic' },
@@ -106,6 +111,7 @@ const DATA_SOURCES: Record<string, { label: string; description: string; fields:
   individuals: {
     label: 'Individual Registrations',
     description: 'Individual (non-group) registration records',
+    registrationType: 'individual',
     fields: [
       { value: 'firstName', label: 'First Name', category: 'Basic' },
       { value: 'lastName', label: 'Last Name', category: 'Basic' },
@@ -134,6 +140,7 @@ const DATA_SOURCES: Record<string, { label: string; description: string; fields:
   vendors: {
     label: 'Vendor Registrations',
     description: 'Vendor booth registrations with business info and payment status',
+    registrationType: 'both',
     fields: [
       { value: 'vendorCode', label: 'Vendor Code', category: 'Basic' },
       { value: 'businessName', label: 'Business Name', category: 'Basic' },
@@ -159,6 +166,7 @@ const DATA_SOURCES: Record<string, { label: string; description: string; fields:
   staff: {
     label: 'Staff & Volunteers',
     description: 'Event staff and vendor booth workers',
+    registrationType: 'both',
     fields: [
       { value: 'firstName', label: 'First Name', category: 'Basic' },
       { value: 'lastName', label: 'Last Name', category: 'Basic' },
@@ -181,6 +189,7 @@ const DATA_SOURCES: Record<string, { label: string; description: string; fields:
   financial: {
     label: 'Financial & Payments',
     description: 'Payment transactions, balances, and refunds',
+    registrationType: 'both',
     fields: [
       { value: 'registrationType', label: 'Registration Type', category: 'Basic' },
       { value: 'registrationName', label: 'Registration Name', category: 'Basic' },
@@ -203,6 +212,7 @@ const DATA_SOURCES: Record<string, { label: string; description: string; fields:
   checkins: {
     label: 'Check-in Activity',
     description: 'Check-in/check-out logs and attendance tracking',
+    registrationType: 'both',
     fields: [
       { value: 'personType', label: 'Person Type', category: 'Basic' },
       { value: 'personName', label: 'Person Name', category: 'Basic' },
@@ -216,7 +226,8 @@ const DATA_SOURCES: Record<string, { label: string; description: string; fields:
   },
   medical: {
     label: 'Medical & Dietary',
-    description: 'Participant medical info, allergies, and dietary restrictions',
+    description: 'Participant medical info, allergies, and dietary restrictions (from group registrations)',
+    registrationType: 'group',
     fields: [
       { value: 'participant.firstName', label: 'First Name', category: 'Basic' },
       { value: 'participant.lastName', label: 'Last Name', category: 'Basic' },
@@ -245,6 +256,7 @@ const DATA_SOURCES: Record<string, { label: string; description: string; fields:
   incidents: {
     label: 'Medical Incidents (Rapha)',
     description: 'Medical incidents and first aid records from the event',
+    registrationType: 'both',
     fields: [
       { value: 'participantName', label: 'Participant Name', category: 'Basic' },
       { value: 'participantAge', label: 'Participant Age', category: 'Basic' },
@@ -272,6 +284,7 @@ const DATA_SOURCES: Record<string, { label: string; description: string; fields:
   housing: {
     label: 'Housing Assignments',
     description: 'Room and building assignments',
+    registrationType: 'both',
     fields: [
       { value: 'building.name', label: 'Building Name', category: 'Building' },
       { value: 'room.roomNumber', label: 'Room Number', category: 'Room' },
@@ -291,6 +304,7 @@ const DATA_SOURCES: Record<string, { label: string; description: string; fields:
   tshirts: {
     label: 'T-Shirt Orders',
     description: 'T-shirt size breakdown for ordering',
+    registrationType: 'both',
     fields: [
       { value: 'firstName', label: 'First Name', category: 'Basic' },
       { value: 'lastName', label: 'Last Name', category: 'Basic' },
@@ -304,6 +318,7 @@ const DATA_SOURCES: Record<string, { label: string; description: string; fields:
   coupons: {
     label: 'Coupon Usage',
     description: 'Discount code redemptions and usage',
+    registrationType: 'both',
     fields: [
       { value: 'coupon.code', label: 'Coupon Code', category: 'Coupon' },
       { value: 'coupon.name', label: 'Coupon Name', category: 'Coupon' },
@@ -591,6 +606,8 @@ export function CustomReportBuilder({
   eventId,
   eventName,
   organizationId,
+  groupRegistrationEnabled = true,
+  individualRegistrationEnabled = true,
   open,
   onClose,
 }: CustomReportBuilderProps) {
@@ -616,6 +633,21 @@ export function CustomReportBuilder({
   const currentFilters = FILTER_OPTIONS[dataSource] || []
   const currentGroupings = GROUPING_OPTIONS[dataSource] || []
 
+  // Filter data sources based on enabled registration types
+  const availableDataSources = Object.entries(DATA_SOURCES).filter(([_, source]) => {
+    if (source.registrationType === 'both') return true
+    if (source.registrationType === 'group' && groupRegistrationEnabled) return true
+    if (source.registrationType === 'individual' && individualRegistrationEnabled) return true
+    return false
+  })
+
+  // Helper to get registration type badge
+  const getRegistrationTypeBadge = (type: 'group' | 'individual' | 'both') => {
+    if (type === 'group') return '(Groups)'
+    if (type === 'individual') return '(Individuals)'
+    return ''
+  }
+
   // Group fields by category
   const fieldsByCategory = currentSource?.fields.reduce((acc, field) => {
     const category = field.category || 'Other'
@@ -624,12 +656,18 @@ export function CustomReportBuilder({
     return acc
   }, {} as Record<string, FieldOption[]>) || {}
 
-  // Load templates on mount
+  // Load templates on mount and set default data source
   useEffect(() => {
     if (open) {
       loadTemplates()
+      // Set appropriate default data source based on enabled registration types
+      if (groupRegistrationEnabled && !individualRegistrationEnabled) {
+        setDataSource('participants')
+      } else if (individualRegistrationEnabled && !groupRegistrationEnabled) {
+        setDataSource('individuals')
+      }
     }
-  }, [open])
+  }, [open, groupRegistrationEnabled, individualRegistrationEnabled])
 
   // Clear report data when data source changes
   useEffect(() => {
@@ -1144,16 +1182,16 @@ export function CustomReportBuilder({
               </div>
             </div>
 
-            <div className="w-64">
+            <div className="w-72">
               <Label className="text-xs text-gray-500">Data Source</Label>
               <Select value={dataSource} onValueChange={setDataSource}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(DATA_SOURCES).map(([key, source]) => (
+                  {availableDataSources.map(([key, source]) => (
                     <SelectItem key={key} value={key}>
-                      {source.label}
+                      {source.label} {getRegistrationTypeBadge(source.registrationType)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1161,8 +1199,15 @@ export function CustomReportBuilder({
             </div>
           </div>
 
-          {/* Data source description */}
-          <p className="text-sm text-gray-500 -mt-2">{currentSource?.description}</p>
+          {/* Data source description and registration type note */}
+          <div className="-mt-2 space-y-1">
+            <p className="text-sm text-gray-500">{currentSource?.description}</p>
+            {currentSource?.registrationType !== 'both' && (
+              <p className="text-xs text-amber-600">
+                Note: This data source only contains data from {currentSource?.registrationType === 'group' ? 'group' : 'individual'} registrations.
+              </p>
+            )}
+          </div>
 
           {/* Main Configuration Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden flex flex-col">

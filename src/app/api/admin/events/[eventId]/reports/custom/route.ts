@@ -129,20 +129,25 @@ async function executeRegistrationsReport(eventId: string, config: any) {
   })
 
   // Get payment balances
-  const regIds = registrations.map(r => r.id)
+  const regIds = registrations.map((r: { id: string }) => r.id)
   const balances = await prisma.paymentBalance.findMany({
     where: { registrationId: { in: regIds }, registrationType: 'group' },
   })
-  const balanceMap = new Map(balances.map(b => [b.registrationId, b]))
+  const balanceMap = new Map(balances.map((b: { registrationId: string }) => [b.registrationId, b]))
 
   // Transform with balance info and counts
-  let results = registrations.map(reg => {
-    const balance = balanceMap.get(reg.id)
-    const youthCount = reg.participants.filter((p: any) =>
+  let results = registrations.map((reg: typeof registrations[number]) => {
+    const balance = balanceMap.get(reg.id) as {
+      paymentStatus: string
+      totalAmountDue: number | { toNumber(): number }
+      amountPaid: number | { toNumber(): number }
+      amountRemaining: number | { toNumber(): number }
+    } | undefined
+    const youthCount = reg.participants.filter((p: { participantType: string }) =>
       p.participantType === 'youth_u18' || p.participantType === 'youth_o18'
     ).length
-    const chaperoneCount = reg.participants.filter((p: any) => p.participantType === 'chaperone').length
-    const priestCount = reg.participants.filter((p: any) => p.participantType === 'priest').length
+    const chaperoneCount = reg.participants.filter((p: { participantType: string }) => p.participantType === 'chaperone').length
+    const priestCount = reg.participants.filter((p: { participantType: string }) => p.participantType === 'priest').length
 
     return {
       ...reg,
@@ -160,7 +165,7 @@ async function executeRegistrationsReport(eventId: string, config: any) {
 
   // Apply payment status filter after joining with balances
   if (config.filters?.paymentStatus?.length > 0) {
-    results = results.filter(r => config.filters.paymentStatus.includes(r.paymentStatus))
+    results = results.filter((r: { paymentStatus: string }) => config.filters.paymentStatus.includes(r.paymentStatus))
   }
 
   // Apply grouping
@@ -237,7 +242,7 @@ async function executeParticipantsReport(eventId: string, config: any) {
   })
 
   // Transform data
-  let results = participants.map(p => ({
+  let results = participants.map((p: typeof participants[number]) => ({
     ...p,
     liabilityForm: p.liabilityForms?.[0] || null,
     liabilityForms: undefined,
@@ -245,7 +250,7 @@ async function executeParticipantsReport(eventId: string, config: any) {
 
   // Filter by medical needs
   if (config.filters?.hasMedicalNeeds) {
-    results = results.filter(p =>
+    results = results.filter((p: { liabilityForm: { allergies?: string; medications?: string; medicalConditions?: string } | null }) =>
       p.liabilityForm?.allergies ||
       p.liabilityForm?.medications ||
       p.liabilityForm?.medicalConditions
@@ -255,9 +260,9 @@ async function executeParticipantsReport(eventId: string, config: any) {
   // Filter by liability form status (checks if form exists)
   if (config.filters?.liabilityFormStatus && config.filters.liabilityFormStatus !== 'all') {
     if (config.filters.liabilityFormStatus === 'completed') {
-      results = results.filter(p => p.liabilityForm !== null)
+      results = results.filter((p: { liabilityForm: unknown }) => p.liabilityForm !== null)
     } else {
-      results = results.filter(p => !p.liabilityForm)
+      results = results.filter((p: { liabilityForm: unknown }) => !p.liabilityForm)
     }
   }
 
@@ -306,14 +311,18 @@ async function executeIndividualsReport(eventId: string, config: any) {
   })
 
   // Get payment balances
-  const indIds = individuals.map(i => i.id)
+  const indIds = individuals.map((i: { id: string }) => i.id)
   const balances = await prisma.paymentBalance.findMany({
     where: { registrationId: { in: indIds }, registrationType: 'individual' },
   })
-  const balanceMap = new Map(balances.map(b => [b.registrationId, b]))
+  const balanceMap = new Map(balances.map((b: { registrationId: string }) => [b.registrationId, b]))
 
-  let results = individuals.map(ind => {
-    const balance = balanceMap.get(ind.id)
+  let results = individuals.map((ind: typeof individuals[number]) => {
+    const balance = balanceMap.get(ind.id) as {
+      paymentStatus: string
+      totalAmountDue: number | { toNumber(): number }
+      amountPaid: number | { toNumber(): number }
+    } | undefined
     return {
       ...ind,
       liabilityForm: ind.liabilityForms?.[0] || null,
@@ -361,7 +370,7 @@ async function executeVendorsReport(eventId: string, config: any) {
     orderBy: getSortOrder(config.sortBy, config.sortDirection) || { businessName: 'asc' },
   })
 
-  let results = vendors.map(v => ({
+  let results = vendors.map((v: typeof vendors[number]) => ({
     ...v,
     staffCount: v.boothStaff.length,
     tierPrice: Number(v.tierPrice),
@@ -414,7 +423,7 @@ async function executeStaffReport(eventId: string, config: any) {
     orderBy: getSortOrder(config.sortBy, config.sortDirection) || { lastName: 'asc' },
   })
 
-  let results = staff.map(s => ({
+  let results = staff.map((s: typeof staff[number]) => ({
     ...s,
     pricePaid: Number(s.pricePaid),
   }))
@@ -451,8 +460,9 @@ async function executeFinancialReport(eventId: string, config: any) {
   })
 
   // Get registration names for context
-  const groupRegIds = payments.filter(p => p.registrationType === 'group').map(p => p.registrationId)
-  const indRegIds = payments.filter(p => p.registrationType === 'individual').map(p => p.registrationId)
+  type PaymentType = { registrationType: string; registrationId: string }
+  const groupRegIds = payments.filter((p: PaymentType) => p.registrationType === 'group').map((p: PaymentType) => p.registrationId)
+  const indRegIds = payments.filter((p: PaymentType) => p.registrationType === 'individual').map((p: PaymentType) => p.registrationId)
 
   const [groupRegs, indRegs] = await Promise.all([
     prisma.groupRegistration.findMany({
@@ -465,19 +475,19 @@ async function executeFinancialReport(eventId: string, config: any) {
     }),
   ])
 
-  const groupMap = new Map(groupRegs.map(g => [g.id, g]))
-  const indMap = new Map(indRegs.map(i => [i.id, i]))
+  const groupMap = new Map(groupRegs.map((g: { id: string }) => [g.id, g]))
+  const indMap = new Map(indRegs.map((i: { id: string }) => [i.id, i]))
 
-  let results = payments.map(p => {
+  let results = payments.map((p: typeof payments[number]) => {
     let registrationName = 'Unknown'
     let contactEmail = ''
 
     if (p.registrationType === 'group') {
-      const group = groupMap.get(p.registrationId)
+      const group = groupMap.get(p.registrationId) as { groupName?: string; groupLeaderEmail?: string } | undefined
       registrationName = group?.groupName || 'Unknown Group'
       contactEmail = group?.groupLeaderEmail || ''
     } else if (p.registrationType === 'individual') {
-      const ind = indMap.get(p.registrationId)
+      const ind = indMap.get(p.registrationId) as { firstName?: string; lastName?: string; email?: string } | undefined
       registrationName = ind ? `${ind.firstName} ${ind.lastName}` : 'Unknown Individual'
       contactEmail = ind?.email || ''
     }
@@ -492,7 +502,7 @@ async function executeFinancialReport(eventId: string, config: any) {
 
   // Filter by registration type
   if (config.filters?.registrationType?.length > 0) {
-    results = results.filter(r => config.filters.registrationType.includes(r.registrationType))
+    results = results.filter((r: { registrationType: string }) => config.filters.registrationType.includes(r.registrationType))
   }
 
   if (config.groupBy) {
@@ -527,10 +537,11 @@ async function executeCheckinsReport(eventId: string, config: any) {
   })
 
   // Get participant and group info
-  const participantIds = logs.filter(l => l.participantId).map(l => l.participantId!)
-  const groupIds = logs.filter(l => l.groupRegistrationId).map(l => l.groupRegistrationId!)
-  const individualIds = logs.filter(l => l.individualRegistrationId).map(l => l.individualRegistrationId!)
-  const userIds = logs.filter(l => l.userId).map(l => l.userId!)
+  type LogType = { participantId?: string | null; groupRegistrationId?: string | null; individualRegistrationId?: string | null; userId?: string | null }
+  const participantIds = logs.filter((l: LogType) => l.participantId).map((l: LogType) => l.participantId!)
+  const groupIds = logs.filter((l: LogType) => l.groupRegistrationId).map((l: LogType) => l.groupRegistrationId!)
+  const individualIds = logs.filter((l: LogType) => l.individualRegistrationId).map((l: LogType) => l.individualRegistrationId!)
+  const userIds = logs.filter((l: LogType) => l.userId).map((l: LogType) => l.userId!)
 
   const [participants, groups, individuals, users] = await Promise.all([
     prisma.participant.findMany({
@@ -551,33 +562,38 @@ async function executeCheckinsReport(eventId: string, config: any) {
     }),
   ])
 
-  const participantMap = new Map(participants.map(p => [p.id, p]))
-  const groupMap = new Map(groups.map(g => [g.id, g]))
-  const individualMap = new Map(individuals.map(i => [i.id, i]))
-  const userMap = new Map(users.map(u => [u.id, u]))
+  type ParticipantWithGroup = { id: string; firstName: string; lastName: string; groupRegistration: { groupName: string } | null }
+  type GroupReg = { id: string; groupName: string }
+  type IndividualReg = { id: string; firstName: string; lastName: string }
+  type UserInfo = { id: string; firstName: string | null; lastName: string | null }
 
-  let results = logs.map(log => {
+  const participantMap = new Map(participants.map((p: ParticipantWithGroup) => [p.id, p]))
+  const groupMap = new Map(groups.map((g: GroupReg) => [g.id, g]))
+  const individualMap = new Map(individuals.map((i: IndividualReg) => [i.id, i]))
+  const userMap = new Map(users.map((u: UserInfo) => [u.id, u]))
+
+  let results = logs.map((log: typeof logs[number]) => {
     let personName = 'Unknown'
     let personType = 'Unknown'
     let groupName = ''
 
     if (log.participantId) {
-      const p = participantMap.get(log.participantId)
+      const p = participantMap.get(log.participantId) as ParticipantWithGroup | undefined
       personName = p ? `${p.firstName} ${p.lastName}` : 'Unknown Participant'
       personType = 'Participant'
       groupName = p?.groupRegistration?.groupName || ''
     } else if (log.groupRegistrationId) {
-      const g = groupMap.get(log.groupRegistrationId)
+      const g = groupMap.get(log.groupRegistrationId) as GroupReg | undefined
       personName = g?.groupName || 'Unknown Group'
       personType = 'Group'
       groupName = g?.groupName || ''
     } else if (log.individualRegistrationId) {
-      const i = individualMap.get(log.individualRegistrationId)
+      const i = individualMap.get(log.individualRegistrationId) as IndividualReg | undefined
       personName = i ? `${i.firstName} ${i.lastName}` : 'Unknown Individual'
       personType = 'Individual'
     }
 
-    const performer = log.userId ? userMap.get(log.userId) : null
+    const performer = log.userId ? userMap.get(log.userId) as UserInfo | undefined : null
     const performedBy = performer ? `${performer.firstName} ${performer.lastName}` : ''
 
     return {
@@ -627,21 +643,23 @@ async function executeMedicalReport(eventId: string, config: any) {
 
   let results = forms
 
+  type FormType = { allergies?: string | null; medications?: string | null; medicalConditions?: string | null; dietaryRestrictions?: string | null; participant?: { participantType?: string } | null }
+
   // Apply medical filters
   if (config.filters?.hasAllergies) {
-    results = results.filter(f => f.allergies && f.allergies.trim() !== '')
+    results = results.filter((f: FormType) => f.allergies && f.allergies.trim() !== '')
   }
   if (config.filters?.hasMedications) {
-    results = results.filter(f => f.medications && f.medications.trim() !== '')
+    results = results.filter((f: FormType) => f.medications && f.medications.trim() !== '')
   }
   if (config.filters?.hasMedicalConditions) {
-    results = results.filter(f => f.medicalConditions && f.medicalConditions.trim() !== '')
+    results = results.filter((f: FormType) => f.medicalConditions && f.medicalConditions.trim() !== '')
   }
   if (config.filters?.hasDietaryRestrictions) {
-    results = results.filter(f => f.dietaryRestrictions && f.dietaryRestrictions.trim() !== '')
+    results = results.filter((f: FormType) => f.dietaryRestrictions && f.dietaryRestrictions.trim() !== '')
   }
   if (config.filters?.participantType?.length > 0) {
-    results = results.filter(f => config.filters.participantType.includes(f.participant?.participantType))
+    results = results.filter((f: FormType) => config.filters.participantType.includes(f.participant?.participantType))
   }
 
   if (config.groupBy) {
@@ -701,10 +719,11 @@ async function executeHousingReport(eventId: string, config: any) {
   })
 
   // Collect all participant IDs from room assignments
-  const participantIds = rooms.flatMap(room =>
+  type RoomAssignmentType = { participantId?: string | null }
+  const participantIds = rooms.flatMap((room: typeof rooms[number]) =>
     room.roomAssignments
-      .filter(a => a.participantId)
-      .map(a => a.participantId!)
+      .filter((a: RoomAssignmentType) => a.participantId)
+      .map((a: RoomAssignmentType) => a.participantId!)
   )
 
   // Fetch participant details separately
@@ -719,12 +738,12 @@ async function executeHousingReport(eventId: string, config: any) {
       groupRegistration: { select: { groupName: true } },
     },
   })
-  const participantMap = new Map(participants.map(p => [p.id, p]))
+  const participantMap = new Map(participants.map((p: { id: string }) => [p.id, p]))
 
   // Flatten to assignments
   let results: any[] = []
-  rooms.forEach(room => {
-    room.roomAssignments.forEach(assignment => {
+  rooms.forEach((room: typeof rooms[number]) => {
+    room.roomAssignments.forEach((assignment: typeof room.roomAssignments[number]) => {
       const participant = assignment.participantId
         ? participantMap.get(assignment.participantId)
         : null
@@ -808,7 +827,7 @@ async function executeTShirtsReport(eventId: string, config: any) {
   })
 
   let results: any[] = [
-    ...participants.map(p => ({
+    ...participants.map((p: typeof participants[number]) => ({
       firstName: p.firstName,
       lastName: p.lastName,
       tShirtSize: p.tShirtSize,
@@ -817,7 +836,7 @@ async function executeTShirtsReport(eventId: string, config: any) {
       parishName: p.groupRegistration?.parishName,
       registrationType: 'participant',
     })),
-    ...individuals.map(i => ({
+    ...individuals.map((i: typeof individuals[number]) => ({
       firstName: i.firstName,
       lastName: i.lastName,
       tShirtSize: i.tShirtSize,
@@ -826,7 +845,7 @@ async function executeTShirtsReport(eventId: string, config: any) {
       parishName: null,
       registrationType: 'individual',
     })),
-    ...staff.map(s => ({
+    ...staff.map((s: typeof staff[number]) => ({
       firstName: s.firstName,
       lastName: s.lastName,
       tShirtSize: s.tshirtSize,
@@ -864,14 +883,15 @@ async function executeCouponsReport(eventId: string, config: any) {
     },
   })
 
-  const couponMap = new Map(coupons.map(c => [c.id, c]))
+  const couponMap = new Map(coupons.map((c: typeof coupons[number]) => [c.id, c]))
 
   // Get all redemptions
-  const redemptions = coupons.flatMap(c => c.redemptions)
+  const redemptions = coupons.flatMap((c: typeof coupons[number]) => c.redemptions)
 
   // Get registration info
-  const groupRegIds = redemptions.filter(r => r.registrationType === 'group').map(r => r.registrationId)
-  const indRegIds = redemptions.filter(r => r.registrationType === 'individual').map(r => r.registrationId)
+  type RedemptionType = { registrationType: string; registrationId: string }
+  const groupRegIds = redemptions.filter((r: RedemptionType) => r.registrationType === 'group').map((r: RedemptionType) => r.registrationId)
+  const indRegIds = redemptions.filter((r: RedemptionType) => r.registrationType === 'individual').map((r: RedemptionType) => r.registrationId)
 
   const [groupRegs, indRegs] = await Promise.all([
     prisma.groupRegistration.findMany({
@@ -884,18 +904,20 @@ async function executeCouponsReport(eventId: string, config: any) {
     }),
   ])
 
-  const groupMap = new Map(groupRegs.map(g => [g.id, g]))
-  const indMap = new Map(indRegs.map(i => [i.id, i]))
+  type CouponGroupReg = { id: string; groupName: string }
+  type CouponIndReg = { id: string; firstName: string; lastName: string }
+  const groupMap = new Map(groupRegs.map((g: CouponGroupReg) => [g.id, g]))
+  const indMap = new Map(indRegs.map((i: CouponIndReg) => [i.id, i]))
 
-  let results = redemptions.map(r => {
-    const coupon = couponMap.get(r.couponId)
+  let results = redemptions.map((r: typeof redemptions[number]) => {
+    const coupon = couponMap.get(r.couponId) as typeof coupons[number] | undefined
     let registrationName = 'Unknown'
 
     if (r.registrationType === 'group') {
-      const group = groupMap.get(r.registrationId)
+      const group = groupMap.get(r.registrationId) as CouponGroupReg | undefined
       registrationName = group?.groupName || 'Unknown Group'
     } else if (r.registrationType === 'individual') {
-      const ind = indMap.get(r.registrationId)
+      const ind = indMap.get(r.registrationId) as CouponIndReg | undefined
       registrationName = ind ? `${ind.firstName} ${ind.lastName}` : 'Unknown Individual'
     }
 
@@ -913,15 +935,16 @@ async function executeCouponsReport(eventId: string, config: any) {
     }
   })
 
+  type CouponResultType = { registrationType: string; redeemedAt: Date }
   // Apply filters
   if (config.filters?.registrationType?.length > 0) {
-    results = results.filter(r => config.filters.registrationType.includes(r.registrationType))
+    results = results.filter((r: CouponResultType) => config.filters.registrationType.includes(r.registrationType))
   }
   if (config.filters?.dateRange?.start) {
-    results = results.filter(r => new Date(r.redeemedAt) >= new Date(config.filters.dateRange.start))
+    results = results.filter((r: CouponResultType) => new Date(r.redeemedAt) >= new Date(config.filters.dateRange.start))
   }
   if (config.filters?.dateRange?.end) {
-    results = results.filter(r => new Date(r.redeemedAt) <= new Date(config.filters.dateRange.end))
+    results = results.filter((r: CouponResultType) => new Date(r.redeemedAt) <= new Date(config.filters.dateRange.end))
   }
 
   if (config.groupBy) {
@@ -940,14 +963,22 @@ async function executeBalancesReport(eventId: string, config: any) {
     include: { participants: true },
   })
 
-  const groupIds = groupRegs.map(g => g.id)
+  const groupIds = groupRegs.map((g: { id: string }) => g.id)
   const balances = await prisma.paymentBalance.findMany({
     where: { registrationId: { in: groupIds }, registrationType: 'group' },
   })
-  const balanceMap = new Map(balances.map(b => [b.registrationId, b]))
+  const balanceMap = new Map(balances.map((b: { registrationId: string }) => [b.registrationId, b]))
 
-  let results = groupRegs.map(group => {
-    const balance = balanceMap.get(group.id)
+  type BalanceType = {
+    totalAmountDue: number | { toNumber(): number }
+    amountPaid: number | { toNumber(): number }
+    amountRemaining: number | { toNumber(): number }
+    paymentStatus: string
+    lastPaymentDate: Date | null
+  }
+
+  let results = groupRegs.map((group: typeof groupRegs[number]) => {
+    const balance = balanceMap.get(group.id) as BalanceType | undefined
     return {
       groupId: group.id,
       groupName: group.groupName,
@@ -965,7 +996,7 @@ async function executeBalancesReport(eventId: string, config: any) {
   })
 
   if (config.filters?.paymentStatus) {
-    results = results.filter(g => g.paymentStatus === config.filters.paymentStatus)
+    results = results.filter((g: { paymentStatus: string }) => g.paymentStatus === config.filters.paymentStatus)
   }
 
   return filterFields(results, config.fields)
