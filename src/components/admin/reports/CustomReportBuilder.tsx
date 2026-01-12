@@ -590,7 +590,7 @@ const GROUPING_OPTIONS: Record<string, { value: string; label: string }[]> = {
 export function CustomReportBuilder({
   eventId,
   eventName,
-  organizationId: _organizationId,
+  organizationId,
   open,
   onClose,
 }: CustomReportBuilderProps) {
@@ -641,9 +641,10 @@ export function CustomReportBuilder({
   }, [dataSource])
 
   const loadTemplates = async () => {
+    if (!organizationId) return
     try {
       const token = await getToken()
-      const response = await fetch('/api/admin/report-templates', {
+      const response = await fetch(`/api/admin/report-templates?organizationId=${organizationId}`, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
       if (response.ok) {
@@ -678,6 +679,10 @@ export function CustomReportBuilder({
       alert('Please enter a template name')
       return
     }
+    if (!organizationId) {
+      alert('Organization ID is required to save templates')
+      return
+    }
 
     setLoading(true)
     try {
@@ -703,6 +708,7 @@ export function CustomReportBuilder({
         method: selectedTemplate ? 'PUT' : 'POST',
         headers,
         body: JSON.stringify({
+          organizationId,
           name: templateName,
           description: templateDescription,
           reportType: dataSource,
@@ -1343,7 +1349,7 @@ export function CustomReportBuilder({
               {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
               Save Template
             </Button>
-            <Button onClick={handleExecuteReport} disabled={executing || selectedFields.length === 0} className="flex-1 bg-[#1E3A5F] hover:bg-[#2A4A6F]">
+            <Button onClick={handleExecuteReport} disabled={executing || selectedFields.length === 0} className="flex-1 bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
               {executing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Play className="h-4 w-4 mr-2" />}
               Run Report
             </Button>
@@ -1366,7 +1372,7 @@ export function CustomReportBuilder({
                     <Download className="h-4 w-4 mr-2" />
                     Print/PDF
                   </Button>
-                  <Button size="sm" onClick={() => handleExport('csv')}>
+                  <Button size="sm" className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white" onClick={() => handleExport('csv')}>
                     <Download className="h-4 w-4 mr-2" />
                     Export CSV
                   </Button>
