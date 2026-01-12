@@ -503,6 +503,14 @@ export default function CreateEventClient({
 
   const handleSaveDraft = async () => {
     console.log('[SaveDraft] Starting save...', { isEditMode, eventId, organizationId })
+    console.log('[SaveDraft] Key fields being sent:', {
+      backgroundImageUrl: formData.backgroundImageUrl,
+      contactInfo: formData.contactInfo,
+      confirmationEmailMessage: formData.confirmationEmailMessage?.substring(0, 50),
+      primaryColor: formData.primaryColor,
+      secondaryColor: formData.secondaryColor,
+      faqContent: formData.faqContent?.substring(0, 50),
+    })
     setSaving(true)
     try {
       const token = await getToken()
@@ -568,6 +576,14 @@ export default function CreateEventClient({
 
   const handlePublish = async () => {
     console.log('[Publish] Starting publish...', { isEditMode, eventId, organizationId })
+    console.log('[Publish] Key fields being sent:', {
+      backgroundImageUrl: formData.backgroundImageUrl,
+      contactInfo: formData.contactInfo,
+      confirmationEmailMessage: formData.confirmationEmailMessage?.substring(0, 50),
+      primaryColor: formData.primaryColor,
+      secondaryColor: formData.secondaryColor,
+      faqContent: formData.faqContent?.substring(0, 50),
+    })
     setSaving(true)
     try {
       const token = await getToken()
