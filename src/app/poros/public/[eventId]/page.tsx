@@ -3,6 +3,10 @@ import { notFound } from 'next/navigation'
 import PorosPublicClient from './PorosPublicClient'
 import M2KPublicView from '@/components/poros/M2KPublicView'
 
+// Force dynamic rendering - don't cache this page
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // M2K specific event - hardcoded for custom portal
 const M2K_EVENT_ID = 'b9b70d36-ae35-47a0-aeb7-a50df9a598f1'
 const M2K_ORG_ID = '675c8b23-70aa-4d26-b3f7-c4afdf39ebff'

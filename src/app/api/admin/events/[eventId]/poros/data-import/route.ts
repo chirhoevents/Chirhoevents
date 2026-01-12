@@ -3,6 +3,10 @@ import { verifyEventAccess } from '@/lib/api-auth'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 
+// Force dynamic - never cache this route
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // Using raw SQL since Prisma client may not have the new model yet
 // This allows us to work immediately after creating the table
 
@@ -37,12 +41,22 @@ export async function GET(
 
     const dataImport = results.length > 0 ? results[0] : null
 
-    return NextResponse.json({ dataImport })
+    // Return with no-cache headers
+    return NextResponse.json({ dataImport }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache',
+      }
+    })
   } catch (error: any) {
     console.error('Failed to fetch data import:', error)
     // If table doesn't exist, return null gracefully
     if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
-      return NextResponse.json({ dataImport: null })
+      return NextResponse.json({ dataImport: null }, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+        }
+      })
     }
     return NextResponse.json({ error: 'Failed to fetch data import', details: error?.message }, { status: 500 })
   }
