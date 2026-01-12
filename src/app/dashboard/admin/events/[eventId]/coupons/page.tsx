@@ -462,7 +462,7 @@ export default function CouponsManagementPage() {
             <div className="text-center py-8 text-[#6B7280]">
               <Ticket className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No coupons created yet.</p>
-              <p className="text-sm">Click "Create Coupon" to add your first coupon code.</p>
+              <p className="text-sm">Click &quot;Create Coupon&quot; to add your first coupon code.</p>
             </div>
           ) : (
             <div className="space-y-4">
