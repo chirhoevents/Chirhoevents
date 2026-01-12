@@ -184,6 +184,15 @@ export default function EditEventPage() {
       const event = data.event
       const stats = data.stats
 
+      // Debug: Log key fields loaded from API
+      console.log('[Edit Page] Key fields loaded from API:', {
+        backgroundImageUrl: event.settings?.backgroundImageUrl,
+        contactInfo: event.settings?.contactInfo,
+        confirmationEmailMessage: event.settings?.confirmationEmailMessage?.substring(0, 50),
+        primaryColor: event.settings?.primaryColor,
+        faqContent: event.settings?.faqContent?.substring(0, 50),
+      })
+
       // Check if event has registrations (to lock registration type)
       if (stats && stats.totalRegistrations > 0) {
         setHasRegistrations(true)
