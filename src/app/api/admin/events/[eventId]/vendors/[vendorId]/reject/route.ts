@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { Resend } from 'resend'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
+import { wrapEmail, emailInfoBox } from '@/lib/email-templates'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -59,22 +60,36 @@ export async function POST(
 
     // Send rejection email
     try {
-      const emailContent = `
-        <h2>Vendor Application Update</h2>
+      const emailContent = wrapEmail(`
+        <h1>Vendor Application Update</h1>
+
         <p>Hi ${vendor.contactFirstName},</p>
+
         <p>Thank you for your interest in being a vendor at <strong>${vendor.event.name}</strong>.</p>
 
-        <p>After careful review, we regret to inform you that your vendor booth application was not approved at this time.</p>
+        ${emailInfoBox(`
+          After careful review, we regret to inform you that your vendor booth application was not approved at this time.
+        `, 'warning')}
 
         ${reason ? `
-        <h3>Reason</h3>
-        <p>${reason}</p>
+        <h2>Reason</h2>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0; background: #f9f9f9; border-radius: 8px; padding: 20px;">
+          <tr>
+            <td>
+              <p style="margin: 0; color: #666;">${reason}</p>
+            </td>
+          </tr>
+        </table>
         ` : ''}
 
         <p>If you have any questions, please feel free to contact the event organizers.</p>
 
         <p>We appreciate your understanding and hope to work with you in the future.</p>
-      `
+
+        <p style="font-size: 14px; color: #666;">
+          — The Event Team
+        </p>
+      `, { preheader: `Update on your vendor application for ${vendor.event.name}` })
 
       await resend.emails.send({
         from: 'ChiRho Events <noreply@chirhoevents.com>',

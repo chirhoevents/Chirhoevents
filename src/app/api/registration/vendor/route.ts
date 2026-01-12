@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { generateVendorCode, generateVendorAccessCode } from '@/lib/access-code'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
+import { wrapEmail, emailInfoBox } from '@/lib/email-templates'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -138,39 +139,97 @@ export async function POST(request: NextRequest) {
 
     // Send confirmation email
     try {
-      const emailContent = `
-        <h2>Vendor Application Received!</h2>
+      const emailContent = wrapEmail(`
+        <h1>Vendor Application Received!</h1>
+
         <p>Hi ${contactFirstName},</p>
+
         <p>We're excited that <strong>${businessName}</strong> has applied for a vendor booth at <strong>${event.name}</strong>!</p>
 
-        <h3>Application Details:</h3>
-        <ul>
-          <li><strong>Business Name:</strong> ${businessName}</li>
-          <li><strong>Contact:</strong> ${contactFirstName} ${contactLastName}</li>
-          <li><strong>Email:</strong> ${email}</li>
-          <li><strong>Booth Type:</strong> ${tierName}</li>
-          <li><strong>Base Price:</strong> ${price > 0 ? `$${price.toFixed(2)}` : 'To be determined'}</li>
-        </ul>
+        ${emailInfoBox(`
+          <strong>Application Status:</strong> Pending Review<br>
+          Our team will review your application and get back to you soon.
+        `, 'info')}
 
-        <h3>What happens next?</h3>
-        <ol>
-          <li>Our team will review your application</li>
-          <li>Once approved, you will receive an email with:
-            <ul>
-              <li>Your vendor code for booth staff registration</li>
-              <li>Access to your vendor portal</li>
-              <li>Your invoice for booth payment</li>
-            </ul>
-          </li>
-          <li>After payment, you can share your vendor code with your booth staff</li>
-        </ol>
+        <h2>Application Details</h2>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0; background: #f9f9f9; border-radius: 8px; padding: 20px;">
+          <tr>
+            <td>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #e5e5e5; color: #666666; font-size: 14px;">Business Name</td>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #e5e5e5; text-align: right; font-weight: 600; color: #1E3A5F;">${businessName}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #e5e5e5; color: #666666; font-size: 14px;">Contact</td>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #e5e5e5; text-align: right; font-weight: 600; color: #1E3A5F;">${contactFirstName} ${contactLastName}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #e5e5e5; color: #666666; font-size: 14px;">Email</td>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #e5e5e5; text-align: right; font-weight: 600; color: #1E3A5F;">${email}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #e5e5e5; color: #666666; font-size: 14px;">Booth Type</td>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #e5e5e5; text-align: right; font-weight: 600; color: #1E3A5F;">${tierName}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 0; color: #666666; font-size: 14px;">Base Price</td>
+                  <td style="padding: 10px 0; text-align: right; font-weight: 600; color: #1E3A5F;">${price > 0 ? `$${price.toFixed(2)}` : 'To be determined'}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
 
-        <p>Thank you for your interest in being a vendor at our event. We will be in touch soon!</p>
+        <h2>What Happens Next?</h2>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0;">
+          <tr>
+            <td>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 12px;">
+                <tr>
+                  <td width="40" valign="top" style="padding-right: 12px;">
+                    <div style="width: 32px; height: 32px; background: #1E3A5F; border-radius: 50%; color: white; font-weight: bold; text-align: center; line-height: 32px;">1</div>
+                  </td>
+                  <td valign="top">
+                    <p style="margin: 0; font-weight: bold; color: #1E3A5F;">Application Review</p>
+                    <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">Our team will review your application within a few business days.</p>
+                  </td>
+                </tr>
+              </table>
 
-        <p style="color: #666; font-size: 12px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 12px;">
+                <tr>
+                  <td width="40" valign="top" style="padding-right: 12px;">
+                    <div style="width: 32px; height: 32px; background: #1E3A5F; border-radius: 50%; color: white; font-weight: bold; text-align: center; line-height: 32px;">2</div>
+                  </td>
+                  <td valign="top">
+                    <p style="margin: 0; font-weight: bold; color: #1E3A5F;">Approval & Invoice</p>
+                    <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">Once approved, you'll receive your vendor code and invoice for booth payment.</p>
+                  </td>
+                </tr>
+              </table>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 12px;">
+                <tr>
+                  <td width="40" valign="top" style="padding-right: 12px;">
+                    <div style="width: 32px; height: 32px; background: #1E3A5F; border-radius: 50%; color: white; font-weight: bold; text-align: center; line-height: 32px;">3</div>
+                  </td>
+                  <td valign="top">
+                    <p style="margin: 0; font-weight: bold; color: #1E3A5F;">Staff Registration</p>
+                    <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">After payment, share your vendor code with booth staff so they can register.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <p>Thank you for your interest in being a vendor at our event. We look forward to working with you!</p>
+
+        <p style="font-size: 14px; color: #666;">
           If you have any questions, please contact the event organizers.
         </p>
-      `
+      `, { organizationName: event.organization?.name || 'ChiRho Events', preheader: `Vendor application received for ${event.name}` })
 
       await resend.emails.send({
         from: 'ChiRho Events <noreply@chirhoevents.com>',
