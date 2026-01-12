@@ -14,9 +14,12 @@ export async function GET(
       return NextResponse.json({ message: 'Search query required' }, { status: 400 })
     }
 
+    // Check if eventId is a UUID or a slug
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId)
+
     // Check if portal is enabled
     const event = await prisma.event.findUnique({
-      where: { id: eventId },
+      where: isUuid ? { id: eventId } : { slug: eventId },
       include: { settings: true },
     })
 
@@ -36,7 +39,7 @@ export async function GET(
     // Search in participants (group registrations)
     const participant = await prisma.participant.findFirst({
       where: {
-        groupRegistration: { eventId },
+        groupRegistration: { eventId: event.id },
         firstName: { equals: firstName, mode: 'insensitive' },
         lastName: { equals: lastName, mode: 'insensitive' },
       },
@@ -50,7 +53,7 @@ export async function GET(
     if (!participant) {
       individual = await prisma.individualRegistration.findFirst({
         where: {
-          eventId,
+          eventId: event.id,
           firstName: { equals: firstName, mode: 'insensitive' },
           lastName: { equals: lastName, mode: 'insensitive' },
         },
