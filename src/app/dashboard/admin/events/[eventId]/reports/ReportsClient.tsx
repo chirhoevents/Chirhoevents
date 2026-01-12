@@ -11,6 +11,8 @@ import HousingReportModal from '@/components/admin/reports/HousingReportModal'
 import MedicalReportModal from '@/components/admin/reports/MedicalReportModal'
 import CertificatesReportModal from '@/components/admin/reports/CertificatesReportModal'
 import ChaperoneReportModal from '@/components/admin/reports/ChaperoneReportModal'
+import VendorReportModal from '@/components/admin/reports/VendorReportModal'
+import StaffReportModal from '@/components/admin/reports/StaffReportModal'
 import { CustomReportBuilder } from '@/components/admin/reports/CustomReportBuilder'
 import { usePermissions } from '@/hooks/usePermissions'
 
@@ -140,6 +142,20 @@ export default function ReportsClient({
           eventId={eventId}
           onViewReport={() => setActiveModal('chaperones')}
         />
+
+        <ReportCard
+          title="Vendor Report"
+          reportType="vendors"
+          eventId={eventId}
+          onViewReport={() => setActiveModal('vendors')}
+        />
+
+        <ReportCard
+          title="Staff Report"
+          reportType="staff"
+          eventId={eventId}
+          onViewReport={() => setActiveModal('staff')}
+        />
       </div>
 
       {/* Report Modals */}
@@ -189,6 +205,20 @@ export default function ReportsClient({
 
       <ChaperoneReportModal
         isOpen={activeModal === 'chaperones'}
+        onClose={() => setActiveModal(null)}
+        eventId={eventId}
+        eventName={eventName}
+      />
+
+      <VendorReportModal
+        isOpen={activeModal === 'vendors'}
+        onClose={() => setActiveModal(null)}
+        eventId={eventId}
+        eventName={eventName}
+      />
+
+      <StaffReportModal
+        isOpen={activeModal === 'staff'}
         onClose={() => setActiveModal(null)}
         eventId={eventId}
         eventName={eventName}
