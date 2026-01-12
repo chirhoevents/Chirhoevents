@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import Image from 'next/image'
 import { format } from 'date-fns'
 
 // Types for the JSON data structure
@@ -17,15 +18,6 @@ interface YouthGroup {
   religious?: string
   stayingOffCampus?: boolean
   specialAccommodations?: string
-}
-
-interface Room {
-  building: string
-  roomId: string
-  gender: string
-  capacity: number
-  type: string
-  features?: string
 }
 
 interface MealTimes {
@@ -50,7 +42,7 @@ interface Resource {
 
 interface M2KData {
   youthGroups: YouthGroup[]
-  rooms?: Room[]
+  rooms?: any[]
   housingAssignments?: {
     male: Record<string, string[]>
     female: Record<string, string[]>
@@ -68,7 +60,6 @@ interface M2KData {
   activeColors?: string[]
   conferenceStartDate?: string
   dashboardSubtitle?: string
-  timestamp?: string
 }
 
 interface Props {
@@ -115,7 +106,7 @@ function saveFavorites(favorites: string[]) {
 }
 
 export default function M2KPublicView({ event, data }: Props) {
-  const [activeTab, setActiveTab] = useState('dashboard')
+  const [activeModal, setActiveModal] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [favorites, setFavorites] = useState<string[]>([])
   const [selectedMealColor, setSelectedMealColor] = useState<string | null>(null)
@@ -124,6 +115,11 @@ export default function M2KPublicView({ event, data }: Props) {
   useEffect(() => {
     setFavorites(getFavorites())
   }, [])
+
+  const closeModal = () => {
+    setActiveModal(null)
+    setSearchTerm('')
+  }
 
   // Toggle favorite
   function toggleFavorite(groupId: string) {
@@ -153,20 +149,10 @@ export default function M2KPublicView({ event, data }: Props) {
     return data.youthGroups.filter(g => favorites.includes(g.id))
   }, [data.youthGroups, favorites])
 
-  // Non-favorited groups for overview
-  const nonFavoritedGroups = useMemo(() => {
-    return data.youthGroups.filter(g => !favorites.includes(g.id))
-  }, [data.youthGroups, favorites])
-
-  // Stats
-  const totalGroups = data.youthGroups.length
-  const totalParticipants = data.youthGroups.reduce((total, group) =>
-    total + group.maleTeens + group.femaleTeens + group.maleChaperones + group.femaleChaperones, 0)
-
   // Active colors
   const activeColors = data.activeColors || Object.keys(data.mealTimes || {})
 
-  // Get housing room info
+  // Get housing room names
   function getHousingRoomNames(groupId: string, gender: 'male' | 'female'): string[] {
     const assignments = gender === 'male'
       ? data.housingAssignments?.male[groupId]
@@ -174,11 +160,10 @@ export default function M2KPublicView({ event, data }: Props) {
     return assignments || []
   }
 
-  // Get small group room info
+  // Get small group room names
   function getSmallGroupRoomNames(groupId: string): string[] {
     const assignments = data.smallGroupAssignments?.[groupId]
     if (!assignments) return []
-
     return assignments.map(roomKey => {
       const room = data.rooms?.find(r => `${r.building}-${r.roomId}` === roomKey && r.type === 'smallGroup')
       if (room) {
@@ -193,170 +178,136 @@ export default function M2KPublicView({ event, data }: Props) {
     return data.adaIndividuals?.some(ada => ada.groupId === groupId) || false
   }
 
-  // Create group card
-  function GroupCard({ group, showDetails = false }: { group: YouthGroup; showDetails?: boolean }) {
+  // Full group card component
+  function FullGroupCard({ group }: { group: YouthGroup }) {
     const maleTotal = group.maleTeens + group.maleChaperones
     const femaleTotal = group.femaleTeens + group.femaleChaperones
     const totalGroup = maleTotal + femaleTotal
-
     const mealColor = data.mealColorAssignments?.[group.id]
     const mealColorStyle = getMealColorStyle(mealColor)
-
     const maleHousingRooms = getHousingRoomNames(group.id, 'male')
     const femaleHousingRooms = getHousingRoomNames(group.id, 'female')
     const smallGroupRooms = getSmallGroupRoomNames(group.id)
-
-    const isHousingAssigned = maleHousingRooms.length > 0 || femaleHousingRooms.length > 0
-    const isSmallGroupAssigned = smallGroupRooms.length > 0
-    const overallAssigned = isHousingAssigned || isSmallGroupAssigned
-
     const isFavorited = favorites.includes(group.id)
 
     return (
-      <div
-        className={`bg-white p-4 rounded-lg shadow-sm border-l-4 relative ${
-          overallAssigned ? 'border-l-green-500' : 'border-l-red-500'
-        } ${showDetails ? (overallAssigned ? 'bg-green-50' : 'bg-red-50') : ''}`}
-        style={{ paddingLeft: '35px' }}
-      >
+      <div className="bg-white rounded-2xl p-4 shadow-lg relative">
         {/* Favorite Star */}
         <button
           onClick={() => toggleFavorite(group.id)}
-          className="absolute top-2 left-2 text-xl hover:scale-110 transition-transform"
-          title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+          className="absolute top-3 right-3 text-2xl hover:scale-110 transition-transform z-10"
         >
           {isFavorited ? '⭐' : '☆'}
         </button>
 
         {/* Header */}
-        <div className="flex justify-between items-center mb-2">
-          <strong className="text-base">{group.parish}</strong>
-          <div className="flex gap-1 items-center">
+        <div className="mb-3">
+          <h3 className="text-lg font-bold text-[#1E3A5F] pr-8">{group.parish}</h3>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="bg-[#1E3A5F] text-white px-2 py-0.5 rounded text-xs font-bold">{group.id}</span>
+            <span className="text-gray-600 text-sm">{totalGroup} people</span>
             {mealColor && (
               <span
                 className="px-2 py-0.5 rounded text-xs font-bold"
                 style={{ backgroundColor: mealColorStyle.background, color: mealColorStyle.color }}
               >
-                {mealColorStyle.text}
+                {mealColor}
               </span>
             )}
           </div>
         </div>
 
-        {/* Group Info */}
-        <p className="text-sm">
-          <span className="bg-blue-500 text-white px-2 py-0.5 rounded text-xs font-bold">{group.id}</span>
-          {' | '}{totalGroup} people total
-        </p>
-
-        {showDetails && (
-          <>
-            <p className="mt-2 text-sm">
-              <strong>Leader:</strong> {group.leader} | <strong>Phone:</strong> {group.phone}
-            </p>
-            <p className="mt-1 text-xs text-gray-600">
-              <strong>Male:</strong> {group.maleTeens} teens + {group.maleChaperones} chaperones |{' '}
-              <strong>Female:</strong> {group.femaleTeens} teens + {group.femaleChaperones} chaperones
-            </p>
-            {group.specialAccommodations && (
-              <p className="mt-2 text-xs bg-yellow-100 p-2 rounded">
-                <strong>Special Accommodations:</strong> {group.specialAccommodations}
-              </p>
-            )}
-          </>
-        )}
-
-        {/* Seminarian SGL */}
-        {group.seminarianSgl && (
-          <p className="text-xs text-gray-700 mt-2">
-            <strong>Seminarian SGL:</strong> {group.seminarianSgl}
+        {/* Leader Info */}
+        <div className="bg-gray-50 rounded-xl p-3 mb-3">
+          <p className="text-sm"><strong>Leader:</strong> {group.leader}</p>
+          <p className="text-sm"><strong>Phone:</strong> {group.phone}</p>
+          <p className="text-xs text-gray-500 mt-1">
+            {group.maleTeens}M + {group.maleChaperones}MC | {group.femaleTeens}F + {group.femaleChaperones}FC
           </p>
+        </div>
+
+        {/* Staff */}
+        {(group.seminarianSgl || group.religious) && (
+          <div className="bg-purple-50 rounded-xl p-3 mb-3">
+            {group.seminarianSgl && <p className="text-sm"><strong>Seminarian SGL:</strong> {group.seminarianSgl}</p>}
+            {group.religious && <p className="text-sm"><strong>Religious:</strong> {group.religious}</p>}
+          </div>
         )}
 
-        {/* Religious */}
-        {group.religious && (
-          <p className="text-xs text-gray-700 mt-1">
-            <strong>Religious:</strong> {group.religious}
-          </p>
-        )}
-
-        {/* Housing Assignments */}
+        {/* Housing */}
         {group.stayingOffCampus ? (
-          <div className="bg-yellow-100 p-2 rounded mt-2 border-l-4 border-l-orange-500">
-            <strong className="text-sm">OFF-CAMPUS HOUSING</strong>
-            <p className="text-xs mt-1">This group is staying off-campus</p>
+          <div className="bg-yellow-50 border-l-4 border-yellow-500 rounded-xl p-3 mb-3">
+            <p className="font-semibold text-yellow-800">Off-Campus Housing</p>
           </div>
         ) : (
-          <div className="bg-gray-50 p-2 rounded mt-2">
-            <strong className="text-sm">Housing Assignments</strong>
-            <div className="grid grid-cols-2 gap-2 mt-1">
+          <div className="bg-blue-50 rounded-xl p-3 mb-3">
+            <p className="font-semibold text-[#1E3A5F] mb-2">Housing</p>
+            <div className="grid grid-cols-2 gap-2">
               {maleTotal > 0 && (
-                <div className="bg-blue-100 p-2 rounded border-l-4 border-l-blue-500">
-                  <strong className="text-xs">Males: {maleTotal}</strong>
-                  {maleHousingRooms.length > 0 ? (
-                    <p className="text-xs text-green-700 font-bold mt-0.5">{maleHousingRooms.join(', ')}</p>
-                  ) : (
-                    <p className="text-xs text-orange-600 font-bold mt-0.5">Not assigned</p>
-                  )}
+                <div className="bg-blue-100 rounded-lg p-2">
+                  <p className="text-xs font-semibold text-blue-800">Males ({maleTotal})</p>
+                  <p className="text-xs text-blue-700 font-medium">
+                    {maleHousingRooms.length > 0 ? maleHousingRooms.join(', ') : 'Not assigned'}
+                  </p>
                 </div>
               )}
               {femaleTotal > 0 && (
-                <div className="bg-pink-100 p-2 rounded border-l-4 border-l-pink-500">
-                  <strong className="text-xs">Females: {femaleTotal}</strong>
-                  {femaleHousingRooms.length > 0 ? (
-                    <p className="text-xs text-green-700 font-bold mt-0.5">{femaleHousingRooms.join(', ')}</p>
-                  ) : (
-                    <p className="text-xs text-orange-600 font-bold mt-0.5">Not assigned</p>
-                  )}
+                <div className="bg-pink-100 rounded-lg p-2">
+                  <p className="text-xs font-semibold text-pink-800">Females ({femaleTotal})</p>
+                  <p className="text-xs text-pink-700 font-medium">
+                    {femaleHousingRooms.length > 0 ? femaleHousingRooms.join(', ') : 'Not assigned'}
+                  </p>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Small Group */}
+        <div className="bg-green-50 rounded-xl p-3 mb-3">
+          <p className="font-semibold text-green-800 mb-1">Small Group Location</p>
+          <p className="text-sm text-green-700">
+            {smallGroupRooms.length > 0 ? smallGroupRooms.join(', ') : 'Not assigned'}
+          </p>
+        </div>
+
+        {/* Meal Times */}
+        {mealColor && data.mealTimes?.[mealColor] && (
+          <div
+            className="rounded-xl p-3 mb-3"
+            style={{ backgroundColor: `${mealColorStyle.background}20` }}
+          >
+            <p className="font-semibold mb-2" style={{ color: mealColorStyle.background }}>
+              Meal Times ({mealColor})
+            </p>
+            <div className="grid grid-cols-2 gap-1 text-xs">
+              <div className="bg-white/80 rounded p-1.5">
+                <strong>Sat Breakfast:</strong> {data.mealTimes[mealColor].satBreakfast || 'TBA'}
+              </div>
+              <div className="bg-white/80 rounded p-1.5">
+                <strong>Sat Lunch:</strong> {data.mealTimes[mealColor].satLunch || 'TBA'}
+              </div>
+              <div className="bg-white/80 rounded p-1.5">
+                <strong>Sat Dinner:</strong> {data.mealTimes[mealColor].satDinner || 'TBA'}
+              </div>
+              <div className="bg-white/80 rounded p-1.5">
+                <strong>Sun Breakfast:</strong> {data.mealTimes[mealColor].sunBreakfast || 'TBA'}
+              </div>
             </div>
           </div>
         )}
 
         {/* ADA */}
         {hasADA(group.id) && (
-          <div className="bg-purple-100 p-2 rounded mt-2 border-l-4 border-l-purple-600 text-center">
-            <strong className="text-xs text-purple-800">ADA Accommodations Assigned</strong>
+          <div className="bg-purple-100 rounded-xl p-3 text-center">
+            <p className="text-sm font-semibold text-purple-800">♿ ADA Accommodations</p>
           </div>
         )}
 
-        {/* Small Group */}
-        <div className="bg-blue-50 p-2 rounded mt-2">
-          <strong className="text-sm">Small Group Location</strong>
-          {smallGroupRooms.length > 0 ? (
-            <div className="bg-gradient-to-r from-blue-100 to-pink-100 p-2 rounded mt-1">
-              <strong className="text-xs">Group Location:</strong>
-              <p className="text-xs text-green-700 font-bold mt-0.5">{smallGroupRooms.join(', ')}</p>
-            </div>
-          ) : (
-            <div className="bg-yellow-100 p-1 rounded mt-1 text-center">
-              <p className="text-xs text-yellow-800 font-bold">No small group location assigned</p>
-            </div>
-          )}
-        </div>
-
-        {/* Meal Times (only in search results) */}
-        {showDetails && mealColor && data.mealTimes?.[mealColor] && (
-          <div
-            className="p-2 rounded mt-2 border-l-4"
-            style={{ backgroundColor: `${mealColorStyle.background}20`, borderLeftColor: mealColorStyle.background }}
-          >
-            <strong className="text-sm">Meal Times - {mealColorStyle.text} Group</strong>
-            <div className="mt-1 text-xs space-y-1">
-              <div className="bg-white p-1 rounded">
-                <strong>Saturday Breakfast:</strong> {data.mealTimes[mealColor].satBreakfast || 'TBA'}
-              </div>
-              <div className="bg-white p-1 rounded">
-                <strong>Saturday Lunch:</strong> {data.mealTimes[mealColor].satLunch || 'TBA'}
-              </div>
-              <div className="bg-white p-1 rounded">
-                <strong>Saturday Dinner:</strong> {data.mealTimes[mealColor].satDinner || 'TBA'}
-              </div>
-              <div className="bg-white p-1 rounded">
-                <strong>Sunday Breakfast:</strong> {data.mealTimes[mealColor].sunBreakfast || 'TBA'}
-              </div>
-            </div>
+        {/* Special Accommodations */}
+        {group.specialAccommodations && (
+          <div className="bg-yellow-50 rounded-xl p-3 mt-3">
+            <p className="text-xs text-yellow-800"><strong>Note:</strong> {group.specialAccommodations}</p>
           </div>
         )}
       </div>
@@ -364,300 +315,390 @@ export default function M2KPublicView({ event, data }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Top Navigation */}
-      <div className="bg-gradient-to-r from-blue-900 to-blue-500 text-white p-4 sticky top-0 z-50 shadow-md">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <div>
-            <div className="text-lg font-bold">Mount 2K Portal</div>
-            <div className="text-sm opacity-90">
-              {data.dashboardSubtitle || `Housing and Small Group Assignments - ${new Date(event.startDate).getFullYear()}`}
-            </div>
+    <div className="min-h-screen bg-gradient-to-b from-[#1E3A5F] to-[#0f1f33]">
+      {/* Header */}
+      <header className="bg-[#1E3A5F] border-b border-white/10 sticky top-0 z-50">
+        <div className="max-w-lg mx-auto px-4 py-4">
+          <div className="flex items-center justify-center">
+            <Image
+              src="/light-logo-horizontal.png"
+              alt="ChiRho Events"
+              width={140}
+              height={35}
+              className="h-8 w-auto"
+            />
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Tabs */}
-      <div className="bg-white border-b-2 border-gray-200 sticky top-[60px] z-40 shadow-sm">
-        <div className="max-w-6xl mx-auto flex flex-wrap">
-          {[
-            { id: 'dashboard', label: 'Assignment Dashboard' },
-            { id: 'meals', label: 'Meal Times' },
-            { id: 'schedule', label: 'Schedule' },
-            { id: 'resources', label: 'Resources' },
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-3 font-semibold text-sm border-b-3 transition-colors ${
-                activeTab === tab.id
-                  ? 'text-blue-500 border-b-2 border-blue-500'
-                  : 'text-gray-500 hover:text-blue-600 hover:bg-gray-50'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+      <main className="max-w-lg mx-auto px-4 py-6">
+        {/* Event Info */}
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-bold text-white mb-1">{event.name}</h1>
+          <p className="text-white/70 text-sm">
+            {format(new Date(event.startDate), 'MMMM d')}
+            {event.endDate && ` - ${format(new Date(event.endDate), 'd, yyyy')}`}
+          </p>
+          {event.locationName && (
+            <p className="text-white/50 text-sm mt-1">{event.locationName}</p>
+          )}
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="max-w-6xl mx-auto p-4 md:p-6">
-        {/* Dashboard Tab */}
-        {activeTab === 'dashboard' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-800 border-b-2 border-gray-200 pb-3">
-              Assignment Dashboard
-            </h2>
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white p-4 rounded-lg shadow-sm border-t-4 border-t-blue-500">
-                <h3 className="text-2xl font-bold">{totalGroups}</h3>
-                <p className="text-sm text-gray-600 font-semibold uppercase">Total Youth Groups</p>
-              </div>
-              <div className="bg-white p-4 rounded-lg shadow-sm border-t-4 border-t-purple-500">
-                <h3 className="text-2xl font-bold">{totalParticipants}</h3>
-                <p className="text-sm text-gray-600 font-semibold uppercase">Total Participants</p>
-              </div>
-            </div>
-
-            {/* Search */}
-            <div>
-              <h3 className="font-semibold text-gray-800 mb-2">Quick Parish Assignment Search</h3>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by Parish, Group ID, Leader, Phone, Seminarian SGL, or Religious..."
-                className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-
-            {/* Search Results */}
+        {/* Search Bar */}
+        <div className="mb-6">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search parish, leader, group ID..."
+              className="w-full px-4 py-3 pl-10 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:border-white/40 focus:bg-white/15"
+            />
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
             {searchTerm && (
-              <div>
-                {filteredGroups.length > 0 ? (
-                  <>
-                    <h3 className="font-semibold text-gray-800 mb-3">
-                      Search Results ({filteredGroups.length} found)
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {filteredGroups.map(group => (
-                        <GroupCard key={group.id} group={group} showDetails />
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {/* Search Results */}
+          {searchTerm && (
+            <div className="mt-4 space-y-3">
+              {filteredGroups.length > 0 ? (
+                <>
+                  <p className="text-white/70 text-sm">{filteredGroups.length} group(s) found</p>
+                  {filteredGroups.map(group => (
+                    <FullGroupCard key={group.id} group={group} />
+                  ))}
+                </>
+              ) : (
+                <div className="bg-white/10 rounded-2xl p-4 text-center">
+                  <p className="text-white/70">No groups found</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Favorited Groups (My Groups) - Shows as big 2x2 style card */}
+        {!searchTerm && favoritedGroups.length > 0 && (
+          <div className="mb-6 space-y-3">
+            <h3 className="text-white font-semibold text-center">⭐ My Groups</h3>
+            {favoritedGroups.map(group => (
+              <FullGroupCard key={group.id} group={group} />
+            ))}
+          </div>
+        )}
+
+        {/* Main Action Buttons - 2x3 Grid */}
+        {!searchTerm && (
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            {/* Schedule - 1x1 */}
+            <button
+              onClick={() => setActiveModal('schedule')}
+              className="portal-button bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+            >
+              <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mb-3">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <span className="text-white font-semibold text-lg">Schedule</span>
+            </button>
+
+            {/* Meal Times - 1x1 */}
+            <button
+              onClick={() => setActiveModal('meals')}
+              className="portal-button bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700"
+            >
+              <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mb-3">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <span className="text-white font-semibold text-lg">Meal Times</span>
+            </button>
+
+            {/* Resources - 1x1 */}
+            <button
+              onClick={() => setActiveModal('resources')}
+              className="portal-button bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+            >
+              <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mb-3">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <span className="text-white font-semibold text-lg">Resources</span>
+            </button>
+
+            {/* Info - 1x1 */}
+            <button
+              onClick={() => setActiveModal('info')}
+              className="portal-button bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700"
+            >
+              <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mb-3">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <span className="text-white font-semibold text-lg">Info</span>
+            </button>
+
+            {/* All Groups - spans 2 columns */}
+            <button
+              onClick={() => setActiveModal('groups')}
+              className="portal-button bg-gradient-to-br from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 col-span-2"
+            >
+              <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mb-3">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <span className="text-white font-semibold text-lg">All Groups ({data.youthGroups.length})</span>
+            </button>
+          </div>
+        )}
+
+        {/* Add to Home Screen Tip */}
+        {!searchTerm && (
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
+            <p className="text-white/80 text-sm">
+              <span className="font-semibold">Tip:</span> Add this page to your home screen for quick access!
+            </p>
+          </div>
+        )}
+      </main>
+
+      {/* Footer */}
+      <footer className="max-w-lg mx-auto px-4 py-6 text-center">
+        <p className="text-white/40 text-sm">Powered by ChiRho Events</p>
+      </footer>
+
+      {/* Schedule Modal */}
+      {activeModal === 'schedule' && (
+        <Modal onClose={closeModal} title="Schedule">
+          {data.schedule && Object.keys(data.schedule).length > 0 ? (
+            <div className="space-y-6">
+              {['friday', 'saturday', 'sunday'].map(day => {
+                const events = data.schedule?.[day as keyof typeof data.schedule] || []
+                if (events.length === 0) return null
+                const startDate = data.conferenceStartDate ? new Date(data.conferenceStartDate) : new Date(event.startDate)
+                const dayDate = new Date(startDate)
+                if (day === 'saturday') dayDate.setDate(dayDate.getDate() + 1)
+                if (day === 'sunday') dayDate.setDate(dayDate.getDate() + 2)
+
+                return (
+                  <div key={day}>
+                    <h4 className="font-bold text-lg mb-3 text-[#1E3A5F]">
+                      {format(dayDate, 'EEEE, MMMM d')}
+                    </h4>
+                    <div className="space-y-2">
+                      {events.map((evt, idx) => (
+                        <div key={idx} className="flex gap-3 p-3 bg-gray-50 rounded-lg">
+                          <div className="text-sm font-semibold text-blue-600 w-24 flex-shrink-0">
+                            {evt.startTime}
+                            {evt.endTime && ` - ${evt.endTime}`}
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-medium">{evt.event}</div>
+                            {evt.location && <div className="text-sm text-gray-500">{evt.location}</div>}
+                          </div>
+                        </div>
                       ))}
                     </div>
-                  </>
-                ) : (
-                  <div className="bg-yellow-100 border border-yellow-300 p-4 rounded-lg text-yellow-800">
-                    No groups found matching your search.
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* Favorites Section */}
-            {favoritedGroups.length > 0 && (
-              <div className="bg-yellow-50 p-4 rounded-lg border-2 border-yellow-400">
-                <h3 className="font-bold text-gray-800 mb-3">Your Favorited Groups</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {favoritedGroups.map(group => (
-                    <GroupCard key={group.id} group={group} showDetails />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* All Groups Overview */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-bold text-gray-800 mb-3">Complete Assignment Overview</h3>
-              {nonFavoritedGroups.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {nonFavoritedGroups.map(group => (
-                    <GroupCard key={group.id} group={group} />
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-500 italic">All groups are in your favorites section above.</p>
-              )}
+                )
+              })}
             </div>
-          </div>
-        )}
+          ) : (
+            <p className="text-center text-gray-500 py-8">Schedule coming soon!</p>
+          )}
+        </Modal>
+      )}
 
-        {/* Meal Times Tab */}
-        {activeTab === 'meals' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-800 border-b-2 border-gray-200 pb-3">
-              Meal Times
-            </h2>
-            <p className="text-gray-600">
-              View your group&apos;s meal schedule based on your assigned color.
-            </p>
-
-            <div className="bg-white p-6 rounded-lg shadow-sm border-l-4 border-l-gray-800">
-              <h3 className="text-xl font-bold text-gray-800 mb-3">Your Group&apos;s Meal Schedule</h3>
-              <p className="text-gray-600 mb-4">Select your assigned meal color to view your specific meal times:</p>
-
-              {/* Color buttons */}
-              <div className="flex flex-wrap gap-2 mb-4">
-                {activeColors.map(color => {
-                  const style = getMealColorStyle(color)
-                  return (
-                    <button
-                      key={color}
-                      onClick={() => setSelectedMealColor(color)}
-                      className={`px-4 py-2 rounded-lg font-bold text-sm transition-transform hover:scale-105 ${
-                        selectedMealColor === color ? 'ring-2 ring-offset-2 ring-gray-800' : ''
-                      }`}
-                      style={{ backgroundColor: style.background, color: style.color }}
-                    >
-                      {color}
-                    </button>
-                  )
-                })}
-              </div>
-
-              {/* Meal times display */}
-              {selectedMealColor && data.mealTimes?.[selectedMealColor] && (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="text-lg font-bold text-gray-800 mb-3">{selectedMealColor} Team Schedule</h4>
-                  <div className="space-y-2">
-                    <div className="bg-white p-3 rounded border-l-4 border-l-green-500">
-                      <strong>Saturday Breakfast:</strong> {data.mealTimes[selectedMealColor].satBreakfast}
-                    </div>
-                    <div className="bg-white p-3 rounded border-l-4 border-l-blue-500">
-                      <strong>Saturday Lunch:</strong> {data.mealTimes[selectedMealColor].satLunch}
-                    </div>
-                    <div className="bg-white p-3 rounded border-l-4 border-l-orange-500">
-                      <strong>Saturday Dinner:</strong> {data.mealTimes[selectedMealColor].satDinner}
-                    </div>
-                    <div className="bg-white p-3 rounded border-l-4 border-l-yellow-500">
-                      <strong>Sunday Breakfast:</strong> {data.mealTimes[selectedMealColor].sunBreakfast}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Schedule Tab */}
-        {activeTab === 'schedule' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-800 border-b-2 border-gray-200 pb-3">
-              Mount 2K Schedule
-            </h2>
-            <p className="text-gray-600 mb-4">
-              Complete event schedule for the retreat weekend.
-            </p>
-
-            {['friday', 'saturday', 'sunday'].map(day => {
-              const events = data.schedule?.[day as keyof typeof data.schedule] || []
-              const startDate = data.conferenceStartDate ? new Date(data.conferenceStartDate) : new Date(event.startDate)
-              const dayDate = new Date(startDate)
-              if (day === 'saturday') dayDate.setDate(dayDate.getDate() + 1)
-              if (day === 'sunday') dayDate.setDate(dayDate.getDate() + 2)
-
-              const dayColors: Record<string, string> = {
-                friday: '#3b82f6',
-                saturday: '#10b981',
-                sunday: '#f59e0b',
-              }
-
+      {/* Meal Times Modal */}
+      {activeModal === 'meals' && (
+        <Modal onClose={closeModal} title="Meal Times">
+          <p className="text-sm text-gray-600 text-center mb-4">
+            Select your color group to see your meal times
+          </p>
+          <div className="flex flex-wrap gap-2 justify-center mb-4">
+            {activeColors.map(color => {
+              const style = getMealColorStyle(color)
               return (
-                <div
-                  key={day}
-                  className="bg-white p-6 rounded-lg shadow-sm"
-                  style={{ borderLeft: `4px solid ${dayColors[day]}` }}
+                <button
+                  key={color}
+                  onClick={() => setSelectedMealColor(selectedMealColor === color ? null : color)}
+                  className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${
+                    selectedMealColor === color ? 'ring-2 ring-offset-2 ring-[#1E3A5F] scale-105' : ''
+                  }`}
+                  style={{ backgroundColor: style.background, color: style.color }}
                 >
-                  <h3 className="text-xl font-bold text-gray-800 mb-4">
-                    {format(dayDate, 'EEEE, MMMM d')}
-                  </h3>
-                  {events.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="bg-gray-50">
-                            <th className="text-left p-3 text-xs uppercase text-gray-500 font-bold">Start</th>
-                            <th className="text-left p-3 text-xs uppercase text-gray-500 font-bold">End</th>
-                            <th className="text-left p-3 text-xs uppercase text-gray-500 font-bold">Event</th>
-                            <th className="text-left p-3 text-xs uppercase text-gray-500 font-bold">Location</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {events.map((evt, idx) => (
-                            <tr key={idx} className="border-b hover:bg-gray-50">
-                              <td className="p-3 text-sm">{evt.startTime}</td>
-                              <td className="p-3 text-sm">{evt.endTime || ''}</td>
-                              <td className="p-3 text-sm">{evt.event}</td>
-                              <td className="p-3 text-sm">{evt.location || ''}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 italic">No events scheduled for this day.</p>
-                  )}
-                </div>
+                  {color}
+                </button>
               )
             })}
           </div>
-        )}
+          {selectedMealColor && data.mealTimes?.[selectedMealColor] && (
+            <div className="bg-gray-50 rounded-xl p-4">
+              <h4 className="font-bold text-[#1E3A5F] mb-3">{selectedMealColor} Team</h4>
+              <div className="space-y-2">
+                <div className="bg-white p-3 rounded-lg border-l-4 border-green-500">
+                  <strong>Saturday Breakfast:</strong> {data.mealTimes[selectedMealColor].satBreakfast}
+                </div>
+                <div className="bg-white p-3 rounded-lg border-l-4 border-blue-500">
+                  <strong>Saturday Lunch:</strong> {data.mealTimes[selectedMealColor].satLunch}
+                </div>
+                <div className="bg-white p-3 rounded-lg border-l-4 border-orange-500">
+                  <strong>Saturday Dinner:</strong> {data.mealTimes[selectedMealColor].satDinner}
+                </div>
+                <div className="bg-white p-3 rounded-lg border-l-4 border-yellow-500">
+                  <strong>Sunday Breakfast:</strong> {data.mealTimes[selectedMealColor].sunBreakfast}
+                </div>
+              </div>
+            </div>
+          )}
+        </Modal>
+      )}
 
-        {/* Resources Tab */}
-        {activeTab === 'resources' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-800 border-b-2 border-gray-200 pb-3">
-              Mount 2K Resources
-            </h2>
-            <p className="text-gray-600 mb-4">
-              Quick access to important resources and information for the retreat.
-            </p>
+      {/* Resources Modal */}
+      {activeModal === 'resources' && (
+        <Modal onClose={closeModal} title="Resources">
+          {data.resources && data.resources.length > 0 ? (
+            <div className="space-y-3">
+              {data.resources.map((resource, idx) => (
+                <a
+                  key={idx}
+                  href={resource.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                >
+                  <div className="w-12 h-12 bg-[#1E3A5F] rounded-lg flex items-center justify-center flex-shrink-0 text-2xl">
+                    {resource.emoji}
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-[#1E3A5F]">{resource.name}</div>
+                  </div>
+                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-gray-500 py-8">No resources available yet.</p>
+          )}
+        </Modal>
+      )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {data.resources && data.resources.length > 0 ? (
-                data.resources
-                  .filter(r => r.name !== 'Meal Times' && r.name !== 'Event Schedule')
-                  .map((resource, idx) => (
-                    <div
-                      key={idx}
-                      className="bg-white p-5 rounded-xl shadow-sm border-l-4 border-l-gray-800"
-                    >
-                      <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-4">
-                        <span className="text-2xl">{resource.emoji}</span>
-                        {resource.name}
-                      </h3>
-                      {resource.url ? (
-                        <a
-                          href={resource.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 text-center hover:border-blue-500 hover:bg-blue-50 transition-colors"
-                        >
-                          <span className="text-gray-800 font-semibold">{resource.name} &rarr;</span>
-                        </a>
-                      ) : (
-                        <div className="p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 text-center">
-                          <span className="text-gray-400 italic">Link coming soon</span>
-                        </div>
-                      )}
-                    </div>
-                  ))
-              ) : (
-                <p className="text-gray-500 col-span-full text-center">
-                  No additional resources available at this time.
-                </p>
-              )}
+      {/* Info Modal */}
+      {activeModal === 'info' && (
+        <Modal onClose={closeModal} title="Event Information">
+          <div className="space-y-4">
+            <div className="p-4 bg-gray-50 rounded-xl">
+              <h4 className="font-semibold text-[#1E3A5F] mb-2">Event Details</h4>
+              <p className="text-gray-600">{event.name}</p>
+              <p className="text-gray-500 text-sm mt-1">
+                {format(new Date(event.startDate), 'MMMM d, yyyy')}
+                {event.endDate && ` - ${format(new Date(event.endDate), 'MMMM d, yyyy')}`}
+              </p>
+              {event.locationName && <p className="text-gray-500 text-sm">{event.locationName}</p>}
+            </div>
+            <div className="p-4 bg-blue-50 rounded-xl">
+              <h4 className="font-semibold text-blue-800 mb-2">Need Help?</h4>
+              <p className="text-blue-600 text-sm">
+                Contact your group leader or event organizers for assistance.
+              </p>
             </div>
           </div>
-        )}
-      </div>
+        </Modal>
+      )}
 
-      {/* Footer */}
-      <footer className="text-center py-6 text-gray-400 text-sm">
-        Powered by ChiRho Events
-      </footer>
+      {/* All Groups Modal */}
+      {activeModal === 'groups' && (
+        <Modal onClose={closeModal} title="All Groups">
+          <div className="mb-4">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search groups..."
+              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:border-[#1E3A5F]"
+            />
+          </div>
+          <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+            {(searchTerm ? filteredGroups : data.youthGroups).map(group => (
+              <FullGroupCard key={group.id} group={group} />
+            ))}
+          </div>
+        </Modal>
+      )}
+
+      <style jsx global>{`
+        .portal-button {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 1.5rem;
+          border-radius: 1.5rem;
+          transition: all 0.2s ease;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .portal-button:active {
+          transform: scale(0.95);
+        }
+      `}</style>
+    </div>
+  )
+}
+
+// Modal Component
+function Modal({
+  onClose,
+  title,
+  children
+}: {
+  onClose: () => void
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-lg max-h-[85vh] bg-white rounded-t-3xl sm:rounded-3xl overflow-hidden animate-slide-up">
+        <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+          <h3 className="text-xl font-bold text-[#1E3A5F]">{title}</h3>
+          <button
+            onClick={onClose}
+            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+          >
+            <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="p-6 overflow-y-auto max-h-[calc(85vh-80px)]">{children}</div>
+      </div>
+      <style jsx>{`
+        @keyframes slide-up {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
+        }
+        .animate-slide-up {
+          animation: slide-up 0.3s ease-out;
+        }
+      `}</style>
     </div>
   )
 }
