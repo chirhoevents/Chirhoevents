@@ -1,9 +1,24 @@
 import { prisma } from '@/lib/prisma'
 import PorosPublicClient from './PorosPublicClient'
 
-export const metadata = {
+import { Metadata } from 'next'
+
+export const metadata: Metadata = {
   title: 'Poros Portal - Event Resources',
   description: 'Access event resources, schedules, and meal times',
+  manifest: '/poros-manifest.json',
+  icons: {
+    icon: '/poros-icon.png',
+    apple: '/poros-icon.png',
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Poros Portal',
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
 }
 
 interface LocationAddress {
@@ -38,7 +53,7 @@ export default async function PorosPublicLandingPage() {
     try {
       events = await prisma.event.findMany({
         where: {
-          status: { in: ['registration_open', 'registration_closed', 'in_progress'] }
+          status: { in: ['published', 'registration_open', 'registration_closed', 'in_progress'] }
         },
         include: {
           settings: true,
