@@ -64,6 +64,7 @@ interface EventDetailClientProps {
     raphaMedicalEnabled?: boolean
     staffRegistrationEnabled?: boolean
     vendorRegistrationEnabled?: boolean
+    couponsEnabled?: boolean
   } | null
 }
 
