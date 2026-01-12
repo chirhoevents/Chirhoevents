@@ -253,21 +253,44 @@ export async function GET(request: NextRequest) {
       where.status = status
     }
 
-    const tickets = await prisma.supportTicket.findMany({
-      where,
-      include: {
-        submittedByUser: {
-          select: { firstName: true, lastName: true },
+    // Try to fetch tickets with event relation, fall back without if migration not applied
+    let tickets
+    try {
+      tickets = await prisma.supportTicket.findMany({
+        where,
+        include: {
+          submittedByUser: {
+            select: { firstName: true, lastName: true },
+          },
+          event: {
+            select: { id: true, name: true },
+          },
+          _count: {
+            select: { messages: true },
+          },
         },
-        event: {
-          select: { id: true, name: true },
-        },
-        _count: {
-          select: { messages: true },
-        },
-      },
-      orderBy: { updatedAt: 'desc' },
-    })
+        orderBy: { updatedAt: 'desc' },
+      })
+    } catch (fetchError: unknown) {
+      const errorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError)
+      if (errorMessage.includes('event') || errorMessage.includes('event_id')) {
+        console.warn('Event field not in database yet, fetching tickets without it')
+        tickets = await prisma.supportTicket.findMany({
+          where,
+          include: {
+            submittedByUser: {
+              select: { firstName: true, lastName: true },
+            },
+            _count: {
+              select: { messages: true },
+            },
+          },
+          orderBy: { updatedAt: 'desc' },
+        })
+      } else {
+        throw fetchError
+      }
+    }
 
     return NextResponse.json({ tickets })
   } catch (error) {
