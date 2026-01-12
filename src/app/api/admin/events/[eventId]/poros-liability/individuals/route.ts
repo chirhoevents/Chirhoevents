@@ -53,7 +53,6 @@ export async function GET(
     })
 
     // Transform data for the frontend
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = individuals.map((individual: any) => {
       const form = individual.liabilityForms[0]
 
