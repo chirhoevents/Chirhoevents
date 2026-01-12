@@ -101,9 +101,6 @@ const DATA_SOURCES: Record<string, { label: string; description: string; fields:
       { value: 'liabilityForm.emergencyContact1Name', label: 'Emergency Contact Name', category: 'Emergency' },
       { value: 'liabilityForm.emergencyContact1Phone', label: 'Emergency Contact Phone', category: 'Emergency' },
       { value: 'liabilityForm.emergencyContact1Relation', label: 'Emergency Contact Relation', category: 'Emergency' },
-      { value: 'roomAssignment', label: 'Room Assignment', category: 'Housing' },
-      { value: 'smallGroup', label: 'Small Group', category: 'Groups' },
-      { value: 'mealGroup', label: 'Meal Group', category: 'Groups' },
     ],
   },
   individuals: {

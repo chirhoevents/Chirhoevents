@@ -232,18 +232,6 @@ async function executeParticipantsReport(eventId: string, config: any) {
         },
         take: 1,
       },
-      roomAssignments: {
-        include: {
-          room: { select: { name: true } },
-        },
-        take: 1,
-      },
-      smallGroupAssignments: {
-        include: {
-          smallGroup: { select: { name: true } },
-        },
-        take: 1,
-      },
     },
     orderBy: getSortOrder(config.sortBy, config.sortDirection) || { lastName: 'asc' },
   })
@@ -252,11 +240,7 @@ async function executeParticipantsReport(eventId: string, config: any) {
   let results = participants.map(p => ({
     ...p,
     liabilityForm: p.liabilityForms?.[0] || null,
-    roomAssignment: p.roomAssignments?.[0]?.room?.name || null,
-    smallGroup: p.smallGroupAssignments?.[0]?.smallGroup?.name || null,
     liabilityForms: undefined,
-    roomAssignments: undefined,
-    smallGroupAssignments: undefined,
   }))
 
   // Filter by medical needs
