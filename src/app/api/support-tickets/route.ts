@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     })
 
     const body = await request.json()
-    const { subject, category, priority, message } = body
+    const { subject, category, priority, message, eventId, issueUrl } = body
 
     if (!subject || !category || !message) {
       return NextResponse.json(
@@ -46,10 +46,27 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate eventId belongs to this organization if provided
+    if (eventId) {
+      const event = await prisma.event.findFirst({
+        where: {
+          id: eventId,
+          organizationId: user.organizationId,
+        },
+      })
+      if (!event) {
+        return NextResponse.json(
+          { error: 'Invalid event selected' },
+          { status: 400 }
+        )
+      }
+    }
+
     // Create ticket with initial message
     const ticket = await prisma.supportTicket.create({
       data: {
         organizationId: user.organizationId,
+        eventId: eventId || null,
         submittedByUserId: user.id,
         ticketNumber: `TKT-${Date.now()}`,
         subject: subject.trim(),
@@ -57,6 +74,7 @@ export async function POST(request: NextRequest) {
         category,
         priority: priority || 'medium',
         status: 'open',
+        issueUrl: issueUrl || null,
         messages: {
           create: {
             userId: user.id,
@@ -68,6 +86,9 @@ export async function POST(request: NextRequest) {
         messages: true,
         organization: {
           select: { name: true },
+        },
+        event: {
+          select: { id: true, name: true },
         },
       },
     })
@@ -114,6 +135,11 @@ export async function POST(request: NextRequest) {
                   <div style="margin-top: 10px;">
                     <strong>Priority:</strong> ${priority || 'Medium'}
                   </div>
+                  ${ticket.event ? `
+                  <div style="margin-top: 10px;">
+                    <strong>Related Event:</strong> ${ticket.event.name}
+                  </div>
+                  ` : ''}
                 </div>
 
                 <p>You can view and respond to this ticket from your organization dashboard under <strong>Settings → Support</strong>.</p>
@@ -200,6 +226,9 @@ export async function GET(request: NextRequest) {
       include: {
         submittedByUser: {
           select: { firstName: true, lastName: true },
+        },
+        event: {
+          select: { id: true, name: true },
         },
         _count: {
           select: { messages: true },

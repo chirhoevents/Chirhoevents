@@ -173,6 +173,7 @@ model Event {
   waitlistEntries           WaitlistEntry[]
   vendorRegistrations       VendorRegistration[]
   staffRegistrations        StaffRegistration[]
+  supportTickets            SupportTicket[]
 
   @@index([organizationId], name: "idx_event_org")
   @@index([slug], name: "idx_event_slug")
@@ -1901,6 +1902,7 @@ model SupportTicket {
   id                String   @id @default(uuid()) @db.Uuid
   ticketNumber      String   @unique @map("ticket_number") @db.VarChar(20)
   organizationId    String   @map("organization_id") @db.Uuid
+  eventId           String?  @map("event_id") @db.Uuid
   submittedByUserId String   @map("submitted_by_user_id") @db.Uuid
   category          String   @db.VarChar(255)
   subject           String   @db.VarChar(500)
@@ -1916,11 +1918,13 @@ model SupportTicket {
 
   // Relations
   organization      Organization @relation(fields: [organizationId], references: [id])
+  event             Event? @relation(fields: [eventId], references: [id])
   submittedByUser   User @relation("TicketsSubmittedByUser", fields: [submittedByUserId], references: [id])
   assignedToUser    User? @relation("TicketsAssignedToUser", fields: [assignedToUserId], references: [id])
   messages          SupportTicketMessage[]
 
   @@index([organizationId], name: "idx_support_ticket_org")
+  @@index([eventId], name: "idx_support_ticket_event")
   @@index([status], name: "idx_support_ticket_status")
   @@index([priority], name: "idx_support_ticket_priority")
   @@index([submittedByUserId], name: "idx_support_ticket_submitted_by")

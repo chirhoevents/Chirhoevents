@@ -31,6 +31,12 @@ export async function GET(
         organizationId: user.organizationId,
       },
       include: {
+        organization: {
+          select: { id: true, name: true },
+        },
+        event: {
+          select: { id: true, name: true, slug: true },
+        },
         submittedByUser: {
           select: { firstName: true, lastName: true, email: true },
         },
