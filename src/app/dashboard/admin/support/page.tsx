@@ -147,17 +147,22 @@ export default function SupportPage() {
 
   const fetchEvents = async () => {
     try {
-      const response = await fetch('/api/events')
-      if (!response.ok) throw new Error('Failed to fetch events')
+      const response = await fetch('/api/admin/events')
+      if (!response.ok) {
+        // Events endpoint might not exist or user might not have access - that's ok
+        console.warn('Could not fetch events, event selector will be hidden')
+        return
+      }
 
       const data = await response.json()
       setEvents(data.events || [])
-      // Also get the organization ID from the first event or from org endpoint
+      // Also get the organization ID from the first event
       if (data.events?.length > 0 && data.events[0].organizationId) {
         setOrganizationId(data.events[0].organizationId)
       }
     } catch (error) {
-      console.error('Error fetching events:', error)
+      console.warn('Error fetching events:', error)
+      // Don't show error to user, just hide the event selector
     }
   }
 
