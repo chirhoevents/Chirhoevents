@@ -80,8 +80,12 @@ function VendorPortalContent() {
   const [copySuccess, setCopySuccess] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [deletingLogo, setDeletingLogo] = useState(false)
+  const [hasFetched, setHasFetched] = useState(false)
 
   useEffect(() => {
+    // Prevent double-fetching
+    if (hasFetched) return
+
     const fetchVendorData = async () => {
       if (!accessCode) {
         setError('No access code provided. Please use the link from your approval email.')
@@ -90,6 +94,7 @@ function VendorPortalContent() {
       }
 
       try {
+        setHasFetched(true)
         const response = await fetch(`/api/vendor/portal?code=${accessCode}`)
         if (!response.ok) {
           const data = await response.json()
@@ -108,7 +113,7 @@ function VendorPortalContent() {
     }
 
     fetchVendorData()
-  }, [accessCode])
+  }, [accessCode, hasFetched])
 
   const copyVendorCode = () => {
     if (vendor) {
