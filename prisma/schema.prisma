@@ -84,6 +84,7 @@ model Organization {
   supportTickets          SupportTicket[]
   invoices                Invoice[]
   billingNotes            BillingNote[]
+  coupons                 Coupon[]
   createdByUser           User?    @relation("OrganizationsCreatedByUser", fields: [createdByUserId], references: [id])
 
   @@index([contactEmail], name: "idx_org_email")
@@ -130,6 +131,7 @@ model User {
   billingNotesCreated BillingNote[] @relation("BillingNotesCreatedByUser")
   inboundTicketsAssigned InboundSupportTicket[] @relation("InboundTicketsAssignedToUser")
   inboundTicketReplies InboundTicketReply[] @relation("InboundTicketRepliesByUser")
+  couponsCreated       Coupon[]
 
   @@index([organizationId], name: "idx_user_org")
   @@index([email], name: "idx_user_email")
@@ -173,6 +175,7 @@ model Event {
   waitlistEntries           WaitlistEntry[]
   vendorRegistrations       VendorRegistration[]
   staffRegistrations        StaffRegistration[]
+  coupons                   Coupon[]
 
   @@index([organizationId], name: "idx_event_org")
   @@index([slug], name: "idx_event_slug")
@@ -2331,5 +2334,76 @@ enum StaffPaymentStatus {
   pending
   paid
   waived
+}
+
+// ===================================
+// COUPON SYSTEM
+// ===================================
+
+enum DiscountType {
+  percentage
+  fixed_amount
+}
+
+enum UsageLimitType {
+  unlimited
+  single_use
+  limited
+}
+
+enum CouponRegistrationType {
+  group
+  individual
+  staff
+  vendor
+}
+
+model Coupon {
+  id                 String         @id @default(uuid()) @db.Uuid
+  organizationId     String         @map("organization_id") @db.Uuid
+  eventId            String?        @map("event_id") @db.Uuid
+  name               String         @db.VarChar(255)
+  code               String         @db.VarChar(50)
+  discountType       DiscountType   @default(percentage) @map("discount_type")
+  discountValue      Decimal        @map("discount_value") @db.Decimal(10, 2)
+  usageLimitType     UsageLimitType @default(unlimited) @map("usage_limit_type")
+  usageCount         Int            @default(0) @map("usage_count")
+  maxUses            Int?           @map("max_uses")
+  isStackable        Boolean        @default(false) @map("is_stackable")
+  restrictToEmail    String?        @map("restrict_to_email") @db.VarChar(255)
+  expirationDate     DateTime?      @map("expiration_date") @db.Timestamptz(6)
+  active             Boolean        @default(true)
+  createdByUserId    String?        @map("created_by_user_id") @db.Uuid
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  organization       Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  event              Event?         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdByUser      User?          @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  redemptions        CouponRedemption[]
+
+  @@unique([eventId, code], name: "unique_coupon_code_per_event")
+  @@index([organizationId], name: "idx_coupon_org")
+  @@index([eventId], name: "idx_coupon_event")
+  @@index([code], name: "idx_coupon_code")
+  @@index([active], name: "idx_coupon_active")
+  @@map("coupons")
+}
+
+model CouponRedemption {
+  id                 String                 @id @default(uuid()) @db.Uuid
+  couponId           String                 @map("coupon_id") @db.Uuid
+  registrationId     String                 @map("registration_id") @db.Uuid
+  registrationType   CouponRegistrationType @map("registration_type")
+  discountApplied    Decimal                @map("discount_applied") @db.Decimal(10, 2)
+  redeemedAt         DateTime               @default(now()) @map("redeemed_at") @db.Timestamptz(6)
+
+  // Relations
+  coupon             Coupon                 @relation(fields: [couponId], references: [id], onDelete: Cascade)
+
+  @@index([couponId], name: "idx_redemption_coupon")
+  @@index([registrationId], name: "idx_redemption_registration")
+  @@map("coupon_redemptions")
 }
 
