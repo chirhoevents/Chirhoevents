@@ -1,0 +1,2884 @@
+{
+  "youthGroups": [
+    {
+      "id": "1",
+      "parish": "Aberdeen Proving Ground Youth Group - Edgewood",
+      "leader": "Bernadette  Kovalsick",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 1,
+      "femaleTeens": 2,
+      "maleChaperones": 0,
+      "femaleChaperones": 2,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "2",
+      "parish": "Archbishop Curley High School - Baltimore",
+      "leader": "Christopher  Dudek",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 12,
+      "femaleTeens": 0,
+      "maleChaperones": 1,
+      "femaleChaperones": 0,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "3",
+      "parish": "Ascension Catholic Teens - BOWIE",
+      "leader": "Emma  Bigony",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 2,
+      "femaleTeens": 1,
+      "maleChaperones": 1,
+      "femaleChaperones": 0,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "4",
+      "parish": "Cathedral of Saint Patrick Youth - Norwich",
+      "leader": "Michelle  Mills",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 9,
+      "femaleTeens": 11,
+      "maleChaperones": 4,
+      "femaleChaperones": 2,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "5",
+      "parish": "Chesterton Academy of Divine Family - Hagerstown",
+      "leader": "Patti  Davis",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 1,
+      "femaleTeens": 0,
+      "maleChaperones": 0,
+      "femaleChaperones": 0,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "6",
+      "parish": "Heart to Heart Youth Group - Atlantic City",
+      "leader": "Guadalupe  Gonzalez",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 7,
+      "femaleTeens": 7,
+      "maleChaperones": 1,
+      "femaleChaperones": 3,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "7",
+      "parish": "Holy Cross Parish - Dover",
+      "leader": "Linda  Darling",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 4,
+      "femaleTeens": 1,
+      "maleChaperones": 2,
+      "femaleChaperones": 2,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "8",
+      "parish": "Ignite Youth Ministry - York",
+      "leader": "Chris  Wood",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 12,
+      "femaleTeens": 3,
+      "maleChaperones": 3,
+      "femaleChaperones": 2,
+      "stayingOffCampus": true,
+      "specialAccommodations": "No stairs, had recent foot surgery"
+    },
+    {
+      "id": "9",
+      "parish": "Little Flower - Bethesda",
+      "leader": "Linda  Kueter",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 6,
+      "femaleTeens": 4,
+      "maleChaperones": 2,
+      "femaleChaperones": 1,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "10",
+      "parish": "Mother of God Community - Gaithersburg",
+      "leader": "Darwin  Rigel",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 3,
+      "femaleTeens": 1,
+      "maleChaperones": 0,
+      "femaleChaperones": 1,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "11",
+      "parish": "Mount de Sales Academy - Catonsville",
+      "leader": "Madison  Bolesta",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 0,
+      "femaleTeens": 20,
+      "maleChaperones": 0,
+      "femaleChaperones": 4,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "12",
+      "parish": "OLQA Youth Group - Washington",
+      "leader": "Kevin  Arevalo",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 5,
+      "femaleTeens": 11,
+      "maleChaperones": 2,
+      "femaleChaperones": 2,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "13",
+      "parish": "Our Lady of Lavang Church - Perry Hall",
+      "leader": "Khanh  Le",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 11,
+      "femaleTeens": 11,
+      "maleChaperones": 2,
+      "femaleChaperones": 2,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "14",
+      "parish": "Our Lady of Victory - Baltimore",
+      "leader": "Becky  Shumaker",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 5,
+      "femaleTeens": 3,
+      "maleChaperones": 0,
+      "femaleChaperones": 0,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "15",
+      "parish": "Our Lady of Victory Catholic Military Community - Carlisle",
+      "leader": "Jane  Monaghan",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 5,
+      "femaleTeens": 3,
+      "maleChaperones": 0,
+      "femaleChaperones": 0,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "16",
+      "parish": "Pastorate of St. John and St. Joseph - Frederick",
+      "leader": "Megan  McQuin",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 4,
+      "femaleTeens": 5,
+      "maleChaperones": 2,
+      "femaleChaperones": 1,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "17",
+      "parish": "Rice Memorial High School - South Burlington",
+      "leader": "M. Pamela  King",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 5,
+      "femaleTeens": 5,
+      "maleChaperones": 2,
+      "femaleChaperones": 0,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "18",
+      "parish": "Sacred Heart Bowie - Greenbelt",
+      "leader": "Danny  Baxter",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 8,
+      "femaleTeens": 16,
+      "maleChaperones": 2,
+      "femaleChaperones": 2,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "19",
+      "parish": "Saint Agnes - Arilington",
+      "leader": "Katie  Hofer",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 3,
+      "femaleTeens": 3,
+      "maleChaperones": 2,
+      "femaleChaperones": 1,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "20",
+      "parish": "Saint Andrew's - Waynesboro",
+      "leader": "Maria  Clement",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 2,
+      "femaleTeens": 3,
+      "maleChaperones": 1,
+      "femaleChaperones": 0,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "21",
+      "parish": "Saint Joseph - Eldersburg - Eldersburg",
+      "leader": "Daniel  Rosa",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 5,
+      "femaleTeens": 4,
+      "maleChaperones": 2,
+      "femaleChaperones": 1,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "22",
+      "parish": "Soldiers of Christ - Riverdale",
+      "leader": "Dina  Soto",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 4,
+      "femaleTeens": 5,
+      "maleChaperones": 1,
+      "femaleChaperones": 0,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "23",
+      "parish": "St Ann Church- Hagerstown - Hagerstown",
+      "leader": "Lisa  Noel",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 7,
+      "femaleTeens": 6,
+      "maleChaperones": 4,
+      "femaleChaperones": 4,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "24",
+      "parish": "St Christopher's Church - Chester",
+      "leader": "Reilly  Hernandez",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 1,
+      "femaleTeens": 6,
+      "maleChaperones": 1,
+      "femaleChaperones": 1,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "25",
+      "parish": "St Ignatius of Loyola - Ijamsville",
+      "leader": "Barbara  Miller",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 2,
+      "femaleTeens": 0,
+      "maleChaperones": 0,
+      "femaleChaperones": 0,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "26",
+      "parish": "St Jane DeChantal High School Youth Group - Bethesda",
+      "leader": "Debbie  Okim",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 9,
+      "femaleTeens": 3,
+      "maleChaperones": 2,
+      "femaleChaperones": 1,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "27",
+      "parish": "St John Neumann",
+      "leader": "Martin  Begley",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 0,
+      "femaleTeens": 0,
+      "maleChaperones": 1,
+      "femaleChaperones": 0,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "28",
+      "parish": "St John Neumann - Gaithersburg",
+      "leader": "Martin  Begley",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 23,
+      "femaleTeens": 40,
+      "maleChaperones": 3,
+      "femaleChaperones": 6,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "29",
+      "parish": "St Joseph Danville - Danville",
+      "leader": "TJ  Willoughby",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 5,
+      "femaleTeens": 2,
+      "maleChaperones": 1,
+      "femaleChaperones": 2,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "30",
+      "parish": "St Joseph Youth Ministry - Fullerton",
+      "leader": "Sherrie  Palmateer",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 4,
+      "femaleTeens": 6,
+      "maleChaperones": 1,
+      "femaleChaperones": 1,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "31",
+      "parish": "St Peters - Olney",
+      "leader": "Angela  Busby",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 2,
+      "femaleTeens": 6,
+      "maleChaperones": 2,
+      "femaleChaperones": 2,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "32",
+      "parish": "St Timothy Youth Ministry - Walkersville",
+      "leader": "Marissa  Paoletti",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 41,
+      "femaleTeens": 70,
+      "maleChaperones": 9,
+      "femaleChaperones": 19,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "33",
+      "parish": "St. Agnes Catholic Church - Charleston",
+      "leader": "Phillip  Szabo",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 2,
+      "femaleTeens": 5,
+      "maleChaperones": 2,
+      "femaleChaperones": 1,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "34",
+      "parish": "St. Aloysius Church - Leonardtown",
+      "leader": "LEONARD  WATHEN",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 3,
+      "femaleTeens": 3,
+      "maleChaperones": 0,
+      "femaleChaperones": 1,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "35",
+      "parish": "St. Bartholomew - Manchester",
+      "leader": "Jordan  Taylor",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 4,
+      "femaleTeens": 17,
+      "maleChaperones": 1,
+      "femaleChaperones": 1,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "36",
+      "parish": "St. Dennis Galena - GALENA",
+      "leader": "Jennifer  Hinton",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 4,
+      "femaleTeens": 1,
+      "maleChaperones": 1,
+      "femaleChaperones": 1,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "37",
+      "parish": "St. Francis de Sales Youth Ministry - Purcellville",
+      "leader": "Beth  McRoberts",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 6,
+      "femaleTeens": 3,
+      "maleChaperones": 1,
+      "femaleChaperones": 0,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "38",
+      "parish": "St. Francis of Assisi - Derwood",
+      "leader": "Francesca  Santos",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 2,
+      "femaleTeens": 2,
+      "maleChaperones": 0,
+      "femaleChaperones": 0,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "39",
+      "parish": "St. Jane Frances de Chantal - Pasadena",
+      "leader": "Carrie  Hilmer",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 5,
+      "femaleTeens": 5,
+      "maleChaperones": 1,
+      "femaleChaperones": 1,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "40",
+      "parish": "St. John Bosco - Woodstock",
+      "leader": "Letty  Reinitz",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 13,
+      "femaleTeens": 12,
+      "maleChaperones": 1,
+      "femaleChaperones": 1,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "41",
+      "parish": "St. John University Parish (JMJ Apostolate) - Morgantown",
+      "leader": "Blake  Peluchette",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 14,
+      "femaleTeens": 10,
+      "maleChaperones": 5,
+      "femaleChaperones": 5,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "42",
+      "parish": "St. John Westminster - Westminster",
+      "leader": "Sarah  Burger",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 7,
+      "femaleTeens": 10,
+      "maleChaperones": 2,
+      "femaleChaperones": 1,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "43",
+      "parish": "St. John the Baptist Youth Ministry - New Freedom",
+      "leader": "Joseph  Gonzalez",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 1,
+      "femaleTeens": 0,
+      "maleChaperones": 0,
+      "femaleChaperones": 0,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "44",
+      "parish": "St. John the Beloved - McLean",
+      "leader": "Michael  Jacobeen",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 2,
+      "femaleTeens": 2,
+      "maleChaperones": 0,
+      "femaleChaperones": 1,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "45",
+      "parish": "St. John the Evangelist - Clinton",
+      "leader": "Elsa  Gomez",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 6,
+      "femaleTeens": 10,
+      "maleChaperones": 1,
+      "femaleChaperones": 1,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "46",
+      "parish": "St. Joseph`s, St. Anthony Shrine, and Our Lady of Mt. Carmel - Emmitsburg",
+      "leader": "Trinity  Baugher",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 8,
+      "femaleTeens": 6,
+      "maleChaperones": 1,
+      "femaleChaperones": 1,
+      "stayingOffCampus": false,
+      "specialAccommodations": "Nobe"
+    },
+    {
+      "id": "47",
+      "parish": "St. Mark, Fallston - Fallston",
+      "leader": "Thomas  Mackin",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 6,
+      "femaleTeens": 8,
+      "maleChaperones": 1,
+      "femaleChaperones": 2,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "48",
+      "parish": "St. Martin of Tours - Gaithersburg",
+      "leader": "David  Guillen",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 16,
+      "femaleTeens": 14,
+      "maleChaperones": 2,
+      "femaleChaperones": 4,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "49",
+      "parish": "St. Mary of the Mills Catholic Church - Laurel",
+      "leader": "Ali  Poteet",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 5,
+      "femaleTeens": 8,
+      "maleChaperones": 2,
+      "femaleChaperones": 2,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "50",
+      "parish": "St. Mary's Catholic Church",
+      "leader": "Stephanie  Lyons",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 0,
+      "femaleTeens": 1,
+      "maleChaperones": 0,
+      "femaleChaperones": 0,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "51",
+      "parish": "St. Mary's Catholic Church - Hagerstown",
+      "leader": "Stephanie  Lyons",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 12,
+      "femaleTeens": 9,
+      "maleChaperones": 2,
+      "femaleChaperones": 1,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "52",
+      "parish": "St. Mary`s Ryken High School - LEONARDTOWN",
+      "leader": "Emma  Davis",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 2,
+      "femaleTeens": 12,
+      "maleChaperones": 1,
+      "femaleChaperones": 0,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "53",
+      "parish": "St. Patrick Catholic Church - Fredericksburg",
+      "leader": "Adam  Wiederman",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 11,
+      "femaleTeens": 8,
+      "maleChaperones": 1,
+      "femaleChaperones": 2,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "54",
+      "parish": "St. Patrick/St. Raphael - Rockville",
+      "leader": "Mike  McHugh",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 12,
+      "femaleTeens": 28,
+      "maleChaperones": 2,
+      "femaleChaperones": 4,
+      "stayingOffCampus": false,
+      "specialAccommodations": "None."
+    },
+    {
+      "id": "55",
+      "parish": "St. Peter the Apostle Roman Catholic Church - Libertytown",
+      "leader": "Alec  Parker",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 16,
+      "femaleTeens": 11,
+      "maleChaperones": 2,
+      "femaleChaperones": 2,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "56",
+      "parish": "St. Raymond of Penafort - SPRINGFIELD",
+      "leader": "Jeanne  Sause",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 11,
+      "femaleTeens": 14,
+      "maleChaperones": 2,
+      "femaleChaperones": 1,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "57",
+      "parish": "St. Vincent DePaul - Berkeley Springs",
+      "leader": "Bryan  Tedeschi",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 4,
+      "femaleTeens": 2,
+      "maleChaperones": 1,
+      "femaleChaperones": 2,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "58",
+      "parish": "St.Markd - Greencastle",
+      "leader": "Joan  Herrold",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 0,
+      "femaleTeens": 3,
+      "maleChaperones": 0,
+      "femaleChaperones": 0,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "59",
+      "parish": "The John Carroll School - Bel Air",
+      "leader": "Katherine  Smith",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 10,
+      "femaleTeens": 23,
+      "maleChaperones": 3,
+      "femaleChaperones": 2,
+      "stayingOffCampus": false,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "60",
+      "parish": "Tracie Doty - Wilson",
+      "leader": "Tracie  Doty",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 7,
+      "femaleTeens": 0,
+      "maleChaperones": 1,
+      "femaleChaperones": 0,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    },
+    {
+      "id": "61",
+      "parish": "Young men from the Immaculate Conception of the BVM - Fairfield",
+      "leader": "George  Cleaver",
+      "seminarianSgl": "",
+      "religious": "",
+      "phone": "",
+      "maleTeens": 2,
+      "femaleTeens": 0,
+      "maleChaperones": 0,
+      "femaleChaperones": 0,
+      "stayingOffCampus": true,
+      "specialAccommodations": ""
+    }
+  ],
+  "rooms": [
+    {
+      "building": "Off Campus",
+      "roomId": "Male",
+      "type": "housing",
+      "gender": "male",
+      "capacity": 400,
+      "accessibility": ""
+    },
+    {
+      "building": "Off Campus",
+      "roomId": "Female",
+      "type": "housing",
+      "gender": "female",
+      "capacity": 400,
+      "accessibility": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "320",
+      "type": "housing",
+      "gender": "male",
+      "capacity": 32,
+      "accessibility": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "311",
+      "type": "housing",
+      "gender": "male",
+      "capacity": 35,
+      "accessibility": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "308",
+      "type": "housing",
+      "gender": "male",
+      "capacity": 38,
+      "accessibility": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "310",
+      "type": "housing",
+      "gender": "male",
+      "capacity": 44,
+      "accessibility": ""
+    },
+    {
+      "building": "ARCC",
+      "roomId": "GYM FLOOR",
+      "type": "housing",
+      "gender": "female",
+      "capacity": 400,
+      "accessibility": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "327",
+      "type": "housing",
+      "gender": "male",
+      "capacity": 32,
+      "accessibility": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "227",
+      "type": "housing",
+      "gender": "male",
+      "capacity": 28,
+      "accessibility": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "224",
+      "type": "housing",
+      "gender": "male",
+      "capacity": 24,
+      "accessibility": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "222",
+      "type": "housing",
+      "gender": "male",
+      "capacity": 32,
+      "accessibility": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "220",
+      "type": "housing",
+      "gender": "male",
+      "capacity": 32,
+      "accessibility": "Sleep help"
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "107",
+      "type": "housing",
+      "gender": "male",
+      "capacity": 26,
+      "accessibility": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "109",
+      "type": "housing",
+      "gender": "male",
+      "capacity": 26,
+      "accessibility": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "111",
+      "type": "housing",
+      "gender": "male",
+      "capacity": 30,
+      "accessibility": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "104",
+      "type": "housing",
+      "gender": "male",
+      "capacity": 26,
+      "accessibility": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "108",
+      "type": "housing",
+      "gender": "male",
+      "capacity": 28,
+      "accessibility": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "304",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 26,
+      "features": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "300- Lobby",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 18,
+      "features": "INSIDE WINDOWS- CHAIRS NEEDED"
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "308",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 33,
+      "features": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "310",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 44,
+      "features": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "311",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 44,
+      "features": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "320",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 24,
+      "features": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "327",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 33,
+      "features": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "323",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 14,
+      "features": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "207",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 25,
+      "features": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "206",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 25,
+      "features": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "209",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 20,
+      "features": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "211",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 23,
+      "features": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "210",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 36,
+      "features": "CHAIRS NEEDED"
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "100- End Coridor",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 10,
+      "features": "Chairs Needed"
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "200- Lobby",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 30,
+      "features": "Chairs needed"
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "208",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 26,
+      "features": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "200- End Corridor",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 12,
+      "features": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "127",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 25,
+      "features": "EXIT DOOR"
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "120",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 30,
+      "features": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "100- Lounge",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 15,
+      "features": "Chairs Needed"
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "203",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 26,
+      "features": ""
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "Gorund Floor Lobby",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 40,
+      "features": "Need Chairs"
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "3rd Floor Lobby",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 50,
+      "features": "Need Chairs"
+    },
+    {
+      "building": "PAC",
+      "roomId": "Upper Level",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 30,
+      "features": "Chairs Needed"
+    },
+    {
+      "building": "PAC",
+      "roomId": "Lower Level",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 100,
+      "features": "Chairs Needed"
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "300- End Coridor",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 12,
+      "features": "CHAIRS NEEDED"
+    },
+    {
+      "building": "Knott Academic Center",
+      "roomId": "300- Lobby O/G",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 35,
+      "features": "CHIARS NEEDED- OUTSIDE GLASS"
+    },
+    {
+      "building": "COAD Science Building",
+      "roomId": "158",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 60,
+      "features": "Open Wall"
+    },
+    {
+      "building": "COAD Science Building",
+      "roomId": "107",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 13,
+      "features": ""
+    },
+    {
+      "building": "COAD Science Building",
+      "roomId": "111",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 12,
+      "features": ""
+    },
+    {
+      "building": "COAD Science Building",
+      "roomId": "117",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 24,
+      "features": ""
+    },
+    {
+      "building": "COAD Science Building",
+      "roomId": "125",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 20,
+      "features": ""
+    },
+    {
+      "building": "Knott Auditorium",
+      "roomId": "200 Lobby",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 50,
+      "features": ""
+    },
+    {
+      "building": "Knott Auditorium",
+      "roomId": "100- West Lobby",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 25,
+      "features": ""
+    },
+    {
+      "building": "Knott Auditorium",
+      "roomId": "100- East Lobby",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 25,
+      "features": ""
+    },
+    {
+      "building": "McGowan",
+      "roomId": "Lobby",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 25,
+      "features": ""
+    },
+    {
+      "building": "McGowan",
+      "roomId": "Stair Pavillion",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 20,
+      "features": ""
+    },
+    {
+      "building": "Patriot Hall",
+      "roomId": "Seminary Dinning Room",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 150,
+      "features": "Tables need to be moved"
+    },
+    {
+      "building": "Seminary",
+      "roomId": "O'Donnell Lecture Hall",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 140,
+      "features": "Only theater mode is available."
+    },
+    {
+      "building": "Seminary",
+      "roomId": "St. Michael's Room",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 60,
+      "features": "Chairs need to be arranged."
+    },
+    {
+      "building": "St. Michael's",
+      "roomId": "Rectors Confrence Room",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 10,
+      "features": "Conference room."
+    },
+    {
+      "building": "Seminary",
+      "roomId": "McSweeny- 135",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 18,
+      "features": ""
+    },
+    {
+      "building": "Seminary",
+      "roomId": "McSweeny- 132",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 15,
+      "features": ""
+    },
+    {
+      "building": "Seminary",
+      "roomId": "Recreation Room",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 30,
+      "features": "The living room area portable door must be closed."
+    },
+    {
+      "building": "Seminary",
+      "roomId": "Keating Hall- 19",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 25,
+      "features": ""
+    },
+    {
+      "building": "Seminary",
+      "roomId": "Keating Hall- 18",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 40,
+      "features": ""
+    },
+    {
+      "building": "Seminary",
+      "roomId": "Keating- 14 Conference Room",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 15,
+      "features": "Conference Room"
+    },
+    {
+      "building": "Seminary",
+      "roomId": "Keating- JPII Reading Room",
+      "type": "smallGroup",
+      "gender": "mixed",
+      "capacity": 15,
+      "features": ""
+    }
+  ],
+  "housingAssignments": {
+    "male": {
+      "1": [
+        "Off Campus-Male"
+      ],
+      "2": [
+        "Off Campus-Male"
+      ],
+      "8": [
+        "Off Campus-Male"
+      ],
+      "9": [
+        "Off Campus-Male"
+      ],
+      "13": [
+        "Off Campus-Male"
+      ],
+      "15": [
+        "Off Campus-Male"
+      ],
+      "17": [
+        "Off Campus-Male"
+      ],
+      "19": [
+        "Off Campus-Male"
+      ],
+      "23": [
+        "Off Campus-Male"
+      ],
+      "27": [
+        "Off Campus-Male"
+      ],
+      "28": [
+        "Off Campus-Male"
+      ],
+      "29": [
+        "Off Campus-Male"
+      ],
+      "31": [
+        "Off Campus-Male"
+      ],
+      "32": [
+        "Off Campus-Male"
+      ],
+      "33": [
+        "Off Campus-Male"
+      ],
+      "34": [
+        "Off Campus-Male"
+      ],
+      "35": [
+        "Off Campus-Male"
+      ],
+      "37": [
+        "Off Campus-Male"
+      ],
+      "38": [
+        "Off Campus-Male"
+      ],
+      "39": [
+        "Off Campus-Male"
+      ],
+      "41": [
+        "Off Campus-Male"
+      ],
+      "44": [
+        "Off Campus-Male"
+      ],
+      "47": [
+        "Off Campus-Male"
+      ],
+      "51": [
+        "Off Campus-Male"
+      ],
+      "53": [
+        "Off Campus-Male"
+      ],
+      "60": [
+        "Off Campus-Male"
+      ],
+      "61": [
+        "Off Campus-Male"
+      ]
+    },
+    "female": {
+      "1": [
+        "Off Campus-Female"
+      ],
+      "8": [
+        "Off Campus-Female"
+      ],
+      "9": [
+        "Off Campus-Female"
+      ],
+      "13": [
+        "Off Campus-Female"
+      ],
+      "15": [
+        "Off Campus-Female"
+      ],
+      "17": [
+        "Off Campus-Female"
+      ],
+      "19": [
+        "Off Campus-Female"
+      ],
+      "23": [
+        "Off Campus-Female"
+      ],
+      "28": [
+        "Off Campus-Female"
+      ],
+      "29": [
+        "Off Campus-Female"
+      ],
+      "31": [
+        "Off Campus-Female"
+      ],
+      "32": [
+        "Off Campus-Female"
+      ],
+      "33": [
+        "Off Campus-Female"
+      ],
+      "34": [
+        "Off Campus-Female"
+      ],
+      "35": [
+        "Off Campus-Female"
+      ],
+      "37": [
+        "Off Campus-Female"
+      ],
+      "38": [
+        "Off Campus-Female"
+      ],
+      "39": [
+        "Off Campus-Female"
+      ],
+      "41": [
+        "Off Campus-Female"
+      ],
+      "44": [
+        "Off Campus-Female"
+      ],
+      "47": [
+        "Off Campus-Female"
+      ],
+      "50": [
+        "Off Campus-Female"
+      ],
+      "51": [
+        "Off Campus-Female"
+      ],
+      "53": [
+        "Off Campus-Female"
+      ]
+    }
+  },
+  "smallGroupAssignments": {
+    "1": [
+      "Knott Academic Center-100- End Coridor"
+    ],
+    "2": [
+      "Knott Academic Center-323"
+    ],
+    "3": [
+      "Knott Academic Center-207"
+    ],
+    "4": [
+      "Knott Academic Center-304"
+    ],
+    "6": [
+      "Knott Academic Center-300- Lobby"
+    ],
+    "7": [
+      "St. Michael's-Rectors Confrence Room"
+    ],
+    "8": [
+      "Knott Academic Center-209"
+    ],
+    "9": [
+      "Knott Academic Center-100- Lounge"
+    ],
+    "10": [
+      "Knott Academic Center-300- End Coridor"
+    ],
+    "11": [
+      "Knott Academic Center-320"
+    ],
+    "12": [
+      "Knott Academic Center-211"
+    ],
+    "13": [
+      "Knott Academic Center-208"
+    ],
+    "14": [
+      "COAD Science Building-111"
+    ],
+    "16": [
+      "Knott Academic Center-200- End Corridor"
+    ],
+    "17": [
+      "Seminary-McSweeny- 132"
+    ],
+    "18": [
+      "Knott Academic Center-200- Lobby"
+    ],
+    "19": [
+      "COAD Science Building-107"
+    ],
+    "23": [
+      "Knott Academic Center-207"
+    ],
+    "26": [
+      "Seminary-Keating- 14 Conference Room"
+    ],
+    "28": [
+      "PAC-Lower Level"
+    ],
+    "32": [
+      "Seminary-O'Donnell Lecture Hall"
+    ],
+    "35": [
+      "Knott Academic Center-206"
+    ],
+    "40": [
+      "Knott Academic Center-120"
+    ],
+    "41": [
+      "Knott Academic Center-300- Lobby O/G"
+    ],
+    "42": [
+      "McGowan-Stair Pavillion"
+    ],
+    "45": [
+      "Seminary-McSweeny- 135"
+    ],
+    "46": [
+      "Seminary-Recreation Room"
+    ],
+    "47": [
+      "McGowan-Lobby"
+    ],
+    "48": [
+      "Knott Academic Center-210"
+    ],
+    "49": [
+      "Knott Auditorium-100- East Lobby"
+    ],
+    "51": [
+      "Knott Auditorium-100- West Lobby"
+    ],
+    "52": [
+      "Seminary-Keating- JPII Reading Room"
+    ],
+    "53": [
+      "Knott Academic Center-127"
+    ],
+    "54": [
+      "Knott Academic Center-3rd Floor Lobby"
+    ],
+    "55": [
+      "Knott Academic Center-308"
+    ],
+    "56": [
+      "PAC-Upper Level"
+    ],
+    "59": [
+      "Knott Academic Center-Gorund Floor Lobby"
+    ]
+  },
+  "mealColorAssignments": {
+    "1": "Red",
+    "2": "Red",
+    "3": "Orange"
+  },
+  "adaIndividuals": [
+    {
+      "id": "1762106880228",
+      "name": "Kaz B.",
+      "gender": "male",
+      "groupId": "3",
+      "accessibility": "this person is in need of a deep sleep.",
+      "roomAssignment": "Knott Academic Center-220"
+    }
+  ],
+  "activeColors": [
+    "Blue",
+    "Red",
+    "Orange",
+    "Yellow",
+    "Green"
+  ],
+  "mealTimes": {
+    "Blue": {
+      "satBreakfast": "7:40- 8:00am",
+      "satLunch": "1:15 pm",
+      "satDinner": "4:20- 4:40pm",
+      "sunBreakfast": "7:40- 8:00am"
+    },
+    "Red": {
+      "satBreakfast": "8:00- 8:20am",
+      "satLunch": "1:15 pm",
+      "satDinner": "4:40- 5:00pm",
+      "sunBreakfast": "8:00- 8:20am"
+    },
+    "Orange": {
+      "satBreakfast": "8:20- 8:40am",
+      "satLunch": "1:15 pm",
+      "satDinner": "5:00- 5:20pm",
+      "sunBreakfast": " 8:20- 8:40am"
+    },
+    "Yellow": {
+      "satBreakfast": "Off Campus",
+      "satLunch": "1:15 pm",
+      "satDinner": "5:20- 5:40pm",
+      "sunBreakfast": "Off Campus"
+    },
+    "Green": {
+      "satBreakfast": "Off Campus",
+      "satLunch": "1:15 pm",
+      "satDinner": "5:40- 6:00pm",
+      "sunBreakfast": "Off Campus"
+    },
+    "Purple": {
+      "satBreakfast": "",
+      "satLunch": "",
+      "satDinner": "",
+      "sunBreakfast": ""
+    },
+    "Brown": {
+      "satBreakfast": "",
+      "satLunch": "",
+      "satDinner": "",
+      "sunBreakfast": ""
+    },
+    "Grey": {
+      "satBreakfast": "",
+      "satLunch": "",
+      "satDinner": "",
+      "sunBreakfast": ""
+    }
+  },
+  "defaultNotes": {
+    "generalInfo": "Please Note: This information is subject to updates. For current details, visit \nM2kportal.online",
+    "housingNotes": "Chaperone and Participant Sleeping Arrangements\nFor safety and supervision purposes, the following sleeping arrangements are mandatory:\nSeparation Requirements:\nChaperones and participants under 18 must maintain separate sleeping quarters at all times.\n\nKnott Academic Center Arrangements:\n   Chaperones assigned to participants housed in the Knott Academic Center shall sleep in designated areas outside the rooms occupied by their assigned participants.\n   This arrangement ensures proper supervision while maintaining appropriate boundaries.\n\nGender-Specific Accommodations:\n   Female chaperones will be provided with designated sleeping areas separate from participants.\n   Adult participants (18 and over) will be housed in separate designated areas from minor participants.\n\nSafety Protocol:\nThese arrangements are implemented to ensure a safe and appropriate environment for all participants and comply with youth protection guidelines.",
+    "teenShowerPlan": "Female participants UNDER 18 may use the shower facilities in the lower concourse of the ARCC, including both the General Locker Rooms and Staff Locker Rooms.\nAvailable times:\n   Friday and Saturday nights: 10:00 PM - 12:00 AM\n   Saturday and Sunday mornings: 5:30 AM - 7:30 AM\n\nMale participants UNDER 18 may use the shower facilities in the Art Theater building.\nAvailable times: Saturday and Sunday mornings: 5:30 AM - 7:30 AM\nTransportation: ONLY ONE group will depart at 5:35 AM from the Knott Academic Center lobby",
+    "adultShowerPlan": "Female participants OVER 18 may use the shower facilities in Locker Room 111 of the ARCC.\nAvailable times:\n   Friday and Saturday nights: 10:00 PM - 12:00 AM\n   Saturday and Sunday mornings: 5:30 AM - 7:30 AM\n\nMale participants OVER 18 may use the shower facilities one at a time in the Memorial Gym Locker Room or Farsatii Room.\nAvailable times:\n   Friday and Saturday nights: 10:00 PM - 12:00 AM\n   Saturday and Sunday mornings: 5:30 AM - 7:30 AM"
+  },
+  "groupNotes": {},
+  "dashboardSubtitle": "Housing and Small Group Assignments - 2026",
+  "conferenceName": "MOUNT 2000 YOUTH RETREAT",
+  "conferenceStartDate": "2026-02-07",
+  "schedule": {
+    "friday": [
+      {
+        "startTime": "5:00 PM",
+        "endTime": "6:30 PM",
+        "event": "Arrival / Registration",
+        "location": "Various"
+      },
+      {
+        "startTime": "6:30 PM",
+        "endTime": "",
+        "event": "ARCC Arena Opens",
+        "location": "ARCC"
+      },
+      {
+        "startTime": "7:00 PM",
+        "endTime": "7:35 PM",
+        "event": "Start of Program - Introductions",
+        "location": "ARCC Arena"
+      },
+      {
+        "startTime": "7:40 PM",
+        "endTime": "8:20 PM",
+        "event": "Keynote 1: Dr. John-Mark Miravalle",
+        "location": "ARCC Arena"
+      },
+      {
+        "startTime": "8:35 PM",
+        "endTime": "9:50 PM",
+        "event": "Holy Mass",
+        "location": "ARCC Arena"
+      },
+      {
+        "startTime": "10:00 PM",
+        "endTime": "",
+        "event": "Dismissal",
+        "location": ""
+      }
+    ],
+    "saturday": [
+      {
+        "startTime": "7:40 AM",
+        "endTime": "8:40 AM",
+        "event": "On-Campus Breakfast",
+        "location": "Patriot Hall"
+      },
+      {
+        "startTime": "8:30 AM",
+        "endTime": "",
+        "event": "ARCC Arena Opens",
+        "location": "ARCC"
+      },
+      {
+        "startTime": "9:00 AM",
+        "endTime": "9:30 AM",
+        "event": "Start of Program",
+        "location": "ARCC Arena"
+      },
+      {
+        "startTime": "9:40 AM",
+        "endTime": "10:10 AM",
+        "event": "Keynote 2: Patricia Sandoval",
+        "location": "ARCC Arena"
+      },
+      {
+        "startTime": "10:10 AM",
+        "endTime": "10:25 AM",
+        "event": "Dismissal and Prep for Holy Mass",
+        "location": "ARCC Arena"
+      },
+      {
+        "startTime": "10:25 AM",
+        "endTime": "11:45 AM",
+        "event": "Holy Mass",
+        "location": "ARCC Arena"
+      },
+      {
+        "startTime": "10:25 AM",
+        "endTime": "11:45 AM",
+        "event": "(Confirmation ONLY) Holy Mass",
+        "location": "JC Chapel"
+      },
+      {
+        "startTime": "12:15 PM",
+        "endTime": "1:15 PM",
+        "event": "Lunch",
+        "location": "Patriot Hall"
+      },
+      {
+        "startTime": "1:30 PM",
+        "endTime": "2:30 PM",
+        "event": "Breakout Sessions",
+        "location": "Various"
+      },
+      {
+        "startTime": "2:30 PM",
+        "endTime": "4:20 PM",
+        "event": "Group Time/Recreation",
+        "location": "Various"
+      },
+      {
+        "startTime": "4:20 PM",
+        "endTime": "6:40 PM",
+        "event": "Dinner",
+        "location": "Patriot Hall"
+      },
+      {
+        "startTime": "6:15 PM",
+        "endTime": "",
+        "event": "ARCC Arena Opens",
+        "location": "ARCC"
+      },
+      {
+        "startTime": "6:50 PM",
+        "endTime": "7:40 PM",
+        "event": "Start of Program",
+        "location": "ARCC Arena"
+      },
+      {
+        "startTime": "7:40 PM",
+        "endTime": "8:00 PM",
+        "event": "Break",
+        "location": "ARCC Arena"
+      },
+      {
+        "startTime": "8:00 PM",
+        "endTime": "8:40 PM",
+        "event": "Keynote 3: Archbishop Sample",
+        "location": "ARCC Arena"
+      },
+      {
+        "startTime": "8:50 PM",
+        "endTime": "9:50 PM",
+        "event": "Eucharistic Adoration",
+        "location": "ARCC Arena"
+      },
+      {
+        "startTime": "10:00 PM",
+        "endTime": "",
+        "event": "Dismissal",
+        "location": ""
+      }
+    ],
+    "sunday": [
+      {
+        "startTime": "7:40 AM",
+        "endTime": "8:40 AM",
+        "event": "On-Campus Breakfast",
+        "location": "Patriot Hall"
+      },
+      {
+        "startTime": "8:30 AM",
+        "endTime": "",
+        "event": "ARCC Arena Opens",
+        "location": "ARCC"
+      },
+      {
+        "startTime": "8:50 AM",
+        "endTime": "9:20 AM",
+        "event": "Start of Program",
+        "location": "ARCC Arena"
+      },
+      {
+        "startTime": "9:25 AM",
+        "endTime": "10:05 AM",
+        "event": "Keynote 4: Sr. Catherine Holum",
+        "location": "ARCC Arena"
+      },
+      {
+        "startTime": "10:40 AM",
+        "endTime": "12:10 PM",
+        "event": "Holy Mass",
+        "location": "ARCC Arena"
+      },
+      {
+        "startTime": "12:20 PM",
+        "endTime": "",
+        "event": "Departure",
+        "location": "All Exits"
+      }
+    ]
+  },
+  "resources": [
+    {
+      "emoji": "📚",
+      "name": "Small Group Leader Resources",
+      "url": ""
+    },
+    {
+      "emoji": "🗺️",
+      "name": "Campus Map",
+      "url": "https://msmary.edu/about/our-campuses/files/mount-st-marys-university-emmitsburg-campus-map.pdf"
+    },
+    {
+      "emoji": "🍽️",
+      "name": "Meal Times",
+      "url": ""
+    },
+    {
+      "emoji": "📅",
+      "name": "Event Schedule",
+      "url": ""
+    }
+  ],
+  "users": [
+    {
+      "id": "1763072984224_juang",
+      "username": "juang",
+      "fullName": "Mr. Juan Galindo",
+      "passwordHash": "4ef3654b3b906a2cb9d8db9f2555eeee3400a472c954a7ba4ac72dd317cca732",
+      "role": "admin",
+      "isAdmin": true,
+      "createdAt": "2025-11-13T22:29:44.224Z",
+      "isActive": true
+    },
+    {
+      "id": "1764622537579_6cn0taakb",
+      "username": "isaacc",
+      "fullName": "Mr. Isaac Cross",
+      "passwordHash": "7b9b753aa64aee61184a59f72e321153c55e2881cc085cd0b66b0c8e8271fb9f",
+      "role": "admin",
+      "isAdmin": true,
+      "createdAt": "2025-12-01T20:55:37.579Z",
+      "isActive": true
+    },
+    {
+      "id": "1764622710093_fleemx9ya",
+      "username": "benjamin",
+      "fullName": "Mr. Benjamin Boegner",
+      "passwordHash": "7b9b753aa64aee61184a59f72e321153c55e2881cc085cd0b66b0c8e8271fb9f",
+      "role": "user",
+      "isAdmin": false,
+      "createdAt": "2025-12-01T20:58:30.093Z",
+      "isActive": true
+    },
+    {
+      "id": "1764622821907_mo5wk7r4s",
+      "username": "martin",
+      "fullName": "Mr. Martin Jauquet",
+      "passwordHash": "7b9b753aa64aee61184a59f72e321153c55e2881cc085cd0b66b0c8e8271fb9f",
+      "role": "user",
+      "isAdmin": false,
+      "createdAt": "2025-12-01T21:00:21.907Z",
+      "isActive": true
+    },
+    {
+      "id": "1764622976210_2wnlted74",
+      "username": "kazb",
+      "fullName": "Mr. Kazimir Biesiada",
+      "passwordHash": "7b9b753aa64aee61184a59f72e321153c55e2881cc085cd0b66b0c8e8271fb9f",
+      "role": "admin",
+      "isAdmin": true,
+      "createdAt": "2025-12-01T21:02:56.210Z",
+      "isActive": true
+    },
+    {
+      "id": "1764623169304_q7q6u5z0z",
+      "username": "johnb",
+      "fullName": "Mr. John Buono",
+      "passwordHash": "7b9b753aa64aee61184a59f72e321153c55e2881cc085cd0b66b0c8e8271fb9f",
+      "role": "user",
+      "isAdmin": false,
+      "createdAt": "2025-12-01T21:06:09.304Z",
+      "isActive": true
+    }
+  ],
+  "activityLogs": [
+    {
+      "id": "1763139692261_vvzn68bh0",
+      "timestamp": "2025-11-14T17:01:32.261Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "test",
+      "entityType": "manual",
+      "entityId": "123",
+      "details": "Testing activity log"
+    },
+    {
+      "id": "1763139905603_bb8pfqdfg",
+      "timestamp": "2025-11-14T17:05:05.603Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "create",
+      "entityType": "youth-group",
+      "entityId": "test 2",
+      "details": "Created youth group: test s2 (ID: test 2)"
+    },
+    {
+      "id": "1763140742921_login_pyb9xm5pi",
+      "timestamp": "2025-11-14T17:18:00.385Z",
+      "username": "benjamin",
+      "fullName": "Ben Bogner",
+      "action": "login",
+      "entityType": "system",
+      "entityId": null,
+      "details": "User logged in: Ben Bogner (@benjamin)"
+    },
+    {
+      "id": "1763140698969_hqxfuquax",
+      "timestamp": "2025-11-14T17:18:18.969Z",
+      "username": "benjamin",
+      "fullName": "Ben Bogner",
+      "action": "update",
+      "entityType": "smallgroup-assignment",
+      "entityId": "test 2",
+      "details": "Assigned small group for test s2: 1 room(s)"
+    },
+    {
+      "id": "1763140712499_dj5omgzv9",
+      "timestamp": "2025-11-14T17:18:32.499Z",
+      "username": "benjamin",
+      "fullName": "Ben Bogner",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "test",
+      "details": "Assigned Blue meal color to The test"
+    },
+    {
+      "id": "1763140714082_g17kasane",
+      "timestamp": "2025-11-14T17:18:34.082Z",
+      "username": "benjamin",
+      "fullName": "Ben Bogner",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "test 2",
+      "details": "Assigned Blue meal color to test s2"
+    },
+    {
+      "id": "1763140741199_sgskwi2i4",
+      "timestamp": "2025-11-14T17:19:01.199Z",
+      "username": "benjamin",
+      "fullName": "Ben Bogner",
+      "action": "update",
+      "entityType": "youth-group",
+      "entityId": "test",
+      "details": "Updated youth group: The test (ID: test)"
+    },
+    {
+      "id": "1763140943109_login_jzlear9yr",
+      "timestamp": "2025-11-14T17:21:55.259Z",
+      "username": "benjamin",
+      "fullName": "Ben Bogner",
+      "action": "login",
+      "entityType": "system",
+      "entityId": null,
+      "details": "User logged in: Ben Bogner (@benjamin)"
+    },
+    {
+      "id": "1763140936546_480xkz8ca",
+      "timestamp": "2025-11-14T17:22:16.546Z",
+      "username": "benjamin",
+      "fullName": "Ben Bogner",
+      "action": "delete",
+      "entityType": "youth-group",
+      "entityId": "test 2",
+      "details": "Deleted youth group: test s2 (ID: test 2)"
+    },
+    {
+      "id": "1763320634423_f6kmm88qe",
+      "timestamp": "2025-11-16T19:17:14.423Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "10",
+      "details": "Assigned Yellow meal color to St Timothy Youth Ministry"
+    },
+    {
+      "id": "1763320636206_z033vujpw",
+      "timestamp": "2025-11-16T19:17:16.206Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "11",
+      "details": "Assigned Yellow meal color to St Ann Church- Hagerstown"
+    },
+    {
+      "id": "1763320638221_flti84z5m",
+      "timestamp": "2025-11-16T19:17:18.221Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "13",
+      "details": "Assigned Yellow meal color to St. Francis de Sales Youth Ministry"
+    },
+    {
+      "id": "1763320640801_mgv0xzg8a",
+      "timestamp": "2025-11-16T19:17:20.801Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "15",
+      "details": "Assigned Yellow meal color to Little Flower"
+    },
+    {
+      "id": "1763320642715_g7o2gt18n",
+      "timestamp": "2025-11-16T19:17:22.715Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "16",
+      "details": "Assigned Yellow meal color to Aberdeen Proving Ground Youth Group"
+    },
+    {
+      "id": "1763320647919_34rx8rbfb",
+      "timestamp": "2025-11-16T19:17:27.919Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "19",
+      "details": "Assigned Green meal color to Tracie Doty"
+    },
+    {
+      "id": "1763320649422_a96yp2i4r",
+      "timestamp": "2025-11-16T19:17:29.422Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "21",
+      "details": "Assigned Green meal color to St. Francis of Assisi"
+    },
+    {
+      "id": "1763320651107_6tbq33mn9",
+      "timestamp": "2025-11-16T19:17:31.107Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "22",
+      "details": "Assigned Green meal color to St. Mary’s Catholic Church"
+    },
+    {
+      "id": "1763320653516_hdv8g8i1v",
+      "timestamp": "2025-11-16T19:17:33.516Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "24",
+      "details": "Assigned Green meal color to Our Lady of Victory Catholic Military Community"
+    },
+    {
+      "id": "1763320655099_bug0rs6xq",
+      "timestamp": "2025-11-16T19:17:35.099Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "25",
+      "details": "Assigned Green meal color to St. Bartholomew"
+    },
+    {
+      "id": "1763320657635_jfu9wn90e",
+      "timestamp": "2025-11-16T19:17:37.635Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "28",
+      "details": "Assigned Green meal color to Our Lady of Lavang Church"
+    },
+    {
+      "id": "1763320660379_5rmfvr01g",
+      "timestamp": "2025-11-16T19:17:40.379Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "33",
+      "details": "Assigned Green meal color to St Peters"
+    },
+    {
+      "id": "1763320662970_k0m9l0v46",
+      "timestamp": "2025-11-16T19:17:42.970Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "38",
+      "details": "Assigned Yellow meal color to St. Mark, Fallston"
+    },
+    {
+      "id": "1763320665107_65ls8ib9y",
+      "timestamp": "2025-11-16T19:17:45.107Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "40",
+      "details": "Assigned Green meal color to St. Agnes Catholic Church"
+    },
+    {
+      "id": "1763320667565_7hotxcjol",
+      "timestamp": "2025-11-16T19:17:47.565Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "42",
+      "details": "Assigned Green meal color to St. Aloysius Church"
+    },
+    {
+      "id": "1763320682536_pbzh0amfk",
+      "timestamp": "2025-11-16T19:18:02.536Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "43",
+      "details": "Assigned Green meal color to Archbishop Curley High School"
+    },
+    {
+      "id": "1763320684270_fxji5ebh2",
+      "timestamp": "2025-11-16T19:18:04.270Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "44",
+      "details": "Assigned Green meal color to Ignite Youth Ministry"
+    },
+    {
+      "id": "1763320688003_belo3reuw",
+      "timestamp": "2025-11-16T19:18:08.003Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "47",
+      "details": "Assigned Green meal color to St. John University Parish (JMJ Apostolate)"
+    },
+    {
+      "id": "1763320689943_p072yfzy8",
+      "timestamp": "2025-11-16T19:18:09.943Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "50",
+      "details": "Assigned Green meal color to St Joseph Danville"
+    },
+    {
+      "id": "1763320691619_2ocitozlh",
+      "timestamp": "2025-11-16T19:18:11.619Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "52",
+      "details": "Assigned Green meal color to St. John the Beloved"
+    },
+    {
+      "id": "1763320694111_fof66w74v",
+      "timestamp": "2025-11-16T19:18:14.111Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "53",
+      "details": "Assigned Green meal color to St John Neumann"
+    },
+    {
+      "id": "1763320708086_lwln3ntit",
+      "timestamp": "2025-11-16T19:18:28.086Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "11",
+      "details": "Assigned Green meal color to St Ann Church- Hagerstown"
+    },
+    {
+      "id": "1763320718297_l7h0o01r5",
+      "timestamp": "2025-11-16T19:18:38.297Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "19",
+      "details": "Assigned Yellow meal color to Tracie Doty"
+    },
+    {
+      "id": "1763320742645_dujhthwip",
+      "timestamp": "2025-11-16T19:19:02.645Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "delete",
+      "entityType": "meal-color",
+      "entityId": "test",
+      "details": "Cleared meal color for The test"
+    },
+    {
+      "id": "1763320746309_8wg0rgsl9",
+      "timestamp": "2025-11-16T19:19:06.309Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "54",
+      "details": "Assigned Blue meal color to St. Martin of Tours"
+    },
+    {
+      "id": "1763320768073_xg9l1qm8b",
+      "timestamp": "2025-11-16T19:19:28.073Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "12",
+      "details": "Assigned Blue meal color to St Joseph Youth Ministry"
+    },
+    {
+      "id": "1763320769896_mu7kc3gg0",
+      "timestamp": "2025-11-16T19:19:29.896Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "14",
+      "details": "Assigned Blue meal color to Saint Andrew’s"
+    },
+    {
+      "id": "1763320771554_0rfgybjem",
+      "timestamp": "2025-11-16T19:19:31.554Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "17",
+      "details": "Assigned Red meal color to St. John Bosco"
+    },
+    {
+      "id": "1763320773115_2urb588m0",
+      "timestamp": "2025-11-16T19:19:33.115Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "18",
+      "details": "Assigned Red meal color to Pastorate of St. John and St. Joseph"
+    },
+    {
+      "id": "1763320774564_qhqxnmecy",
+      "timestamp": "2025-11-16T19:19:34.564Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "20",
+      "details": "Assigned Blue meal color to St. Mary of the Mills Catholic Church"
+    },
+    {
+      "id": "1763320779384_q5lbd656z",
+      "timestamp": "2025-11-16T19:19:39.384Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "23",
+      "details": "Assigned Orange meal color to The John Carroll School"
+    },
+    {
+      "id": "1763320783034_ywhj8oc9e",
+      "timestamp": "2025-11-16T19:19:43.034Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "26",
+      "details": "Assigned Red meal color to Holy Cross Parish"
+    },
+    {
+      "id": "1763320785236_ctctzyl1d",
+      "timestamp": "2025-11-16T19:19:45.236Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "27",
+      "details": "Assigned Orange meal color to St. Mary`s Ryken High School"
+    },
+    {
+      "id": "1763320787071_f7j4axinq",
+      "timestamp": "2025-11-16T19:19:47.071Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "29",
+      "details": "Assigned Orange meal color to Mount de Sales Academy"
+    },
+    {
+      "id": "1763320794293_u3elmc5lj",
+      "timestamp": "2025-11-16T19:19:54.293Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "30",
+      "details": "Assigned Red meal color to St. Joseph`s, St. Anthony Shrine, and Our Lady of Mt. Carmel"
+    },
+    {
+      "id": "1763320796308_y2852dcln",
+      "timestamp": "2025-11-16T19:19:56.308Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "31",
+      "details": "Assigned Red meal color to Angels of God (AOG)"
+    },
+    {
+      "id": "1763320799025_su5zhz2kl",
+      "timestamp": "2025-11-16T19:19:59.025Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "32",
+      "details": "Assigned Orange meal color to St Jane DeChantal High School Youth Group"
+    },
+    {
+      "id": "1763320802364_l1lsqvpyk",
+      "timestamp": "2025-11-16T19:20:02.364Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "34",
+      "details": "Assigned Orange meal color to St. John the Evangelist"
+    },
+    {
+      "id": "1763320803982_s9pcbjh3u",
+      "timestamp": "2025-11-16T19:20:03.982Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "35",
+      "details": "Assigned Red meal color to St. Dennis Galena"
+    },
+    {
+      "id": "1763320805566_k2qqtge3o",
+      "timestamp": "2025-11-16T19:20:05.566Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "36",
+      "details": "Assigned Blue meal color to St. Raymond of Penafort"
+    },
+    {
+      "id": "1763320809926_dk9vyexa6",
+      "timestamp": "2025-11-16T19:20:09.926Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "37",
+      "details": "Assigned Blue meal color to St. John Westminster"
+    },
+    {
+      "id": "1763320811833_zefkovakk",
+      "timestamp": "2025-11-16T19:20:11.833Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "39",
+      "details": "Assigned Blue meal color to St. Peter the Apostle Roman Catholic Church"
+    },
+    {
+      "id": "1763320826871_74hv9ddpz",
+      "timestamp": "2025-11-16T19:20:26.871Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "41",
+      "details": "Assigned Yellow meal color to St John Neumann"
+    },
+    {
+      "id": "1763320830144_atgbzabk9",
+      "timestamp": "2025-11-16T19:20:30.144Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "45",
+      "details": "Assigned Orange meal color to Saint Joseph - Eldersburg"
+    },
+    {
+      "id": "1763320836868_ayy75avfn",
+      "timestamp": "2025-11-16T19:20:36.868Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "46",
+      "details": "Assigned Blue meal color to St. Patrick/St. Raphael"
+    },
+    {
+      "id": "1763320838393_mxcc5iroa",
+      "timestamp": "2025-11-16T19:20:38.393Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "48",
+      "details": "Assigned Red meal color to Sacred Heart Bowie"
+    },
+    {
+      "id": "1763320847372_nyiktioly",
+      "timestamp": "2025-11-16T19:20:47.372Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "49",
+      "details": "Assigned Blue meal color to St. Vincent DePaul"
+    },
+    {
+      "id": "1763320848979_yxgwgtnvu",
+      "timestamp": "2025-11-16T19:20:48.979Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "51",
+      "details": "Assigned Red meal color to Mother of God Community"
+    },
+    {
+      "id": "1763320851354_a3kxvhrfw",
+      "timestamp": "2025-11-16T19:20:51.354Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "test",
+      "details": "Assigned Orange meal color to The test"
+    },
+    {
+      "id": "1763320872934_ydoltdyfv",
+      "timestamp": "2025-11-16T19:21:12.934Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "delete",
+      "entityType": "meal-color",
+      "entityId": "3",
+      "details": "Cleared meal color for Immaculate Conception MSMS"
+    },
+    {
+      "id": "1763320916879_2271lnplu",
+      "timestamp": "2025-11-16T19:21:56.879Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "13",
+      "details": "Assigned Green meal color to St. Francis de Sales Youth Ministry"
+    },
+    {
+      "id": "1763320918979_d0eklz9s3",
+      "timestamp": "2025-11-16T19:21:58.979Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "15",
+      "details": "Assigned Green meal color to Little Flower"
+    },
+    {
+      "id": "1763320923527_vnw55j432",
+      "timestamp": "2025-11-16T19:22:03.527Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "15",
+      "details": "Assigned Yellow meal color to Little Flower"
+    },
+    {
+      "id": "1763320939383_dlbxfx4dp",
+      "timestamp": "2025-11-16T19:22:19.383Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "24",
+      "details": "Assigned Yellow meal color to Our Lady of Victory Catholic Military Community"
+    },
+    {
+      "id": "1763349713020_login_e16clrdax",
+      "timestamp": "2025-11-17T03:20:51.492Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "login",
+      "entityType": "system",
+      "entityId": null,
+      "details": "User logged in: Juan G (@juang)"
+    },
+    {
+      "id": "1763349679338_yb36frt55",
+      "timestamp": "2025-11-17T03:21:19.338Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "delete",
+      "entityType": "youth-group",
+      "entityId": "test",
+      "details": "Deleted youth group: The test (ID: test)"
+    },
+    {
+      "id": "1763394280531_login_xb39m0yyd",
+      "timestamp": "2025-11-17T15:43:48.823Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "login",
+      "entityType": "system",
+      "entityId": null,
+      "details": "User logged in: Juan G (@juang)"
+    },
+    {
+      "id": "1763394276934_klu6f07c8",
+      "timestamp": "2025-11-17T15:44:36.934Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "delete",
+      "entityType": "system",
+      "entityId": "small-group-data",
+      "details": "Cleared all small group assignments"
+    },
+    {
+      "id": "1763394619823_login_iquous8j1",
+      "timestamp": "2025-11-17T15:47:23.300Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "login",
+      "entityType": "system",
+      "entityId": null,
+      "details": "User logged in: Juan G (@juang)"
+    },
+    {
+      "id": "1763394552964_iyxguto3u",
+      "timestamp": "2025-11-17T15:49:12.965Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "user",
+      "entityId": null,
+      "details": "Updated user: Isaac Cross (@isaac) - Admin: true"
+    },
+    {
+      "id": "1763394574777_i2z7qmzj4",
+      "timestamp": "2025-11-17T15:49:34.777Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "user",
+      "entityId": null,
+      "details": "Updated user: Isaac Cross (@isaac) - Admin: true"
+    },
+    {
+      "id": "1763394616957_yrrrzr0kx",
+      "timestamp": "2025-11-17T15:50:16.957Z",
+      "username": "juang",
+      "fullName": "Juan G",
+      "action": "update",
+      "entityType": "user",
+      "entityId": null,
+      "details": "Updated user: Isaac Cross (@isaac) - Admin: true"
+    },
+    {
+      "id": "1764638943650_login_mg5he9umy",
+      "timestamp": "2025-12-02T01:28:28.414Z",
+      "username": "juang",
+      "fullName": "Mr. Juan Galindo",
+      "action": "login",
+      "entityType": "system",
+      "entityId": null,
+      "details": "User logged in: Mr. Juan Galindo (@juang)"
+    },
+    {
+      "id": "1764638941029_x2kzifkw6",
+      "timestamp": "2025-12-02T01:29:01.029Z",
+      "username": "juang",
+      "fullName": "Mr. Juan Galindo",
+      "action": "update",
+      "entityType": "youth-group",
+      "entityId": "3",
+      "details": "Updated youth group: Immaculate Conception MSMS (ID: 3)"
+    },
+    {
+      "id": "1768009149904_ivu5ej217",
+      "timestamp": "2026-01-10T01:39:09.904Z",
+      "username": "juang",
+      "fullName": "Mr. Juan Galindo",
+      "action": "delete",
+      "entityType": "system",
+      "entityId": "housing-data",
+      "details": "Cleared all housing assignments"
+    },
+    {
+      "id": "1768009149904_suk2stmr8",
+      "timestamp": "2026-01-10T01:39:09.904Z",
+      "username": "juang",
+      "fullName": "Mr. Juan Galindo",
+      "action": "delete",
+      "entityType": "system",
+      "entityId": "small-group-data",
+      "details": "Cleared all small group assignments"
+    },
+    {
+      "id": "1768009149904_o6ntuhc8j",
+      "timestamp": "2026-01-10T01:39:09.904Z",
+      "username": "juang",
+      "fullName": "Mr. Juan Galindo",
+      "action": "delete",
+      "entityType": "system",
+      "entityId": "youth-groups",
+      "details": "Cleared all youth groups"
+    },
+    {
+      "id": "1768010942435_829ax0pf1",
+      "timestamp": "2026-01-10T02:09:02.435Z",
+      "username": "juang",
+      "fullName": "Mr. Juan Galindo",
+      "action": "delete",
+      "entityType": "youth-group",
+      "entityId": "1",
+      "details": "Deleted youth group: St. Example Parish (ID: 1)"
+    },
+    {
+      "id": "1768011040055_b4bmkvrxp",
+      "timestamp": "2026-01-10T02:10:40.055Z",
+      "username": "juang",
+      "fullName": "Mr. Juan Galindo",
+      "action": "update",
+      "entityType": "youth-group",
+      "entityId": "59",
+      "details": "Updated youth group: The John Carroll School - Bel Air (ID: 59)"
+    },
+    {
+      "id": "1768011056345_gik2a7u5v",
+      "timestamp": "2026-01-10T02:10:56.345Z",
+      "username": "juang",
+      "fullName": "Mr. Juan Galindo",
+      "action": "update",
+      "entityType": "youth-group",
+      "entityId": "49",
+      "details": "Updated youth group: St. Mary of the Mills Catholic Church - Laurel (ID: 49)"
+    },
+    {
+      "id": "1768011068183_xsfo20e0m",
+      "timestamp": "2026-01-10T02:11:08.183Z",
+      "username": "juang",
+      "fullName": "Mr. Juan Galindo",
+      "action": "update",
+      "entityType": "youth-group",
+      "entityId": "35",
+      "details": "Updated youth group: St. Bartholomew - Manchester (ID: 35)"
+    },
+    {
+      "id": "1768011088084_i9movpe4f",
+      "timestamp": "2026-01-10T02:11:28.084Z",
+      "username": "juang",
+      "fullName": "Mr. Juan Galindo",
+      "action": "update",
+      "entityType": "youth-group",
+      "entityId": "5",
+      "details": "Updated youth group: Chesterton Academy of Divine Family - Hagerstown (ID: 5)"
+    },
+    {
+      "id": "1768011112432_imz3z3t2i",
+      "timestamp": "2026-01-10T02:11:52.432Z",
+      "username": "juang",
+      "fullName": "Mr. Juan Galindo",
+      "action": "update",
+      "entityType": "youth-group",
+      "entityId": "3",
+      "details": "Updated youth group: Ascension Catholic Teens - BOWIE (ID: 3)"
+    },
+    {
+      "id": "1768011193186_7kpe9c3kk",
+      "timestamp": "2026-01-10T02:13:13.186Z",
+      "username": "juang",
+      "fullName": "Mr. Juan Galindo",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "1",
+      "details": "Assigned Blue meal color to Aberdeen Proving Ground Youth Group - Edgewood"
+    },
+    {
+      "id": "1768011197138_3vj1oqgu1",
+      "timestamp": "2026-01-10T02:13:17.138Z",
+      "username": "juang",
+      "fullName": "Mr. Juan Galindo",
+      "action": "delete",
+      "entityType": "meal-color",
+      "entityId": "1",
+      "details": "Cleared meal color for Aberdeen Proving Ground Youth Group - Edgewood"
+    },
+    {
+      "id": "1768243108465_login_e3gmm28s5",
+      "timestamp": "2026-01-12T18:37:54.696Z",
+      "username": "juang",
+      "fullName": "Mr. Juan Galindo",
+      "action": "login",
+      "entityType": "system",
+      "entityId": null,
+      "details": "User logged in: Mr. Juan Galindo (@juang)"
+    },
+    {
+      "id": "1768243085551_xrb7x4uzk",
+      "timestamp": "2026-01-12T18:38:05.551Z",
+      "username": "juang",
+      "fullName": "Mr. Juan Galindo",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "1",
+      "details": "Assigned Red meal color to Aberdeen Proving Ground Youth Group - Edgewood"
+    },
+    {
+      "id": "1768243086791_q2kqj3g3a",
+      "timestamp": "2026-01-12T18:38:06.791Z",
+      "username": "juang",
+      "fullName": "Mr. Juan Galindo",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "2",
+      "details": "Assigned Red meal color to Archbishop Curley High School - Baltimore"
+    },
+    {
+      "id": "1768243088079_wuqf5t51l",
+      "timestamp": "2026-01-12T18:38:08.079Z",
+      "username": "juang",
+      "fullName": "Mr. Juan Galindo",
+      "action": "update",
+      "entityType": "meal-color",
+      "entityId": "3",
+      "details": "Assigned Orange meal color to Ascension Catholic Teens - BOWIE"
+    }
+  ],
+  "timestamp": "2026-01-12T18:44:54.374Z",
+  "version": "3.0"
+}
