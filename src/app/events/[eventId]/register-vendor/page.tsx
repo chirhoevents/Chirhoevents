@@ -195,7 +195,7 @@ export default function VendorRegistrationPage() {
               </div>
 
               <Link href={`/events/${eventId}`}>
-                <Button className="w-full bg-[#1E3A5F] hover:bg-[#2d4a6f]">
+                <Button className="w-full bg-[#1E3A5F] hover:bg-[#2d4a6f] text-white">
                   Back to Event Page
                 </Button>
               </Link>

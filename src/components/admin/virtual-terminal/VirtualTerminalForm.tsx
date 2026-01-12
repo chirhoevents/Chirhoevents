@@ -474,7 +474,7 @@ function VirtualTerminalFormInner({ registration, onSuccess, onCancel }: Virtual
             <Button
               type="submit"
               disabled={loading || amount <= 0}
-              className="flex-1 bg-[#1E3A5F] hover:bg-[#1E3A5F]/90"
+              className="flex-1 bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white"
             >
               {loading ? (
                 <>
