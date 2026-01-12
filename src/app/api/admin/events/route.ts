@@ -77,7 +77,6 @@ export async function GET(request: NextRequest) {
               individualRegistrationEnabled: true,
               vendorRegistrationEnabled: true,
               waitlistEnabled: true,
-              housingEnabled: true,
             },
           },
           pricing: true,
