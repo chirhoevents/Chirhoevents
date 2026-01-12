@@ -59,7 +59,21 @@ export function getRegistrationStatus(
   const regOpen = event.registrationOpenDate?.getTime() || null
   const regClose = event.registrationCloseDate?.getTime() || null
 
-  // 0. MANUAL STATUS OVERRIDE - Admin manually closed registration
+  // 0a. DRAFT STATUS - Event not published yet
+  if (event.status === 'draft') {
+    return {
+      status: 'closed',
+      message: 'This event is not yet available',
+      showCountdown: false,
+      countdownTarget: null,
+      allowRegistration: false,
+      allowWaitlist: false,
+      spotsRemaining: event.capacityRemaining,
+      urgentStyle: false,
+    }
+  }
+
+  // 0b. MANUAL STATUS OVERRIDE - Admin manually closed registration
   if (event.status === 'registration_closed') {
     return {
       status: 'closed',
@@ -105,7 +119,40 @@ export function getRegistrationStatus(
     }
   }
 
-  // 3. NOT YET OPEN - Before registration opens
+  // 2b. MANUAL STATUS OVERRIDE - Admin manually opened registration
+  // This bypasses date checks and allows registration if capacity is available
+  if (event.status === 'registration_open') {
+    // Still check if we're closing soon based on dates
+    const effectiveCloseDate = regClose ? Math.min(regClose, eventStart) : eventStart
+    const timeUntilClose = effectiveCloseDate - now
+    const hoursUntilClose = timeUntilClose / (1000 * 60 * 60)
+
+    if (hoursUntilClose > 0 && hoursUntilClose <= CLOSING_SOON_HOURS) {
+      return {
+        status: 'closing_soon',
+        message: 'Registration closes soon!',
+        showCountdown: event.settings?.countdownBeforeClose ?? true,
+        countdownTarget: new Date(effectiveCloseDate),
+        allowRegistration: true,
+        allowWaitlist: false,
+        spotsRemaining: event.capacityRemaining,
+        urgentStyle: true,
+      }
+    }
+
+    return {
+      status: 'open',
+      message: 'Registration is open',
+      showCountdown: false,
+      countdownTarget: null,
+      allowRegistration: true,
+      allowWaitlist: false,
+      spotsRemaining: event.capacityRemaining,
+      urgentStyle: false,
+    }
+  }
+
+  // 3. NOT YET OPEN - Before registration opens (only for published status without manual override)
   if (regOpen && now < regOpen) {
     return {
       status: 'not_yet_open',

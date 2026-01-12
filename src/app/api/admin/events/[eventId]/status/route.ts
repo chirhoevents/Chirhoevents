@@ -13,13 +13,13 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user from database to verify org admin role
+    // Get user from database to verify admin role
     const user = await prisma.user.findFirst({
       where: { clerkUserId: userId },
       include: { organization: true },
     })
 
-    if (!user || user.role !== 'org_admin') {
+    if (!user || (user.role !== 'org_admin' && user.role !== 'master_admin')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
