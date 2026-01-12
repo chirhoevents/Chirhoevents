@@ -274,7 +274,7 @@ const DATA_SOURCES: Record<string, { label: string; description: string; fields:
     description: 'Room and building assignments',
     fields: [
       { value: 'building.name', label: 'Building Name', category: 'Building' },
-      { value: 'room.name', label: 'Room Name/Number', category: 'Room' },
+      { value: 'room.roomNumber', label: 'Room Number', category: 'Room' },
       { value: 'room.floor', label: 'Floor', category: 'Room' },
       { value: 'room.capacity', label: 'Room Capacity', category: 'Room' },
       { value: 'room.currentOccupancy', label: 'Current Occupancy', category: 'Room' },

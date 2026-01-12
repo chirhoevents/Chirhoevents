@@ -697,7 +697,7 @@ async function executeHousingReport(eventId: string, config: any) {
       building: { select: { name: true } },
       roomAssignments: true,
     },
-    orderBy: [{ building: { name: 'asc' } }, { name: 'asc' }],
+    orderBy: [{ building: { name: 'asc' } }, { roomNumber: 'asc' }],
   })
 
   // Collect all participant IDs from room assignments
@@ -732,7 +732,7 @@ async function executeHousingReport(eventId: string, config: any) {
       results.push({
         building: { name: room.building.name },
         room: {
-          name: room.name,
+          roomNumber: room.roomNumber,
           floor: room.floor,
           capacity: room.capacity,
           currentOccupancy: room.roomAssignments.length,
