@@ -883,7 +883,7 @@ export default function EventDetailClient({
                   <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                     <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
                     <p className="text-xs text-amber-700">
-                      Registration is open but the event is not published. Users with a direct link can register, but the event won't appear on the public events page.
+                      Registration is open but the event is not published. Users with a direct link can register, but the event will not appear on the public events page.
                     </p>
                   </div>
                 )}
