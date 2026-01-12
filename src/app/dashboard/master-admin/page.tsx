@@ -378,23 +378,23 @@ export default function MasterAdminDashboard() {
 
           <div className="space-y-3">
             <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Starter ($49/mo)</span>
+              <span className="text-sm text-gray-600">Starter ($29/mo)</span>
               <span className="text-sm font-medium text-gray-900">{displayStats.subscriptionBreakdown.starter} orgs</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Small Diocese ($99/mo)</span>
+              <span className="text-sm text-gray-600">Small Diocese ($49/mo)</span>
               <span className="text-sm font-medium text-gray-900">{displayStats.subscriptionBreakdown.smallDiocese} orgs</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Growing ($149/mo)</span>
+              <span className="text-sm text-gray-600">Growing ($79/mo)</span>
               <span className="text-sm font-medium text-gray-900">{displayStats.subscriptionBreakdown.growing} orgs</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Conference ($249/mo)</span>
+              <span className="text-sm text-gray-600">Conference ($99/mo)</span>
               <span className="text-sm font-medium text-purple-600 font-semibold">{displayStats.subscriptionBreakdown.conference} orgs</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Enterprise ($499+/mo)</span>
+              <span className="text-sm text-gray-600">Enterprise ($199+/mo)</span>
               <span className="text-sm font-medium text-gray-900">{displayStats.subscriptionBreakdown.enterprise} orgs</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-100">
