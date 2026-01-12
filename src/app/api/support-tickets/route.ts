@@ -62,36 +62,68 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Build the data object - only include optional fields if they have values
+    // This ensures backwards compatibility if the migration hasn't been applied yet
+    const ticketData: Record<string, unknown> = {
+      organizationId: user.organizationId,
+      submittedByUserId: user.id,
+      ticketNumber: `TKT-${Date.now()}`,
+      subject: subject.trim(),
+      description: message.trim(),
+      category,
+      priority: priority || 'medium',
+      status: 'open',
+      messages: {
+        create: {
+          userId: user.id,
+          message: message.trim(),
+        },
+      },
+    }
+
+    // Only add eventId and issueUrl if provided (for backwards compatibility)
+    if (eventId) {
+      ticketData.eventId = eventId
+    }
+    if (issueUrl) {
+      ticketData.issueUrl = issueUrl
+    }
+
     // Create ticket with initial message
-    const ticket = await prisma.supportTicket.create({
-      data: {
-        organizationId: user.organizationId,
-        eventId: eventId || null,
-        submittedByUserId: user.id,
-        ticketNumber: `TKT-${Date.now()}`,
-        subject: subject.trim(),
-        description: message.trim(),
-        category,
-        priority: priority || 'medium',
-        status: 'open',
-        issueUrl: issueUrl || null,
-        messages: {
-          create: {
-            userId: user.id,
-            message: message.trim(),
+    let ticket
+    try {
+      ticket = await prisma.supportTicket.create({
+        data: ticketData as Parameters<typeof prisma.supportTicket.create>[0]['data'],
+        include: {
+          messages: true,
+          organization: {
+            select: { name: true },
+          },
+          event: {
+            select: { id: true, name: true },
           },
         },
-      },
-      include: {
-        messages: true,
-        organization: {
-          select: { name: true },
-        },
-        event: {
-          select: { id: true, name: true },
-        },
-      },
-    })
+      })
+    } catch (createError: unknown) {
+      // If the error is about unknown fields (migration not applied), retry without them
+      const errorMessage = createError instanceof Error ? createError.message : String(createError)
+      if (errorMessage.includes('event_id') || errorMessage.includes('eventId') || errorMessage.includes('issue_url') || errorMessage.includes('issueUrl')) {
+        console.warn('Event/issueUrl fields not in database yet, creating ticket without them')
+        delete ticketData.eventId
+        delete ticketData.issueUrl
+        ticket = await prisma.supportTicket.create({
+          data: ticketData as Parameters<typeof prisma.supportTicket.create>[0]['data'],
+          include: {
+            messages: true,
+            organization: {
+              select: { name: true },
+            },
+          },
+        })
+      } else {
+        throw createError
+      }
+    }
 
     // Send confirmation email to the user
     if (user.email) {
@@ -135,9 +167,9 @@ export async function POST(request: NextRequest) {
                   <div style="margin-top: 10px;">
                     <strong>Priority:</strong> ${priority || 'Medium'}
                   </div>
-                  ${ticket.event ? `
+                  ${'event' in ticket && ticket.event ? `
                   <div style="margin-top: 10px;">
-                    <strong>Related Event:</strong> ${ticket.event.name}
+                    <strong>Related Event:</strong> ${(ticket as { event?: { name: string } }).event?.name}
                   </div>
                   ` : ''}
                 </div>
