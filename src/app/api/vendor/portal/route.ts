@@ -10,8 +10,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Access code is required' }, { status: 400 })
     }
 
-    // Find vendor by access code
-    const vendor = await prisma.vendorRegistration.findUnique({
+    // Find vendor by access code or vendor code (support both)
+    let vendor = await prisma.vendorRegistration.findUnique({
       where: { accessCode },
       include: {
         event: {
@@ -42,6 +42,41 @@ export async function GET(request: NextRequest) {
         },
       },
     })
+
+    // If not found by accessCode, try vendorCode
+    if (!vendor) {
+      vendor = await prisma.vendorRegistration.findUnique({
+        where: { vendorCode: accessCode },
+        include: {
+          event: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              startDate: true,
+              endDate: true,
+            },
+          },
+          boothStaff: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              role: true,
+              tshirtSize: true,
+              checkedIn: true,
+              liabilityForm: {
+                select: {
+                  completed: true,
+                },
+              },
+            },
+            orderBy: { createdAt: 'desc' },
+          },
+        },
+      })
+    }
 
     if (!vendor) {
       return NextResponse.json({ error: 'Vendor not found' }, { status: 404 })
