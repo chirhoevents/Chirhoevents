@@ -36,6 +36,9 @@ export async function GET(
             subscriptionTier: true,
           },
         },
+        event: {
+          select: { id: true, name: true, slug: true },
+        },
         submittedByUser: {
           select: { firstName: true, lastName: true, email: true },
         },

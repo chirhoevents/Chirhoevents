@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import {
   Ticket,
   Plus,
@@ -12,6 +13,15 @@ import {
   ChevronRight,
   Send,
   X,
+  Calendar,
+  FileText,
+  CreditCard,
+  Settings,
+  HelpCircle,
+  Lightbulb,
+  Users,
+  Copy,
+  Check,
 } from 'lucide-react'
 
 interface SupportTicket {
@@ -27,9 +37,20 @@ interface SupportTicket {
     firstName: string
     lastName: string
   }
+  event?: {
+    id: string
+    name: string
+  } | null
   _count: {
     messages: number
   }
+}
+
+interface Event {
+  id: string
+  name: string
+  slug: string
+  startDate: string
 }
 
 const statusConfig = {
@@ -48,28 +69,45 @@ const priorityConfig = {
 }
 
 const categories = [
-  { value: 'billing', label: 'Billing & Payments' },
-  { value: 'technical', label: 'Technical Issue' },
-  { value: 'feature_request', label: 'Feature Request' },
-  { value: 'account', label: 'Account Management' },
-  { value: 'general', label: 'General Question' },
+  { value: 'registration', label: 'Registration Issues', icon: Users, description: 'Problems with event registrations' },
+  { value: 'reports', label: 'Reports & Data', icon: FileText, description: 'Help with reports, exports, or data' },
+  { value: 'billing', label: 'Billing & Payments', icon: CreditCard, description: 'Payment processing, invoices, refunds' },
+  { value: 'technical', label: 'Technical Issue', icon: Settings, description: 'Bugs, errors, or system problems' },
+  { value: 'event_setup', label: 'Event Setup', icon: Calendar, description: 'Creating or configuring events' },
+  { value: 'feature_request', label: 'Feature Request', icon: Lightbulb, description: 'Suggest new features or improvements' },
+  { value: 'general', label: 'General Question', icon: HelpCircle, description: 'Other questions or help' },
 ]
 
 export default function SupportPage() {
+  const pathname = usePathname()
   const [tickets, setTickets] = useState<SupportTicket[]>([])
+  const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [showNewTicket, setShowNewTicket] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [copiedOrgId, setCopiedOrgId] = useState(false)
+  const [copiedEventId, setCopiedEventId] = useState(false)
+  const [organizationId, setOrganizationId] = useState<string | null>(null)
 
   // New ticket form state
   const [subject, setSubject] = useState('')
   const [category, setCategory] = useState('general')
   const [priority, setPriority] = useState('medium')
   const [message, setMessage] = useState('')
+  const [selectedEventId, setSelectedEventId] = useState<string>('')
+  const [issueUrl, setIssueUrl] = useState('')
 
   useEffect(() => {
     fetchTickets()
+    fetchEvents()
   }, [])
+
+  // Capture current URL when modal opens
+  useEffect(() => {
+    if (showNewTicket && typeof window !== 'undefined') {
+      setIssueUrl(window.location.href)
+    }
+  }, [showNewTicket])
 
   const fetchTickets = async () => {
     try {
@@ -85,6 +123,51 @@ export default function SupportPage() {
     }
   }
 
+  const fetchEvents = async () => {
+    try {
+      const response = await fetch('/api/events')
+      if (!response.ok) throw new Error('Failed to fetch events')
+
+      const data = await response.json()
+      setEvents(data.events || [])
+      // Also get the organization ID from the first event or from org endpoint
+      if (data.events?.length > 0 && data.events[0].organizationId) {
+        setOrganizationId(data.events[0].organizationId)
+      }
+    } catch (error) {
+      console.error('Error fetching events:', error)
+    }
+  }
+
+  const fetchOrganizationId = async () => {
+    try {
+      const response = await fetch('/api/organization')
+      if (response.ok) {
+        const data = await response.json()
+        if (data.organization?.id) {
+          setOrganizationId(data.organization.id)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching organization:', error)
+    }
+  }
+
+  const copyToClipboard = async (text: string, type: 'org' | 'event') => {
+    try {
+      await navigator.clipboard.writeText(text)
+      if (type === 'org') {
+        setCopiedOrgId(true)
+        setTimeout(() => setCopiedOrgId(false), 2000)
+      } else {
+        setCopiedEventId(true)
+        setTimeout(() => setCopiedEventId(false), 2000)
+      }
+    } catch (error) {
+      console.error('Failed to copy:', error)
+    }
+  }
+
   const handleSubmitTicket = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!subject.trim() || !message.trim()) return
@@ -94,7 +177,14 @@ export default function SupportPage() {
       const response = await fetch('/api/support-tickets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subject, category, priority, message }),
+        body: JSON.stringify({
+          subject,
+          category,
+          priority,
+          message,
+          eventId: selectedEventId || undefined,
+          issueUrl: issueUrl || undefined,
+        }),
       })
 
       if (!response.ok) throw new Error('Failed to create ticket')
@@ -107,6 +197,8 @@ export default function SupportPage() {
       setCategory('general')
       setPriority('medium')
       setMessage('')
+      setSelectedEventId('')
+      setIssueUrl('')
       setShowNewTicket(false)
 
       // Refresh tickets
@@ -242,6 +334,12 @@ export default function SupportPage() {
                       </h3>
                       <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                         <span className="capitalize">{ticket.category.replace('_', ' ')}</span>
+                        {ticket.event && (
+                          <span className="flex items-center gap-1 text-[#1E3A5F]">
+                            <Calendar className="h-4 w-4" />
+                            {ticket.event.name}
+                          </span>
+                        )}
                         <span className="flex items-center gap-1">
                           <MessageSquare className="h-4 w-4" />
                           {ticket._count.messages} messages
@@ -265,7 +363,7 @@ export default function SupportPage() {
       {/* New Ticket Modal */}
       {showNewTicket && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">New Support Ticket</h2>
               <button
@@ -277,6 +375,119 @@ export default function SupportPage() {
             </div>
 
             <form onSubmit={handleSubmitTicket} className="p-4 space-y-4">
+              {/* What type of help do you need? - Category Buttons */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  What do you need help with?
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {categories.map((cat) => {
+                    const Icon = cat.icon
+                    return (
+                      <button
+                        key={cat.value}
+                        type="button"
+                        onClick={() => setCategory(cat.value)}
+                        className={`flex items-center gap-2 p-3 rounded-lg border-2 text-left transition-all ${
+                          category === cat.value
+                            ? 'border-[#1E3A5F] bg-[#1E3A5F]/5 text-[#1E3A5F]'
+                            : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                        }`}
+                      >
+                        <Icon className={`h-5 w-5 ${category === cat.value ? 'text-[#1E3A5F]' : 'text-gray-400'}`} />
+                        <div>
+                          <p className="font-medium text-sm">{cat.label}</p>
+                          <p className="text-xs text-gray-500">{cat.description}</p>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Related Event Selector */}
+              {events.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Related Event (optional)
+                  </label>
+                  <select
+                    value={selectedEventId}
+                    onChange={(e) => setSelectedEventId(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#1E3A5F] focus:border-[#1E3A5F]"
+                  >
+                    <option value="">No specific event</option>
+                    {events.map((event) => (
+                      <option key={event.id} value={event.id}>
+                        {event.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Select an event if your issue is related to a specific event
+                  </p>
+                </div>
+              )}
+
+              {/* Context Info Display */}
+              <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">
+                  Ticket Context (auto-captured)
+                </p>
+                {organizationId && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Organization ID:</span>
+                    <div className="flex items-center gap-2">
+                      <code className="text-xs bg-white px-2 py-1 rounded border font-mono text-gray-700">
+                        {organizationId.slice(0, 8)}...
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(organizationId, 'org')}
+                        className="p-1 hover:bg-gray-200 rounded"
+                        title="Copy full UUID"
+                      >
+                        {copiedOrgId ? (
+                          <Check className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <Copy className="h-4 w-4 text-gray-400" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {selectedEventId && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Event ID:</span>
+                    <div className="flex items-center gap-2">
+                      <code className="text-xs bg-white px-2 py-1 rounded border font-mono text-gray-700">
+                        {selectedEventId.slice(0, 8)}...
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(selectedEventId, 'event')}
+                        className="p-1 hover:bg-gray-200 rounded"
+                        title="Copy full UUID"
+                      >
+                        {copiedEventId ? (
+                          <Check className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <Copy className="h-4 w-4 text-gray-400" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {issueUrl && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Page:</span>
+                    <code className="text-xs bg-white px-2 py-1 rounded border font-mono text-gray-700 truncate max-w-[200px]">
+                      {issueUrl.replace(/^https?:\/\/[^\/]+/, '')}
+                    </code>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Subject *
@@ -291,49 +502,41 @@ export default function SupportPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Category
-                  </label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#1E3A5F] focus:border-[#1E3A5F]"
-                  >
-                    {categories.map((cat) => (
-                      <option key={cat.value} value={cat.value}>
-                        {cat.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Priority
-                  </label>
-                  <select
-                    value={priority}
-                    onChange={(e) => setPriority(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#1E3A5F] focus:border-[#1E3A5F]"
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="urgent">Urgent</option>
-                  </select>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Priority
+                </label>
+                <div className="flex gap-2">
+                  {[
+                    { value: 'low', label: 'Low', color: 'bg-gray-100 text-gray-700 border-gray-300' },
+                    { value: 'medium', label: 'Medium', color: 'bg-blue-50 text-blue-700 border-blue-300' },
+                    { value: 'high', label: 'High', color: 'bg-orange-50 text-orange-700 border-orange-300' },
+                    { value: 'urgent', label: 'Urgent', color: 'bg-red-50 text-red-700 border-red-300' },
+                  ].map((p) => (
+                    <button
+                      key={p.value}
+                      type="button"
+                      onClick={() => setPriority(p.value)}
+                      className={`flex-1 py-2 px-3 rounded-lg border-2 text-sm font-medium transition-all ${
+                        priority === p.value
+                          ? `${p.color} ring-2 ring-offset-1 ring-[#1E3A5F]`
+                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Message *
+                  Describe your issue *
                 </label>
                 <textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Describe your issue in detail..."
+                  placeholder="Please describe your issue in detail. Include any error messages, steps you've tried, and what you expected to happen..."
                   required
                   rows={5}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#1E3A5F] focus:border-[#1E3A5F]"
