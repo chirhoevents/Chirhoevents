@@ -9,11 +9,9 @@ export async function GET(request: NextRequest) {
 
     const now = new Date()
 
-    // Build where clause - only show publicly visible events
+    // Build where clause - only show publicly visible (published) events
     const whereClause: any = {
-      status: {
-        in: ['published', 'registration_open', 'registration_closed', 'in_progress'],
-      },
+      isPublished: true,
     }
 
     // Apply date filter

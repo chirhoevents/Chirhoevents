@@ -59,21 +59,11 @@ export function getRegistrationStatus(
   const regOpen = event.registrationOpenDate?.getTime() || null
   const regClose = event.registrationCloseDate?.getTime() || null
 
-  // 0a. DRAFT STATUS - Event not published yet
-  if (event.status === 'draft') {
-    return {
-      status: 'closed',
-      message: 'This event is not yet available',
-      showCountdown: false,
-      countdownTarget: null,
-      allowRegistration: false,
-      allowWaitlist: false,
-      spotsRemaining: event.capacityRemaining,
-      urgentStyle: false,
-    }
-  }
+  // NOTE: Draft/published status (isPublished field) controls visibility on /events page,
+  // but does NOT affect registration availability. Registration is controlled by the status field.
+  // This allows testing registration while the event is unpublished.
 
-  // 0b. MANUAL STATUS OVERRIDE - Admin manually closed registration
+  // 0. MANUAL STATUS OVERRIDE - Admin manually closed registration
   if (event.status === 'registration_closed') {
     return {
       status: 'closed',

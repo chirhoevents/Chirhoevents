@@ -49,6 +49,7 @@ interface EventDetailClientProps {
     startDate: string
     endDate: string
     status: string
+    isPublished: boolean
     locationName: string | null
     locationAddress: any
     capacityTotal: number | null
@@ -82,14 +83,15 @@ export default function EventDetailClient({
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('overview')
   const [updatingStatus, setUpdatingStatus] = useState(false)
+  const [updatingPublish, setUpdatingPublish] = useState(false)
   const [currentStatus, setCurrentStatus] = useState(event.status)
+  const [currentIsPublished, setCurrentIsPublished] = useState(event.isPublished)
   const [waitlistEnabled, setWaitlistEnabled] = useState(settings?.waitlistEnabled ?? false)
   const [closedMessage, setClosedMessage] = useState(settings?.registrationClosedMessage ?? '')
   const [savingSettings, setSavingSettings] = useState(false)
   const [reminderModalOpen, setReminderModalOpen] = useState(false)
 
-  // Derived state for toggles
-  const isPublished = currentStatus !== 'draft'
+  // Derived state for registration toggle
   const isRegistrationOpen = currentStatus === 'registration_open'
 
   const handleStatusUpdate = async (newStatus: string) => {
@@ -120,24 +122,42 @@ export default function EventDetailClient({
     }
   }
 
-  // Handle publish toggle - only controls visibility, preserves registration state
-  const handlePublishToggle = (checked: boolean) => {
-    if (checked) {
-      // Publishing: set to 'published' (visible but registration closed)
-      handleStatusUpdate('published')
-    } else {
-      // Unpublishing: set to 'draft' (hidden)
-      handleStatusUpdate('draft')
+  // Handle publish toggle - only controls visibility (isPublished field), independent of registration status
+  const handlePublishToggle = async (checked: boolean) => {
+    if (updatingPublish) return
+
+    const previousPublished = currentIsPublished
+    setCurrentIsPublished(checked) // Optimistic update
+
+    try {
+      setUpdatingPublish(true)
+      const response = await fetch(`/api/admin/events/${event.id}/publish`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isPublished: checked }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update publish status')
+      }
+
+      router.refresh()
+    } catch (error) {
+      console.error('Error updating publish status:', error)
+      setCurrentIsPublished(previousPublished) // Revert on error
+      alert('Failed to update publish status. Please try again.')
+    } finally {
+      setUpdatingPublish(false)
     }
   }
 
-  // Handle registration toggle - only controls registration, preserves visibility
+  // Handle registration toggle - only controls registration status, independent of visibility
   const handleRegistrationToggle = (checked: boolean) => {
     if (checked) {
       // Opening registration
       handleStatusUpdate('registration_open')
     } else {
-      // Closing registration: if currently open, close it but keep published
+      // Closing registration
       handleStatusUpdate('registration_closed')
     }
   }
@@ -796,17 +816,17 @@ export default function EventDetailClient({
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">
-                    {isPublished ? (
+                    {currentIsPublished ? (
                       <Eye className="h-5 w-5 text-green-600" />
                     ) : (
                       <EyeOff className="h-5 w-5 text-gray-500" />
                     )}
                     <div>
                       <p className="font-medium text-[#1E3A5F]">
-                        {isPublished ? 'Published' : 'Unpublished'}
+                        {currentIsPublished ? 'Published' : 'Unpublished'}
                       </p>
                       <p className="text-xs text-[#6B7280]">
-                        {isPublished
+                        {currentIsPublished
                           ? 'Visible on public events page'
                           : 'Not visible on public events page'}
                       </p>
@@ -814,9 +834,9 @@ export default function EventDetailClient({
                   </div>
                   <Switch
                     id="publish-toggle"
-                    checked={isPublished}
+                    checked={currentIsPublished}
                     onCheckedChange={handlePublishToggle}
-                    disabled={updatingStatus || currentStatus === 'completed' || currentStatus === 'cancelled'}
+                    disabled={updatingPublish || currentStatus === 'completed' || currentStatus === 'cancelled'}
                   />
                 </div>
                 <p className="text-xs text-[#6B7280]">
@@ -859,11 +879,11 @@ export default function EventDetailClient({
                     disabled={updatingStatus || currentStatus === 'completed' || currentStatus === 'cancelled'}
                   />
                 </div>
-                {currentStatus === 'draft' && (
-                  <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                    <p className="text-xs text-blue-700">
-                      Opening registration will also publish the event (make it visible on the public events page).
+                {!currentIsPublished && isRegistrationOpen && (
+                  <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-amber-700">
+                      Registration is open but the event is not published. Users with a direct link can register, but the event will not appear on the public events page.
                     </p>
                   </div>
                 )}
@@ -947,59 +967,45 @@ export default function EventDetailClient({
             <CardHeader>
               <CardTitle className="text-lg text-[#1E3A5F] flex items-center gap-2">
                 <Info className="h-5 w-5" />
-                Status Reference Guide
+                Toggle Reference Guide
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-[#6B7280]">
+                Visibility and registration are controlled independently, allowing you to test registration before making the event public.
+              </p>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-200">
-                      <th className="text-left py-2 pr-4 font-medium text-[#1E3A5F]">Status</th>
-                      <th className="text-left py-2 pr-4 font-medium text-[#1E3A5F]">Public Visibility</th>
-                      <th className="text-left py-2 pr-4 font-medium text-[#1E3A5F]">Registration</th>
-                      <th className="text-left py-2 font-medium text-[#1E3A5F]">Description</th>
+                      <th className="text-left py-2 pr-4 font-medium text-[#1E3A5F]">Setting</th>
+                      <th className="text-left py-2 pr-4 font-medium text-[#1E3A5F]">Effect</th>
                     </tr>
                   </thead>
                   <tbody className="text-[#6B7280]">
                     <tr className="border-b border-gray-100">
-                      <td className="py-2 pr-4"><Badge className="bg-gray-500 text-white">Draft</Badge></td>
-                      <td className="py-2 pr-4">Not visible</td>
-                      <td className="py-2 pr-4">Closed</td>
-                      <td className="py-2">Event is being set up, not published yet</td>
+                      <td className="py-2 pr-4 font-medium">Published: ON</td>
+                      <td className="py-2">Event appears on public /events page</td>
                     </tr>
                     <tr className="border-b border-gray-100">
-                      <td className="py-2 pr-4"><Badge className="bg-blue-500 text-white">Published</Badge></td>
-                      <td className="py-2 pr-4">Visible</td>
-                      <td className="py-2 pr-4">Closed</td>
-                      <td className="py-2">Event is visible but registration not yet open</td>
+                      <td className="py-2 pr-4 font-medium">Published: OFF</td>
+                      <td className="py-2">Event hidden from public /events page (but direct links still work)</td>
                     </tr>
                     <tr className="border-b border-gray-100">
-                      <td className="py-2 pr-4"><Badge className="bg-green-500 text-white">Registration Open</Badge></td>
-                      <td className="py-2 pr-4">Visible</td>
-                      <td className="py-2 pr-4">Open</td>
-                      <td className="py-2">Event is live and accepting registrations</td>
+                      <td className="py-2 pr-4 font-medium">Registration: OPEN</td>
+                      <td className="py-2">Users can submit new registrations</td>
                     </tr>
                     <tr className="border-b border-gray-100">
-                      <td className="py-2 pr-4"><Badge className="bg-yellow-500 text-white">Registration Closed</Badge></td>
-                      <td className="py-2 pr-4">Visible</td>
-                      <td className="py-2 pr-4">Closed</td>
-                      <td className="py-2">Event visible but not accepting new registrations (sold out, deadline passed, or manually closed)</td>
-                    </tr>
-                    <tr className="border-b border-gray-100">
-                      <td className="py-2 pr-4"><Badge className="bg-purple-500 text-white">In Progress</Badge></td>
-                      <td className="py-2 pr-4">Visible</td>
-                      <td className="py-2 pr-4">Closed</td>
-                      <td className="py-2">Event is currently happening</td>
-                    </tr>
-                    <tr>
-                      <td className="py-2 pr-4"><Badge className="bg-blue-500 text-white">Completed</Badge></td>
-                      <td className="py-2 pr-4">Visible (Past)</td>
-                      <td className="py-2 pr-4">Closed</td>
-                      <td className="py-2">Event has ended</td>
+                      <td className="py-2 pr-4 font-medium">Registration: CLOSED</td>
+                      <td className="py-2">New registrations blocked (existing ones unaffected)</td>
                     </tr>
                   </tbody>
                 </table>
+              </div>
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Tip:</strong> You can have registration open while unpublished for testing, then publish when ready to go live.
+                </p>
               </div>
             </CardContent>
           </Card>

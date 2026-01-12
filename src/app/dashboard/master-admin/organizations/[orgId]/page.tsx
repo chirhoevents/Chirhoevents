@@ -92,6 +92,7 @@ interface OrgEvent {
   name: string
   slug: string
   status: string
+  isPublished: boolean
   startDate: string
   endDate: string
   capacityTotal: number | null
@@ -413,25 +414,24 @@ export default function OrganizationDetailPage() {
     }
   }
 
-  const handleToggleEventPublished = async (eventId: string, currentStatus: string) => {
+  const handleToggleEventPublished = async (eventId: string, currentIsPublished: boolean) => {
     setUpdatingEventStatus(eventId)
     try {
       const token = await getToken()
-      // If currently draft, publish it. Otherwise, set to draft (unpublish)
-      const newStatus = currentStatus === 'draft' ? 'published' : 'draft'
+      const newIsPublished = !currentIsPublished
 
-      const response = await fetch(`/api/master-admin/organizations/${params.orgId}/events/${eventId}/status`, {
+      const response = await fetch(`/api/master-admin/organizations/${params.orgId}/events/${eventId}/publish`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ isPublished: newIsPublished }),
       })
 
       if (response.ok) {
         setAllEvents(prev => prev.map(event =>
-          event.id === eventId ? { ...event, status: newStatus } : event
+          event.id === eventId ? { ...event, isPublished: newIsPublished } : event
         ))
       }
     } catch (error) {
@@ -953,7 +953,6 @@ export default function OrganizationDetailPage() {
                 ) : (
                   <div className="space-y-3 max-h-96 overflow-y-auto">
                     {allEvents.map(event => {
-                      const isPublished = event.status !== 'draft'
                       const isRegOpen = event.status === 'registration_open'
                       const isUpdating = updatingEventStatus === event.id
 
@@ -969,16 +968,21 @@ export default function OrganizationDetailPage() {
                                 {event.totalRegistrations} registrations
                               </p>
                             </div>
-                            <span className={`text-xs px-2 py-1 rounded ${
-                              event.status === 'registration_open' ? 'bg-green-100 text-green-700' :
-                              event.status === 'published' ? 'bg-blue-100 text-blue-700' :
-                              event.status === 'draft' ? 'bg-gray-100 text-gray-700' :
-                              event.status === 'registration_closed' ? 'bg-yellow-100 text-yellow-700' :
-                              event.status === 'completed' ? 'bg-blue-100 text-blue-700' :
-                              'bg-gray-100 text-gray-700'
-                            }`}>
-                              {event.status.replace('_', ' ')}
-                            </span>
+                            <div className="flex flex-col items-end gap-1">
+                              <span className={`text-xs px-2 py-1 rounded ${
+                                event.status === 'registration_open' ? 'bg-green-100 text-green-700' :
+                                event.status === 'registration_closed' ? 'bg-yellow-100 text-yellow-700' :
+                                event.status === 'completed' ? 'bg-blue-100 text-blue-700' :
+                                'bg-gray-100 text-gray-700'
+                              }`}>
+                                {event.status.replace('_', ' ')}
+                              </span>
+                              <span className={`text-xs px-2 py-1 rounded ${
+                                event.isPublished ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+                              }`}>
+                                {event.isPublished ? 'Published' : 'Unpublished'}
+                              </span>
+                            </div>
                           </div>
 
                           {/* Toggle Controls */}
@@ -986,7 +990,7 @@ export default function OrganizationDetailPage() {
                             {/* Published Toggle */}
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                {isPublished ? (
+                                {event.isPublished ? (
                                   <Eye className="h-4 w-4 text-green-600" />
                                 ) : (
                                   <EyeOff className="h-4 w-4 text-gray-400" />
@@ -994,15 +998,15 @@ export default function OrganizationDetailPage() {
                                 <span className="text-sm text-gray-700">Published</span>
                               </div>
                               <button
-                                onClick={() => handleToggleEventPublished(event.id, event.status)}
+                                onClick={() => handleToggleEventPublished(event.id, event.isPublished)}
                                 disabled={isUpdating || event.status === 'completed' || event.status === 'cancelled'}
                                 className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                                  isPublished ? 'bg-green-500' : 'bg-gray-300'
+                                  event.isPublished ? 'bg-green-500' : 'bg-gray-300'
                                 } ${isUpdating || event.status === 'completed' || event.status === 'cancelled' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                               >
                                 <span
                                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                    isPublished ? 'translate-x-4' : 'translate-x-0.5'
+                                    event.isPublished ? 'translate-x-4' : 'translate-x-0.5'
                                   }`}
                                 />
                               </button>
