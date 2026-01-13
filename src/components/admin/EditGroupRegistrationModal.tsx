@@ -184,6 +184,9 @@ export default function EditGroupRegistrationModal({
   const [fullRegistration, setFullRegistration] = useState<GroupRegistration | null>(null)
   const [loadingRegistration, setLoadingRegistration] = useState(false)
 
+  // Fetched event pricing (used when eventPricing prop is null)
+  const [fetchedEventPricing, setFetchedEventPricing] = useState<EventPricing | null>(null)
+
   useEffect(() => {
     if (registration && isOpen) {
       setLoadingRegistration(true)
@@ -203,6 +206,29 @@ export default function EditGroupRegistrationModal({
       })
     }
   }, [registration, isOpen])
+
+  // Fetch event pricing if not provided as prop
+  useEffect(() => {
+    if (isOpen && eventId && !eventPricing) {
+      getToken().then(token => {
+        fetch(`/api/admin/events/${eventId}`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.event?.pricing) {
+              setFetchedEventPricing(data.event.pricing)
+            }
+          })
+          .catch(err => {
+            console.error('Error fetching event pricing:', err)
+          })
+      })
+    } else if (eventPricing) {
+      // If eventPricing prop is provided, use it
+      setFetchedEventPricing(eventPricing)
+    }
+  }, [isOpen, eventId, eventPricing, getToken])
 
   // Initialize form data when registration changes
   useEffect(() => {
@@ -271,10 +297,11 @@ export default function EditGroupRegistrationModal({
   }, [fullRegistration, registration])
 
   // Recalculate price when housing type or participant counts change
+  // Use fetchedEventPricing which is either the prop or fetched from API
   useEffect(() => {
     const totalCount = participantCounts.youth_u18 + participantCounts.youth_o18 + participantCounts.chaperone + participantCounts.priest
 
-    if (eventPricing && totalCount > 0) {
+    if (fetchedEventPricing && totalCount > 0) {
       // Create temporary participant objects for price calculation
       const tempParticipants: Participant[] = []
 
@@ -325,7 +352,7 @@ export default function EditGroupRegistrationModal({
       const calculation = calculateRegistrationPrice({
         participants: tempParticipants,
         housingType: formData.housingType,
-        pricing: eventPricing,
+        pricing: fetchedEventPricing,
         registrationDate: registration ? new Date(registration.registeredAt) : new Date(),
       })
       setNewTotal(calculation.total)
@@ -334,7 +361,7 @@ export default function EditGroupRegistrationModal({
       setNewTotal(0)
       setPriceBreakdown([])
     }
-  }, [formData.housingType, participantCounts, eventPricing, registration])
+  }, [formData.housingType, participantCounts, fetchedEventPricing, registration])
 
   const handleSave = async () => {
     if (!registration) return
