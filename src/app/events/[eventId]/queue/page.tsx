@@ -153,11 +153,11 @@ export default function QueuePage() {
             <Clock className="h-8 w-8 text-[#9C8466]" />
           </div>
           <CardTitle className="text-2xl md:text-3xl text-[#1E3A5F]">
-            You're in the Virtual Queue
+            You&apos;re in the Virtual Queue
           </CardTitle>
           <CardDescription className="text-base text-[#6B7280] mt-2">
             {registrationTypeLabel} registration is currently at capacity.
-            You'll be automatically admitted when a spot opens.
+            You&apos;ll be automatically admitted when a spot opens.
           </CardDescription>
         </CardHeader>
 
@@ -213,9 +213,9 @@ export default function QueuePage() {
               Important
             </h3>
             <ul className="text-sm text-[#6B7280] space-y-1">
-              <li>• Keep this page open — you'll be admitted automatically</li>
-              <li>• Don't refresh the page or you may lose your spot</li>
-              <li>• You'll have limited time to complete registration once admitted</li>
+              <li>• Keep this page open — you&apos;ll be admitted automatically</li>
+              <li>• Do not refresh the page or you may lose your spot</li>
+              <li>• You&apos;ll have limited time to complete registration once admitted</li>
             </ul>
           </div>
 
