@@ -55,6 +55,14 @@ interface FormData {
   doubleRoomLabel: string
   tripleRoomLabel: string
   quadRoomLabel: string
+  // Option capacity fields
+  onCampusCapacity: string
+  offCampusCapacity: string
+  dayPassCapacity: string
+  singleRoomCapacity: string
+  doubleRoomCapacity: string
+  tripleRoomCapacity: string
+  quadRoomCapacity: string
   // Add-ons
   addOn1Enabled: boolean
   addOn1Title: string
@@ -278,6 +286,14 @@ export default function EditEventPage() {
         doubleRoomLabel: event.settings?.doubleRoomLabel || '',
         tripleRoomLabel: event.settings?.tripleRoomLabel || '',
         quadRoomLabel: event.settings?.quadRoomLabel || '',
+        // Option capacity fields
+        onCampusCapacity: event.settings?.onCampusCapacity?.toString() || '',
+        offCampusCapacity: event.settings?.offCampusCapacity?.toString() || '',
+        dayPassCapacity: event.settings?.dayPassCapacity?.toString() || '',
+        singleRoomCapacity: event.settings?.singleRoomCapacity?.toString() || '',
+        doubleRoomCapacity: event.settings?.doubleRoomCapacity?.toString() || '',
+        tripleRoomCapacity: event.settings?.tripleRoomCapacity?.toString() || '',
+        quadRoomCapacity: event.settings?.quadRoomCapacity?.toString() || '',
         // Add-ons
         addOn1Enabled: event.settings?.addOn1Enabled ?? false,
         addOn1Title: event.settings?.addOn1Title || '',

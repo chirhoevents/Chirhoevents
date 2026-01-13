@@ -307,6 +307,27 @@ model EventSettings {
   // Coupon Settings
   couponsEnabled                  Boolean  @default(false) @map("coupons_enabled")
 
+  // ===================================
+  // OPTION CAPACITY TRACKING
+  // ===================================
+  // Housing type capacity (applies to both group and individual registrations)
+  onCampusCapacity                Int?     @map("on_campus_capacity")
+  onCampusRemaining               Int?     @map("on_campus_remaining")
+  offCampusCapacity               Int?     @map("off_campus_capacity")
+  offCampusRemaining              Int?     @map("off_campus_remaining")
+  dayPassCapacity                 Int?     @map("day_pass_capacity")
+  dayPassRemaining                Int?     @map("day_pass_remaining")
+
+  // Room type capacity (individual registration only)
+  singleRoomCapacity              Int?     @map("single_room_capacity")
+  singleRoomRemaining             Int?     @map("single_room_remaining")
+  doubleRoomCapacity              Int?     @map("double_room_capacity")
+  doubleRoomRemaining             Int?     @map("double_room_remaining")
+  tripleRoomCapacity              Int?     @map("triple_room_capacity")
+  tripleRoomRemaining             Int?     @map("triple_room_remaining")
+  quadRoomCapacity                Int?     @map("quad_room_capacity")
+  quadRoomRemaining               Int?     @map("quad_room_remaining")
+
   createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -1055,6 +1076,11 @@ model WaitlistEntry {
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  // Option preferences - what type of registration/housing they want
+  registrationType    RegistrationType? @map("registration_type")
+  preferredHousingType HousingType? @map("preferred_housing_type")
+  preferredRoomType   RoomType? @map("preferred_room_type")
+
   // Relations
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
@@ -1062,6 +1088,7 @@ model WaitlistEntry {
   @@index([status], name: "idx_waitlist_status")
   @@index([email], name: "idx_waitlist_email")
   @@index([registrationToken], name: "idx_waitlist_token")
+  @@index([preferredHousingType], name: "idx_waitlist_housing_type")
   @@map("waitlist_entries")
 }
 

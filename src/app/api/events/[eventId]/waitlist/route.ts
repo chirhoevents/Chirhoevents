@@ -13,7 +13,16 @@ export async function POST(
     const { eventId } = await params
     const body = await request.json()
 
-    const { name, email, phone, partySize, notes } = body
+    const {
+      name,
+      email,
+      phone,
+      partySize,
+      notes,
+      registrationType,      // 'group' or 'individual'
+      preferredHousingType,  // 'on_campus', 'off_campus', 'day_pass'
+      preferredRoomType,     // 'single', 'double', 'triple', 'quad' (for individual)
+    } = body
 
     // Validate required fields
     if (!name || !email || !partySize) {
@@ -109,6 +118,9 @@ export async function POST(
         partySize: parseInt(partySize),
         notes: notes || null,
         status: 'pending',
+        registrationType: registrationType || null,
+        preferredHousingType: preferredHousingType || null,
+        preferredRoomType: preferredRoomType || null,
       },
     })
 
@@ -150,6 +162,9 @@ export async function POST(
           partySize: waitlistEntry.partySize,
           status: waitlistEntry.status,
           position,
+          registrationType: waitlistEntry.registrationType,
+          preferredHousingType: waitlistEntry.preferredHousingType,
+          preferredRoomType: waitlistEntry.preferredRoomType,
           createdAt: waitlistEntry.createdAt,
         },
       },
