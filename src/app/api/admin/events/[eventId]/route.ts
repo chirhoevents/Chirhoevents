@@ -291,6 +291,8 @@ export async function PUT(
               includedContent: data.includedContent || null,
               bringContent: data.bringContent || null,
               contactInfo: data.contactInfo || null,
+              contactEmail: data.contactEmail || null,
+              contactPhone: data.contactPhone || null,
               // Email options
               showFaqInEmail: data.showFaqInEmail || false,
               showBringInEmail: data.showBringInEmail || false,
@@ -389,6 +391,8 @@ export async function PUT(
               includedContent: data.includedContent || null,
               bringContent: data.bringContent || null,
               contactInfo: data.contactInfo || null,
+              contactEmail: data.contactEmail || null,
+              contactPhone: data.contactPhone || null,
               // Email options
               showFaqInEmail: data.showFaqInEmail || false,
               showBringInEmail: data.showBringInEmail || false,

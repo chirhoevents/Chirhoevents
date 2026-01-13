@@ -273,6 +273,8 @@ model EventSettings {
   includedContent                 String?  @map("included_content") @db.Text
   bringContent                    String?  @map("bring_content") @db.Text
   contactInfo                     String?  @map("contact_info") @db.Text
+  contactEmail                    String?  @map("contact_email") @db.VarChar(255)
+  contactPhone                    String?  @map("contact_phone") @db.VarChar(20)
 
   // Confirmation email content options
   showFaqInEmail                  Boolean  @default(false) @map("show_faq_in_email")
