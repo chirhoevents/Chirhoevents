@@ -45,11 +45,15 @@ export default function GroupRegistrationPage() {
     loading: queueLoading,
     queueActive,
     isBlocked,
+    queueStatus,
     expiresAt,
     extensionAllowed,
     markComplete,
     checkQueue,
   } = useRegistrationQueue(eventId, 'group')
+
+  // Debug mode - add ?debug=queue to URL to see queue status
+  const showDebug = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === 'queue'
 
   const [loading, setLoading] = useState(true)
   const [event, setEvent] = useState<EventData | null>(null)
@@ -313,6 +317,18 @@ export default function GroupRegistrationPage() {
           registrationType="group"
           extensionAllowed={extensionAllowed}
         />
+      )}
+
+      {/* Debug Panel - add ?debug=queue to URL to see this */}
+      {showDebug && (
+        <div className="fixed bottom-4 left-4 z-50 bg-black text-white p-4 rounded-lg text-xs max-w-sm overflow-auto max-h-64">
+          <p className="font-bold mb-2">Queue Debug Info:</p>
+          <p>queueLoading: {String(queueLoading)}</p>
+          <p>queueActive: {String(queueActive)}</p>
+          <p>isBlocked: {String(isBlocked)}</p>
+          <p>expiresAt: {expiresAt || 'null'}</p>
+          <p>queueStatus: {JSON.stringify(queueStatus, null, 2)}</p>
+        </div>
       )}
 
       <div className="container mx-auto px-4">
