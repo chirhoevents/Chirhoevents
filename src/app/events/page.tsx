@@ -418,8 +418,17 @@ export default function EventsPage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-r from-[#1E3A5F] to-[#2A4A6F] text-white py-12 md:py-16">
-        <div className="container mx-auto px-4 text-center">
+      <section
+        className="relative text-white py-12 md:py-16"
+        style={{
+          backgroundImage: `url('/ChiRho Event Logos/ChiRho events BG.png')`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
+        <div className="absolute inset-0 bg-[#1E3A5F]/70"></div>
+        <div className="container mx-auto px-4 text-center relative z-10">
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
             Browse Events
           </h1>
