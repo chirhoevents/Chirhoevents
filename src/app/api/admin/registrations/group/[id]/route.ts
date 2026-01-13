@@ -4,6 +4,7 @@ import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { Resend } from 'resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { canAccessOrganization } from '@/lib/auth-utils'
+import { incrementOptionCapacity, decrementOptionCapacity, type HousingType } from '@/lib/option-capacity'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -183,6 +184,10 @@ export async function PUT(
       oldTotal,
       newTotal,
       eventId,
+      // Housing count fields for mixed housing
+      onCampusCount,
+      offCampusCount,
+      dayPassCount,
     } = body
 
     // Calculate the difference
@@ -193,6 +198,42 @@ export async function PUT(
     const finalYouthCount = youthCount !== undefined ? youthCount : existingRegistration.youthCount
     const finalChaperoneCount = chaperoneCount !== undefined ? chaperoneCount : existingRegistration.chaperoneCount
     const finalPriestCount = priestCount !== undefined ? priestCount : existingRegistration.priestCount
+
+    // Handle housing count changes and capacity adjustment
+    const oldOnCampusCount = (existingRegistration as any).onCampusCount ?? 0
+    const oldOffCampusCount = (existingRegistration as any).offCampusCount ?? 0
+    const oldDayPassCount = (existingRegistration as any).dayPassCount ?? 0
+    const newOnCampusCount = onCampusCount ?? oldOnCampusCount
+    const newOffCampusCount = offCampusCount ?? oldOffCampusCount
+    const newDayPassCount = dayPassCount ?? oldDayPassCount
+
+    // Calculate capacity changes needed for each housing type
+    const onCampusDiff = newOnCampusCount - oldOnCampusCount
+    const offCampusDiff = newOffCampusCount - oldOffCampusCount
+    const dayPassDiff = newDayPassCount - oldDayPassCount
+
+    // Update option-level capacity if housing counts changed
+    if (onCampusDiff !== 0) {
+      if (onCampusDiff > 0) {
+        await decrementOptionCapacity(existingRegistration.eventId, 'on_campus', null, onCampusDiff)
+      } else {
+        await incrementOptionCapacity(existingRegistration.eventId, 'on_campus', null, Math.abs(onCampusDiff))
+      }
+    }
+    if (offCampusDiff !== 0) {
+      if (offCampusDiff > 0) {
+        await decrementOptionCapacity(existingRegistration.eventId, 'off_campus', null, offCampusDiff)
+      } else {
+        await incrementOptionCapacity(existingRegistration.eventId, 'off_campus', null, Math.abs(offCampusDiff))
+      }
+    }
+    if (dayPassDiff !== 0) {
+      if (dayPassDiff > 0) {
+        await decrementOptionCapacity(existingRegistration.eventId, 'day_pass', null, dayPassDiff)
+      } else {
+        await incrementOptionCapacity(existingRegistration.eventId, 'day_pass', null, Math.abs(dayPassDiff))
+      }
+    }
 
     // Update the group registration
     const updatedRegistration = await prisma.groupRegistration.update({
@@ -214,6 +255,10 @@ export async function PUT(
         youthCount: finalYouthCount,
         chaperoneCount: finalChaperoneCount,
         priestCount: finalPriestCount,
+        // Housing counts for mixed housing
+        onCampusCount: newOnCampusCount > 0 ? newOnCampusCount : null,
+        offCampusCount: newOffCampusCount > 0 ? newOffCampusCount : null,
+        dayPassCount: newDayPassCount > 0 ? newDayPassCount : null,
         updatedAt: new Date(),
       },
     })
@@ -240,6 +285,16 @@ export async function PUT(
     }
     if (totalParticipants !== undefined && existingRegistration.totalParticipants !== totalParticipants) {
       changesMade.totalParticipants = { old: existingRegistration.totalParticipants, new: totalParticipants }
+    }
+    // Track housing count changes
+    if (onCampusDiff !== 0) {
+      changesMade.onCampusCount = { old: oldOnCampusCount, new: newOnCampusCount }
+    }
+    if (offCampusDiff !== 0) {
+      changesMade.offCampusCount = { old: oldOffCampusCount, new: newOffCampusCount }
+    }
+    if (dayPassDiff !== 0) {
+      changesMade.dayPassCount = { old: oldDayPassCount, new: newDayPassCount }
     }
 
     // Create audit trail entry if changes were made
@@ -289,6 +344,16 @@ export async function PUT(
         }
         if (existingRegistration.totalParticipants !== totalParticipants) {
           emailChanges.push(`Total Participants: ${existingRegistration.totalParticipants} → ${totalParticipants}`)
+        }
+        // Include housing count changes
+        if (onCampusDiff !== 0) {
+          emailChanges.push(`On-Campus Spots: ${oldOnCampusCount} → ${newOnCampusCount}`)
+        }
+        if (offCampusDiff !== 0) {
+          emailChanges.push(`Off-Campus Spots: ${oldOffCampusCount} → ${newOffCampusCount}`)
+        }
+        if (dayPassDiff !== 0) {
+          emailChanges.push(`Day Pass Spots: ${oldDayPassCount} → ${newDayPassCount}`)
         }
         if (oldTotal !== newTotal) {
           emailChanges.push(`Total Amount Due: $${oldTotal.toFixed(2)} → $${newTotal.toFixed(2)}`)

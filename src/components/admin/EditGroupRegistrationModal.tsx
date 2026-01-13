@@ -95,6 +95,10 @@ interface GroupRegistration {
   chaperoneCount?: number
   priestCount?: number
   housingType: 'on_campus' | 'off_campus' | 'day_pass'
+  // Housing count breakdown for mixed housing groups
+  onCampusCount?: number
+  offCampusCount?: number
+  dayPassCount?: number
   specialRequests?: string
   registeredAt: string
   participants: Participant[]
@@ -155,6 +159,11 @@ export default function EditGroupRegistrationModal({
     youth_o18: 0,
     chaperone: 0,
     priest: 0,
+  })
+  const [housingCounts, setHousingCounts] = useState({
+    onCampus: 0,
+    offCampus: 0,
+    dayPass: 0,
   })
   const [showRefundModal, setShowRefundModal] = useState(false)
   const [showCheckModal, setShowCheckModal] = useState(false)
@@ -264,6 +273,16 @@ export default function EditGroupRegistrationModal({
         })
       }
 
+      // Initialize housing counts for mixed housing groups
+      const onCampusCount = (regData as any).onCampusCount || 0
+      const offCampusCount = (regData as any).offCampusCount || 0
+      const dayPassCount = (regData as any).dayPassCount || 0
+      setHousingCounts({
+        onCampus: onCampusCount,
+        offCampus: offCampusCount,
+        dayPass: dayPassCount,
+      })
+
       const total = regData.paymentBalance?.totalAmountDue || 0
       setOriginalTotal(total)
       setNewTotal(total)
@@ -358,6 +377,10 @@ export default function EditGroupRegistrationModal({
             youthCount: participantCounts.youth_u18 + participantCounts.youth_o18,
             chaperoneCount: participantCounts.chaperone,
             priestCount: participantCounts.priest,
+            // Housing counts for mixed housing groups
+            onCampusCount: housingCounts.onCampus,
+            offCampusCount: housingCounts.offCampus,
+            dayPassCount: housingCounts.dayPass,
             eventId,
             oldTotal: originalTotal,
             newTotal,
@@ -554,7 +577,7 @@ export default function EditGroupRegistrationModal({
               </div>
 
               <div>
-                <Label htmlFor="housingType">Housing Type</Label>
+                <Label htmlFor="housingType">Primary Housing Type</Label>
                 <select
                   id="housingType"
                   value={formData.housingType}
@@ -567,6 +590,118 @@ export default function EditGroupRegistrationModal({
                 </select>
               </div>
             </div>
+
+            {/* Housing Count Breakdown for Mixed Housing */}
+            <Card className="p-4 bg-gray-50 border-gray-200">
+              <h4 className="font-semibold text-sm text-[#1E3A5F] mb-3">
+                Housing Count Breakdown (Mixed Housing)
+              </h4>
+              <p className="text-xs text-gray-500 mb-4">
+                Use these fields when a group has participants in different housing types. Leave at 0 if all participants use the same housing type.
+              </p>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="onCampusCount">On-Campus Spots</Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setHousingCounts(prev => ({...prev, onCampus: Math.max(0, prev.onCampus - 1)}))}
+                      disabled={housingCounts.onCampus === 0}
+                    >
+                      -
+                    </Button>
+                    <Input
+                      id="onCampusCount"
+                      type="number"
+                      min="0"
+                      value={housingCounts.onCampus}
+                      onChange={(e) => setHousingCounts(prev => ({...prev, onCampus: Math.max(0, parseInt(e.target.value) || 0)}))}
+                      className="w-20 text-center"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setHousingCounts(prev => ({...prev, onCampus: prev.onCampus + 1}))}
+                    >
+                      +
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="offCampusCount">Off-Campus Spots</Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setHousingCounts(prev => ({...prev, offCampus: Math.max(0, prev.offCampus - 1)}))}
+                      disabled={housingCounts.offCampus === 0}
+                    >
+                      -
+                    </Button>
+                    <Input
+                      id="offCampusCount"
+                      type="number"
+                      min="0"
+                      value={housingCounts.offCampus}
+                      onChange={(e) => setHousingCounts(prev => ({...prev, offCampus: Math.max(0, parseInt(e.target.value) || 0)}))}
+                      className="w-20 text-center"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setHousingCounts(prev => ({...prev, offCampus: prev.offCampus + 1}))}
+                    >
+                      +
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="dayPassCount">Day Pass Spots</Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setHousingCounts(prev => ({...prev, dayPass: Math.max(0, prev.dayPass - 1)}))}
+                      disabled={housingCounts.dayPass === 0}
+                    >
+                      -
+                    </Button>
+                    <Input
+                      id="dayPassCount"
+                      type="number"
+                      min="0"
+                      value={housingCounts.dayPass}
+                      onChange={(e) => setHousingCounts(prev => ({...prev, dayPass: Math.max(0, parseInt(e.target.value) || 0)}))}
+                      className="w-20 text-center"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setHousingCounts(prev => ({...prev, dayPass: prev.dayPass + 1}))}
+                    >
+                      +
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              {(housingCounts.onCampus + housingCounts.offCampus + housingCounts.dayPass) > 0 && (
+                <div className="mt-3 pt-3 border-t text-sm text-gray-600">
+                  Total housing breakdown: {housingCounts.onCampus + housingCounts.offCampus + housingCounts.dayPass} spots
+                  {(housingCounts.onCampus + housingCounts.offCampus + housingCounts.dayPass) !== (participantCounts.youth_u18 + participantCounts.youth_o18 + participantCounts.chaperone + participantCounts.priest) && (
+                    <span className="text-amber-600 ml-2">
+                      (does not match total participants: {participantCounts.youth_u18 + participantCounts.youth_o18 + participantCounts.chaperone + participantCounts.priest})
+                    </span>
+                  )}
+                </div>
+              )}
+            </Card>
 
             <div>
               <Label htmlFor="specialRequests">Special Requests</Label>

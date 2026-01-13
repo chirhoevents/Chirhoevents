@@ -282,6 +282,11 @@ export async function POST(request: NextRequest) {
     const registrationStatus =
       paymentMethod === 'check' ? 'pending_payment' : 'incomplete'
 
+    // Determine initial housing counts based on housing type
+    const initialOnCampusCount = housingType === 'on_campus' ? totalParticipants : 0
+    const initialOffCampusCount = housingType === 'off_campus' ? totalParticipants : 0
+    const initialDayPassCount = housingType === 'day_pass' ? totalParticipants : 0
+
     // Create group registration
     const registration = await prisma.groupRegistration.create({
       data: {
@@ -309,6 +314,10 @@ export async function POST(request: NextRequest) {
         priestCount,
         totalParticipants,
         housingType,
+        // Set initial housing counts based on selected housing type
+        onCampusCount: initialOnCampusCount > 0 ? initialOnCampusCount : null,
+        offCampusCount: initialOffCampusCount > 0 ? initialOffCampusCount : null,
+        dayPassCount: initialDayPassCount > 0 ? initialDayPassCount : null,
         specialRequests,
         registrationStatus,
       },
