@@ -35,6 +35,7 @@ import {
   Lock,
   Info,
   AlertCircle,
+  Clock,
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -468,6 +469,15 @@ export default function EventDetailClient({
                   >
                     <Key className="h-4 w-4 mr-2" />
                     Manage Access Codes
+                  </Button>
+                </Link>
+                <Link href={`/dashboard/admin/events/${event.id}/queue`}>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
+                  >
+                    <Clock className="h-4 w-4 mr-2" />
+                    Queue Settings
                   </Button>
                 </Link>
                 {waitlistEnabled && (
