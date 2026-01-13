@@ -409,8 +409,6 @@ export default function EditGroupRegistrationModal({
         participants: tempParticipants,
         housingType: 'on_campus',
         pricing: eventPricing,
-        housingType: formData.housingType,
-        pricing: fetchedEventPricing,
         registrationDate: registration ? new Date(registration.registeredAt) : new Date(),
       })
       setNewTotal(calculation.total)
@@ -420,7 +418,6 @@ export default function EditGroupRegistrationModal({
       setPriceBreakdown([])
     }
   }, [inventoryCounts, eventPricing, registration, totalParticipantsCalc])
-  }, [formData.housingType, participantCounts, fetchedEventPricing, registration])
 
   const handleSave = async () => {
     if (!registration) return
