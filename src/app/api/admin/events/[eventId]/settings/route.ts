@@ -64,6 +64,21 @@ const VALID_SETTINGS_FIELDS = [
   'overlayOpacity',
   'waitlistEnabled',
   'registrationClosedMessage',
+  // Option capacity fields
+  'onCampusCapacity',
+  'onCampusRemaining',
+  'offCampusCapacity',
+  'offCampusRemaining',
+  'dayPassCapacity',
+  'dayPassRemaining',
+  'singleRoomCapacity',
+  'singleRoomRemaining',
+  'doubleRoomCapacity',
+  'doubleRoomRemaining',
+  'tripleRoomCapacity',
+  'tripleRoomRemaining',
+  'quadRoomCapacity',
+  'quadRoomRemaining',
 ]
 
 export async function PATCH(

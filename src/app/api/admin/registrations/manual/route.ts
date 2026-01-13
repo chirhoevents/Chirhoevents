@@ -6,6 +6,7 @@ import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { generateIndividualConfirmationCode } from '@/lib/access-code'
 import { isAdminRole } from '@/lib/permissions'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { decrementOptionCapacity, type HousingType, type RoomType } from '@/lib/option-capacity'
 // UserRole type is handled by isAdminRole function
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
@@ -124,6 +125,14 @@ export async function POST(request: NextRequest) {
           },
         })
       }
+
+      // Update option-level capacity (housing type and room type)
+      await decrementOptionCapacity(
+        eventId,
+        (fields.housingType || 'on_campus') as HousingType,
+        (fields.roomType || null) as RoomType | null,
+        1 // Individual registration = 1 person
+      )
 
       // Increment organization's registration counter
       await prisma.organization.update({
@@ -321,6 +330,14 @@ export async function POST(request: NextRequest) {
           },
         })
       }
+
+      // Update option-level capacity (housing type for group registrations)
+      await decrementOptionCapacity(
+        eventId,
+        housingType as HousingType,
+        null, // Groups don't have room type selection
+        totalParticipants
+      )
 
       // Increment organization's registration counter
       await prisma.organization.update({
