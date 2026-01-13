@@ -316,14 +316,11 @@ export default function EditGroupRegistrationModal({
   const totalParticipantsCalc = totalYouth + totalChaperones + inventoryCounts.priests
 
   // Recalculate price when inventory counts change
-  useEffect(() => {
-    if (eventPricing && totalParticipantsCalc > 0) {
-  // Recalculate price when housing type or participant counts change
   // Use fetchedEventPricing which is either the prop or fetched from API
   useEffect(() => {
-    const totalCount = participantCounts.youth_u18 + participantCounts.youth_o18 + participantCounts.chaperone + participantCounts.priest
+    const pricingToUse = fetchedEventPricing || eventPricing
 
-    if (fetchedEventPricing && totalCount > 0) {
+    if (pricingToUse && totalParticipantsCalc > 0) {
       // Create temporary participant objects for price calculation
       const tempParticipants: Participant[] = []
 
@@ -408,7 +405,7 @@ export default function EditGroupRegistrationModal({
       const calculation = calculateRegistrationPrice({
         participants: tempParticipants,
         housingType: 'on_campus',
-        pricing: eventPricing,
+        pricing: pricingToUse,
         registrationDate: registration ? new Date(registration.registeredAt) : new Date(),
       })
       setNewTotal(calculation.total)
@@ -417,7 +414,7 @@ export default function EditGroupRegistrationModal({
       setNewTotal(0)
       setPriceBreakdown([])
     }
-  }, [inventoryCounts, eventPricing, registration, totalParticipantsCalc])
+  }, [inventoryCounts, eventPricing, fetchedEventPricing, registration, totalParticipantsCalc])
 
   const handleSave = async () => {
     if (!registration) return
@@ -872,16 +869,16 @@ export default function EditGroupRegistrationModal({
                     <div key={index} className="flex justify-between text-sm">
                       <span className="text-gray-700">
                         {item.count}x {item.participantType.replace('_', ' ')} @ $
-                        {item.pricePerPerson.toFixed(2)}
+                        {(Number(item.pricePerPerson) || 0).toFixed(2)}
                       </span>
                       <span className="font-medium">
-                        ${item.subtotal.toFixed(2)}
+                        ${(Number(item.subtotal) || 0).toFixed(2)}
                       </span>
                     </div>
                   ))}
                   <div className="flex justify-between border-t pt-2 font-semibold">
                     <span>New Total:</span>
-                    <span className="text-[#1E3A5F]">${newTotal.toFixed(2)}</span>
+                    <span className="text-[#1E3A5F]">${(Number(newTotal) || 0).toFixed(2)}</span>
                   </div>
                 </div>
               </Card>
