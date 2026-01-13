@@ -21,6 +21,7 @@ interface LiabilityFormWithRelations {
   dioceseOfIncardination?: string | null
   currentAssignment?: string | null
   facultyInformation?: string | null
+  needsHousing?: boolean | null
   medicalConditions?: string | null
   medications?: string | null
   allergies?: string | null
@@ -132,6 +133,7 @@ export async function generateLiabilityFormPDF(
           dioceseOfIncardination: formData.dioceseOfIncardination || undefined,
           currentAssignment: formData.currentAssignment || undefined,
           facultyInformation: formData.facultyInformation || undefined,
+          needsHousing: formData.needsHousing || false,
         },
       })
       break
