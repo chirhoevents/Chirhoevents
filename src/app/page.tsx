@@ -133,7 +133,7 @@ export default function LandingPage() {
                   <tr className="bg-gold-50 border-2 border-gold">
                     <td className="py-4 px-6 font-bold text-navy">ChiRho ✅</td>
                     <td className="py-4 px-6">3.9%*</td>
-                    <td className="py-4 px-6">$49-$149</td>
+                    <td className="py-4 px-6">$29-$99</td>
                     <td className="py-4 px-6 font-bold text-gold-700">$3,900 + monthly</td>
                   </tr>
                   <tr className="border-b">
@@ -369,7 +369,7 @@ export default function LandingPage() {
               <CardHeader>
                 <CardTitle className="text-2xl">Starter</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$49</span>
+                  <span className="text-4xl font-bold text-navy">$29</span>
                   <span className="text-gray-600">/mo</span>
                 </div>
               </CardHeader>
@@ -396,7 +396,7 @@ export default function LandingPage() {
               <CardHeader>
                 <CardTitle className="text-2xl">Small Diocese</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$99</span>
+                  <span className="text-4xl font-bold text-navy">$49</span>
                   <span className="text-gray-600">/mo</span>
                 </div>
               </CardHeader>
@@ -426,7 +426,7 @@ export default function LandingPage() {
               <CardHeader>
                 <CardTitle className="text-2xl">Growing</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$149</span>
+                  <span className="text-4xl font-bold text-navy">$79</span>
                   <span className="text-gray-600">/mo</span>
                 </div>
               </CardHeader>
@@ -453,7 +453,7 @@ export default function LandingPage() {
               <CardHeader>
                 <CardTitle className="text-2xl">Conference</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$249</span>
+                  <span className="text-4xl font-bold text-navy">$99</span>
                   <span className="text-gray-600">/mo</span>
                 </div>
               </CardHeader>
@@ -480,8 +480,8 @@ export default function LandingPage() {
               <CardHeader>
                 <CardTitle className="text-2xl">Enterprise</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$499</span>
-                  <span className="text-gray-600">/mo</span>
+                  <span className="text-2xl font-bold text-navy">Custom Pricing</span>
+                  <p className="text-sm text-gray-600 mt-1">Starting at $199/mo</p>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -497,7 +497,7 @@ export default function LandingPage() {
                   </ul>
                 </div>
                 <Link href="/get-started?tier=enterprise">
-                  <Button variant="outline" className="w-full mt-6">Get Started</Button>
+                  <Button variant="outline" className="w-full mt-6">Contact Us</Button>
                 </Link>
               </CardContent>
             </Card>

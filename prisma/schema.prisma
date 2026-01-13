@@ -178,6 +178,7 @@ model Event {
   staffRegistrations        StaffRegistration[]
   supportTickets            SupportTicket[]
   coupons                   Coupon[]
+  porosDataImport           PorosEventDataImport?
 
   @@index([organizationId], name: "idx_event_org")
   @@index([slug], name: "idx_event_slug")
@@ -2412,5 +2413,21 @@ model CouponRedemption {
   @@index([couponId], name: "idx_redemption_coupon")
   @@index([registrationId], name: "idx_redemption_registration")
   @@map("coupon_redemptions")
+}
+
+// Stores imported JSON data for custom Poros public views (e.g., Mount 2K)
+model PorosEventDataImport {
+  id             String   @id @default(uuid()) @db.Uuid
+  eventId        String   @unique @map("event_id") @db.Uuid
+  jsonData       Json     @map("json_data")
+  fileName       String?  @map("file_name") @db.VarChar(255)
+  importedAt     DateTime @default(now()) @map("imported_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  event          Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId], name: "idx_poros_import_event")
+  @@map("poros_event_data_imports")
 }
 

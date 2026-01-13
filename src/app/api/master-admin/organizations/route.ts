@@ -180,11 +180,11 @@ export async function POST(request: NextRequest) {
 
     // Tier pricing
     const tierPricing: Record<string, { monthly: number; annual: number; eventsLimit: number; registrationsLimit: number; storageLimit: number }> = {
-      starter: { monthly: 49, annual: 490, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
-      small_diocese: { monthly: 99, annual: 990, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
-      growing: { monthly: 149, annual: 1490, eventsLimit: 10, registrationsLimit: 3000, storageLimit: 25 },
-      conference: { monthly: 249, annual: 2490, eventsLimit: 25, registrationsLimit: 8000, storageLimit: 100 },
-      enterprise: { monthly: 499, annual: 4990, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
+      starter: { monthly: 29, annual: 290, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
+      small_diocese: { monthly: 49, annual: 490, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
+      growing: { monthly: 79, annual: 790, eventsLimit: 10, registrationsLimit: 3000, storageLimit: 25 },
+      conference: { monthly: 99, annual: 990, eventsLimit: 25, registrationsLimit: 8000, storageLimit: 100 },
+      enterprise: { monthly: 199, annual: 1990, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
       test: { monthly: 0, annual: 0, eventsLimit: 3, registrationsLimit: 100, storageLimit: 1 },
     }
 

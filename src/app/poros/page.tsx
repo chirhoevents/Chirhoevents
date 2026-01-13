@@ -71,10 +71,10 @@ export default function PorosLandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-navy to-navy/90">
+    <div className="min-h-screen bg-cover bg-center bg-fixed" style={{ backgroundImage: "linear-gradient(rgba(30, 58, 95, 0.85), rgba(30, 58, 95, 0.9)), url('/ChiRho Event Logos/ChiRho events BG.png')" }}>
       {/* Header with Logo */}
       <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-center">
+        <div className="flex flex-col items-center">
           <Link href="/">
             <Image
               src="/Poros logo.png"
@@ -84,6 +84,7 @@ export default function PorosLandingPage() {
               className="h-20 md:h-28 w-auto cursor-pointer hover:opacity-90 transition-opacity"
             />
           </Link>
+          <p className="text-white/70 text-sm mt-2">by ChiRho Events</p>
         </div>
       </div>
 
