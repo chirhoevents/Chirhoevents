@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Loader2, ArrowLeft, Building2, CheckCircle } from 'lucide-react'
+import LoadingScreen from '@/components/LoadingScreen'
 
 interface VendorTier {
   id: string
@@ -127,11 +128,7 @@ export default function VendorRegistrationPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <Loader2 className="h-8 w-8 animate-spin text-[#1E3A5F]" />
-      </div>
-    )
+    return <LoadingScreen message="Loading vendor registration..." />
   }
 
   if (error && !event) {

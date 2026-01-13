@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, Download, QrCode, Loader2, FileText } from 'lucide-react'
+import LoadingScreen from '@/components/LoadingScreen'
 
 interface RegistrationData {
   id: string
@@ -68,11 +69,7 @@ export default function IndividualConfirmationPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-navy" />
-      </div>
-    )
+    return <LoadingScreen message="Loading confirmation..." />
   }
 
   if (error || !registration) {

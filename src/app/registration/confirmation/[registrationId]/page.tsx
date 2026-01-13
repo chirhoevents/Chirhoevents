@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, Download, Mail, Loader2 } from 'lucide-react'
 import '@/styles/print-receipt.css'
+import LoadingScreen from '@/components/LoadingScreen'
 
 interface RegistrationData {
   id: string
@@ -62,11 +63,7 @@ export default function ConfirmationPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-navy" />
-      </div>
-    )
+    return <LoadingScreen message="Loading confirmation..." />
   }
 
   if (error || !registration) {

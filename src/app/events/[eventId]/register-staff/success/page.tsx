@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, Loader2, Home, Mail } from 'lucide-react'
+import LoadingScreen from '@/components/LoadingScreen'
 
 interface RegistrationData {
   id: string
@@ -59,11 +60,7 @@ export default function StaffRegistrationSuccessPage() {
   }, [registrationId])
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <Loader2 className="h-8 w-8 animate-spin text-[#1E3A5F]" />
-      </div>
-    )
+    return <LoadingScreen message="Loading confirmation..." />
   }
 
   if (error || !registration) {

@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Loader2, CreditCard, FileText, ArrowLeft, CheckCircle } from 'lucide-react'
 import { useRegistrationQueue } from '@/hooks/useRegistrationQueue'
 import RegistrationTimer from '@/components/RegistrationTimer'
+import LoadingScreen from '@/components/LoadingScreen'
 
 interface EventData {
   id: string
@@ -385,11 +386,7 @@ export default function InvoiceReviewPage() {
   }
 
   if (loading || queueLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-navy" />
-      </div>
-    )
+    return <LoadingScreen message="Loading registration review..." />
   }
 
   if (error && !event) {

@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Loader2, ArrowLeft, Users, Building2 } from 'lucide-react'
+import LoadingScreen from '@/components/LoadingScreen'
 
 interface EventSettings {
   staffRegistrationEnabled: boolean
@@ -179,11 +180,7 @@ export default function StaffRegistrationPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <Loader2 className="h-8 w-8 animate-spin text-[#1E3A5F]" />
-      </div>
-    )
+    return <LoadingScreen message="Loading staff registration..." />
   }
 
   if (error && !event) {

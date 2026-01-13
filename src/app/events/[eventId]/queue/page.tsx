@@ -6,6 +6,7 @@ import { Clock, Users, AlertCircle, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import LoadingScreen from '@/components/LoadingScreen'
+import Image from 'next/image'
 
 interface QueueStatus {
   allowed: boolean
@@ -224,8 +225,24 @@ export default function QueuePage() {
     <div className="min-h-screen bg-[#FDF8F3] flex items-center justify-center p-4">
       <Card className="max-w-2xl w-full shadow-lg">
         <CardHeader className="text-center border-b pb-6">
-          <div className="w-16 h-16 bg-[#1E3A5F] rounded-full mx-auto mb-4 flex items-center justify-center">
-            <Clock className="h-8 w-8 text-[#9C8466]" />
+          {/* Spinning logo */}
+          <div className="relative w-24 h-24 mx-auto mb-4">
+            {/* Outer ring */}
+            <div className="absolute inset-0 rounded-full border-4 border-[#9C8466]/30"></div>
+            {/* Spinning ring */}
+            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#9C8466] border-r-[#9C8466] animate-spin"></div>
+            {/* Inner background */}
+            <div className="absolute inset-2 rounded-full bg-[#1E3A5F]"></div>
+            {/* Logo in center */}
+            <div className="absolute inset-3 flex items-center justify-center">
+              <Image
+                src="/ChiRho Event Logos/Chrirho Events Square White Logo.png"
+                alt="ChiRho Events"
+                width={56}
+                height={56}
+                className="object-contain"
+              />
+            </div>
           </div>
           <CardTitle className="text-2xl md:text-3xl text-[#1E3A5F]">
             You&apos;re in the Virtual Queue
