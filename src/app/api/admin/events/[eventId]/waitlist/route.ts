@@ -99,6 +99,9 @@ export async function GET(
         notifiedAt: entry.notifiedAt,
         invitationExpires: entry.invitationExpires,
         hasToken: !!entry.registrationToken,
+        registrationType: entry.registrationType,
+        preferredHousingType: entry.preferredHousingType,
+        preferredRoomType: entry.preferredRoomType,
         createdAt: entry.createdAt,
         updatedAt: entry.updatedAt,
       })),
@@ -108,6 +111,19 @@ export async function GET(
         contacted: entries.filter((e: any) => e.status === 'contacted').length,
         registered: entries.filter((e: any) => e.status === 'registered').length,
         expired: entries.filter((e: any) => e.status === 'expired').length,
+        // Breakdown by housing type preference
+        byHousingType: {
+          onCampus: entries.filter((e: any) => e.preferredHousingType === 'on_campus' && e.status === 'pending').length,
+          offCampus: entries.filter((e: any) => e.preferredHousingType === 'off_campus' && e.status === 'pending').length,
+          dayPass: entries.filter((e: any) => e.preferredHousingType === 'day_pass' && e.status === 'pending').length,
+          unspecified: entries.filter((e: any) => !e.preferredHousingType && e.status === 'pending').length,
+        },
+        // Breakdown by registration type preference
+        byRegistrationType: {
+          group: entries.filter((e: any) => e.registrationType === 'group' && e.status === 'pending').length,
+          individual: entries.filter((e: any) => e.registrationType === 'individual' && e.status === 'pending').length,
+          unspecified: entries.filter((e: any) => !e.registrationType && e.status === 'pending').length,
+        },
       },
       analytics: {
         conversionRate, // Percentage

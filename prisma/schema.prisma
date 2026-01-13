@@ -179,6 +179,8 @@ model Event {
   supportTickets            SupportTicket[]
   coupons                   Coupon[]
   porosDataImport           PorosEventDataImport?
+  queueSettings             EventQueueSettings?
+  registrationQueueEntries  RegistrationQueue[]
 
   @@index([organizationId], name: "idx_event_org")
   @@index([slug], name: "idx_event_slug")
@@ -307,6 +309,27 @@ model EventSettings {
   // Coupon Settings
   couponsEnabled                  Boolean  @default(false) @map("coupons_enabled")
 
+  // ===================================
+  // OPTION CAPACITY TRACKING
+  // ===================================
+  // Housing type capacity (applies to both group and individual registrations)
+  onCampusCapacity                Int?     @map("on_campus_capacity")
+  onCampusRemaining               Int?     @map("on_campus_remaining")
+  offCampusCapacity               Int?     @map("off_campus_capacity")
+  offCampusRemaining              Int?     @map("off_campus_remaining")
+  dayPassCapacity                 Int?     @map("day_pass_capacity")
+  dayPassRemaining                Int?     @map("day_pass_remaining")
+
+  // Room type capacity (individual registration only)
+  singleRoomCapacity              Int?     @map("single_room_capacity")
+  singleRoomRemaining             Int?     @map("single_room_remaining")
+  doubleRoomCapacity              Int?     @map("double_room_capacity")
+  doubleRoomRemaining             Int?     @map("double_room_remaining")
+  tripleRoomCapacity              Int?     @map("triple_room_capacity")
+  tripleRoomRemaining             Int?     @map("triple_room_remaining")
+  quadRoomCapacity                Int?     @map("quad_room_capacity")
+  quadRoomRemaining               Int?     @map("quad_room_remaining")
+
   createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -396,6 +419,17 @@ model GroupRegistration {
   priestCount                Int      @default(0) @map("priest_count")
   totalParticipants          Int      @map("total_participants")
   housingType                HousingType @map("housing_type")
+  // Housing-specific participant counts (inventory style)
+  onCampusYouth              Int?     @map("on_campus_youth")
+  onCampusChaperones         Int?     @map("on_campus_chaperones")
+  offCampusYouth             Int?     @map("off_campus_youth")
+  offCampusChaperones        Int?     @map("off_campus_chaperones")
+  dayPassYouth               Int?     @map("day_pass_youth")
+  dayPassChaperones          Int?     @map("day_pass_chaperones")
+  // Legacy fields (kept for backward compatibility)
+  onCampusCount              Int?     @map("on_campus_count")
+  offCampusCount             Int?     @map("off_campus_count")
+  dayPassCount               Int?     @map("day_pass_count")
   specialRequests            String?  @map("special_requests") @db.Text
   dietaryRestrictionsSummary String?  @map("dietary_restrictions_summary") @db.Text
   adaAccommodationsSummary   String?  @map("ada_accommodations_summary") @db.Text
@@ -609,6 +643,7 @@ model LiabilityForm {
   dioceseOfIncardination    String?  @map("diocese_of_incardination") @db.VarChar(255)
   currentAssignment         String?  @map("current_assignment") @db.VarChar(255)
   facultyInformation        String?  @map("faculty_information") @db.Text
+  needsHousing              Boolean? @map("needs_housing")
   parentEmail               String?  @map("parent_email") @db.VarChar(255)
   parentToken               String?  @unique @map("parent_token") @db.VarChar(255)
   parentTokenExpiresAt      DateTime? @map("parent_token_expires_at") @db.Timestamptz(6)
@@ -1055,6 +1090,11 @@ model WaitlistEntry {
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  // Option preferences - what type of registration/housing they want
+  registrationType    RegistrationType? @map("registration_type")
+  preferredHousingType HousingType? @map("preferred_housing_type")
+  preferredRoomType   RoomType? @map("preferred_room_type")
+
   // Relations
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
@@ -1062,6 +1102,7 @@ model WaitlistEntry {
   @@index([status], name: "idx_waitlist_status")
   @@index([email], name: "idx_waitlist_email")
   @@index([registrationToken], name: "idx_waitlist_token")
+  @@index([preferredHousingType], name: "idx_waitlist_housing_type")
   @@map("waitlist_entries")
 }
 
@@ -2429,5 +2470,72 @@ model PorosEventDataImport {
 
   @@index([eventId], name: "idx_poros_import_event")
   @@map("poros_event_data_imports")
+}
+
+// ===================================
+// VIRTUAL QUEUE SYSTEM
+// ===================================
+
+enum QueueStatus {
+  waiting
+  active
+  completed
+  expired
+  abandoned
+}
+
+enum QueueRegistrationType {
+  group
+  individual
+}
+
+model RegistrationQueue {
+  id                String              @id @default(uuid()) @db.Uuid
+  eventId           String              @map("event_id") @db.Uuid
+  userId            String?             @map("user_id") @db.VarChar(255) // Clerk user ID if signed in
+  sessionId         String              @unique @map("session_id") @db.VarChar(255)
+  registrationType  QueueRegistrationType @map("registration_type")
+  status            QueueStatus         @default(waiting)
+  queuePosition     Int?                @map("queue_position")
+  enteredQueueAt    DateTime            @default(now()) @map("entered_queue_at") @db.Timestamptz(6)
+  admittedAt        DateTime?           @map("admitted_at") @db.Timestamptz(6)
+  expiresAt         DateTime?           @map("expires_at") @db.Timestamptz(6)
+  completedAt       DateTime?           @map("completed_at") @db.Timestamptz(6)
+  extensionUsed     Boolean             @default(false) @map("extension_used")
+  ipAddress         String?             @map("ip_address") @db.VarChar(45)
+  userAgent         String?             @map("user_agent") @db.Text
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  event             Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, status], name: "idx_queue_event_status")
+  @@index([sessionId], name: "idx_queue_session")
+  @@index([status, enteredQueueAt], name: "idx_queue_status_entered")
+  @@index([eventId, registrationType, status], name: "idx_queue_event_type_status")
+  @@map("registration_queue")
+}
+
+model EventQueueSettings {
+  id                          String    @id @default(uuid()) @db.Uuid
+  eventId                     String    @unique @map("event_id") @db.Uuid
+  queueEnabled                Boolean   @default(false) @map("queue_enabled")
+  maxConcurrentGroup          Int       @default(10) @map("max_concurrent_group")
+  maxConcurrentIndividual     Int       @default(40) @map("max_concurrent_individual")
+  groupSessionTimeout         Int       @default(600) @map("group_session_timeout") // seconds (10 min)
+  individualSessionTimeout    Int       @default(420) @map("individual_session_timeout") // seconds (7 min)
+  allowTimeExtension          Boolean   @default(true) @map("allow_time_extension")
+  extensionDuration           Int       @default(300) @map("extension_duration") // seconds (5 min)
+  queueStartTime              DateTime? @map("queue_start_time") @db.Timestamptz(6) // Auto-enable queue at this time
+  queueEndTime                DateTime? @map("queue_end_time") @db.Timestamptz(6) // Auto-disable queue after this
+  waitingRoomMessage          String?   @map("waiting_room_message") @db.Text // Custom message to show in waiting room
+  createdAt                   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  event                       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("event_queue_settings")
 }
 

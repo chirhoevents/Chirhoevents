@@ -5,7 +5,9 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Loader2 } from 'lucide-react'
+import { Loader2, AlertCircle } from 'lucide-react'
+import { useRegistrationQueue } from '@/hooks/useRegistrationQueue'
+import RegistrationTimer from '@/components/RegistrationTimer'
 
 interface EventPricing {
   youthRegularPrice: number
@@ -37,6 +39,21 @@ export default function GroupRegistrationPage() {
   const params = useParams()
   const router = useRouter()
   const eventId = params.eventId as string
+
+  // Queue management
+  const {
+    loading: queueLoading,
+    queueActive,
+    isBlocked,
+    queueStatus,
+    expiresAt,
+    extensionAllowed,
+    markComplete,
+    checkQueue,
+  } = useRegistrationQueue(eventId, 'group')
+
+  // Debug mode - add ?debug=queue to URL to see queue status
+  const showDebug = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === 'queue'
 
   const [loading, setLoading] = useState(true)
   const [event, setEvent] = useState<EventData | null>(null)
@@ -237,7 +254,7 @@ export default function GroupRegistrationPage() {
     router.push(`/events/${eventId}/register-group/review?${params.toString()}`)
   }
 
-  if (loading) {
+  if (loading || queueLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-navy" />
@@ -258,8 +275,62 @@ export default function GroupRegistrationPage() {
     )
   }
 
+  // Block access if user should be in the queue
+  if (isBlocked) {
+    return (
+      <div className="min-h-screen bg-beige flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="p-8 text-center">
+            <AlertCircle className="h-16 w-16 text-amber-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-navy mb-2">Registration at Capacity</h2>
+            <p className="text-gray-600 mb-6">
+              The registration system is currently at capacity. Please join the virtual queue to wait for an available spot.
+            </p>
+            <div className="space-y-3">
+              <Button
+                onClick={() => router.push(`/events/${eventId}/queue?type=group`)}
+                className="w-full bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
+              >
+                Join Virtual Queue
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => checkQueue()}
+                className="w-full"
+              >
+                Check Again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-beige py-12">
+      {/* Queue Timer - shows when queue is active */}
+      {queueActive && expiresAt && (
+        <RegistrationTimer
+          expiresAt={expiresAt}
+          eventId={eventId}
+          registrationType="group"
+          extensionAllowed={extensionAllowed}
+        />
+      )}
+
+      {/* Debug Panel - add ?debug=queue to URL to see this */}
+      {showDebug && (
+        <div className="fixed bottom-4 left-4 z-50 bg-black text-white p-4 rounded-lg text-xs max-w-sm overflow-auto max-h-64">
+          <p className="font-bold mb-2">Queue Debug Info:</p>
+          <p>queueLoading: {String(queueLoading)}</p>
+          <p>queueActive: {String(queueActive)}</p>
+          <p>isBlocked: {String(isBlocked)}</p>
+          <p>expiresAt: {expiresAt || 'null'}</p>
+          <p>queueStatus: {JSON.stringify(queueStatus, null, 2)}</p>
+        </div>
+      )}
+
       <div className="container mx-auto px-4">
         <div className="max-w-5xl mx-auto">
           {/* Header */}

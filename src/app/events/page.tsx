@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -31,6 +30,7 @@ import {
   ChevronUp,
 } from 'lucide-react'
 import { format } from 'date-fns'
+import { PublicNav } from '@/components/PublicNav'
 
 interface Event {
   id: string
@@ -396,30 +396,20 @@ export default function EventsPage() {
 
   return (
     <div className="min-h-screen bg-[#F5F1E8]">
-      {/* Header */}
-      <nav className="bg-white border-b border-gray-200">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Link href="/" className="flex items-center">
-              <Image
-                src="/dark-logo-horizontal.png"
-                alt="ChiRho Events"
-                width={200}
-                height={60}
-                className="h-10 md:h-14 w-auto"
-                priority
-              />
-            </Link>
-            <Link href="/sign-in">
-              <Button variant="outline" size="sm">Sign In</Button>
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <PublicNav currentPage="events" />
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-r from-[#1E3A5F] to-[#2A4A6F] text-white py-12 md:py-16">
-        <div className="container mx-auto px-4 text-center">
+      <section
+        className="relative text-white py-12 md:py-16"
+        style={{
+          backgroundImage: `url('/ChiRho Event Logos/ChiRho events BG.png')`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
+        <div className="absolute inset-0 bg-[#1E3A5F]/70"></div>
+        <div className="container mx-auto px-4 text-center relative z-10">
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
             Browse Events
           </h1>

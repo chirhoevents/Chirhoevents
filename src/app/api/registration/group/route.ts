@@ -6,6 +6,7 @@ import { Resend } from 'resend'
 import QRCode from 'qrcode'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { generateGroupRegistrationConfirmationEmail } from '@/lib/email-templates'
+import { checkOptionCapacity, decrementOptionCapacity, type HousingType } from '@/lib/option-capacity'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -73,6 +74,7 @@ export async function POST(request: NextRequest) {
       where: { id: eventId },
       include: {
         pricing: true,
+        settings: true,
         organization: {
           select: {
             id: true,
@@ -125,6 +127,24 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
       }
+    }
+
+    // Check option-level capacity (housing type for group registrations)
+    const optionCapacityCheck = checkOptionCapacity(
+      event.settings,
+      housingType as HousingType,
+      null, // Groups don't have room type selection
+      totalParticipants
+    )
+
+    if (!optionCapacityCheck.hasCapacity) {
+      return NextResponse.json(
+        {
+          error: optionCapacityCheck.error,
+          housingRemaining: optionCapacityCheck.housingRemaining,
+        },
+        { status: 400 }
+      )
     }
 
     // Check for early bird pricing
@@ -262,6 +282,14 @@ export async function POST(request: NextRequest) {
     const registrationStatus =
       paymentMethod === 'check' ? 'pending_payment' : 'incomplete'
 
+    // Determine initial inventory counts based on housing type
+    const initialOnCampusYouth = housingType === 'on_campus' ? youthCount : 0
+    const initialOnCampusChaperones = housingType === 'on_campus' ? chaperoneCount : 0
+    const initialOffCampusYouth = housingType === 'off_campus' ? youthCount : 0
+    const initialOffCampusChaperones = housingType === 'off_campus' ? chaperoneCount : 0
+    const initialDayPassYouth = housingType === 'day_pass' ? youthCount : 0
+    const initialDayPassChaperones = housingType === 'day_pass' ? chaperoneCount : 0
+
     // Create group registration
     const registration = await prisma.groupRegistration.create({
       data: {
@@ -289,6 +317,13 @@ export async function POST(request: NextRequest) {
         priestCount,
         totalParticipants,
         housingType,
+        // Set initial inventory counts based on selected housing type
+        onCampusYouth: initialOnCampusYouth > 0 ? initialOnCampusYouth : null,
+        onCampusChaperones: initialOnCampusChaperones > 0 ? initialOnCampusChaperones : null,
+        offCampusYouth: initialOffCampusYouth > 0 ? initialOffCampusYouth : null,
+        offCampusChaperones: initialOffCampusChaperones > 0 ? initialOffCampusChaperones : null,
+        dayPassYouth: initialDayPassYouth > 0 ? initialDayPassYouth : null,
+        dayPassChaperones: initialDayPassChaperones > 0 ? initialDayPassChaperones : null,
         specialRequests,
         registrationStatus,
       },
@@ -352,6 +387,14 @@ export async function POST(request: NextRequest) {
         },
       })
     }
+
+    // Update option-level capacity (housing type for group registrations)
+    await decrementOptionCapacity(
+      event.id,
+      housingType as HousingType,
+      null, // Groups don't have room type selection
+      totalParticipants
+    )
 
     // Handle payment method
     if (paymentMethod === 'check') {

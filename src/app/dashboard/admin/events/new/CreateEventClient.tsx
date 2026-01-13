@@ -93,6 +93,16 @@ interface EventFormData {
   tripleRoomLabel: string
   quadRoomLabel: string
 
+  // Option capacity fields (housing types)
+  onCampusCapacity: string
+  offCampusCapacity: string
+  dayPassCapacity: string
+  // Option capacity fields (room types)
+  singleRoomCapacity: string
+  doubleRoomCapacity: string
+  tripleRoomCapacity: string
+  quadRoomCapacity: string
+
   // Add-ons
   addOn1Enabled: boolean
   addOn1Title: string
@@ -279,6 +289,15 @@ export default function CreateEventClient({
     doubleRoomLabel: '',
     tripleRoomLabel: '',
     quadRoomLabel: '',
+
+    // Option capacity fields (empty = unlimited)
+    onCampusCapacity: '',
+    offCampusCapacity: '',
+    dayPassCapacity: '',
+    singleRoomCapacity: '',
+    doubleRoomCapacity: '',
+    tripleRoomCapacity: '',
+    quadRoomCapacity: '',
 
     // Add-ons
     addOn1Enabled: false,
@@ -1193,52 +1212,109 @@ export default function CreateEventClient({
                     {formData.porosHousingEnabled && (
                       <div className="ml-6 pl-4 border-l-2 border-green-300 space-y-3">
                         <p className="text-sm text-green-800 font-medium">
-                          Housing Options:
+                          Housing Options (set capacity limits for each type):
                         </p>
 
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            id="allowOnCampus"
-                            checked={formData.allowOnCampus}
-                            onChange={(e) =>
-                              updateFormData({ allowOnCampus: e.target.checked })
-                            }
-                            className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
-                          />
-                          <Label htmlFor="allowOnCampus" className="mb-0">
-                            Allow On-Campus Housing
-                          </Label>
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id="allowOnCampus"
+                              checked={formData.allowOnCampus}
+                              onChange={(e) =>
+                                updateFormData({ allowOnCampus: e.target.checked })
+                              }
+                              className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                            />
+                            <Label htmlFor="allowOnCampus" className="mb-0">
+                              Allow On-Campus Housing
+                            </Label>
+                          </div>
+                          {formData.allowOnCampus && (
+                            <div className="ml-6 flex items-center gap-2">
+                              <Label htmlFor="onCampusCapacity" className="text-sm text-gray-600 mb-0 whitespace-nowrap">
+                                Capacity limit:
+                              </Label>
+                              <Input
+                                id="onCampusCapacity"
+                                type="number"
+                                min="0"
+                                placeholder="Unlimited"
+                                value={formData.onCampusCapacity}
+                                onChange={(e) => updateFormData({ onCampusCapacity: e.target.value })}
+                                className="w-28 h-8 text-sm"
+                              />
+                              <span className="text-xs text-gray-500">spots</span>
+                            </div>
+                          )}
                         </div>
 
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            id="allowOffCampus"
-                            checked={formData.allowOffCampus}
-                            onChange={(e) =>
-                              updateFormData({ allowOffCampus: e.target.checked })
-                            }
-                            className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
-                          />
-                          <Label htmlFor="allowOffCampus" className="mb-0">
-                            Allow Off-Campus Housing (staying elsewhere)
-                          </Label>
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id="allowOffCampus"
+                              checked={formData.allowOffCampus}
+                              onChange={(e) =>
+                                updateFormData({ allowOffCampus: e.target.checked })
+                              }
+                              className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                            />
+                            <Label htmlFor="allowOffCampus" className="mb-0">
+                              Allow Off-Campus Housing (staying elsewhere)
+                            </Label>
+                          </div>
+                          {formData.allowOffCampus && (
+                            <div className="ml-6 flex items-center gap-2">
+                              <Label htmlFor="offCampusCapacity" className="text-sm text-gray-600 mb-0 whitespace-nowrap">
+                                Capacity limit:
+                              </Label>
+                              <Input
+                                id="offCampusCapacity"
+                                type="number"
+                                min="0"
+                                placeholder="Unlimited"
+                                value={formData.offCampusCapacity}
+                                onChange={(e) => updateFormData({ offCampusCapacity: e.target.value })}
+                                className="w-28 h-8 text-sm"
+                              />
+                              <span className="text-xs text-gray-500">spots</span>
+                            </div>
+                          )}
                         </div>
 
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            id="allowDayPass"
-                            checked={formData.allowDayPass}
-                            onChange={(e) =>
-                              updateFormData({ allowDayPass: e.target.checked })
-                            }
-                            className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
-                          />
-                          <Label htmlFor="allowDayPass" className="mb-0">
-                            Allow Day Pass Only (attending but not staying overnight)
-                          </Label>
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id="allowDayPass"
+                              checked={formData.allowDayPass}
+                              onChange={(e) =>
+                                updateFormData({ allowDayPass: e.target.checked })
+                              }
+                              className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                            />
+                            <Label htmlFor="allowDayPass" className="mb-0">
+                              Allow Day Pass Only (attending but not staying overnight)
+                            </Label>
+                          </div>
+                          {formData.allowDayPass && (
+                            <div className="ml-6 flex items-center gap-2">
+                              <Label htmlFor="dayPassCapacity" className="text-sm text-gray-600 mb-0 whitespace-nowrap">
+                                Capacity limit:
+                              </Label>
+                              <Input
+                                id="dayPassCapacity"
+                                type="number"
+                                min="0"
+                                placeholder="Unlimited"
+                                value={formData.dayPassCapacity}
+                                onChange={(e) => updateFormData({ dayPassCapacity: e.target.value })}
+                                className="w-28 h-8 text-sm"
+                              />
+                              <span className="text-xs text-gray-500">spots</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -2373,7 +2449,7 @@ export default function CreateEventClient({
                               </Label>
                             </div>
                             {formData.allowSingleRoom && (
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ml-6">
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 ml-6">
                                 <div>
                                   <Label htmlFor="singleRoomLabel" className="text-sm">Custom Label (optional)</Label>
                                   <Input
@@ -2402,6 +2478,19 @@ export default function CreateEventClient({
                                     Total: ${formData.individualBasePrice || '100'} + ${formData.singleRoomPrice || '100'} = <span className="font-semibold">${(parseFloat(formData.individualBasePrice || '100') + parseFloat(formData.singleRoomPrice || '100')).toFixed(2)}</span>
                                   </p>
                                 </div>
+                                <div>
+                                  <Label htmlFor="singleRoomCapacity" className="text-sm">Capacity Limit</Label>
+                                  <Input
+                                    id="singleRoomCapacity"
+                                    type="number"
+                                    min="0"
+                                    value={formData.singleRoomCapacity}
+                                    onChange={(e) => updateFormData({ singleRoomCapacity: e.target.value })}
+                                    placeholder="Unlimited"
+                                    className="mt-1"
+                                  />
+                                  <p className="text-xs text-gray-500 mt-1">Leave empty for no limit</p>
+                                </div>
                               </div>
                             )}
                           </div>
@@ -2421,7 +2510,7 @@ export default function CreateEventClient({
                               </Label>
                             </div>
                             {formData.allowDoubleRoom && (
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ml-6">
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 ml-6">
                                 <div>
                                   <Label htmlFor="doubleRoomLabel" className="text-sm">Custom Label (optional)</Label>
                                   <Input
@@ -2450,6 +2539,19 @@ export default function CreateEventClient({
                                     Total: ${formData.individualBasePrice || '100'} + ${formData.doubleRoomPrice || '50'} = <span className="font-semibold">${(parseFloat(formData.individualBasePrice || '100') + parseFloat(formData.doubleRoomPrice || '50')).toFixed(2)}</span>
                                   </p>
                                 </div>
+                                <div>
+                                  <Label htmlFor="doubleRoomCapacity" className="text-sm">Capacity Limit</Label>
+                                  <Input
+                                    id="doubleRoomCapacity"
+                                    type="number"
+                                    min="0"
+                                    value={formData.doubleRoomCapacity}
+                                    onChange={(e) => updateFormData({ doubleRoomCapacity: e.target.value })}
+                                    placeholder="Unlimited"
+                                    className="mt-1"
+                                  />
+                                  <p className="text-xs text-gray-500 mt-1">Leave empty for no limit</p>
+                                </div>
                               </div>
                             )}
                           </div>
@@ -2469,7 +2571,7 @@ export default function CreateEventClient({
                               </Label>
                             </div>
                             {formData.allowTripleRoom && (
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ml-6">
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 ml-6">
                                 <div>
                                   <Label htmlFor="tripleRoomLabel" className="text-sm">Custom Label (optional)</Label>
                                   <Input
@@ -2498,6 +2600,19 @@ export default function CreateEventClient({
                                     Total: ${formData.individualBasePrice || '100'} + ${formData.tripleRoomPrice || '40'} = <span className="font-semibold">${(parseFloat(formData.individualBasePrice || '100') + parseFloat(formData.tripleRoomPrice || '40')).toFixed(2)}</span>
                                   </p>
                                 </div>
+                                <div>
+                                  <Label htmlFor="tripleRoomCapacity" className="text-sm">Capacity Limit</Label>
+                                  <Input
+                                    id="tripleRoomCapacity"
+                                    type="number"
+                                    min="0"
+                                    value={formData.tripleRoomCapacity}
+                                    onChange={(e) => updateFormData({ tripleRoomCapacity: e.target.value })}
+                                    placeholder="Unlimited"
+                                    className="mt-1"
+                                  />
+                                  <p className="text-xs text-gray-500 mt-1">Leave empty for no limit</p>
+                                </div>
                               </div>
                             )}
                           </div>
@@ -2517,7 +2632,7 @@ export default function CreateEventClient({
                               </Label>
                             </div>
                             {formData.allowQuadRoom && (
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ml-6">
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 ml-6">
                                 <div>
                                   <Label htmlFor="quadRoomLabel" className="text-sm">Custom Label (optional)</Label>
                                   <Input
@@ -2545,6 +2660,19 @@ export default function CreateEventClient({
                                   <p className="text-xs text-gray-500 mt-1">
                                     Total: ${formData.individualBasePrice || '100'} + ${formData.quadRoomPrice || '30'} = <span className="font-semibold">${(parseFloat(formData.individualBasePrice || '100') + parseFloat(formData.quadRoomPrice || '30')).toFixed(2)}</span>
                                   </p>
+                                </div>
+                                <div>
+                                  <Label htmlFor="quadRoomCapacity" className="text-sm">Capacity Limit</Label>
+                                  <Input
+                                    id="quadRoomCapacity"
+                                    type="number"
+                                    min="0"
+                                    value={formData.quadRoomCapacity}
+                                    onChange={(e) => updateFormData({ quadRoomCapacity: e.target.value })}
+                                    placeholder="Unlimited"
+                                    className="mt-1"
+                                  />
+                                  <p className="text-xs text-gray-500 mt-1">Leave empty for no limit</p>
                                 </div>
                               </div>
                             )}

@@ -30,6 +30,7 @@ export function PublicNav({ currentPage }: PublicNavProps) {
     { href: "/#pricing", label: "Pricing" },
     { href: "/docs", label: "Documentation" },
     { href: "/support", label: "Support" },
+    { href: "/events", label: "Events" },
   ]
 
   const SignInDropdown = () => (
