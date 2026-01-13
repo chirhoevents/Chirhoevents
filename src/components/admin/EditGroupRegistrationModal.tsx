@@ -217,7 +217,15 @@ export default function EditGroupRegistrationModal({
           .then(res => res.json())
           .then(data => {
             if (data.event?.pricing) {
-              setFetchedEventPricing(data.event.pricing)
+              // Parse date strings into Date objects (API returns strings, not Date objects)
+              const pricing = data.event.pricing
+              const parsedPricing: EventPricing = {
+                ...pricing,
+                earlyBirdDeadline: pricing.earlyBirdDeadline ? new Date(pricing.earlyBirdDeadline) : null,
+                regularDeadline: pricing.regularDeadline ? new Date(pricing.regularDeadline) : null,
+                fullPaymentDeadline: pricing.fullPaymentDeadline ? new Date(pricing.fullPaymentDeadline) : null,
+              }
+              setFetchedEventPricing(parsedPricing)
             }
           })
           .catch(err => {
