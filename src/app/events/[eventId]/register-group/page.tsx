@@ -48,6 +48,7 @@ export default function GroupRegistrationPage() {
     expiresAt,
     extensionAllowed,
     markComplete,
+    checkQueue,
   } = useRegistrationQueue(eventId, 'group')
 
   const [loading, setLoading] = useState(true)
@@ -279,9 +280,23 @@ export default function GroupRegistrationPage() {
             <AlertCircle className="h-16 w-16 text-amber-500 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-navy mb-2">Registration at Capacity</h2>
             <p className="text-gray-600 mb-6">
-              The registration system is currently at capacity. You are being redirected to the virtual queue.
+              The registration system is currently at capacity. Please join the virtual queue to wait for an available spot.
             </p>
-            <Loader2 className="h-6 w-6 animate-spin text-navy mx-auto" />
+            <div className="space-y-3">
+              <Button
+                onClick={() => router.push(`/events/${eventId}/queue?type=group`)}
+                className="w-full bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
+              >
+                Join Virtual Queue
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => checkQueue()}
+                className="w-full"
+              >
+                Check Again
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
