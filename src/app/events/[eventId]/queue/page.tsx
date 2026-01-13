@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { Loader2, Clock, Users, CheckCircle, AlertCircle } from 'lucide-react'
+import { Loader2, Clock, Users, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -18,21 +18,89 @@ interface QueueStatus {
   waitingRoomMessage?: string
 }
 
+interface EventSettings {
+  groupRegistrationEnabled: boolean
+  individualRegistrationEnabled: boolean
+}
+
 export default function QueuePage() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
 
   const eventId = params.eventId as string
-  const registrationType = searchParams.get('type') as 'group' | 'individual'
+  const typeParam = searchParams.get('type') as 'group' | 'individual' | null
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [queueStatus, setQueueStatus] = useState<QueueStatus | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
+  const [eventSettings, setEventSettings] = useState<EventSettings | null>(null)
+  const [registrationType, setRegistrationType] = useState<'group' | 'individual' | null>(null)
+
+  // Fetch event settings to determine which registration type is enabled
+  useEffect(() => {
+    async function fetchEventSettings() {
+      try {
+        const response = await fetch(`/api/events/${eventId}`)
+        if (!response.ok) {
+          throw new Error('Failed to load event')
+        }
+        const data = await response.json()
+
+        const settings: EventSettings = {
+          groupRegistrationEnabled: data.settings?.groupRegistrationEnabled ?? false,
+          individualRegistrationEnabled: data.settings?.individualRegistrationEnabled ?? false,
+        }
+        setEventSettings(settings)
+
+        // Determine registration type based on what's enabled
+        // If type is specified in URL, use that (if it's enabled)
+        // Otherwise, auto-detect based on what's enabled
+        let detectedType: 'group' | 'individual' | null = null
+
+        if (typeParam) {
+          // Use URL param if that type is enabled
+          if (typeParam === 'group' && settings.groupRegistrationEnabled) {
+            detectedType = 'group'
+          } else if (typeParam === 'individual' && settings.individualRegistrationEnabled) {
+            detectedType = 'individual'
+          }
+        }
+
+        // If no valid type from URL, auto-detect
+        if (!detectedType) {
+          if (settings.groupRegistrationEnabled && !settings.individualRegistrationEnabled) {
+            detectedType = 'group'
+          } else if (settings.individualRegistrationEnabled && !settings.groupRegistrationEnabled) {
+            detectedType = 'individual'
+          } else if (settings.groupRegistrationEnabled) {
+            // Both enabled, default to group (shouldn't happen per user's comment)
+            detectedType = 'group'
+          }
+        }
+
+        if (!detectedType) {
+          setError('Registration is not enabled for this event')
+          setLoading(false)
+          return
+        }
+
+        setRegistrationType(detectedType)
+      } catch (err) {
+        console.error('Error fetching event settings:', err)
+        setError('Failed to load event settings')
+        setLoading(false)
+      }
+    }
+
+    fetchEventSettings()
+  }, [eventId, typeParam])
 
   // Check queue status
   const checkStatus = useCallback(async () => {
+    if (!registrationType) return null
+
     try {
       const response = await fetch(`/api/queue/status?eventId=${eventId}&type=${registrationType}`)
 
@@ -67,15 +135,12 @@ export default function QueuePage() {
     }
   }, [eventId, registrationType])
 
-  // Initial check
+  // Initial check when registration type is determined
   useEffect(() => {
-    if (!registrationType) {
-      setError('Invalid registration type')
-      setLoading(false)
-      return
+    if (registrationType) {
+      checkStatus()
     }
-    checkStatus()
-  }, [checkStatus, registrationType])
+  }, [registrationType, checkStatus])
 
   // Poll for status updates every 5 seconds
   useEffect(() => {
@@ -98,7 +163,7 @@ export default function QueuePage() {
 
   // Redirect if already allowed
   useEffect(() => {
-    if (queueStatus?.allowed && queueStatus?.status === 'active') {
+    if (queueStatus?.allowed && queueStatus?.status === 'active' && registrationType) {
       const redirectPath = registrationType === 'group'
         ? `/events/${eventId}/register-group`
         : `/events/${eventId}/register-individual`
