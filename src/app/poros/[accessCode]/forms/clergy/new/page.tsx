@@ -23,6 +23,7 @@ export default function ClergyForm() {
     dioceseOfIncardination: '',
     currentAssignment: '',
     facultyInformation: '',
+    needsHousing: false,
     medicalConditions: '',
     medications: '',
     allergies: '',
@@ -115,6 +116,7 @@ export default function ClergyForm() {
           diocese_of_incardination: formData.dioceseOfIncardination,
           current_assignment: formData.currentAssignment || null,
           faculty_information: formData.facultyInformation || null,
+          needs_housing: formData.needsHousing,
           medical_conditions: formData.medicalConditions || null,
           medications: formData.medications || null,
           allergies: formData.allergies || null,
@@ -407,6 +409,23 @@ export default function ClergyForm() {
                   placeholder="Do you have faculties to hear confessions in this state/diocese? Example: 'Yes, faculties granted by Diocese of Oklahoma City'"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
                 />
+              </div>
+              <div className="pt-4 border-t border-gray-200">
+                <label className="flex items-start cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="needsHousing"
+                    checked={formData.needsHousing}
+                    onChange={handleInputChange}
+                    className="mr-3 mt-1 h-5 w-5 rounded border-gray-300 text-navy focus:ring-navy"
+                  />
+                  <div>
+                    <span className="font-semibold text-gray-700">Do you need housing?</span>
+                    <p className="text-sm text-gray-600">
+                      Check this box if you require housing accommodations for this event
+                    </p>
+                  </div>
+                </label>
               </div>
             </div>
           </div>

@@ -195,6 +195,9 @@ export default function EditGroupRegistrationModal({
   const [fullRegistration, setFullRegistration] = useState<GroupRegistration | null>(null)
   const [loadingRegistration, setLoadingRegistration] = useState(false)
 
+  // Fetched event pricing (used when eventPricing prop is null)
+  const [fetchedEventPricing, setFetchedEventPricing] = useState<EventPricing | null>(null)
+
   useEffect(() => {
     if (registration && isOpen) {
       setLoadingRegistration(true)
@@ -214,6 +217,37 @@ export default function EditGroupRegistrationModal({
       })
     }
   }, [registration, isOpen])
+
+  // Fetch event pricing if not provided as prop
+  useEffect(() => {
+    if (isOpen && eventId && !eventPricing) {
+      getToken().then(token => {
+        fetch(`/api/admin/events/${eventId}`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.event?.pricing) {
+              // Parse date strings into Date objects (API returns strings, not Date objects)
+              const pricing = data.event.pricing
+              const parsedPricing: EventPricing = {
+                ...pricing,
+                earlyBirdDeadline: pricing.earlyBirdDeadline ? new Date(pricing.earlyBirdDeadline) : null,
+                regularDeadline: pricing.regularDeadline ? new Date(pricing.regularDeadline) : null,
+                fullPaymentDeadline: pricing.fullPaymentDeadline ? new Date(pricing.fullPaymentDeadline) : null,
+              }
+              setFetchedEventPricing(parsedPricing)
+            }
+          })
+          .catch(err => {
+            console.error('Error fetching event pricing:', err)
+          })
+      })
+    } else if (eventPricing) {
+      // If eventPricing prop is provided, use it
+      setFetchedEventPricing(eventPricing)
+    }
+  }, [isOpen, eventId, eventPricing, getToken])
 
   // Initialize form data when registration changes
   useEffect(() => {
@@ -284,6 +318,12 @@ export default function EditGroupRegistrationModal({
   // Recalculate price when inventory counts change
   useEffect(() => {
     if (eventPricing && totalParticipantsCalc > 0) {
+  // Recalculate price when housing type or participant counts change
+  // Use fetchedEventPricing which is either the prop or fetched from API
+  useEffect(() => {
+    const totalCount = participantCounts.youth_u18 + participantCounts.youth_o18 + participantCounts.chaperone + participantCounts.priest
+
+    if (fetchedEventPricing && totalCount > 0) {
       // Create temporary participant objects for price calculation
       const tempParticipants: Participant[] = []
 
@@ -369,6 +409,8 @@ export default function EditGroupRegistrationModal({
         participants: tempParticipants,
         housingType: 'on_campus',
         pricing: eventPricing,
+        housingType: formData.housingType,
+        pricing: fetchedEventPricing,
         registrationDate: registration ? new Date(registration.registeredAt) : new Date(),
       })
       setNewTotal(calculation.total)
@@ -378,6 +420,7 @@ export default function EditGroupRegistrationModal({
       setPriceBreakdown([])
     }
   }, [inventoryCounts, eventPricing, registration, totalParticipantsCalc])
+  }, [formData.housingType, participantCounts, fetchedEventPricing, registration])
 
   const handleSave = async () => {
     if (!registration) return
