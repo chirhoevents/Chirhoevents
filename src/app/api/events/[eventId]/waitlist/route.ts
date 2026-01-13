@@ -67,6 +67,24 @@ export async function POST(
             name: true,
           },
         },
+        settings: {
+          select: {
+            onCampusCapacity: true,
+            onCampusRemaining: true,
+            offCampusCapacity: true,
+            offCampusRemaining: true,
+            dayPassCapacity: true,
+            dayPassRemaining: true,
+            singleRoomCapacity: true,
+            singleRoomRemaining: true,
+            doubleRoomCapacity: true,
+            doubleRoomRemaining: true,
+            tripleRoomCapacity: true,
+            tripleRoomRemaining: true,
+            quadRoomCapacity: true,
+            quadRoomRemaining: true,
+          },
+        },
       },
     })
 
@@ -107,6 +125,75 @@ export async function POST(
       },
     })
     const position = pendingCount + 1
+
+    // Check capacity and generate warnings (but still allow joining)
+    const warnings: string[] = []
+    const requestedPartySize = parseInt(partySize)
+
+    // Check overall event capacity
+    if (event.capacityTotal !== null && requestedPartySize > event.capacityTotal) {
+      warnings.push(`Your party size (${requestedPartySize}) exceeds the total event capacity (${event.capacityTotal}). You may need to reduce your group size.`)
+    } else if (event.capacityRemaining !== null && requestedPartySize > event.capacityRemaining) {
+      warnings.push(`Only ${event.capacityRemaining} spot${event.capacityRemaining === 1 ? '' : 's'} remaining for this event. Your party of ${requestedPartySize} may need to wait for cancellations.`)
+    }
+
+    // Check housing type capacity if preference specified
+    if (preferredHousingType && event.settings) {
+      let optionCapacity: number | null = null
+      let optionRemaining: number | null = null
+      let optionLabel = ''
+
+      if (preferredHousingType === 'on_campus') {
+        optionCapacity = event.settings.onCampusCapacity
+        optionRemaining = event.settings.onCampusRemaining
+        optionLabel = 'on-campus housing'
+      } else if (preferredHousingType === 'off_campus') {
+        optionCapacity = event.settings.offCampusCapacity
+        optionRemaining = event.settings.offCampusRemaining
+        optionLabel = 'off-campus housing'
+      } else if (preferredHousingType === 'day_pass') {
+        optionCapacity = event.settings.dayPassCapacity
+        optionRemaining = event.settings.dayPassRemaining
+        optionLabel = 'day pass'
+      }
+
+      if (optionCapacity !== null && requestedPartySize > optionCapacity) {
+        warnings.push(`Your party size (${requestedPartySize}) exceeds the total ${optionLabel} capacity (${optionCapacity}). You may need to select a different housing option or split your group.`)
+      } else if (optionRemaining !== null && requestedPartySize > optionRemaining) {
+        warnings.push(`Only ${optionRemaining} ${optionLabel} spot${optionRemaining === 1 ? '' : 's'} remaining. Your party of ${requestedPartySize} may need to consider alternative housing options.`)
+      }
+    }
+
+    // Check room type capacity if preference specified (for individual registration)
+    if (preferredRoomType && event.settings) {
+      let roomCapacity: number | null = null
+      let roomRemaining: number | null = null
+      let roomLabel = ''
+
+      if (preferredRoomType === 'single') {
+        roomCapacity = event.settings.singleRoomCapacity
+        roomRemaining = event.settings.singleRoomRemaining
+        roomLabel = 'single room'
+      } else if (preferredRoomType === 'double') {
+        roomCapacity = event.settings.doubleRoomCapacity
+        roomRemaining = event.settings.doubleRoomRemaining
+        roomLabel = 'double room'
+      } else if (preferredRoomType === 'triple') {
+        roomCapacity = event.settings.tripleRoomCapacity
+        roomRemaining = event.settings.tripleRoomRemaining
+        roomLabel = 'triple room'
+      } else if (preferredRoomType === 'quad') {
+        roomCapacity = event.settings.quadRoomCapacity
+        roomRemaining = event.settings.quadRoomRemaining
+        roomLabel = 'quad room'
+      }
+
+      if (roomCapacity !== null && requestedPartySize > roomCapacity) {
+        warnings.push(`Your party size (${requestedPartySize}) exceeds the total ${roomLabel} capacity (${roomCapacity}). You may need to select a different room type.`)
+      } else if (roomRemaining !== null && requestedPartySize > roomRemaining) {
+        warnings.push(`Only ${roomRemaining} ${roomLabel} spot${roomRemaining === 1 ? '' : 's'} remaining. You may need to consider alternative room types.`)
+      }
+    }
 
     // Create waitlist entry
     const waitlistEntry = await prisma.waitlistEntry.create({
@@ -154,7 +241,10 @@ export async function POST(
     return NextResponse.json(
       {
         success: true,
-        message: 'Successfully joined waitlist',
+        message: warnings.length > 0
+          ? 'Successfully joined waitlist (with capacity warnings)'
+          : 'Successfully joined waitlist',
+        warnings: warnings.length > 0 ? warnings : undefined,
         entry: {
           id: waitlistEntry.id,
           name: waitlistEntry.name,
