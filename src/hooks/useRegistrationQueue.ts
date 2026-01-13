@@ -13,6 +13,7 @@ interface QueueStatus {
   extensionAllowed?: boolean
   extensionUsed?: boolean
   waitingRoomMessage?: string
+  queueNotEnabled?: boolean
 }
 
 interface UseRegistrationQueueResult {
@@ -54,16 +55,37 @@ export function useRegistrationQueue(
         body: JSON.stringify({ eventId, registrationType })
       })
 
+      // If API returns error, check if queue is enabled for this event
       if (!response.ok) {
-        // Queue might not be enabled - allow through
+        // Try to determine if queue is even enabled
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Queue check failed:', errorData)
+
+        // If we got a clear "queue not enabled" response, allow through
+        if (errorData.queueNotEnabled) {
+          setQueueActive(false)
+          setIsBlocked(false)
+          setLoading(false)
+          return null
+        }
+
+        // Otherwise, block access to be safe (fail closed)
         setQueueActive(false)
-        setIsBlocked(false)
+        setIsBlocked(true)
         setLoading(false)
         return null
       }
 
       const data: QueueStatus = await response.json()
       setQueueStatus(data)
+
+      // If queue is not enabled, allow through without timer
+      if (data.queueNotEnabled) {
+        setQueueActive(false)
+        setIsBlocked(false)
+        setLoading(false)
+        return data
+      }
 
       // If queue is active but user needs to wait
       if (!data.allowed && data.status === 'waiting') {
@@ -99,9 +121,9 @@ export function useRegistrationQueue(
       return data
     } catch (err) {
       console.error('Error checking queue:', err)
-      // On error, allow through (fail open) but don't show timer
+      // On network error, block access to be safe (fail closed)
       setQueueActive(false)
-      setIsBlocked(false)
+      setIsBlocked(true)
       setLoading(false)
       return null
     }

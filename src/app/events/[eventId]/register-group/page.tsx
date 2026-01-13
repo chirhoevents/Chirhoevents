@@ -45,10 +45,15 @@ export default function GroupRegistrationPage() {
     loading: queueLoading,
     queueActive,
     isBlocked,
+    queueStatus,
     expiresAt,
     extensionAllowed,
     markComplete,
+    checkQueue,
   } = useRegistrationQueue(eventId, 'group')
+
+  // Debug mode - add ?debug=queue to URL to see queue status
+  const showDebug = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === 'queue'
 
   const [loading, setLoading] = useState(true)
   const [event, setEvent] = useState<EventData | null>(null)
@@ -279,9 +284,23 @@ export default function GroupRegistrationPage() {
             <AlertCircle className="h-16 w-16 text-amber-500 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-navy mb-2">Registration at Capacity</h2>
             <p className="text-gray-600 mb-6">
-              The registration system is currently at capacity. You are being redirected to the virtual queue.
+              The registration system is currently at capacity. Please join the virtual queue to wait for an available spot.
             </p>
-            <Loader2 className="h-6 w-6 animate-spin text-navy mx-auto" />
+            <div className="space-y-3">
+              <Button
+                onClick={() => router.push(`/events/${eventId}/queue?type=group`)}
+                className="w-full bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
+              >
+                Join Virtual Queue
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => checkQueue()}
+                className="w-full"
+              >
+                Check Again
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -298,6 +317,18 @@ export default function GroupRegistrationPage() {
           registrationType="group"
           extensionAllowed={extensionAllowed}
         />
+      )}
+
+      {/* Debug Panel - add ?debug=queue to URL to see this */}
+      {showDebug && (
+        <div className="fixed bottom-4 left-4 z-50 bg-black text-white p-4 rounded-lg text-xs max-w-sm overflow-auto max-h-64">
+          <p className="font-bold mb-2">Queue Debug Info:</p>
+          <p>queueLoading: {String(queueLoading)}</p>
+          <p>queueActive: {String(queueActive)}</p>
+          <p>isBlocked: {String(isBlocked)}</p>
+          <p>expiresAt: {expiresAt || 'null'}</p>
+          <p>queueStatus: {JSON.stringify(queueStatus, null, 2)}</p>
+        </div>
       )}
 
       <div className="container mx-auto px-4">

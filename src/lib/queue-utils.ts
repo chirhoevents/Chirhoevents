@@ -13,6 +13,7 @@ export interface QueueCheckResult {
   extensionAllowed?: boolean
   extensionUsed?: boolean
   waitingRoomMessage?: string
+  queueNotEnabled?: boolean
 }
 
 export interface QueueSettings {
@@ -80,6 +81,7 @@ export async function checkRegistrationQueue(
       allowed: true,
       sessionId,
       status: 'active',
+      queueNotEnabled: true,
     }
   }
 
