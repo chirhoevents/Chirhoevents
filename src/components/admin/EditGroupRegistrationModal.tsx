@@ -95,6 +95,13 @@ interface GroupRegistration {
   chaperoneCount?: number
   priestCount?: number
   housingType: 'on_campus' | 'off_campus' | 'day_pass'
+  // Housing-specific participant counts (inventory style)
+  onCampusYouth?: number
+  onCampusChaperones?: number
+  offCampusYouth?: number
+  offCampusChaperones?: number
+  dayPassYouth?: number
+  dayPassChaperones?: number
   specialRequests?: string
   registeredAt: string
   participants: Participant[]
@@ -150,11 +157,15 @@ export default function EditGroupRegistrationModal({
     pricePerPerson: number
     subtotal: number
   }>>([])
-  const [participantCounts, setParticipantCounts] = useState({
-    youth_u18: 0,
-    youth_o18: 0,
-    chaperone: 0,
-    priest: 0,
+  // Inventory-style housing counts
+  const [inventoryCounts, setInventoryCounts] = useState({
+    onCampusYouth: 0,
+    onCampusChaperones: 0,
+    offCampusYouth: 0,
+    offCampusChaperones: 0,
+    dayPassYouth: 0,
+    dayPassChaperones: 0,
+    priests: 0,
   })
   const [showRefundModal, setShowRefundModal] = useState(false)
   const [showCheckModal, setShowCheckModal] = useState(false)
@@ -258,43 +269,38 @@ export default function EditGroupRegistrationModal({
         adminNotes: '',
       })
 
-      // Use the original registration counts from when they first registered
-      // GroupRegistration stores: youthCount, chaperoneCount, priestCount
-      // Note: youthCount doesn't distinguish between under/over 18 in the original registration
+      // Initialize inventory counts from registration data
+      const priestCount = (regData as any).priestCount || 0
       const youthCount = (regData as any).youthCount || 0
       const chaperoneCount = (regData as any).chaperoneCount || 0
-      const priestCount = (regData as any).priestCount || 0
 
-      // For youth, if we have individual participant records with age breakdown, use those
-      // Otherwise, put all youth in youth_o18 (most common)
-      if (regData.participants && Array.isArray(regData.participants) && regData.participants.length > 0) {
-        const youth_u18_count = regData.participants.filter((p: Participant) => p.participantType === 'youth_u18').length
-        const youth_o18_count = regData.participants.filter((p: Participant) => p.participantType === 'youth_o18').length
+      // Check if we have new inventory-style data
+      const hasInventoryData = (regData as any).onCampusYouth !== undefined ||
+                               (regData as any).offCampusYouth !== undefined ||
+                               (regData as any).dayPassYouth !== undefined
 
-        // If we have youth participants with types, use those
-        if (youth_u18_count + youth_o18_count > 0) {
-          setParticipantCounts({
-            youth_u18: youth_u18_count,
-            youth_o18: youth_o18_count,
-            chaperone: chaperoneCount,
-            priest: priestCount,
-          })
-        } else {
-          // Use original registration counts
-          setParticipantCounts({
-            youth_u18: 0,
-            youth_o18: youthCount,
-            chaperone: chaperoneCount,
-            priest: priestCount,
-          })
-        }
+      if (hasInventoryData) {
+        // Use new inventory-style fields
+        setInventoryCounts({
+          onCampusYouth: (regData as any).onCampusYouth || 0,
+          onCampusChaperones: (regData as any).onCampusChaperones || 0,
+          offCampusYouth: (regData as any).offCampusYouth || 0,
+          offCampusChaperones: (regData as any).offCampusChaperones || 0,
+          dayPassYouth: (regData as any).dayPassYouth || 0,
+          dayPassChaperones: (regData as any).dayPassChaperones || 0,
+          priests: priestCount,
+        })
       } else {
-        // No participant records - use original registration counts
-        setParticipantCounts({
-          youth_u18: 0,
-          youth_o18: youthCount,
-          chaperone: chaperoneCount,
-          priest: priestCount,
+        // Migrate from old format: put all youth/chaperones in their housing type
+        const housingType = regData.housingType
+        setInventoryCounts({
+          onCampusYouth: housingType === 'on_campus' ? youthCount : 0,
+          onCampusChaperones: housingType === 'on_campus' ? chaperoneCount : 0,
+          offCampusYouth: housingType === 'off_campus' ? youthCount : 0,
+          offCampusChaperones: housingType === 'off_campus' ? chaperoneCount : 0,
+          dayPassYouth: housingType === 'day_pass' ? youthCount : 0,
+          dayPassChaperones: housingType === 'day_pass' ? chaperoneCount : 0,
+          priests: priestCount,
         })
       }
 
@@ -304,42 +310,80 @@ export default function EditGroupRegistrationModal({
     }
   }, [fullRegistration, registration])
 
-  // Recalculate price when housing type or participant counts change
+  // Calculate totals from inventory counts
+  const totalYouth = inventoryCounts.onCampusYouth + inventoryCounts.offCampusYouth + inventoryCounts.dayPassYouth
+  const totalChaperones = inventoryCounts.onCampusChaperones + inventoryCounts.offCampusChaperones + inventoryCounts.dayPassChaperones
+  const totalParticipantsCalc = totalYouth + totalChaperones + inventoryCounts.priests
+
+  // Recalculate price when inventory counts change
   // Use fetchedEventPricing which is either the prop or fetched from API
   useEffect(() => {
-    const totalCount = participantCounts.youth_u18 + participantCounts.youth_o18 + participantCounts.chaperone + participantCounts.priest
+    const pricingToUse = fetchedEventPricing || eventPricing
 
-    if (fetchedEventPricing && totalCount > 0) {
+    if (pricingToUse && totalParticipantsCalc > 0) {
       // Create temporary participant objects for price calculation
       const tempParticipants: Participant[] = []
 
-      // Add youth under 18
-      for (let i = 0; i < participantCounts.youth_u18; i++) {
+      // Add on-campus youth
+      for (let i = 0; i < inventoryCounts.onCampusYouth; i++) {
         tempParticipants.push({
           firstName: 'Youth',
-          lastName: `U18-${i + 1}`,
-          age: 16,
+          lastName: `OnCampus-${i + 1}`,
+          age: 17,
           gender: 'male',
           participantType: 'youth_u18',
         })
       }
 
-      // Add youth over 18
-      for (let i = 0; i < participantCounts.youth_o18; i++) {
+      // Add on-campus chaperones
+      for (let i = 0; i < inventoryCounts.onCampusChaperones; i++) {
         tempParticipants.push({
-          firstName: 'Youth',
-          lastName: `O18-${i + 1}`,
-          age: 19,
+          firstName: 'Chaperone',
+          lastName: `OnCampus-${i + 1}`,
+          age: 30,
           gender: 'male',
-          participantType: 'youth_o18',
+          participantType: 'chaperone',
         })
       }
 
-      // Add chaperones
-      for (let i = 0; i < participantCounts.chaperone; i++) {
+      // Add off-campus youth
+      for (let i = 0; i < inventoryCounts.offCampusYouth; i++) {
+        tempParticipants.push({
+          firstName: 'Youth',
+          lastName: `OffCampus-${i + 1}`,
+          age: 17,
+          gender: 'male',
+          participantType: 'youth_u18',
+        })
+      }
+
+      // Add off-campus chaperones
+      for (let i = 0; i < inventoryCounts.offCampusChaperones; i++) {
         tempParticipants.push({
           firstName: 'Chaperone',
-          lastName: `${i + 1}`,
+          lastName: `OffCampus-${i + 1}`,
+          age: 30,
+          gender: 'male',
+          participantType: 'chaperone',
+        })
+      }
+
+      // Add day pass youth
+      for (let i = 0; i < inventoryCounts.dayPassYouth; i++) {
+        tempParticipants.push({
+          firstName: 'Youth',
+          lastName: `DayPass-${i + 1}`,
+          age: 17,
+          gender: 'male',
+          participantType: 'youth_u18',
+        })
+      }
+
+      // Add day pass chaperones
+      for (let i = 0; i < inventoryCounts.dayPassChaperones; i++) {
+        tempParticipants.push({
+          firstName: 'Chaperone',
+          lastName: `DayPass-${i + 1}`,
           age: 30,
           gender: 'male',
           participantType: 'chaperone',
@@ -347,7 +391,7 @@ export default function EditGroupRegistrationModal({
       }
 
       // Add priests
-      for (let i = 0; i < participantCounts.priest; i++) {
+      for (let i = 0; i < inventoryCounts.priests; i++) {
         tempParticipants.push({
           firstName: 'Priest',
           lastName: `${i + 1}`,
@@ -357,24 +401,23 @@ export default function EditGroupRegistrationModal({
         })
       }
 
+      // For now, use on_campus as default for calculation (pricing should be same regardless)
       const calculation = calculateRegistrationPrice({
         participants: tempParticipants,
-        housingType: formData.housingType,
-        pricing: fetchedEventPricing,
+        housingType: 'on_campus',
+        pricing: pricingToUse,
         registrationDate: registration ? new Date(registration.registeredAt) : new Date(),
       })
       setNewTotal(calculation.total)
       setPriceBreakdown(calculation.breakdown)
-    } else if (totalCount === 0) {
+    } else if (totalParticipantsCalc === 0) {
       setNewTotal(0)
       setPriceBreakdown([])
     }
-  }, [formData.housingType, participantCounts, fetchedEventPricing, registration])
+  }, [inventoryCounts, eventPricing, fetchedEventPricing, registration, totalParticipantsCalc])
 
   const handleSave = async () => {
     if (!registration) return
-
-    const newTotalParticipants = participantCounts.youth_u18 + participantCounts.youth_o18 + participantCounts.chaperone + participantCounts.priest
 
     setSaving(true)
     try {
@@ -389,10 +432,17 @@ export default function EditGroupRegistrationModal({
           },
           body: JSON.stringify({
             ...formData,
-            totalParticipants: newTotalParticipants,
-            youthCount: participantCounts.youth_u18 + participantCounts.youth_o18,
-            chaperoneCount: participantCounts.chaperone,
-            priestCount: participantCounts.priest,
+            totalParticipants: totalParticipantsCalc,
+            youthCount: totalYouth,
+            chaperoneCount: totalChaperones,
+            priestCount: inventoryCounts.priests,
+            // Inventory-style housing counts
+            onCampusYouth: inventoryCounts.onCampusYouth,
+            onCampusChaperones: inventoryCounts.onCampusChaperones,
+            offCampusYouth: inventoryCounts.offCampusYouth,
+            offCampusChaperones: inventoryCounts.offCampusChaperones,
+            dayPassYouth: inventoryCounts.dayPassYouth,
+            dayPassChaperones: inventoryCounts.dayPassChaperones,
             eventId,
             oldTotal: originalTotal,
             newTotal,
@@ -474,7 +524,7 @@ export default function EditGroupRegistrationModal({
             </TabsTrigger>
             <TabsTrigger value="participants">
               <User className="h-4 w-4 mr-2" />
-              Participants ({participantCounts.youth_u18 + participantCounts.youth_o18 + participantCounts.chaperone + participantCounts.priest})
+              Participants ({totalParticipantsCalc})
             </TabsTrigger>
             <TabsTrigger value="payment">
               <DollarSign className="h-4 w-4 mr-2" />
@@ -588,20 +638,203 @@ export default function EditGroupRegistrationModal({
                 />
               </div>
 
-              <div>
-                <Label htmlFor="housingType">Housing Type</Label>
-                <select
-                  id="housingType"
-                  value={formData.housingType}
-                  onChange={(e) => handleInputChange('housingType', e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <option value="on_campus">On Campus</option>
-                  <option value="off_campus">Off Campus</option>
-                  <option value="day_pass">Day Pass</option>
-                </select>
-              </div>
             </div>
+
+            {/* Participant Inventory by Housing Type */}
+            <Card className="p-4 border-[#1E3A5F]/20">
+              <h4 className="font-semibold text-[#1E3A5F] mb-4">
+                Participant Inventory
+              </h4>
+
+              {/* On-Campus Housing */}
+              <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                <h5 className="font-medium text-[#1E3A5F] mb-3">On-Campus Housing</h5>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Youth</Label>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setInventoryCounts(prev => ({...prev, onCampusYouth: Math.max(0, prev.onCampusYouth - 1)}))}
+                        disabled={inventoryCounts.onCampusYouth === 0}
+                      >-</Button>
+                      <span className="w-10 text-center font-semibold">{inventoryCounts.onCampusYouth}</span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setInventoryCounts(prev => ({...prev, onCampusYouth: prev.onCampusYouth + 1}))}
+                      >+</Button>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Chaperones</Label>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setInventoryCounts(prev => ({...prev, onCampusChaperones: Math.max(0, prev.onCampusChaperones - 1)}))}
+                        disabled={inventoryCounts.onCampusChaperones === 0}
+                      >-</Button>
+                      <span className="w-10 text-center font-semibold">{inventoryCounts.onCampusChaperones}</span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setInventoryCounts(prev => ({...prev, onCampusChaperones: prev.onCampusChaperones + 1}))}
+                      >+</Button>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-2 text-xs text-gray-500 text-right">
+                  Subtotal: {inventoryCounts.onCampusYouth + inventoryCounts.onCampusChaperones}
+                </div>
+              </div>
+
+              {/* Off-Campus Housing */}
+              <div className="mb-4 p-3 bg-green-50 rounded-lg">
+                <h5 className="font-medium text-green-800 mb-3">Off-Campus Housing</h5>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Youth</Label>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setInventoryCounts(prev => ({...prev, offCampusYouth: Math.max(0, prev.offCampusYouth - 1)}))}
+                        disabled={inventoryCounts.offCampusYouth === 0}
+                      >-</Button>
+                      <span className="w-10 text-center font-semibold">{inventoryCounts.offCampusYouth}</span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setInventoryCounts(prev => ({...prev, offCampusYouth: prev.offCampusYouth + 1}))}
+                      >+</Button>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Chaperones</Label>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setInventoryCounts(prev => ({...prev, offCampusChaperones: Math.max(0, prev.offCampusChaperones - 1)}))}
+                        disabled={inventoryCounts.offCampusChaperones === 0}
+                      >-</Button>
+                      <span className="w-10 text-center font-semibold">{inventoryCounts.offCampusChaperones}</span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setInventoryCounts(prev => ({...prev, offCampusChaperones: prev.offCampusChaperones + 1}))}
+                      >+</Button>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-2 text-xs text-gray-500 text-right">
+                  Subtotal: {inventoryCounts.offCampusYouth + inventoryCounts.offCampusChaperones}
+                </div>
+              </div>
+
+              {/* Day Pass / General Admission */}
+              <div className="mb-4 p-3 bg-amber-50 rounded-lg">
+                <h5 className="font-medium text-amber-800 mb-3">Day Pass / General Admission</h5>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Youth</Label>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setInventoryCounts(prev => ({...prev, dayPassYouth: Math.max(0, prev.dayPassYouth - 1)}))}
+                        disabled={inventoryCounts.dayPassYouth === 0}
+                      >-</Button>
+                      <span className="w-10 text-center font-semibold">{inventoryCounts.dayPassYouth}</span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setInventoryCounts(prev => ({...prev, dayPassYouth: prev.dayPassYouth + 1}))}
+                      >+</Button>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Chaperones</Label>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setInventoryCounts(prev => ({...prev, dayPassChaperones: Math.max(0, prev.dayPassChaperones - 1)}))}
+                        disabled={inventoryCounts.dayPassChaperones === 0}
+                      >-</Button>
+                      <span className="w-10 text-center font-semibold">{inventoryCounts.dayPassChaperones}</span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setInventoryCounts(prev => ({...prev, dayPassChaperones: prev.dayPassChaperones + 1}))}
+                      >+</Button>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-2 text-xs text-gray-500 text-right">
+                  Subtotal: {inventoryCounts.dayPassYouth + inventoryCounts.dayPassChaperones}
+                </div>
+              </div>
+
+              {/* Priests (always separate) */}
+              <div className="mb-4 p-3 bg-purple-50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <h5 className="font-medium text-purple-800">Priests</h5>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setInventoryCounts(prev => ({...prev, priests: Math.max(0, prev.priests - 1)}))}
+                      disabled={inventoryCounts.priests === 0}
+                    >-</Button>
+                    <span className="w-10 text-center font-semibold">{inventoryCounts.priests}</span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setInventoryCounts(prev => ({...prev, priests: prev.priests + 1}))}
+                    >+</Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Totals Summary */}
+              <div className="pt-3 border-t border-gray-200">
+                <div className="grid grid-cols-4 gap-2 text-sm">
+                  <div className="text-center">
+                    <div className="font-semibold text-[#1E3A5F]">{totalYouth}</div>
+                    <div className="text-xs text-gray-500">Youth</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="font-semibold text-[#1E3A5F]">{totalChaperones}</div>
+                    <div className="text-xs text-gray-500">Chaperones</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="font-semibold text-[#1E3A5F]">{inventoryCounts.priests}</div>
+                    <div className="text-xs text-gray-500">Priests</div>
+                  </div>
+                  <div className="text-center bg-[#1E3A5F] text-white rounded p-1">
+                    <div className="font-bold">{totalParticipantsCalc}</div>
+                    <div className="text-xs">Total</div>
+                  </div>
+                </div>
+              </div>
+            </Card>
 
             <div>
               <Label htmlFor="specialRequests">Special Requests</Label>
@@ -636,16 +869,16 @@ export default function EditGroupRegistrationModal({
                     <div key={index} className="flex justify-between text-sm">
                       <span className="text-gray-700">
                         {item.count}x {item.participantType.replace('_', ' ')} @ $
-                        {item.pricePerPerson.toFixed(2)}
+                        {(Number(item.pricePerPerson) || 0).toFixed(2)}
                       </span>
                       <span className="font-medium">
-                        ${item.subtotal.toFixed(2)}
+                        ${(Number(item.subtotal) || 0).toFixed(2)}
                       </span>
                     </div>
                   ))}
                   <div className="flex justify-between border-t pt-2 font-semibold">
                     <span>New Total:</span>
-                    <span className="text-[#1E3A5F]">${newTotal.toFixed(2)}</span>
+                    <span className="text-[#1E3A5F]">${(Number(newTotal) || 0).toFixed(2)}</span>
                   </div>
                 </div>
               </Card>
@@ -866,7 +1099,7 @@ export default function EditGroupRegistrationModal({
           <TabsContent value="participants" className="space-y-4">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-semibold text-[#1E3A5F]">
-                Total Participants: {participantCounts.youth_u18 + participantCounts.youth_o18 + participantCounts.chaperone + participantCounts.priest}
+                Total Participants: {totalParticipantsCalc}
               </h3>
               <div className="text-sm text-gray-600">
                 Original: {registration.totalParticipants}
@@ -874,140 +1107,58 @@ export default function EditGroupRegistrationModal({
             </div>
 
             {/* Warning if count reduced */}
-            {(participantCounts.youth_u18 + participantCounts.youth_o18 + participantCounts.chaperone + participantCounts.priest) < registration.totalParticipants && (
+            {totalParticipantsCalc < registration.totalParticipants && (
               <Card className="p-4 bg-yellow-50 border-yellow-300">
                 <div className="flex items-start gap-2">
                   <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
                   <div>
                     <div className="font-medium text-yellow-900">Participant Count Reduced</div>
                     <div className="text-sm text-yellow-800 mt-1">
-                      You are reducing the participant count from {registration.totalParticipants} to {participantCounts.youth_u18 + participantCounts.youth_o18 + participantCounts.chaperone + participantCounts.priest}. A refund may be needed based on the updated balance.
+                      You are reducing the participant count from {registration.totalParticipants} to {totalParticipantsCalc}. A refund may be needed based on the updated balance.
                     </div>
                   </div>
                 </div>
               </Card>
             )}
 
-            {/* Counter Interface */}
-            <Card className="p-6">
-              <div className="space-y-4">
-                {/* Youth Under 18 */}
-                <div className="flex justify-between items-center py-3 border-b">
-                  <div>
-                    <div className="font-medium text-[#1E3A5F]">Youth Under 18</div>
-                    <div className="text-xs text-gray-500">Ages 17 and under</div>
+            {/* Summary by Housing Type */}
+            <Card className="p-4">
+              <h4 className="font-semibold text-[#1E3A5F] mb-3">Summary by Housing Type</h4>
+              <div className="space-y-3">
+                {(inventoryCounts.onCampusYouth > 0 || inventoryCounts.onCampusChaperones > 0) && (
+                  <div className="flex justify-between items-center p-2 bg-blue-50 rounded">
+                    <span className="font-medium text-[#1E3A5F]">On-Campus</span>
+                    <span>{inventoryCounts.onCampusYouth} youth, {inventoryCounts.onCampusChaperones} chaperones</span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setParticipantCounts(prev => ({...prev, youth_u18: Math.max(0, prev.youth_u18 - 1)}))}
-                      disabled={participantCounts.youth_u18 === 0}
-                    >
-                      -
-                    </Button>
-                    <span className="w-12 text-center font-semibold text-lg">
-                      {participantCounts.youth_u18}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setParticipantCounts(prev => ({...prev, youth_u18: prev.youth_u18 + 1}))}
-                    >
-                      +
-                    </Button>
+                )}
+                {(inventoryCounts.offCampusYouth > 0 || inventoryCounts.offCampusChaperones > 0) && (
+                  <div className="flex justify-between items-center p-2 bg-green-50 rounded">
+                    <span className="font-medium text-green-800">Off-Campus</span>
+                    <span>{inventoryCounts.offCampusYouth} youth, {inventoryCounts.offCampusChaperones} chaperones</span>
                   </div>
-                </div>
-
-                {/* Youth Over 18 */}
-                <div className="flex justify-between items-center py-3 border-b">
-                  <div>
-                    <div className="font-medium text-[#1E3A5F]">Youth Over 18</div>
-                    <div className="text-xs text-gray-500">Ages 18+</div>
+                )}
+                {(inventoryCounts.dayPassYouth > 0 || inventoryCounts.dayPassChaperones > 0) && (
+                  <div className="flex justify-between items-center p-2 bg-amber-50 rounded">
+                    <span className="font-medium text-amber-800">Day Pass</span>
+                    <span>{inventoryCounts.dayPassYouth} youth, {inventoryCounts.dayPassChaperones} chaperones</span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setParticipantCounts(prev => ({...prev, youth_o18: Math.max(0, prev.youth_o18 - 1)}))}
-                      disabled={participantCounts.youth_o18 === 0}
-                    >
-                      -
-                    </Button>
-                    <span className="w-12 text-center font-semibold text-lg">
-                      {participantCounts.youth_o18}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setParticipantCounts(prev => ({...prev, youth_o18: prev.youth_o18 + 1}))}
-                    >
-                      +
-                    </Button>
+                )}
+                {inventoryCounts.priests > 0 && (
+                  <div className="flex justify-between items-center p-2 bg-purple-50 rounded">
+                    <span className="font-medium text-purple-800">Priests</span>
+                    <span>{inventoryCounts.priests}</span>
                   </div>
-                </div>
-
-                {/* Chaperones */}
-                <div className="flex justify-between items-center py-3 border-b">
-                  <div>
-                    <div className="font-medium text-[#1E3A5F]">Chaperones</div>
-                    <div className="text-xs text-gray-500">Adult supervisors</div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setParticipantCounts(prev => ({...prev, chaperone: Math.max(0, prev.chaperone - 1)}))}
-                      disabled={participantCounts.chaperone === 0}
-                    >
-                      -
-                    </Button>
-                    <span className="w-12 text-center font-semibold text-lg">
-                      {participantCounts.chaperone}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setParticipantCounts(prev => ({...prev, chaperone: prev.chaperone + 1}))}
-                    >
-                      +
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Priests */}
-                <div className="flex justify-between items-center py-3">
-                  <div>
-                    <div className="font-medium text-[#1E3A5F]">Priests</div>
-                    <div className="text-xs text-gray-500">Clergy members</div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setParticipantCounts(prev => ({...prev, priest: Math.max(0, prev.priest - 1)}))}
-                      disabled={participantCounts.priest === 0}
-                    >
-                      -
-                    </Button>
-                    <span className="w-12 text-center font-semibold text-lg">
-                      {participantCounts.priest}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setParticipantCounts(prev => ({...prev, priest: prev.priest + 1}))}
-                    >
-                      +
-                    </Button>
-                  </div>
-                </div>
+                )}
+              </div>
+              <div className="mt-3 pt-3 border-t flex justify-between">
+                <span className="font-semibold">Total</span>
+                <span className="font-bold text-[#1E3A5F]">{totalParticipantsCalc} participants</span>
               </div>
             </Card>
 
-            {/* Note about existing participants */}
+            {/* Note about editing */}
             <div className="text-xs text-gray-500 italic">
-              Note: Individual participant records are maintained separately for liability and housing purposes. This counter only updates the total participant count for payment calculations.
+              Note: To edit participant counts by housing type, use the Participant Inventory section in the Overview tab.
             </div>
 
             {/* Individual Participants List */}

@@ -282,6 +282,14 @@ export async function POST(request: NextRequest) {
     const registrationStatus =
       paymentMethod === 'check' ? 'pending_payment' : 'incomplete'
 
+    // Determine initial inventory counts based on housing type
+    const initialOnCampusYouth = housingType === 'on_campus' ? youthCount : 0
+    const initialOnCampusChaperones = housingType === 'on_campus' ? chaperoneCount : 0
+    const initialOffCampusYouth = housingType === 'off_campus' ? youthCount : 0
+    const initialOffCampusChaperones = housingType === 'off_campus' ? chaperoneCount : 0
+    const initialDayPassYouth = housingType === 'day_pass' ? youthCount : 0
+    const initialDayPassChaperones = housingType === 'day_pass' ? chaperoneCount : 0
+
     // Create group registration
     const registration = await prisma.groupRegistration.create({
       data: {
@@ -309,6 +317,13 @@ export async function POST(request: NextRequest) {
         priestCount,
         totalParticipants,
         housingType,
+        // Set initial inventory counts based on selected housing type
+        onCampusYouth: initialOnCampusYouth > 0 ? initialOnCampusYouth : null,
+        onCampusChaperones: initialOnCampusChaperones > 0 ? initialOnCampusChaperones : null,
+        offCampusYouth: initialOffCampusYouth > 0 ? initialOffCampusYouth : null,
+        offCampusChaperones: initialOffCampusChaperones > 0 ? initialOffCampusChaperones : null,
+        dayPassYouth: initialDayPassYouth > 0 ? initialDayPassYouth : null,
+        dayPassChaperones: initialDayPassChaperones > 0 ? initialDayPassChaperones : null,
         specialRequests,
         registrationStatus,
       },
