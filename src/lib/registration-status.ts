@@ -103,7 +103,7 @@ export function getRegistrationStatus(
       showCountdown: false,
       countdownTarget: null,
       allowRegistration: false,
-      allowWaitlist: event.enableWaitlist,
+      allowWaitlist: event.settings?.waitlistEnabled ?? event.enableWaitlist,
       spotsRemaining: 0,
       urgentStyle: false,
     }
@@ -165,7 +165,7 @@ export function getRegistrationStatus(
       showCountdown: false,
       countdownTarget: null,
       allowRegistration: false,
-      allowWaitlist: event.enableWaitlist,
+      allowWaitlist: event.settings?.waitlistEnabled ?? event.enableWaitlist,
       spotsRemaining: event.capacityRemaining,
       urgentStyle: false,
     }
