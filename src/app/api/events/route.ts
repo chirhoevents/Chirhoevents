@@ -111,28 +111,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform events for public consumption
-    type EventType = typeof events[number]
-    const publicEvents = events.map((event: EventType) => ({
-      id: event.id,
-      slug: event.slug,
-      name: event.name,
-      description: event.description,
-      startDate: event.startDate,
-      endDate: event.endDate,
-      status: event.status,
-      locationName: event.locationName,
-      capacityTotal: event.capacityTotal,
-      capacityRemaining: event.capacityRemaining,
-      registrationOpenDate: event.registrationOpenDate,
-      registrationCloseDate: event.registrationCloseDate,
-      enableWaitlist: event.enableWaitlist,
-      organization: event.organization,
-      settings: event.settings ? {
-        backgroundImageUrl: event.settings.backgroundImageUrl,
-        primaryColor: event.settings.primaryColor,
-        secondaryColor: event.settings.secondaryColor,
-      } : null,
-    }))
     const publicEvents = filteredEvents.map((event) => {
       const addr = event.locationAddress as LocationAddress | null
       return {
