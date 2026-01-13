@@ -58,6 +58,11 @@ export async function POST(
             name: true,
           },
         },
+        settings: {
+          select: {
+            waitlistEnabled: true,
+          },
+        },
       },
     })
 
@@ -65,7 +70,9 @@ export async function POST(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 
-    if (!event.enableWaitlist) {
+    // Check if waitlist is enabled (settings takes precedence over event field)
+    const waitlistEnabled = event.settings?.waitlistEnabled ?? event.enableWaitlist
+    if (!waitlistEnabled) {
       return NextResponse.json(
         { error: 'Waitlist is not enabled for this event' },
         { status: 400 }
