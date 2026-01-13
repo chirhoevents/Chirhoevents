@@ -191,14 +191,14 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
                     <div className="hidden lg:flex items-center gap-3 text-xs">
                       <div className="px-2 py-1 bg-blue-50 border border-blue-200 rounded">
                         <span className="text-blue-700 font-medium">Youth:</span>
-                        <span className={`ml-1 font-bold ${group.youthSubmittedCount === group.youthCount ? 'text-green-600' : 'text-blue-600'}`}>
-                          {group.youthSubmittedCount}/{group.youthCount}
+                        <span className="ml-1 font-bold text-blue-600">
+                          {group.youthSubmittedCount}
                         </span>
                       </div>
                       <div className="px-2 py-1 bg-purple-50 border border-purple-200 rounded">
                         <span className="text-purple-700 font-medium">Chaperones:</span>
-                        <span className={`ml-1 font-bold ${group.chaperoneSubmittedCount === group.chaperoneCount ? 'text-green-600' : 'text-purple-600'}`}>
-                          {group.chaperoneSubmittedCount}/{group.chaperoneCount}
+                        <span className="ml-1 font-bold text-purple-600">
+                          {group.chaperoneSubmittedCount}
                         </span>
                       </div>
                     </div>
@@ -256,16 +256,16 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
                 <div className="p-4 border-t">
                   {/* Mobile Youth/Chaperone Breakdown */}
                   <div className="lg:hidden flex flex-wrap gap-2 mb-4 pb-4 border-b">
-                    <div className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg flex-1 min-w-[120px]">
+                    <div className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg flex-1 min-w-[100px]">
                       <div className="text-xs text-blue-700 font-medium">Youth Forms</div>
-                      <div className={`text-lg font-bold ${group.youthSubmittedCount === group.youthCount ? 'text-green-600' : 'text-blue-600'}`}>
-                        {group.youthSubmittedCount} / {group.youthCount}
+                      <div className="text-lg font-bold text-blue-600">
+                        {group.youthSubmittedCount}
                       </div>
                     </div>
-                    <div className="px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg flex-1 min-w-[120px]">
+                    <div className="px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg flex-1 min-w-[100px]">
                       <div className="text-xs text-purple-700 font-medium">Chaperone Forms</div>
-                      <div className={`text-lg font-bold ${group.chaperoneSubmittedCount === group.chaperoneCount ? 'text-green-600' : 'text-purple-600'}`}>
-                        {group.chaperoneSubmittedCount} / {group.chaperoneCount}
+                      <div className="text-lg font-bold text-purple-600">
+                        {group.chaperoneSubmittedCount}
                       </div>
                     </div>
                   </div>
