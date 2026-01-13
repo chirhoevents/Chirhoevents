@@ -630,6 +630,7 @@ model LiabilityForm {
   dioceseOfIncardination    String?  @map("diocese_of_incardination") @db.VarChar(255)
   currentAssignment         String?  @map("current_assignment") @db.VarChar(255)
   facultyInformation        String?  @map("faculty_information") @db.Text
+  needsHousing              Boolean? @map("needs_housing")
   parentEmail               String?  @map("parent_email") @db.VarChar(255)
   parentToken               String?  @unique @map("parent_token") @db.VarChar(255)
   parentTokenExpiresAt      DateTime? @map("parent_token_expires_at") @db.Timestamptz(6)
