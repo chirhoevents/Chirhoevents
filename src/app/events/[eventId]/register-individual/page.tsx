@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Loader2 } from 'lucide-react'
+import { Loader2, AlertCircle } from 'lucide-react'
 import { useRegistrationQueue } from '@/hooks/useRegistrationQueue'
 import RegistrationTimer from '@/components/RegistrationTimer'
 
@@ -42,6 +42,7 @@ export default function IndividualRegistrationPage() {
   const {
     loading: queueLoading,
     queueActive,
+    isBlocked,
     expiresAt,
     extensionAllowed,
     markComplete,
@@ -221,6 +222,24 @@ export default function IndividualRegistrationPage() {
           <CardContent className="p-8 text-center">
             <p className="text-red-600 mb-4">{error}</p>
             <Button onClick={() => router.push('/')}>Return Home</Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Block access if user should be in the queue
+  if (isBlocked) {
+    return (
+      <div className="min-h-screen bg-beige flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="p-8 text-center">
+            <AlertCircle className="h-16 w-16 text-amber-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-navy mb-2">Registration at Capacity</h2>
+            <p className="text-gray-600 mb-6">
+              The registration system is currently at capacity. You are being redirected to the virtual queue.
+            </p>
+            <Loader2 className="h-6 w-6 animate-spin text-navy mx-auto" />
           </CardContent>
         </Card>
       </div>

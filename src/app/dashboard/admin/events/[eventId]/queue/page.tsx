@@ -209,7 +209,7 @@ export default function QueueSettingsPage() {
         <Button
           onClick={handleSave}
           disabled={saving}
-          className="bg-navy hover:bg-navy/90"
+          className="bg-navy hover:bg-navy/90 text-white"
         >
           {saving ? (
             <>

@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { Loader2, Clock, Users, CheckCircle, AlertCircle } from 'lucide-react'
+import { Loader2, Clock, Users, AlertCircle, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -18,21 +18,91 @@ interface QueueStatus {
   waitingRoomMessage?: string
 }
 
+interface EventSettings {
+  groupRegistrationEnabled: boolean
+  individualRegistrationEnabled: boolean
+}
+
 export default function QueuePage() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
 
   const eventId = params.eventId as string
-  const registrationType = searchParams.get('type') as 'group' | 'individual'
+  const typeParam = searchParams.get('type') as 'group' | 'individual' | null
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [queueStatus, setQueueStatus] = useState<QueueStatus | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [refreshCount, setRefreshCount] = useState(0)
+  const [registrationType, setRegistrationType] = useState<'group' | 'individual' | null>(null)
 
-  // Check queue status
-  const checkStatus = useCallback(async () => {
+  // Use ref to track if we should continue polling
+  const shouldPollRef = useRef(true)
+
+  // Fetch event settings to determine which registration type is enabled
+  useEffect(() => {
+    async function fetchEventSettings() {
+      try {
+        const response = await fetch(`/api/events/${eventId}`)
+        if (!response.ok) {
+          throw new Error('Failed to load event')
+        }
+        const data = await response.json()
+
+        const settings: EventSettings = {
+          groupRegistrationEnabled: data.settings?.groupRegistrationEnabled ?? false,
+          individualRegistrationEnabled: data.settings?.individualRegistrationEnabled ?? false,
+        }
+
+        // Determine registration type based on what&apos;s enabled
+        let detectedType: 'group' | 'individual' | null = null
+
+        if (typeParam) {
+          if (typeParam === 'group' && settings.groupRegistrationEnabled) {
+            detectedType = 'group'
+          } else if (typeParam === 'individual' && settings.individualRegistrationEnabled) {
+            detectedType = 'individual'
+          }
+        }
+
+        if (!detectedType) {
+          if (settings.groupRegistrationEnabled && !settings.individualRegistrationEnabled) {
+            detectedType = 'group'
+          } else if (settings.individualRegistrationEnabled && !settings.groupRegistrationEnabled) {
+            detectedType = 'individual'
+          } else if (settings.groupRegistrationEnabled) {
+            detectedType = 'group'
+          }
+        }
+
+        if (!detectedType) {
+          setError('Registration is not enabled for this event')
+          setLoading(false)
+          return
+        }
+
+        setRegistrationType(detectedType)
+      } catch (err) {
+        console.error('Error fetching event settings:', err)
+        setError('Failed to load event settings')
+        setLoading(false)
+      }
+    }
+
+    fetchEventSettings()
+  }, [eventId, typeParam])
+
+  // Check queue status - does NOT set error on failure, just logs and continues
+  const checkStatus = useCallback(async (isManual = false) => {
+    if (!registrationType) return null
+
+    if (isManual) {
+      setIsRefreshing(true)
+    }
+
     try {
       const response = await fetch(`/api/queue/status?eventId=${eventId}&type=${registrationType}`)
 
@@ -45,66 +115,78 @@ export default function QueuePage() {
         })
 
         if (!joinResponse.ok) {
-          throw new Error('Failed to join queue')
+          console.error('Failed to join queue')
+          return null
         }
 
         const joinData = await joinResponse.json()
         setQueueStatus(joinData)
         setLastUpdated(new Date())
+        setRefreshCount(prev => prev + 1)
+
+        // Check if admitted
+        if (joinData.allowed && joinData.status === 'active') {
+          shouldPollRef.current = false
+          const redirectPath = registrationType === 'group'
+            ? `/events/${eventId}/register-group`
+            : `/events/${eventId}/register-individual`
+          router.push(redirectPath)
+        }
+
         return joinData
       }
 
       const data = await response.json()
       setQueueStatus(data)
       setLastUpdated(new Date())
-      return data
-    } catch (err) {
-      console.error('Error checking queue status:', err)
-      setError('Failed to check queue status. Please refresh the page.')
-      return null
-    } finally {
-      setLoading(false)
-    }
-  }, [eventId, registrationType])
+      setRefreshCount(prev => prev + 1)
 
-  // Initial check
-  useEffect(() => {
-    if (!registrationType) {
-      setError('Invalid registration type')
-      setLoading(false)
-      return
-    }
-    checkStatus()
-  }, [checkStatus, registrationType])
-
-  // Poll for status updates every 5 seconds
-  useEffect(() => {
-    if (!registrationType || error) return
-
-    const interval = setInterval(async () => {
-      const status = await checkStatus()
-
-      // If admitted, redirect to registration page
-      if (status?.allowed && status?.status === 'active') {
+      // Check if admitted
+      if (data.allowed && data.status === 'active') {
+        shouldPollRef.current = false
         const redirectPath = registrationType === 'group'
           ? `/events/${eventId}/register-group`
           : `/events/${eventId}/register-individual`
         router.push(redirectPath)
       }
+
+      return data
+    } catch (err) {
+      console.error('Error checking queue status:', err)
+      // Don&apos;t set error - just continue polling
+      return null
+    } finally {
+      setLoading(false)
+      setIsRefreshing(false)
+    }
+  }, [eventId, registrationType, router])
+
+  // Initial check when registration type is determined
+  useEffect(() => {
+    if (registrationType) {
+      checkStatus()
+    }
+  }, [registrationType, checkStatus])
+
+  // Poll for status updates every 5 seconds - ALWAYS runs, doesn&apos;t stop on error
+  useEffect(() => {
+    if (!registrationType) return
+
+    const interval = setInterval(() => {
+      if (shouldPollRef.current) {
+        checkStatus()
+      }
     }, 5000)
 
     return () => clearInterval(interval)
-  }, [eventId, registrationType, checkStatus, router, error])
+  }, [registrationType, checkStatus])
 
-  // Redirect if already allowed
+  // Cleanup on unmount
   useEffect(() => {
-    if (queueStatus?.allowed && queueStatus?.status === 'active') {
-      const redirectPath = registrationType === 'group'
-        ? `/events/${eventId}/register-group`
-        : `/events/${eventId}/register-individual`
-      router.push(redirectPath)
+    return () => {
+      shouldPollRef.current = false
     }
-  }, [queueStatus, eventId, registrationType, router])
+  }, [])
 
   if (loading) {
     return (
@@ -131,6 +213,7 @@ export default function QueuePage() {
               onClick={() => {
                 setError(null)
                 setLoading(true)
+                shouldPollRef.current = true
                 checkStatus()
               }}
               className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
@@ -222,14 +305,24 @@ export default function QueuePage() {
           {/* Status Footer */}
           <div className="text-center pt-4 border-t">
             <div className="flex items-center justify-center gap-2 text-sm text-[#6B7280]">
-              <Users className="h-4 w-4" />
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               <span>
-                Status updates automatically every 5 seconds
+                {isRefreshing ? 'Refreshing...' : 'Auto-refreshing every 5 seconds'}
               </span>
             </div>
             <p className="text-xs text-[#9CA3AF] mt-2">
-              Last updated: {lastUpdated.toLocaleTimeString()}
+              Last updated: {lastUpdated.toLocaleTimeString()} (refresh #{refreshCount})
             </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => checkStatus(true)}
+              disabled={isRefreshing}
+              className="mt-2 text-[#6B7280]"
+            >
+              <RefreshCw className={`h-3 w-3 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh Now
+            </Button>
           </div>
 
           {/* Cancel Button */}
