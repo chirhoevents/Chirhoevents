@@ -184,33 +184,36 @@ export async function PUT(
       oldTotal,
       newTotal,
       eventId,
-      // Housing count fields for mixed housing
-      onCampusCount,
-      offCampusCount,
-      dayPassCount,
+      // Inventory-style housing counts (new)
+      onCampusYouth,
+      onCampusChaperones,
+      offCampusYouth,
+      offCampusChaperones,
+      dayPassYouth,
+      dayPassChaperones,
     } = body
 
     // Calculate the difference
     const difference = newTotal - oldTotal
 
-    // Calculate individual counts from participantCounts if provided
-    // The frontend sends youth_u18 and youth_o18, we need to combine them for youthCount
+    // Calculate individual counts
     const finalYouthCount = youthCount !== undefined ? youthCount : existingRegistration.youthCount
     const finalChaperoneCount = chaperoneCount !== undefined ? chaperoneCount : existingRegistration.chaperoneCount
     const finalPriestCount = priestCount !== undefined ? priestCount : existingRegistration.priestCount
 
-    // Handle housing count changes and capacity adjustment
-    const oldOnCampusCount = (existingRegistration as any).onCampusCount ?? 0
-    const oldOffCampusCount = (existingRegistration as any).offCampusCount ?? 0
-    const oldDayPassCount = (existingRegistration as any).dayPassCount ?? 0
-    const newOnCampusCount = onCampusCount ?? oldOnCampusCount
-    const newOffCampusCount = offCampusCount ?? oldOffCampusCount
-    const newDayPassCount = dayPassCount ?? oldDayPassCount
+    // Handle housing count changes and capacity adjustment (inventory-style)
+    const oldOnCampusTotal = ((existingRegistration as any).onCampusYouth ?? 0) + ((existingRegistration as any).onCampusChaperones ?? 0)
+    const oldOffCampusTotal = ((existingRegistration as any).offCampusYouth ?? 0) + ((existingRegistration as any).offCampusChaperones ?? 0)
+    const oldDayPassTotal = ((existingRegistration as any).dayPassYouth ?? 0) + ((existingRegistration as any).dayPassChaperones ?? 0)
+
+    const newOnCampusTotal = (onCampusYouth ?? 0) + (onCampusChaperones ?? 0)
+    const newOffCampusTotal = (offCampusYouth ?? 0) + (offCampusChaperones ?? 0)
+    const newDayPassTotal = (dayPassYouth ?? 0) + (dayPassChaperones ?? 0)
 
     // Calculate capacity changes needed for each housing type
-    const onCampusDiff = newOnCampusCount - oldOnCampusCount
-    const offCampusDiff = newOffCampusCount - oldOffCampusCount
-    const dayPassDiff = newDayPassCount - oldDayPassCount
+    const onCampusDiff = newOnCampusTotal - oldOnCampusTotal
+    const offCampusDiff = newOffCampusTotal - oldOffCampusTotal
+    const dayPassDiff = newDayPassTotal - oldDayPassTotal
 
     // Update option-level capacity if housing counts changed
     if (onCampusDiff !== 0) {
@@ -255,10 +258,13 @@ export async function PUT(
         youthCount: finalYouthCount,
         chaperoneCount: finalChaperoneCount,
         priestCount: finalPriestCount,
-        // Housing counts for mixed housing
-        onCampusCount: newOnCampusCount > 0 ? newOnCampusCount : null,
-        offCampusCount: newOffCampusCount > 0 ? newOffCampusCount : null,
-        dayPassCount: newDayPassCount > 0 ? newDayPassCount : null,
+        // Inventory-style housing counts
+        onCampusYouth: onCampusYouth ?? null,
+        onCampusChaperones: onCampusChaperones ?? null,
+        offCampusYouth: offCampusYouth ?? null,
+        offCampusChaperones: offCampusChaperones ?? null,
+        dayPassYouth: dayPassYouth ?? null,
+        dayPassChaperones: dayPassChaperones ?? null,
         updatedAt: new Date(),
       },
     })
@@ -286,15 +292,15 @@ export async function PUT(
     if (totalParticipants !== undefined && existingRegistration.totalParticipants !== totalParticipants) {
       changesMade.totalParticipants = { old: existingRegistration.totalParticipants, new: totalParticipants }
     }
-    // Track housing count changes
+    // Track housing count changes (inventory-style)
     if (onCampusDiff !== 0) {
-      changesMade.onCampusCount = { old: oldOnCampusCount, new: newOnCampusCount }
+      changesMade.onCampusTotal = { old: oldOnCampusTotal, new: newOnCampusTotal }
     }
     if (offCampusDiff !== 0) {
-      changesMade.offCampusCount = { old: oldOffCampusCount, new: newOffCampusCount }
+      changesMade.offCampusTotal = { old: oldOffCampusTotal, new: newOffCampusTotal }
     }
     if (dayPassDiff !== 0) {
-      changesMade.dayPassCount = { old: oldDayPassCount, new: newDayPassCount }
+      changesMade.dayPassTotal = { old: oldDayPassTotal, new: newDayPassTotal }
     }
 
     // Create audit trail entry if changes were made
@@ -345,15 +351,15 @@ export async function PUT(
         if (existingRegistration.totalParticipants !== totalParticipants) {
           emailChanges.push(`Total Participants: ${existingRegistration.totalParticipants} → ${totalParticipants}`)
         }
-        // Include housing count changes
+        // Include housing count changes (inventory-style)
         if (onCampusDiff !== 0) {
-          emailChanges.push(`On-Campus Spots: ${oldOnCampusCount} → ${newOnCampusCount}`)
+          emailChanges.push(`On-Campus Total: ${oldOnCampusTotal} → ${newOnCampusTotal}`)
         }
         if (offCampusDiff !== 0) {
-          emailChanges.push(`Off-Campus Spots: ${oldOffCampusCount} → ${newOffCampusCount}`)
+          emailChanges.push(`Off-Campus Total: ${oldOffCampusTotal} → ${newOffCampusTotal}`)
         }
         if (dayPassDiff !== 0) {
-          emailChanges.push(`Day Pass Spots: ${oldDayPassCount} → ${newDayPassCount}`)
+          emailChanges.push(`Day Pass Total: ${oldDayPassTotal} → ${newDayPassTotal}`)
         }
         if (oldTotal !== newTotal) {
           emailChanges.push(`Total Amount Due: $${oldTotal.toFixed(2)} → $${newTotal.toFixed(2)}`)
