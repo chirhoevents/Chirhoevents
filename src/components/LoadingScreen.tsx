@@ -1,5 +1,7 @@
 'use client'
 
+import Image from 'next/image'
+
 interface LoadingScreenProps {
   message?: string
 }
@@ -20,16 +22,24 @@ export default function LoadingScreen({ message = 'Loading...' }: LoadingScreenP
 
       {/* Loading content */}
       <div className="relative z-10 flex flex-col items-center">
-        {/* Custom spinning loader */}
-        <div className="relative w-20 h-20 mb-6">
+        {/* Custom spinning loader with logo */}
+        <div className="relative w-28 h-28 mb-6">
           {/* Outer ring */}
           <div className="absolute inset-0 rounded-full border-4 border-gold/30"></div>
           {/* Spinning ring */}
-          <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-gold animate-spin"></div>
+          <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-gold border-r-gold animate-spin"></div>
           {/* Inner glow */}
-          <div className="absolute inset-2 rounded-full bg-gold/10"></div>
-          {/* Center dot */}
-          <div className="absolute inset-1/3 rounded-full bg-gold/50 animate-pulse"></div>
+          <div className="absolute inset-2 rounded-full bg-white/10"></div>
+          {/* Logo in center */}
+          <div className="absolute inset-4 flex items-center justify-center">
+            <Image
+              src="/ChiRho Event Logos/Chrirho Events Square White Logo.png"
+              alt="ChiRho Events"
+              width={64}
+              height={64}
+              className="object-contain"
+            />
+          </div>
         </div>
 
         {/* Loading text */}
