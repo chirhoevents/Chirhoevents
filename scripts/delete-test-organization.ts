@@ -6,9 +6,14 @@ async function deleteTestOrganization() {
   console.log('🗑️  Deleting test organization...\n');
 
   try {
-    // Find the test organization
+    // Find the test organization by name (Holy Spirit youth ministry organization)
     const org = await prisma.organization.findFirst({
-      where: { contactEmail: 'director@holyspirit-test.com' },
+      where: {
+        name: {
+          contains: 'Holy Spirit youth ministry',
+          mode: 'insensitive'
+        }
+      },
       include: {
         events: true,
         users: true,
@@ -17,7 +22,7 @@ async function deleteTestOrganization() {
 
     if (!org) {
       console.log('⚠️  Test organization not found');
-      console.log('   Looking for org with contactEmail: director@holyspirit-test.com');
+      console.log('   Looking for org with name containing: Holy Spirit youth ministry');
       return;
     }
 
@@ -41,6 +46,60 @@ async function deleteTestOrganization() {
       where: { organizationId: org.id },
     });
     console.log(`   Deleted ${balancesDeleted.count} payment balances`);
+
+    console.log('📝 Deleting support tickets...');
+    const ticketsDeleted = await prisma.supportTicket.deleteMany({
+      where: { organizationId: org.id },
+    });
+    console.log(`   Deleted ${ticketsDeleted.count} support tickets`);
+
+    console.log('📝 Deleting invoices...');
+    const invoicesDeleted = await prisma.invoice.deleteMany({
+      where: { organizationId: org.id },
+    });
+    console.log(`   Deleted ${invoicesDeleted.count} invoices`);
+
+    console.log('📝 Deleting billing notes...');
+    const billingNotesDeleted = await prisma.billingNote.deleteMany({
+      where: { organizationId: org.id },
+    });
+    console.log(`   Deleted ${billingNotesDeleted.count} billing notes`);
+
+    console.log('📝 Deleting platform activity logs...');
+    const activityLogsDeleted = await prisma.platformActivityLog.deleteMany({
+      where: { organizationId: org.id },
+    });
+    console.log(`   Deleted ${activityLogsDeleted.count} activity logs`);
+
+    console.log('📝 Deleting report templates...');
+    const reportTemplatesDeleted = await prisma.reportTemplate.deleteMany({
+      where: { organizationId: org.id },
+    });
+    console.log(`   Deleted ${reportTemplatesDeleted.count} report templates`);
+
+    console.log('📝 Deleting email logs...');
+    const emailLogsDeleted = await prisma.emailLog.deleteMany({
+      where: { organizationId: org.id },
+    });
+    console.log(`   Deleted ${emailLogsDeleted.count} email logs`);
+
+    console.log('📝 Deleting vendor registrations...');
+    const vendorRegsDeleted = await prisma.vendorRegistration.deleteMany({
+      where: { organizationId: org.id },
+    });
+    console.log(`   Deleted ${vendorRegsDeleted.count} vendor registrations`);
+
+    console.log('📝 Deleting staff registrations...');
+    const staffRegsDeleted = await prisma.staffRegistration.deleteMany({
+      where: { organizationId: org.id },
+    });
+    console.log(`   Deleted ${staffRegsDeleted.count} staff registrations`);
+
+    console.log('📝 Deleting coupons...');
+    const couponsDeleted = await prisma.coupon.deleteMany({
+      where: { organizationId: org.id },
+    });
+    console.log(`   Deleted ${couponsDeleted.count} coupons`);
 
     console.log('📝 Deleting safe environment certificates...');
     const certsDeleted = await prisma.safeEnvironmentCertificate.deleteMany({
