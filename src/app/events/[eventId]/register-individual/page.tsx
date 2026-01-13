@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2, AlertCircle } from 'lucide-react'
 import { useRegistrationQueue } from '@/hooks/useRegistrationQueue'
+import LoadingScreen from '@/components/LoadingScreen'
 import RegistrationTimer from '@/components/RegistrationTimer'
 
 interface EventPricing {
@@ -209,11 +210,7 @@ export default function IndividualRegistrationPage() {
   }
 
   if (loading || queueLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-navy" />
-      </div>
-    )
+    return <LoadingScreen message="Loading registration..." />
   }
 
   if (error && !event) {
