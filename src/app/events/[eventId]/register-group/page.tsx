@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2 } from 'lucide-react'
+import { useRegistrationQueue } from '@/hooks/useRegistrationQueue'
+import RegistrationTimer from '@/components/RegistrationTimer'
 
 interface EventPricing {
   youthRegularPrice: number
@@ -37,6 +39,15 @@ export default function GroupRegistrationPage() {
   const params = useParams()
   const router = useRouter()
   const eventId = params.eventId as string
+
+  // Queue management
+  const {
+    loading: queueLoading,
+    queueActive,
+    expiresAt,
+    extensionAllowed,
+    markComplete,
+  } = useRegistrationQueue(eventId, 'group')
 
   const [loading, setLoading] = useState(true)
   const [event, setEvent] = useState<EventData | null>(null)
@@ -237,7 +248,7 @@ export default function GroupRegistrationPage() {
     router.push(`/events/${eventId}/register-group/review?${params.toString()}`)
   }
 
-  if (loading) {
+  if (loading || queueLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-navy" />
@@ -260,6 +271,16 @@ export default function GroupRegistrationPage() {
 
   return (
     <div className="min-h-screen bg-beige py-12">
+      {/* Queue Timer - shows when queue is active */}
+      {queueActive && expiresAt && (
+        <RegistrationTimer
+          expiresAt={expiresAt}
+          eventId={eventId}
+          registrationType="group"
+          extensionAllowed={extensionAllowed}
+        />
+      )}
+
       <div className="container mx-auto px-4">
         <div className="max-w-5xl mx-auto">
           {/* Header */}

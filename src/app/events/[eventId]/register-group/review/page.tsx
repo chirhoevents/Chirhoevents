@@ -5,6 +5,8 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2, CreditCard, FileText, ArrowLeft, CheckCircle } from 'lucide-react'
+import { useRegistrationQueue } from '@/hooks/useRegistrationQueue'
+import RegistrationTimer from '@/components/RegistrationTimer'
 
 interface EventData {
   id: string
@@ -79,6 +81,15 @@ export default function InvoiceReviewPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const eventId = params.eventId as string
+
+  // Queue management
+  const {
+    loading: queueLoading,
+    queueActive,
+    expiresAt,
+    extensionAllowed,
+    markComplete,
+  } = useRegistrationQueue(eventId, 'group')
 
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -317,6 +328,9 @@ export default function InvoiceReviewPage() {
 
       const result = await response.json()
 
+      // Mark queue session as complete
+      await markComplete()
+
       // Redirect to Stripe checkout
       if (result.checkoutUrl) {
         window.location.href = result.checkoutUrl
@@ -358,6 +372,10 @@ export default function InvoiceReviewPage() {
       }
 
       const result = await response.json()
+
+      // Mark queue session as complete
+      await markComplete()
+
       router.push(`/registration/confirmation/${result.registrationId}`)
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.')
@@ -366,7 +384,7 @@ export default function InvoiceReviewPage() {
     }
   }
 
-  if (loading) {
+  if (loading || queueLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-navy" />
@@ -389,6 +407,16 @@ export default function InvoiceReviewPage() {
 
   return (
     <div className="min-h-screen bg-beige py-12">
+      {/* Queue Timer - shows when queue is active */}
+      {queueActive && expiresAt && (
+        <RegistrationTimer
+          expiresAt={expiresAt}
+          eventId={eventId}
+          registrationType="group"
+          extensionAllowed={extensionAllowed}
+        />
+      )}
+
       <div className="container mx-auto px-4">
         <div className="max-w-5xl mx-auto">
           {/* Header */}
