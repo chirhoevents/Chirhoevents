@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { Loader2, Clock, Users, AlertCircle, RefreshCw } from 'lucide-react'
+import { Clock, Users, AlertCircle, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import LoadingScreen from '@/components/LoadingScreen'
 
 interface QueueStatus {
   allowed: boolean
@@ -189,16 +190,7 @@ export default function QueuePage() {
   }, [])
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#FDF8F3] flex items-center justify-center p-4">
-        <Card className="max-w-2xl w-full">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Loader2 className="h-12 w-12 text-[#1E3A5F] animate-spin mb-4" />
-            <p className="text-[#6B7280]">Checking queue status...</p>
-          </CardContent>
-        </Card>
-      </div>
-    )
+    return <LoadingScreen message="Checking queue status..." />
   }
 
   if (error) {
