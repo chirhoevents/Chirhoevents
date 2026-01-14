@@ -51,6 +51,9 @@ interface EventData {
   pricing: EventPricing
   settings?: EventSettings
   dayPassOptions?: DayPassOption[]
+  registrationOpenDate?: string
+  registrationCloseDate?: string
+  isRegistrationOpen?: boolean
 }
 
 export default function GroupRegistrationPage() {
@@ -298,6 +301,38 @@ export default function GroupRegistrationPage() {
           <CardContent className="p-8 text-center">
             <p className="text-red-600 mb-4">{error}</p>
             <Button onClick={() => router.push('/')}>Return Home</Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Check if registration is not open
+  if (event && event.isRegistrationOpen === false) {
+    const now = new Date()
+    const openDate = event.registrationOpenDate ? new Date(event.registrationOpenDate) : null
+    const closeDate = event.registrationCloseDate ? new Date(event.registrationCloseDate) : null
+    const hasNotOpened = openDate && now < openDate
+    const hasClosed = closeDate && now >= closeDate
+
+    return (
+      <div className="min-h-screen bg-beige flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="p-8 text-center">
+            <AlertCircle className="h-16 w-16 text-amber-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-navy mb-2">
+              {hasNotOpened ? 'Registration Not Yet Open' : 'Registration Closed'}
+            </h2>
+            <p className="text-gray-600 mb-4">
+              {hasNotOpened && openDate
+                ? `Registration for ${event.name} opens on ${openDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at ${openDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}.`
+                : hasClosed
+                  ? `Registration for ${event.name} has closed.`
+                  : `Registration is not currently open for ${event.name}.`}
+            </p>
+            <Button onClick={() => router.push('/')} className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
+              Return Home
+            </Button>
           </CardContent>
         </Card>
       </div>

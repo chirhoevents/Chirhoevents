@@ -26,17 +26,11 @@ export async function GET(
       )
     }
 
-    // Check if registration is open
+    // Determine registration status (don't block access, let frontend handle display)
     const now = new Date()
     const registrationOpen = event.registrationOpenDate && now >= new Date(event.registrationOpenDate)
     const registrationClosed = event.registrationCloseDate && now >= new Date(event.registrationCloseDate)
-
-    if (!registrationOpen || registrationClosed) {
-      return NextResponse.json(
-        { error: 'Registration is not currently open for this event' },
-        { status: 403 }
-      )
-    }
+    const isRegistrationOpen = registrationOpen && !registrationClosed
 
     // Fetch depositPerPerson directly via raw query (Prisma client may not have this field)
     const depositPerPersonResult = await prisma.$queryRaw<Array<{ deposit_per_person: boolean | null }>>`
@@ -53,6 +47,9 @@ export async function GET(
       endDate: event.endDate,
       locationName: event.locationName,
       capacityRemaining: event.capacityRemaining,
+      registrationOpenDate: event.registrationOpenDate,
+      registrationCloseDate: event.registrationCloseDate,
+      isRegistrationOpen,
       pricing: {
         youthRegularPrice: Number(event.pricing?.youthRegularPrice || 0),
         youthEarlyBirdPrice: event.pricing?.youthEarlyBirdPrice ? Number(event.pricing.youthEarlyBirdPrice) : null,
