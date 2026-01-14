@@ -129,7 +129,6 @@ export async function GET(request: NextRequest) {
         },
         settings: true,
         dayPassOptions: true,
-        addOns: true,
       },
       orderBy: {
         startDate: 'asc',
@@ -263,16 +262,13 @@ export async function GET(request: NextRequest) {
             remaining: dp.remaining,
             used: dp.capacity > 0 ? dp.capacity - dp.remaining : null,
           })) || [],
-          // Add-ons
-          addOns: event.addOns?.map((addon) => ({
-            id: addon.id,
-            name: addon.name,
-            capacity: addon.maxQuantity,
-            remaining: addon.remainingQuantity,
-            used: addon.maxQuantity && addon.remainingQuantity !== null
-              ? addon.maxQuantity - addon.remainingQuantity
-              : null,
-          })) || [],
+          // Add-ons (from settings - no capacity tracking for add-ons)
+          addOns: event.settings ? [
+            event.settings.addOn1Enabled ? { id: 'addon1', name: event.settings.addOn1Title || 'Add-on 1', capacity: null, remaining: null, used: null } : null,
+            event.settings.addOn2Enabled ? { id: 'addon2', name: event.settings.addOn2Title || 'Add-on 2', capacity: null, remaining: null, used: null } : null,
+            event.settings.addOn3Enabled ? { id: 'addon3', name: event.settings.addOn3Title || 'Add-on 3', capacity: null, remaining: null, used: null } : null,
+            event.settings.addOn4Enabled ? { id: 'addon4', name: event.settings.addOn4Title || 'Add-on 4', capacity: null, remaining: null, used: null } : null,
+          ].filter(Boolean) as { id: string; name: string; capacity: number | null; remaining: number | null; used: number | null }[] : [],
         },
       })),
       recentRegistrations: recentGroupRegistrations.map((reg: {
