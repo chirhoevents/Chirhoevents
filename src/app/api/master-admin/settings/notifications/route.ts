@@ -25,11 +25,11 @@ export async function GET() {
 
     // Get platform settings from PlatformSetting table
     const setting = await prisma.platformSetting.findUnique({
-      where: { key: 'master_digest_settings' },
+      where: { settingKey: 'master_digest_settings' },
     })
 
-    const masterDigest: MasterDigestSettings = setting?.value
-      ? (setting.value as MasterDigestSettings)
+    const masterDigest: MasterDigestSettings = setting?.settingValue
+      ? (JSON.parse(setting.settingValue) as MasterDigestSettings)
       : {
           enabled: false,
           recipients: [],
@@ -95,21 +95,21 @@ export async function PUT(request: NextRequest) {
 
     // Upsert the platform setting
     await prisma.platformSetting.upsert({
-      where: { key: 'master_digest_settings' },
+      where: { settingKey: 'master_digest_settings' },
       update: {
-        value: {
+        settingValue: JSON.stringify({
           enabled: masterDigest.enabled,
           recipients: masterDigest.recipients,
           dayOfWeek: masterDigest.dayOfWeek,
-        },
+        }),
       },
       create: {
-        key: 'master_digest_settings',
-        value: {
+        settingKey: 'master_digest_settings',
+        settingValue: JSON.stringify({
           enabled: masterDigest.enabled,
           recipients: masterDigest.recipients,
           dayOfWeek: masterDigest.dayOfWeek,
-        },
+        }),
       },
     })
 
@@ -147,10 +147,10 @@ export async function POST() {
 
     // Get settings
     const setting = await prisma.platformSetting.findUnique({
-      where: { key: 'master_digest_settings' },
+      where: { settingKey: 'master_digest_settings' },
     })
 
-    const masterDigest = setting?.value as MasterDigestSettings | undefined
+    const masterDigest = setting?.settingValue ? JSON.parse(setting.settingValue) as MasterDigestSettings : undefined
 
     if (!masterDigest?.recipients?.length) {
       return NextResponse.json(
