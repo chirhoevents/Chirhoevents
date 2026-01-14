@@ -294,9 +294,9 @@ export default function NotificationsSettingsTab() {
       {/* Action Buttons */}
       <div className="flex justify-between items-center">
         <Button
-          variant="outline"
           onClick={handleSendTest}
           disabled={sendingTest || !settings.enabled || settings.recipients.length === 0}
+          className="bg-[#1E3A5F] hover:bg-[#2d5a8c] text-white"
         >
           {sendingTest ? (
             <>

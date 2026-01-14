@@ -163,18 +163,40 @@ export async function POST() {
     const { Resend } = await import('resend')
     const resend = new Resend(process.env.RESEND_API_KEY)
 
-    // Get platform stats
+    // Get platform stats with full details
     const [
-      openTickets,
-      pendingRequests,
-      activeOrgs,
+      supportTickets,
+      pendingOrganizations,
+      activeOrgsCount,
       totalRevenue,
     ] = await Promise.all([
-      prisma.supportTicket.count({
+      prisma.supportTicket.findMany({
         where: { status: { in: ['open', 'in_progress'] } },
+        select: {
+          id: true,
+          subject: true,
+          status: true,
+          priority: true,
+          createdAt: true,
+          organization: { select: { name: true } },
+          user: { select: { firstName: true, lastName: true, email: true } },
+        },
+        orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+        take: 20,
       }),
-      prisma.organization.count({
+      prisma.organization.findMany({
         where: { status: 'pending' },
+        select: {
+          id: true,
+          name: true,
+          createdAt: true,
+          users: {
+            where: { role: 'org_admin' },
+            select: { firstName: true, lastName: true, email: true },
+            take: 1,
+          },
+        },
+        orderBy: { createdAt: 'desc' },
       }),
       prisma.organization.count({
         where: { status: 'active' },
@@ -194,17 +216,91 @@ export async function POST() {
       end: now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
     }
 
-    // Generate simple HTML email
+    // Helper function to get status badge color
+    const getStatusColor = (status: string) => {
+      switch (status) {
+        case 'open': return '#ef4444'
+        case 'in_progress': return '#f59e0b'
+        case 'resolved': return '#10b981'
+        case 'closed': return '#6b7280'
+        default: return '#6b7280'
+      }
+    }
+
+    const getPriorityColor = (priority: string) => {
+      switch (priority) {
+        case 'urgent': return '#dc2626'
+        case 'high': return '#f97316'
+        case 'medium': return '#eab308'
+        case 'low': return '#22c55e'
+        default: return '#6b7280'
+      }
+    }
+
+    // Generate tickets HTML
+    const ticketsHtml = supportTickets.length > 0
+      ? supportTickets.map(ticket => `
+        <tr style="border-bottom: 1px solid #e5e7eb;">
+          <td style="padding: 12px 8px;">
+            <strong>${ticket.subject}</strong><br/>
+            <span style="color: #6b7280; font-size: 12px;">
+              ${ticket.organization?.name || 'No org'} • ${ticket.user?.firstName || ''} ${ticket.user?.lastName || ''}
+            </span>
+          </td>
+          <td style="padding: 12px 8px; text-align: center;">
+            <span style="background: ${getStatusColor(ticket.status)}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; text-transform: capitalize;">
+              ${ticket.status.replace('_', ' ')}
+            </span>
+          </td>
+          <td style="padding: 12px 8px; text-align: center;">
+            <span style="background: ${getPriorityColor(ticket.priority)}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; text-transform: capitalize;">
+              ${ticket.priority}
+            </span>
+          </td>
+          <td style="padding: 12px 8px; text-align: right; color: #6b7280; font-size: 12px;">
+            ${new Date(ticket.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          </td>
+        </tr>
+      `).join('')
+      : '<tr><td colspan="4" style="padding: 20px; text-align: center; color: #6b7280;">No open support tickets</td></tr>'
+
+    // Generate pending orgs HTML
+    const pendingOrgsHtml = pendingOrganizations.length > 0
+      ? pendingOrganizations.map(org => `
+        <tr style="border-bottom: 1px solid #e5e7eb;">
+          <td style="padding: 12px 8px;">
+            <strong>${org.name}</strong>
+          </td>
+          <td style="padding: 12px 8px;">
+            ${org.users[0] ? `${org.users[0].firstName || ''} ${org.users[0].lastName || ''}<br/><span style="color: #6b7280; font-size: 12px;">${org.users[0].email}</span>` : 'No admin'}
+          </td>
+          <td style="padding: 12px 8px; text-align: right; color: #6b7280; font-size: 12px;">
+            ${new Date(org.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          </td>
+        </tr>
+      `).join('')
+      : '<tr><td colspan="3" style="padding: 20px; text-align: center; color: #6b7280;">No pending organization requests</td></tr>'
+
+    // Generate full HTML email
     const htmlContent = `
       <!DOCTYPE html>
       <html>
       <head>
         <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: #7C3AED; color: white; padding: 20px; text-align: center; }
-          .stat-card { background: #f9fafb; padding: 15px; margin: 10px 0; border-radius: 8px; }
-          .stat-value { font-size: 24px; font-weight: bold; color: #7C3AED; }
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+          .container { max-width: 700px; margin: 0 auto; padding: 20px; }
+          .header { background: #7C3AED; color: white; padding: 30px 20px; text-align: center; }
+          .header h1 { margin: 0 0 10px 0; }
+          .header p { margin: 0; opacity: 0.9; }
+          .section { margin: 30px 0; }
+          .section h2 { color: #1f2937; border-bottom: 2px solid #7C3AED; padding-bottom: 10px; margin-bottom: 20px; }
+          .stats-grid { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 30px; }
+          .stat-card { background: #f9fafb; padding: 20px; border-radius: 8px; flex: 1; min-width: 140px; text-align: center; }
+          .stat-value { font-size: 28px; font-weight: bold; color: #7C3AED; }
+          .stat-label { color: #6b7280; font-size: 14px; margin-top: 5px; }
+          table { width: 100%; border-collapse: collapse; }
+          th { text-align: left; padding: 12px 8px; background: #f3f4f6; font-weight: 600; color: #374151; }
+          .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 12px; text-align: center; }
         </style>
       </head>
       <body>
@@ -214,31 +310,65 @@ export async function POST() {
             <p>${dateRange.start} - ${dateRange.end}</p>
           </div>
 
-          <h2>Platform Overview</h2>
-
-          <div class="stat-card">
-            <div class="stat-value">${openTickets}</div>
-            <div>Open Support Tickets</div>
+          <div class="section">
+            <h2>Platform Overview</h2>
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-value">${supportTickets.length}</div>
+                <div class="stat-label">Open Tickets</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">${pendingOrganizations.length}</div>
+                <div class="stat-label">Pending Requests</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">${activeOrgsCount}</div>
+                <div class="stat-label">Active Orgs</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">$${((Number(totalRevenue._sum.amount) || 0) / 100).toLocaleString()}</div>
+                <div class="stat-label">Total Revenue</div>
+              </div>
+            </div>
           </div>
 
-          <div class="stat-card">
-            <div class="stat-value">${pendingRequests}</div>
-            <div>Pending Organization Requests</div>
+          <div class="section">
+            <h2>Support Tickets (${supportTickets.length})</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Subject</th>
+                  <th style="text-align: center;">Status</th>
+                  <th style="text-align: center;">Priority</th>
+                  <th style="text-align: right;">Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${ticketsHtml}
+              </tbody>
+            </table>
           </div>
 
-          <div class="stat-card">
-            <div class="stat-value">${activeOrgs}</div>
-            <div>Active Organizations</div>
+          <div class="section">
+            <h2>Pending Organization Requests (${pendingOrganizations.length})</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Organization</th>
+                  <th>Contact</th>
+                  <th style="text-align: right;">Requested</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${pendingOrgsHtml}
+              </tbody>
+            </table>
           </div>
 
-          <div class="stat-card">
-            <div class="stat-value">$${((Number(totalRevenue._sum.amount) || 0) / 100).toLocaleString()}</div>
-            <div>Total Platform Revenue</div>
+          <div class="footer">
+            <p>This is a test email from ChiRho Events Master Admin digest.</p>
+            <p>View full details at <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/dashboard/master-admin" style="color: #7C3AED;">Master Admin Dashboard</a></p>
           </div>
-
-          <p style="margin-top: 20px; color: #666; font-size: 12px;">
-            This is a test email from ChiRho Events Master Admin digest.
-          </p>
         </div>
       </body>
       </html>
