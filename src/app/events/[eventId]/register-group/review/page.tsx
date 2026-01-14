@@ -72,6 +72,8 @@ interface RegistrationData {
   youthCount: number
   chaperoneCount: number
   priestCount: number
+  ticketType: string
+  dayPassOptionId: string
   housingType: string
   specialRequests: string
   couponCode: string
@@ -124,6 +126,8 @@ export default function InvoiceReviewPage() {
     youthCount: parseInt(searchParams.get('youthCount') || '0'),
     chaperoneCount: parseInt(searchParams.get('chaperoneCount') || '0'),
     priestCount: parseInt(searchParams.get('priestCount') || '0'),
+    ticketType: searchParams.get('ticketType') || 'general_admission',
+    dayPassOptionId: searchParams.get('dayPassOptionId') || '',
     housingType: searchParams.get('housingType') || 'on_campus',
     specialRequests: searchParams.get('specialRequests') || '',
     couponCode: searchParams.get('couponCode') || '',

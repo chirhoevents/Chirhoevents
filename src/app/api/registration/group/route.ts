@@ -316,6 +316,8 @@ export async function POST(request: NextRequest) {
         chaperoneCount,
         priestCount,
         totalParticipants,
+        ticketType: body.ticketType || 'general_admission',
+        dayPassOptionId: body.dayPassOptionId || null,
         housingType,
         // Set initial inventory counts based on selected housing type
         onCampusYouth: initialOnCampusYouth > 0 ? initialOnCampusYouth : null,
