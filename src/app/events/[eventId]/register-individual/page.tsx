@@ -19,10 +19,35 @@ interface EventPricing {
   onCampusChaperonePrice?: number
   offCampusChaperonePrice?: number
   dayPassChaperonePrice?: number
+  individualBasePrice?: number
+  individualDayPassPrice?: number
+  singleRoomPrice?: number
+  doubleRoomPrice?: number
+  tripleRoomPrice?: number
+  quadRoomPrice?: number
+  individualOffCampusPrice?: number
 }
 
 interface EventSettings {
   couponsEnabled?: boolean
+  allowDayPass?: boolean
+  allowOnCampus?: boolean
+  allowOffCampus?: boolean
+  porosHousingEnabled?: boolean
+  allowSingleRoom?: boolean
+  allowDoubleRoom?: boolean
+  allowTripleRoom?: boolean
+  allowQuadRoom?: boolean
+}
+
+interface DayPassOption {
+  id: string
+  date: string
+  name: string
+  capacity: number
+  remaining: number
+  price: number
+  isActive: boolean
 }
 
 interface EventData {
@@ -32,6 +57,7 @@ interface EventData {
   endDate: string
   pricing: EventPricing
   settings?: EventSettings
+  dayPassOptions?: DayPassOption[]
 }
 
 export default function IndividualRegistrationPage() {
@@ -74,6 +100,9 @@ export default function IndividualRegistrationPage() {
     phone: '',
     age: '',
     gender: '',
+    ticketType: 'general_admission' as 'general_admission' | 'day_pass',
+    dayPassOptionId: '',
+    wantsHousing: true, // For general admission: do they want housing?
     housingType: 'on_campus',
     roomType: 'double',
     preferredRoommate: '',
@@ -110,22 +139,42 @@ export default function IndividualRegistrationPage() {
     loadEvent()
   }, [eventId])
 
-  // Calculate pricing based on housing type
+  // Calculate pricing based on ticket type and housing
   const calculatePrice = () => {
     if (!event) return 0
 
     const { pricing } = event
 
-    // Default to youth regular price
-    let basePrice = pricing.youthRegularPrice
+    // Day pass ticket type - use day pass option price or legacy day pass price
+    if (formData.ticketType === 'day_pass') {
+      if (formData.dayPassOptionId && event.dayPassOptions) {
+        const selectedOption = event.dayPassOptions.find(opt => opt.id === formData.dayPassOptionId)
+        if (selectedOption) {
+          return selectedOption.price
+        }
+      }
+      // Fallback to legacy day pass price
+      return pricing.individualDayPassPrice || pricing.dayPassYouthPrice || pricing.youthRegularPrice
+    }
 
-    // Adjust based on housing type
-    if (formData.housingType === 'on_campus' && pricing.onCampusYouthPrice) {
-      basePrice = pricing.onCampusYouthPrice
-    } else if (formData.housingType === 'off_campus' && pricing.offCampusYouthPrice) {
-      basePrice = pricing.offCampusYouthPrice
-    } else if (formData.housingType === 'day_pass' && pricing.dayPassYouthPrice) {
-      basePrice = pricing.dayPassYouthPrice
+    // General admission - base price
+    let basePrice = pricing.individualBasePrice || pricing.youthRegularPrice
+
+    // If wants housing and on-campus, add room price
+    if (formData.wantsHousing && formData.housingType === 'on_campus') {
+      const roomPrices: Record<string, number | undefined> = {
+        single: pricing.singleRoomPrice,
+        double: pricing.doubleRoomPrice,
+        triple: pricing.tripleRoomPrice,
+        quad: pricing.quadRoomPrice,
+      }
+      const roomPrice = roomPrices[formData.roomType] || 0
+      basePrice = basePrice + (roomPrice || 0)
+    } else if (!formData.wantsHousing || formData.housingType === 'off_campus') {
+      // Off-campus or no housing
+      if (pricing.individualOffCampusPrice) {
+        basePrice = pricing.individualOffCampusPrice
+      }
     }
 
     return basePrice
@@ -178,6 +227,14 @@ export default function IndividualRegistrationPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Determine final housing type based on ticket type and housing preference
+    let finalHousingType = formData.housingType
+    if (formData.ticketType === 'day_pass') {
+      finalHousingType = 'day_pass'
+    } else if (!formData.wantsHousing) {
+      finalHousingType = 'off_campus'
+    }
+
     // Build URL with all form data as query parameters
     const params = new URLSearchParams({
       firstName: formData.firstName,
@@ -191,7 +248,9 @@ export default function IndividualRegistrationPage() {
       zip: formData.zip,
       age: formData.age,
       gender: formData.gender,
-      housingType: formData.housingType,
+      ticketType: formData.ticketType,
+      dayPassOptionId: formData.dayPassOptionId,
+      housingType: finalHousingType,
       roomType: formData.roomType,
       preferredRoommate: formData.preferredRoommate,
       tShirtSize: formData.tShirtSize,
@@ -530,65 +589,176 @@ export default function IndividualRegistrationPage() {
                   </CardContent>
                 </Card>
 
-                {/* Housing & Room Preferences */}
+                {/* Ticket Type Selection */}
                 <Card className="mb-6">
                   <CardHeader>
-                    <CardTitle>Housing & Room Preferences</CardTitle>
-                    <CardDescription>Select your housing options</CardDescription>
+                    <CardTitle>Ticket Type</CardTitle>
+                    <CardDescription>Select your registration type</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-navy mb-2">
-                          Housing Type *
+                    {/* Ticket Type Selection */}
+                    <div className="space-y-3">
+                      <label className="block text-sm font-medium text-navy mb-2">
+                        Select Ticket Type *
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* General Admission Option */}
+                        <div
+                          className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                            formData.ticketType === 'general_admission'
+                              ? 'border-gold bg-gold/5'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                          onClick={() => setFormData({ ...formData, ticketType: 'general_admission', dayPassOptionId: '' })}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <input
+                              type="radio"
+                              name="ticketType"
+                              value="general_admission"
+                              checked={formData.ticketType === 'general_admission'}
+                              onChange={() => setFormData({ ...formData, ticketType: 'general_admission', dayPassOptionId: '' })}
+                              className="w-4 h-4 text-gold"
+                            />
+                            <div>
+                              <p className="font-semibold text-navy">General Admission</p>
+                              <p className="text-sm text-gray-600">Full event access</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Day Pass Option - Only show if day pass is enabled */}
+                        {event?.settings?.allowDayPass && event.dayPassOptions && event.dayPassOptions.length > 0 && (
+                          <div
+                            className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                              formData.ticketType === 'day_pass'
+                                ? 'border-gold bg-gold/5'
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                            onClick={() => setFormData({ ...formData, ticketType: 'day_pass', wantsHousing: false })}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <input
+                                type="radio"
+                                name="ticketType"
+                                value="day_pass"
+                                checked={formData.ticketType === 'day_pass'}
+                                onChange={() => setFormData({ ...formData, ticketType: 'day_pass', wantsHousing: false })}
+                                className="w-4 h-4 text-gold"
+                              />
+                              <div>
+                                <p className="font-semibold text-navy">Day Pass</p>
+                                <p className="text-sm text-gray-600">Single day attendance (no housing)</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Day Pass Option Selection */}
+                    {formData.ticketType === 'day_pass' && event?.dayPassOptions && event.dayPassOptions.length > 0 && (
+                      <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                        <label className="block text-sm font-medium text-amber-900 mb-2">
+                          Select Day Pass *
                         </label>
                         <select
                           required
-                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
-                          value={formData.housingType}
-                          onChange={(e) => setFormData({ ...formData, housingType: e.target.value })}
+                          className="w-full px-4 py-2 border border-amber-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold bg-white"
+                          value={formData.dayPassOptionId}
+                          onChange={(e) => setFormData({ ...formData, dayPassOptionId: e.target.value })}
                         >
-                          <option value="on_campus">On-Campus Housing</option>
-                          <option value="off_campus">Off-Campus (Self-Arranged)</option>
-                          <option value="day_pass">Day Pass (No Housing)</option>
+                          <option value="">Select a day pass option</option>
+                          {event.dayPassOptions
+                            .filter(opt => opt.isActive && opt.remaining > 0)
+                            .map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.name} - ${option.price} ({option.remaining} spots left)
+                              </option>
+                            ))}
                         </select>
-                      </div>
-
-                      {formData.housingType === 'on_campus' && (
-                        <div>
-                          <label className="block text-sm font-medium text-navy mb-2">
-                            Room Type *
-                          </label>
-                          <select
-                            required
-                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
-                            value={formData.roomType}
-                            onChange={(e) => setFormData({ ...formData, roomType: e.target.value })}
-                          >
-                            <option value="single">Single Room</option>
-                            <option value="double">Double Room</option>
-                            <option value="triple">Triple Room</option>
-                            <option value="quad">Quad Room</option>
-                          </select>
-                        </div>
-                      )}
-                    </div>
-
-                    {formData.housingType === 'on_campus' && (
-                      <div>
-                        <label className="block text-sm font-medium text-navy mb-2">
-                          Preferred Roommate (Optional)
-                        </label>
-                        <input
-                          type="text"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
-                          value={formData.preferredRoommate}
-                          onChange={(e) => setFormData({ ...formData, preferredRoommate: e.target.value })}
-                          placeholder="Jane Smith"
-                        />
-                        <p className="text-sm text-gray-500 mt-1">
-                          Enter the name of someone you&apos;d like to room with (they must also register individually)
+                        <p className="text-sm text-amber-700 mt-2">
+                          Day pass attendees do not require housing arrangements.
                         </p>
+                      </div>
+                    )}
+
+                    {/* Housing Options - Only for General Admission */}
+                    {formData.ticketType === 'general_admission' && event?.settings?.porosHousingEnabled && (
+                      <div className="border-t pt-4 mt-4">
+                        <label className="block text-sm font-medium text-navy mb-3">
+                          Housing Preference
+                        </label>
+
+                        {/* Housing toggle */}
+                        <div className="flex items-center space-x-3 mb-4">
+                          <input
+                            type="checkbox"
+                            id="wantsHousing"
+                            checked={formData.wantsHousing}
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              wantsHousing: e.target.checked,
+                              housingType: e.target.checked ? 'on_campus' : 'off_campus'
+                            })}
+                            className="w-4 h-4 text-gold border-gray-300 rounded"
+                          />
+                          <label htmlFor="wantsHousing" className="text-sm text-gray-700">
+                            I need on-campus housing
+                          </label>
+                        </div>
+
+                        {/* Room Type Selection - Only if wants housing */}
+                        {formData.wantsHousing && (
+                          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 space-y-4">
+                            <div>
+                              <label className="block text-sm font-medium text-navy mb-2">
+                                Room Type *
+                              </label>
+                              <select
+                                required
+                                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                                value={formData.roomType}
+                                onChange={(e) => setFormData({ ...formData, roomType: e.target.value })}
+                              >
+                                {event?.settings?.allowSingleRoom !== false && (
+                                  <option value="single">Single Room {event?.pricing?.singleRoomPrice ? `(+$${event.pricing.singleRoomPrice})` : ''}</option>
+                                )}
+                                {event?.settings?.allowDoubleRoom !== false && (
+                                  <option value="double">Double Room {event?.pricing?.doubleRoomPrice ? `(+$${event.pricing.doubleRoomPrice})` : ''}</option>
+                                )}
+                                {event?.settings?.allowTripleRoom !== false && (
+                                  <option value="triple">Triple Room {event?.pricing?.tripleRoomPrice ? `(+$${event.pricing.tripleRoomPrice})` : ''}</option>
+                                )}
+                                {event?.settings?.allowQuadRoom !== false && (
+                                  <option value="quad">Quad Room {event?.pricing?.quadRoomPrice ? `(+$${event.pricing.quadRoomPrice})` : ''}</option>
+                                )}
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-navy mb-2">
+                                Preferred Roommate (Optional)
+                              </label>
+                              <input
+                                type="text"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                                value={formData.preferredRoommate}
+                                onChange={(e) => setFormData({ ...formData, preferredRoommate: e.target.value })}
+                                placeholder="Jane Smith"
+                              />
+                              <p className="text-sm text-gray-500 mt-1">
+                                Enter the name of someone you&apos;d like to room with (they must also register individually)
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {!formData.wantsHousing && (
+                          <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                            You will arrange your own accommodations off-campus.
+                          </p>
+                        )}
                       </div>
                     )}
                   </CardContent>

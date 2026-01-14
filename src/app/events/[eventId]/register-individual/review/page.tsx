@@ -50,6 +50,8 @@ interface RegistrationData {
   address: string
   age: string
   gender: string
+  ticketType: string
+  dayPassOptionId: string
   housingType: string
   roomType: string
   preferredRoommate: string
@@ -101,6 +103,8 @@ export default function IndividualInvoiceReviewPage() {
     address: searchParams.get('address') || '',
     age: searchParams.get('age') || '',
     gender: searchParams.get('gender') || '',
+    ticketType: searchParams.get('ticketType') || 'general_admission',
+    dayPassOptionId: searchParams.get('dayPassOptionId') || '',
     housingType: searchParams.get('housingType') || 'on_campus',
     roomType: searchParams.get('roomType') || 'double',
     preferredRoommate: searchParams.get('preferredRoommate') || '',

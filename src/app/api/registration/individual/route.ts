@@ -255,6 +255,8 @@ export async function POST(request: NextRequest) {
         zip: body.zip || null,
         age: body.age || null,
         gender: body.gender || null,
+        ticketType: body.ticketType || 'general_admission',
+        dayPassOptionId: body.dayPassOptionId || null,
         housingType,
         roomType: body.roomType || null,
         preferredRoommate: body.preferredRoommate || null,
