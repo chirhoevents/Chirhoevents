@@ -654,29 +654,36 @@ export async function PUT(
 
       // Update or create day pass options
       for (const option of data.dayPassOptions) {
-        const optionData = {
-          eventId,
-          organizationId: effectiveOrgId,
-          date: new Date(option.date),
-          name: option.name || 'Day Pass',
-          capacity: option.capacity ? parseInt(option.capacity) : 0,
-          remaining: option.capacity ? parseInt(option.capacity) : 0,
-          price: option.price ? parseFloat(option.price) : 50,
-          youthPrice: option.youthPrice ? parseFloat(option.youthPrice) : null,
-          chaperonePrice: option.chaperonePrice ? parseFloat(option.chaperonePrice) : null,
-          isActive: option.isActive !== false,
-        }
-
         if (option.id && !option.id.startsWith('temp-')) {
-          // Update existing option
+          // Update existing option (don't update eventId/organizationId as they don't change)
           await prisma.dayPassOption.update({
             where: { id: option.id },
-            data: optionData,
+            data: {
+              date: new Date(option.date),
+              name: option.name || 'Day Pass',
+              capacity: option.capacity ? parseInt(option.capacity) : 0,
+              remaining: option.capacity ? parseInt(option.capacity) : 0,
+              price: option.price ? parseFloat(option.price) : 50,
+              youthPrice: option.youthPrice ? parseFloat(option.youthPrice) : null,
+              chaperonePrice: option.chaperonePrice ? parseFloat(option.chaperonePrice) : null,
+              isActive: option.isActive !== false,
+            },
           })
         } else {
           // Create new option
           await prisma.dayPassOption.create({
-            data: optionData,
+            data: {
+              eventId,
+              organizationId: effectiveOrgId!,
+              date: new Date(option.date),
+              name: option.name || 'Day Pass',
+              capacity: option.capacity ? parseInt(option.capacity) : 0,
+              remaining: option.capacity ? parseInt(option.capacity) : 0,
+              price: option.price ? parseFloat(option.price) : 50,
+              youthPrice: option.youthPrice ? parseFloat(option.youthPrice) : null,
+              chaperonePrice: option.chaperonePrice ? parseFloat(option.chaperonePrice) : null,
+              isActive: option.isActive !== false,
+            },
           })
         }
       }
