@@ -16,6 +16,7 @@ export async function GET(
       include: {
         pricing: true,
         settings: true,
+        dayPassOptions: true,
       },
     })
 
@@ -69,6 +70,17 @@ export async function GET(
         dayPassChaperonePrice: event.pricing?.dayPassChaperonePrice ? Number(event.pricing.dayPassChaperonePrice) : undefined,
       },
       settings: event.settings,
+      dayPassOptions: event.dayPassOptions?.map(opt => ({
+        id: opt.id,
+        date: opt.date,
+        name: opt.name,
+        capacity: opt.capacity,
+        remaining: opt.remaining,
+        price: Number(opt.price || 0),
+        youthPrice: opt.youthPrice ? Number(opt.youthPrice) : null,
+        chaperonePrice: opt.chaperonePrice ? Number(opt.chaperonePrice) : null,
+        isActive: opt.isActive,
+      })) || [],
     })
   } catch (error) {
     console.error('Error fetching event:', error)
