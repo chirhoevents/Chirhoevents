@@ -9,6 +9,10 @@ interface WeeklyDigestSettings {
   dayOfWeek: number
 }
 
+interface PaymentAmount {
+  amount: number | bigint | { toNumber?: () => number }
+}
+
 /**
  * GET /api/admin/settings/notifications
  * Get notification settings for the organization
@@ -231,7 +235,7 @@ export async function POST(request: NextRequest) {
       }),
     ])
 
-    const totalRevenue = revenue.reduce((sum: number, p: { amount: number | bigint }) => sum + Number(p.amount), 0)
+    const totalRevenue = revenue.reduce((sum: number, p: PaymentAmount) => sum + Number(p.amount), 0)
 
     const digestData = {
       organizationName: organization.name,
