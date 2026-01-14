@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { AlertCircle, Loader2 } from 'lucide-react'
+import { AlertCircle, Loader2, AlertTriangle } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { useRegistrationQueue } from '@/hooks/useRegistrationQueue'
 import RegistrationTimer from '@/components/RegistrationTimer'
 import LoadingScreen from '@/components/LoadingScreen'
@@ -29,6 +30,13 @@ interface EventSettings {
   allowOnCampus?: boolean
   allowOffCampus?: boolean
   porosHousingEnabled?: boolean
+  // Capacity fields
+  onCampusCapacity?: number | null
+  onCampusRemaining?: number | null
+  offCampusCapacity?: number | null
+  offCampusRemaining?: number | null
+  dayPassCapacity?: number | null
+  dayPassRemaining?: number | null
 }
 
 interface DayPassOption {
@@ -91,6 +99,15 @@ export default function GroupRegistrationPage() {
     discountValue: number
   } | null>(null)
 
+  // Capacity modal state
+  const [capacityModalOpen, setCapacityModalOpen] = useState(false)
+  const [capacityError, setCapacityError] = useState<{
+    message: string
+    requestedSpots: number
+    availableSpots: number
+    housingType?: string
+  } | null>(null)
+
   // Form state
   const [formData, setFormData] = useState({
     groupName: '',
@@ -135,6 +152,32 @@ export default function GroupRegistrationPage() {
     }
     loadEvent()
   }, [eventId])
+
+  // Auto-switch housing type if the selected one is sold out
+  useEffect(() => {
+    if (!event?.settings || formData.ticketType !== 'general_admission') return
+
+    const settings = event.settings
+    const currentHousing = formData.housingType
+
+    // Check if current selection is sold out
+    const isOnCampusSoldOut = settings.onCampusCapacity !== null &&
+      settings.onCampusCapacity !== undefined &&
+      (settings.onCampusRemaining ?? 0) <= 0
+
+    const isOffCampusSoldOut = settings.offCampusCapacity !== null &&
+      settings.offCampusCapacity !== undefined &&
+      (settings.offCampusRemaining ?? 0) <= 0
+
+    // If on_campus is selected but sold out, switch to off_campus if available
+    if (currentHousing === 'on_campus' && isOnCampusSoldOut && !isOffCampusSoldOut) {
+      setFormData(prev => ({ ...prev, housingType: 'off_campus' }))
+    }
+    // If off_campus is selected but sold out, switch to on_campus if available
+    else if (currentHousing === 'off_campus' && isOffCampusSoldOut && !isOnCampusSoldOut) {
+      setFormData(prev => ({ ...prev, housingType: 'on_campus' }))
+    }
+  }, [event?.settings, formData.ticketType])
 
   // Calculate pricing
   const calculatePricing = () => {
@@ -214,6 +257,96 @@ export default function GroupRegistrationPage() {
     formData.chaperoneCount +
     formData.priestCount
 
+  // Helper function to check if a housing type has capacity (null means unlimited)
+  const getHousingAvailability = (housingType: string): { hasCapacity: boolean; remaining: number | null } => {
+    if (!event?.settings) return { hasCapacity: true, remaining: null }
+
+    const settings = event.settings
+
+    if (housingType === 'on_campus') {
+      // If capacity is null/undefined, it's unlimited
+      if (settings.onCampusCapacity === null || settings.onCampusCapacity === undefined) {
+        return { hasCapacity: true, remaining: null }
+      }
+      const remaining = settings.onCampusRemaining ?? 0
+      return { hasCapacity: remaining > 0, remaining }
+    }
+
+    if (housingType === 'off_campus') {
+      if (settings.offCampusCapacity === null || settings.offCampusCapacity === undefined) {
+        return { hasCapacity: true, remaining: null }
+      }
+      const remaining = settings.offCampusRemaining ?? 0
+      return { hasCapacity: remaining > 0, remaining }
+    }
+
+    return { hasCapacity: true, remaining: null }
+  }
+
+  // Check if there's enough capacity for the selected housing type
+  const validateCapacity = (): { valid: boolean; error?: { message: string; requestedSpots: number; availableSpots: number; housingType?: string } } => {
+    if (!event?.settings) return { valid: true }
+
+    const settings = event.settings
+
+    // For day pass, check day pass capacity
+    if (formData.ticketType === 'day_pass') {
+      if (formData.dayPassOptionId) {
+        const selectedOption = event.dayPassOptions?.find(opt => opt.id === formData.dayPassOptionId)
+        if (selectedOption && selectedOption.capacity > 0 && selectedOption.remaining < totalParticipants) {
+          return {
+            valid: false,
+            error: {
+              message: `Not enough spots available for this day pass option.`,
+              requestedSpots: totalParticipants,
+              availableSpots: selectedOption.remaining,
+              housingType: selectedOption.name
+            }
+          }
+        }
+      }
+      return { valid: true }
+    }
+
+    // For general admission, check housing type capacity
+    if (formData.housingType === 'on_campus') {
+      // Only check if capacity is set (not null/undefined)
+      if (settings.onCampusCapacity !== null && settings.onCampusCapacity !== undefined) {
+        const remaining = settings.onCampusRemaining ?? 0
+        if (remaining < totalParticipants) {
+          return {
+            valid: false,
+            error: {
+              message: `Not enough on-campus housing spots available.`,
+              requestedSpots: totalParticipants,
+              availableSpots: remaining,
+              housingType: 'On-Campus Housing'
+            }
+          }
+        }
+      }
+    }
+
+    if (formData.housingType === 'off_campus') {
+      if (settings.offCampusCapacity !== null && settings.offCampusCapacity !== undefined) {
+        const remaining = settings.offCampusRemaining ?? 0
+        if (remaining < totalParticipants) {
+          return {
+            valid: false,
+            error: {
+              message: `Not enough off-campus spots available.`,
+              requestedSpots: totalParticipants,
+              availableSpots: remaining,
+              housingType: 'Off-Campus'
+            }
+          }
+        }
+      }
+    }
+
+    return { valid: true }
+  }
+
   // Verify coupon code
   const verifyCoupon = async () => {
     if (!formData.couponCode.trim()) {
@@ -258,6 +391,14 @@ export default function GroupRegistrationPage() {
   // Handle form submission - navigate to review page
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Validate capacity before proceeding
+    const capacityCheck = validateCapacity()
+    if (!capacityCheck.valid && capacityCheck.error) {
+      setCapacityError(capacityCheck.error)
+      setCapacityModalOpen(true)
+      return
+    }
 
     // Build URL with all form data as query parameters
     const params = new URLSearchParams({
@@ -881,14 +1022,32 @@ export default function GroupRegistrationPage() {
                           value={formData.housingType}
                           onChange={(e) => setFormData({ ...formData, housingType: e.target.value })}
                         >
-                          <option value="on_campus">
-                            On-Campus Housing
-                            {event?.pricing.onCampusYouthPrice && ` - Youth: $${event.pricing.onCampusYouthPrice.toFixed(2)}, Chaperones: $${event.pricing.onCampusChaperonePrice?.toFixed(2)}`}
-                          </option>
-                          <option value="off_campus">
-                            Off-Campus (Self-Arranged)
-                            {event?.pricing.offCampusYouthPrice && ` - Youth: $${event.pricing.offCampusYouthPrice.toFixed(2)}, Chaperones: $${event.pricing.offCampusChaperonePrice?.toFixed(2)}`}
-                          </option>
+                          {/* On-Campus Option */}
+                          {(() => {
+                            const onCampusAvail = getHousingAvailability('on_campus')
+                            const isSoldOut = !onCampusAvail.hasCapacity
+                            const showRemaining = onCampusAvail.remaining !== null && onCampusAvail.remaining > 0
+                            return (
+                              <option value="on_campus" disabled={isSoldOut}>
+                                On-Campus Housing
+                                {event?.pricing.onCampusYouthPrice && ` - Youth: $${event.pricing.onCampusYouthPrice.toFixed(2)}, Chaperones: $${event.pricing.onCampusChaperonePrice?.toFixed(2)}`}
+                                {isSoldOut ? ' - SOLD OUT' : showRemaining ? ` (${onCampusAvail.remaining} spots left)` : ''}
+                              </option>
+                            )
+                          })()}
+                          {/* Off-Campus Option */}
+                          {(() => {
+                            const offCampusAvail = getHousingAvailability('off_campus')
+                            const isSoldOut = !offCampusAvail.hasCapacity
+                            const showRemaining = offCampusAvail.remaining !== null && offCampusAvail.remaining > 0
+                            return (
+                              <option value="off_campus" disabled={isSoldOut}>
+                                Off-Campus (Self-Arranged)
+                                {event?.pricing.offCampusYouthPrice && ` - Youth: $${event.pricing.offCampusYouthPrice.toFixed(2)}, Chaperones: $${event.pricing.offCampusChaperonePrice?.toFixed(2)}`}
+                                {isSoldOut ? ' - SOLD OUT' : showRemaining ? ` (${offCampusAvail.remaining} spots left)` : ''}
+                              </option>
+                            )
+                          })()}
                         </select>
                         {formData.housingType === 'on_campus' && (
                           <p className="text-sm text-blue-700 mt-2 bg-blue-50 p-2 rounded">
@@ -1092,6 +1251,55 @@ export default function GroupRegistrationPage() {
           </div>
         </div>
       </div>
+
+      {/* Capacity Error Modal */}
+      <Dialog open={capacityModalOpen} onOpenChange={setCapacityModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" />
+              Not Enough Spots Available
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              {capacityError?.message}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4 space-y-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Spots requested:</span>
+                  <span className="font-semibold text-red-700">{capacityError?.requestedSpots}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Spots available:</span>
+                  <span className="font-semibold text-green-700">{capacityError?.availableSpots}</span>
+                </div>
+                {capacityError?.housingType && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Housing type:</span>
+                    <span className="font-medium">{capacityError.housingType}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-600">
+              Please reduce the number of participants or select a different housing option with more availability.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              onClick={() => setCapacityModalOpen(false)}
+              className="w-full bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
+            >
+              Go Back and Adjust
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
