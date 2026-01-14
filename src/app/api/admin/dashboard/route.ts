@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
     const formsCompleted = completedForms + totalIndividualForms
     const formsTotal = totalParticipants + individualRegistrationsCount
 
-    // Get upcoming events (next 3)
+    // Get upcoming events (next 3) with full capacity data
     const upcomingEvents = await prisma.event.findMany({
       where: {
         organizationId,
@@ -127,6 +127,9 @@ export async function GET(request: NextRequest) {
             individualRegistrations: true,
           },
         },
+        settings: true,
+        dayPassOptions: true,
+        addOns: true,
       },
       orderBy: {
         startDate: 'asc',
@@ -190,20 +193,87 @@ export async function GET(request: NextRequest) {
         formsCompleted,
         formsTotal,
       },
-      upcomingEvents: upcomingEvents.map((event: {
-        id: string
-        name: string
-        slug: string
-        startDate: Date
-        endDate: Date
-        _count: { groupRegistrations: number; individualRegistrations: number }
-      }) => ({
+      upcomingEvents: upcomingEvents.map((event) => ({
         id: event.id,
         name: event.name,
         slug: event.slug,
         startDate: event.startDate,
         endDate: event.endDate,
         totalRegistrations: event._count.groupRegistrations + event._count.individualRegistrations,
+        capacityStats: {
+          // Overall event capacity
+          totalCapacity: event.capacityTotal,
+          totalRemaining: event.capacityRemaining,
+          totalUsed: event.capacityTotal && event.capacityRemaining
+            ? event.capacityTotal - event.capacityRemaining
+            : null,
+          // Housing capacities
+          housing: {
+            onCampus: event.settings ? {
+              capacity: event.settings.onCampusCapacity,
+              remaining: event.settings.onCampusRemaining,
+              used: event.settings.onCampusCapacity && event.settings.onCampusRemaining !== null
+                ? event.settings.onCampusCapacity - event.settings.onCampusRemaining
+                : null,
+            } : null,
+            offCampus: event.settings ? {
+              capacity: event.settings.offCampusCapacity,
+              remaining: event.settings.offCampusRemaining,
+              used: event.settings.offCampusCapacity && event.settings.offCampusRemaining !== null
+                ? event.settings.offCampusCapacity - event.settings.offCampusRemaining
+                : null,
+            } : null,
+          },
+          // Room capacities (for individual registrations)
+          rooms: event.settings ? {
+            single: {
+              capacity: event.settings.singleRoomCapacity,
+              remaining: event.settings.singleRoomRemaining,
+              used: event.settings.singleRoomCapacity && event.settings.singleRoomRemaining !== null
+                ? event.settings.singleRoomCapacity - event.settings.singleRoomRemaining
+                : null,
+            },
+            double: {
+              capacity: event.settings.doubleRoomCapacity,
+              remaining: event.settings.doubleRoomRemaining,
+              used: event.settings.doubleRoomCapacity && event.settings.doubleRoomRemaining !== null
+                ? event.settings.doubleRoomCapacity - event.settings.doubleRoomRemaining
+                : null,
+            },
+            triple: {
+              capacity: event.settings.tripleRoomCapacity,
+              remaining: event.settings.tripleRoomRemaining,
+              used: event.settings.tripleRoomCapacity && event.settings.tripleRoomRemaining !== null
+                ? event.settings.tripleRoomCapacity - event.settings.tripleRoomRemaining
+                : null,
+            },
+            quad: {
+              capacity: event.settings.quadRoomCapacity,
+              remaining: event.settings.quadRoomRemaining,
+              used: event.settings.quadRoomCapacity && event.settings.quadRoomRemaining !== null
+                ? event.settings.quadRoomCapacity - event.settings.quadRoomRemaining
+                : null,
+            },
+          } : null,
+          // Day pass options
+          dayPasses: event.dayPassOptions?.map((dp) => ({
+            id: dp.id,
+            name: dp.name,
+            capacity: dp.capacity,
+            remaining: dp.remaining,
+            used: dp.capacity > 0 ? dp.capacity - dp.remaining : null,
+          })) || [],
+          // Add-ons
+          addOns: event.addOns?.map((addon) => ({
+            id: addon.id,
+            name: addon.name,
+            capacity: addon.maxQuantity,
+            remaining: addon.remainingQuantity,
+            used: addon.maxQuantity && addon.remainingQuantity !== null
+              ? addon.maxQuantity - addon.remainingQuantity
+              : null,
+          })) || [],
+        },
       })),
       recentRegistrations: recentGroupRegistrations.map((reg: {
         id: string
