@@ -2,12 +2,13 @@
 
 import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Building2, Users, Plug, CreditCard, Palette } from 'lucide-react'
+import { Building2, Users, Plug, CreditCard, Palette, Bell } from 'lucide-react'
 import OrganizationSettingsTab from '@/components/admin/settings/OrganizationSettingsTab'
 import TeamSettingsTab from '@/components/admin/settings/TeamSettingsTab'
 import IntegrationsSettingsTab from '@/components/admin/settings/IntegrationsSettingsTab'
 import BillingSettingsTab from '@/components/admin/settings/BillingSettingsTab'
 import BrandingSettingsTab from '@/components/admin/settings/BrandingSettingsTab'
+import NotificationsSettingsTab from '@/components/admin/settings/NotificationsSettingsTab'
 import { useAdminContext } from '@/contexts/AdminContext'
 import { canManageTeam } from '@/lib/permissions'
 
@@ -82,6 +83,13 @@ export default function SettingsClient({ organizationName = 'your organization' 
               Integrations
             </TabsTrigger>
           )}
+          <TabsTrigger
+            value="notifications"
+            className="data-[state=active]:bg-white data-[state=active]:text-[#1E3A5F] data-[state=active]:shadow-sm flex items-center gap-2"
+          >
+            <Bell className="h-4 w-4" />
+            Notifications
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="organization" className="mt-6">
@@ -109,6 +117,10 @@ export default function SettingsClient({ organizationName = 'your organization' 
             <IntegrationsSettingsTab />
           </TabsContent>
         )}
+
+        <TabsContent value="notifications" className="mt-6">
+          <NotificationsSettingsTab />
+        </TabsContent>
       </Tabs>
     </div>
   )
