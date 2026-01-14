@@ -7,18 +7,11 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Mail, Send, Loader2, CheckCircle, AlertCircle, Calendar, Users } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Mail, Send, Loader2, Calendar, Plus, X } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
-interface Recipient {
-  id: string
-  email: string
-  firstName: string
-  lastName: string
-}
-
-interface WeeklyDigestSettings {
+interface MasterDigestSettings {
   enabled: boolean
   recipients: string[]
   dayOfWeek: number
@@ -34,12 +27,12 @@ const DAYS_OF_WEEK = [
   { value: 6, label: 'Saturday' },
 ]
 
-export default function NotificationsSettingsTab() {
+export default function MasterAdminNotificationsTab() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [sendingTest, setSendingTest] = useState(false)
-  const [availableRecipients, setAvailableRecipients] = useState<Recipient[]>([])
-  const [settings, setSettings] = useState<WeeklyDigestSettings>({
+  const [newEmail, setNewEmail] = useState('')
+  const [settings, setSettings] = useState<MasterDigestSettings>({
     enabled: false,
     recipients: [],
     dayOfWeek: 0,
@@ -51,12 +44,15 @@ export default function NotificationsSettingsTab() {
 
   const fetchSettings = async () => {
     try {
-      const response = await fetch('/api/admin/settings/notifications')
+      const response = await fetch('/api/master-admin/settings/notifications')
       if (!response.ok) throw new Error('Failed to fetch settings')
 
       const data = await response.json()
-      setSettings(data.weeklyDigest)
-      setAvailableRecipients(data.availableRecipients)
+      setSettings(data.masterDigest || {
+        enabled: false,
+        recipients: [],
+        dayOfWeek: 0,
+      })
     } catch (error) {
       console.error('Error fetching notification settings:', error)
       toast.error('Failed to load notification settings')
@@ -68,10 +64,10 @@ export default function NotificationsSettingsTab() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      const response = await fetch('/api/admin/settings/notifications', {
+      const response = await fetch('/api/master-admin/settings/notifications', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ weeklyDigest: settings }),
+        body: JSON.stringify({ masterDigest: settings }),
       })
 
       if (!response.ok) throw new Error('Failed to save settings')
@@ -87,20 +83,20 @@ export default function NotificationsSettingsTab() {
 
   const handleSendTest = async () => {
     if (settings.recipients.length === 0) {
-      toast.error('Please select at least one recipient first')
+      toast.error('Please add at least one recipient first')
       return
     }
 
     setSendingTest(true)
     try {
-      const response = await fetch('/api/admin/settings/notifications', {
+      const response = await fetch('/api/master-admin/settings/notifications', {
         method: 'POST',
       })
 
       if (!response.ok) throw new Error('Failed to send test digest')
 
       const result = await response.json()
-      toast.success(`Test digest sent to ${result.results?.[0]?.recipients || 0} recipient(s)`)
+      toast.success(`Test digest sent to ${result.sentCount || 0} recipient(s)`)
     } catch (error) {
       console.error('Error sending test digest:', error)
       toast.error('Failed to send test digest')
@@ -109,33 +105,33 @@ export default function NotificationsSettingsTab() {
     }
   }
 
-  const toggleRecipient = (email: string) => {
+  const addRecipient = () => {
+    if (!newEmail || !newEmail.includes('@')) {
+      toast.error('Please enter a valid email address')
+      return
+    }
+    if (settings.recipients.includes(newEmail)) {
+      toast.error('This email is already added')
+      return
+    }
     setSettings(prev => ({
       ...prev,
-      recipients: prev.recipients.includes(email)
-        ? prev.recipients.filter(r => r !== email)
-        : [...prev.recipients, email],
+      recipients: [...prev.recipients, newEmail],
     }))
+    setNewEmail('')
   }
 
-  const selectAllRecipients = () => {
+  const removeRecipient = (email: string) => {
     setSettings(prev => ({
       ...prev,
-      recipients: availableRecipients.map(r => r.email),
-    }))
-  }
-
-  const clearAllRecipients = () => {
-    setSettings(prev => ({
-      ...prev,
-      recipients: [],
+      recipients: prev.recipients.filter(r => r !== email),
     }))
   }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-[#1E3A5F]" />
+        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
       </div>
     )
   }
@@ -146,13 +142,13 @@ export default function NotificationsSettingsTab() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-[#1E3A5F]/10 rounded-lg">
-              <Mail className="h-5 w-5 text-[#1E3A5F]" />
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Mail className="h-5 w-5 text-purple-600" />
             </div>
             <div>
-              <CardTitle>Weekly Email Digest</CardTitle>
+              <CardTitle>Master Admin Weekly Digest</CardTitle>
               <CardDescription>
-                Receive a weekly summary of registrations, revenue, tickets, and action items
+                Receive a weekly summary of platform-wide support tickets, organization requests, and financial data
               </CardDescription>
             </div>
           </div>
@@ -210,80 +206,48 @@ export default function NotificationsSettingsTab() {
                 </p>
               </div>
 
-              {/* Recipients Selection */}
+              {/* Recipients */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-gray-500" />
-                    <Label>Recipients</Label>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={selectAllRecipients}
-                    >
-                      Select All
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={clearAllRecipients}
-                    >
-                      Clear
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="border rounded-lg divide-y max-h-[300px] overflow-y-auto">
-                  {availableRecipients.map(recipient => (
-                    <div
-                      key={recipient.id}
-                      className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer"
-                      onClick={() => toggleRecipient(recipient.email)}
-                    >
-                      <Checkbox
-                        checked={settings.recipients.includes(recipient.email)}
-                        onCheckedChange={() => toggleRecipient(recipient.email)}
-                      />
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">
-                          {recipient.firstName} {recipient.lastName}
-                        </p>
-                        <p className="text-sm text-gray-500">{recipient.email}</p>
-                      </div>
-                      {settings.recipients.includes(recipient.email) && (
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                      )}
-                    </div>
-                  ))}
-
-                  {availableRecipients.length === 0 && (
-                    <div className="p-4 text-center text-gray-500">
-                      <AlertCircle className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                      <p>No admin users found</p>
-                    </div>
-                  )}
+                <Label>Recipients</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="email"
+                    placeholder="Enter email address"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addRecipient()}
+                  />
+                  <Button onClick={addRecipient} variant="outline">
+                    <Plus className="h-4 w-4" />
+                  </Button>
                 </div>
 
                 {settings.recipients.length > 0 && (
-                  <p className="text-sm text-gray-600">
-                    <strong>{settings.recipients.length}</strong> recipient(s) selected
-                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {settings.recipients.map(email => (
+                      <Badge key={email} variant="secondary" className="py-1 px-3">
+                        {email}
+                        <button
+                          onClick={() => removeRecipient(email)}
+                          className="ml-2 hover:text-red-600"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
                 )}
               </div>
 
               {/* What's Included Info */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-medium text-blue-900 mb-2">What&apos;s included in the digest:</h4>
-                <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• Revenue summary (weekly + total)</li>
-                  <li>• Upcoming events with registration counts</li>
-                  <li>• Registration and participant stats</li>
-                  <li>• Form completion status</li>
-                  <li>• Pending payments and overdue balances</li>
-                  <li>• Action items requiring attention</li>
-                  <li>• Recent activity (payments, registrations)</li>
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <h4 className="font-medium text-purple-900 mb-2">What&apos;s included in the master admin digest:</h4>
+                <ul className="text-sm text-purple-800 space-y-1">
+                  <li>&#8226; Open support tickets summary</li>
+                  <li>&#8226; New organization requests</li>
+                  <li>&#8226; Platform-wide revenue and financials</li>
+                  <li>&#8226; Active organizations overview</li>
+                  <li>&#8226; System health and pending items</li>
                 </ul>
               </div>
             </>
@@ -314,7 +278,7 @@ export default function NotificationsSettingsTab() {
         <Button
           onClick={handleSave}
           disabled={saving}
-          className="bg-[#1E3A5F] hover:bg-[#2d5a8c]"
+          className="bg-purple-600 hover:bg-purple-700"
         >
           {saving ? (
             <>
