@@ -494,9 +494,10 @@ async function getRecentActivity(
       paymentStatus: 'succeeded',
       createdAt: { gte: weekStart },
     },
-    include: {
-      groupRegistration: { select: { groupName: true } },
-      individualRegistration: { select: { firstName: true, lastName: true } },
+    select: {
+      amount: true,
+      registrationType: true,
+      createdAt: true,
     },
     orderBy: { createdAt: 'desc' },
     take: 3,
@@ -518,14 +519,11 @@ async function getRecentActivity(
   const activity: WeeklyDigestData['recentActivity'] = []
 
   for (const payment of recentPayments) {
-    const name = payment.groupRegistration?.groupName
-      || (payment.individualRegistration
-        ? `${payment.individualRegistration.firstName} ${payment.individualRegistration.lastName}`
-        : 'Unknown')
+    const regType = payment.registrationType === 'group' ? 'group' : 'individual'
 
     activity.push({
       type: 'payment',
-      description: `Payment of $${(Number(payment.amount) / 100).toFixed(2)} from ${name}`,
+      description: `Payment of $${(Number(payment.amount) / 100).toFixed(2)} received (${regType})`,
       time: formatTimeAgo(payment.createdAt),
     })
   }
