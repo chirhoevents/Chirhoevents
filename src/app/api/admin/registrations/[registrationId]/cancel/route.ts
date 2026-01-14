@@ -72,7 +72,7 @@ export async function POST(
       }
 
       eventId = registration.eventId
-      participantCount = registration.totalParticipants || registration.partySize || 0
+      participantCount = registration.totalParticipants || 0
       housingType = registration.housingType
 
       // Calculate housing-specific counts for capacity restoration

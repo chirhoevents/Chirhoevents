@@ -69,7 +69,6 @@ export async function POST(
         eventId,
       },
       select: {
-        partySize: true,
         totalParticipants: true,
         housingType: true,
         onCampusYouth: true,
@@ -100,8 +99,8 @@ export async function POST(
 
     // Count group registration participants
     for (const reg of groupRegistrations) {
-      // Use totalParticipants or partySize
-      const count = reg.totalParticipants || reg.partySize || 0
+      // Use totalParticipants
+      const count = reg.totalParticipants || 0
       totalGroupParticipants += count
 
       // Count by housing type from inventory-style fields if available
