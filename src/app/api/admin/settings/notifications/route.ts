@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       select: {
         customFieldsEnabled: true,
         users: {
-          where: { role: { in: ['admin', 'owner', 'org_admin'] } },
+          where: { role: { in: ['org_admin', 'master_admin', 'event_manager'] } },
           select: {
             id: true,
             email: true,
