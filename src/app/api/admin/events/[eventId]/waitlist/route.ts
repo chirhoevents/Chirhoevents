@@ -102,6 +102,8 @@ export async function GET(
         registrationType: entry.registrationType,
         preferredHousingType: entry.preferredHousingType,
         preferredRoomType: entry.preferredRoomType,
+        preferredTicketType: entry.preferredTicketType,
+        preferredDayPassOptionId: entry.preferredDayPassOptionId,
         createdAt: entry.createdAt,
         updatedAt: entry.updatedAt,
       })),
@@ -123,6 +125,12 @@ export async function GET(
           group: entries.filter((e: any) => e.registrationType === 'group' && e.status === 'pending').length,
           individual: entries.filter((e: any) => e.registrationType === 'individual' && e.status === 'pending').length,
           unspecified: entries.filter((e: any) => !e.registrationType && e.status === 'pending').length,
+        },
+        // Breakdown by ticket type preference
+        byTicketType: {
+          generalAdmission: entries.filter((e: any) => e.preferredTicketType === 'general_admission' && e.status === 'pending').length,
+          dayPass: entries.filter((e: any) => e.preferredTicketType === 'day_pass' && e.status === 'pending').length,
+          unspecified: entries.filter((e: any) => !e.preferredTicketType && e.status === 'pending').length,
         },
       },
       analytics: {

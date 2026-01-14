@@ -81,7 +81,7 @@ interface GroupRegistration {
   groupLeaderEmail: string
   groupLeaderPhone: string
   totalParticipants: number
-  housingType: string
+  housingType: string | null
   registeredAt: Date
   participants?: any[]
   [key: string]: any

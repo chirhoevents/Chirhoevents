@@ -254,3 +254,110 @@ export function getAvailableOptions(settings: EventSettings | null): {
 
   return { housingTypes: availableHousingTypes, roomTypes: availableRoomTypes }
 }
+
+// ===================================
+// DAY PASS OPTION CAPACITY FUNCTIONS
+// ===================================
+
+interface DayPassOptionCapacityResult {
+  hasCapacity: boolean
+  error?: string
+  remaining?: number
+}
+
+/**
+ * Check if a specific day pass option has capacity
+ */
+export async function checkDayPassOptionCapacity(
+  dayPassOptionId: string,
+  partySize: number = 1
+): Promise<DayPassOptionCapacityResult> {
+  const option = await prisma.dayPassOption.findUnique({
+    where: { id: dayPassOptionId },
+    select: { name: true, capacity: true, remaining: true, isActive: true },
+  })
+
+  if (!option) {
+    return {
+      hasCapacity: false,
+      error: 'Day pass option not found',
+    }
+  }
+
+  if (!option.isActive) {
+    return {
+      hasCapacity: false,
+      error: `${option.name} is no longer available`,
+    }
+  }
+
+  // If capacity is 0, it means unlimited
+  if (option.capacity === 0) {
+    return { hasCapacity: true }
+  }
+
+  if (option.remaining <= 0) {
+    return {
+      hasCapacity: false,
+      error: `No spots available for ${option.name}. Please select a different day pass option.`,
+      remaining: 0,
+    }
+  }
+
+  if (option.remaining < partySize) {
+    return {
+      hasCapacity: false,
+      error: `Only ${option.remaining} spot${option.remaining === 1 ? '' : 's'} remaining for ${option.name}, but ${partySize} requested.`,
+      remaining: option.remaining,
+    }
+  }
+
+  return {
+    hasCapacity: true,
+    remaining: option.remaining,
+  }
+}
+
+/**
+ * Decrement day pass option capacity after a successful registration
+ */
+export async function decrementDayPassOptionCapacity(
+  dayPassOptionId: string,
+  partySize: number = 1
+): Promise<void> {
+  await prisma.dayPassOption.update({
+    where: { id: dayPassOptionId },
+    data: {
+      remaining: { decrement: partySize },
+    },
+  })
+}
+
+/**
+ * Increment day pass option capacity (e.g., when a registration is cancelled)
+ */
+export async function incrementDayPassOptionCapacity(
+  dayPassOptionId: string,
+  partySize: number = 1
+): Promise<void> {
+  // Get current capacity to ensure we don't exceed it
+  const option = await prisma.dayPassOption.findUnique({
+    where: { id: dayPassOptionId },
+    select: { capacity: true, remaining: true },
+  })
+
+  if (!option) return
+
+  // If capacity is 0 (unlimited), don't increment
+  if (option.capacity === 0) return
+
+  // Calculate new remaining, but cap at capacity
+  const newRemaining = Math.min(option.remaining + partySize, option.capacity)
+
+  await prisma.dayPassOption.update({
+    where: { id: dayPassOptionId },
+    data: {
+      remaining: newRemaining,
+    },
+  })
+}

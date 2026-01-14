@@ -32,6 +32,9 @@ export async function GET(
       include: {
         settings: true,
         pricing: true,
+        dayPassOptions: {
+          orderBy: { date: 'asc' },
+        },
         _count: {
           select: {
             groupRegistrations: true,
@@ -627,6 +630,64 @@ export async function PUT(
         pricing: true,
       },
     })
+
+    // Handle day pass options update
+    if (data.dayPassOptions !== undefined && Array.isArray(data.dayPassOptions)) {
+      // Get existing day pass options for this event
+      const existingOptions = await prisma.dayPassOption.findMany({
+        where: { eventId },
+        select: { id: true },
+      })
+
+      const existingIds = existingOptions.map(opt => opt.id)
+      const newOptionIds = data.dayPassOptions
+        .filter((opt: { id: string }) => !opt.id.startsWith('temp-'))
+        .map((opt: { id: string }) => opt.id)
+
+      // Delete options that are no longer in the list
+      const idsToDelete = existingIds.filter(id => !newOptionIds.includes(id))
+      if (idsToDelete.length > 0) {
+        await prisma.dayPassOption.deleteMany({
+          where: { id: { in: idsToDelete } },
+        })
+      }
+
+      // Update or create day pass options
+      for (const option of data.dayPassOptions) {
+        if (option.id && !option.id.startsWith('temp-')) {
+          // Update existing option (don't update eventId/organizationId as they don't change)
+          await prisma.dayPassOption.update({
+            where: { id: option.id },
+            data: {
+              date: new Date(option.date),
+              name: option.name || 'Day Pass',
+              capacity: option.capacity ? parseInt(option.capacity) : 0,
+              remaining: option.capacity ? parseInt(option.capacity) : 0,
+              price: option.price ? parseFloat(option.price) : 50,
+              youthPrice: option.youthPrice ? parseFloat(option.youthPrice) : null,
+              chaperonePrice: option.chaperonePrice ? parseFloat(option.chaperonePrice) : null,
+              isActive: option.isActive !== false,
+            },
+          })
+        } else {
+          // Create new option
+          await prisma.dayPassOption.create({
+            data: {
+              eventId,
+              organizationId: effectiveOrgId!,
+              date: new Date(option.date),
+              name: option.name || 'Day Pass',
+              capacity: option.capacity ? parseInt(option.capacity) : 0,
+              remaining: option.capacity ? parseInt(option.capacity) : 0,
+              price: option.price ? parseFloat(option.price) : 50,
+              youthPrice: option.youthPrice ? parseFloat(option.youthPrice) : null,
+              chaperonePrice: option.chaperonePrice ? parseFloat(option.chaperonePrice) : null,
+              isActive: option.isActive !== false,
+            },
+          })
+        }
+      }
+    }
 
     return NextResponse.json({ event })
   } catch (error) {

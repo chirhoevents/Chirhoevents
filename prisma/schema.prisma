@@ -85,6 +85,7 @@ model Organization {
   invoices                Invoice[]
   billingNotes            BillingNote[]
   coupons                 Coupon[]
+  dayPassOptions          DayPassOption[]
   createdByUser           User?    @relation("OrganizationsCreatedByUser", fields: [createdByUserId], references: [id])
 
   @@index([contactEmail], name: "idx_org_email")
@@ -181,6 +182,7 @@ model Event {
   porosDataImport           PorosEventDataImport?
   queueSettings             EventQueueSettings?
   registrationQueueEntries  RegistrationQueue[]
+  dayPassOptions            DayPassOption[]
 
   @@index([organizationId], name: "idx_event_org")
   @@index([slug], name: "idx_event_slug")
@@ -386,6 +388,44 @@ model EventPricing {
 }
 
 // ===================================
+// DAY PASS OPTIONS
+// ===================================
+
+model DayPassOption {
+  id              String   @id @default(uuid()) @db.Uuid
+  eventId         String   @map("event_id") @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  date            DateTime @db.Date  // The specific day this pass is for
+  name            String   @db.VarChar(255)  // e.g., "Friday Pass", "Saturday Pass"
+
+  // Capacity tracking (inventory)
+  capacity        Int
+  remaining       Int
+
+  // Pricing - one price per day
+  price           Decimal  @db.Decimal(10, 2)  // For individual registrations
+  youthPrice      Decimal? @map("youth_price") @db.Decimal(10, 2)  // For group youth
+  chaperonePrice  Decimal? @map("chaperone_price") @db.Decimal(10, 2)  // For group chaperones
+
+  isActive        Boolean  @default(true) @map("is_active")
+
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  event                   Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  organization            Organization @relation(fields: [organizationId], references: [id])
+  individualRegistrations IndividualRegistration[]
+  groupRegistrations      GroupRegistration[]
+  waitlistEntries         WaitlistEntry[]
+
+  @@index([eventId], name: "idx_day_pass_event")
+  @@index([organizationId], name: "idx_day_pass_org")
+  @@index([date], name: "idx_day_pass_date")
+  @@map("day_pass_options")
+}
+
+// ===================================
 // REGISTRATION TABLES
 // ===================================
 
@@ -418,7 +458,11 @@ model GroupRegistration {
   chaperoneCount             Int      @default(0) @map("chaperone_count")
   priestCount                Int      @default(0) @map("priest_count")
   totalParticipants          Int      @map("total_participants")
-  housingType                HousingType @map("housing_type")
+  // Ticket type: general_admission or day_pass
+  ticketType                 TicketType @default(general_admission) @map("ticket_type")
+  dayPassOptionId            String?  @map("day_pass_option_id") @db.Uuid
+  // Housing type (only relevant for general_admission ticket type)
+  housingType                HousingType? @map("housing_type")
   // Housing-specific participant counts (inventory style)
   onCampusYouth              Int?     @map("on_campus_youth")
   onCampusChaperones         Int?     @map("on_campus_chaperones")
@@ -446,6 +490,7 @@ model GroupRegistration {
   // Relations
   event          Event           @relation(fields: [eventId], references: [id])
   organization   Organization    @relation(fields: [organizationId], references: [id])
+  dayPassOption  DayPassOption?  @relation(fields: [dayPassOptionId], references: [id])
   participants   Participant[]
   liabilityForms LiabilityForm[]
   userPreferences UserPreferences[]
@@ -455,6 +500,7 @@ model GroupRegistration {
   @@index([organizationId], name: "idx_group_org")
   @@index([accessCode], name: "idx_group_access_code")
   @@index([clerkUserId], name: "idx_group_clerk_user")
+  @@index([dayPassOptionId], name: "idx_group_day_pass")
   @@map("group_registrations")
 }
 
@@ -474,6 +520,10 @@ model IndividualRegistration {
   zip                       String?  @db.VarChar(10)
   age                       Int?
   gender                    Gender?
+  // Ticket type: general_admission or day_pass
+  ticketType                TicketType @default(general_admission) @map("ticket_type")
+  dayPassOptionId           String?  @map("day_pass_option_id") @db.Uuid
+  // Housing fields (only relevant for general_admission ticket type with housing)
   housingType               HousingType? @map("housing_type")
   roomType                  RoomType? @map("room_type")
   preferredRoommate         String?  @map("preferred_roommate") @db.Text
@@ -500,12 +550,14 @@ model IndividualRegistration {
   checkInNotes              String?  @map("check_in_notes") @db.Text
 
   // Relations
-  event        Event        @relation(fields: [eventId], references: [id])
-  organization Organization @relation(fields: [organizationId], references: [id])
+  event         Event        @relation(fields: [eventId], references: [id])
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  dayPassOption DayPassOption? @relation(fields: [dayPassOptionId], references: [id])
   liabilityForms LiabilityForm[]
 
   @@index([confirmationCode], name: "idx_individual_confirmation_code")
   @@index([checkedIn], name: "idx_individual_checked_in")
+  @@index([dayPassOptionId], name: "idx_individual_day_pass")
   @@map("individual_registrations")
 }
 
@@ -837,6 +889,11 @@ enum HousingType {
   day_pass
 }
 
+enum TicketType {
+  general_admission
+  day_pass
+}
+
 enum RegistrationStatus {
   incomplete
   pending_forms
@@ -1091,18 +1148,22 @@ model WaitlistEntry {
   updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   // Option preferences - what type of registration/housing they want
-  registrationType    RegistrationType? @map("registration_type")
-  preferredHousingType HousingType? @map("preferred_housing_type")
-  preferredRoomType   RoomType? @map("preferred_room_type")
+  registrationType         RegistrationType? @map("registration_type")
+  preferredTicketType      TicketType? @map("preferred_ticket_type")
+  preferredDayPassOptionId String? @map("preferred_day_pass_option_id") @db.Uuid
+  preferredHousingType     HousingType? @map("preferred_housing_type")
+  preferredRoomType        RoomType? @map("preferred_room_type")
 
   // Relations
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event         Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  dayPassOption DayPassOption? @relation(fields: [preferredDayPassOptionId], references: [id])
 
   @@index([eventId], name: "idx_waitlist_event")
   @@index([status], name: "idx_waitlist_status")
   @@index([email], name: "idx_waitlist_email")
   @@index([registrationToken], name: "idx_waitlist_token")
   @@index([preferredHousingType], name: "idx_waitlist_housing_type")
+  @@index([preferredTicketType], name: "idx_waitlist_ticket_type")
   @@map("waitlist_entries")
 }
 

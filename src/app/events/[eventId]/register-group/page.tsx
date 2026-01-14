@@ -25,6 +25,22 @@ interface EventPricing {
 
 interface EventSettings {
   couponsEnabled?: boolean
+  allowDayPass?: boolean
+  allowOnCampus?: boolean
+  allowOffCampus?: boolean
+  porosHousingEnabled?: boolean
+}
+
+interface DayPassOption {
+  id: string
+  date: string
+  name: string
+  capacity: number
+  remaining: number
+  price: number
+  youthPrice: number | null
+  chaperonePrice: number | null
+  isActive: boolean
 }
 
 interface EventData {
@@ -34,6 +50,7 @@ interface EventData {
   endDate: string
   pricing: EventPricing
   settings?: EventSettings
+  dayPassOptions?: DayPassOption[]
 }
 
 export default function GroupRegistrationPage() {
@@ -92,6 +109,8 @@ export default function GroupRegistrationPage() {
     youthCount: 0,
     chaperoneCount: 0,
     priestCount: 0,
+    ticketType: 'general_admission' as 'general_admission' | 'day_pass',
+    dayPassOptionId: '',
     housingType: 'on_campus',
     specialRequests: '',
     couponCode: '',
@@ -121,29 +140,40 @@ export default function GroupRegistrationPage() {
     const { pricing } = event
     const breakdown: { label: string; count: number; price: number; subtotal: number }[] = []
 
-    // Determine youth price based on housing type (if available)
     let youthPrice = pricing.youthRegularPrice
-    if (formData.housingType === 'on_campus' && pricing.onCampusYouthPrice) {
-      youthPrice = pricing.onCampusYouthPrice
-    } else if (formData.housingType === 'off_campus' && pricing.offCampusYouthPrice) {
-      youthPrice = pricing.offCampusYouthPrice
-    } else if (formData.housingType === 'day_pass' && pricing.dayPassYouthPrice) {
-      youthPrice = pricing.dayPassYouthPrice
-    }
-
-    // Determine chaperone price based on housing type (if available)
     let chaperonePrice = pricing.chaperoneRegularPrice
-    if (formData.housingType === 'on_campus' && pricing.onCampusChaperonePrice) {
-      chaperonePrice = pricing.onCampusChaperonePrice
-    } else if (formData.housingType === 'off_campus' && pricing.offCampusChaperonePrice) {
-      chaperonePrice = pricing.offCampusChaperonePrice
-    } else if (formData.housingType === 'day_pass' && pricing.dayPassChaperonePrice) {
-      chaperonePrice = pricing.dayPassChaperonePrice
+
+    // Day pass ticket type - use day pass option prices or legacy day pass prices
+    if (formData.ticketType === 'day_pass') {
+      if (formData.dayPassOptionId && event.dayPassOptions) {
+        const selectedOption = event.dayPassOptions.find(opt => opt.id === formData.dayPassOptionId)
+        if (selectedOption) {
+          youthPrice = selectedOption.youthPrice ?? pricing.dayPassYouthPrice ?? pricing.youthRegularPrice
+          chaperonePrice = selectedOption.chaperonePrice ?? pricing.dayPassChaperonePrice ?? pricing.chaperoneRegularPrice
+        }
+      } else {
+        // Fallback to legacy day pass prices
+        youthPrice = pricing.dayPassYouthPrice ?? pricing.youthRegularPrice
+        chaperonePrice = pricing.dayPassChaperonePrice ?? pricing.chaperoneRegularPrice
+      }
+    } else {
+      // General admission - determine price based on housing type
+      if (formData.housingType === 'on_campus' && pricing.onCampusYouthPrice) {
+        youthPrice = pricing.onCampusYouthPrice
+      } else if (formData.housingType === 'off_campus' && pricing.offCampusYouthPrice) {
+        youthPrice = pricing.offCampusYouthPrice
+      }
+
+      if (formData.housingType === 'on_campus' && pricing.onCampusChaperonePrice) {
+        chaperonePrice = pricing.onCampusChaperonePrice
+      } else if (formData.housingType === 'off_campus' && pricing.offCampusChaperonePrice) {
+        chaperonePrice = pricing.offCampusChaperonePrice
+      }
     }
 
     if (formData.youthCount > 0) {
       breakdown.push({
-        label: 'Youth',
+        label: formData.ticketType === 'day_pass' ? 'Youth (Day Pass)' : 'Youth',
         count: formData.youthCount,
         price: youthPrice,
         subtotal: formData.youthCount * youthPrice,
@@ -152,7 +182,7 @@ export default function GroupRegistrationPage() {
 
     if (formData.chaperoneCount > 0) {
       breakdown.push({
-        label: 'Chaperones',
+        label: formData.ticketType === 'day_pass' ? 'Chaperones (Day Pass)' : 'Chaperones',
         count: formData.chaperoneCount,
         price: chaperonePrice,
         subtotal: formData.chaperoneCount * chaperonePrice,
@@ -247,6 +277,8 @@ export default function GroupRegistrationPage() {
       youthCount: formData.youthCount.toString(),
       chaperoneCount: formData.chaperoneCount.toString(),
       priestCount: formData.priestCount.toString(),
+      ticketType: formData.ticketType,
+      dayPassOptionId: formData.dayPassOptionId,
       housingType: formData.housingType,
       specialRequests: formData.specialRequests,
       couponCode: formData.couponCode,
@@ -709,36 +741,141 @@ export default function GroupRegistrationPage() {
                   </CardContent>
                 </Card>
 
+                {/* Ticket Type Selection */}
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle>Ticket Type & Housing</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Ticket Type Selection */}
+                    <div>
+                      <label className="block text-sm font-medium text-navy mb-3">
+                        Select Ticket Type *
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* General Admission Option */}
+                        <div
+                          className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                            formData.ticketType === 'general_admission'
+                              ? 'border-gold bg-gold/5'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                          onClick={() => setFormData({ ...formData, ticketType: 'general_admission', dayPassOptionId: '' })}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <input
+                              type="radio"
+                              name="ticketType"
+                              value="general_admission"
+                              checked={formData.ticketType === 'general_admission'}
+                              onChange={() => setFormData({ ...formData, ticketType: 'general_admission', dayPassOptionId: '' })}
+                              className="w-4 h-4 text-gold"
+                            />
+                            <div>
+                              <p className="font-semibold text-navy">General Admission</p>
+                              <p className="text-sm text-gray-600">Full event access with housing options</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Day Pass Option - Only show if day pass is enabled */}
+                        {event?.settings?.allowDayPass && event.dayPassOptions && event.dayPassOptions.length > 0 && (
+                          <div
+                            className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                              formData.ticketType === 'day_pass'
+                                ? 'border-gold bg-gold/5'
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                            onClick={() => setFormData({ ...formData, ticketType: 'day_pass', housingType: 'day_pass' })}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <input
+                                type="radio"
+                                name="ticketType"
+                                value="day_pass"
+                                checked={formData.ticketType === 'day_pass'}
+                                onChange={() => setFormData({ ...formData, ticketType: 'day_pass', housingType: 'day_pass' })}
+                                className="w-4 h-4 text-gold"
+                              />
+                              <div>
+                                <p className="font-semibold text-navy">Day Pass</p>
+                                <p className="text-sm text-gray-600">Single day attendance (no housing)</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Day Pass Option Selection */}
+                    {formData.ticketType === 'day_pass' && event?.dayPassOptions && event.dayPassOptions.length > 0 && (
+                      <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                        <label className="block text-sm font-medium text-amber-900 mb-2">
+                          Select Day Pass *
+                        </label>
+                        <select
+                          required
+                          className="w-full px-4 py-2 border border-amber-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold bg-white"
+                          value={formData.dayPassOptionId}
+                          onChange={(e) => setFormData({ ...formData, dayPassOptionId: e.target.value })}
+                        >
+                          <option value="">Select a day pass option</option>
+                          {event.dayPassOptions
+                            .filter(opt => opt.isActive && opt.remaining > 0)
+                            .map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.name} - Youth: ${option.youthPrice?.toFixed(2) ?? 'N/A'} | Chaperone: ${option.chaperonePrice?.toFixed(2) ?? 'N/A'} ({option.remaining} spots left)
+                              </option>
+                            ))}
+                        </select>
+                        <p className="text-sm text-amber-700 mt-2">
+                          Day pass groups do not require housing arrangements.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Housing Options - Only for General Admission */}
+                    {formData.ticketType === 'general_admission' && (
+                      <div className="border-t pt-4">
+                        <label className="block text-sm font-medium text-navy mb-2">
+                          Housing Type *
+                        </label>
+                        <select
+                          required
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                          value={formData.housingType}
+                          onChange={(e) => setFormData({ ...formData, housingType: e.target.value })}
+                        >
+                          <option value="on_campus">
+                            On-Campus Housing
+                            {event?.pricing.onCampusYouthPrice && ` - Youth: $${event.pricing.onCampusYouthPrice.toFixed(2)}, Chaperones: $${event.pricing.onCampusChaperonePrice?.toFixed(2)}`}
+                          </option>
+                          <option value="off_campus">
+                            Off-Campus (Self-Arranged)
+                            {event?.pricing.offCampusYouthPrice && ` - Youth: $${event.pricing.offCampusYouthPrice.toFixed(2)}, Chaperones: $${event.pricing.offCampusChaperonePrice?.toFixed(2)}`}
+                          </option>
+                        </select>
+                        {formData.housingType === 'on_campus' && (
+                          <p className="text-sm text-blue-700 mt-2 bg-blue-50 p-2 rounded">
+                            Your group will be assigned housing and you&apos;ll manage room assignments after registration.
+                          </p>
+                        )}
+                        {formData.housingType === 'off_campus' && (
+                          <p className="text-sm text-gray-600 mt-2 bg-gray-50 p-2 rounded">
+                            Your group will arrange their own accommodations outside the venue.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Additional Information */}
                 <Card className="mb-6">
                   <CardHeader>
                     <CardTitle>Additional Information</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-navy mb-2">
-                        Housing Type *
-                      </label>
-                      <select
-                        required
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
-                        value={formData.housingType}
-                        onChange={(e) => setFormData({ ...formData, housingType: e.target.value })}
-                      >
-                        <option value="on_campus">
-                          On-Campus Housing
-                          {event?.pricing.onCampusYouthPrice && ` - Youth: $${event.pricing.onCampusYouthPrice.toFixed(2)}, Chaperones: $${event.pricing.onCampusChaperonePrice?.toFixed(2)}`}
-                        </option>
-                        <option value="off_campus">
-                          Off-Campus (Self-Arranged)
-                          {event?.pricing.offCampusYouthPrice && ` - Youth: $${event.pricing.offCampusYouthPrice.toFixed(2)}, Chaperones: $${event.pricing.offCampusChaperonePrice?.toFixed(2)}`}
-                        </option>
-                        <option value="day_pass">
-                          Day Pass Only
-                          {event?.pricing.dayPassYouthPrice && ` - Youth: $${event.pricing.dayPassYouthPrice.toFixed(2)}, Chaperones: $${event.pricing.dayPassChaperonePrice?.toFixed(2)}`}
-                        </option>
-                      </select>
-                    </div>
-
                     <div>
                       <label className="block text-sm font-medium text-navy mb-2">
                         Special Requests

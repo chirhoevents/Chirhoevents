@@ -19,9 +19,11 @@ export async function POST(
       phone,
       partySize,
       notes,
-      registrationType,      // 'group' or 'individual'
-      preferredHousingType,  // 'on_campus', 'off_campus', 'day_pass'
-      preferredRoomType,     // 'single', 'double', 'triple', 'quad' (for individual)
+      registrationType,         // 'group' or 'individual'
+      preferredHousingType,     // 'on_campus', 'off_campus' (for general admission)
+      preferredRoomType,        // 'single', 'double', 'triple', 'quad' (for individual)
+      preferredTicketType,      // 'general_admission', 'day_pass'
+      preferredDayPassOptionId, // UUID of specific day pass option
     } = body
 
     // Validate required fields
@@ -83,6 +85,15 @@ export async function POST(
             tripleRoomRemaining: true,
             quadRoomCapacity: true,
             quadRoomRemaining: true,
+          },
+        },
+        dayPassOptions: {
+          where: { isActive: true },
+          select: {
+            id: true,
+            name: true,
+            capacity: true,
+            remaining: true,
           },
         },
       },
@@ -195,6 +206,21 @@ export async function POST(
       }
     }
 
+    // Check day pass option capacity if preference specified
+    if (preferredTicketType === 'day_pass' && preferredDayPassOptionId && event.dayPassOptions) {
+      const selectedOption = event.dayPassOptions.find((opt: { id: string }) => opt.id === preferredDayPassOptionId)
+      if (selectedOption) {
+        // capacity === 0 means unlimited
+        if (selectedOption.capacity > 0) {
+          if (requestedPartySize > selectedOption.capacity) {
+            warnings.push(`Your party size (${requestedPartySize}) exceeds the total capacity for ${selectedOption.name} (${selectedOption.capacity}). You may need to select a different day pass option.`)
+          } else if (requestedPartySize > selectedOption.remaining) {
+            warnings.push(`Only ${selectedOption.remaining} spot${selectedOption.remaining === 1 ? '' : 's'} remaining for ${selectedOption.name}. Your party of ${requestedPartySize} may need to consider other day pass options.`)
+          }
+        }
+      }
+    }
+
     // Create waitlist entry
     const waitlistEntry = await prisma.waitlistEntry.create({
       data: {
@@ -208,6 +234,8 @@ export async function POST(
         registrationType: registrationType || null,
         preferredHousingType: preferredHousingType || null,
         preferredRoomType: preferredRoomType || null,
+        preferredTicketType: preferredTicketType || null,
+        preferredDayPassOptionId: preferredDayPassOptionId || null,
       },
     })
 
@@ -255,6 +283,8 @@ export async function POST(
           registrationType: waitlistEntry.registrationType,
           preferredHousingType: waitlistEntry.preferredHousingType,
           preferredRoomType: waitlistEntry.preferredRoomType,
+          preferredTicketType: waitlistEntry.preferredTicketType,
+          preferredDayPassOptionId: waitlistEntry.preferredDayPassOptionId,
           createdAt: waitlistEntry.createdAt,
         },
       },
