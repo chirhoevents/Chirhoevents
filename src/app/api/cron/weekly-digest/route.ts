@@ -16,6 +16,28 @@ interface DigestSettings {
   dayOfWeek?: number // 0-6, default Sunday (0)
 }
 
+interface OrgUser {
+  id: string
+  email: string
+  firstName: string | null
+  lastName: string | null
+}
+
+interface PaymentAmount {
+  amount: number | bigint | { toNumber?: () => number }
+}
+
+interface EventWithCounts {
+  name: string
+  startDate: Date
+  capacityTotal: number | null
+  capacityRemaining: number | null
+  _count: {
+    groupRegistrations: number
+    individualRegistrations: number
+  }
+}
+
 /**
  * GET /api/cron/weekly-digest
  * Triggers weekly digest emails for all organizations with digest enabled.
@@ -92,7 +114,7 @@ export async function GET(request: NextRequest) {
         // Get recipients (either from settings or all admins/owners)
         const recipients = digestSettings.recipients.length > 0
           ? digestSettings.recipients
-          : org.users.map(u => u.email)
+          : org.users.map((u: OrgUser) => u.email)
 
         if (recipients.length === 0) {
           results.push({
@@ -144,7 +166,7 @@ export async function GET(request: NextRequest) {
 
         // Send email to all recipients
         for (const recipientEmail of recipients) {
-          const recipientUser = org.users.find(u => u.email === recipientEmail)
+          const recipientUser = org.users.find((u: OrgUser) => u.email === recipientEmail)
           const personalizedDigest = {
             ...digestData,
             recipientName: recipientUser
@@ -295,8 +317,8 @@ async function collectOrganizationStats(
     }),
   ])
 
-  const revenueThisWeek = paymentsThisWeek.reduce((sum, p) => sum + Number(p.amount), 0)
-  const totalRevenue = allPayments.reduce((sum, p) => sum + Number(p.amount), 0)
+  const revenueThisWeek = paymentsThisWeek.reduce((sum: number, p: PaymentAmount) => sum + Number(p.amount), 0)
+  const totalRevenue = allPayments.reduce((sum: number, p: PaymentAmount) => sum + Number(p.amount), 0)
 
   // Forms & compliance
   const [formsCompletedThisWeek, formsTotal, formsPending, pendingCerts] = await Promise.all([
@@ -462,7 +484,7 @@ async function getUpcomingEvents(organizationId: string): Promise<WeeklyDigestDa
     take: 5,
   })
 
-  return events.map(event => {
+  return events.map((event: EventWithCounts) => {
     const registrationCount = event._count.groupRegistrations + event._count.individualRegistrations
     const spotsRemaining = event.capacityRemaining ?? undefined
 
