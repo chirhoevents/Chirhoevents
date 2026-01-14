@@ -5,7 +5,14 @@ import { Resend } from 'resend'
 import QRCode from 'qrcode'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { generateIndividualConfirmationCode } from '@/lib/access-code'
-import { checkOptionCapacity, decrementOptionCapacity, type HousingType, type RoomType } from '@/lib/option-capacity'
+import {
+  checkOptionCapacity,
+  decrementOptionCapacity,
+  checkDayPassOptionCapacity,
+  decrementDayPassOptionCapacity,
+  type HousingType,
+  type RoomType
+} from '@/lib/option-capacity'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -117,6 +124,24 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 }
       )
+    }
+
+    // Check day pass option capacity (if applicable)
+    if (body.ticketType === 'day_pass' && body.dayPassOptionId) {
+      const dayPassCapacityCheck = await checkDayPassOptionCapacity(
+        body.dayPassOptionId,
+        1 // Individual registration = 1 person
+      )
+
+      if (!dayPassCapacityCheck.hasCapacity) {
+        return NextResponse.json(
+          {
+            error: dayPassCapacityCheck.error,
+            dayPassRemaining: dayPassCapacityCheck.remaining,
+          },
+          { status: 400 }
+        )
+      }
     }
 
     // Calculate price for individual registration based on housing type, early bird, and add-ons
@@ -364,12 +389,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Update option-level capacity (housing type and room type)
-    await decrementOptionCapacity(
-      event.id,
-      housingType as HousingType,
-      (body.roomType || null) as RoomType | null,
-      1 // Individual registration = 1 person
-    )
+    // Only decrement housing capacity for general admission (day pass doesn't use housing)
+    if (body.ticketType !== 'day_pass') {
+      await decrementOptionCapacity(
+        event.id,
+        housingType as HousingType,
+        (body.roomType || null) as RoomType | null,
+        1 // Individual registration = 1 person
+      )
+    }
+
+    // Update day pass option capacity (if applicable)
+    if (body.ticketType === 'day_pass' && body.dayPassOptionId) {
+      await decrementDayPassOptionCapacity(
+        body.dayPassOptionId,
+        1 // Individual registration = 1 person
+      )
+    }
 
     // Handle payment method
     if (paymentMethod === 'check') {

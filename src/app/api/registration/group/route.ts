@@ -6,7 +6,13 @@ import { Resend } from 'resend'
 import QRCode from 'qrcode'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { generateGroupRegistrationConfirmationEmail } from '@/lib/email-templates'
-import { checkOptionCapacity, decrementOptionCapacity, type HousingType } from '@/lib/option-capacity'
+import {
+  checkOptionCapacity,
+  decrementOptionCapacity,
+  checkDayPassOptionCapacity,
+  decrementDayPassOptionCapacity,
+  type HousingType
+} from '@/lib/option-capacity'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -145,6 +151,24 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 }
       )
+    }
+
+    // Check day pass option capacity (if applicable)
+    if (body.ticketType === 'day_pass' && body.dayPassOptionId) {
+      const dayPassCapacityCheck = await checkDayPassOptionCapacity(
+        body.dayPassOptionId,
+        totalParticipants
+      )
+
+      if (!dayPassCapacityCheck.hasCapacity) {
+        return NextResponse.json(
+          {
+            error: dayPassCapacityCheck.error,
+            dayPassRemaining: dayPassCapacityCheck.remaining,
+          },
+          { status: 400 }
+        )
+      }
     }
 
     // Check for early bird pricing
@@ -391,12 +415,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Update option-level capacity (housing type for group registrations)
-    await decrementOptionCapacity(
-      event.id,
-      housingType as HousingType,
-      null, // Groups don't have room type selection
-      totalParticipants
-    )
+    // Only decrement housing capacity for general admission (day pass doesn't use housing)
+    if (body.ticketType !== 'day_pass') {
+      await decrementOptionCapacity(
+        event.id,
+        housingType as HousingType,
+        null, // Groups don't have room type selection
+        totalParticipants
+      )
+    }
+
+    // Update day pass option capacity (if applicable)
+    if (body.ticketType === 'day_pass' && body.dayPassOptionId) {
+      await decrementDayPassOptionCapacity(
+        body.dayPassOptionId,
+        totalParticipants
+      )
+    }
 
     // Handle payment method
     if (paymentMethod === 'check') {

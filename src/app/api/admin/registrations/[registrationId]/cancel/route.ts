@@ -3,7 +3,12 @@ import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
-import { incrementOptionCapacity, type HousingType, type RoomType } from '@/lib/option-capacity'
+import {
+  incrementOptionCapacity,
+  incrementDayPassOptionCapacity,
+  type HousingType,
+  type RoomType
+} from '@/lib/option-capacity'
 
 /**
  * Cancel/Delete a registration and restore capacity.
@@ -91,9 +96,14 @@ export async function POST(
         await incrementOptionCapacity(eventId, 'day_pass', null, dayPassCount)
       }
 
-      // If no inventory-style counts, fall back to housing type
-      if (onCampusCount === 0 && offCampusCount === 0 && dayPassCount === 0 && housingType) {
+      // If no inventory-style counts, fall back to housing type (only for general admission)
+      if (onCampusCount === 0 && offCampusCount === 0 && dayPassCount === 0 && housingType && registration.ticketType !== 'day_pass') {
         await incrementOptionCapacity(eventId, housingType, null, participantCount)
+      }
+
+      // Restore day pass option capacity (if applicable)
+      if (registration.ticketType === 'day_pass' && registration.dayPassOptionId) {
+        await incrementDayPassOptionCapacity(registration.dayPassOptionId, participantCount)
       }
 
     } else {
@@ -125,9 +135,14 @@ export async function POST(
       housingType = registration.housingType
       roomType = registration.roomType as RoomType | null
 
-      // Restore housing option capacity
-      if (housingType) {
+      // Restore housing option capacity (only for general admission)
+      if (housingType && registration.ticketType !== 'day_pass') {
         await incrementOptionCapacity(eventId, housingType, roomType, 1)
+      }
+
+      // Restore day pass option capacity (if applicable)
+      if (registration.ticketType === 'day_pass' && registration.dayPassOptionId) {
+        await incrementDayPassOptionCapacity(registration.dayPassOptionId, 1)
       }
     }
 
@@ -154,6 +169,8 @@ export async function POST(
           reason: reason || null,
           participantsRestored: participantCount,
           housingType: housingType,
+          ticketType: registration.ticketType || null,
+          dayPassOptionId: registration.dayPassOptionId || null,
         },
         adminNotes: reason || 'Registration cancelled by admin',
       },
