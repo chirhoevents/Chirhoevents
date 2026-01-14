@@ -452,7 +452,7 @@ async function getUpcomingEvents(organizationId: string): Promise<WeeklyDigestDa
           individualRegistrations: true,
         },
       },
-      eventSettings: {
+      settings: {
         select: {
           maxRegistrations: true,
         },
@@ -464,7 +464,7 @@ async function getUpcomingEvents(organizationId: string): Promise<WeeklyDigestDa
 
   return events.map(event => {
     const registrationCount = event._count.groupRegistrations + event._count.individualRegistrations
-    const maxRegs = event.eventSettings?.maxRegistrations
+    const maxRegs = event.settings?.maxRegistrations
     const spotsRemaining = maxRegs ? maxRegs - registrationCount : undefined
 
     return {
