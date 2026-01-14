@@ -12,6 +12,8 @@ export interface WeeklyDigestData {
     start: string
     end: string
   }
+  // Whether this is for a master admin (shows support tickets, platform-wide stats)
+  isMasterAdmin?: boolean
   stats: {
     // Registration metrics
     newRegistrationsThisWeek: number
@@ -31,10 +33,10 @@ export interface WeeklyDigestData {
     formsPending: number
     pendingCertificates: number
 
-    // Support
-    openTickets: number
-    ticketsResolvedThisWeek: number
-    newTicketsThisWeek: number
+    // Support (master admin only)
+    openTickets?: number
+    ticketsResolvedThisWeek?: number
+    newTicketsThisWeek?: number
 
     // Events
     activeEvents: number
@@ -127,7 +129,8 @@ function actionItemRow(item: WeeklyDigestData['actionItems'][0]): string {
 }
 
 /**
- * Generate the weekly digest email HTML
+ * Generate the weekly digest email HTML for Org Admins
+ * Focused on: Revenue, Registrations, Events, Forms
  */
 export function generateWeeklyDigestEmail(data: WeeklyDigestData): string {
   const actionItemsHtml = data.actionItems.length > 0
@@ -185,14 +188,8 @@ export function generateWeeklyDigestEmail(data: WeeklyDigestData): string {
       </tr>
     `
 
-  return wrapEmail(`
-    <h1 style="margin-top: 0;">Weekly Digest</h1>
-
-    <p>Hi ${data.recipientName},</p>
-
-    <p>Here's your weekly summary for <strong>${data.organizationName}</strong> from ${data.dateRange.start} to ${data.dateRange.end}.</p>
-
-    <!-- Quick Stats -->
+  // Quick stats - 3 columns for org admin (no tickets), 4 for master admin
+  const quickStatsHtml = data.isMasterAdmin ? `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="8" style="margin: 24px 0;">
       <tr>
         ${statCard('Registrations', data.stats.totalRegistrations, { value: data.stats.newRegistrationsThisWeek, isPositive: true })}
@@ -201,9 +198,49 @@ export function generateWeeklyDigestEmail(data: WeeklyDigestData): string {
         <td style="width: 8px;"></td>
         ${statCard('Forms Done', `${data.stats.formsCompletedThisWeek}`, { value: data.stats.formsCompletedThisWeek, isPositive: true })}
         <td style="width: 8px;"></td>
-        ${statCard('Open Tickets', data.stats.openTickets.toString())}
+        ${statCard('Open Tickets', (data.stats.openTickets || 0).toString())}
       </tr>
     </table>
+  ` : `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="8" style="margin: 24px 0;">
+      <tr>
+        ${statCard('Registrations', data.stats.totalRegistrations, { value: data.stats.newRegistrationsThisWeek, isPositive: true })}
+        <td style="width: 8px;"></td>
+        ${statCard('Revenue', formatCurrency(data.stats.totalRevenue), { value: data.stats.revenueThisWeek > 0 ? Math.round(data.stats.revenueThisWeek / 100) : 0, isPositive: true })}
+        <td style="width: 8px;"></td>
+        ${statCard('Active Events', data.stats.activeEvents.toString())}
+      </tr>
+    </table>
+  `
+
+  // Support tickets section - only for master admin
+  const supportTicketsHtml = data.isMasterAdmin ? `
+    <!-- Support Tickets -->
+    <h2 style="color: #1E3A5F; border-bottom: 2px solid #9C8466; padding-bottom: 8px; margin-top: 32px;">
+      Support Tickets
+    </h2>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0; background: #f9f9f9; border-radius: 8px; padding: 20px;">
+      <tr>
+        <td>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            ${emailDetailRow('Open Tickets', (data.stats.openTickets || 0).toString())}
+            ${emailDetailRow('New This Week', (data.stats.newTicketsThisWeek || 0).toString())}
+            ${emailDetailRow('Resolved This Week', (data.stats.ticketsResolvedThisWeek || 0).toString())}
+          </table>
+        </td>
+      </tr>
+    </table>
+  ` : ''
+
+  return wrapEmail(`
+    <h1 style="margin-top: 0;">Weekly Digest</h1>
+
+    <p>Hi ${data.recipientName},</p>
+
+    <p>Here's your weekly summary for <strong>${data.organizationName}</strong> from ${data.dateRange.start} to ${data.dateRange.end}.</p>
+
+    <!-- Quick Stats -->
+    ${quickStatsHtml}
 
     <!-- Action Items -->
     <h2 style="color: #1E3A5F; border-bottom: 2px solid #9C8466; padding-bottom: 8px; margin-top: 32px;">
@@ -215,7 +252,7 @@ export function generateWeeklyDigestEmail(data: WeeklyDigestData): string {
 
     <!-- Financial Summary -->
     <h2 style="color: #1E3A5F; border-bottom: 2px solid #9C8466; padding-bottom: 8px; margin-top: 32px;">
-      Financial Summary
+      Revenue Summary
     </h2>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0; background: #f9f9f9; border-radius: 8px; padding: 20px;">
       <tr>
@@ -230,6 +267,14 @@ export function generateWeeklyDigestEmail(data: WeeklyDigestData): string {
       </tr>
     </table>
 
+    <!-- Upcoming Events -->
+    <h2 style="color: #1E3A5F; border-bottom: 2px solid #9C8466; padding-bottom: 8px; margin-top: 32px;">
+      Upcoming Events
+    </h2>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0;">
+      ${upcomingEventsHtml}
+    </table>
+
     <!-- Registration & Forms -->
     <h2 style="color: #1E3A5F; border-bottom: 2px solid #9C8466; padding-bottom: 8px; margin-top: 32px;">
       Registrations & Forms
@@ -239,6 +284,7 @@ export function generateWeeklyDigestEmail(data: WeeklyDigestData): string {
         <td>
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
             ${emailDetailRow('New Registrations This Week', data.stats.newRegistrationsThisWeek.toString())}
+            ${emailDetailRow('Total Registrations', data.stats.totalRegistrations.toString())}
             ${emailDetailRow('New Participants This Week', data.stats.newParticipantsThisWeek.toString())}
             ${emailDetailRow('Forms Completed This Week', data.stats.formsCompletedThisWeek.toString())}
             ${emailDetailRow('Forms Still Pending', data.stats.formsPending.toString())}
@@ -248,29 +294,7 @@ export function generateWeeklyDigestEmail(data: WeeklyDigestData): string {
       </tr>
     </table>
 
-    <!-- Upcoming Events -->
-    <h2 style="color: #1E3A5F; border-bottom: 2px solid #9C8466; padding-bottom: 8px; margin-top: 32px;">
-      Upcoming Events
-    </h2>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0;">
-      ${upcomingEventsHtml}
-    </table>
-
-    <!-- Support Tickets -->
-    <h2 style="color: #1E3A5F; border-bottom: 2px solid #9C8466; padding-bottom: 8px; margin-top: 32px;">
-      Support Tickets
-    </h2>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0; background: #f9f9f9; border-radius: 8px; padding: 20px;">
-      <tr>
-        <td>
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-            ${emailDetailRow('Open Tickets', data.stats.openTickets.toString())}
-            ${emailDetailRow('New This Week', data.stats.newTicketsThisWeek.toString())}
-            ${emailDetailRow('Resolved This Week', data.stats.ticketsResolvedThisWeek.toString())}
-          </table>
-        </td>
-      </tr>
-    </table>
+    ${supportTicketsHtml}
 
     <!-- Recent Activity -->
     <h2 style="color: #1E3A5F; border-bottom: 2px solid #9C8466; padding-bottom: 8px; margin-top: 32px;">
@@ -287,7 +311,7 @@ export function generateWeeklyDigestEmail(data: WeeklyDigestData): string {
 
     <p style="font-size: 14px; color: #666; text-align: center; margin-top: 32px;">
       You're receiving this because you have weekly digest emails enabled for ${data.organizationName}.<br>
-      <a href="${APP_URL}/dashboard/admin/settings/notifications" style="color: #9C8466;">Manage email preferences</a>
+      <a href="${APP_URL}/dashboard/admin/settings" style="color: #9C8466;">Manage email preferences</a>
     </p>
   `, {
     organizationName: data.organizationName,

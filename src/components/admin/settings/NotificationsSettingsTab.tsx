@@ -274,13 +274,13 @@ export default function NotificationsSettingsTab() {
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h4 className="font-medium text-blue-900 mb-2">What&apos;s included in the digest:</h4>
                 <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• Registration and participant counts (weekly + total)</li>
                   <li>• Revenue summary (weekly + total)</li>
-                  <li>• Pending payments and overdue balances</li>
+                  <li>• Upcoming events with registration counts</li>
+                  <li>• Registration and participant stats</li>
                   <li>• Form completion status</li>
-                  <li>• Support ticket summary</li>
-                  <li>• Upcoming events overview</li>
+                  <li>• Pending payments and overdue balances</li>
                   <li>• Action items requiring attention</li>
+                  <li>• Recent activity (payments, registrations)</li>
                 </ul>
               </div>
             </>

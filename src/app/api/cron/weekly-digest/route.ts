@@ -445,16 +445,15 @@ async function getUpcomingEvents(organizationId: string): Promise<WeeklyDigestDa
       status: { not: 'draft' },
       startDate: { gte: now },
     },
-    include: {
+    select: {
+      name: true,
+      startDate: true,
+      capacityTotal: true,
+      capacityRemaining: true,
       _count: {
         select: {
           groupRegistrations: true,
           individualRegistrations: true,
-        },
-      },
-      settings: {
-        select: {
-          maxRegistrations: true,
         },
       },
     },
@@ -464,8 +463,7 @@ async function getUpcomingEvents(organizationId: string): Promise<WeeklyDigestDa
 
   return events.map(event => {
     const registrationCount = event._count.groupRegistrations + event._count.individualRegistrations
-    const maxRegs = event.settings?.maxRegistrations
-    const spotsRemaining = maxRegs ? maxRegs - registrationCount : undefined
+    const spotsRemaining = event.capacityRemaining ?? undefined
 
     return {
       name: event.name,
