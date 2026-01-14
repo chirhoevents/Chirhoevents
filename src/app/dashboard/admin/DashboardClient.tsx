@@ -323,25 +323,34 @@ export default function DashboardClient() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <div className="p-3 bg-gray-50 rounded">
-                <p className="text-sm text-[#1F2937]">
-                  {data.pendingActions.pendingCerts} Safe Environment Cert
-                  {data.pendingActions.pendingCerts !== 1 ? 's' : ''} to Verify
-                </p>
-              </div>
-              <div className="p-3 bg-gray-50 rounded">
-                <p className="text-sm text-[#1F2937]">
-                  {data.pendingActions.pendingCheckPayments} Check Payment
-                  {data.pendingActions.pendingCheckPayments !== 1 ? 's' : ''} to
-                  Process
-                </p>
-              </div>
-              <div className="p-3 bg-gray-50 rounded">
-                <p className="text-sm text-[#1F2937]">
-                  {data.pendingActions.overdueBalances} Late Fee
-                  {data.pendingActions.overdueBalances !== 1 ? 's' : ''} to Apply
-                </p>
-              </div>
+              <Link href="/dashboard/admin/settings?tab=certificates">
+                <div className="p-3 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer transition-colors flex items-center justify-between group">
+                  <p className="text-sm text-[#1F2937]">
+                    {data.pendingActions.pendingCerts} Safe Environment Cert
+                    {data.pendingActions.pendingCerts !== 1 ? 's' : ''} to Verify
+                  </p>
+                  <ArrowRight className="h-4 w-4 text-[#9C8466] opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </Link>
+              <Link href="/dashboard/admin/registrations?paymentStatus=pending">
+                <div className="p-3 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer transition-colors flex items-center justify-between group">
+                  <p className="text-sm text-[#1F2937]">
+                    {data.pendingActions.pendingCheckPayments} Check Payment
+                    {data.pendingActions.pendingCheckPayments !== 1 ? 's' : ''} to
+                    Process
+                  </p>
+                  <ArrowRight className="h-4 w-4 text-[#9C8466] opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </Link>
+              <Link href="/dashboard/admin/registrations?paymentStatus=partial">
+                <div className="p-3 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer transition-colors flex items-center justify-between group">
+                  <p className="text-sm text-[#1F2937]">
+                    {data.pendingActions.overdueBalances} Late Fee
+                    {data.pendingActions.overdueBalances !== 1 ? 's' : ''} to Apply
+                  </p>
+                  <ArrowRight className="h-4 w-4 text-[#9C8466] opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </Link>
             </div>
           </CardContent>
         </Card>
