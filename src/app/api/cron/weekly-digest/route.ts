@@ -411,7 +411,8 @@ function generateActionItems(
     })
   }
 
-  if (stats.openTickets > 0) {
+  // Support tickets - only shown if stats include them (master admin)
+  if (stats.openTickets && stats.openTickets > 0) {
     items.push({
       type: stats.openTickets > 5 ? 'warning' : 'info',
       title: 'Open Support Tickets',
