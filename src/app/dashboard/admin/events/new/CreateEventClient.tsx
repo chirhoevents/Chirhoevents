@@ -177,6 +177,9 @@ interface EventFormData {
 
   // Coupon Settings
   couponsEnabled: boolean
+
+  // Day Pass Options (new structure - separate from housing)
+  dayPassOptions: DayPassOptionForm[]
 }
 
 interface VendorTier {
@@ -186,6 +189,17 @@ interface VendorTier {
   description: string
   active: boolean
   quantityLimit: string
+}
+
+interface DayPassOptionForm {
+  id: string
+  date: string
+  name: string
+  capacity: string
+  price: string  // For individual registrations
+  youthPrice: string  // For group youth
+  chaperonePrice: string  // For group chaperones
+  isActive: boolean
 }
 
 const STEPS = [
@@ -377,6 +391,9 @@ export default function CreateEventClient({
 
     // Coupon Settings
     couponsEnabled: false,
+
+    // Day Pass Options
+    dayPassOptions: [],
   }
 
   const [formData, setFormData] = useState<EventFormData>({
@@ -1283,43 +1300,248 @@ export default function CreateEventClient({
                           )}
                         </div>
 
-                        <div className="space-y-2">
-                          <div className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              id="allowDayPass"
-                              checked={formData.allowDayPass}
-                              onChange={(e) =>
-                                updateFormData({ allowDayPass: e.target.checked })
-                              }
-                              className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
-                            />
-                            <Label htmlFor="allowDayPass" className="mb-0">
-                              Allow Day Pass Only (attending but not staying overnight)
-                            </Label>
-                          </div>
-                          {formData.allowDayPass && (
-                            <div className="ml-6 flex items-center gap-2">
-                              <Label htmlFor="dayPassCapacity" className="text-sm text-gray-600 mb-0 whitespace-nowrap">
-                                Capacity limit:
-                              </Label>
-                              <Input
-                                id="dayPassCapacity"
-                                type="number"
-                                min="0"
-                                placeholder="Unlimited"
-                                value={formData.dayPassCapacity}
-                                onChange={(e) => updateFormData({ dayPassCapacity: e.target.value })}
-                                className="w-28 h-8 text-sm"
-                              />
-                              <span className="text-xs text-gray-500">spots</span>
-                            </div>
-                          )}
-                        </div>
                       </div>
                     )}
                   </div>
                 </div>
+
+                {/* Day Pass Options - Only show for multi-day events */}
+                {formData.startDate && formData.endDate && formData.startDate !== formData.endDate && (
+                  <div className="bg-amber-50 p-4 rounded-lg border-2 border-amber-200">
+                    <h3 className="font-semibold text-amber-900 mb-3">
+                      🎫 Day Pass Options
+                    </h3>
+                    <p className="text-sm text-amber-800 mb-3">
+                      This is a multi-day event. You can offer day passes for attendees who only want to attend specific day(s).
+                    </p>
+                    <div className="flex items-center space-x-2 mb-4">
+                      <input
+                        type="checkbox"
+                        id="allowDayPass"
+                        checked={formData.allowDayPass}
+                        onChange={(e) =>
+                          updateFormData({ allowDayPass: e.target.checked })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="allowDayPass" className="mb-0 font-medium">
+                        Enable Day Pass Tickets
+                      </Label>
+                    </div>
+                    <p className="text-sm text-gray-600 ml-6 mb-4">
+                      Day pass attendees will NOT have housing options - they attend sessions only.
+                    </p>
+
+                    {formData.allowDayPass && (
+                      <div className="ml-6 pl-4 border-l-2 border-amber-300 space-y-4">
+                        <div className="flex justify-between items-center">
+                          <p className="text-sm text-amber-800 font-medium">
+                            Day Pass Options (add one for each day or a general day pass):
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const newOption: DayPassOptionForm = {
+                                id: `temp-${Date.now()}`,
+                                date: formData.startDate,
+                                name: '',
+                                capacity: '',
+                                price: '50',
+                                youthPrice: '50',
+                                chaperonePrice: '25',
+                                isActive: true,
+                              }
+                              updateFormData({
+                                dayPassOptions: [...formData.dayPassOptions, newOption],
+                              })
+                            }}
+                            className="text-amber-700 border-amber-300 hover:bg-amber-100"
+                          >
+                            + Add Day Pass Option
+                          </Button>
+                        </div>
+
+                        {formData.dayPassOptions.length === 0 && (
+                          <p className="text-sm text-gray-500 italic">
+                            No day pass options added yet. Click the button above to add one.
+                          </p>
+                        )}
+
+                        {formData.dayPassOptions.map((option, index) => (
+                          <div key={option.id} className="bg-white p-4 rounded-lg border border-amber-200 space-y-3">
+                            <div className="flex justify-between items-start">
+                              <span className="text-sm font-medium text-amber-900">Day Pass Option {index + 1}</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  updateFormData({
+                                    dayPassOptions: formData.dayPassOptions.filter((_, i) => i !== index),
+                                  })
+                                }}
+                                className="text-red-500 hover:text-red-700 h-6 px-2"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label htmlFor={`dayPassDate-${index}`} className="text-sm">Date</Label>
+                                <Input
+                                  id={`dayPassDate-${index}`}
+                                  type="date"
+                                  value={option.date}
+                                  min={formData.startDate}
+                                  max={formData.endDate}
+                                  onChange={(e) => {
+                                    const updated = [...formData.dayPassOptions]
+                                    updated[index] = { ...updated[index], date: e.target.value }
+                                    updateFormData({ dayPassOptions: updated })
+                                  }}
+                                  className="h-9"
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor={`dayPassName-${index}`} className="text-sm">Name</Label>
+                                <Input
+                                  id={`dayPassName-${index}`}
+                                  type="text"
+                                  placeholder="e.g., Friday Pass, Saturday Pass"
+                                  value={option.name}
+                                  onChange={(e) => {
+                                    const updated = [...formData.dayPassOptions]
+                                    updated[index] = { ...updated[index], name: e.target.value }
+                                    updateFormData({ dayPassOptions: updated })
+                                  }}
+                                  className="h-9"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-4 gap-3">
+                              <div>
+                                <Label htmlFor={`dayPassCapacity-${index}`} className="text-sm">Capacity</Label>
+                                <Input
+                                  id={`dayPassCapacity-${index}`}
+                                  type="number"
+                                  min="0"
+                                  placeholder="Unlimited"
+                                  value={option.capacity}
+                                  onChange={(e) => {
+                                    const updated = [...formData.dayPassOptions]
+                                    updated[index] = { ...updated[index], capacity: e.target.value }
+                                    updateFormData({ dayPassOptions: updated })
+                                  }}
+                                  className="h-9"
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor={`dayPassPrice-${index}`} className="text-sm">Individual Price</Label>
+                                <div className="relative">
+                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                                  <Input
+                                    id={`dayPassPrice-${index}`}
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="50"
+                                    value={option.price}
+                                    onChange={(e) => {
+                                      const updated = [...formData.dayPassOptions]
+                                      updated[index] = { ...updated[index], price: e.target.value }
+                                      updateFormData({ dayPassOptions: updated })
+                                    }}
+                                    className="h-9 pl-6"
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <Label htmlFor={`dayPassYouthPrice-${index}`} className="text-sm">Youth Price</Label>
+                                <div className="relative">
+                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                                  <Input
+                                    id={`dayPassYouthPrice-${index}`}
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="50"
+                                    value={option.youthPrice}
+                                    onChange={(e) => {
+                                      const updated = [...formData.dayPassOptions]
+                                      updated[index] = { ...updated[index], youthPrice: e.target.value }
+                                      updateFormData({ dayPassOptions: updated })
+                                    }}
+                                    className="h-9 pl-6"
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <Label htmlFor={`dayPassChaperonePrice-${index}`} className="text-sm">Chaperone Price</Label>
+                                <div className="relative">
+                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                                  <Input
+                                    id={`dayPassChaperonePrice-${index}`}
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="25"
+                                    value={option.chaperonePrice}
+                                    onChange={(e) => {
+                                      const updated = [...formData.dayPassOptions]
+                                      updated[index] = { ...updated[index], chaperonePrice: e.target.value }
+                                      updateFormData({ dayPassOptions: updated })
+                                    }}
+                                    className="h-9 pl-6"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={`dayPassActive-${index}`}
+                                checked={option.isActive}
+                                onChange={(e) => {
+                                  const updated = [...formData.dayPassOptions]
+                                  updated[index] = { ...updated[index], isActive: e.target.checked }
+                                  updateFormData({ dayPassOptions: updated })
+                                }}
+                                className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                              />
+                              <Label htmlFor={`dayPassActive-${index}`} className="text-sm mb-0">
+                                Active (available for registration)
+                              </Label>
+                            </div>
+                          </div>
+                        ))}
+
+                        {/* Legacy capacity field - keep for backwards compatibility */}
+                        {formData.dayPassOptions.length === 0 && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <Label htmlFor="dayPassCapacity" className="text-sm text-gray-600 mb-0 whitespace-nowrap">
+                              General day pass capacity (legacy):
+                            </Label>
+                            <Input
+                              id="dayPassCapacity"
+                              type="number"
+                              min="0"
+                              placeholder="Unlimited"
+                              value={formData.dayPassCapacity}
+                              onChange={(e) => updateFormData({ dayPassCapacity: e.target.value })}
+                              className="w-28 h-8 text-sm"
+                            />
+                            <span className="text-xs text-gray-500">spots</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* T-Shirts */}
                 <div className="bg-purple-50 p-4 rounded-lg">
@@ -1374,32 +1596,32 @@ export default function CreateEventClient({
                   </div>
                 )}
 
-                {/* Day Pass Ticket for Individual Registration */}
-                {formData.individualRegistrationEnabled && (
+                {/* Day Pass Ticket for Individual Registration - Reference to main Day Pass section */}
+                {formData.individualRegistrationEnabled && formData.startDate && formData.endDate && formData.startDate !== formData.endDate && (
                   <div className="bg-cyan-50 p-4 rounded-lg border-2 border-cyan-200">
                     <h3 className="font-semibold text-cyan-900 mb-3">
-                      🎫 Day Pass Ticket Option
+                      🎫 Day Pass for Individual Registration
                     </h3>
-                    <p className="text-sm text-cyan-800 mb-3">
-                      Allow individuals to register for a day pass (attending without overnight stay or housing)
-                    </p>
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="allowIndividualDayPass"
-                        checked={formData.allowIndividualDayPass}
-                        onChange={(e) =>
-                          updateFormData({ allowIndividualDayPass: e.target.checked })
-                        }
-                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
-                      />
-                      <Label htmlFor="allowIndividualDayPass" className="mb-0 font-medium">
-                        Enable Day Pass as a Ticket Option
-                      </Label>
-                    </div>
-                    <p className="text-sm text-gray-600 ml-6 mt-2">
-                      Day pass is a ticket type - individuals choose between General Admission or Day Pass during registration
-                    </p>
+                    {formData.allowDayPass ? (
+                      <>
+                        <p className="text-sm text-green-700 mb-2">
+                          ✓ Day Pass is enabled for this event. Individual registrants will be able to choose Day Pass as their ticket type.
+                        </p>
+                        {formData.dayPassOptions.length > 0 ? (
+                          <p className="text-sm text-cyan-800">
+                            {formData.dayPassOptions.length} day pass option(s) configured with individual pricing set in the Day Pass Options section above.
+                          </p>
+                        ) : (
+                          <p className="text-sm text-amber-700">
+                            ⚠️ No day pass options configured yet. Add day pass options in the Day Pass Options section above.
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-600">
+                        Day Pass is not enabled for this event. Enable it in the Day Pass Options section above to allow individuals to register for a day pass.
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -2205,10 +2427,19 @@ export default function CreateEventClient({
                             </>
                           )}
 
-                          {formData.allowDayPass && (
+                          {formData.allowDayPass && formData.dayPassOptions.length > 0 && (
+                            <div className="col-span-2 bg-amber-50 p-3 rounded-lg border border-amber-200">
+                              <p className="text-sm text-amber-800 font-medium">🎫 Day Pass Pricing</p>
+                              <p className="text-xs text-amber-700 mt-1">
+                                Day pass youth and chaperone pricing is configured per day pass option in Step 3: Features & Modules.
+                              </p>
+                            </div>
+                          )}
+
+                          {formData.allowDayPass && formData.dayPassOptions.length === 0 && (
                             <>
                               <div>
-                                <Label htmlFor="dayPassYouthPrice">Day Pass Youth</Label>
+                                <Label htmlFor="dayPassYouthPrice">Day Pass Youth (Legacy)</Label>
                                 <div className="relative mt-1">
                                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
                                   <Input
@@ -2223,7 +2454,7 @@ export default function CreateEventClient({
                                 <p className="text-xs text-gray-500 mt-1">Attending sessions only</p>
                               </div>
                               <div>
-                                <Label htmlFor="dayPassChaperonePrice">Day Pass Chaperone</Label>
+                                <Label htmlFor="dayPassChaperonePrice">Day Pass Chaperone (Legacy)</Label>
                                 <div className="relative mt-1">
                                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
                                   <Input
@@ -2391,14 +2622,36 @@ export default function CreateEventClient({
                       </p>
                     </div>
 
-                    {/* Day Pass Pricing - Only if Day Pass is enabled */}
-                    {formData.allowIndividualDayPass && (
+                    {/* Day Pass Pricing Notice - Only if Day Pass is enabled */}
+                    {formData.allowDayPass && formData.dayPassOptions.length > 0 && (
                       <div className="bg-cyan-50 p-4 rounded-lg border-2 border-cyan-200">
                         <h3 className="font-semibold text-cyan-900 mb-2">
                           🎫 Day Pass Pricing
                         </h3>
-                        <p className="text-sm text-cyan-800 mb-4">
-                          Price for attending without overnight stay (no housing required)
+                        <p className="text-sm text-green-700 mb-2">
+                          ✓ Day pass pricing is configured in the Day Pass Options section (Step 3: Features & Modules).
+                        </p>
+                        <div className="text-sm text-cyan-800">
+                          <p className="font-medium mb-1">Configured Day Pass Options:</p>
+                          <ul className="list-disc list-inside space-y-1">
+                            {formData.dayPassOptions.map((option, index) => (
+                              <li key={option.id}>
+                                {option.name || `Option ${index + 1}`}: Individual ${option.price || '0'} | Youth ${option.youthPrice || '0'} | Chaperone ${option.chaperonePrice || '0'}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Legacy Day Pass Pricing - Only if Day Pass is enabled but no options configured */}
+                    {formData.allowDayPass && formData.dayPassOptions.length === 0 && (
+                      <div className="bg-cyan-50 p-4 rounded-lg border-2 border-cyan-200">
+                        <h3 className="font-semibold text-cyan-900 mb-2">
+                          🎫 Day Pass Pricing (Legacy)
+                        </h3>
+                        <p className="text-sm text-amber-700 mb-4">
+                          ⚠️ No day pass options configured. Add day pass options in Step 3 for better control, or use the legacy pricing below.
                         </p>
 
                         <div className="max-w-md">

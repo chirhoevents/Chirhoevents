@@ -297,6 +297,34 @@ export async function POST(request: NextRequest) {
       data: { eventsUsed: { increment: 1 } },
     })
 
+    // Create day pass options if provided
+    if (data.dayPassOptions && Array.isArray(data.dayPassOptions) && data.dayPassOptions.length > 0) {
+      const dayPassOptionsToCreate = data.dayPassOptions.map((option: {
+        date: string
+        name: string
+        capacity: string
+        price: string
+        youthPrice: string
+        chaperonePrice: string
+        isActive: boolean
+      }) => ({
+        eventId: event.id,
+        organizationId: organizationId,
+        date: new Date(option.date),
+        name: option.name || 'Day Pass',
+        capacity: option.capacity ? parseInt(option.capacity) : 0,
+        remaining: option.capacity ? parseInt(option.capacity) : 0,
+        price: option.price ? parseFloat(option.price) : 50,
+        youthPrice: option.youthPrice ? parseFloat(option.youthPrice) : null,
+        chaperonePrice: option.chaperonePrice ? parseFloat(option.chaperonePrice) : null,
+        isActive: option.isActive !== false,
+      }))
+
+      await prisma.dayPassOption.createMany({
+        data: dayPassOptionsToCreate,
+      })
+    }
+
     return NextResponse.json({ event })
   } catch (error) {
     console.error('Error creating event:', error)
