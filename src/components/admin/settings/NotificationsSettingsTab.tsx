@@ -314,7 +314,7 @@ export default function NotificationsSettingsTab() {
         <Button
           onClick={handleSave}
           disabled={saving}
-          className="bg-[#1E3A5F] hover:bg-[#2d5a8c]"
+          className="bg-[#1E3A5F] hover:bg-[#2d5a8c] text-white"
         >
           {saving ? (
             <>
