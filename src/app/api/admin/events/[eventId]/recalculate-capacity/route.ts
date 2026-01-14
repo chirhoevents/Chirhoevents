@@ -67,7 +67,6 @@ export async function POST(
     const groupRegistrations = await prisma.groupRegistration.findMany({
       where: {
         eventId,
-        status: { in: ['confirmed', 'pending', 'partial', 'unpaid'] },
       },
       select: {
         partySize: true,
@@ -86,7 +85,6 @@ export async function POST(
     const individualRegistrations = await prisma.individualRegistration.findMany({
       where: {
         eventId,
-        status: { in: ['confirmed', 'pending'] },
       },
       select: {
         housingType: true,

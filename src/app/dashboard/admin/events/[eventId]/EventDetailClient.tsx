@@ -36,6 +36,7 @@ import {
   Info,
   AlertCircle,
   Clock,
+  RefreshCw,
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -91,6 +92,8 @@ export default function EventDetailClient({
   const [closedMessage, setClosedMessage] = useState(settings?.registrationClosedMessage ?? '')
   const [savingSettings, setSavingSettings] = useState(false)
   const [reminderModalOpen, setReminderModalOpen] = useState(false)
+  const [recalculatingCapacity, setRecalculatingCapacity] = useState(false)
+  const [capacityRemaining, setCapacityRemaining] = useState(event.capacityRemaining)
 
   // Derived state for registration toggle
   const isRegistrationOpen = currentStatus === 'registration_open'
@@ -191,6 +194,32 @@ export default function EventDetailClient({
     }
   }
 
+  const handleRecalculateCapacity = async () => {
+    if (recalculatingCapacity) return
+
+    try {
+      setRecalculatingCapacity(true)
+      const response = await fetch(`/api/admin/events/${event.id}/recalculate-capacity`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to recalculate capacity')
+      }
+
+      const result = await response.json()
+      setCapacityRemaining(result.after.capacityRemaining)
+      router.refresh()
+      alert(`Capacity recalculated successfully!\n\nBefore: ${result.before.capacityRemaining} remaining\nAfter: ${result.after.capacityRemaining} remaining\n\nActual registrations: ${result.actualRegistrations.total}`)
+    } catch (error) {
+      console.error('Error recalculating capacity:', error)
+      alert('Failed to recalculate capacity. Please try again.')
+    } finally {
+      setRecalculatingCapacity(false)
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<
       string,
@@ -258,7 +287,7 @@ export default function EventDetailClient({
               {event.capacityTotal && (
                 <div className="flex items-center gap-1">
                   <Users className="h-4 w-4" />
-                  {event.capacityRemaining}/{event.capacityTotal} spots available
+                  {capacityRemaining}/{event.capacityTotal} spots available
                 </div>
               )}
             </div>
@@ -924,9 +953,24 @@ export default function EventDetailClient({
                   </p>
                   {event.capacityTotal && (
                     <p className="text-sm text-[#6B7280] mt-1">
-                      {event.capacityRemaining} spots remaining
+                      {capacityRemaining} spots remaining
                     </p>
                   )}
+                  {event.capacityTotal && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 text-[#1E3A5F] border-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
+                      onClick={handleRecalculateCapacity}
+                      disabled={recalculatingCapacity}
+                    >
+                      <RefreshCw className={`h-4 w-4 mr-2 ${recalculatingCapacity ? 'animate-spin' : ''}`} />
+                      {recalculatingCapacity ? 'Recalculating...' : 'Recalculate Capacity'}
+                    </Button>
+                  )}
+                  <p className="text-xs text-[#6B7280] mt-2">
+                    Use this if capacity is out of sync with actual registrations
+                  </p>
                 </div>
                 <div className="pt-4 border-t border-gray-200">
                   <div className="flex items-center justify-between mb-3">
