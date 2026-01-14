@@ -87,7 +87,9 @@ export async function GET(
     }
 
     for (const group of groupRegistrations) {
-      housingBreakdown[group.housingType] += group.participants.length
+      if (group.housingType && housingBreakdown[group.housingType] !== undefined) {
+        housingBreakdown[group.housingType] += group.participants.length
+      }
     }
     for (const ind of individualRegistrations) {
       if (ind.housingType && housingBreakdown[ind.housingType] !== undefined) {
