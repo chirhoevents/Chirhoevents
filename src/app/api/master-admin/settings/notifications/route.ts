@@ -179,7 +179,7 @@ export async function POST() {
           priority: true,
           createdAt: true,
           organization: { select: { name: true } },
-          user: { select: { firstName: true, lastName: true, email: true } },
+          submittedByUser: { select: { firstName: true, lastName: true, email: true } },
         },
         orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
         take: 20,
@@ -244,7 +244,7 @@ export async function POST() {
           <td style="padding: 12px 8px;">
             <strong>${ticket.subject}</strong><br/>
             <span style="color: #6b7280; font-size: 12px;">
-              ${ticket.organization?.name || 'No org'} • ${ticket.user?.firstName || ''} ${ticket.user?.lastName || ''}
+              ${ticket.organization?.name || 'No org'} • ${ticket.submittedByUser?.firstName || ''} ${ticket.submittedByUser?.lastName || ''}
             </span>
           </td>
           <td style="padding: 12px 8px; text-align: center;">
