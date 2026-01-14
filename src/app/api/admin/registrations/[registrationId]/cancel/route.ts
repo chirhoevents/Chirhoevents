@@ -148,7 +148,7 @@ export async function POST(
         registrationId,
         registrationType: type,
         editedByUserId: user.id,
-        editType: 'cancelled',
+        editType: 'info_updated',
         changesMade: {
           action: hardDelete ? 'deleted' : 'cancelled',
           reason: reason || null,
