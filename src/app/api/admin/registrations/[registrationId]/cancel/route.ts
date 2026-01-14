@@ -3,7 +3,7 @@ import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
-import { incrementOptionCapacity, type HousingType } from '@/lib/option-capacity'
+import { incrementOptionCapacity, type HousingType, type RoomType } from '@/lib/option-capacity'
 
 /**
  * Cancel/Delete a registration and restore capacity.
@@ -44,7 +44,7 @@ export async function POST(
     let registration: any = null
     let participantCount = 0
     let housingType: HousingType | null = null
-    let roomType: string | null = null
+    let roomType: RoomType | null = null
     let eventId: string = ''
 
     // Fetch the registration based on type
@@ -123,7 +123,7 @@ export async function POST(
       eventId = registration.eventId
       participantCount = 1
       housingType = registration.housingType
-      roomType = registration.roomType
+      roomType = registration.roomType as RoomType | null
 
       // Restore housing option capacity
       if (housingType) {
