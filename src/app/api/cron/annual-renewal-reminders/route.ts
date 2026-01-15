@@ -224,7 +224,7 @@ export async function GET(request: NextRequest) {
 
       const email = org.contactEmail
       const tierName = getTierName(org.subscriptionTier)
-      const annualAmount = org.annualPrice || 0
+      const annualAmount = org.annualPrice ? Number(org.annualPrice) : 0
 
       // Extract billing address from JSON address field
       const billingAddress = formatBillingAddress(org.address)
