@@ -24,6 +24,13 @@ interface EventData {
   capacityRemaining: number | null
 }
 
+interface DayPassOption {
+  id: string
+  name: string
+  capacity: number
+  remaining: number
+}
+
 interface EventStats {
   totalRegistrations: number
   totalParticipants: number
@@ -42,6 +49,7 @@ export default function EventDetailPage() {
   const [event, setEvent] = useState<EventData | null>(null)
   const [stats, setStats] = useState<EventStats | null>(null)
   const [settings, setSettings] = useState<any>(null)
+  const [dayPassOptions, setDayPassOptions] = useState<DayPassOption[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -102,6 +110,14 @@ export default function EventDetailPage() {
 
       // Set settings
       setSettings(data.event.settings || null)
+
+      // Set day pass options
+      setDayPassOptions(data.event.dayPassOptions?.map((dp: any) => ({
+        id: dp.id,
+        name: dp.name,
+        capacity: dp.capacity,
+        remaining: dp.remaining,
+      })) || [])
     } catch (err) {
       console.error('Error fetching event:', err)
       setError('Failed to load event')
@@ -146,6 +162,7 @@ export default function EventDetailPage() {
       event={event}
       stats={stats}
       settings={settings}
+      dayPassOptions={dayPassOptions}
     />
   )
 }

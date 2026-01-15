@@ -37,6 +37,9 @@ import {
   AlertCircle,
   Clock,
   RefreshCw,
+  Tent,
+  Coffee,
+  Package,
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -74,13 +77,44 @@ interface EventDetailClientProps {
     staffRegistrationEnabled?: boolean
     vendorRegistrationEnabled?: boolean
     couponsEnabled?: boolean
+    // Capacity fields
+    onCampusCapacity?: number | null
+    onCampusRemaining?: number | null
+    offCampusCapacity?: number | null
+    offCampusRemaining?: number | null
+    dayPassCapacity?: number | null
+    dayPassRemaining?: number | null
+    singleRoomCapacity?: number | null
+    singleRoomRemaining?: number | null
+    doubleRoomCapacity?: number | null
+    doubleRoomRemaining?: number | null
+    tripleRoomCapacity?: number | null
+    tripleRoomRemaining?: number | null
+    quadRoomCapacity?: number | null
+    quadRoomRemaining?: number | null
+    // Add-ons
+    addOn1Enabled?: boolean
+    addOn1Title?: string | null
+    addOn2Enabled?: boolean
+    addOn2Title?: string | null
+    addOn3Enabled?: boolean
+    addOn3Title?: string | null
+    addOn4Enabled?: boolean
+    addOn4Title?: string | null
   } | null
+  dayPassOptions?: {
+    id: string
+    name: string
+    capacity: number
+    remaining: number
+  }[]
 }
 
 export default function EventDetailClient({
   event,
   stats,
   settings,
+  dayPassOptions = [],
 }: EventDetailClientProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('overview')
@@ -577,17 +611,286 @@ export default function EventDetailClient({
             </Card>
           </div>
 
-          {/* Recent Activity */}
+          {/* Capacity Stats */}
           <Card className="bg-white border-[#D1D5DB]">
             <CardHeader>
-              <CardTitle className="text-lg text-[#1E3A5F]">
-                Recent Activity
+              <CardTitle className="text-lg text-[#1E3A5F] flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Capacity Overview
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-[#6B7280] text-center py-8">
-                No recent activity yet
-              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Overall Event Capacity */}
+                {event.capacityTotal && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Users className="h-4 w-4 text-[#9C8466]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">Total Spots</span>
+                    </div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-2xl font-bold text-[#1E3A5F]">
+                        {event.capacityTotal - (capacityRemaining ?? 0)}/{event.capacityTotal}
+                      </span>
+                      {capacityRemaining === 0 && (
+                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">SOLD OUT</span>
+                      )}
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all ${
+                          (capacityRemaining ?? 0) === 0 ? 'bg-red-500' :
+                          ((event.capacityTotal - (capacityRemaining ?? 0)) / event.capacityTotal) >= 0.8 ? 'bg-amber-500' :
+                          'bg-green-500'
+                        }`}
+                        style={{ width: `${Math.min(((event.capacityTotal - (capacityRemaining ?? 0)) / event.capacityTotal) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* On-Campus Housing */}
+                {settings?.onCampusCapacity && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Home className="h-4 w-4 text-[#9C8466]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">On-Campus</span>
+                    </div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-2xl font-bold text-[#1E3A5F]">
+                        {settings.onCampusCapacity - (settings.onCampusRemaining ?? 0)}/{settings.onCampusCapacity}
+                      </span>
+                      {settings.onCampusRemaining === 0 && (
+                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">SOLD OUT</span>
+                      )}
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all ${
+                          settings.onCampusRemaining === 0 ? 'bg-red-500' :
+                          ((settings.onCampusCapacity - (settings.onCampusRemaining ?? 0)) / settings.onCampusCapacity) >= 0.8 ? 'bg-amber-500' :
+                          'bg-green-500'
+                        }`}
+                        style={{ width: `${Math.min(((settings.onCampusCapacity - (settings.onCampusRemaining ?? 0)) / settings.onCampusCapacity) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Off-Campus Housing */}
+                {settings?.offCampusCapacity && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Tent className="h-4 w-4 text-[#9C8466]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">Off-Campus</span>
+                    </div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-2xl font-bold text-[#1E3A5F]">
+                        {settings.offCampusCapacity - (settings.offCampusRemaining ?? 0)}/{settings.offCampusCapacity}
+                      </span>
+                      {settings.offCampusRemaining === 0 && (
+                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">SOLD OUT</span>
+                      )}
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all ${
+                          settings.offCampusRemaining === 0 ? 'bg-red-500' :
+                          ((settings.offCampusCapacity - (settings.offCampusRemaining ?? 0)) / settings.offCampusCapacity) >= 0.8 ? 'bg-amber-500' :
+                          'bg-green-500'
+                        }`}
+                        style={{ width: `${Math.min(((settings.offCampusCapacity - (settings.offCampusRemaining ?? 0)) / settings.offCampusCapacity) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Room Types */}
+                {settings?.singleRoomCapacity && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Home className="h-4 w-4 text-[#9C8466]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">Single Rooms</span>
+                    </div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-2xl font-bold text-[#1E3A5F]">
+                        {settings.singleRoomCapacity - (settings.singleRoomRemaining ?? 0)}/{settings.singleRoomCapacity}
+                      </span>
+                      {settings.singleRoomRemaining === 0 && (
+                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">SOLD OUT</span>
+                      )}
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all ${
+                          settings.singleRoomRemaining === 0 ? 'bg-red-500' :
+                          ((settings.singleRoomCapacity - (settings.singleRoomRemaining ?? 0)) / settings.singleRoomCapacity) >= 0.8 ? 'bg-amber-500' :
+                          'bg-green-500'
+                        }`}
+                        style={{ width: `${Math.min(((settings.singleRoomCapacity - (settings.singleRoomRemaining ?? 0)) / settings.singleRoomCapacity) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {settings?.doubleRoomCapacity && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Home className="h-4 w-4 text-[#9C8466]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">Double Rooms</span>
+                    </div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-2xl font-bold text-[#1E3A5F]">
+                        {settings.doubleRoomCapacity - (settings.doubleRoomRemaining ?? 0)}/{settings.doubleRoomCapacity}
+                      </span>
+                      {settings.doubleRoomRemaining === 0 && (
+                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">SOLD OUT</span>
+                      )}
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all ${
+                          settings.doubleRoomRemaining === 0 ? 'bg-red-500' :
+                          ((settings.doubleRoomCapacity - (settings.doubleRoomRemaining ?? 0)) / settings.doubleRoomCapacity) >= 0.8 ? 'bg-amber-500' :
+                          'bg-green-500'
+                        }`}
+                        style={{ width: `${Math.min(((settings.doubleRoomCapacity - (settings.doubleRoomRemaining ?? 0)) / settings.doubleRoomCapacity) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {settings?.tripleRoomCapacity && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Home className="h-4 w-4 text-[#9C8466]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">Triple Rooms</span>
+                    </div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-2xl font-bold text-[#1E3A5F]">
+                        {settings.tripleRoomCapacity - (settings.tripleRoomRemaining ?? 0)}/{settings.tripleRoomCapacity}
+                      </span>
+                      {settings.tripleRoomRemaining === 0 && (
+                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">SOLD OUT</span>
+                      )}
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all ${
+                          settings.tripleRoomRemaining === 0 ? 'bg-red-500' :
+                          ((settings.tripleRoomCapacity - (settings.tripleRoomRemaining ?? 0)) / settings.tripleRoomCapacity) >= 0.8 ? 'bg-amber-500' :
+                          'bg-green-500'
+                        }`}
+                        style={{ width: `${Math.min(((settings.tripleRoomCapacity - (settings.tripleRoomRemaining ?? 0)) / settings.tripleRoomCapacity) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {settings?.quadRoomCapacity && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Home className="h-4 w-4 text-[#9C8466]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">Quad Rooms</span>
+                    </div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-2xl font-bold text-[#1E3A5F]">
+                        {settings.quadRoomCapacity - (settings.quadRoomRemaining ?? 0)}/{settings.quadRoomCapacity}
+                      </span>
+                      {settings.quadRoomRemaining === 0 && (
+                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">SOLD OUT</span>
+                      )}
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all ${
+                          settings.quadRoomRemaining === 0 ? 'bg-red-500' :
+                          ((settings.quadRoomCapacity - (settings.quadRoomRemaining ?? 0)) / settings.quadRoomCapacity) >= 0.8 ? 'bg-amber-500' :
+                          'bg-green-500'
+                        }`}
+                        style={{ width: `${Math.min(((settings.quadRoomCapacity - (settings.quadRoomRemaining ?? 0)) / settings.quadRoomCapacity) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Day Passes */}
+                {dayPassOptions.map((dp) => dp.capacity > 0 && (
+                  <div key={dp.id} className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Coffee className="h-4 w-4 text-[#9C8466]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">{dp.name}</span>
+                    </div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-2xl font-bold text-[#1E3A5F]">
+                        {dp.capacity - dp.remaining}/{dp.capacity}
+                      </span>
+                      {dp.remaining === 0 && (
+                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">SOLD OUT</span>
+                      )}
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all ${
+                          dp.remaining === 0 ? 'bg-red-500' :
+                          ((dp.capacity - dp.remaining) / dp.capacity) >= 0.8 ? 'bg-amber-500' :
+                          'bg-green-500'
+                        }`}
+                        style={{ width: `${Math.min(((dp.capacity - dp.remaining) / dp.capacity) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+
+                {/* Add-ons */}
+                {settings?.addOn1Enabled && settings?.addOn1Title && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Package className="h-4 w-4 text-[#9C8466]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">{settings.addOn1Title}</span>
+                    </div>
+                    <span className="text-sm text-gray-500">Unlimited</span>
+                  </div>
+                )}
+                {settings?.addOn2Enabled && settings?.addOn2Title && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Package className="h-4 w-4 text-[#9C8466]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">{settings.addOn2Title}</span>
+                    </div>
+                    <span className="text-sm text-gray-500">Unlimited</span>
+                  </div>
+                )}
+                {settings?.addOn3Enabled && settings?.addOn3Title && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Package className="h-4 w-4 text-[#9C8466]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">{settings.addOn3Title}</span>
+                    </div>
+                    <span className="text-sm text-gray-500">Unlimited</span>
+                  </div>
+                )}
+                {settings?.addOn4Enabled && settings?.addOn4Title && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Package className="h-4 w-4 text-[#9C8466]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">{settings.addOn4Title}</span>
+                    </div>
+                    <span className="text-sm text-gray-500">Unlimited</span>
+                  </div>
+                )}
+
+                {/* Empty State */}
+                {!event.capacityTotal && !settings?.onCampusCapacity && !settings?.offCampusCapacity &&
+                 !settings?.singleRoomCapacity && !settings?.doubleRoomCapacity &&
+                 !settings?.tripleRoomCapacity && !settings?.quadRoomCapacity &&
+                 dayPassOptions.filter(dp => dp.capacity > 0).length === 0 && (
+                  <div className="col-span-full text-center py-8">
+                    <BarChart3 className="h-12 w-12 text-[#9C8466] mx-auto mb-3" />
+                    <p className="text-[#6B7280]">No capacity limits configured for this event</p>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
