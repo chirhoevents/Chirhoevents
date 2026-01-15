@@ -19,6 +19,7 @@ import Link from 'next/link'
 import { format } from 'date-fns'
 import ExportAllDataModal from '@/components/admin/ExportAllDataModal'
 import DashboardBulkEmailModal from '@/components/admin/DashboardBulkEmailModal'
+import RegistrationLimitModal from '@/components/admin/RegistrationLimitModal'
 
 interface DashboardStats {
   activeEvents: number
@@ -58,6 +59,12 @@ interface DashboardData {
   pendingActions: PendingActions
 }
 
+interface BillingUsage {
+  registrationsUsed: number
+  registrationsLimit: number | null
+  tier: string
+}
+
 export default function DashboardClient() {
   const { user } = useUser()
   const { getToken } = useAuth()
@@ -66,10 +73,50 @@ export default function DashboardClient() {
   const [loading, setLoading] = useState(true)
   const [showExportModal, setShowExportModal] = useState(false)
   const [showBulkEmailModal, setShowBulkEmailModal] = useState(false)
+  const [showRegistrationLimitModal, setShowRegistrationLimitModal] = useState(false)
+  const [billingUsage, setBillingUsage] = useState<BillingUsage | null>(null)
 
   useEffect(() => {
     fetchDashboardData()
+    fetchBillingUsage()
   }, [])
+
+  const fetchBillingUsage = async () => {
+    try {
+      const token = await getToken()
+      const response = await fetch('/api/admin/billing', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
+
+      if (!response.ok) return
+
+      const billingData = await response.json()
+      const usage: BillingUsage = {
+        registrationsUsed: billingData.usage.registrationsUsed,
+        registrationsLimit: billingData.usage.registrationsLimit,
+        tier: billingData.subscription.tier,
+      }
+      setBillingUsage(usage)
+
+      // Check if user is at or near their registration limit (90% or more)
+      if (usage.registrationsLimit && usage.registrationsUsed >= usage.registrationsLimit * 0.9) {
+        // Check localStorage to see if the user has dismissed this recently
+        const dismissedAt = localStorage.getItem('registrationLimitModalDismissed')
+        const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000 // 24 hours
+
+        if (!dismissedAt || parseInt(dismissedAt) < oneDayAgo) {
+          setShowRegistrationLimitModal(true)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching billing usage:', error)
+    }
+  }
+
+  const handleDismissRegistrationLimitModal = () => {
+    localStorage.setItem('registrationLimitModalDismissed', Date.now().toString())
+    setShowRegistrationLimitModal(false)
+  }
 
   const fetchDashboardData = async () => {
     try {
@@ -432,6 +479,15 @@ export default function DashboardClient() {
         isOpen={showBulkEmailModal}
         onClose={() => setShowBulkEmailModal(false)}
       />
+      {billingUsage && billingUsage.registrationsLimit && (
+        <RegistrationLimitModal
+          isOpen={showRegistrationLimitModal}
+          onClose={handleDismissRegistrationLimitModal}
+          registrationsUsed={billingUsage.registrationsUsed}
+          registrationsLimit={billingUsage.registrationsLimit}
+          currentTier={billingUsage.tier}
+        />
+      )}
     </div>
   )
 }

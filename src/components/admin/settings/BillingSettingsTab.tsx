@@ -14,7 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Loader2, Download, CreditCard, Calendar, FileText } from 'lucide-react'
+import { Loader2, Download, CreditCard, Calendar, FileText, TrendingUp } from 'lucide-react'
+import UpgradeRequestModal from '@/components/admin/UpgradeRequestModal'
 
 interface BillingData {
   subscription: {
@@ -70,6 +71,7 @@ export default function BillingSettingsTab() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<BillingData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
 
   useEffect(() => {
     fetchBillingData()
@@ -183,6 +185,27 @@ export default function BillingSettingsTab() {
               <p className="font-medium">{formatDate(data.subscription.renewsAt)}</p>
             </div>
           </div>
+
+          {/* Upgrade Button */}
+          {data.subscription.tier !== 'enterprise' && (
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-[#1E3A5F]">Need more capacity?</p>
+                  <p className="text-sm text-gray-500">
+                    Upgrade your plan to increase limits and unlock additional features.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setShowUpgradeModal(true)}
+                  className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
+                >
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  Request Upgrade
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -301,6 +324,13 @@ export default function BillingSettingsTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* Upgrade Request Modal */}
+      <UpgradeRequestModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        currentTier={data.subscription.tier}
+      />
     </div>
   )
 }
