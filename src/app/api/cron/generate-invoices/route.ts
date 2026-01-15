@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { Resend } from 'resend'
 import crypto from 'crypto'
 
@@ -18,8 +19,8 @@ async function verifyCronAuth(request: NextRequest): Promise<boolean> {
     return true
   }
 
-  // Also allow manual trigger from master admin
-  const clerkUserId = request.headers.get('x-clerk-user-id')
+  // Also allow manual trigger from master admin via JWT token
+  const clerkUserId = await getClerkUserIdFromRequest(request)
   if (clerkUserId) {
     const user = await prisma.user.findFirst({
       where: { clerkUserId },
