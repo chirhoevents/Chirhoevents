@@ -253,7 +253,7 @@ export function migrateOldTierKey(oldKey: string): SubscriptionTierKey {
 /**
  * Environment variable names for Stripe price IDs
  */
-export const STRIPE_PRICE_ENV_VARS: Record<SubscriptionTierKey, { monthly: string; annual: string | null }> = {
+export const STRIPE_PRICE_ENV_VARS: Record<SubscriptionTierKey, { monthly: string | null; annual: string | null }> = {
   starter: {
     monthly: 'STRIPE_PRICE_STARTER_MONTHLY',
     annual: null, // No annual option
