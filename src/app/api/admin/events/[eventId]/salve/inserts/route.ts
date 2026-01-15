@@ -283,11 +283,6 @@ export async function DELETE(
         id: insertId,
         eventId,
       },
-      include: {
-        event: {
-          select: { organizationId: true },
-        },
-      },
     })
 
     if (!insert) {
@@ -297,13 +292,19 @@ export async function DELETE(
       )
     }
 
+    // Get event to find organization ID for storage tracking
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: { organizationId: true },
+    })
+
     // Delete file from R2 if exists
     if (insert.fileUrl) {
       try {
         await deletePacketInsert(insert.fileUrl)
-        // Decrement storage if we have the file size
-        if (insert.fileSizeBytes) {
-          await decrementOrgStorage(insert.event.organizationId, insert.fileSizeBytes)
+        // Decrement storage if we have the file size and org ID
+        if (insert.fileSizeBytes && event) {
+          await decrementOrgStorage(event.organizationId, insert.fileSizeBytes)
         }
       } catch (err) {
         console.error('Failed to delete file from R2:', err)

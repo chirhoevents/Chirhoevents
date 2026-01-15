@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, isMasterAdmin } from '@/lib/auth-utils'
+import { getCurrentUser, hasRole } from '@/lib/auth-utils'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import { recalculateOrgStorage, getOrgStorageInfo } from '@/lib/storage/track-storage'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 
     if (body.organizationId) {
       // Only master admins can recalculate for other organizations
-      if (!isMasterAdmin(user)) {
+      if (!hasRole(user, 'master_admin')) {
         return NextResponse.json(
           { error: 'Only master admins can recalculate storage for other organizations' },
           { status: 403 }
