@@ -48,12 +48,18 @@ interface BillingData {
 }
 
 const tierLabels: Record<string, string> = {
+  // Current tier names
   starter: 'Starter',
-  small_diocese: 'Small Diocese',
-  growing: 'Growing',
-  conference: 'Conference',
-  enterprise: 'Enterprise',
+  parish: 'Parish',
+  cathedral: 'Cathedral',
+  shrine: 'Shrine',
+  basilica: 'Basilica',
   test: 'Test (Free)',
+  // Legacy tier names (for backward compatibility)
+  small_diocese: 'Parish',
+  growing: 'Cathedral',
+  conference: 'Shrine',
+  enterprise: 'Basilica',
 }
 
 const statusColors: Record<string, string> = {

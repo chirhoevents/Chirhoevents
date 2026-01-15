@@ -32,10 +32,10 @@ const organizationTypes = [
 
 const eventRanges = [
   { value: '1-3', label: '1-3 events', tier: 'starter' },
-  { value: '4-5', label: '4-5 events', tier: 'small_diocese' },
-  { value: '6-10', label: '6-10 events', tier: 'growing' },
-  { value: '11-25', label: '11-25 events', tier: 'conference' },
-  { value: '25+', label: '25+ events', tier: 'enterprise' },
+  { value: '4-5', label: '4-5 events', tier: 'parish' },
+  { value: '6-10', label: '6-10 events', tier: 'cathedral' },
+  { value: '11-25', label: '11-25 events', tier: 'shrine' },
+  { value: '25+', label: '25+ events', tier: 'basilica' },
 ]
 
 const attendeeRanges = [

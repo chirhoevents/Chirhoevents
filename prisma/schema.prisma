@@ -830,12 +830,20 @@ enum OrganizationType {
 }
 
 enum SubscriptionTier {
+  // Current tier names
   starter
-  small_diocese
-  growing
-  conference
-  enterprise
+  parish        // Replaces small_diocese
+  cathedral     // Replaces growing
+  shrine        // Replaces conference
+  basilica      // Replaces enterprise
   test
+
+  // Legacy tier names (kept for backward compatibility)
+  // TODO: Migrate existing data and remove these
+  small_diocese // @deprecated - use parish
+  growing       // @deprecated - use cathedral
+  conference    // @deprecated - use shrine
+  enterprise    // @deprecated - use basilica
 }
 
 enum SubscriptionStatus {

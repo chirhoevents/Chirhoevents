@@ -42,25 +42,44 @@ async function getClerkUserId(request: NextRequest): Promise<string | null> {
 
 // Subscription tier to Stripe price mapping
 // These should be set up in your Stripe dashboard
+// See STRIPE_SETUP_INSTRUCTIONS.md for details on creating these prices
 const TIER_PRICES: Record<string, { monthly: string | null; annual: string | null }> = {
+  // Current tier names
   starter: {
     monthly: process.env.STRIPE_PRICE_STARTER_MONTHLY || null,
-    annual: process.env.STRIPE_PRICE_STARTER_ANNUAL || null,
+    annual: null, // Starter is monthly only
   },
+  parish: {
+    monthly: process.env.STRIPE_PRICE_PARISH_MONTHLY || null,
+    annual: null, // Parish is monthly only
+  },
+  cathedral: {
+    monthly: process.env.STRIPE_PRICE_CATHEDRAL_MONTHLY || null,
+    annual: process.env.STRIPE_PRICE_CATHEDRAL_ANNUAL || null,
+  },
+  shrine: {
+    monthly: process.env.STRIPE_PRICE_SHRINE_MONTHLY || null,
+    annual: process.env.STRIPE_PRICE_SHRINE_ANNUAL || null,
+  },
+  basilica: {
+    monthly: null, // Basilica is invoiced annually
+    annual: null, // Custom pricing
+  },
+  // Legacy tier names (for backward compatibility with existing orgs)
   small_diocese: {
-    monthly: process.env.STRIPE_PRICE_SMALL_DIOCESE_MONTHLY || null,
-    annual: process.env.STRIPE_PRICE_SMALL_DIOCESE_ANNUAL || null,
+    monthly: process.env.STRIPE_PRICE_PARISH_MONTHLY || null,
+    annual: null,
   },
   growing: {
-    monthly: process.env.STRIPE_PRICE_GROWING_MONTHLY || null,
-    annual: process.env.STRIPE_PRICE_GROWING_ANNUAL || null,
+    monthly: process.env.STRIPE_PRICE_CATHEDRAL_MONTHLY || null,
+    annual: process.env.STRIPE_PRICE_CATHEDRAL_ANNUAL || null,
   },
   conference: {
-    monthly: process.env.STRIPE_PRICE_CONFERENCE_MONTHLY || null,
-    annual: process.env.STRIPE_PRICE_CONFERENCE_ANNUAL || null,
+    monthly: process.env.STRIPE_PRICE_SHRINE_MONTHLY || null,
+    annual: process.env.STRIPE_PRICE_SHRINE_ANNUAL || null,
   },
   enterprise: {
-    monthly: null, // Enterprise is custom pricing
+    monthly: null,
     annual: null,
   },
 }

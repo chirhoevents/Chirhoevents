@@ -369,7 +369,7 @@ export default function LandingPage() {
               <CardHeader>
                 <CardTitle className="text-2xl">Starter</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$29</span>
+                  <span className="text-4xl font-bold text-navy">$25</span>
                   <span className="text-gray-600">/mo</span>
                 </div>
               </CardHeader>
@@ -377,6 +377,7 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• 3 events/year</p>
                 <p className="text-sm text-gray-600">• 500 people max</p>
                 <p className="text-sm text-gray-600">• 5GB storage</p>
+                <p className="text-sm text-gray-600">• Basic registration only</p>
                 <div className="mt-4 text-xs text-gray-600">
                   <p className="font-semibold mb-1">Additional Fees:</p>
                   <ul className="space-y-1">
@@ -391,12 +392,12 @@ export default function LandingPage() {
               </CardContent>
             </Card>
 
-            {/* Small Diocese */}
+            {/* Parish */}
             <Card className="border-2 border-gray-200">
               <CardHeader>
-                <CardTitle className="text-2xl">Small Diocese</CardTitle>
+                <CardTitle className="text-2xl">Parish</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$49</span>
+                  <span className="text-4xl font-bold text-navy">$45</span>
                   <span className="text-gray-600">/mo</span>
                 </div>
               </CardHeader>
@@ -404,6 +405,7 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• 5 events/year</p>
                 <p className="text-sm text-gray-600">• 1,000 people max</p>
                 <p className="text-sm text-gray-600">• 10GB storage</p>
+                <p className="text-sm text-gray-600">• Basic registration only</p>
                 <div className="mt-4 text-xs text-gray-600">
                   <p className="font-semibold mb-1">Additional Fees:</p>
                   <ul className="space-y-1">
@@ -412,28 +414,30 @@ export default function LandingPage() {
                     <li>• ChiRho platform fee: 1% of registrations</li>
                   </ul>
                 </div>
-                <Link href="/get-started?tier=small_diocese">
+                <Link href="/get-started?tier=parish">
                   <Button className="w-full mt-6">Get Started</Button>
                 </Link>
               </CardContent>
             </Card>
 
-            {/* Growing - Popular */}
+            {/* Cathedral - Popular */}
             <Card className="border-2 border-gold shadow-lg scale-105">
               <div className="bg-gold text-navy text-center py-1 text-sm font-semibold">
                 POPULAR
               </div>
               <CardHeader>
-                <CardTitle className="text-2xl">Growing</CardTitle>
+                <CardTitle className="text-2xl">Cathedral</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$79</span>
+                  <span className="text-4xl font-bold text-navy">$89</span>
                   <span className="text-gray-600">/mo</span>
+                  <p className="text-sm text-gray-500 mt-1">or $900/year</p>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-gray-600">• 10 events/year</p>
                 <p className="text-sm text-gray-600">• 3,000 people max</p>
                 <p className="text-sm text-gray-600">• 25GB storage</p>
+                <p className="text-sm font-semibold text-green-700">• Includes POROS, SALVE, RAPHA</p>
                 <div className="mt-4 text-xs text-gray-600">
                   <p className="font-semibold mb-1">Additional Fees:</p>
                   <ul className="space-y-1">
@@ -442,25 +446,27 @@ export default function LandingPage() {
                     <li>• ChiRho platform fee: 1% of registrations</li>
                   </ul>
                 </div>
-                <Link href="/get-started?tier=growing">
+                <Link href="/get-started?tier=cathedral">
                   <Button className="w-full mt-6">Get Started</Button>
                 </Link>
               </CardContent>
             </Card>
 
-            {/* Conference */}
+            {/* Shrine */}
             <Card className="border-2 border-gray-200">
               <CardHeader>
-                <CardTitle className="text-2xl">Conference</CardTitle>
+                <CardTitle className="text-2xl">Shrine</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$99</span>
+                  <span className="text-4xl font-bold text-navy">$120</span>
                   <span className="text-gray-600">/mo</span>
+                  <p className="text-sm text-gray-500 mt-1">or $1,200/year</p>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-gray-600">• 25 events/year</p>
                 <p className="text-sm text-gray-600">• 8,000 people max</p>
                 <p className="text-sm text-gray-600">• 100GB storage</p>
+                <p className="text-sm font-semibold text-green-700">• Includes POROS, SALVE, RAPHA</p>
                 <div className="mt-4 text-xs text-gray-600">
                   <p className="font-semibold mb-1">Additional Fees:</p>
                   <ul className="space-y-1">
@@ -469,34 +475,36 @@ export default function LandingPage() {
                     <li>• ChiRho platform fee: 1% of registrations</li>
                   </ul>
                 </div>
-                <Link href="/get-started?tier=conference">
+                <Link href="/get-started?tier=shrine">
                   <Button className="w-full mt-6">Get Started</Button>
                 </Link>
               </CardContent>
             </Card>
 
-            {/* Enterprise */}
+            {/* Basilica */}
             <Card className="border-2 border-navy">
               <CardHeader>
-                <CardTitle className="text-2xl">Enterprise</CardTitle>
+                <CardTitle className="text-2xl">Basilica</CardTitle>
                 <div className="mt-4">
                   <span className="text-2xl font-bold text-navy">Custom Pricing</span>
-                  <p className="text-sm text-gray-600 mt-1">Starting at $199/mo</p>
+                  <p className="text-sm text-gray-600 mt-1">Starting at $2,000/year</p>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-gray-600">• Unlimited events</p>
-                <p className="text-sm text-gray-600">• Unlimited people</p>
+                <p className="text-sm text-gray-600">• 15,000+ people</p>
                 <p className="text-sm text-gray-600">• 500GB storage</p>
+                <p className="text-sm font-semibold text-green-700">• All features included</p>
+                <p className="text-sm text-gray-600">• Dedicated account manager</p>
                 <div className="mt-4 text-xs text-gray-600">
                   <p className="font-semibold mb-1">Additional Fees:</p>
                   <ul className="space-y-1">
-                    <li>• $250 one-time setup fee</li>
+                    <li>• Custom setup fee</li>
                     <li>• Stripe fees: 2.9% + $0.30 per transaction</li>
                     <li>• ChiRho platform fee: 1% of registrations</li>
                   </ul>
                 </div>
-                <Link href="/get-started?tier=enterprise">
+                <Link href="/get-started?tier=basilica">
                   <Button variant="outline" className="w-full mt-6">Contact Us</Button>
                 </Link>
               </CardContent>
