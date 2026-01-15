@@ -60,6 +60,100 @@ export async function GET(
       },
     })
 
+    // Get recent activity for activity report
+    const now = new Date()
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const startOfWeek = new Date(startOfToday)
+    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay())
+    const startOfLastWeek = new Date(startOfWeek)
+    startOfLastWeek.setDate(startOfLastWeek.getDate() - 7)
+
+    // Recent registrations (last 5)
+    const recentGroupRegistrations = await prisma.groupRegistration.findMany({
+      where: { eventId },
+      select: {
+        id: true,
+        groupName: true,
+        totalParticipants: true,
+        registeredAt: true,
+      },
+      orderBy: { registeredAt: 'desc' },
+      take: 5,
+    })
+
+    const recentIndividualRegistrations = await prisma.individualRegistration.findMany({
+      where: { eventId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    })
+
+    // Combine and sort recent registrations
+    const recentRegistrations = [
+      ...recentGroupRegistrations.map(r => ({
+        id: r.id,
+        type: 'group' as const,
+        name: r.groupName || 'Unnamed Group',
+        participants: r.totalParticipants,
+        date: r.registeredAt,
+      })),
+      ...recentIndividualRegistrations.map(r => ({
+        id: r.id,
+        type: 'individual' as const,
+        name: `${r.firstName} ${r.lastName}`,
+        participants: 1,
+        date: r.createdAt,
+      })),
+    ]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 5)
+
+    // Recent payments (last 5)
+    const recentPayments = await prisma.payment.findMany({
+      where: { eventId, paymentStatus: 'succeeded' },
+      select: {
+        id: true,
+        amount: true,
+        paymentMethod: true,
+        paidAt: true,
+        groupRegistration: {
+          select: { groupName: true },
+        },
+        individualRegistration: {
+          select: { firstName: true, lastName: true },
+        },
+      },
+      orderBy: { paidAt: 'desc' },
+      take: 5,
+    })
+
+    // Registration counts for trends
+    const todayGroupCount = await prisma.groupRegistration.count({
+      where: { eventId, registeredAt: { gte: startOfToday } },
+    })
+    const todayIndividualCount = await prisma.individualRegistration.count({
+      where: { eventId, createdAt: { gte: startOfToday } },
+    })
+
+    const thisWeekGroupCount = await prisma.groupRegistration.count({
+      where: { eventId, registeredAt: { gte: startOfWeek } },
+    })
+    const thisWeekIndividualCount = await prisma.individualRegistration.count({
+      where: { eventId, createdAt: { gte: startOfWeek } },
+    })
+
+    const lastWeekGroupCount = await prisma.groupRegistration.count({
+      where: { eventId, registeredAt: { gte: startOfLastWeek, lt: startOfWeek } },
+    })
+    const lastWeekIndividualCount = await prisma.individualRegistration.count({
+      where: { eventId, createdAt: { gte: startOfLastWeek, lt: startOfWeek } },
+    })
+
     // Calculate stats
     const totalRegistrations = (event._count?.groupRegistrations || 0) + (event._count?.individualRegistrations || 0)
     const totalParticipants = participantCount + (event._count?.individualRegistrations || 0)
@@ -84,6 +178,25 @@ export async function GET(
         totalRevenue,
         totalPaid,
         balance: totalRevenue - totalPaid,
+      },
+      activity: {
+        recentRegistrations: recentRegistrations.map(r => ({
+          ...r,
+          date: r.date.toISOString(),
+        })),
+        recentPayments: recentPayments.map(p => ({
+          id: p.id,
+          amount: Number(p.amount),
+          method: p.paymentMethod,
+          date: p.paidAt?.toISOString(),
+          name: p.groupRegistration?.groupName ||
+                (p.individualRegistration ? `${p.individualRegistration.firstName} ${p.individualRegistration.lastName}` : 'Unknown'),
+        })),
+        trends: {
+          today: todayGroupCount + todayIndividualCount,
+          thisWeek: thisWeekGroupCount + thisWeekIndividualCount,
+          lastWeek: lastWeekGroupCount + lastWeekIndividualCount,
+        },
       },
     })
   } catch (error) {

@@ -40,6 +40,10 @@ import {
   Tent,
   Coffee,
   Package,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  CreditCard,
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -108,6 +112,27 @@ interface EventDetailClientProps {
     capacity: number
     remaining: number
   }[]
+  activity?: {
+    recentRegistrations: {
+      id: string
+      type: 'group' | 'individual'
+      name: string
+      participants: number
+      date: string
+    }[]
+    recentPayments: {
+      id: string
+      amount: number
+      method: string
+      date: string
+      name: string
+    }[]
+    trends: {
+      today: number
+      thisWeek: number
+      lastWeek: number
+    }
+  } | null
 }
 
 export default function EventDetailClient({
@@ -115,6 +140,7 @@ export default function EventDetailClient({
   stats,
   settings,
   dayPassOptions = [],
+  activity,
 }: EventDetailClientProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('overview')
@@ -890,6 +916,117 @@ export default function EventDetailClient({
                     <p className="text-[#6B7280]">No capacity limits configured for this event</p>
                   </div>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Activity Report */}
+          <Card className="bg-white border-[#D1D5DB]">
+            <CardHeader>
+              <CardTitle className="text-lg text-[#1E3A5F] flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Activity Report
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Registration Trends */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-[#1E3A5F] flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4" />
+                    Registration Trends
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-[#6B7280]">Today</span>
+                      <span className="text-lg font-bold text-[#1E3A5F]">{activity?.trends.today || 0}</span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-[#6B7280]">This Week</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg font-bold text-[#1E3A5F]">{activity?.trends.thisWeek || 0}</span>
+                        {activity && activity.trends.thisWeek > activity.trends.lastWeek && (
+                          <TrendingUp className="h-4 w-4 text-green-500" />
+                        )}
+                        {activity && activity.trends.thisWeek < activity.trends.lastWeek && (
+                          <TrendingDown className="h-4 w-4 text-red-500" />
+                        )}
+                        {activity && activity.trends.thisWeek === activity.trends.lastWeek && (
+                          <Minus className="h-4 w-4 text-gray-400" />
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-[#6B7280]">Last Week</span>
+                      <span className="text-lg font-bold text-[#1E3A5F]">{activity?.trends.lastWeek || 0}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Recent Registrations */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-[#1E3A5F] flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Recent Registrations
+                  </h4>
+                  {activity?.recentRegistrations && activity.recentRegistrations.length > 0 ? (
+                    <div className="space-y-2">
+                      {activity.recentRegistrations.map((reg) => (
+                        <div key={reg.id} className="p-2 bg-gray-50 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-[#1E3A5F] truncate">{reg.name}</p>
+                              <p className="text-xs text-[#6B7280]">
+                                {reg.type === 'group' ? `${reg.participants} participants` : 'Individual'}
+                              </p>
+                            </div>
+                            <span className="text-xs text-[#9C8466] whitespace-nowrap ml-2">
+                              {format(new Date(reg.date), 'MMM d, h:mm a')}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <Users className="h-8 w-8 text-[#9C8466] mx-auto mb-2" />
+                      <p className="text-sm text-[#6B7280]">No recent registrations</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Recent Payments */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-[#1E3A5F] flex items-center gap-2">
+                    <CreditCard className="h-4 w-4" />
+                    Recent Payments
+                  </h4>
+                  {activity?.recentPayments && activity.recentPayments.length > 0 ? (
+                    <div className="space-y-2">
+                      {activity.recentPayments.map((payment) => (
+                        <div key={payment.id} className="p-2 bg-gray-50 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-[#1E3A5F] truncate">{payment.name}</p>
+                              <p className="text-xs text-[#6B7280] capitalize">{payment.method}</p>
+                            </div>
+                            <div className="text-right ml-2">
+                              <p className="text-sm font-bold text-green-600">${payment.amount.toLocaleString()}</p>
+                              <p className="text-xs text-[#9C8466]">
+                                {payment.date ? format(new Date(payment.date), 'MMM d') : 'N/A'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <CreditCard className="h-8 w-8 text-[#9C8466] mx-auto mb-2" />
+                      <p className="text-sm text-[#6B7280]">No recent payments</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
