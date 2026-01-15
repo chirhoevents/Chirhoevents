@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { uploadLogo, deleteLogo } from '@/lib/r2/upload-logo'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+import { incrementOrgStorage } from '@/lib/storage/track-storage'
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,6 +57,9 @@ export async function POST(request: NextRequest) {
 
     // Upload to R2
     const logoUrl = await uploadLogo(buffer, file.name, organizationId)
+
+    // Track storage usage
+    await incrementOrgStorage(organizationId, file.size)
 
     // Update organization in database
     await prisma.organization.update({

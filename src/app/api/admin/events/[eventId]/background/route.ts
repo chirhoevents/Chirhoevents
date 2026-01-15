@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 import { uploadEventBackground, deleteEventBackground } from '@/lib/r2/upload-event-background'
+import { incrementOrgStorage } from '@/lib/storage/track-storage'
 
 /**
  * POST /api/admin/events/[eventId]/background
@@ -64,6 +65,9 @@ export async function POST(
       effectiveOrgId,
       eventId
     )
+
+    // Track storage usage
+    await incrementOrgStorage(effectiveOrgId, file.size)
 
     // Update event settings with new background URL
     await prisma.eventSettings.upsert({

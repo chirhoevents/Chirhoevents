@@ -718,6 +718,7 @@ model LiabilityForm {
   completedByEmail          String?  @map("completed_by_email") @db.VarChar(255)
   completedAt               DateTime? @map("completed_at") @db.Timestamptz(6)
   pdfUrl                    String?  @map("pdf_url") @db.Text
+  fileSizeBytes             BigInt?  @map("file_size_bytes")
 
   // Approval workflow
   formStatus                String   @default("pending") @map("form_status") @db.VarChar(50)  // pending, approved, denied, needs_revision
@@ -1793,6 +1794,7 @@ model WelcomePacketInsert {
   name         String   @db.VarChar(255)
   fileUrl      String   @map("file_url") @db.Text
   fileType     String   @default("pdf") @map("file_type") @db.VarChar(20) // pdf, image
+  fileSizeBytes BigInt?  @map("file_size_bytes")
   imageUrls    Json?    @map("image_urls") // Array of image URLs for embedding in print
   displayOrder Int      @default(0) @map("display_order")
   isActive     Boolean  @default(true) @map("is_active")
