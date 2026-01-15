@@ -85,10 +85,17 @@ export async function recalculateOrgStorage(
     select: { fileSizeBytes: true },
   })
 
+  // Get all event IDs for this organization
+  const orgEvents = await prisma.event.findMany({
+    where: { organizationId },
+    select: { id: true },
+  })
+  const eventIds = orgEvents.map(e => e.id)
+
   // Get all welcome packet inserts with file sizes (if tracked)
   const inserts = await prisma.welcomePacketInsert.findMany({
     where: {
-      event: { organizationId },
+      eventId: { in: eventIds },
     },
     select: { fileSizeBytes: true },
   })
