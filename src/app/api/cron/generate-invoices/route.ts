@@ -119,11 +119,13 @@ export async function POST(request: NextRequest) {
 
     // Parse request body for options
     let dryRun = false
-    let daysAhead = 7 // Generate invoices for orgs renewing within 7 days
+    let daysAhead = 30 // Generate invoices for orgs renewing within 30 days
+    let includeNeverBilled = true // Also include orgs that have never been billed
     try {
       const body = await request.json()
       dryRun = body.dryRun === true
       if (body.daysAhead) daysAhead = parseInt(body.daysAhead)
+      if (body.includeNeverBilled !== undefined) includeNeverBilled = body.includeNeverBilled
     } catch {
       // No body or invalid JSON, use defaults
     }
@@ -133,22 +135,46 @@ export async function POST(request: NextRequest) {
     cutoffDate.setDate(cutoffDate.getDate() + daysAhead)
 
     console.log(`📅 Looking for orgs renewing between now and ${cutoffDate.toISOString()}`)
-    console.log(`🔍 Dry run: ${dryRun}`)
+    console.log(`🔍 Dry run: ${dryRun}, Include never billed: ${includeNeverBilled}`)
+
+    // Build the where clause - find orgs due for renewal OR never billed
+    const renewalConditions: object[] = [
+      // Orgs with renewal date coming up
+      {
+        subscriptionRenewsAt: {
+          lte: cutoffDate,
+          not: null,
+        },
+      },
+    ]
+
+    // Also include orgs that have never been billed (no subscriptionRenewsAt set)
+    if (includeNeverBilled) {
+      renewalConditions.push({
+        subscriptionRenewsAt: null,
+      })
+    }
 
     // Find organizations due for renewal
     const orgsDueForRenewal = await prisma.organization.findMany({
       where: {
         status: 'active',
-        subscriptionStatus: 'active',
-        subscriptionRenewsAt: {
-          lte: cutoffDate,
-          not: null,
-        },
-        // Ensure they have pricing set
+        // Allow active subscriptions OR orgs without subscription status set (for initial billing)
         OR: [
-          { monthlyFee: { gt: 0 } },
-          { monthlyPrice: { gt: 0 } },
-          { annualPrice: { gt: 0 } },
+          { subscriptionStatus: 'active' },
+          { subscriptionStatus: null },
+        ],
+        AND: [
+          // Renewal timing conditions
+          { OR: renewalConditions },
+          // Must have pricing set
+          {
+            OR: [
+              { monthlyFee: { gt: 0 } },
+              { monthlyPrice: { gt: 0 } },
+              { annualPrice: { gt: 0 } },
+            ],
+          },
         ],
       },
       select: {
