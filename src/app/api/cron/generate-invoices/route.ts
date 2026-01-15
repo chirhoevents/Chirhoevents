@@ -159,11 +159,8 @@ export async function POST(request: NextRequest) {
     const orgsDueForRenewal = await prisma.organization.findMany({
       where: {
         status: 'active',
-        // Allow active subscriptions OR orgs without subscription status set (for initial billing)
-        OR: [
-          { subscriptionStatus: 'active' },
-          { subscriptionStatus: { equals: null } },
-        ],
+        // Only bill active subscriptions
+        subscriptionStatus: 'active',
         AND: [
           // Renewal timing conditions
           { OR: renewalConditions },
@@ -456,8 +453,8 @@ export async function GET() {
         issues.push('No pricing set (monthlyFee, monthlyPrice, or annualPrice must be > 0)')
       }
 
-      if (org.subscriptionStatus !== 'active' && org.subscriptionStatus !== null) {
-        issues.push(`subscriptionStatus is "${org.subscriptionStatus}" (needs to be "active" or null)`)
+      if (org.subscriptionStatus !== 'active') {
+        issues.push(`subscriptionStatus is "${org.subscriptionStatus}" (needs to be "active")`)
       }
 
       return {
