@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
         // Allow active subscriptions OR orgs without subscription status set (for initial billing)
         OR: [
           { subscriptionStatus: 'active' },
-          { subscriptionStatus: null },
+          { subscriptionStatus: { equals: null } },
         ],
         AND: [
           // Renewal timing conditions
