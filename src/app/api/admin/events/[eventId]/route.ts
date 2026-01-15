@@ -121,16 +121,32 @@ export async function GET(
         amount: true,
         paymentMethod: true,
         createdAt: true,
-        groupRegistration: {
-          select: { groupName: true },
-        },
-        individualRegistration: {
-          select: { firstName: true, lastName: true },
-        },
+        registrationId: true,
+        registrationType: true,
       },
       orderBy: { createdAt: 'desc' },
       take: 5,
     })
+
+    // Fetch registration names for payments
+    const paymentNames: Record<string, string> = {}
+    for (const payment of recentPayments) {
+      if (payment.registrationType === 'group') {
+        const reg = await prisma.groupRegistration.findUnique({
+          where: { id: payment.registrationId },
+          select: { groupName: true },
+        })
+        paymentNames[payment.id] = reg?.groupName || 'Group'
+      } else if (payment.registrationType === 'individual') {
+        const reg = await prisma.individualRegistration.findUnique({
+          where: { id: payment.registrationId },
+          select: { firstName: true, lastName: true },
+        })
+        paymentNames[payment.id] = reg ? `${reg.firstName} ${reg.lastName}` : 'Individual'
+      } else {
+        paymentNames[payment.id] = 'Unknown'
+      }
+    }
 
     // Registration counts for trends
     const todayGroupCount = await prisma.groupRegistration.count({
@@ -189,8 +205,7 @@ export async function GET(
           amount: Number(p.amount),
           method: p.paymentMethod,
           date: p.createdAt?.toISOString(),
-          name: p.groupRegistration?.groupName ||
-                (p.individualRegistration ? `${p.individualRegistration.firstName} ${p.individualRegistration.lastName}` : 'Unknown'),
+          name: paymentNames[p.id] || 'Unknown',
         })),
         trends: {
           today: todayGroupCount + todayIndividualCount,
