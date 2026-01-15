@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { generateParticipantQRCode } from '@/lib/qr-code'
 import { uploadCertificate } from '@/lib/r2/upload-certificate'
+import { incrementOrgStorage } from '@/lib/storage/track-storage'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -357,6 +358,9 @@ export async function POST(request: NextRequest) {
           groupRegistration.eventId
         )
 
+        // Track storage usage
+        await incrementOrgStorage(groupRegistration.organizationId, fileBuffer.length)
+
         await prisma.safeEnvironmentCertificate.create({
           data: {
             participantId: participant.id,
@@ -364,6 +368,7 @@ export async function POST(request: NextRequest) {
             organizationId: groupRegistration.organizationId,
             fileUrl: fileUrl,
             originalFilename: safe_env_cert_filename,
+            fileSizeBytes: BigInt(fileBuffer.length),
             programName: safe_env_cert_program,
             completionDate: safe_env_cert_completion_date ? new Date(safe_env_cert_completion_date) : null,
             expirationDate: safe_env_cert_expiration_date ? new Date(safe_env_cert_expiration_date) : null,
