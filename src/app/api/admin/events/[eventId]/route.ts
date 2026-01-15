@@ -120,7 +120,7 @@ export async function GET(
         id: true,
         amount: true,
         paymentMethod: true,
-        paidAt: true,
+        createdAt: true,
         groupRegistration: {
           select: { groupName: true },
         },
@@ -128,7 +128,7 @@ export async function GET(
           select: { firstName: true, lastName: true },
         },
       },
-      orderBy: { paidAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
       take: 5,
     })
 
@@ -188,7 +188,7 @@ export async function GET(
           id: p.id,
           amount: Number(p.amount),
           method: p.paymentMethod,
-          date: p.paidAt?.toISOString(),
+          date: p.createdAt?.toISOString(),
           name: p.groupRegistration?.groupName ||
                 (p.individualRegistration ? `${p.individualRegistration.firstName} ${p.individualRegistration.lastName}` : 'Unknown'),
         })),
