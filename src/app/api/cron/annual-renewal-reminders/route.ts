@@ -2,9 +2,29 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { Resend } from 'resend'
-import { addDays, isBefore, isAfter, differenceInDays } from 'date-fns'
+import { addDays, differenceInDays } from 'date-fns'
+import { JsonValue } from '@prisma/client/runtime/library'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
+
+// Helper to extract formatted billing address from JSON address field
+function formatBillingAddress(address: JsonValue | null): string | null {
+  if (!address || typeof address !== 'object' || Array.isArray(address)) {
+    return null
+  }
+
+  const addr = address as Record<string, unknown>
+  const parts: string[] = []
+
+  if (addr.street) parts.push(String(addr.street))
+  if (addr.city || addr.state || addr.zip) {
+    const cityLine = [addr.city, addr.state, addr.zip].filter(Boolean).join(', ')
+    if (cityLine) parts.push(cityLine)
+  }
+  if (addr.country) parts.push(String(addr.country))
+
+  return parts.length > 0 ? parts.join('\n') : null
+}
 
 // Verify cron secret or master admin auth
 async function verifyCronAuth(request: NextRequest): Promise<boolean> {
@@ -168,7 +188,7 @@ export async function GET(request: NextRequest) {
         id: true,
         name: true,
         contactEmail: true,
-        billingAddress: true,
+        address: true,
         subscriptionTier: true,
         annualPrice: true,
         subscriptionRenewsAt: true,
@@ -206,6 +226,9 @@ export async function GET(request: NextRequest) {
       const tierName = getTierName(org.subscriptionTier)
       const annualAmount = org.annualPrice || 0
 
+      // Extract billing address from JSON address field
+      const billingAddress = formatBillingAddress(org.address)
+
       const result = {
         organizationId: org.id,
         organizationName: org.name,
@@ -215,7 +238,7 @@ export async function GET(request: NextRequest) {
         daysUntilRenewal,
         annualAmount,
         needsPhysicalLetter: daysUntilRenewal <= 14, // Flag for physical letter at 14 days or less
-        billingAddress: org.billingAddress,
+        billingAddress,
         reminderSent: false,
         error: undefined as string | undefined,
       }
@@ -232,7 +255,7 @@ export async function GET(request: NextRequest) {
               renewalDate: org.subscriptionRenewsAt,
               annualAmount,
               daysUntilRenewal,
-              billingAddress: org.billingAddress,
+              billingAddress,
             }),
           })
           result.reminderSent = true
