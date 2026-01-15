@@ -420,31 +420,64 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET endpoint for checking status / manual trigger info
-export async function GET(request: NextRequest) {
+// GET endpoint for checking status / diagnostic info
+export async function GET() {
   try {
-    // Get count of orgs due for renewal in next 7 days
-    const now = new Date()
-    const cutoffDate = new Date(now)
-    cutoffDate.setDate(cutoffDate.getDate() + 7)
-
-    const orgsDueCount = await prisma.organization.count({
+    // Get ALL active organizations with their billing info for diagnostics
+    const allActiveOrgs = await prisma.organization.findMany({
       where: {
         status: 'active',
-        subscriptionStatus: 'active',
-        subscriptionRenewsAt: {
-          lte: cutoffDate,
-          not: null,
-        },
-        OR: [
-          { monthlyFee: { gt: 0 } },
-          { monthlyPrice: { gt: 0 } },
-          { annualPrice: { gt: 0 } },
-        ],
       },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        subscriptionStatus: true,
+        subscriptionTier: true,
+        billingCycle: true,
+        monthlyFee: true,
+        monthlyPrice: true,
+        annualPrice: true,
+        subscriptionRenewsAt: true,
+      },
+      orderBy: { name: 'asc' },
     })
 
-    // Get count of pending invoices
+    // Analyze each org to see why it might not be eligible
+    const orgAnalysis = allActiveOrgs.map((org) => {
+      const issues: string[] = []
+
+      const hasMonthlyFee = Number(org.monthlyFee) > 0
+      const hasMonthlyPrice = Number(org.monthlyPrice) > 0
+      const hasAnnualPrice = Number(org.annualPrice) > 0
+      const hasPricing = hasMonthlyFee || hasMonthlyPrice || hasAnnualPrice
+
+      if (!hasPricing) {
+        issues.push('No pricing set (monthlyFee, monthlyPrice, or annualPrice must be > 0)')
+      }
+
+      if (org.subscriptionStatus !== 'active' && org.subscriptionStatus !== null) {
+        issues.push(`subscriptionStatus is "${org.subscriptionStatus}" (needs to be "active" or null)`)
+      }
+
+      return {
+        name: org.name,
+        subscriptionTier: org.subscriptionTier,
+        billingCycle: org.billingCycle,
+        subscriptionStatus: org.subscriptionStatus,
+        subscriptionRenewsAt: org.subscriptionRenewsAt,
+        pricing: {
+          monthlyFee: Number(org.monthlyFee),
+          monthlyPrice: Number(org.monthlyPrice) || null,
+          annualPrice: Number(org.annualPrice) || null,
+        },
+        hasPricing,
+        eligible: issues.length === 0,
+        issues,
+      }
+    })
+
+    const eligibleCount = orgAnalysis.filter((o) => o.eligible).length
     const pendingInvoicesCount = await prisma.invoice.count({
       where: {
         status: 'pending',
@@ -454,13 +487,15 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       status: 'ready',
-      orgsDueForRenewal: orgsDueCount,
+      totalActiveOrgs: allActiveOrgs.length,
+      eligibleForInvoicing: eligibleCount,
       pendingSubscriptionInvoices: pendingInvoicesCount,
-      message: `${orgsDueCount} organizations are due for renewal in the next 7 days`,
+      organizations: orgAnalysis,
     })
   } catch (error) {
+    console.error('Diagnostic error:', error)
     return NextResponse.json(
-      { error: 'Failed to get status' },
+      { error: 'Failed to get status', details: error instanceof Error ? error.message : 'Unknown' },
       { status: 500 }
     )
   }
