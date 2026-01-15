@@ -27,6 +27,8 @@ import {
   Copy,
   Mail,
   ExternalLink,
+  CalendarClock,
+  Loader2,
 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -263,6 +265,16 @@ export default function BillingDashboard() {
   const [showProcessPaymentModal, setShowProcessPaymentModal] = useState(false)
   const [showAddNoteModal, setShowAddNoteModal] = useState(false)
   const [showCreateInvoiceModal, setShowCreateInvoiceModal] = useState(false)
+  const [showGenerateInvoicesModal, setShowGenerateInvoicesModal] = useState(false)
+  const [generateInvoicesLoading, setGenerateInvoicesLoading] = useState(false)
+  const [generateInvoicesResult, setGenerateInvoicesResult] = useState<{
+    success: boolean
+    dryRun: boolean
+    summary: { processed: number; invoicesCreated: number; emailsSent: number; skipped: number; errors: number }
+    details: Array<{ orgName: string; status: string; reason?: string; invoiceNumber?: number; amount?: number }>
+    errors: string[]
+  } | null>(null)
+  const [generateInvoicesDryRun, setGenerateInvoicesDryRun] = useState(true)
 
   // Form states
   const [markPaidForm, setMarkPaidForm] = useState({
@@ -586,6 +598,38 @@ export default function BillingDashboard() {
     }
   }
 
+  const handleGenerateInvoices = async (dryRun: boolean) => {
+    setGenerateInvoicesLoading(true)
+    setGenerateInvoicesResult(null)
+
+    try {
+      const token = await getToken()
+      const res = await fetch('/api/cron/generate-invoices', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ dryRun, daysAhead: 30 }),
+      })
+
+      if (!res.ok) throw new Error('Failed to generate invoices')
+
+      const data = await res.json()
+      setGenerateInvoicesResult(data)
+
+      if (!dryRun && data.summary.invoicesCreated > 0) {
+        fetchInvoices()
+        fetchOverview()
+      }
+    } catch (err) {
+      console.error('Error generating invoices:', err)
+      alert('Failed to generate invoices')
+    } finally {
+      setGenerateInvoicesLoading(false)
+    }
+  }
+
   const exportPaymentsCSV = () => {
     const headers = ['Date', 'Organization', 'Type', 'Method', 'Amount', 'Status', 'Notes']
     const rows = payments.map((p) => [
@@ -694,19 +738,32 @@ export default function BillingDashboard() {
           <h1 className="text-2xl font-bold text-gray-900">Billing Management</h1>
           <p className="text-gray-600 mt-1">Manage payments, subscriptions, and invoices</p>
         </div>
-        <button
-          onClick={() => {
-            fetchOverview()
-            fetchSubscriptions()
-            fetchInvoices()
-            fetchPayments()
-            fetchBillingNotes()
-          }}
-          className="inline-flex items-center gap-2 px-4 py-2 text-purple-600 border border-purple-600 rounded-lg hover:bg-purple-50"
-        >
-          <RefreshCcw className="h-4 w-4" />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              setGenerateInvoicesResult(null)
+              setGenerateInvoicesDryRun(true)
+              setShowGenerateInvoicesModal(true)
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+          >
+            <CalendarClock className="h-4 w-4" />
+            Generate Invoices
+          </button>
+          <button
+            onClick={() => {
+              fetchOverview()
+              fetchSubscriptions()
+              fetchInvoices()
+              fetchPayments()
+              fetchBillingNotes()
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 text-purple-600 border border-purple-600 rounded-lg hover:bg-purple-50"
+          >
+            <RefreshCcw className="h-4 w-4" />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -2173,6 +2230,160 @@ export default function BillingDashboard() {
             >
               Create Invoice
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Generate Invoices Modal */}
+      <Dialog open={showGenerateInvoicesModal} onOpenChange={setShowGenerateInvoicesModal}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarClock className="h-5 w-5" />
+              Generate Subscription Invoices
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <p className="text-gray-600">
+              This will automatically generate invoices for all organizations with subscriptions
+              due for renewal in the next 30 days. Each invoice will use the organization&apos;s
+              specific pricing (monthly or annual).
+            </p>
+
+            {!generateInvoicesResult && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-medium text-blue-900 mb-2">How it works:</h4>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• Finds orgs with <code className="bg-blue-100 px-1 rounded">subscriptionRenewsAt</code> within 30 days</li>
+                  <li>• Uses each org&apos;s specific <code className="bg-blue-100 px-1 rounded">monthlyFee</code> or <code className="bg-blue-100 px-1 rounded">annualPrice</code></li>
+                  <li>• Skips orgs that already have a pending invoice</li>
+                  <li>• Creates invoice and sends email with payment link</li>
+                  <li>• Updates <code className="bg-blue-100 px-1 rounded">subscriptionRenewsAt</code> for next cycle</li>
+                </ul>
+              </div>
+            )}
+
+            {generateInvoicesResult && (
+              <div className="space-y-4">
+                <div className={`rounded-lg p-4 ${generateInvoicesResult.dryRun ? 'bg-yellow-50 border border-yellow-200' : 'bg-green-50 border border-green-200'}`}>
+                  <h4 className={`font-medium mb-2 ${generateInvoicesResult.dryRun ? 'text-yellow-900' : 'text-green-900'}`}>
+                    {generateInvoicesResult.dryRun ? '🧪 Dry Run Results (No invoices created)' : '✅ Invoices Generated Successfully'}
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3">
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-gray-900">{generateInvoicesResult.summary.processed}</p>
+                      <p className="text-xs text-gray-600">Processed</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-green-600">{generateInvoicesResult.summary.invoicesCreated}</p>
+                      <p className="text-xs text-gray-600">Created</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-blue-600">{generateInvoicesResult.summary.emailsSent}</p>
+                      <p className="text-xs text-gray-600">Emails Sent</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-gray-500">{generateInvoicesResult.summary.skipped}</p>
+                      <p className="text-xs text-gray-600">Skipped</p>
+                    </div>
+                  </div>
+                </div>
+
+                {generateInvoicesResult.details.length > 0 && (
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-2 text-left font-medium text-gray-700">Organization</th>
+                          <th className="px-4 py-2 text-left font-medium text-gray-700">Status</th>
+                          <th className="px-4 py-2 text-right font-medium text-gray-700">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {generateInvoicesResult.details.map((detail, idx) => (
+                          <tr key={idx} className={detail.status === 'error' ? 'bg-red-50' : ''}>
+                            <td className="px-4 py-2 text-gray-900">{detail.orgName}</td>
+                            <td className="px-4 py-2">
+                              {detail.status === 'created' && (
+                                <Badge className="bg-green-100 text-green-800">
+                                  {generateInvoicesResult.dryRun ? 'Would Create' : `#${detail.invoiceNumber}`}
+                                </Badge>
+                              )}
+                              {detail.status === 'skipped' && (
+                                <span className="text-gray-500 text-xs">{detail.reason}</span>
+                              )}
+                              {detail.status === 'error' && (
+                                <Badge className="bg-red-100 text-red-800">Error</Badge>
+                              )}
+                            </td>
+                            <td className="px-4 py-2 text-right font-mono">
+                              {detail.amount ? `$${detail.amount.toFixed(2)}` : '-'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {generateInvoicesResult.errors.length > 0 && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <h4 className="font-medium text-red-900 mb-2">Errors:</h4>
+                    <ul className="text-sm text-red-800 space-y-1">
+                      {generateInvoicesResult.errors.map((error, idx) => (
+                        <li key={idx}>• {error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setShowGenerateInvoicesModal(false)}>
+              Close
+            </Button>
+            {!generateInvoicesResult ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => handleGenerateInvoices(true)}
+                  disabled={generateInvoicesLoading}
+                  className="border-yellow-500 text-yellow-700 hover:bg-yellow-50"
+                >
+                  {generateInvoicesLoading ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Running...</>
+                  ) : (
+                    '🧪 Preview (Dry Run)'
+                  )}
+                </Button>
+                <Button
+                  onClick={() => handleGenerateInvoices(false)}
+                  disabled={generateInvoicesLoading}
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  {generateInvoicesLoading ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Generating...</>
+                  ) : (
+                    '📧 Generate & Send Invoices'
+                  )}
+                </Button>
+              </>
+            ) : generateInvoicesResult.dryRun ? (
+              <Button
+                onClick={() => handleGenerateInvoices(false)}
+                disabled={generateInvoicesLoading}
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                {generateInvoicesLoading ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Generating...</>
+                ) : (
+                  '📧 Confirm & Generate Invoices'
+                )}
+              </Button>
+            ) : null}
           </DialogFooter>
         </DialogContent>
       </Dialog>

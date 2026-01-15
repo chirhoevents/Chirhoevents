@@ -182,7 +182,7 @@ export async function GET(request: NextRequest) {
     const totalMonthlyRevenue =
       subscriptionRevenue + setupFeeRevenue + platformFeeRevenue + overageCharges
 
-    // Recent activity - last 5 payments
+    // Recent activity - last 5 payments (from Payment table)
     const recentPayments = await prisma.payment.findMany({
       where: {
         paymentStatus: 'succeeded',
@@ -193,6 +193,27 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { createdAt: 'desc' },
+      take: 5,
+    })
+
+    // Also get recently paid platform invoices (these don't create Payment records)
+    const recentPaidInvoices = await prisma.invoice.findMany({
+      where: {
+        status: 'paid',
+        paidAt: { not: null },
+      },
+      select: {
+        id: true,
+        invoiceNumber: true,
+        amount: true,
+        invoiceType: true,
+        paymentMethod: true,
+        paidAt: true,
+        organization: {
+          select: { name: true },
+        },
+      },
+      orderBy: { paidAt: 'desc' },
       take: 5,
     })
 
@@ -232,7 +253,32 @@ export async function GET(request: NextRequest) {
     // Type definitions for map operations
     type RecentPaymentType = typeof recentPayments[number]
     type RecentInvoiceType = typeof recentInvoices[number]
+    type RecentPaidInvoiceType = typeof recentPaidInvoices[number]
     type SubscriptionChangeType = typeof recentSubscriptionChanges[number]
+
+    // Combine Payment records and paid Invoice records into a single list
+    const paymentRecords = recentPayments.map((p: RecentPaymentType) => ({
+      id: p.id,
+      amount: Number(p.amount),
+      type: p.paymentType,
+      method: p.paymentMethod,
+      organizationName: p.organization?.name || 'Unknown',
+      date: p.createdAt,
+    }))
+
+    const invoicePaymentRecords = recentPaidInvoices.map((inv: RecentPaidInvoiceType) => ({
+      id: inv.id,
+      amount: Number(inv.amount),
+      type: `Invoice #${inv.invoiceNumber}`,
+      method: inv.paymentMethod || 'credit_card',
+      organizationName: inv.organization?.name || 'Unknown',
+      date: inv.paidAt!,
+    }))
+
+    // Merge and sort by date, take top 5
+    const allRecentPayments = [...paymentRecords, ...invoicePaymentRecords]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 5)
 
     return NextResponse.json({
       mrr: {
@@ -261,14 +307,7 @@ export async function GET(request: NextRequest) {
         total: totalMonthlyRevenue,
       },
       recentActivity: {
-        payments: recentPayments.map((p: RecentPaymentType) => ({
-          id: p.id,
-          amount: Number(p.amount),
-          type: p.paymentType,
-          method: p.paymentMethod,
-          organizationName: p.organization?.name || 'Unknown',
-          date: p.createdAt,
-        })),
+        payments: allRecentPayments,
         invoices: recentInvoices.map((inv: RecentInvoiceType) => ({
           id: inv.id,
           invoiceNumber: inv.invoiceNumber,
