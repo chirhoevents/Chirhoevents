@@ -115,6 +115,7 @@ export async function GET(request: NextRequest) {
     type PaidInvoiceType = typeof paidInvoices[number]
 
     // Convert paid invoices to payment-like records
+    // Note: paidAt is guaranteed to be non-null due to the where clause filter
     const invoicePayments = paidInvoices.map((inv: PaidInvoiceType) => ({
       id: inv.id,
       amount: Number(inv.amount),
@@ -130,8 +131,8 @@ export async function GET(request: NextRequest) {
       platformFeeAmount: null,
       notes: `Platform invoice payment - ${inv.invoiceType}`,
       processedVia: 'stripe',
-      processedAt: inv.paidAt,
-      createdAt: inv.paidAt,
+      processedAt: inv.paidAt!,
+      createdAt: inv.paidAt!,
       organizationId: inv.organization?.id || '',
       organizationName: inv.organization?.name || 'Unknown',
       processedByName: null,
