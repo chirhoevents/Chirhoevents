@@ -168,7 +168,6 @@ export async function GET(request: NextRequest) {
         id: true,
         name: true,
         contactEmail: true,
-        billingEmail: true,
         billingAddress: true,
         subscriptionTier: true,
         annualPrice: true,
@@ -203,7 +202,7 @@ export async function GET(request: NextRequest) {
 
       if (!shouldSendReminder) continue
 
-      const email = org.billingEmail || org.contactEmail
+      const email = org.contactEmail
       const tierName = getTierName(org.subscriptionTier)
       const annualAmount = org.annualPrice || 0
 
