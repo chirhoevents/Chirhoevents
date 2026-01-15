@@ -32,6 +32,7 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronUp,
+  HardDrive,
 } from 'lucide-react'
 
 interface Organization {
@@ -467,6 +468,38 @@ export default function OrganizationDetailPage() {
       console.error('Failed to toggle event registration status:', error)
     } finally {
       setUpdatingEventStatus(null)
+    }
+  }
+
+  const handleRecalculateStorage = async () => {
+    if (!confirm('Recalculate storage usage for this organization? This will aggregate all file sizes.')) return
+
+    setActionLoading('recalculate-storage')
+    try {
+      const token = await getToken()
+      const response = await fetch('/api/admin/storage/recalculate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ organizationId: params.orgId }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to recalculate storage')
+      }
+
+      // Update local state with new storage value
+      setOrganization(prev => prev ? { ...prev, storageUsedGb: data.totalGb } : null)
+      alert(`Storage recalculated: ${data.totalGb.toFixed(2)} GB used`)
+    } catch (error: unknown) {
+      console.error('Failed to recalculate storage:', error)
+      alert(error instanceof Error ? error.message : 'Failed to recalculate storage')
+    } finally {
+      setActionLoading(null)
     }
   }
 
@@ -1132,6 +1165,18 @@ export default function OrganizationDetailPage() {
               >
                 <FileText className="h-4 w-4 text-gray-400" />
                 Create Invoice
+              </button>
+              <button
+                onClick={handleRecalculateStorage}
+                disabled={actionLoading === 'recalculate-storage'}
+                className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {actionLoading === 'recalculate-storage' ? (
+                  <Loader2 className="h-4 w-4 text-gray-400 animate-spin" />
+                ) : (
+                  <HardDrive className="h-4 w-4 text-gray-400" />
+                )}
+                Recalculate Storage
               </button>
               <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
                 <BarChart3 className="h-4 w-4 text-gray-400" />
