@@ -479,6 +479,76 @@ export default function FeaturesPage() {
                     </ul>
                   </CardContent>
                 </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Waitlist & Queue</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-2 text-gray-600">
+                      <li>• Automatic waitlist when full</li>
+                      <li>• Queue position tracking</li>
+                      <li>• 48-hour invitation links</li>
+                      <li>• Conversion analytics</li>
+                    </ul>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Vendor Management</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-2 text-gray-600">
+                      <li>• Vendor booth applications</li>
+                      <li>• Approval workflow</li>
+                      <li>• Vendor portal & invoicing</li>
+                      <li>• Booth staff registration</li>
+                    </ul>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Virtual Terminal</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-2 text-gray-600">
+                      <li>• Phone payment processing</li>
+                      <li>• Partial payments</li>
+                      <li>• Manual card entry</li>
+                      <li>• Automatic receipts</li>
+                    </ul>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Staff & Volunteers</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-2 text-gray-600">
+                      <li>• Separate registration path</li>
+                      <li>• Volunteer sign-ups</li>
+                      <li>• Staff role assignment</li>
+                      <li>• Badge & schedule exports</li>
+                    </ul>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Landing Page Builder</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-2 text-gray-600">
+                      <li>• Custom colors & branding</li>
+                      <li>• Background image upload</li>
+                      <li>• Toggle content sections</li>
+                      <li>• Countdown timers</li>
+                    </ul>
+                  </CardContent>
+                </Card>
               </div>
             </div>
           </div>

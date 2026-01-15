@@ -24,13 +24,27 @@ const docSections = [
     icon: Users,
     items: [
       { id: "create-event", title: "Creating Your First Event" },
+      { id: "event-visibility", title: "Event Visibility & Registration Status" },
+      { id: "access-codes", title: "Managing Access Codes" },
+      { id: "waitlist-queue", title: "Waitlist & Queue System" },
+      { id: "capacity-management", title: "Managing Capacity" },
       { id: "pricing-setup", title: "Setting Up Pricing & Registration" },
+      { id: "housing-daypass", title: "Housing & Day Pass Options" },
+      { id: "coupon-codes", title: "Coupon & Discount Codes" },
       { id: "manage-registrations", title: "Managing Registrations & Payments" },
+      { id: "email-participants", title: "Emailing Participants" },
+      { id: "virtual-terminal", title: "Virtual Terminal (Phone Payments)" },
+      { id: "staff-volunteer", title: "Staff & Volunteer Registration" },
+      { id: "liability-individual", title: "Liability Forms for Individuals" },
+      { id: "landing-page", title: "Customizing Your Landing Page" },
       { id: "poros-portal", title: "Using Poros Portal for Housing" },
+      { id: "poros-public", title: "Public Poros Portal" },
       { id: "salve-checkin", title: "Using SALVE for Check-In" },
       { id: "rapha-medical", title: "Using Rapha for Medical Info" },
       { id: "reports", title: "Generating Reports" },
+      { id: "custom-reports", title: "Custom Report Builder" },
       { id: "team", title: "Managing Your Team" },
+      { id: "notifications", title: "Notifications & Email Digest" },
     ]
   },
   {
@@ -55,6 +69,17 @@ const docSections = [
       { id: "payment-options", title: "Payment Options" },
       { id: "completing-forms", title: "Completing Liability Forms" },
       { id: "event-checkin", title: "What to Expect at Check-In" },
+    ]
+  },
+  {
+    id: "vendors",
+    title: "For Vendors",
+    icon: Home,
+    items: [
+      { id: "vendor-registration", title: "Vendor Booth Registration" },
+      { id: "vendor-portal", title: "Using the Vendor Portal" },
+      { id: "vendor-staff", title: "Managing Booth Staff" },
+      { id: "vendor-future", title: "Upcoming Features" },
     ]
   },
 ]
@@ -1635,6 +1660,1107 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           <p className="text-sm">
             <strong>💡 Pro Tip:</strong> Take a photo of your housing assignment and the campus map.
             It&apos;s much easier than digging through your packet every time!
+          </p>
+        </div>
+      </div>
+    )
+  },
+
+  // ===== ORG ADMIN DOCUMENTATION =====
+
+  "event-visibility": {
+    title: "Event Visibility & Registration Status",
+    content: (
+      <div className="space-y-4">
+        <p>
+          Control how your event appears to the public and manage registration availability using
+          the visibility and status toggles in your event settings.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Event Visibility Toggle</h3>
+        <p>Found in <strong>Settings &gt; Event Settings</strong>, this controls whether your event is visible:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Visible (Public):</strong> Event appears on your landing page and can be found by anyone with the link</li>
+          <li><strong>Hidden (Draft):</strong> Event is only visible to organization admins in the dashboard</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Registration Status Toggle</h3>
+        <p>This controls whether people can actively register:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Open:</strong> Registration buttons are active and people can sign up</li>
+          <li><strong>Closed:</strong> Event is visible but registration is disabled (shows &quot;Registration Closed&quot;)</li>
+          <li><strong>Coming Soon:</strong> Event is visible with a countdown to when registration opens</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">How It Appears on the Landing Page</h3>
+        <p>Based on your settings, visitors will see:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Registration Open:</strong> &quot;Register Now&quot; button is clickable</li>
+          <li><strong>Registration Closed:</strong> Button shows &quot;Registration Closed&quot; and is disabled</li>
+          <li><strong>Coming Soon:</strong> Countdown timer displays time until registration opens</li>
+          <li><strong>Event Full + Waitlist:</strong> &quot;Join Waitlist&quot; button appears instead</li>
+        </ul>
+
+        <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mt-4">
+          <p className="text-sm">
+            <strong>Tip:</strong> You can set registration to open and close automatically by configuring
+            the registration start and end dates in your event settings.
+          </p>
+        </div>
+      </div>
+    )
+  },
+
+  "access-codes": {
+    title: "Managing Access Codes",
+    content: (
+      <div className="space-y-4">
+        <p>
+          Access codes provide unique identifiers for groups to access their registration portal
+          and manage their participants. Each group receives a unique code when they register.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">How Access Codes Work</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Generated automatically when a group registers</li>
+          <li>Sent to the group leader via email confirmation</li>
+          <li>Used to access the Group Leader Portal</li>
+          <li>Required for participants to complete liability forms</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Managing Access Codes</h3>
+        <p>As an admin, you can manage access codes from the <strong>Registrations</strong> tab:</p>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Navigate to your event&apos;s <strong>Registrations</strong> section</li>
+          <li>Find the group in the list</li>
+          <li>Click on the group to view details</li>
+          <li>The access code is displayed in the group information</li>
+          <li>Use &quot;Resend Code&quot; to email the code to the group leader again</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Access Code Security</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Codes are unique to each registration</li>
+          <li>Cannot be reused across different events</li>
+          <li>Group leaders should keep codes confidential</li>
+          <li>Admins can regenerate codes if compromised</li>
+        </ul>
+
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mt-4">
+          <p className="text-sm">
+            <strong>Note:</strong> Individual registrations also receive confirmation codes that work
+            similarly for accessing their personal portal.
+          </p>
+        </div>
+      </div>
+    )
+  },
+
+  "waitlist-queue": {
+    title: "Waitlist & Queue System",
+    content: (
+      <div className="space-y-4">
+        <p>
+          The waitlist system allows interested participants to join a queue when your event reaches
+          capacity. When spots open up, you can invite people from the waitlist to complete their registration.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Enabling the Waitlist</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Go to your event&apos;s <strong>Edit</strong> page</li>
+          <li>Navigate to <strong>Step 6: Landing Page</strong></li>
+          <li>Find the <strong>Waitlist Settings</strong> section</li>
+          <li>Toggle <strong>Enable Waitlist</strong> on</li>
+          <li>Optionally set a maximum waitlist capacity (leave blank for unlimited)</li>
+          <li>Save your changes</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">How the Queue Works</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>When event is full, visitors see a &quot;Join Waitlist&quot; button instead of &quot;Register&quot;</li>
+          <li>People provide: name, email, phone, party size, and any preferences</li>
+          <li>They receive a confirmation email with their position in the queue</li>
+          <li>Queue position is first-come, first-served based on join time</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Managing the Waitlist (Admin)</h3>
+        <p>Access waitlist management from <strong>Event Dashboard &gt; Waitlist</strong>:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>View Queue:</strong> See all entries sorted by position with contact info and preferences</li>
+          <li><strong>Contact Person:</strong> Send an invitation email to register (48-hour expiration)</li>
+          <li><strong>Update Status:</strong> Mark entries as pending, contacted, registered, or expired</li>
+          <li><strong>Analytics:</strong> View conversion rates, average wait times, and spots filled</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Inviting from Waitlist</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Click <strong>Contact</strong> next to a waitlist entry</li>
+          <li>System generates a secure registration link (valid for 48 hours)</li>
+          <li>Invitation email is sent automatically</li>
+          <li>Entry status changes to &quot;Contacted&quot;</li>
+          <li>When they complete registration, status becomes &quot;Registered&quot;</li>
+          <li>If 48 hours pass without registration, status becomes &quot;Expired&quot;</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Recommendations</h3>
+        <div className="bg-green-50 border-l-4 border-green-400 p-4">
+          <ul className="list-disc list-inside space-y-2 text-sm">
+            <li>Enable waitlist before your event fills up so the button is ready</li>
+            <li>Check waitlist regularly and invite people promptly when spots open</li>
+            <li>Consider party size when inviting (invite people whose party size matches available spots)</li>
+            <li>Expired invitations can be re-sent if the person is still interested</li>
+            <li>Use the analytics to track your conversion rate and optimize timing</li>
+          </ul>
+        </div>
+      </div>
+    )
+  },
+
+  "capacity-management": {
+    title: "Managing Capacity",
+    content: (
+      <div className="space-y-4">
+        <p>
+          Capacity management helps you control how many participants can register for your event,
+          with separate tracking for groups and individuals, housing types, and room configurations.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Setting Event Capacity</h3>
+        <p>Configure capacity in <strong>Event Settings &gt; Registration</strong>:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Total Event Capacity:</strong> Maximum number of participants overall</li>
+          <li><strong>Group Registration Slots:</strong> Maximum number of group registrations allowed</li>
+          <li><strong>Individual Registration Slots:</strong> Maximum individual registrations allowed</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Adding & Dropping Slots</h3>
+
+        <h4 className="text-lg font-medium text-navy mt-4">For Group Registration:</h4>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Go to <strong>Event Dashboard &gt; Registrations &gt; Groups</strong></li>
+          <li>Find the group you want to modify</li>
+          <li>Click to open group details</li>
+          <li>Use <strong>Add Participant</strong> to increase group size</li>
+          <li>Use <strong>Remove Participant</strong> to decrease (refund may be needed)</li>
+          <li>Changes update capacity counters automatically</li>
+        </ol>
+
+        <h4 className="text-lg font-medium text-navy mt-4">For Individual Registration:</h4>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Go to <strong>Event Dashboard &gt; Registrations &gt; Individuals</strong></li>
+          <li>Find the individual registration</li>
+          <li>Use <strong>Cancel Registration</strong> to free up the slot</li>
+          <li>Process any necessary refunds</li>
+          <li>Slot becomes available for new registrations</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Recalculating Capacities</h3>
+        <p>
+          If your capacity numbers seem incorrect (due to cancelled registrations, system issues, etc.),
+          use the <strong>Recalculate Capacities</strong> feature:
+        </p>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Go to <strong>Event Settings &gt; Advanced</strong></li>
+          <li>Find the <strong>Recalculate Capacities</strong> button</li>
+          <li>Click to trigger a full recount of all registrations</li>
+          <li>System recalculates: total participants, housing counts, room type counts</li>
+          <li>Capacity remaining is updated across all categories</li>
+        </ol>
+
+        <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mt-4">
+          <p className="text-sm">
+            <strong>When to Recalculate:</strong> Use this feature if you&apos;ve manually edited registrations
+            in the database, imported data, or notice capacity numbers don&apos;t match your actual registrations.
+          </p>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Capacity by Housing Type</h3>
+        <p>You can also set capacity limits for specific housing types:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>On-Campus Housing:</strong> Limit based on available dorm rooms</li>
+          <li><strong>Off-Campus Housing:</strong> For those staying at nearby hotels</li>
+          <li><strong>Day Pass:</strong> For commuters not requiring overnight accommodation</li>
+        </ul>
+      </div>
+    )
+  },
+
+  "housing-daypass": {
+    title: "Housing & Day Pass Options",
+    content: (
+      <div className="space-y-4">
+        <p>
+          Configure different housing options for your event participants, from on-campus dormitories
+          to day passes for commuters.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Housing Types</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>On-Campus:</strong> Staying in venue dormitories/rooms with room type selection</li>
+          <li><strong>Off-Campus:</strong> Staying at nearby hotels (you arrange or they arrange)</li>
+          <li><strong>Day Pass:</strong> Attending without overnight accommodation</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Setting Up Housing Capacities</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Go to <strong>Event Edit &gt; Step 2: Registration</strong></li>
+          <li>Enable the housing types you want to offer</li>
+          <li>Set capacity for each type (total beds/spots available)</li>
+          <li>Configure pricing for each housing option</li>
+          <li>Save your settings</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Room Types (On-Campus)</h3>
+        <p>For on-campus housing, you can offer different room configurations:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Single:</strong> Private room for one person</li>
+          <li><strong>Double:</strong> Room shared by two people</li>
+          <li><strong>Triple:</strong> Room shared by three people</li>
+          <li><strong>Quad:</strong> Room shared by four people</li>
+        </ul>
+        <p className="mt-2">Each room type can have its own capacity limit and pricing.</p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Day Pass Options</h3>
+        <p>
+          Day passes are now offered as a flexible option for commuters. You can configure:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Full Event Day Pass:</strong> Access to all sessions without housing</li>
+          <li><strong>Single Day Pass:</strong> Access for specific days only</li>
+          <li><strong>Day Pass with Meals:</strong> Include meal plan for day attendees</li>
+          <li><strong>Custom Options:</strong> Create specific day pass tiers with different inclusions</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Configuring Day Pass</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>In event settings, enable <strong>Day Pass</strong> as a housing type</li>
+          <li>Set the base price for day passes</li>
+          <li>Optionally create multiple day pass tiers with different prices</li>
+          <li>Set capacity limits if needed</li>
+          <li>Configure what&apos;s included (meals, materials, etc.)</li>
+        </ol>
+
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mt-4">
+          <p className="text-sm">
+            <strong>Tip:</strong> Day passes are great for local participants, speakers who only attend
+            part of the event, or when your housing is full but you have session capacity.
+          </p>
+        </div>
+      </div>
+    )
+  },
+
+  "coupon-codes": {
+    title: "Coupon & Discount Codes",
+    content: (
+      <div className="space-y-4">
+        <p>
+          Create promotional codes to offer discounts to specific groups, early registrants,
+          or for special circumstances.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Creating Coupon Codes</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Go to <strong>Event Dashboard &gt; Coupons</strong></li>
+          <li>Click <strong>Create New Coupon</strong></li>
+          <li>Enter a unique code (e.g., &quot;EARLYBIRD2025&quot;)</li>
+          <li>Select discount type: percentage or fixed amount</li>
+          <li>Set the discount value</li>
+          <li>Configure usage limits (optional)</li>
+          <li>Set expiration date (optional)</li>
+          <li>Save the coupon</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Discount Types</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Percentage Off:</strong> Reduces total by a percentage (e.g., 10% off)</li>
+          <li><strong>Fixed Amount:</strong> Reduces total by a dollar amount (e.g., $25 off)</li>
+          <li><strong>Per Person:</strong> Applies discount to each participant in a group</li>
+          <li><strong>Per Registration:</strong> Applies once to the total registration</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Coupon Settings</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Usage Limit:</strong> Maximum number of times the code can be used</li>
+          <li><strong>Expiration Date:</strong> Code becomes invalid after this date</li>
+          <li><strong>Minimum Purchase:</strong> Require minimum amount before discount applies</li>
+          <li><strong>Applies To:</strong> Restrict to specific registration types (group, individual, etc.)</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">How Registrants Use Coupons</h3>
+        <p>During registration, participants can:</p>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Enter the coupon code in the &quot;Promo Code&quot; field</li>
+          <li>Click &quot;Apply&quot; to validate the code</li>
+          <li>See the discount reflected in their total</li>
+          <li>Proceed with the discounted payment</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Tracking Coupon Usage</h3>
+        <p>Monitor your coupons from the <strong>Coupons</strong> dashboard:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>View total uses and remaining uses</li>
+          <li>See total discount amount given</li>
+          <li>View which registrations used each code</li>
+          <li>Disable or delete codes as needed</li>
+        </ul>
+      </div>
+    )
+  },
+
+  "email-participants": {
+    title: "Emailing Participants",
+    content: (
+      <div className="space-y-4">
+        <p>
+          Send emails directly to your event participants from within ChiRho Events.
+          This feature allows you to communicate important updates, reminders, and information
+          to groups or individuals.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Sending Emails to Groups</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Go to <strong>Event Dashboard &gt; Registrations</strong></li>
+          <li>Select the <strong>Groups</strong> tab</li>
+          <li>Select one or more groups using the checkboxes</li>
+          <li>Click the <strong>Email Selected</strong> button</li>
+          <li>Compose your message with subject and body</li>
+          <li>Preview and send</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Email Options</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Email Group Leaders:</strong> Send to the primary contact for each group</li>
+          <li><strong>Email All Participants:</strong> Send to everyone in selected groups</li>
+          <li><strong>Email by Status:</strong> Filter by payment status, form completion, etc.</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Bulk Email Features</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Send to all registered participants at once</li>
+          <li>Filter recipients by registration type (group, individual, staff, vendor)</li>
+          <li>Include event details automatically</li>
+          <li>Track delivery status</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Common Use Cases</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Reminder about upcoming payment deadlines</li>
+          <li>Form completion reminders</li>
+          <li>Event schedule or location updates</li>
+          <li>Packing list and what to bring</li>
+          <li>Last-minute changes or announcements</li>
+          <li>Post-event thank you messages</li>
+        </ul>
+
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mt-4">
+          <p className="text-sm">
+            <strong>Note:</strong> Emails are sent from your organization&apos;s configured email address
+            and include automatic unsubscribe links for compliance.
+          </p>
+        </div>
+      </div>
+    )
+  },
+
+  "virtual-terminal": {
+    title: "Virtual Terminal (Phone Payments)",
+    content: (
+      <div className="space-y-4">
+        <p>
+          The Virtual Terminal allows you to process payments over the phone or in person
+          when participants can&apos;t complete online payment themselves.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">When to Use Virtual Terminal</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Participant calls to pay by phone with a credit card</li>
+          <li>Processing payment for someone without internet access</li>
+          <li>Taking payment at a registration table or event</li>
+          <li>Handling special payment situations that require admin assistance</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Accessing Virtual Terminal</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Go to <strong>Event Dashboard &gt; Registrations</strong></li>
+          <li>Find the registration that needs payment</li>
+          <li>Click on the registration to open details</li>
+          <li>Click <strong>Process Payment</strong> or <strong>Virtual Terminal</strong></li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Processing a Payment</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Verify the participant&apos;s identity and registration</li>
+          <li>Confirm the amount to be charged</li>
+          <li>Enter the card details provided by the participant</li>
+          <li>Process the payment through Stripe</li>
+          <li>Provide confirmation number to the participant</li>
+          <li>Receipt is automatically emailed</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Payment Options</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Full Payment:</strong> Pay the entire remaining balance</li>
+          <li><strong>Partial Payment:</strong> Pay a specific amount toward the balance</li>
+          <li><strong>Deposit Only:</strong> Pay just the required deposit</li>
+        </ul>
+
+        <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mt-4">
+          <p className="text-sm">
+            <strong>Security Note:</strong> Never store or write down card numbers. Enter them directly
+            into the secure payment form and confirm the transaction is complete before ending the call.
+          </p>
+        </div>
+      </div>
+    )
+  },
+
+  "staff-volunteer": {
+    title: "Staff & Volunteer Registration",
+    content: (
+      <div className="space-y-4">
+        <p>
+          ChiRho Events provides a separate registration pathway for staff, volunteers, and vendor
+          booth workers. This option appears at the bottom of your event&apos;s registration page.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Enabling Staff/Volunteer Registration</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Go to <strong>Event Edit &gt; Step 2: Registration</strong></li>
+          <li>Find the <strong>Staff & Volunteer Settings</strong> section</li>
+          <li>Toggle <strong>Enable Staff Registration</strong> on</li>
+          <li>Optionally enable <strong>Volunteer Registration</strong></li>
+          <li>Set pricing for staff/volunteer registration (can be $0 for free)</li>
+          <li>Save your settings</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Where It Appears</h3>
+        <p>
+          Once enabled, a link appears at the <strong>bottom of your event registration page</strong>:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>&quot;Are you staff or a volunteer? Register here&quot;</li>
+          <li>&quot;Vendor booth staff? Click here to register&quot;</li>
+        </ul>
+        <p className="mt-2">
+          This keeps the main registration flow clean while providing easy access for staff.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Staff Registration Types</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Event Staff:</strong> Your organization&apos;s team members</li>
+          <li><strong>Volunteers:</strong> People helping at the event</li>
+          <li><strong>Vendor Booth Staff:</strong> Workers for registered vendors (use vendor code)</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Vendor Booth Staff</h3>
+        <p>When vendors are approved, they receive a <strong>Vendor Code</strong>. Their booth workers:</p>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Click the staff registration link</li>
+          <li>Select &quot;Vendor Booth Staff&quot;</li>
+          <li>Enter the vendor code provided by their employer</li>
+          <li>Complete registration with their personal details</li>
+          <li>Are linked to the vendor for tracking purposes</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Staff Registration Fields</h3>
+        <p>Staff registrations collect:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Name and contact information</li>
+          <li>Role/position at event</li>
+          <li>T-shirt size</li>
+          <li>Dietary restrictions</li>
+          <li>Emergency contact</li>
+          <li>Housing needs (if applicable)</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Managing Staff Registrations</h3>
+        <p>View and manage staff from <strong>Event Dashboard &gt; Registrations &gt; Staff</strong>:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>View all staff and volunteer registrations</li>
+          <li>Filter by type (staff, volunteer, vendor booth)</li>
+          <li>Track form completion and payment status</li>
+          <li>Export staff lists for badges and scheduling</li>
+        </ul>
+      </div>
+    )
+  },
+
+  "liability-individual": {
+    title: "Liability Forms for Individuals",
+    content: (
+      <div className="space-y-4">
+        <p>
+          Individual registrations can require liability forms just like group registrations.
+          The form type is automatically determined based on the participant&apos;s age.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Enabling Liability Forms</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Go to <strong>Event Edit &gt; Step 3: Features</strong></li>
+          <li>Find <strong>Liability Forms</strong> section</li>
+          <li>Toggle <strong>Require Forms for Individual Registration</strong> on</li>
+          <li>Save your settings</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">How It Works</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Form type is determined by age at time of event</li>
+          <li><strong>Under 18:</strong> Youth U18 form (requires parent/guardian completion)</li>
+          <li><strong>18 and older:</strong> Adult form (self-completion)</li>
+          <li>Form link is included in registration confirmation email</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Under-18 Flow</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Youth registers and provides parent/guardian email</li>
+          <li>Parent receives email with secure link</li>
+          <li>Link is valid for 7 days</li>
+          <li>Parent completes medical info, emergency contacts, and signature</li>
+          <li>Form is submitted and PDF generated</li>
+          <li>Both youth and parent receive confirmation</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Adult Flow</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Individual registers for the event</li>
+          <li>Receives email with form completion link</li>
+          <li>Completes form directly (no parent needed)</li>
+          <li>Provides medical info, emergency contacts, insurance</li>
+          <li>Signs electronically</li>
+          <li>PDF is generated and stored</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Information Collected</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Medical conditions and medications</li>
+          <li>Allergies (food and medication)</li>
+          <li>Dietary restrictions</li>
+          <li>ADA accommodations needed</li>
+          <li>Two emergency contacts</li>
+          <li>Insurance information (provider, policy number)</li>
+          <li>Electronic signature with consent acknowledgments</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Admin Management</h3>
+        <p>Track individual forms from <strong>Event Dashboard &gt; Poros/Liability &gt; Individuals</strong>:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>View completion status: Not Started, Pending (waiting on parent), Completed</li>
+          <li>Resend form emails</li>
+          <li>Download completed PDFs</li>
+          <li>View medical alerts and emergency contacts</li>
+          <li>Approve or deny forms if review is required</li>
+        </ul>
+      </div>
+    )
+  },
+
+  "landing-page": {
+    title: "Customizing Your Landing Page",
+    content: (
+      <div className="space-y-4">
+        <p>
+          Create a beautiful, branded landing page for your event with customizable colors,
+          images, and content sections.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Accessing Landing Page Settings</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Go to <strong>Event Edit</strong></li>
+          <li>Navigate to <strong>Step 6: Landing Page</strong></li>
+          <li>All customization options are on this page</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Theme Customization</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Background Image:</strong> Upload a hero image (recommended 1920x1080px, max 5MB)</li>
+          <li><strong>Primary Color:</strong> Main color for buttons and headers (default: navy)</li>
+          <li><strong>Secondary Color:</strong> Accent color for highlights (default: gold)</li>
+          <li><strong>Overlay Color:</strong> Color overlay on background image</li>
+          <li><strong>Overlay Opacity:</strong> 0-100% to control image darkness</li>
+        </ul>
+
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 mt-4">
+          <p className="text-sm">
+            <strong>Important:</strong> When uploading a background image, make sure to <strong>save your
+            settings</strong> after the upload completes. The image upload and settings save are separate
+            actions—if you don&apos;t save, your image may not appear!
+          </p>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Content Sections</h3>
+        <p>Toggle these sections on or off and customize their content:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Show Price:</strong> Display pricing information</li>
+          <li><strong>Show Schedule:</strong> Event agenda/schedule</li>
+          <li><strong>Show FAQ:</strong> Frequently asked questions (use Q: and A: format)</li>
+          <li><strong>Show What&apos;s Included:</strong> What participants get</li>
+          <li><strong>Show What to Bring:</strong> Packing list</li>
+          <li><strong>Show Contact Info:</strong> How to reach organizers</li>
+          <li><strong>Show Event Capacity:</strong> Total attendee count</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Countdown Timer</h3>
+        <p>Display countdown timers before registration opens or closes:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Location:</strong> Hero section, sticky top bar, or registration section</li>
+          <li><strong>Before Opening:</strong> Show countdown until registration opens</li>
+          <li><strong>Before Closing:</strong> Show countdown until registration closes</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Availability Display</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Show Spots Remaining:</strong> Display available capacity</li>
+          <li><strong>Threshold:</strong> Only show when spots drop below this number (default: 20)</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Tips for a Great Landing Page</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Use high-quality images that represent your event</li>
+          <li>Keep descriptions concise and scannable</li>
+          <li>Include all essential information (dates, location, what to expect)</li>
+          <li>Test on mobile—most visitors will view on phones</li>
+          <li>Always save after making changes!</li>
+        </ul>
+      </div>
+    )
+  },
+
+  "poros-public": {
+    title: "Public Poros Portal",
+    content: (
+      <div className="space-y-4">
+        <p>
+          The Public Poros Portal allows participants to look up their housing assignments,
+          meal schedules, and other information using their access code or QR code.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">What is the Public Portal?</h3>
+        <p>
+          Poros (Greek: &quot;Gateway&quot;) provides a participant-facing portal where attendees can:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>View their housing/room assignment</li>
+          <li>See their meal schedule and colors</li>
+          <li>Check their small group assignment</li>
+          <li>View seating section</li>
+          <li>Access event schedule and information</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">How It Works</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Participants receive their access code via registration email</li>
+          <li>They visit the public portal URL for your event</li>
+          <li>Enter their access code or scan their QR code</li>
+          <li>View their personalized event information</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Portal URL Structure</h3>
+        <p>The public portal is accessible at:</p>
+        <code className="block bg-gray-100 p-2 rounded mt-2">
+          yoursite.com/poros/[access-code]
+        </code>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Enabling Features</h3>
+        <p>Control what appears in the public portal from <strong>Event Settings &gt; Poros Features</strong>:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Housing assignments</li>
+          <li>Meal schedules</li>
+          <li>Small group assignments</li>
+          <li>Seating sections</li>
+          <li>Custom event information</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">QR Code Posters</h3>
+        <p>
+          Generate QR code posters for your event that participants can scan to quickly access
+          their information:
+        </p>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Go to <strong>Event Dashboard &gt; Poros</strong></li>
+          <li>Click <strong>Generate QR Poster</strong></li>
+          <li>Download and print for posting around your venue</li>
+        </ol>
+
+        <div className="bg-green-50 border-l-4 border-green-400 p-4 mt-4">
+          <p className="text-sm">
+            <strong>Tip:</strong> Post QR codes at check-in, in common areas, and dining halls so
+            participants can quickly look up their assignments without asking staff.
+          </p>
+        </div>
+      </div>
+    )
+  },
+
+  "custom-reports": {
+    title: "Custom Report Builder",
+    content: (
+      <div className="space-y-4">
+        <p>
+          The custom report builder allows you to create tailored reports with exactly the data
+          you need, selecting specific fields and filters.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Accessing Custom Reports</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Go to <strong>Event Dashboard &gt; Reports</strong></li>
+          <li>Click <strong>Custom Report</strong> or <strong>Create New Report</strong></li>
+          <li>Configure your report settings</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Building a Custom Report</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Select Data Type:</strong> Groups, Individuals, Staff, Vendors, etc.</li>
+          <li><strong>Choose Fields:</strong> Select which columns to include</li>
+          <li><strong>Apply Filters:</strong> Narrow down by status, date, housing type, etc.</li>
+          <li><strong>Set Sort Order:</strong> Organize results by any field</li>
+          <li><strong>Preview:</strong> See a sample of your report</li>
+          <li><strong>Export:</strong> Download as CSV or PDF</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Available Fields</h3>
+        <p>Common fields you can include:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Registration:</strong> Name, email, phone, registration date, type</li>
+          <li><strong>Financial:</strong> Amount due, amount paid, balance, payment status</li>
+          <li><strong>Housing:</strong> Housing type, room assignment, building</li>
+          <li><strong>Forms:</strong> Liability form status, completion date</li>
+          <li><strong>Medical:</strong> Dietary restrictions, allergies, medications</li>
+          <li><strong>Check-in:</strong> Check-in status, check-in time</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Filter Options</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Registration date range</li>
+          <li>Payment status (paid, partial, unpaid)</li>
+          <li>Form completion status</li>
+          <li>Housing type</li>
+          <li>Registration type (group, individual, staff)</li>
+          <li>Check-in status</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Saving Report Templates</h3>
+        <p>Save your custom report configuration to reuse later:</p>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Build your report with desired fields and filters</li>
+          <li>Click <strong>Save Template</strong></li>
+          <li>Give it a descriptive name</li>
+          <li>Access saved templates from the Reports dropdown</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Export Formats</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>CSV:</strong> Open in Excel, Google Sheets for further analysis</li>
+          <li><strong>PDF:</strong> Formatted document for printing or sharing</li>
+        </ul>
+      </div>
+    )
+  },
+
+  "notifications": {
+    title: "Notifications & Email Digest",
+    content: (
+      <div className="space-y-4">
+        <p>
+          Stay informed about your event activity with automated notifications and
+          configurable email digests.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Notification Types</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>New Registration:</strong> When someone registers for your event</li>
+          <li><strong>Payment Received:</strong> When a payment is processed</li>
+          <li><strong>Form Completed:</strong> When a liability form is submitted</li>
+          <li><strong>Waitlist Join:</strong> When someone joins the waitlist</li>
+          <li><strong>Capacity Alerts:</strong> When event approaches capacity</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Enabling Email Digest</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Go to <strong>Organization Settings &gt; Notifications</strong></li>
+          <li>Find the <strong>Email Digest</strong> section</li>
+          <li>Toggle <strong>Enable Email Digest</strong> on</li>
+          <li>Select frequency: Daily or Weekly</li>
+          <li>Choose which events to include</li>
+          <li>Save your preferences</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Email Digest Contents</h3>
+        <p>Your digest email includes:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Summary of new registrations since last digest</li>
+          <li>Total payments received</li>
+          <li>Outstanding balances</li>
+          <li>Form completion progress</li>
+          <li>Capacity status for each event</li>
+          <li>Waitlist activity</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Configuring Notifications</h3>
+        <p>Choose which notifications you want to receive:</p>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Go to <strong>Organization Settings &gt; Notifications</strong></li>
+          <li>Toggle individual notification types on/off</li>
+          <li>Set thresholds for capacity alerts</li>
+          <li>Choose delivery method (email, in-app, or both)</li>
+          <li>Save your settings</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Team Notifications</h3>
+        <p>Different team members can have different notification preferences:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Each team member configures their own preferences</li>
+          <li>Admins can set organization-wide defaults</li>
+          <li>Event-specific notifications can be customized per event</li>
+        </ul>
+
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mt-4">
+          <p className="text-sm">
+            <strong>Tip:</strong> Daily digests are great during busy registration periods,
+            while weekly digests work well for events further out.
+          </p>
+        </div>
+      </div>
+    )
+  },
+
+  // ===== VENDOR DOCUMENTATION =====
+
+  "vendor-registration": {
+    title: "Vendor Booth Registration",
+    content: (
+      <div className="space-y-4">
+        <p>
+          Vendors can apply to have a booth at events through the vendor registration system.
+          This guide explains the application process and what to expect.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Finding Vendor Registration</h3>
+        <p>
+          Vendor registration is available on event pages where the organizer has enabled it.
+          Look for a link at the bottom of the registration page:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>&quot;Interested in being a vendor? Apply here&quot;</li>
+          <li>&quot;Vendor booth registration&quot;</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Application Process</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Submit Application:</strong> Provide business information and booth preferences</li>
+          <li><strong>Wait for Review:</strong> Event organizers will review your application</li>
+          <li><strong>Receive Decision:</strong> You&apos;ll be notified of approval or rejection</li>
+          <li><strong>Pay Invoice:</strong> If approved, pay the booth fee</li>
+          <li><strong>Access Portal:</strong> Use your vendor code to manage your booth</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Application Requirements</h3>
+        <p>Be prepared to provide:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Business name and contact information</li>
+          <li>Description of products/services</li>
+          <li>Booth size preference (small, medium, large)</li>
+          <li>Special requirements (electricity, table setup, etc.)</li>
+          <li>Contact email and phone number</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Booth Tiers</h3>
+        <p>Events typically offer different booth options:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Small Booth:</strong> Basic space, typically 10x10 feet</li>
+          <li><strong>Medium Booth:</strong> Larger space with extras like electricity</li>
+          <li><strong>Large/Premium Booth:</strong> Premium location with full amenities</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">After Approval</h3>
+        <p>Once approved, you&apos;ll receive:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Approval email with payment instructions</li>
+          <li>Invoice for booth fees</li>
+          <li><strong>Vendor Code</strong> for booth staff registration</li>
+          <li><strong>Access Code</strong> for the vendor portal</li>
+          <li>Link to register your booth staff</li>
+        </ul>
+      </div>
+    )
+  },
+
+  "vendor-portal": {
+    title: "Using the Vendor Portal",
+    content: (
+      <div className="space-y-4">
+        <p>
+          The Vendor Portal is your hub for managing your booth, staff, payments,
+          and business information.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Accessing the Portal</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Go to the vendor portal link provided in your approval email</li>
+          <li>Enter your <strong>Access Code</strong></li>
+          <li>Confirm your business name</li>
+          <li>Access your dashboard</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Portal Features</h3>
+
+        <h4 className="text-lg font-medium text-navy mt-4">Business Information</h4>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>View your submitted application details</li>
+          <li>See your selected booth tier and description</li>
+          <li>Check your application status</li>
+        </ul>
+
+        <h4 className="text-lg font-medium text-navy mt-4">Vendor Code</h4>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Display your unique vendor code</li>
+          <li>Copy code to share with your booth staff</li>
+          <li>Link to staff registration page</li>
+        </ul>
+
+        <h4 className="text-lg font-medium text-navy mt-4">Booth Staff Management</h4>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>View all registered booth staff</li>
+          <li>See staff details: name, email, role, t-shirt size</li>
+          <li>Track liability form completion</li>
+          <li>Monitor check-in status at event</li>
+        </ul>
+
+        <h4 className="text-lg font-medium text-navy mt-4">Invoice & Payment</h4>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>View itemized invoice</li>
+          <li>See total due, amount paid, and balance</li>
+          <li>Pay online with credit card</li>
+          <li>Download payment receipts</li>
+        </ul>
+
+        <h4 className="text-lg font-medium text-navy mt-4">Logo Upload</h4>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Upload your business logo</li>
+          <li>Accepted formats: JPEG, PNG, GIF, WebP</li>
+          <li>Maximum file size: 5MB</li>
+          <li>Logo may be displayed on event materials</li>
+        </ul>
+
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mt-4">
+          <p className="text-sm">
+            <strong>Tip:</strong> Keep your vendor code confidential and only share it with
+            people you want to register as your booth staff.
+          </p>
+        </div>
+      </div>
+    )
+  },
+
+  "vendor-staff": {
+    title: "Managing Booth Staff",
+    content: (
+      <div className="space-y-4">
+        <p>
+          Register your booth workers so they have access to the event and can help
+          run your vendor booth.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Registering Booth Staff</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Get your <strong>Vendor Code</strong> from the vendor portal</li>
+          <li>Share the staff registration link with your workers</li>
+          <li>Staff visit the link and enter the vendor code</li>
+          <li>They complete the registration form</li>
+          <li>Staff may need to complete a liability form</li>
+          <li>Staff appear in your portal once registered</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Staff Registration Info</h3>
+        <p>Each staff member provides:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Name and contact information</li>
+          <li>Role at your booth</li>
+          <li>T-shirt size</li>
+          <li>Dietary restrictions</li>
+          <li>Emergency contact</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Staff Pricing</h3>
+        <p>
+          Booth staff registration may have a fee set by the event organizer. This covers:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Event access badge</li>
+          <li>Meals (if included)</li>
+          <li>Event materials</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Tracking Your Staff</h3>
+        <p>From your vendor portal, you can see:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>List of all registered booth workers</li>
+          <li>Their contact information</li>
+          <li>Liability form completion status</li>
+          <li>Check-in status at the event</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Staff Liability Forms</h3>
+        <p>If required by the event, staff must complete liability forms:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Form link is sent via email after registration</li>
+          <li>Must be completed before check-in</li>
+          <li>Includes medical and emergency contact information</li>
+        </ul>
+      </div>
+    )
+  },
+
+  "vendor-future": {
+    title: "Upcoming Vendor Features",
+    content: (
+      <div className="space-y-4">
+        <p>
+          We&apos;re continuously improving the vendor experience. Here are some features
+          we&apos;re working on bringing to ChiRho Events.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Lead Scanning (Coming Soon)</h3>
+        <p>
+          Capture leads directly from event attendees who visit your booth:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Scan attendee badges to capture contact information</li>
+          <li>Add notes about conversations and interests</li>
+          <li>Export leads for follow-up marketing</li>
+          <li>Track engagement metrics</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Enhanced Vendor Portal</h3>
+        <p>Future portal improvements:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Real-time booth traffic analytics</li>
+          <li>Attendee messaging capabilities</li>
+          <li>Product/service showcase pages</li>
+          <li>Appointment scheduling with attendees</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Vendor Directory</h3>
+        <p>Public vendor listings for events:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Showcase your business on the event page</li>
+          <li>Display your logo and description</li>
+          <li>Allow attendees to browse vendors before the event</li>
+          <li>Enable pre-event engagement</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Reporting & Analytics</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Detailed reports on booth performance</li>
+          <li>Lead conversion tracking</li>
+          <li>Event ROI calculations</li>
+          <li>Historical comparison across events</li>
+        </ul>
+
+        <div className="bg-gray-50 border-l-4 border-gray-400 p-4 mt-4">
+          <p className="text-sm">
+            Have suggestions for vendor features? Contact the event organizers with your
+            feedback—we&apos;re always looking to improve!
           </p>
         </div>
       </div>
