@@ -77,10 +77,10 @@ function getOnboardingStatus(org: Organization): { label: string; color: string;
 
 const tierLabels: Record<string, string> = {
   starter: 'Starter',
-  small_diocese: 'Small Diocese',
-  growing: 'Growing',
-  conference: 'Conference',
-  enterprise: 'Enterprise',
+  parish: 'Parish',
+  shrine: 'Shrine',
+  cathedral: 'Cathedral',
+  basilica: 'Basilica',
   test: 'Test (Free)',
 }
 
@@ -303,10 +303,10 @@ export default function OrganizationsPage() {
           >
             <option value="all">All Tiers</option>
             <option value="starter">Starter</option>
-            <option value="small_diocese">Small Diocese</option>
-            <option value="growing">Growing</option>
-            <option value="conference">Conference</option>
-            <option value="enterprise">Enterprise</option>
+            <option value="parish">Parish</option>
+            <option value="shrine">Shrine</option>
+            <option value="cathedral">Cathedral</option>
+            <option value="basilica">Basilica</option>
             <option value="test">Test (Free)</option>
           </select>
         </div>

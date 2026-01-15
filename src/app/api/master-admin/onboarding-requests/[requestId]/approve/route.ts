@@ -55,15 +55,15 @@ export async function POST(
 
     // Tier pricing
     const tierPricing: Record<string, { monthly: number; annual: number; eventsLimit: number; registrationsLimit: number; storageLimit: number }> = {
-      starter: { monthly: 49, annual: 490, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
-      small_diocese: { monthly: 99, annual: 990, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
-      growing: { monthly: 149, annual: 1490, eventsLimit: 10, registrationsLimit: 3000, storageLimit: 25 },
-      conference: { monthly: 249, annual: 2490, eventsLimit: 25, registrationsLimit: 8000, storageLimit: 100 },
-      enterprise: { monthly: 499, annual: 4990, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
+      starter: { monthly: 25, annual: 250, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
+      parish: { monthly: 45, annual: 450, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
+      shrine: { monthly: 89, annual: 890, eventsLimit: 10, registrationsLimit: 3000, storageLimit: 25 },
+      cathedral: { monthly: 120, annual: 1200, eventsLimit: 25, registrationsLimit: 8000, storageLimit: 100 },
+      basilica: { monthly: 200, annual: 2000, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
     }
 
-    const requestedTier = onboardingRequest.requestedTier || 'growing'
-    const pricing = tierPricing[requestedTier] || tierPricing.growing
+    const requestedTier = onboardingRequest.requestedTier || 'shrine'
+    const pricing = tierPricing[requestedTier] || tierPricing.shrine
     const billingCycle = onboardingRequest.billingCyclePreference || 'annual'
 
     // Create organization
@@ -75,7 +75,7 @@ export async function POST(
         contactEmail: onboardingRequest.contactEmail,
         contactPhone: onboardingRequest.contactPhone,
         address: onboardingRequest.billingAddress ? { street: onboardingRequest.billingAddress } : undefined,
-        subscriptionTier: requestedTier as 'starter' | 'small_diocese' | 'growing' | 'conference' | 'enterprise',
+        subscriptionTier: requestedTier as 'starter' | 'parish' | 'shrine' | 'cathedral' | 'basilica',
         subscriptionStatus: 'active',
         status: 'active',
         billingCycle: billingCycle as 'monthly' | 'annual',
@@ -150,10 +150,10 @@ export async function POST(
     // Send welcome email
     const tierLabels: Record<string, string> = {
       starter: 'Starter',
-      small_diocese: 'Small Diocese',
-      growing: 'Growing',
-      conference: 'Conference',
-      enterprise: 'Enterprise',
+      parish: 'Parish',
+      shrine: 'Shrine',
+      cathedral: 'Cathedral',
+      basilica: 'Basilica',
     }
 
     const welcomeEmailHtml = `

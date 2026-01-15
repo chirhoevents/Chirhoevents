@@ -96,7 +96,7 @@ export default function LandingPage() {
                   <tr className="bg-gold-50 border-2 border-gold">
                     <td className="py-4 px-6 font-bold text-navy">ChiRho ✅</td>
                     <td className="py-4 px-6">3.9%*</td>
-                    <td className="py-4 px-6">$49-$149</td>
+                    <td className="py-4 px-6">$25-$200</td>
                     <td className="py-4 px-6 font-bold text-gold-700">$3,900 + monthly</td>
                   </tr>
                   <tr className="border-b">
@@ -332,7 +332,7 @@ export default function LandingPage() {
               <CardHeader>
                 <CardTitle className="text-2xl">Starter</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$49</span>
+                  <span className="text-4xl font-bold text-navy">$25</span>
                   <span className="text-gray-600">/mo</span>
                 </div>
               </CardHeader>
@@ -354,12 +354,12 @@ export default function LandingPage() {
               </CardContent>
             </Card>
 
-            {/* Small Diocese */}
+            {/* Parish */}
             <Card className="border-2 border-gray-200">
               <CardHeader>
-                <CardTitle className="text-2xl">Small Diocese</CardTitle>
+                <CardTitle className="text-2xl">Parish</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$99</span>
+                  <span className="text-4xl font-bold text-navy">$45</span>
                   <span className="text-gray-600">/mo</span>
                 </div>
               </CardHeader>
@@ -375,22 +375,23 @@ export default function LandingPage() {
                     <li>• ChiRho platform fee: 1% of registrations</li>
                   </ul>
                 </div>
-                <Link href="/get-started?tier=small_diocese">
+                <Link href="/get-started?tier=parish">
                   <Button className="w-full mt-6">Get Started</Button>
                 </Link>
               </CardContent>
             </Card>
 
-            {/* Growing - Popular */}
+            {/* Shrine - Popular */}
             <Card className="border-2 border-gold shadow-lg scale-105">
               <div className="bg-gold text-navy text-center py-1 text-sm font-semibold">
                 POPULAR
               </div>
               <CardHeader>
-                <CardTitle className="text-2xl">Growing</CardTitle>
+                <CardTitle className="text-2xl">Shrine</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$149</span>
+                  <span className="text-4xl font-bold text-navy">$89</span>
                   <span className="text-gray-600">/mo</span>
+                  <span className="text-sm text-gray-500 block mt-1">or $890/year</span>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -405,19 +406,20 @@ export default function LandingPage() {
                     <li>• ChiRho platform fee: 1% of registrations</li>
                   </ul>
                 </div>
-                <Link href="/get-started?tier=growing">
+                <Link href="/get-started?tier=shrine">
                   <Button className="w-full mt-6">Get Started</Button>
                 </Link>
               </CardContent>
             </Card>
 
-            {/* Conference */}
+            {/* Cathedral */}
             <Card className="border-2 border-gray-200">
               <CardHeader>
-                <CardTitle className="text-2xl">Conference</CardTitle>
+                <CardTitle className="text-2xl">Cathedral</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$249</span>
+                  <span className="text-4xl font-bold text-navy">$120</span>
                   <span className="text-gray-600">/mo</span>
+                  <span className="text-sm text-gray-500 block mt-1">or $1,200/year</span>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -432,24 +434,25 @@ export default function LandingPage() {
                     <li>• ChiRho platform fee: 1% of registrations</li>
                   </ul>
                 </div>
-                <Link href="/get-started?tier=conference">
+                <Link href="/get-started?tier=cathedral">
                   <Button className="w-full mt-6">Get Started</Button>
                 </Link>
               </CardContent>
             </Card>
 
-            {/* Enterprise */}
+            {/* Basilica */}
             <Card className="border-2 border-navy">
               <CardHeader>
-                <CardTitle className="text-2xl">Enterprise</CardTitle>
+                <CardTitle className="text-2xl">Basilica</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$499</span>
+                  <span className="text-4xl font-bold text-navy">$200</span>
                   <span className="text-gray-600">/mo</span>
+                  <span className="text-sm text-gray-500 block mt-1">or $2,000/year</span>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-gray-600">• Unlimited events</p>
-                <p className="text-sm text-gray-600">• Unlimited people</p>
+                <p className="text-sm text-gray-600">• 15,000+ people</p>
                 <p className="text-sm text-gray-600">• 500GB storage</p>
                 <div className="mt-4 text-xs text-gray-600">
                   <p className="font-semibold mb-1">Additional Fees:</p>
@@ -459,7 +462,7 @@ export default function LandingPage() {
                     <li>• ChiRho platform fee: 1% of registrations</li>
                   </ul>
                 </div>
-                <Link href="/get-started?tier=enterprise">
+                <Link href="/get-started?tier=basilica">
                   <Button variant="outline" className="w-full mt-6">Get Started</Button>
                 </Link>
               </CardContent>

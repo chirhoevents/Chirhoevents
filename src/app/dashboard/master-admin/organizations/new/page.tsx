@@ -30,11 +30,11 @@ const organizationTypes = [
 ]
 
 const subscriptionTiers = [
-  { value: 'starter', label: 'Starter', monthly: 49, annual: 490, description: 'Up to 3 events, 500 registrations' },
-  { value: 'small_diocese', label: 'Small Diocese', monthly: 99, annual: 990, description: 'Up to 5 events, 1,000 registrations' },
-  { value: 'growing', label: 'Growing', monthly: 149, annual: 1490, description: 'Up to 10 events, 3,000 registrations', popular: true },
-  { value: 'conference', label: 'Conference', monthly: 249, annual: 2490, description: 'Up to 25 events, 8,000 registrations' },
-  { value: 'enterprise', label: 'Enterprise', monthly: 499, annual: 4990, description: 'Unlimited events and registrations' },
+  { value: 'starter', label: 'Starter', monthly: 25, annual: 250, description: 'Up to 3 events, 500 registrations' },
+  { value: 'parish', label: 'Parish', monthly: 45, annual: 450, description: 'Up to 5 events, 1,000 registrations' },
+  { value: 'shrine', label: 'Shrine', monthly: 89, annual: 890, description: 'Up to 10 events, 3,000 registrations', popular: true },
+  { value: 'cathedral', label: 'Cathedral', monthly: 120, annual: 1200, description: 'Up to 25 events, 8,000 registrations' },
+  { value: 'basilica', label: 'Basilica', monthly: 200, annual: 2000, description: 'Unlimited events, 15,000+ registrations' },
   { value: 'test', label: 'Test/Free Account', monthly: 0, annual: 0, description: 'No billing (for testing only)' },
 ]
 
@@ -55,7 +55,7 @@ export default function CreateOrganizationPage() {
     taxId: '',
     billingAddress: '',
     website: '',
-    subscriptionTier: 'growing',
+    subscriptionTier: 'shrine',
     billingCycle: 'annual',
     paymentMethod: 'credit_card',
     setupFeeWaived: false,

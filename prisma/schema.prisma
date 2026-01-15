@@ -670,10 +670,10 @@ enum OrganizationType {
 
 enum SubscriptionTier {
   starter
-  small_diocese
-  growing
-  conference
-  enterprise
+  parish
+  shrine
+  cathedral
+  basilica
   test
 }
 
