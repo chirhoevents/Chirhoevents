@@ -212,11 +212,18 @@ const formatCurrency = (amount: number) => {
 
 const formatTierName = (tier: string) => {
   const tierMap: Record<string, string> = {
+    // Current tier names
     starter: 'Starter',
-    small_diocese: 'Small Diocese',
-    growing: 'Growing',
-    conference: 'Conference',
-    enterprise: 'Enterprise',
+    parish: 'Parish',
+    cathedral: 'Cathedral',
+    shrine: 'Shrine',
+    basilica: 'Basilica',
+    test: 'Test (Free)',
+    // Legacy tier names (for backward compatibility)
+    small_diocese: 'Parish',
+    growing: 'Cathedral',
+    conference: 'Shrine',
+    enterprise: 'Basilica',
   }
   return tierMap[tier] || tier
 }
@@ -962,9 +969,10 @@ export default function BillingDashboard() {
               >
                 <option value="all">All Tiers</option>
                 <option value="starter">Starter</option>
-                <option value="growing">Growing</option>
-                <option value="conference">Conference</option>
-                <option value="enterprise">Enterprise</option>
+                <option value="parish">Parish</option>
+                <option value="cathedral">Cathedral</option>
+                <option value="shrine">Shrine</option>
+                <option value="basilica">Basilica</option>
               </select>
               <div className="flex-1">
                 <div className="relative">
