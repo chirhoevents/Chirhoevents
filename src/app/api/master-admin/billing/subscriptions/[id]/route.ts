@@ -52,6 +52,9 @@ export async function GET(
         contactName: true,
         contactEmail: true,
         createdAt: true,
+        pauseReason: true,
+        pauseReasonNote: true,
+        pausedAt: true,
       },
     })
 
@@ -156,10 +159,14 @@ export async function PUT(
 
     switch (action) {
       case 'pause':
+        const { pauseReason, pauseReasonNote } = updateData
         updatedOrg = await prisma.organization.update({
           where: { id },
           data: {
             subscriptionStatus: 'suspended',
+            pauseReason: pauseReason || 'other',
+            pauseReasonNote: pauseReasonNote || null,
+            pausedAt: new Date(),
           },
         })
         await prisma.platformActivityLog.create({
@@ -167,7 +174,7 @@ export async function PUT(
             organizationId: id,
             userId: user.id,
             activityType: 'subscription_paused',
-            description: `Subscription paused for ${organization.name}`,
+            description: `Subscription paused for ${organization.name}. Reason: ${pauseReason || 'other'}${pauseReasonNote ? ` - ${pauseReasonNote}` : ''}`,
           },
         })
         break
@@ -177,6 +184,9 @@ export async function PUT(
           where: { id },
           data: {
             subscriptionStatus: 'active',
+            pauseReason: null,
+            pauseReasonNote: null,
+            pausedAt: null,
           },
         })
         await prisma.platformActivityLog.create({

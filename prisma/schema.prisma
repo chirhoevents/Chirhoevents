@@ -70,6 +70,11 @@ model Organization {
   website                 String?  @db.VarChar(255)
   paymentMethodPreference PaymentMethodPreference? @map("payment_method_preference")
 
+  // Subscription pause tracking
+  pauseReason             SubscriptionPauseReason? @map("pause_reason")
+  pauseReasonNote         String?  @map("pause_reason_note") @db.Text
+  pausedAt                DateTime? @map("paused_at") @db.Timestamptz(6)
+
   // Relations
   users                   User[]
   events                  Event[]
@@ -851,6 +856,15 @@ enum SubscriptionStatus {
   archived
   suspended
   trial
+}
+
+enum SubscriptionPauseReason {
+  payment_overdue
+  payment_failed
+  account_review
+  user_requested
+  violation
+  other
 }
 
 enum StripeAccountStatus {

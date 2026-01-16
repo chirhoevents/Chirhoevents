@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { hasPermission, getRoleName, type Permission, type UserRole } from '@/lib/permissions'
 import ImpersonationBanner from '@/components/admin/ImpersonationBanner'
+import SubscriptionPausedBanner from '@/components/admin/SubscriptionPausedBanner'
 import { AdminProvider } from '@/contexts/AdminContext'
 import {
   DropdownMenu,
@@ -49,6 +50,11 @@ interface UserInfo {
   secondaryColor?: string
   isImpersonating?: boolean
   impersonatedOrgId?: string | null
+  // Subscription pause info
+  subscriptionStatus?: string
+  pauseReason?: string | null
+  pauseReasonNote?: string | null
+  pausedAt?: string | null
 }
 
 interface NavItem {
@@ -180,6 +186,10 @@ export default function AdminLayout({
             secondaryColor: retryData.secondaryColor || '#9C8466',
             isImpersonating: retryData.isImpersonating || false,
             impersonatedOrgId: retryData.impersonatedOrgId || null,
+            subscriptionStatus: retryData.subscriptionStatus || 'active',
+            pauseReason: retryData.pauseReason || null,
+            pauseReasonNote: retryData.pauseReasonNote || null,
+            pausedAt: retryData.pausedAt || null,
           })
           setLoading(false)
           return
@@ -205,6 +215,10 @@ export default function AdminLayout({
           secondaryColor: data.secondaryColor || '#9C8466',
           isImpersonating: data.isImpersonating || false,
           impersonatedOrgId: data.impersonatedOrgId || null,
+          subscriptionStatus: data.subscriptionStatus || 'active',
+          pauseReason: data.pauseReason || null,
+          pauseReasonNote: data.pauseReasonNote || null,
+          pausedAt: data.pausedAt || null,
         })
       } catch (error) {
         console.error('💥 [Admin Layout] Error in checkAccess:', error)
@@ -288,6 +302,15 @@ export default function AdminLayout({
         <ImpersonationBanner
           organizationName={userInfo.organizationName}
           organizationId={userInfo.impersonatedOrgId}
+        />
+      )}
+
+      {/* Subscription Paused Banner */}
+      {userInfo?.subscriptionStatus === 'suspended' && userInfo?.pauseReason && (
+        <SubscriptionPausedBanner
+          pauseReason={userInfo.pauseReason}
+          pauseReasonNote={userInfo.pauseReasonNote}
+          pausedAt={userInfo.pausedAt}
         />
       )}
 
