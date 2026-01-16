@@ -1,16 +1,53 @@
 'use client'
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Check, Users, FileText, Home, Clipboard, Heart, BarChart3, Mail, Phone, MapPin } from "lucide-react";
+import { Check, Users, FileText, Home, Clipboard, Heart, BarChart3, Mail, Phone, MapPin, Play, Pause, Volume2, VolumeX } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { PublicNav } from "@/components/PublicNav";
 
 export default function LandingPage() {
   const [contactFormSubmitted, setContactFormSubmitted] = useState(false);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [isVideoMuted, setIsVideoMuted] = useState(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    // Attempt autoplay when component mounts
+    const video = videoRef.current;
+    if (video) {
+      video.play().then(() => {
+        setIsVideoPlaying(true);
+      }).catch(() => {
+        // Autoplay was prevented, user will need to click play
+        setIsVideoPlaying(false);
+      });
+    }
+  }, []);
+
+  const toggleVideoPlay = () => {
+    const video = videoRef.current;
+    if (video) {
+      if (video.paused) {
+        video.play();
+        setIsVideoPlaying(true);
+      } else {
+        video.pause();
+        setIsVideoPlaying(false);
+      }
+    }
+  };
+
+  const toggleVideoMute = () => {
+    const video = videoRef.current;
+    if (video) {
+      video.muted = !video.muted;
+      setIsVideoMuted(video.muted);
+    }
+  };
 
   const handleContactSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,7 +133,7 @@ export default function LandingPage() {
                   <tr className="bg-gold-50 border-2 border-gold">
                     <td className="py-4 px-6 font-bold text-navy">ChiRho ✅</td>
                     <td className="py-4 px-6">3.9%*</td>
-                    <td className="py-4 px-6">$25-$200</td>
+                    <td className="py-4 px-6">$29-$99</td>
                     <td className="py-4 px-6 font-bold text-gold-700">$3,900 + monthly</td>
                   </tr>
                   <tr className="border-b">
@@ -340,6 +377,7 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• 3 events/year</p>
                 <p className="text-sm text-gray-600">• 500 people max</p>
                 <p className="text-sm text-gray-600">• 5GB storage</p>
+                <p className="text-sm text-gray-600">• Basic registration only</p>
                 <div className="mt-4 text-xs text-gray-600">
                   <p className="font-semibold mb-1">Additional Fees:</p>
                   <ul className="space-y-1">
@@ -367,6 +405,7 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• 5 events/year</p>
                 <p className="text-sm text-gray-600">• 1,000 people max</p>
                 <p className="text-sm text-gray-600">• 10GB storage</p>
+                <p className="text-sm text-gray-600">• Basic registration only</p>
                 <div className="mt-4 text-xs text-gray-600">
                   <p className="font-semibold mb-1">Additional Fees:</p>
                   <ul className="space-y-1">
@@ -381,51 +420,24 @@ export default function LandingPage() {
               </CardContent>
             </Card>
 
-            {/* Shrine - Popular */}
+            {/* Cathedral - Popular */}
             <Card className="border-2 border-gold shadow-lg scale-105">
               <div className="bg-gold text-navy text-center py-1 text-sm font-semibold">
                 POPULAR
               </div>
               <CardHeader>
-                <CardTitle className="text-2xl">Shrine</CardTitle>
+                <CardTitle className="text-2xl">Cathedral</CardTitle>
                 <div className="mt-4">
                   <span className="text-4xl font-bold text-navy">$89</span>
                   <span className="text-gray-600">/mo</span>
-                  <span className="text-sm text-gray-500 block mt-1">or $890/year</span>
+                  <p className="text-sm text-gray-500 mt-1">or $900/year</p>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-gray-600">• 10 events/year</p>
                 <p className="text-sm text-gray-600">• 3,000 people max</p>
                 <p className="text-sm text-gray-600">• 25GB storage</p>
-                <div className="mt-4 text-xs text-gray-600">
-                  <p className="font-semibold mb-1">Additional Fees:</p>
-                  <ul className="space-y-1">
-                    <li>• $250 one-time setup fee</li>
-                    <li>• Stripe fees: 2.9% + $0.30 per transaction</li>
-                    <li>• ChiRho platform fee: 1% of registrations</li>
-                  </ul>
-                </div>
-                <Link href="/get-started?tier=shrine">
-                  <Button className="w-full mt-6">Get Started</Button>
-                </Link>
-              </CardContent>
-            </Card>
-
-            {/* Cathedral */}
-            <Card className="border-2 border-gray-200">
-              <CardHeader>
-                <CardTitle className="text-2xl">Cathedral</CardTitle>
-                <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$120</span>
-                  <span className="text-gray-600">/mo</span>
-                  <span className="text-sm text-gray-500 block mt-1">or $1,200/year</span>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-gray-600">• 25 events/year</p>
-                <p className="text-sm text-gray-600">• 8,000 people max</p>
-                <p className="text-sm text-gray-600">• 100GB storage</p>
+                <p className="text-sm font-semibold text-green-700">• Includes POROS, SALVE, RAPHA</p>
                 <div className="mt-4 text-xs text-gray-600">
                   <p className="font-semibold mb-1">Additional Fees:</p>
                   <ul className="space-y-1">
@@ -440,20 +452,21 @@ export default function LandingPage() {
               </CardContent>
             </Card>
 
-            {/* Basilica */}
-            <Card className="border-2 border-navy">
+            {/* Shrine */}
+            <Card className="border-2 border-gray-200">
               <CardHeader>
-                <CardTitle className="text-2xl">Basilica</CardTitle>
+                <CardTitle className="text-2xl">Shrine</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$200</span>
+                  <span className="text-4xl font-bold text-navy">$120</span>
                   <span className="text-gray-600">/mo</span>
-                  <span className="text-sm text-gray-500 block mt-1">or $2,000/year</span>
+                  <p className="text-sm text-gray-500 mt-1">or $1,200/year</p>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <p className="text-sm text-gray-600">• Unlimited events</p>
-                <p className="text-sm text-gray-600">• 15,000+ people</p>
-                <p className="text-sm text-gray-600">• 500GB storage</p>
+                <p className="text-sm text-gray-600">• 25 events/year</p>
+                <p className="text-sm text-gray-600">• 8,000 people max</p>
+                <p className="text-sm text-gray-600">• 100GB storage</p>
+                <p className="text-sm font-semibold text-green-700">• Includes POROS, SALVE, RAPHA</p>
                 <div className="mt-4 text-xs text-gray-600">
                   <p className="font-semibold mb-1">Additional Fees:</p>
                   <ul className="space-y-1">
@@ -462,8 +475,37 @@ export default function LandingPage() {
                     <li>• ChiRho platform fee: 1% of registrations</li>
                   </ul>
                 </div>
+                <Link href="/get-started?tier=shrine">
+                  <Button className="w-full mt-6">Get Started</Button>
+                </Link>
+              </CardContent>
+            </Card>
+
+            {/* Basilica */}
+            <Card className="border-2 border-navy">
+              <CardHeader>
+                <CardTitle className="text-2xl">Basilica</CardTitle>
+                <div className="mt-4">
+                  <span className="text-2xl font-bold text-navy">Custom Pricing</span>
+                  <p className="text-sm text-gray-600 mt-1">Starting at $2,000/year</p>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-gray-600">• Unlimited events</p>
+                <p className="text-sm text-gray-600">• 15,000+ people</p>
+                <p className="text-sm text-gray-600">• 500GB storage</p>
+                <p className="text-sm font-semibold text-green-700">• All features included</p>
+                <p className="text-sm text-gray-600">• Dedicated account manager</p>
+                <div className="mt-4 text-xs text-gray-600">
+                  <p className="font-semibold mb-1">Additional Fees:</p>
+                  <ul className="space-y-1">
+                    <li>• Custom setup fee</li>
+                    <li>• Stripe fees: 2.9% + $0.30 per transaction</li>
+                    <li>• ChiRho platform fee: 1% of registrations</li>
+                  </ul>
+                </div>
                 <Link href="/get-started?tier=basilica">
-                  <Button variant="outline" className="w-full mt-6">Get Started</Button>
+                  <Button variant="outline" className="w-full mt-6">Contact Us</Button>
                 </Link>
               </CardContent>
             </Card>
@@ -578,6 +620,62 @@ export default function LandingPage() {
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
+          </div>
+        </div>
+      </section>
+
+      {/* Section: Video Demo */}
+      <section className="py-16 bg-white">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto text-center mb-8">
+            <h2 className="text-3xl sm:text-4xl font-bold text-navy mb-4">
+              See ChiRho Events in Action
+            </h2>
+            <p className="text-gray-600">
+              Watch a quick overview of how ChiRho Events simplifies event management for your organization.
+            </p>
+          </div>
+          <div className="max-w-4xl mx-auto">
+            <div className="relative rounded-xl overflow-hidden shadow-2xl bg-navy">
+              <video
+                ref={videoRef}
+                className="w-full aspect-video"
+                src="/Videos/features-demo.mp4"
+                muted
+                loop
+                playsInline
+                poster="/og-image.png"
+              />
+              {/* Video Controls Overlay */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                {/* Play/Pause Button - Center */}
+                <button
+                  onClick={toggleVideoPlay}
+                  className={`bg-white/90 hover:bg-white rounded-full p-4 shadow-lg transition-all duration-300 ${
+                    isVideoPlaying ? 'opacity-0 hover:opacity-100' : 'opacity-100'
+                  }`}
+                  aria-label={isVideoPlaying ? 'Pause video' : 'Play video'}
+                >
+                  {isVideoPlaying ? (
+                    <Pause className="h-8 w-8 text-navy" />
+                  ) : (
+                    <Play className="h-8 w-8 text-navy ml-1" />
+                  )}
+                </button>
+              </div>
+              {/* Mute/Unmute Button - Bottom Right */}
+              <button
+                onClick={toggleVideoMute}
+                className="absolute bottom-4 right-4 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg transition-all duration-300"
+                aria-label={isVideoMuted ? 'Unmute video' : 'Mute video'}
+              >
+                {isVideoMuted ? (
+                  <VolumeX className="h-5 w-5 text-navy" />
+                ) : (
+                  <Volume2 className="h-5 w-5 text-navy" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </section>

@@ -4,6 +4,7 @@ import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { Resend } from 'resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { canAccessOrganization } from '@/lib/auth-utils'
+import { incrementOptionCapacity, decrementOptionCapacity, type HousingType } from '@/lib/option-capacity'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -183,16 +184,59 @@ export async function PUT(
       oldTotal,
       newTotal,
       eventId,
+      // Inventory-style housing counts (new)
+      onCampusYouth,
+      onCampusChaperones,
+      offCampusYouth,
+      offCampusChaperones,
+      dayPassYouth,
+      dayPassChaperones,
     } = body
 
     // Calculate the difference
     const difference = newTotal - oldTotal
 
-    // Calculate individual counts from participantCounts if provided
-    // The frontend sends youth_u18 and youth_o18, we need to combine them for youthCount
+    // Calculate individual counts
     const finalYouthCount = youthCount !== undefined ? youthCount : existingRegistration.youthCount
     const finalChaperoneCount = chaperoneCount !== undefined ? chaperoneCount : existingRegistration.chaperoneCount
     const finalPriestCount = priestCount !== undefined ? priestCount : existingRegistration.priestCount
+
+    // Handle housing count changes and capacity adjustment (inventory-style)
+    const oldOnCampusTotal = ((existingRegistration as any).onCampusYouth ?? 0) + ((existingRegistration as any).onCampusChaperones ?? 0)
+    const oldOffCampusTotal = ((existingRegistration as any).offCampusYouth ?? 0) + ((existingRegistration as any).offCampusChaperones ?? 0)
+    const oldDayPassTotal = ((existingRegistration as any).dayPassYouth ?? 0) + ((existingRegistration as any).dayPassChaperones ?? 0)
+
+    const newOnCampusTotal = (onCampusYouth ?? 0) + (onCampusChaperones ?? 0)
+    const newOffCampusTotal = (offCampusYouth ?? 0) + (offCampusChaperones ?? 0)
+    const newDayPassTotal = (dayPassYouth ?? 0) + (dayPassChaperones ?? 0)
+
+    // Calculate capacity changes needed for each housing type
+    const onCampusDiff = newOnCampusTotal - oldOnCampusTotal
+    const offCampusDiff = newOffCampusTotal - oldOffCampusTotal
+    const dayPassDiff = newDayPassTotal - oldDayPassTotal
+
+    // Update option-level capacity if housing counts changed
+    if (onCampusDiff !== 0) {
+      if (onCampusDiff > 0) {
+        await decrementOptionCapacity(existingRegistration.eventId, 'on_campus', null, onCampusDiff)
+      } else {
+        await incrementOptionCapacity(existingRegistration.eventId, 'on_campus', null, Math.abs(onCampusDiff))
+      }
+    }
+    if (offCampusDiff !== 0) {
+      if (offCampusDiff > 0) {
+        await decrementOptionCapacity(existingRegistration.eventId, 'off_campus', null, offCampusDiff)
+      } else {
+        await incrementOptionCapacity(existingRegistration.eventId, 'off_campus', null, Math.abs(offCampusDiff))
+      }
+    }
+    if (dayPassDiff !== 0) {
+      if (dayPassDiff > 0) {
+        await decrementOptionCapacity(existingRegistration.eventId, 'day_pass', null, dayPassDiff)
+      } else {
+        await incrementOptionCapacity(existingRegistration.eventId, 'day_pass', null, Math.abs(dayPassDiff))
+      }
+    }
 
     // Update the group registration
     const updatedRegistration = await prisma.groupRegistration.update({
@@ -214,6 +258,13 @@ export async function PUT(
         youthCount: finalYouthCount,
         chaperoneCount: finalChaperoneCount,
         priestCount: finalPriestCount,
+        // Inventory-style housing counts
+        onCampusYouth: onCampusYouth ?? null,
+        onCampusChaperones: onCampusChaperones ?? null,
+        offCampusYouth: offCampusYouth ?? null,
+        offCampusChaperones: offCampusChaperones ?? null,
+        dayPassYouth: dayPassYouth ?? null,
+        dayPassChaperones: dayPassChaperones ?? null,
         updatedAt: new Date(),
       },
     })
@@ -240,6 +291,16 @@ export async function PUT(
     }
     if (totalParticipants !== undefined && existingRegistration.totalParticipants !== totalParticipants) {
       changesMade.totalParticipants = { old: existingRegistration.totalParticipants, new: totalParticipants }
+    }
+    // Track housing count changes (inventory-style)
+    if (onCampusDiff !== 0) {
+      changesMade.onCampusTotal = { old: oldOnCampusTotal, new: newOnCampusTotal }
+    }
+    if (offCampusDiff !== 0) {
+      changesMade.offCampusTotal = { old: oldOffCampusTotal, new: newOffCampusTotal }
+    }
+    if (dayPassDiff !== 0) {
+      changesMade.dayPassTotal = { old: oldDayPassTotal, new: newDayPassTotal }
     }
 
     // Create audit trail entry if changes were made
@@ -289,6 +350,16 @@ export async function PUT(
         }
         if (existingRegistration.totalParticipants !== totalParticipants) {
           emailChanges.push(`Total Participants: ${existingRegistration.totalParticipants} → ${totalParticipants}`)
+        }
+        // Include housing count changes (inventory-style)
+        if (onCampusDiff !== 0) {
+          emailChanges.push(`On-Campus Total: ${oldOnCampusTotal} → ${newOnCampusTotal}`)
+        }
+        if (offCampusDiff !== 0) {
+          emailChanges.push(`Off-Campus Total: ${oldOffCampusTotal} → ${newOffCampusTotal}`)
+        }
+        if (dayPassDiff !== 0) {
+          emailChanges.push(`Day Pass Total: ${oldDayPassTotal} → ${newDayPassTotal}`)
         }
         if (oldTotal !== newTotal) {
           emailChanges.push(`Total Amount Due: $${oldTotal.toFixed(2)} → $${newTotal.toFixed(2)}`)

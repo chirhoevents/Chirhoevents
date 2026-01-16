@@ -32,6 +32,9 @@ export async function GET(
       include: {
         settings: true,
         pricing: true,
+        dayPassOptions: {
+          orderBy: { date: 'asc' },
+        },
         _count: {
           select: {
             groupRegistrations: true,
@@ -55,6 +58,116 @@ export async function GET(
       where: {
         groupRegistration: { eventId },
       },
+    })
+
+    // Get recent activity for activity report
+    const now = new Date()
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const startOfWeek = new Date(startOfToday)
+    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay())
+    const startOfLastWeek = new Date(startOfWeek)
+    startOfLastWeek.setDate(startOfLastWeek.getDate() - 7)
+
+    // Recent registrations (last 5)
+    const recentGroupRegistrations = await prisma.groupRegistration.findMany({
+      where: { eventId },
+      select: {
+        id: true,
+        groupName: true,
+        totalParticipants: true,
+        registeredAt: true,
+      },
+      orderBy: { registeredAt: 'desc' },
+      take: 5,
+    })
+
+    const recentIndividualRegistrations = await prisma.individualRegistration.findMany({
+      where: { eventId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    })
+
+    // Combine and sort recent registrations
+    const recentRegistrations = [
+      ...recentGroupRegistrations.map(r => ({
+        id: r.id,
+        type: 'group' as const,
+        name: r.groupName || 'Unnamed Group',
+        participants: r.totalParticipants,
+        date: r.registeredAt,
+      })),
+      ...recentIndividualRegistrations.map(r => ({
+        id: r.id,
+        type: 'individual' as const,
+        name: `${r.firstName} ${r.lastName}`,
+        participants: 1,
+        date: r.createdAt,
+      })),
+    ]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 5)
+
+    // Recent payments (last 5)
+    const recentPayments = await prisma.payment.findMany({
+      where: { eventId, paymentStatus: 'succeeded' },
+      select: {
+        id: true,
+        amount: true,
+        paymentMethod: true,
+        createdAt: true,
+        registrationId: true,
+        registrationType: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    })
+
+    // Fetch registration names for payments
+    const paymentNames: Record<string, string> = {}
+    for (const payment of recentPayments) {
+      if (payment.registrationType === 'group') {
+        const reg = await prisma.groupRegistration.findUnique({
+          where: { id: payment.registrationId },
+          select: { groupName: true },
+        })
+        paymentNames[payment.id] = reg?.groupName || 'Group'
+      } else if (payment.registrationType === 'individual') {
+        const reg = await prisma.individualRegistration.findUnique({
+          where: { id: payment.registrationId },
+          select: { firstName: true, lastName: true },
+        })
+        paymentNames[payment.id] = reg ? `${reg.firstName} ${reg.lastName}` : 'Individual'
+      } else {
+        paymentNames[payment.id] = 'Unknown'
+      }
+    }
+
+    // Registration counts for trends
+    const todayGroupCount = await prisma.groupRegistration.count({
+      where: { eventId, registeredAt: { gte: startOfToday } },
+    })
+    const todayIndividualCount = await prisma.individualRegistration.count({
+      where: { eventId, createdAt: { gte: startOfToday } },
+    })
+
+    const thisWeekGroupCount = await prisma.groupRegistration.count({
+      where: { eventId, registeredAt: { gte: startOfWeek } },
+    })
+    const thisWeekIndividualCount = await prisma.individualRegistration.count({
+      where: { eventId, createdAt: { gte: startOfWeek } },
+    })
+
+    const lastWeekGroupCount = await prisma.groupRegistration.count({
+      where: { eventId, registeredAt: { gte: startOfLastWeek, lt: startOfWeek } },
+    })
+    const lastWeekIndividualCount = await prisma.individualRegistration.count({
+      where: { eventId, createdAt: { gte: startOfLastWeek, lt: startOfWeek } },
     })
 
     // Calculate stats
@@ -81,6 +194,24 @@ export async function GET(
         totalRevenue,
         totalPaid,
         balance: totalRevenue - totalPaid,
+      },
+      activity: {
+        recentRegistrations: recentRegistrations.map(r => ({
+          ...r,
+          date: r.date.toISOString(),
+        })),
+        recentPayments: recentPayments.map(p => ({
+          id: p.id,
+          amount: Number(p.amount),
+          method: p.paymentMethod,
+          date: p.createdAt?.toISOString(),
+          name: paymentNames[p.id] || 'Unknown',
+        })),
+        trends: {
+          today: todayGroupCount + todayIndividualCount,
+          thisWeek: thisWeekGroupCount + thisWeekIndividualCount,
+          lastWeek: lastWeekGroupCount + lastWeekIndividualCount,
+        },
       },
     })
   } catch (error) {
@@ -116,6 +247,16 @@ export async function PUT(
     console.log('[PUT Event] ✅ Access verified, processing update')
 
     const data = await request.json()
+
+    // Debug: Log key fields being saved
+    console.log('[PUT Event] 📝 Key fields received:', {
+      backgroundImageUrl: data.backgroundImageUrl,
+      contactInfo: data.contactInfo,
+      confirmationEmailMessage: data.confirmationEmailMessage?.substring(0, 50),
+      primaryColor: data.primaryColor,
+      secondaryColor: data.secondaryColor,
+      faqContent: data.faqContent?.substring(0, 50),
+    })
 
     // Validate required fields based on status
     if (!data.name || !data.slug) {
@@ -200,7 +341,7 @@ export async function PUT(
               individualRegistrationEnabled:
                 data.individualRegistrationEnabled !== false,
               liabilityFormsRequiredGroup: true,
-              liabilityFormsRequiredIndividual: false,
+              liabilityFormsRequiredIndividual: data.liabilityFormsRequiredIndividual || false,
               showDietaryRestrictions: true,
               dietaryRestrictionsRequired: false,
               showAdaAccommodations: true,
@@ -215,17 +356,67 @@ export async function PUT(
               porosReligiousStaffEnabled: data.porosHousingEnabled || false,
               porosAdaEnabled: data.porosHousingEnabled || false,
               publicPortalEnabled: data.publicPortalEnabled || false,
+              staffRegistrationEnabled: data.staffRegistrationEnabled || false,
+              vendorRegistrationEnabled: data.vendorRegistrationEnabled || false,
+              couponsEnabled: data.couponsEnabled || false,
+              staffVolunteerPrice: data.staffVolunteerPrice ? parseFloat(data.staffVolunteerPrice) : 0,
+              vendorStaffPrice: data.vendorStaffPrice ? parseFloat(data.vendorStaffPrice) : 0,
+              staffRoles: data.staffRoles || null,
+              vendorTiers: data.vendorTiers || null,
               salveCheckinEnabled: data.salveCheckinEnabled || false,
               raphaMedicalEnabled: data.raphaMedicalEnabled || false,
               tshirtsEnabled: data.tshirtsEnabled || false,
               individualMealsEnabled: data.individualMealsEnabled || false,
               registrationInstructions: data.registrationInstructions || null,
+              confirmationEmailMessage: data.confirmationEmailMessage || null,
               checkPaymentEnabled: data.checkPaymentEnabled !== false,
               checkPaymentPayableTo: data.checkPaymentPayableTo || null,
               checkPaymentAddress: data.checkPaymentAddress || null,
               allowOnCampus: data.allowOnCampus !== false,
               allowOffCampus: data.allowOffCampus !== false,
-              allowDayPass: data.allowDayPass !== false,
+              allowDayPass: data.allowDayPass || false,
+              allowIndividualDayPass: data.allowIndividualDayPass || false,
+              allowSingleRoom: data.allowSingleRoom !== false,
+              allowDoubleRoom: data.allowDoubleRoom !== false,
+              allowTripleRoom: data.allowTripleRoom !== false,
+              allowQuadRoom: data.allowQuadRoom !== false,
+              singleRoomLabel: data.singleRoomLabel || null,
+              doubleRoomLabel: data.doubleRoomLabel || null,
+              tripleRoomLabel: data.tripleRoomLabel || null,
+              quadRoomLabel: data.quadRoomLabel || null,
+              allowLoginWhenClosed: data.allowLoginWhenClosed !== false,
+              // Option capacity fields (null = unlimited)
+              ...(data.onCampusCapacity !== undefined && { onCampusCapacity: data.onCampusCapacity ? parseInt(data.onCampusCapacity) : null }),
+              ...(data.onCampusCapacity !== undefined && { onCampusRemaining: data.onCampusCapacity ? parseInt(data.onCampusCapacity) : null }),
+              ...(data.offCampusCapacity !== undefined && { offCampusCapacity: data.offCampusCapacity ? parseInt(data.offCampusCapacity) : null }),
+              ...(data.offCampusCapacity !== undefined && { offCampusRemaining: data.offCampusCapacity ? parseInt(data.offCampusCapacity) : null }),
+              ...(data.dayPassCapacity !== undefined && { dayPassCapacity: data.dayPassCapacity ? parseInt(data.dayPassCapacity) : null }),
+              ...(data.dayPassCapacity !== undefined && { dayPassRemaining: data.dayPassCapacity ? parseInt(data.dayPassCapacity) : null }),
+              ...(data.singleRoomCapacity !== undefined && { singleRoomCapacity: data.singleRoomCapacity ? parseInt(data.singleRoomCapacity) : null }),
+              ...(data.singleRoomCapacity !== undefined && { singleRoomRemaining: data.singleRoomCapacity ? parseInt(data.singleRoomCapacity) : null }),
+              ...(data.doubleRoomCapacity !== undefined && { doubleRoomCapacity: data.doubleRoomCapacity ? parseInt(data.doubleRoomCapacity) : null }),
+              ...(data.doubleRoomCapacity !== undefined && { doubleRoomRemaining: data.doubleRoomCapacity ? parseInt(data.doubleRoomCapacity) : null }),
+              ...(data.tripleRoomCapacity !== undefined && { tripleRoomCapacity: data.tripleRoomCapacity ? parseInt(data.tripleRoomCapacity) : null }),
+              ...(data.tripleRoomCapacity !== undefined && { tripleRoomRemaining: data.tripleRoomCapacity ? parseInt(data.tripleRoomCapacity) : null }),
+              ...(data.quadRoomCapacity !== undefined && { quadRoomCapacity: data.quadRoomCapacity ? parseInt(data.quadRoomCapacity) : null }),
+              ...(data.quadRoomCapacity !== undefined && { quadRoomRemaining: data.quadRoomCapacity ? parseInt(data.quadRoomCapacity) : null }),
+              // Add-ons
+              addOn1Enabled: data.addOn1Enabled || false,
+              addOn1Title: data.addOn1Title || null,
+              addOn1Description: data.addOn1Description || null,
+              addOn1Price: data.addOn1Price ? parseFloat(data.addOn1Price) : null,
+              addOn2Enabled: data.addOn2Enabled || false,
+              addOn2Title: data.addOn2Title || null,
+              addOn2Description: data.addOn2Description || null,
+              addOn2Price: data.addOn2Price ? parseFloat(data.addOn2Price) : null,
+              addOn3Enabled: data.addOn3Enabled || false,
+              addOn3Title: data.addOn3Title || null,
+              addOn3Description: data.addOn3Description || null,
+              addOn3Price: data.addOn3Price ? parseFloat(data.addOn3Price) : null,
+              addOn4Enabled: data.addOn4Enabled || false,
+              addOn4Title: data.addOn4Title || null,
+              addOn4Description: data.addOn4Description || null,
+              addOn4Price: data.addOn4Price ? parseFloat(data.addOn4Price) : null,
               landingPageShowPrice: data.landingPageShowPrice !== false,
               landingPageShowSchedule: data.landingPageShowSchedule !== false,
               landingPageShowFaq: data.landingPageShowFaq !== false,
@@ -235,10 +426,25 @@ export async function PUT(
               landingPageShowGallery: data.landingPageShowGallery || false,
               landingPageShowSponsors: data.landingPageShowSponsors || false,
               showAvailability: data.showAvailability !== false,
+              showCapacity: data.showCapacity !== false,
               availabilityThreshold: parseInt(data.availabilityThreshold) || 20,
               countdownLocation: data.countdownLocation || 'hero',
               countdownBeforeOpen: data.countdownBeforeOpen !== false,
               countdownBeforeClose: data.countdownBeforeClose !== false,
+              // Landing page content
+              faqContent: data.faqContent || null,
+              scheduleContent: data.scheduleContent || null,
+              includedContent: data.includedContent || null,
+              bringContent: data.bringContent || null,
+              contactInfo: data.contactInfo || null,
+              contactEmail: data.contactEmail || null,
+              contactPhone: data.contactPhone || null,
+              // Email options
+              showFaqInEmail: data.showFaqInEmail || false,
+              showBringInEmail: data.showBringInEmail || false,
+              showScheduleInEmail: data.showScheduleInEmail || false,
+              showIncludedInEmail: data.showIncludedInEmail || false,
+              showContactInEmail: data.showContactInEmail !== false,
               backgroundImageUrl: data.backgroundImageUrl || null,
               primaryColor: data.primaryColor || '#1E3A5F',
               secondaryColor: data.secondaryColor || '#9C8466',
@@ -249,6 +455,12 @@ export async function PUT(
               groupRegistrationEnabled: data.groupRegistrationEnabled !== false,
               individualRegistrationEnabled:
                 data.individualRegistrationEnabled !== false,
+              liabilityFormsRequiredGroup: true,
+              liabilityFormsRequiredIndividual: data.liabilityFormsRequiredIndividual || false,
+              showDietaryRestrictions: true,
+              dietaryRestrictionsRequired: false,
+              showAdaAccommodations: true,
+              adaAccommodationsRequired: false,
               porosHousingEnabled: data.porosHousingEnabled || false,
               porosPriestHousingEnabled: data.porosHousingEnabled || false,
               porosSeatingEnabled: data.porosHousingEnabled || false,
@@ -259,28 +471,95 @@ export async function PUT(
               porosReligiousStaffEnabled: data.porosHousingEnabled || false,
               porosAdaEnabled: data.porosHousingEnabled || false,
               publicPortalEnabled: data.publicPortalEnabled || false,
+              staffRegistrationEnabled: data.staffRegistrationEnabled || false,
+              vendorRegistrationEnabled: data.vendorRegistrationEnabled || false,
+              couponsEnabled: data.couponsEnabled || false,
+              staffVolunteerPrice: data.staffVolunteerPrice ? parseFloat(data.staffVolunteerPrice) : 0,
+              vendorStaffPrice: data.vendorStaffPrice ? parseFloat(data.vendorStaffPrice) : 0,
+              staffRoles: data.staffRoles || null,
+              vendorTiers: data.vendorTiers || null,
               salveCheckinEnabled: data.salveCheckinEnabled || false,
               raphaMedicalEnabled: data.raphaMedicalEnabled || false,
               tshirtsEnabled: data.tshirtsEnabled || false,
               individualMealsEnabled: data.individualMealsEnabled || false,
               registrationInstructions: data.registrationInstructions || null,
+              confirmationEmailMessage: data.confirmationEmailMessage || null,
               checkPaymentEnabled: data.checkPaymentEnabled !== false,
               checkPaymentPayableTo: data.checkPaymentPayableTo || null,
               checkPaymentAddress: data.checkPaymentAddress || null,
               allowOnCampus: data.allowOnCampus !== false,
               allowOffCampus: data.allowOffCampus !== false,
-              allowDayPass: data.allowDayPass !== false,
+              allowDayPass: data.allowDayPass || false,
+              allowIndividualDayPass: data.allowIndividualDayPass || false,
+              allowSingleRoom: data.allowSingleRoom !== false,
+              allowDoubleRoom: data.allowDoubleRoom !== false,
+              allowTripleRoom: data.allowTripleRoom !== false,
+              allowQuadRoom: data.allowQuadRoom !== false,
+              singleRoomLabel: data.singleRoomLabel || null,
+              doubleRoomLabel: data.doubleRoomLabel || null,
+              tripleRoomLabel: data.tripleRoomLabel || null,
+              quadRoomLabel: data.quadRoomLabel || null,
+              allowLoginWhenClosed: data.allowLoginWhenClosed !== false,
+              // Option capacity fields (null = unlimited)
+              ...(data.onCampusCapacity !== undefined && { onCampusCapacity: data.onCampusCapacity ? parseInt(data.onCampusCapacity) : null }),
+              ...(data.onCampusCapacity !== undefined && { onCampusRemaining: data.onCampusCapacity ? parseInt(data.onCampusCapacity) : null }),
+              ...(data.offCampusCapacity !== undefined && { offCampusCapacity: data.offCampusCapacity ? parseInt(data.offCampusCapacity) : null }),
+              ...(data.offCampusCapacity !== undefined && { offCampusRemaining: data.offCampusCapacity ? parseInt(data.offCampusCapacity) : null }),
+              ...(data.dayPassCapacity !== undefined && { dayPassCapacity: data.dayPassCapacity ? parseInt(data.dayPassCapacity) : null }),
+              ...(data.dayPassCapacity !== undefined && { dayPassRemaining: data.dayPassCapacity ? parseInt(data.dayPassCapacity) : null }),
+              ...(data.singleRoomCapacity !== undefined && { singleRoomCapacity: data.singleRoomCapacity ? parseInt(data.singleRoomCapacity) : null }),
+              ...(data.singleRoomCapacity !== undefined && { singleRoomRemaining: data.singleRoomCapacity ? parseInt(data.singleRoomCapacity) : null }),
+              ...(data.doubleRoomCapacity !== undefined && { doubleRoomCapacity: data.doubleRoomCapacity ? parseInt(data.doubleRoomCapacity) : null }),
+              ...(data.doubleRoomCapacity !== undefined && { doubleRoomRemaining: data.doubleRoomCapacity ? parseInt(data.doubleRoomCapacity) : null }),
+              ...(data.tripleRoomCapacity !== undefined && { tripleRoomCapacity: data.tripleRoomCapacity ? parseInt(data.tripleRoomCapacity) : null }),
+              ...(data.tripleRoomCapacity !== undefined && { tripleRoomRemaining: data.tripleRoomCapacity ? parseInt(data.tripleRoomCapacity) : null }),
+              ...(data.quadRoomCapacity !== undefined && { quadRoomCapacity: data.quadRoomCapacity ? parseInt(data.quadRoomCapacity) : null }),
+              ...(data.quadRoomCapacity !== undefined && { quadRoomRemaining: data.quadRoomCapacity ? parseInt(data.quadRoomCapacity) : null }),
+              // Add-ons
+              addOn1Enabled: data.addOn1Enabled || false,
+              addOn1Title: data.addOn1Title || null,
+              addOn1Description: data.addOn1Description || null,
+              addOn1Price: data.addOn1Price ? parseFloat(data.addOn1Price) : null,
+              addOn2Enabled: data.addOn2Enabled || false,
+              addOn2Title: data.addOn2Title || null,
+              addOn2Description: data.addOn2Description || null,
+              addOn2Price: data.addOn2Price ? parseFloat(data.addOn2Price) : null,
+              addOn3Enabled: data.addOn3Enabled || false,
+              addOn3Title: data.addOn3Title || null,
+              addOn3Description: data.addOn3Description || null,
+              addOn3Price: data.addOn3Price ? parseFloat(data.addOn3Price) : null,
+              addOn4Enabled: data.addOn4Enabled || false,
+              addOn4Title: data.addOn4Title || null,
+              addOn4Description: data.addOn4Description || null,
+              addOn4Price: data.addOn4Price ? parseFloat(data.addOn4Price) : null,
               landingPageShowPrice: data.landingPageShowPrice !== false,
               landingPageShowSchedule: data.landingPageShowSchedule !== false,
               landingPageShowFaq: data.landingPageShowFaq !== false,
               landingPageShowIncluded: data.landingPageShowIncluded !== false,
               landingPageShowBring: data.landingPageShowBring !== false,
               landingPageShowContact: data.landingPageShowContact !== false,
+              landingPageShowGallery: data.landingPageShowGallery || false,
+              landingPageShowSponsors: data.landingPageShowSponsors || false,
               showAvailability: data.showAvailability !== false,
+              showCapacity: data.showCapacity !== false,
               availabilityThreshold: parseInt(data.availabilityThreshold) || 20,
               countdownLocation: data.countdownLocation || 'hero',
               countdownBeforeOpen: data.countdownBeforeOpen !== false,
               countdownBeforeClose: data.countdownBeforeClose !== false,
+              // Landing page content
+              faqContent: data.faqContent || null,
+              scheduleContent: data.scheduleContent || null,
+              includedContent: data.includedContent || null,
+              bringContent: data.bringContent || null,
+              contactInfo: data.contactInfo || null,
+              contactEmail: data.contactEmail || null,
+              contactPhone: data.contactPhone || null,
+              // Email options
+              showFaqInEmail: data.showFaqInEmail || false,
+              showBringInEmail: data.showBringInEmail || false,
+              showScheduleInEmail: data.showScheduleInEmail || false,
+              showIncludedInEmail: data.showIncludedInEmail || false,
+              showContactInEmail: data.showContactInEmail !== false,
               backgroundImageUrl: data.backgroundImageUrl || null,
               primaryColor: data.primaryColor || '#1E3A5F',
               secondaryColor: data.secondaryColor || '#9C8466',
@@ -328,8 +607,14 @@ export async function PUT(
               dayPassChaperonePrice: data.dayPassChaperonePrice
                 ? parseFloat(data.dayPassChaperonePrice)
                 : null,
+              individualEarlyBirdPrice: data.individualEarlyBirdPrice
+                ? parseFloat(data.individualEarlyBirdPrice)
+                : null,
               individualBasePrice: data.individualBasePrice
                 ? parseFloat(data.individualBasePrice)
+                : null,
+              individualLatePrice: data.individualLatePrice
+                ? parseFloat(data.individualLatePrice)
                 : null,
               singleRoomPrice: data.singleRoomPrice
                 ? parseFloat(data.singleRoomPrice)
@@ -345,6 +630,9 @@ export async function PUT(
                 : null,
               individualOffCampusPrice: data.individualOffCampusPrice
                 ? parseFloat(data.individualOffCampusPrice)
+                : null,
+              individualDayPassPrice: data.individualDayPassPrice
+                ? parseFloat(data.individualDayPassPrice)
                 : null,
               individualMealPackagePrice: data.individualMealPackagePrice
                 ? parseFloat(data.individualMealPackagePrice)
@@ -409,8 +697,14 @@ export async function PUT(
               dayPassChaperonePrice: data.dayPassChaperonePrice
                 ? parseFloat(data.dayPassChaperonePrice)
                 : null,
+              individualEarlyBirdPrice: data.individualEarlyBirdPrice
+                ? parseFloat(data.individualEarlyBirdPrice)
+                : null,
               individualBasePrice: data.individualBasePrice
                 ? parseFloat(data.individualBasePrice)
+                : null,
+              individualLatePrice: data.individualLatePrice
+                ? parseFloat(data.individualLatePrice)
                 : null,
               singleRoomPrice: data.singleRoomPrice
                 ? parseFloat(data.singleRoomPrice)
@@ -426,6 +720,9 @@ export async function PUT(
                 : null,
               individualOffCampusPrice: data.individualOffCampusPrice
                 ? parseFloat(data.individualOffCampusPrice)
+                : null,
+              individualDayPassPrice: data.individualDayPassPrice
+                ? parseFloat(data.individualDayPassPrice)
                 : null,
               individualMealPackagePrice: data.individualMealPackagePrice
                 ? parseFloat(data.individualMealPackagePrice)
@@ -461,6 +758,64 @@ export async function PUT(
         pricing: true,
       },
     })
+
+    // Handle day pass options update
+    if (data.dayPassOptions !== undefined && Array.isArray(data.dayPassOptions)) {
+      // Get existing day pass options for this event
+      const existingOptions = await prisma.dayPassOption.findMany({
+        where: { eventId },
+        select: { id: true },
+      })
+
+      const existingIds = existingOptions.map(opt => opt.id)
+      const newOptionIds = data.dayPassOptions
+        .filter((opt: { id: string }) => !opt.id.startsWith('temp-'))
+        .map((opt: { id: string }) => opt.id)
+
+      // Delete options that are no longer in the list
+      const idsToDelete = existingIds.filter(id => !newOptionIds.includes(id))
+      if (idsToDelete.length > 0) {
+        await prisma.dayPassOption.deleteMany({
+          where: { id: { in: idsToDelete } },
+        })
+      }
+
+      // Update or create day pass options
+      for (const option of data.dayPassOptions) {
+        if (option.id && !option.id.startsWith('temp-')) {
+          // Update existing option (don't update eventId/organizationId as they don't change)
+          await prisma.dayPassOption.update({
+            where: { id: option.id },
+            data: {
+              date: new Date(option.date),
+              name: option.name || 'Day Pass',
+              capacity: option.capacity ? parseInt(option.capacity) : 0,
+              remaining: option.capacity ? parseInt(option.capacity) : 0,
+              price: option.price ? parseFloat(option.price) : 50,
+              youthPrice: option.youthPrice ? parseFloat(option.youthPrice) : null,
+              chaperonePrice: option.chaperonePrice ? parseFloat(option.chaperonePrice) : null,
+              isActive: option.isActive !== false,
+            },
+          })
+        } else {
+          // Create new option
+          await prisma.dayPassOption.create({
+            data: {
+              eventId,
+              organizationId: effectiveOrgId!,
+              date: new Date(option.date),
+              name: option.name || 'Day Pass',
+              capacity: option.capacity ? parseInt(option.capacity) : 0,
+              remaining: option.capacity ? parseInt(option.capacity) : 0,
+              price: option.price ? parseFloat(option.price) : 50,
+              youthPrice: option.youthPrice ? parseFloat(option.youthPrice) : null,
+              chaperonePrice: option.chaperonePrice ? parseFloat(option.chaperonePrice) : null,
+              isActive: option.isActive !== false,
+            },
+          })
+        }
+      }
+    }
 
     return NextResponse.json({ event })
   } catch (error) {

@@ -5,6 +5,9 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2, CreditCard, FileText, ArrowLeft, CheckCircle, User, Home, Mail } from 'lucide-react'
+import { useRegistrationQueue } from '@/hooks/useRegistrationQueue'
+import RegistrationTimer from '@/components/RegistrationTimer'
+import LoadingScreen from '@/components/LoadingScreen'
 
 interface EventData {
   id: string
@@ -16,13 +19,26 @@ interface EventData {
     onCampusYouthPrice?: number
     offCampusYouthPrice?: number
     dayPassYouthPrice?: number
+    // Early bird pricing
+    earlyBirdDeadline?: string
+    individualEarlyBirdPrice?: number
+    individualBasePrice?: number
   }
   settings: {
     registrationInstructions: string | null
     checkPaymentEnabled: boolean
     checkPaymentPayableTo: string | null
     checkPaymentAddress: string | null
+    couponsEnabled?: boolean
   }
+}
+
+interface CouponData {
+  id: string
+  code: string
+  name: string
+  discountType: 'percentage' | 'fixed_amount'
+  discountValue: number
 }
 
 interface RegistrationData {
@@ -34,6 +50,8 @@ interface RegistrationData {
   address: string
   age: string
   gender: string
+  ticketType: string
+  dayPassOptionId: string
   housingType: string
   roomType: string
   preferredRoommate: string
@@ -46,6 +64,7 @@ interface RegistrationData {
   emergencyContact2Name: string
   emergencyContact2Phone: string
   emergencyContact2Relation: string
+  couponCode: string
 }
 
 export default function IndividualInvoiceReviewPage() {
@@ -54,12 +73,25 @@ export default function IndividualInvoiceReviewPage() {
   const searchParams = useSearchParams()
   const eventId = params.eventId as string
 
+  // Queue management
+  const {
+    loading: queueLoading,
+    queueActive,
+    expiresAt,
+    extensionAllowed,
+    markComplete,
+  } = useRegistrationQueue(eventId, 'individual')
+
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [event, setEvent] = useState<EventData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showCheckModal, setShowCheckModal] = useState(false)
   const [checkAcknowledged, setCheckAcknowledged] = useState(false)
+
+  // Coupon state
+  const [validatedCoupon, setValidatedCoupon] = useState<CouponData | null>(null)
+  const [couponError, setCouponError] = useState<string | null>(null)
 
   // Get registration data from URL params
   const registrationData: RegistrationData = {
@@ -71,6 +103,8 @@ export default function IndividualInvoiceReviewPage() {
     address: searchParams.get('address') || '',
     age: searchParams.get('age') || '',
     gender: searchParams.get('gender') || '',
+    ticketType: searchParams.get('ticketType') || 'general_admission',
+    dayPassOptionId: searchParams.get('dayPassOptionId') || '',
     housingType: searchParams.get('housingType') || 'on_campus',
     roomType: searchParams.get('roomType') || 'double',
     preferredRoommate: searchParams.get('preferredRoommate') || '',
@@ -83,6 +117,7 @@ export default function IndividualInvoiceReviewPage() {
     emergencyContact2Name: searchParams.get('emergencyContact2Name') || '',
     emergencyContact2Phone: searchParams.get('emergencyContact2Phone') || '',
     emergencyContact2Relation: searchParams.get('emergencyContact2Relation') || '',
+    couponCode: searchParams.get('couponCode') || '',
   }
 
   // Load event data
@@ -102,28 +137,87 @@ export default function IndividualInvoiceReviewPage() {
     loadEvent()
   }, [eventId])
 
-  // Calculate pricing based on housing type
-  const calculatePrice = () => {
-    if (!event) return 0
+  // Validate coupon code if provided
+  useEffect(() => {
+    async function validateCoupon() {
+      if (!registrationData.couponCode || !event?.settings?.couponsEnabled) {
+        return
+      }
+
+      try {
+        const response = await fetch(`/api/events/${eventId}/coupons/validate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: registrationData.couponCode,
+            email: registrationData.email,
+          }),
+        })
+
+        const data = await response.json()
+
+        if (data.valid) {
+          setValidatedCoupon({
+            id: data.coupon.id,
+            code: data.coupon.code,
+            name: data.coupon.name,
+            discountType: data.coupon.discountType,
+            discountValue: data.coupon.discountValue,
+          })
+        } else {
+          setCouponError(data.error || 'Invalid coupon code')
+        }
+      } catch {
+        setCouponError('Failed to validate coupon')
+      }
+    }
+
+    if (event) {
+      validateCoupon()
+    }
+  }, [event, eventId, registrationData.couponCode, registrationData.email])
+
+  // Calculate pricing based on housing type and early bird
+  const calculatePricing = () => {
+    if (!event) return { subtotal: 0, couponDiscount: 0, total: 0, isEarlyBird: false }
 
     const { pricing } = event
 
-    // Default to youth regular price
-    let basePrice = pricing.youthRegularPrice
+    // Check for early bird pricing
+    const now = new Date()
+    const earlyBirdDeadline = pricing.earlyBirdDeadline ? new Date(pricing.earlyBirdDeadline) : null
+    const isEarlyBird = earlyBirdDeadline && now <= earlyBirdDeadline
 
-    // Adjust based on housing type
+    // Determine base price - use individual early bird price if applicable, with fallback
+    let subtotal = isEarlyBird
+      ? Number(pricing.individualEarlyBirdPrice || pricing.individualBasePrice || pricing.youthRegularPrice)
+      : Number(pricing.individualBasePrice || pricing.youthRegularPrice)
+
+    // Adjust based on housing type (housing-specific pricing overrides early bird)
     if (registrationData.housingType === 'on_campus' && pricing.onCampusYouthPrice) {
-      basePrice = pricing.onCampusYouthPrice
+      subtotal = Number(pricing.onCampusYouthPrice)
     } else if (registrationData.housingType === 'off_campus' && pricing.offCampusYouthPrice) {
-      basePrice = pricing.offCampusYouthPrice
+      subtotal = Number(pricing.offCampusYouthPrice)
     } else if (registrationData.housingType === 'day_pass' && pricing.dayPassYouthPrice) {
-      basePrice = pricing.dayPassYouthPrice
+      subtotal = Number(pricing.dayPassYouthPrice)
     }
 
-    return basePrice
+    // Calculate coupon discount
+    let couponDiscount = 0
+    if (validatedCoupon) {
+      if (validatedCoupon.discountType === 'percentage') {
+        couponDiscount = (subtotal * validatedCoupon.discountValue) / 100
+      } else {
+        couponDiscount = Math.min(validatedCoupon.discountValue, subtotal)
+      }
+    }
+
+    const total = Math.max(0, subtotal - couponDiscount)
+
+    return { subtotal, couponDiscount, total, isEarlyBird }
   }
 
-  const totalPrice = calculatePrice()
+  const pricing = calculatePricing()
 
   // Handle credit card payment
   const handleCreditCardPayment = async () => {
@@ -148,6 +242,9 @@ export default function IndividualInvoiceReviewPage() {
       }
 
       const result = await response.json()
+
+      // Mark queue session as complete
+      await markComplete()
 
       // Redirect to Stripe checkout
       if (result.checkoutUrl) {
@@ -190,6 +287,10 @@ export default function IndividualInvoiceReviewPage() {
       }
 
       const result = await response.json()
+
+      // Mark queue session as complete
+      await markComplete()
+
       router.push(`/registration/confirmation/individual/${result.registrationId}`)
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.')
@@ -199,12 +300,8 @@ export default function IndividualInvoiceReviewPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-navy" />
-      </div>
-    )
+  if (loading || queueLoading) {
+    return <LoadingScreen message="Loading registration review..." />
   }
 
   if (error && !event) {
@@ -222,6 +319,16 @@ export default function IndividualInvoiceReviewPage() {
 
   return (
     <div className="min-h-screen bg-beige py-12">
+      {/* Queue Timer - shows when queue is active */}
+      {queueActive && expiresAt && (
+        <RegistrationTimer
+          expiresAt={expiresAt}
+          eventId={eventId}
+          registrationType="individual"
+          extensionAllowed={extensionAllowed}
+        />
+      )}
+
       <div className="container mx-auto px-4">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
@@ -436,18 +543,31 @@ export default function IndividualInvoiceReviewPage() {
                   <div className="space-y-3">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Individual Registration:</span>
-                      <span className="font-medium text-navy">${totalPrice.toFixed(2)}</span>
+                      <span className="font-medium text-navy">${pricing.subtotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Housing Type:</span>
                       <span className="text-navy capitalize">{registrationData.housingType.replace('_', ' ')}</span>
                     </div>
+
+                    {validatedCoupon && pricing.couponDiscount > 0 && (
+                      <div className="flex justify-between text-sm text-green-600">
+                        <span>Coupon ({validatedCoupon.code}):</span>
+                        <span className="font-medium">-${pricing.couponDiscount.toFixed(2)}</span>
+                      </div>
+                    )}
+
+                    {couponError && registrationData.couponCode && (
+                      <div className="text-sm text-red-600">
+                        Coupon &quot;{registrationData.couponCode}&quot;: {couponError}
+                      </div>
+                    )}
                   </div>
 
                   <div className="border-t border-gray-200 pt-4">
                     <div className="flex justify-between text-lg font-bold text-navy">
                       <span>Total Due Today:</span>
-                      <span className="text-gold">${totalPrice.toFixed(2)}</span>
+                      <span className="text-gold">${pricing.total.toFixed(2)}</span>
                     </div>
                     <p className="text-xs text-gray-500 mt-2">
                       Full payment required for individual registrations

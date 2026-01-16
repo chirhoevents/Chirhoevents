@@ -5,7 +5,11 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Loader2 } from 'lucide-react'
+import { AlertCircle, Loader2, AlertTriangle } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { useRegistrationQueue } from '@/hooks/useRegistrationQueue'
+import RegistrationTimer from '@/components/RegistrationTimer'
+import LoadingScreen from '@/components/LoadingScreen'
 
 interface EventPricing {
   youthRegularPrice: number
@@ -20,12 +24,44 @@ interface EventPricing {
   dayPassChaperonePrice?: number
 }
 
+interface EventSettings {
+  couponsEnabled?: boolean
+  allowDayPass?: boolean
+  allowOnCampus?: boolean
+  allowOffCampus?: boolean
+  porosHousingEnabled?: boolean
+  // Capacity fields
+  onCampusCapacity?: number | null
+  onCampusRemaining?: number | null
+  offCampusCapacity?: number | null
+  offCampusRemaining?: number | null
+  dayPassCapacity?: number | null
+  dayPassRemaining?: number | null
+}
+
+interface DayPassOption {
+  id: string
+  date: string
+  name: string
+  capacity: number
+  remaining: number
+  price: number
+  youthPrice: number | null
+  chaperonePrice: number | null
+  isActive: boolean
+}
+
 interface EventData {
   id: string
   name: string
   startDate: string
   endDate: string
   pricing: EventPricing
+  settings?: EventSettings
+  dayPassOptions?: DayPassOption[]
+  registrationOpenDate?: string
+  registrationCloseDate?: string
+  isRegistrationOpen?: boolean
 }
 
 export default function GroupRegistrationPage() {
@@ -33,10 +69,44 @@ export default function GroupRegistrationPage() {
   const router = useRouter()
   const eventId = params.eventId as string
 
+  // Queue management
+  const {
+    loading: queueLoading,
+    queueActive,
+    isBlocked,
+    queueStatus,
+    expiresAt,
+    extensionAllowed,
+    markComplete,
+    checkQueue,
+  } = useRegistrationQueue(eventId, 'group')
+
+  // Debug mode - add ?debug=queue to URL to see queue status
+  const showDebug = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === 'queue'
+
   const [loading, setLoading] = useState(true)
   const [event, setEvent] = useState<EventData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
+
+  // Coupon verification state
+  const [verifyingCoupon, setVerifyingCoupon] = useState(false)
+  const [couponVerified, setCouponVerified] = useState(false)
+  const [couponError, setCouponError] = useState<string | null>(null)
+  const [couponData, setCouponData] = useState<{
+    name: string
+    discountType: string
+    discountValue: number
+  } | null>(null)
+
+  // Capacity modal state
+  const [capacityModalOpen, setCapacityModalOpen] = useState(false)
+  const [capacityError, setCapacityError] = useState<{
+    message: string
+    requestedSpots: number
+    availableSpots: number
+    housingType?: string
+  } | null>(null)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -59,6 +129,8 @@ export default function GroupRegistrationPage() {
     youthCount: 0,
     chaperoneCount: 0,
     priestCount: 0,
+    ticketType: 'general_admission' as 'general_admission' | 'day_pass',
+    dayPassOptionId: '',
     housingType: 'on_campus',
     specialRequests: '',
     couponCode: '',
@@ -81,6 +153,32 @@ export default function GroupRegistrationPage() {
     loadEvent()
   }, [eventId])
 
+  // Auto-switch housing type if the selected one is sold out
+  useEffect(() => {
+    if (!event?.settings || formData.ticketType !== 'general_admission') return
+
+    const settings = event.settings
+    const currentHousing = formData.housingType
+
+    // Check if current selection is sold out
+    const isOnCampusSoldOut = settings.onCampusCapacity !== null &&
+      settings.onCampusCapacity !== undefined &&
+      (settings.onCampusRemaining ?? 0) <= 0
+
+    const isOffCampusSoldOut = settings.offCampusCapacity !== null &&
+      settings.offCampusCapacity !== undefined &&
+      (settings.offCampusRemaining ?? 0) <= 0
+
+    // If on_campus is selected but sold out, switch to off_campus if available
+    if (currentHousing === 'on_campus' && isOnCampusSoldOut && !isOffCampusSoldOut) {
+      setFormData(prev => ({ ...prev, housingType: 'off_campus' }))
+    }
+    // If off_campus is selected but sold out, switch to on_campus if available
+    else if (currentHousing === 'off_campus' && isOffCampusSoldOut && !isOnCampusSoldOut) {
+      setFormData(prev => ({ ...prev, housingType: 'on_campus' }))
+    }
+  }, [event?.settings, formData.ticketType])
+
   // Calculate pricing
   const calculatePricing = () => {
     if (!event) return { total: 0, deposit: 0, balance: 0, breakdown: [] }
@@ -88,29 +186,40 @@ export default function GroupRegistrationPage() {
     const { pricing } = event
     const breakdown: { label: string; count: number; price: number; subtotal: number }[] = []
 
-    // Determine youth price based on housing type (if available)
     let youthPrice = pricing.youthRegularPrice
-    if (formData.housingType === 'on_campus' && pricing.onCampusYouthPrice) {
-      youthPrice = pricing.onCampusYouthPrice
-    } else if (formData.housingType === 'off_campus' && pricing.offCampusYouthPrice) {
-      youthPrice = pricing.offCampusYouthPrice
-    } else if (formData.housingType === 'day_pass' && pricing.dayPassYouthPrice) {
-      youthPrice = pricing.dayPassYouthPrice
-    }
-
-    // Determine chaperone price based on housing type (if available)
     let chaperonePrice = pricing.chaperoneRegularPrice
-    if (formData.housingType === 'on_campus' && pricing.onCampusChaperonePrice) {
-      chaperonePrice = pricing.onCampusChaperonePrice
-    } else if (formData.housingType === 'off_campus' && pricing.offCampusChaperonePrice) {
-      chaperonePrice = pricing.offCampusChaperonePrice
-    } else if (formData.housingType === 'day_pass' && pricing.dayPassChaperonePrice) {
-      chaperonePrice = pricing.dayPassChaperonePrice
+
+    // Day pass ticket type - use day pass option prices or legacy day pass prices
+    if (formData.ticketType === 'day_pass') {
+      if (formData.dayPassOptionId && event.dayPassOptions) {
+        const selectedOption = event.dayPassOptions.find(opt => opt.id === formData.dayPassOptionId)
+        if (selectedOption) {
+          youthPrice = selectedOption.youthPrice ?? pricing.dayPassYouthPrice ?? pricing.youthRegularPrice
+          chaperonePrice = selectedOption.chaperonePrice ?? pricing.dayPassChaperonePrice ?? pricing.chaperoneRegularPrice
+        }
+      } else {
+        // Fallback to legacy day pass prices
+        youthPrice = pricing.dayPassYouthPrice ?? pricing.youthRegularPrice
+        chaperonePrice = pricing.dayPassChaperonePrice ?? pricing.chaperoneRegularPrice
+      }
+    } else {
+      // General admission - determine price based on housing type
+      if (formData.housingType === 'on_campus' && pricing.onCampusYouthPrice) {
+        youthPrice = pricing.onCampusYouthPrice
+      } else if (formData.housingType === 'off_campus' && pricing.offCampusYouthPrice) {
+        youthPrice = pricing.offCampusYouthPrice
+      }
+
+      if (formData.housingType === 'on_campus' && pricing.onCampusChaperonePrice) {
+        chaperonePrice = pricing.onCampusChaperonePrice
+      } else if (formData.housingType === 'off_campus' && pricing.offCampusChaperonePrice) {
+        chaperonePrice = pricing.offCampusChaperonePrice
+      }
     }
 
     if (formData.youthCount > 0) {
       breakdown.push({
-        label: 'Youth',
+        label: formData.ticketType === 'day_pass' ? 'Youth (Day Pass)' : 'Youth',
         count: formData.youthCount,
         price: youthPrice,
         subtotal: formData.youthCount * youthPrice,
@@ -119,7 +228,7 @@ export default function GroupRegistrationPage() {
 
     if (formData.chaperoneCount > 0) {
       breakdown.push({
-        label: 'Chaperones',
+        label: formData.ticketType === 'day_pass' ? 'Chaperones (Day Pass)' : 'Chaperones',
         count: formData.chaperoneCount,
         price: chaperonePrice,
         subtotal: formData.chaperoneCount * chaperonePrice,
@@ -148,9 +257,148 @@ export default function GroupRegistrationPage() {
     formData.chaperoneCount +
     formData.priestCount
 
+  // Helper function to check if a housing type has capacity (null means unlimited)
+  const getHousingAvailability = (housingType: string): { hasCapacity: boolean; remaining: number | null } => {
+    if (!event?.settings) return { hasCapacity: true, remaining: null }
+
+    const settings = event.settings
+
+    if (housingType === 'on_campus') {
+      // If capacity is null/undefined, it's unlimited
+      if (settings.onCampusCapacity === null || settings.onCampusCapacity === undefined) {
+        return { hasCapacity: true, remaining: null }
+      }
+      const remaining = settings.onCampusRemaining ?? 0
+      return { hasCapacity: remaining > 0, remaining }
+    }
+
+    if (housingType === 'off_campus') {
+      if (settings.offCampusCapacity === null || settings.offCampusCapacity === undefined) {
+        return { hasCapacity: true, remaining: null }
+      }
+      const remaining = settings.offCampusRemaining ?? 0
+      return { hasCapacity: remaining > 0, remaining }
+    }
+
+    return { hasCapacity: true, remaining: null }
+  }
+
+  // Check if there's enough capacity for the selected housing type
+  const validateCapacity = (): { valid: boolean; error?: { message: string; requestedSpots: number; availableSpots: number; housingType?: string } } => {
+    if (!event?.settings) return { valid: true }
+
+    const settings = event.settings
+
+    // For day pass, check day pass capacity
+    if (formData.ticketType === 'day_pass') {
+      if (formData.dayPassOptionId) {
+        const selectedOption = event.dayPassOptions?.find(opt => opt.id === formData.dayPassOptionId)
+        if (selectedOption && selectedOption.capacity > 0 && selectedOption.remaining < totalParticipants) {
+          return {
+            valid: false,
+            error: {
+              message: `Not enough spots available for this day pass option.`,
+              requestedSpots: totalParticipants,
+              availableSpots: selectedOption.remaining,
+              housingType: selectedOption.name
+            }
+          }
+        }
+      }
+      return { valid: true }
+    }
+
+    // For general admission, check housing type capacity
+    if (formData.housingType === 'on_campus') {
+      // Only check if capacity is set (not null/undefined)
+      if (settings.onCampusCapacity !== null && settings.onCampusCapacity !== undefined) {
+        const remaining = settings.onCampusRemaining ?? 0
+        if (remaining < totalParticipants) {
+          return {
+            valid: false,
+            error: {
+              message: `Not enough on-campus housing spots available.`,
+              requestedSpots: totalParticipants,
+              availableSpots: remaining,
+              housingType: 'On-Campus Housing'
+            }
+          }
+        }
+      }
+    }
+
+    if (formData.housingType === 'off_campus') {
+      if (settings.offCampusCapacity !== null && settings.offCampusCapacity !== undefined) {
+        const remaining = settings.offCampusRemaining ?? 0
+        if (remaining < totalParticipants) {
+          return {
+            valid: false,
+            error: {
+              message: `Not enough off-campus spots available.`,
+              requestedSpots: totalParticipants,
+              availableSpots: remaining,
+              housingType: 'Off-Campus'
+            }
+          }
+        }
+      }
+    }
+
+    return { valid: true }
+  }
+
+  // Verify coupon code
+  const verifyCoupon = async () => {
+    if (!formData.couponCode.trim()) {
+      setCouponError('Please enter a coupon code')
+      return
+    }
+
+    setVerifyingCoupon(true)
+    setCouponError(null)
+    setCouponVerified(false)
+    setCouponData(null)
+
+    try {
+      const response = await fetch(`/api/events/${eventId}/coupons/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: formData.couponCode,
+          email: formData.groupLeaderEmail,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.valid) {
+        setCouponVerified(true)
+        setCouponData({
+          name: data.coupon.name,
+          discountType: data.coupon.discountType,
+          discountValue: data.coupon.discountValue,
+        })
+      } else {
+        setCouponError(data.error || 'Invalid coupon code')
+      }
+    } catch {
+      setCouponError('Failed to verify coupon. Please try again.')
+    } finally {
+      setVerifyingCoupon(false)
+    }
+  }
+
   // Handle form submission - navigate to review page
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Validate capacity before proceeding
+    const capacityCheck = validateCapacity()
+    if (!capacityCheck.valid && capacityCheck.error) {
+      setCapacityError(capacityCheck.error)
+      setCapacityModalOpen(true)
+      return
+    }
 
     // Build URL with all form data as query parameters
     const params = new URLSearchParams({
@@ -173,19 +421,18 @@ export default function GroupRegistrationPage() {
       youthCount: formData.youthCount.toString(),
       chaperoneCount: formData.chaperoneCount.toString(),
       priestCount: formData.priestCount.toString(),
+      ticketType: formData.ticketType,
+      dayPassOptionId: formData.dayPassOptionId,
       housingType: formData.housingType,
       specialRequests: formData.specialRequests,
+      couponCode: formData.couponCode,
     })
 
     router.push(`/events/${eventId}/register-group/review?${params.toString()}`)
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-navy" />
-      </div>
-    )
+  if (loading || queueLoading) {
+    return <LoadingScreen message="Loading registration..." />
   }
 
   if (error && !event) {
@@ -201,8 +448,94 @@ export default function GroupRegistrationPage() {
     )
   }
 
+  // Check if registration is not open
+  if (event && event.isRegistrationOpen === false) {
+    const now = new Date()
+    const openDate = event.registrationOpenDate ? new Date(event.registrationOpenDate) : null
+    const closeDate = event.registrationCloseDate ? new Date(event.registrationCloseDate) : null
+    const hasNotOpened = openDate && now < openDate
+    const hasClosed = closeDate && now >= closeDate
+
+    return (
+      <div className="min-h-screen bg-beige flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="p-8 text-center">
+            <AlertCircle className="h-16 w-16 text-amber-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-navy mb-2">
+              {hasNotOpened ? 'Registration Not Yet Open' : 'Registration Closed'}
+            </h2>
+            <p className="text-gray-600 mb-4">
+              {hasNotOpened && openDate
+                ? `Registration for ${event.name} opens on ${openDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at ${openDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}.`
+                : hasClosed
+                  ? `Registration for ${event.name} has closed.`
+                  : `Registration is not currently open for ${event.name}.`}
+            </p>
+            <Button onClick={() => router.push('/')} className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
+              Return Home
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Block access if user should be in the queue
+  if (isBlocked) {
+    return (
+      <div className="min-h-screen bg-beige flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="p-8 text-center">
+            <AlertCircle className="h-16 w-16 text-amber-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-navy mb-2">Registration at Capacity</h2>
+            <p className="text-gray-600 mb-6">
+              The registration system is currently at capacity. Please join the virtual queue to wait for an available spot.
+            </p>
+            <div className="space-y-3">
+              <Button
+                onClick={() => router.push(`/events/${eventId}/queue?type=group`)}
+                className="w-full bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
+              >
+                Join Virtual Queue
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => checkQueue()}
+                className="w-full"
+              >
+                Check Again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-beige py-12">
+      {/* Queue Timer - shows when queue is active */}
+      {queueActive && expiresAt && (
+        <RegistrationTimer
+          expiresAt={expiresAt}
+          eventId={eventId}
+          registrationType="group"
+          extensionAllowed={extensionAllowed}
+        />
+      )}
+
+      {/* Debug Panel - add ?debug=queue to URL to see this */}
+      {showDebug && (
+        <div className="fixed bottom-4 left-4 z-50 bg-black text-white p-4 rounded-lg text-xs max-w-sm overflow-auto max-h-64">
+          <p className="font-bold mb-2">Queue Debug Info:</p>
+          <p>queueLoading: {String(queueLoading)}</p>
+          <p>queueActive: {String(queueActive)}</p>
+          <p>isBlocked: {String(isBlocked)}</p>
+          <p>expiresAt: {expiresAt || 'null'}</p>
+          <p>queueStatus: {JSON.stringify(queueStatus, null, 2)}</p>
+        </div>
+      )}
+
       <div className="container mx-auto px-4">
         <div className="max-w-5xl mx-auto">
           {/* Header */}
@@ -584,36 +917,159 @@ export default function GroupRegistrationPage() {
                   </CardContent>
                 </Card>
 
+                {/* Ticket Type Selection */}
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle>Ticket Type & Housing</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Ticket Type Selection */}
+                    <div>
+                      <label className="block text-sm font-medium text-navy mb-3">
+                        Select Ticket Type *
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* General Admission Option */}
+                        <div
+                          className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                            formData.ticketType === 'general_admission'
+                              ? 'border-gold bg-gold/5'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                          onClick={() => setFormData({ ...formData, ticketType: 'general_admission', dayPassOptionId: '' })}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <input
+                              type="radio"
+                              name="ticketType"
+                              value="general_admission"
+                              checked={formData.ticketType === 'general_admission'}
+                              onChange={() => setFormData({ ...formData, ticketType: 'general_admission', dayPassOptionId: '' })}
+                              className="w-4 h-4 text-gold"
+                            />
+                            <div>
+                              <p className="font-semibold text-navy">General Admission</p>
+                              <p className="text-sm text-gray-600">Full event access with housing options</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Day Pass Option - Only show if day pass is enabled */}
+                        {event?.settings?.allowDayPass && event.dayPassOptions && event.dayPassOptions.length > 0 && (
+                          <div
+                            className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                              formData.ticketType === 'day_pass'
+                                ? 'border-gold bg-gold/5'
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                            onClick={() => setFormData({ ...formData, ticketType: 'day_pass', housingType: 'day_pass' })}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <input
+                                type="radio"
+                                name="ticketType"
+                                value="day_pass"
+                                checked={formData.ticketType === 'day_pass'}
+                                onChange={() => setFormData({ ...formData, ticketType: 'day_pass', housingType: 'day_pass' })}
+                                className="w-4 h-4 text-gold"
+                              />
+                              <div>
+                                <p className="font-semibold text-navy">Day Pass</p>
+                                <p className="text-sm text-gray-600">Single day attendance (no housing)</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Day Pass Option Selection */}
+                    {formData.ticketType === 'day_pass' && event?.dayPassOptions && event.dayPassOptions.length > 0 && (
+                      <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                        <label className="block text-sm font-medium text-amber-900 mb-2">
+                          Select Day Pass *
+                        </label>
+                        <select
+                          required
+                          className="w-full px-4 py-2 border border-amber-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold bg-white"
+                          value={formData.dayPassOptionId}
+                          onChange={(e) => setFormData({ ...formData, dayPassOptionId: e.target.value })}
+                        >
+                          <option value="">Select a day pass option</option>
+                          {event.dayPassOptions
+                            .filter(opt => opt.isActive && opt.remaining > 0)
+                            .map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.name} - Youth: ${option.youthPrice?.toFixed(2) ?? 'N/A'} | Chaperone: ${option.chaperonePrice?.toFixed(2) ?? 'N/A'} ({option.remaining} spots left)
+                              </option>
+                            ))}
+                        </select>
+                        <p className="text-sm text-amber-700 mt-2">
+                          Day pass groups do not require housing arrangements.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Housing Options - Only for General Admission */}
+                    {formData.ticketType === 'general_admission' && (
+                      <div className="border-t pt-4">
+                        <label className="block text-sm font-medium text-navy mb-2">
+                          Housing Type *
+                        </label>
+                        <select
+                          required
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                          value={formData.housingType}
+                          onChange={(e) => setFormData({ ...formData, housingType: e.target.value })}
+                        >
+                          {/* On-Campus Option */}
+                          {(() => {
+                            const onCampusAvail = getHousingAvailability('on_campus')
+                            const isSoldOut = !onCampusAvail.hasCapacity
+                            const showRemaining = onCampusAvail.remaining !== null && onCampusAvail.remaining > 0
+                            return (
+                              <option value="on_campus" disabled={isSoldOut}>
+                                On-Campus Housing
+                                {event?.pricing.onCampusYouthPrice && ` - Youth: $${event.pricing.onCampusYouthPrice.toFixed(2)}, Chaperones: $${event.pricing.onCampusChaperonePrice?.toFixed(2)}`}
+                                {isSoldOut ? ' - SOLD OUT' : showRemaining ? ` (${onCampusAvail.remaining} spots left)` : ''}
+                              </option>
+                            )
+                          })()}
+                          {/* Off-Campus Option */}
+                          {(() => {
+                            const offCampusAvail = getHousingAvailability('off_campus')
+                            const isSoldOut = !offCampusAvail.hasCapacity
+                            const showRemaining = offCampusAvail.remaining !== null && offCampusAvail.remaining > 0
+                            return (
+                              <option value="off_campus" disabled={isSoldOut}>
+                                Off-Campus (Self-Arranged)
+                                {event?.pricing.offCampusYouthPrice && ` - Youth: $${event.pricing.offCampusYouthPrice.toFixed(2)}, Chaperones: $${event.pricing.offCampusChaperonePrice?.toFixed(2)}`}
+                                {isSoldOut ? ' - SOLD OUT' : showRemaining ? ` (${offCampusAvail.remaining} spots left)` : ''}
+                              </option>
+                            )
+                          })()}
+                        </select>
+                        {formData.housingType === 'on_campus' && (
+                          <p className="text-sm text-blue-700 mt-2 bg-blue-50 p-2 rounded">
+                            Your group will be assigned housing and you&apos;ll manage room assignments after registration.
+                          </p>
+                        )}
+                        {formData.housingType === 'off_campus' && (
+                          <p className="text-sm text-gray-600 mt-2 bg-gray-50 p-2 rounded">
+                            Your group will arrange their own accommodations outside the venue.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Additional Information */}
                 <Card className="mb-6">
                   <CardHeader>
                     <CardTitle>Additional Information</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-navy mb-2">
-                        Housing Type *
-                      </label>
-                      <select
-                        required
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
-                        value={formData.housingType}
-                        onChange={(e) => setFormData({ ...formData, housingType: e.target.value })}
-                      >
-                        <option value="on_campus">
-                          On-Campus Housing
-                          {event?.pricing.onCampusYouthPrice && ` - Youth: $${event.pricing.onCampusYouthPrice.toFixed(2)}, Chaperones: $${event.pricing.onCampusChaperonePrice?.toFixed(2)}`}
-                        </option>
-                        <option value="off_campus">
-                          Off-Campus (Self-Arranged)
-                          {event?.pricing.offCampusYouthPrice && ` - Youth: $${event.pricing.offCampusYouthPrice.toFixed(2)}, Chaperones: $${event.pricing.offCampusChaperonePrice?.toFixed(2)}`}
-                        </option>
-                        <option value="day_pass">
-                          Day Pass Only
-                          {event?.pricing.dayPassYouthPrice && ` - Youth: $${event.pricing.dayPassYouthPrice.toFixed(2)}, Chaperones: $${event.pricing.dayPassChaperonePrice?.toFixed(2)}`}
-                        </option>
-                      </select>
-                    </div>
-
                     <div>
                       <label className="block text-sm font-medium text-navy mb-2">
                         Special Requests
@@ -627,18 +1083,64 @@ export default function GroupRegistrationPage() {
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-navy mb-2">
-                        Coupon Code (Optional)
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
-                        value={formData.couponCode}
-                        onChange={(e) => setFormData({ ...formData, couponCode: e.target.value.toUpperCase() })}
-                        placeholder="EARLYBIRD"
-                      />
-                    </div>
+                    {event?.settings?.couponsEnabled && (
+                      <div>
+                        <label className="block text-sm font-medium text-navy mb-2">
+                          Coupon Code (Optional)
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            className={`flex-1 px-4 py-2 border rounded-md focus:ring-2 focus:ring-gold focus:border-gold ${
+                              couponVerified
+                                ? 'border-green-500 bg-green-50'
+                                : couponError
+                                ? 'border-red-300'
+                                : 'border-gray-300'
+                            }`}
+                            value={formData.couponCode}
+                            onChange={(e) => {
+                              setFormData({ ...formData, couponCode: e.target.value.toUpperCase() })
+                              setCouponVerified(false)
+                              setCouponError(null)
+                              setCouponData(null)
+                            }}
+                            placeholder="Enter coupon code"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={verifyCoupon}
+                            disabled={verifyingCoupon || !formData.couponCode.trim()}
+                            className="whitespace-nowrap"
+                          >
+                            {verifyingCoupon ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Verifying...
+                              </>
+                            ) : (
+                              'Verify Code'
+                            )}
+                          </Button>
+                        </div>
+                        {couponError && (
+                          <p className="mt-2 text-sm text-red-600">{couponError}</p>
+                        )}
+                        {couponVerified && couponData && (
+                          <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-md">
+                            <p className="text-sm text-green-700 font-medium">
+                              ✓ Coupon &quot;{couponData.name}&quot; applied!
+                            </p>
+                            <p className="text-sm text-green-600">
+                              {couponData.discountType === 'percentage'
+                                ? `${couponData.discountValue}% off`
+                                : `$${couponData.discountValue.toFixed(2)} off`}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -749,6 +1251,55 @@ export default function GroupRegistrationPage() {
           </div>
         </div>
       </div>
+
+      {/* Capacity Error Modal */}
+      <Dialog open={capacityModalOpen} onOpenChange={setCapacityModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" />
+              Not Enough Spots Available
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              {capacityError?.message}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4 space-y-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Spots requested:</span>
+                  <span className="font-semibold text-red-700">{capacityError?.requestedSpots}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Spots available:</span>
+                  <span className="font-semibold text-green-700">{capacityError?.availableSpots}</span>
+                </div>
+                {capacityError?.housingType && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Housing type:</span>
+                    <span className="font-medium">{capacityError.housingType}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-600">
+              Please reduce the number of participants or select a different housing option with more availability.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              onClick={() => setCapacityModalOpen(false)}
+              className="w-full bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
+            >
+              Go Back and Adjust
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

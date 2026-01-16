@@ -169,7 +169,7 @@ export default function VirtualTerminalPage() {
               Note: You can still record check and cash payments without Stripe.
             </p>
             <Link href="/dashboard/admin/settings?tab=integrations">
-              <Button className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90">
+              <Button className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white">
                 <ExternalLink className="h-4 w-4 mr-2" />
                 Go to Settings
               </Button>
@@ -238,7 +238,7 @@ export default function VirtualTerminalPage() {
                 <Button
                   onClick={handleLookup}
                   disabled={loading || !accessCode.trim()}
-                  className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90"
+                  className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white"
                 >
                   {loading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />

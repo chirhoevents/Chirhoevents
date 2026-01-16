@@ -5,6 +5,9 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2, CreditCard, FileText, ArrowLeft, CheckCircle } from 'lucide-react'
+import { useRegistrationQueue } from '@/hooks/useRegistrationQueue'
+import RegistrationTimer from '@/components/RegistrationTimer'
+import LoadingScreen from '@/components/LoadingScreen'
 
 interface EventData {
   id: string
@@ -37,7 +40,16 @@ interface EventData {
     checkPaymentEnabled: boolean
     checkPaymentPayableTo: string | null
     checkPaymentAddress: string | null
+    couponsEnabled?: boolean
   }
+}
+
+interface CouponData {
+  id: string
+  code: string
+  name: string
+  discountType: 'percentage' | 'fixed_amount'
+  discountValue: number
 }
 
 interface RegistrationData {
@@ -60,8 +72,11 @@ interface RegistrationData {
   youthCount: number
   chaperoneCount: number
   priestCount: number
+  ticketType: string
+  dayPassOptionId: string
   housingType: string
   specialRequests: string
+  couponCode: string
 }
 
 export default function InvoiceReviewPage() {
@@ -70,12 +85,25 @@ export default function InvoiceReviewPage() {
   const searchParams = useSearchParams()
   const eventId = params.eventId as string
 
+  // Queue management
+  const {
+    loading: queueLoading,
+    queueActive,
+    expiresAt,
+    extensionAllowed,
+    markComplete,
+  } = useRegistrationQueue(eventId, 'group')
+
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [event, setEvent] = useState<EventData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showCheckModal, setShowCheckModal] = useState(false)
   const [checkAcknowledged, setCheckAcknowledged] = useState(false)
+
+  // Coupon state
+  const [validatedCoupon, setValidatedCoupon] = useState<CouponData | null>(null)
+  const [couponError, setCouponError] = useState<string | null>(null)
 
   // Get registration data from URL params
   const registrationData: RegistrationData = {
@@ -98,8 +126,11 @@ export default function InvoiceReviewPage() {
     youthCount: parseInt(searchParams.get('youthCount') || '0'),
     chaperoneCount: parseInt(searchParams.get('chaperoneCount') || '0'),
     priestCount: parseInt(searchParams.get('priestCount') || '0'),
+    ticketType: searchParams.get('ticketType') || 'general_admission',
+    dayPassOptionId: searchParams.get('dayPassOptionId') || '',
     housingType: searchParams.get('housingType') || 'on_campus',
     specialRequests: searchParams.get('specialRequests') || '',
+    couponCode: searchParams.get('couponCode') || '',
   }
 
   // Load event data
@@ -119,16 +150,59 @@ export default function InvoiceReviewPage() {
     loadEvent()
   }, [eventId])
 
-  // Calculate pricing with early bird discount
+  // Validate coupon code if provided
+  useEffect(() => {
+    async function validateCoupon() {
+      if (!registrationData.couponCode || !event?.settings?.couponsEnabled) {
+        return
+      }
+
+      try {
+        const response = await fetch(`/api/events/${eventId}/coupons/validate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: registrationData.couponCode,
+            email: registrationData.groupLeaderEmail,
+          }),
+        })
+
+        const data = await response.json()
+
+        if (data.valid) {
+          setValidatedCoupon({
+            id: data.coupon.id,
+            code: data.coupon.code,
+            name: data.coupon.name,
+            discountType: data.coupon.discountType,
+            discountValue: data.coupon.discountValue,
+          })
+        } else {
+          setCouponError(data.error || 'Invalid coupon code')
+        }
+      } catch {
+        setCouponError('Failed to validate coupon')
+      }
+    }
+
+    if (event) {
+      validateCoupon()
+    }
+  }, [event, eventId, registrationData.couponCode, registrationData.groupLeaderEmail])
+
+  // Calculate pricing with early bird discount and coupon
   const calculatePricing = () => {
-    if (!event) return { breakdown: [], subtotal: 0, discount: 0, total: 0, deposit: 0, balance: 0, isEarlyBird: false }
+    if (!event) return { breakdown: [], subtotal: 0, earlyBirdDiscount: 0, couponDiscount: 0, total: 0, deposit: 0, balance: 0, isEarlyBird: false }
 
     const now = new Date()
     const earlyBirdDeadline = event.pricing.earlyBirdDeadline ? new Date(event.pricing.earlyBirdDeadline) : null
     const isEarlyBird = earlyBirdDeadline && now <= earlyBirdDeadline
 
     // Determine youth price - housing-specific pricing overrides early bird
-    let youthPrice = isEarlyBird ? Number(event.pricing.youthEarlyBirdPrice) : Number(event.pricing.youthRegularPrice)
+    // Use fallback to regular price if early bird price is not set
+    let youthPrice = isEarlyBird
+      ? Number(event.pricing.youthEarlyBirdPrice || event.pricing.youthRegularPrice)
+      : Number(event.pricing.youthRegularPrice)
     if (registrationData.housingType === 'on_campus' && event.pricing.onCampusYouthPrice) {
       youthPrice = Number(event.pricing.onCampusYouthPrice)
     } else if (registrationData.housingType === 'off_campus' && event.pricing.offCampusYouthPrice) {
@@ -138,7 +212,10 @@ export default function InvoiceReviewPage() {
     }
 
     // Determine chaperone price - housing-specific pricing overrides early bird
-    let chaperonePrice = isEarlyBird ? Number(event.pricing.chaperoneEarlyBirdPrice) : Number(event.pricing.chaperoneRegularPrice)
+    // Use fallback to regular price if early bird price is not set
+    let chaperonePrice = isEarlyBird
+      ? Number(event.pricing.chaperoneEarlyBirdPrice || event.pricing.chaperoneRegularPrice)
+      : Number(event.pricing.chaperoneRegularPrice)
     if (registrationData.housingType === 'on_campus' && event.pricing.onCampusChaperonePrice) {
       chaperonePrice = Number(event.pricing.onCampusChaperonePrice)
     } else if (registrationData.housingType === 'off_campus' && event.pricing.offCampusChaperonePrice) {
@@ -181,7 +258,7 @@ export default function InvoiceReviewPage() {
 
     const subtotal = breakdown.reduce((sum, item) => sum + item.subtotal, 0)
 
-    // Calculate discount if early bird
+    // Calculate early bird discount
     const regularSubtotal = breakdown.reduce((sum, item) => {
       const regularPrice = item.label.includes('Youth')
         ? Number(event.pricing.youthRegularPrice)
@@ -191,10 +268,21 @@ export default function InvoiceReviewPage() {
       return sum + (item.count * regularPrice)
     }, 0)
 
-    const discount = isEarlyBird ? regularSubtotal - subtotal : 0
-    const total = subtotal
+    const earlyBirdDiscount = isEarlyBird ? regularSubtotal - subtotal : 0
 
-    // Calculate deposit based on settings
+    // Calculate coupon discount
+    let couponDiscount = 0
+    if (validatedCoupon) {
+      if (validatedCoupon.discountType === 'percentage') {
+        couponDiscount = (subtotal * validatedCoupon.discountValue) / 100
+      } else {
+        couponDiscount = Math.min(validatedCoupon.discountValue, subtotal)
+      }
+    }
+
+    const total = Math.max(0, subtotal - couponDiscount)
+
+    // Calculate deposit based on settings (on discounted total)
     let deposit = 0
     if (event.pricing.requireFullPayment) {
       deposit = total
@@ -206,11 +294,13 @@ export default function InvoiceReviewPage() {
       // Access depositPerPerson field (may not be in generated types yet)
       const depositPerPerson = (event.pricing as any).depositPerPerson ?? true
       deposit = depositPerPerson ? baseDepositAmount * totalParticipants : baseDepositAmount
+      // Don't charge more deposit than total
+      deposit = Math.min(deposit, total)
     }
 
     const balance = total - deposit
 
-    return { breakdown, subtotal, discount, total, deposit, balance, isEarlyBird }
+    return { breakdown, subtotal, earlyBirdDiscount, couponDiscount, total, deposit, balance, isEarlyBird }
   }
 
   const pricing = calculatePricing()
@@ -242,6 +332,9 @@ export default function InvoiceReviewPage() {
       }
 
       const result = await response.json()
+
+      // Mark queue session as complete
+      await markComplete()
 
       // Redirect to Stripe checkout
       if (result.checkoutUrl) {
@@ -284,6 +377,10 @@ export default function InvoiceReviewPage() {
       }
 
       const result = await response.json()
+
+      // Mark queue session as complete
+      await markComplete()
+
       router.push(`/registration/confirmation/${result.registrationId}`)
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.')
@@ -292,12 +389,8 @@ export default function InvoiceReviewPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-navy" />
-      </div>
-    )
+  if (loading || queueLoading) {
+    return <LoadingScreen message="Loading registration review..." />
   }
 
   if (error && !event) {
@@ -315,6 +408,16 @@ export default function InvoiceReviewPage() {
 
   return (
     <div className="min-h-screen bg-beige py-12">
+      {/* Queue Timer - shows when queue is active */}
+      {queueActive && expiresAt && (
+        <RegistrationTimer
+          expiresAt={expiresAt}
+          eventId={eventId}
+          registrationType="group"
+          extensionAllowed={extensionAllowed}
+        />
+      )}
+
       <div className="container mx-auto px-4">
         <div className="max-w-5xl mx-auto">
           {/* Header */}
@@ -364,10 +467,23 @@ export default function InvoiceReviewPage() {
                         <span className="font-medium">${pricing.subtotal.toFixed(2)}</span>
                       </div>
 
-                      {pricing.isEarlyBird && pricing.discount > 0 && (
+                      {pricing.isEarlyBird && pricing.earlyBirdDiscount > 0 && (
                         <div className="flex justify-between text-green-600">
                           <span>Early Bird Discount:</span>
-                          <span className="font-medium">-${pricing.discount.toFixed(2)}</span>
+                          <span className="font-medium">-${pricing.earlyBirdDiscount.toFixed(2)}</span>
+                        </div>
+                      )}
+
+                      {validatedCoupon && pricing.couponDiscount > 0 && (
+                        <div className="flex justify-between text-green-600">
+                          <span>Coupon ({validatedCoupon.code}):</span>
+                          <span className="font-medium">-${pricing.couponDiscount.toFixed(2)}</span>
+                        </div>
+                      )}
+
+                      {couponError && registrationData.couponCode && (
+                        <div className="text-sm text-red-600">
+                          Coupon &quot;{registrationData.couponCode}&quot;: {couponError}
                         </div>
                       )}
 

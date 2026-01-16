@@ -19,7 +19,7 @@ const faqCategories = [
       },
       {
         q: "What subscription plan is right for me?",
-        a: "It depends on how many events you run per year and how many participants you expect. The Starter plan ($49/mo) works for small parishes with up to 3 events and 500 people. For diocesan-level events, consider the Growing ($149/mo) or Conference ($249/mo) plans."
+        a: "It depends on how many events you run per year and how many participants you expect. The Starter plan ($29/mo) works for small parishes with up to 3 events and 500 people. For diocesan-level events, consider the Growing ($79/mo) or Conference ($99/mo) plans."
       },
       {
         q: "How long does setup take?",
@@ -97,6 +97,33 @@ const faqCategories = [
       {
         q: "Is my data secure?",
         a: "Absolutely. We use AES-256 encryption at rest, TLS 1.3 in transit, and are COPPA compliant for minor data. All data is backed up daily with point-in-time recovery."
+      },
+    ]
+  },
+  {
+    id: "waitlist-vendors",
+    title: "Waitlist & Vendors",
+    icon: Users,
+    questions: [
+      {
+        q: "How does the waitlist work?",
+        a: "When an event reaches capacity, visitors can join a waitlist. They provide their info and receive a queue position. When spots open, admins can invite people from the waitlist with a 48-hour registration link."
+      },
+      {
+        q: "How do I enable the waitlist for my event?",
+        a: "Go to Event Edit > Step 6: Landing Page > Waitlist Settings. Toggle 'Enable Waitlist' on and optionally set a maximum capacity. Save your changes and the waitlist button will appear when your event is full."
+      },
+      {
+        q: "How do I become a vendor at an event?",
+        a: "Look for 'Vendor Registration' link at the bottom of the event's registration page. Submit your application with business details and booth preferences. Event organizers will review and notify you of approval."
+      },
+      {
+        q: "Where do I find my vendor code?",
+        a: "After approval, your vendor code is in your approval email and the Vendor Portal dashboard. Use this code for booth staff registration - share it only with people you want working at your booth."
+      },
+      {
+        q: "How do I register booth staff?",
+        a: "Share your vendor code with staff members. They visit the staff registration link on the event page, select 'Vendor Booth Staff', enter your code, and complete their registration."
       },
     ]
   },

@@ -19,6 +19,7 @@ import Link from 'next/link'
 import { format } from 'date-fns'
 import ExportAllDataModal from '@/components/admin/ExportAllDataModal'
 import DashboardBulkEmailModal from '@/components/admin/DashboardBulkEmailModal'
+import RegistrationLimitModal from '@/components/admin/RegistrationLimitModal'
 
 interface DashboardStats {
   activeEvents: number
@@ -58,6 +59,12 @@ interface DashboardData {
   pendingActions: PendingActions
 }
 
+interface BillingUsage {
+  registrationsUsed: number
+  registrationsLimit: number | null
+  tier: string
+}
+
 export default function DashboardClient() {
   const { user } = useUser()
   const { getToken } = useAuth()
@@ -66,10 +73,50 @@ export default function DashboardClient() {
   const [loading, setLoading] = useState(true)
   const [showExportModal, setShowExportModal] = useState(false)
   const [showBulkEmailModal, setShowBulkEmailModal] = useState(false)
+  const [showRegistrationLimitModal, setShowRegistrationLimitModal] = useState(false)
+  const [billingUsage, setBillingUsage] = useState<BillingUsage | null>(null)
 
   useEffect(() => {
     fetchDashboardData()
+    fetchBillingUsage()
   }, [])
+
+  const fetchBillingUsage = async () => {
+    try {
+      const token = await getToken()
+      const response = await fetch('/api/admin/billing', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
+
+      if (!response.ok) return
+
+      const billingData = await response.json()
+      const usage: BillingUsage = {
+        registrationsUsed: billingData.usage.registrationsUsed,
+        registrationsLimit: billingData.usage.registrationsLimit,
+        tier: billingData.subscription.tier,
+      }
+      setBillingUsage(usage)
+
+      // Check if user is at or near their registration limit (90% or more)
+      if (usage.registrationsLimit && usage.registrationsUsed >= usage.registrationsLimit * 0.9) {
+        // Check localStorage to see if the user has dismissed this recently
+        const dismissedAt = localStorage.getItem('registrationLimitModalDismissed')
+        const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000 // 24 hours
+
+        if (!dismissedAt || parseInt(dismissedAt) < oneDayAgo) {
+          setShowRegistrationLimitModal(true)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching billing usage:', error)
+    }
+  }
+
+  const handleDismissRegistrationLimitModal = () => {
+    localStorage.setItem('registrationLimitModalDismissed', Date.now().toString())
+    setShowRegistrationLimitModal(false)
+  }
 
   const fetchDashboardData = async () => {
     try {
@@ -323,25 +370,34 @@ export default function DashboardClient() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <div className="p-3 bg-gray-50 rounded">
-                <p className="text-sm text-[#1F2937]">
-                  {data.pendingActions.pendingCerts} Safe Environment Cert
-                  {data.pendingActions.pendingCerts !== 1 ? 's' : ''} to Verify
-                </p>
-              </div>
-              <div className="p-3 bg-gray-50 rounded">
-                <p className="text-sm text-[#1F2937]">
-                  {data.pendingActions.pendingCheckPayments} Check Payment
-                  {data.pendingActions.pendingCheckPayments !== 1 ? 's' : ''} to
-                  Process
-                </p>
-              </div>
-              <div className="p-3 bg-gray-50 rounded">
-                <p className="text-sm text-[#1F2937]">
-                  {data.pendingActions.overdueBalances} Late Fee
-                  {data.pendingActions.overdueBalances !== 1 ? 's' : ''} to Apply
-                </p>
-              </div>
+              <Link href="/dashboard/admin/settings?tab=certificates">
+                <div className="p-3 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer transition-colors flex items-center justify-between group">
+                  <p className="text-sm text-[#1F2937]">
+                    {data.pendingActions.pendingCerts} Safe Environment Cert
+                    {data.pendingActions.pendingCerts !== 1 ? 's' : ''} to Verify
+                  </p>
+                  <ArrowRight className="h-4 w-4 text-[#9C8466] opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </Link>
+              <Link href="/dashboard/admin/registrations?paymentStatus=pending">
+                <div className="p-3 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer transition-colors flex items-center justify-between group">
+                  <p className="text-sm text-[#1F2937]">
+                    {data.pendingActions.pendingCheckPayments} Check Payment
+                    {data.pendingActions.pendingCheckPayments !== 1 ? 's' : ''} to
+                    Process
+                  </p>
+                  <ArrowRight className="h-4 w-4 text-[#9C8466] opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </Link>
+              <Link href="/dashboard/admin/registrations?paymentStatus=partial">
+                <div className="p-3 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer transition-colors flex items-center justify-between group">
+                  <p className="text-sm text-[#1F2937]">
+                    {data.pendingActions.overdueBalances} Late Fee
+                    {data.pendingActions.overdueBalances !== 1 ? 's' : ''} to Apply
+                  </p>
+                  <ArrowRight className="h-4 w-4 text-[#9C8466] opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </Link>
             </div>
           </CardContent>
         </Card>
@@ -423,6 +479,15 @@ export default function DashboardClient() {
         isOpen={showBulkEmailModal}
         onClose={() => setShowBulkEmailModal(false)}
       />
+      {billingUsage && billingUsage.registrationsLimit && (
+        <RegistrationLimitModal
+          isOpen={showRegistrationLimitModal}
+          onClose={handleDismissRegistrationLimitModal}
+          registrationsUsed={billingUsage.registrationsUsed}
+          registrationsLimit={billingUsage.registrationsLimit}
+          currentTier={billingUsage.tier}
+        />
+      )}
     </div>
   )
 }

@@ -26,17 +26,60 @@ interface FormData {
   fullPaymentDeadline: string
   lateFeePercentage: string
   lateFeeAutoApply: boolean
+  allowLoginWhenClosed: boolean
   groupRegistrationEnabled: boolean
   individualRegistrationEnabled: boolean
+  liabilityFormsRequiredIndividual: boolean
   porosHousingEnabled: boolean
   tshirtsEnabled: boolean
   individualMealsEnabled: boolean
   salveCheckinEnabled: boolean
   raphaMedicalEnabled: boolean
   publicPortalEnabled: boolean
+  staffRegistrationEnabled: boolean
+  vendorRegistrationEnabled: boolean
+  couponsEnabled: boolean
+  staffVolunteerPrice: string
+  vendorStaffPrice: string
+  staffRoles: string[]
+  vendorTiers: Array<{ id: string; name: string; price: string; description: string; active: boolean; quantityLimit: string }>
   allowOnCampus: boolean
   allowOffCampus: boolean
   allowDayPass: boolean
+  allowIndividualDayPass: boolean
+  allowSingleRoom: boolean
+  allowDoubleRoom: boolean
+  allowTripleRoom: boolean
+  allowQuadRoom: boolean
+  singleRoomLabel: string
+  doubleRoomLabel: string
+  tripleRoomLabel: string
+  quadRoomLabel: string
+  // Option capacity fields
+  onCampusCapacity: string
+  offCampusCapacity: string
+  dayPassCapacity: string
+  singleRoomCapacity: string
+  doubleRoomCapacity: string
+  tripleRoomCapacity: string
+  quadRoomCapacity: string
+  // Add-ons
+  addOn1Enabled: boolean
+  addOn1Title: string
+  addOn1Description: string
+  addOn1Price: string
+  addOn2Enabled: boolean
+  addOn2Title: string
+  addOn2Description: string
+  addOn2Price: string
+  addOn3Enabled: boolean
+  addOn3Title: string
+  addOn3Description: string
+  addOn3Price: string
+  addOn4Enabled: boolean
+  addOn4Title: string
+  addOn4Description: string
+  addOn4Price: string
   youthEarlyBirdPrice: string
   youthRegularPrice: string
   youthLatePrice: string
@@ -50,12 +93,15 @@ interface FormData {
   onCampusChaperonePrice: string
   offCampusChaperonePrice: string
   dayPassChaperonePrice: string
+  individualEarlyBirdPrice: string
   individualBasePrice: string
+  individualLatePrice: string
   singleRoomPrice: string
   doubleRoomPrice: string
   tripleRoomPrice: string
   quadRoomPrice: string
   individualOffCampusPrice: string
+  individualDayPassPrice: string
   individualMealPackagePrice: string
   depositType: 'fixed' | 'percentage' | 'full' | 'none'
   depositPercentage: string
@@ -63,6 +109,7 @@ interface FormData {
   contactEmail: string
   contactPhone: string
   registrationInstructions: string
+  confirmationEmailMessage: string
   checkPaymentEnabled: boolean
   checkPaymentPayableTo: string
   checkPaymentAddress: string
@@ -73,12 +120,25 @@ interface FormData {
   landingPageShowBring: boolean
   landingPageShowContact: boolean
   showAvailability: boolean
+  showCapacity: boolean
   availabilityThreshold: string
   countdownLocation: 'hero' | 'sticky' | 'registration'
   countdownBeforeOpen: boolean
   countdownBeforeClose: boolean
   enableWaitlist: boolean
   waitlistCapacity: string
+  // Landing page content
+  faqContent: string
+  scheduleContent: string
+  includedContent: string
+  bringContent: string
+  contactInfo: string
+  // Email options
+  showFaqInEmail: boolean
+  showBringInEmail: boolean
+  showScheduleInEmail: boolean
+  showIncludedInEmail: boolean
+  showContactInEmail: boolean
   backgroundImageUrl: string
   primaryColor: string
   secondaryColor: string
@@ -95,6 +155,7 @@ export default function EditEventPage() {
   const { getToken } = useAuth()
   const [formData, setFormData] = useState<FormData | null>(null)
   const [organizationId, setOrganizationId] = useState<string>('')
+  const [hasRegistrations, setHasRegistrations] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -112,9 +173,10 @@ export default function EditEventPage() {
     try {
       const token = await getToken()
 
-      // Fetch event data
+      // Fetch event data with cache-busting to ensure fresh data
       const response = await fetch(`/api/admin/events/${eventId}`, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        cache: 'no-store',
       })
 
       if (response.status === 404) {
@@ -129,6 +191,21 @@ export default function EditEventPage() {
 
       const data = await response.json()
       const event = data.event
+      const stats = data.stats
+
+      // Debug: Log key fields loaded from API
+      console.log('[Edit Page] Key fields loaded from API:', {
+        backgroundImageUrl: event.settings?.backgroundImageUrl,
+        contactInfo: event.settings?.contactInfo,
+        confirmationEmailMessage: event.settings?.confirmationEmailMessage?.substring(0, 50),
+        primaryColor: event.settings?.primaryColor,
+        faqContent: event.settings?.faqContent?.substring(0, 50),
+      })
+
+      // Check if event has registrations (to lock registration type)
+      if (stats && stats.totalRegistrations > 0) {
+        setHasRegistrations(true)
+      }
 
       // Also fetch org info for organizationId
       const accessResponse = await fetch('/api/admin/check-access', {
@@ -174,19 +251,66 @@ export default function EditEventPage() {
           : '',
         lateFeePercentage: event.pricing?.lateFeePercentage?.toString() || '20',
         lateFeeAutoApply: event.pricing?.lateFeeAutoApply || false,
+        allowLoginWhenClosed: event.settings?.allowLoginWhenClosed ?? true,
 
         // Step 3: Features & Modules
         groupRegistrationEnabled: event.settings?.groupRegistrationEnabled ?? true,
         individualRegistrationEnabled: event.settings?.individualRegistrationEnabled ?? false,
+        liabilityFormsRequiredIndividual: event.settings?.liabilityFormsRequiredIndividual ?? false,
         porosHousingEnabled: event.settings?.porosHousingEnabled || false,
         tshirtsEnabled: event.settings?.tshirtsEnabled || false,
         individualMealsEnabled: event.settings?.individualMealsEnabled || false,
         salveCheckinEnabled: event.settings?.salveCheckinEnabled || false,
         raphaMedicalEnabled: event.settings?.raphaMedicalEnabled || false,
         publicPortalEnabled: event.settings?.publicPortalEnabled || false,
+        staffRegistrationEnabled: event.settings?.staffRegistrationEnabled || false,
+        vendorRegistrationEnabled: event.settings?.vendorRegistrationEnabled || false,
+        couponsEnabled: event.settings?.couponsEnabled || false,
+        staffVolunteerPrice: event.settings?.staffVolunteerPrice?.toString() || '0',
+        vendorStaffPrice: event.settings?.vendorStaffPrice?.toString() || '0',
+        staffRoles: (event.settings?.staffRoles as string[]) || ['Registration Desk', 'Setup Crew', 'Kitchen Staff', 'Security', 'Emcee', 'General Volunteer'],
+        vendorTiers: (event.settings?.vendorTiers as Array<{ id: string; name: string; price: string; description: string; active: boolean; quantityLimit: string }>) || [
+          { id: '1', name: 'Small Booth', price: '200', description: '10x10, no electricity', active: true, quantityLimit: '' },
+          { id: '2', name: 'Medium Booth', price: '350', description: '10x20, includes electricity', active: true, quantityLimit: '' },
+          { id: '3', name: 'Large Booth', price: '500', description: '20x20, includes electricity', active: false, quantityLimit: '' },
+        ],
         allowOnCampus: event.settings?.allowOnCampus ?? true,
         allowOffCampus: event.settings?.allowOffCampus ?? true,
         allowDayPass: event.settings?.allowDayPass ?? false,
+        allowIndividualDayPass: event.settings?.allowIndividualDayPass ?? false,
+        allowSingleRoom: event.settings?.allowSingleRoom ?? true,
+        allowDoubleRoom: event.settings?.allowDoubleRoom ?? true,
+        allowTripleRoom: event.settings?.allowTripleRoom ?? true,
+        allowQuadRoom: event.settings?.allowQuadRoom ?? true,
+        singleRoomLabel: event.settings?.singleRoomLabel || '',
+        doubleRoomLabel: event.settings?.doubleRoomLabel || '',
+        tripleRoomLabel: event.settings?.tripleRoomLabel || '',
+        quadRoomLabel: event.settings?.quadRoomLabel || '',
+        // Option capacity fields
+        onCampusCapacity: event.settings?.onCampusCapacity?.toString() || '',
+        offCampusCapacity: event.settings?.offCampusCapacity?.toString() || '',
+        dayPassCapacity: event.settings?.dayPassCapacity?.toString() || '',
+        singleRoomCapacity: event.settings?.singleRoomCapacity?.toString() || '',
+        doubleRoomCapacity: event.settings?.doubleRoomCapacity?.toString() || '',
+        tripleRoomCapacity: event.settings?.tripleRoomCapacity?.toString() || '',
+        quadRoomCapacity: event.settings?.quadRoomCapacity?.toString() || '',
+        // Add-ons
+        addOn1Enabled: event.settings?.addOn1Enabled ?? false,
+        addOn1Title: event.settings?.addOn1Title || '',
+        addOn1Description: event.settings?.addOn1Description || '',
+        addOn1Price: event.settings?.addOn1Price?.toString() || '',
+        addOn2Enabled: event.settings?.addOn2Enabled ?? false,
+        addOn2Title: event.settings?.addOn2Title || '',
+        addOn2Description: event.settings?.addOn2Description || '',
+        addOn2Price: event.settings?.addOn2Price?.toString() || '',
+        addOn3Enabled: event.settings?.addOn3Enabled ?? false,
+        addOn3Title: event.settings?.addOn3Title || '',
+        addOn3Description: event.settings?.addOn3Description || '',
+        addOn3Price: event.settings?.addOn3Price?.toString() || '',
+        addOn4Enabled: event.settings?.addOn4Enabled ?? false,
+        addOn4Title: event.settings?.addOn4Title || '',
+        addOn4Description: event.settings?.addOn4Description || '',
+        addOn4Price: event.settings?.addOn4Price?.toString() || '',
 
         // Step 4: Pricing
         youthEarlyBirdPrice: event.pricing?.youthEarlyBirdPrice?.toString() || '90',
@@ -204,12 +328,15 @@ export default function EditEventPage() {
         dayPassChaperonePrice: event.pricing?.dayPassChaperonePrice?.toString() || '25',
 
         // Individual pricing
+        individualEarlyBirdPrice: event.pricing?.individualEarlyBirdPrice?.toString() || '',
         individualBasePrice: event.pricing?.individualBasePrice?.toString() || '100',
+        individualLatePrice: event.pricing?.individualLatePrice?.toString() || '',
         singleRoomPrice: event.pricing?.singleRoomPrice?.toString() || '100',
         doubleRoomPrice: event.pricing?.doubleRoomPrice?.toString() || '50',
         tripleRoomPrice: event.pricing?.tripleRoomPrice?.toString() || '40',
         quadRoomPrice: event.pricing?.quadRoomPrice?.toString() || '30',
         individualOffCampusPrice: event.pricing?.individualOffCampusPrice?.toString() || '100',
+        individualDayPassPrice: event.pricing?.individualDayPassPrice?.toString() || '50',
         individualMealPackagePrice: event.pricing?.individualMealPackagePrice?.toString() || '50',
 
         // Deposit settings
@@ -224,9 +351,10 @@ export default function EditEventPage() {
         depositAmount: event.pricing?.depositAmount?.toString() || '500',
 
         // Step 5: Contact & Instructions
-        contactEmail: event.settings?.registrationInstructions || '',
-        contactPhone: '',
+        contactEmail: event.settings?.contactEmail || '',
+        contactPhone: event.settings?.contactPhone || '',
         registrationInstructions: event.settings?.registrationInstructions || '',
+        confirmationEmailMessage: event.settings?.confirmationEmailMessage || '',
         checkPaymentEnabled: event.settings?.checkPaymentEnabled ?? true,
         checkPaymentPayableTo: event.settings?.checkPaymentPayableTo || '',
         checkPaymentAddress: event.settings?.checkPaymentAddress || '',
@@ -239,12 +367,27 @@ export default function EditEventPage() {
         landingPageShowBring: event.settings?.landingPageShowBring ?? true,
         landingPageShowContact: event.settings?.landingPageShowContact ?? true,
         showAvailability: event.settings?.showAvailability ?? true,
+        showCapacity: event.settings?.showCapacity ?? true,
         availabilityThreshold: event.settings?.availabilityThreshold?.toString() || '20',
         countdownLocation: (event.settings?.countdownLocation || 'hero') as 'hero' | 'sticky' | 'registration',
         countdownBeforeOpen: event.settings?.countdownBeforeOpen ?? true,
         countdownBeforeClose: event.settings?.countdownBeforeClose ?? true,
         enableWaitlist: event.enableWaitlist || false,
         waitlistCapacity: event.waitlistCapacity?.toString() || '',
+
+        // Landing page content
+        faqContent: event.settings?.faqContent || '',
+        scheduleContent: event.settings?.scheduleContent || '',
+        includedContent: event.settings?.includedContent || '',
+        bringContent: event.settings?.bringContent || '',
+        contactInfo: event.settings?.contactInfo || '',
+
+        // Email options
+        showFaqInEmail: event.settings?.showFaqInEmail ?? false,
+        showBringInEmail: event.settings?.showBringInEmail ?? false,
+        showScheduleInEmail: event.settings?.showScheduleInEmail ?? false,
+        showIncludedInEmail: event.settings?.showIncludedInEmail ?? false,
+        showContactInEmail: event.settings?.showContactInEmail ?? true,
 
         // Theme
         backgroundImageUrl: event.settings?.backgroundImageUrl || '',
@@ -305,6 +448,7 @@ export default function EditEventPage() {
         eventId={eventId}
         initialData={formData}
         isEditMode={true}
+        hasRegistrations={hasRegistrations}
       />
     </div>
   )

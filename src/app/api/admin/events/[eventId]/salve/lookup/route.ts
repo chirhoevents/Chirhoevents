@@ -76,8 +76,22 @@ async function getHousingAssignmentsMap(participantIds: string[]) {
 }
 
 // Format individual registration as a "group" for consistent frontend handling
-function formatIndividualRegistrationAsGroup(individual: any): any {
+function formatIndividualRegistrationAsGroup(individual: any, liabilityRequired: boolean = false): any {
   const liabilityForm = individual.liabilityForms?.[0]
+
+  // Determine liability form status
+  let liabilityFormStatus = 'not_required'
+  if (liabilityRequired) {
+    if (liabilityForm?.completed) {
+      liabilityFormStatus = 'completed'
+    } else if (liabilityForm?.parentToken) {
+      liabilityFormStatus = 'pending_parent' // Waiting on parent to complete
+    } else if (liabilityForm) {
+      liabilityFormStatus = 'pending'
+    } else {
+      liabilityFormStatus = 'not_started'
+    }
+  }
 
   return {
     id: individual.id,
@@ -100,7 +114,9 @@ function formatIndividualRegistrationAsGroup(individual: any): any {
     },
     forms: {
       completed: liabilityForm?.completed ? 1 : 0,
-      pending: liabilityForm?.completed ? 0 : 1,
+      pending: liabilityRequired && !liabilityForm?.completed ? 1 : 0,
+      status: liabilityFormStatus,
+      required: liabilityRequired,
     },
     housing: {
       assigned: false, // TODO: Check if individual has housing
@@ -113,17 +129,26 @@ function formatIndividualRegistrationAsGroup(individual: any): any {
         firstName: individual.firstName,
         lastName: individual.lastName,
         email: individual.email,
-        age: liabilityForm?.participantAge || null,
+        age: liabilityForm?.participantAge || individual.age || null,
         participantType: individual.participantType || 'individual',
         isChaperone: false,
         isClergy: individual.participantType === 'priest',
-        gender: liabilityForm?.participantGender || null,
+        gender: liabilityForm?.participantGender || individual.gender || null,
         liabilityFormCompleted: liabilityForm?.completed || false,
+        liabilityFormStatus: liabilityFormStatus,
+        liabilityFormRequired: liabilityRequired,
         checkedIn: individual.checkedIn || false,
         checkedInAt: individual.checkedInAt,
         checkInNotes: individual.checkInNotes,
         housing: null,
         isIndividual: true, // Flag for frontend
+        // Additional liability form details for medical lookup
+        allergies: liabilityForm?.allergies || null,
+        medications: liabilityForm?.medications || null,
+        medicalConditions: liabilityForm?.medicalConditions || null,
+        dietaryRestrictions: liabilityForm?.dietaryRestrictions || individual.dietaryRestrictions || null,
+        emergencyContact1Name: liabilityForm?.emergencyContact1Name || individual.emergencyContact1Name || null,
+        emergencyContact1Phone: liabilityForm?.emergencyContact1Phone || individual.emergencyContact1Phone || null,
       },
     ],
     allocatedRooms: [],
@@ -388,6 +413,12 @@ export async function GET(
 
     // If search query is provided, search groups, participants, AND individual registrations
     if (search && search.length >= 2) {
+      // Fetch event settings to check if liability forms are required for individuals
+      const eventSettings = await prisma.eventSettings.findUnique({
+        where: { eventId },
+      })
+      const liabilityRequiredForIndividuals = eventSettings?.liabilityFormsRequiredIndividual ?? false
+
       // Search groups by multiple fields
       const groups = await prisma.groupRegistration.findMany({
         where: {
@@ -460,7 +491,7 @@ export async function GET(
 
       // Combine group and individual results
       const groupResults = groups.map((g: any) => formatGroupResponse(g, housingMap))
-      const individualResults = individuals.map((i: any) => formatIndividualRegistrationAsGroup(i))
+      const individualResults = individuals.map((i: any) => formatIndividualRegistrationAsGroup(i, liabilityRequiredForIndividuals))
 
       const allResults = [...groupResults, ...individualResults]
 

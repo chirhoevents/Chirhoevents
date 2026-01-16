@@ -3,10 +3,14 @@ import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { uploadLogo, deleteLogo } from '@/lib/r2/upload-logo'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
+import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+import { incrementOrgStorage } from '@/lib/storage/track-storage'
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
+    // Try to get userId from JWT token in Authorization header
+    const overrideUserId = getClerkUserIdFromHeader(request)
+    const user = await getCurrentUser(overrideUserId)
 
     if (!user || !isAdmin(user)) {
       return NextResponse.json(
@@ -54,6 +58,9 @@ export async function POST(request: NextRequest) {
     // Upload to R2
     const logoUrl = await uploadLogo(buffer, file.name, organizationId)
 
+    // Track storage usage
+    await incrementOrgStorage(organizationId, file.size)
+
     // Update organization in database
     await prisma.organization.update({
       where: { id: organizationId },
@@ -73,9 +80,11 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
+    // Try to get userId from JWT token in Authorization header
+    const overrideUserId = getClerkUserIdFromHeader(request)
+    const user = await getCurrentUser(overrideUserId)
 
     if (!user || !isAdmin(user)) {
       return NextResponse.json(

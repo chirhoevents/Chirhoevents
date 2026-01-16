@@ -27,7 +27,7 @@ async function deleteTestOrganization() {
     console.log('');
 
     // Get event IDs for cleanup
-    const eventIds = org.events.map(e => e.id);
+    const eventIds = org.events.map((e: { id: string }) => e.id);
 
     // Delete in order due to foreign key constraints
     console.log('📝 Deleting payments...');

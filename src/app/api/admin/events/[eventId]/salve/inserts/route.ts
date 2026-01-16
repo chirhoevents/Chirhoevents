@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { uploadPacketInsert, deletePacketInsert } from '@/lib/r2/upload-packet-insert'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import { hasPermission } from '@/lib/permissions'
+import { incrementOrgStorage, decrementOrgStorage } from '@/lib/storage/track-storage'
 
 // Helper function to check if user can access Salve portal
 async function requireSalveAccess(request: NextRequest, eventId: string) {
@@ -143,6 +144,9 @@ export async function POST(
         eventId
       )
 
+      // Track storage usage
+      await incrementOrgStorage(event.organizationId, file.size)
+
       // Get current max display order
       const maxOrder = await prisma.welcomePacketInsert.aggregate({
         where: { eventId },
@@ -159,6 +163,7 @@ export async function POST(
           name: name.trim(),
           fileUrl,
           fileType,
+          fileSizeBytes: BigInt(file.size),
           // Only include imageUrls for images (can be embedded directly in print)
           ...(isImage ? { imageUrls: [fileUrl] } : {}),
           displayOrder: (maxOrder._max.displayOrder || 0) + 1,
@@ -272,7 +277,7 @@ export async function DELETE(
       )
     }
 
-    // Get the insert to find file URL
+    // Get the insert to find file URL and size
     const insert = await prisma.welcomePacketInsert.findFirst({
       where: {
         id: insertId,
@@ -287,10 +292,20 @@ export async function DELETE(
       )
     }
 
+    // Get event to find organization ID for storage tracking
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: { organizationId: true },
+    })
+
     // Delete file from R2 if exists
     if (insert.fileUrl) {
       try {
         await deletePacketInsert(insert.fileUrl)
+        // Decrement storage if we have the file size and org ID
+        if (insert.fileSizeBytes && event) {
+          await decrementOrgStorage(event.organizationId, insert.fileSizeBytes)
+        }
       } catch (err) {
         console.error('Failed to delete file from R2:', err)
         // Continue with DB deletion even if R2 delete fails

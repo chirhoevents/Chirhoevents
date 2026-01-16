@@ -27,6 +27,12 @@ import {
   Plus,
   Receipt,
   UserCog,
+  Eye,
+  EyeOff,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  HardDrive,
 } from 'lucide-react'
 
 interface Organization {
@@ -80,6 +86,20 @@ interface Organization {
   paymentMethodPreference: string
   legalEntityName: string | null
   website: string | null
+}
+
+interface OrgEvent {
+  id: string
+  name: string
+  slug: string
+  status: string
+  isPublished: boolean
+  startDate: string
+  endDate: string
+  capacityTotal: number | null
+  capacityRemaining: number | null
+  createdAt: string
+  totalRegistrations: number
 }
 
 interface Invoice {
@@ -188,6 +208,10 @@ export default function OrganizationDetailPage() {
     sendOnboardingEmail: true,
   })
   const [changingAdmin, setChangingAdmin] = useState(false)
+  const [allEvents, setAllEvents] = useState<OrgEvent[]>([])
+  const [loadingEvents, setLoadingEvents] = useState(false)
+  const [showAllEvents, setShowAllEvents] = useState(false)
+  const [updatingEventStatus, setUpdatingEventStatus] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchOrganization = async () => {
@@ -368,6 +392,112 @@ export default function OrganizationDetailPage() {
     } catch (error: unknown) {
       console.error('Failed to resend onboarding:', error)
       alert(error instanceof Error ? error.message : 'Failed to resend onboarding email')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const fetchAllEvents = async () => {
+    setLoadingEvents(true)
+    try {
+      const token = await getToken()
+      const response = await fetch(`/api/master-admin/organizations/${params.orgId}/events`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setAllEvents(data.events)
+      }
+    } catch (error) {
+      console.error('Failed to fetch events:', error)
+    } finally {
+      setLoadingEvents(false)
+    }
+  }
+
+  const handleToggleEventPublished = async (eventId: string, currentIsPublished: boolean) => {
+    setUpdatingEventStatus(eventId)
+    try {
+      const token = await getToken()
+      const newIsPublished = !currentIsPublished
+
+      const response = await fetch(`/api/master-admin/organizations/${params.orgId}/events/${eventId}/publish`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ isPublished: newIsPublished }),
+      })
+
+      if (response.ok) {
+        setAllEvents(prev => prev.map(event =>
+          event.id === eventId ? { ...event, isPublished: newIsPublished } : event
+        ))
+      }
+    } catch (error) {
+      console.error('Failed to toggle event published status:', error)
+    } finally {
+      setUpdatingEventStatus(null)
+    }
+  }
+
+  const handleToggleEventRegistration = async (eventId: string, currentStatus: string) => {
+    setUpdatingEventStatus(eventId)
+    try {
+      const token = await getToken()
+      // Toggle between registration_open and registration_closed
+      // If currently registration_open, close it. Otherwise, open it.
+      const newStatus = currentStatus === 'registration_open' ? 'registration_closed' : 'registration_open'
+
+      const response = await fetch(`/api/master-admin/organizations/${params.orgId}/events/${eventId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ status: newStatus }),
+      })
+
+      if (response.ok) {
+        setAllEvents(prev => prev.map(event =>
+          event.id === eventId ? { ...event, status: newStatus } : event
+        ))
+      }
+    } catch (error) {
+      console.error('Failed to toggle event registration status:', error)
+    } finally {
+      setUpdatingEventStatus(null)
+    }
+  }
+
+  const handleRecalculateStorage = async () => {
+    if (!confirm('Recalculate storage usage for this organization? This will aggregate all file sizes.')) return
+
+    setActionLoading('recalculate-storage')
+    try {
+      const token = await getToken()
+      const response = await fetch('/api/admin/storage/recalculate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ organizationId: params.orgId }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to recalculate storage')
+      }
+
+      // Update local state with new storage value
+      setOrganization(prev => prev ? { ...prev, storageUsedGb: data.totalGb } : null)
+      alert(`Storage recalculated: ${data.totalGb.toFixed(2)} GB used`)
+    } catch (error: unknown) {
+      console.error('Failed to recalculate storage:', error)
+      alert(error instanceof Error ? error.message : 'Failed to recalculate storage')
     } finally {
       setActionLoading(null)
     }
@@ -788,28 +918,176 @@ export default function OrganizationDetailPage() {
             </div>
           </div>
 
-          {/* Recent Events */}
+          {/* Events Management */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Events</h2>
-            {organization.events.length === 0 ? (
-              <p className="text-sm text-gray-500">No events yet</p>
-            ) : (
-              <div className="space-y-3">
-                {organization.events.map(event => (
-                  <div key={event.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{event.name}</p>
-                      <p className="text-xs text-gray-500">{formatDate(event.startDate)}</p>
-                    </div>
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      event.status === 'published' ? 'bg-green-100 text-green-700' :
-                      event.status === 'draft' ? 'bg-gray-100 text-gray-700' :
-                      'bg-yellow-100 text-yellow-700'
-                    }`}>
-                      {event.status}
-                    </span>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Events</h2>
+              <button
+                onClick={() => {
+                  if (!showAllEvents && allEvents.length === 0) {
+                    fetchAllEvents()
+                  }
+                  setShowAllEvents(!showAllEvents)
+                }}
+                className="text-sm text-purple-600 hover:text-purple-800 flex items-center gap-1"
+              >
+                {showAllEvents ? (
+                  <>
+                    <ChevronUp className="h-4 w-4" />
+                    Show Less
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-4 w-4" />
+                    Manage All Events
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Quick View (Recent 5) */}
+            {!showAllEvents && (
+              <>
+                {organization.events.length === 0 ? (
+                  <p className="text-sm text-gray-500">No events yet</p>
+                ) : (
+                  <div className="space-y-3">
+                    {organization.events.map(event => (
+                      <div key={event.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{event.name}</p>
+                          <p className="text-xs text-gray-500">{formatDate(event.startDate)}</p>
+                        </div>
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          event.status === 'registration_open' ? 'bg-green-100 text-green-700' :
+                          event.status === 'published' ? 'bg-blue-100 text-blue-700' :
+                          event.status === 'draft' ? 'bg-gray-100 text-gray-700' :
+                          event.status === 'registration_closed' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {event.status.replace('_', ' ')}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
+              </>
+            )}
+
+            {/* Full Events Management */}
+            {showAllEvents && (
+              <div className="space-y-4">
+                {loadingEvents ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 text-purple-600 animate-spin" />
+                  </div>
+                ) : allEvents.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-4">No events found</p>
+                ) : (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {allEvents.map(event => {
+                      const isRegOpen = event.status === 'registration_open'
+                      const isUpdating = updatingEventStatus === event.id
+
+                      return (
+                        <div key={event.id} className="p-4 border border-gray-200 rounded-lg space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className="font-medium text-gray-900">{event.name}</p>
+                              <p className="text-xs text-gray-500">
+                                {formatDate(event.startDate)} - {formatDate(event.endDate)}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {event.totalRegistrations} registrations
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1">
+                              <span className={`text-xs px-2 py-1 rounded ${
+                                event.status === 'registration_open' ? 'bg-green-100 text-green-700' :
+                                event.status === 'registration_closed' ? 'bg-yellow-100 text-yellow-700' :
+                                event.status === 'completed' ? 'bg-blue-100 text-blue-700' :
+                                'bg-gray-100 text-gray-700'
+                              }`}>
+                                {event.status.replace('_', ' ')}
+                              </span>
+                              <span className={`text-xs px-2 py-1 rounded ${
+                                event.isPublished ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+                              }`}>
+                                {event.isPublished ? 'Published' : 'Unpublished'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Toggle Controls */}
+                          <div className="flex flex-col gap-2 pt-2 border-t border-gray-100">
+                            {/* Published Toggle */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {event.isPublished ? (
+                                  <Eye className="h-4 w-4 text-green-600" />
+                                ) : (
+                                  <EyeOff className="h-4 w-4 text-gray-400" />
+                                )}
+                                <span className="text-sm text-gray-700">Published</span>
+                              </div>
+                              <button
+                                onClick={() => handleToggleEventPublished(event.id, event.isPublished)}
+                                disabled={isUpdating || event.status === 'completed' || event.status === 'cancelled'}
+                                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                                  event.isPublished ? 'bg-green-500' : 'bg-gray-300'
+                                } ${isUpdating || event.status === 'completed' || event.status === 'cancelled' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                              >
+                                <span
+                                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                    event.isPublished ? 'translate-x-4' : 'translate-x-0.5'
+                                  }`}
+                                />
+                              </button>
+                            </div>
+
+                            {/* Registration Toggle */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {isRegOpen ? (
+                                  <Check className="h-4 w-4 text-green-600" />
+                                ) : (
+                                  <X className="h-4 w-4 text-gray-400" />
+                                )}
+                                <span className="text-sm text-gray-700">Registration Open</span>
+                              </div>
+                              <button
+                                onClick={() => handleToggleEventRegistration(event.id, event.status)}
+                                disabled={isUpdating || event.status === 'completed' || event.status === 'cancelled'}
+                                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                                  isRegOpen ? 'bg-green-500' : 'bg-gray-300'
+                                } ${isUpdating || event.status === 'completed' || event.status === 'cancelled' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                              >
+                                <span
+                                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                    isRegOpen ? 'translate-x-4' : 'translate-x-0.5'
+                                  }`}
+                                />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* View Event Link */}
+                          <div className="pt-2">
+                            <a
+                              href={`/events/${event.slug}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              View Event Page
+                            </a>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -887,6 +1165,18 @@ export default function OrganizationDetailPage() {
               >
                 <FileText className="h-4 w-4 text-gray-400" />
                 Create Invoice
+              </button>
+              <button
+                onClick={handleRecalculateStorage}
+                disabled={actionLoading === 'recalculate-storage'}
+                className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {actionLoading === 'recalculate-storage' ? (
+                  <Loader2 className="h-4 w-4 text-gray-400 animate-spin" />
+                ) : (
+                  <HardDrive className="h-4 w-4 text-gray-400" />
+                )}
+                Recalculate Storage
               </button>
               <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
                 <BarChart3 className="h-4 w-4 text-gray-400" />

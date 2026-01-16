@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
             individualRegistrationEnabled:
               data.individualRegistrationEnabled !== false,
             liabilityFormsRequiredGroup: true,
-            liabilityFormsRequiredIndividual: false,
+            liabilityFormsRequiredIndividual: data.liabilityFormsRequiredIndividual || false,
             showDietaryRestrictions: true,
             dietaryRestrictionsRequired: false,
             showAdaAccommodations: true,
@@ -123,11 +123,19 @@ export async function POST(request: NextRequest) {
             porosReligiousStaffEnabled: data.porosHousingEnabled || false,
             porosAdaEnabled: data.porosHousingEnabled || false,
             publicPortalEnabled: data.publicPortalEnabled || false,
+            staffRegistrationEnabled: data.staffRegistrationEnabled || false,
+            vendorRegistrationEnabled: data.vendorRegistrationEnabled || false,
+            couponsEnabled: data.couponsEnabled || false,
+            staffVolunteerPrice: data.staffVolunteerPrice ? parseFloat(data.staffVolunteerPrice) : 0,
+            vendorStaffPrice: data.vendorStaffPrice ? parseFloat(data.vendorStaffPrice) : 0,
+            staffRoles: data.staffRoles || null,
+            vendorTiers: data.vendorTiers || null,
             salveCheckinEnabled: data.salveCheckinEnabled || false,
             raphaMedicalEnabled: data.raphaMedicalEnabled || false,
             tshirtsEnabled: data.tshirtsEnabled || false,
             individualMealsEnabled: data.individualMealsEnabled || false,
             registrationInstructions: data.registrationInstructions || null,
+            confirmationEmailMessage: data.confirmationEmailMessage || null,
             checkPaymentEnabled: data.checkPaymentEnabled !== false,
             checkPaymentPayableTo: data.checkPaymentPayableTo || null,
             checkPaymentAddress: data.checkPaymentAddress || null,
@@ -142,6 +150,21 @@ export async function POST(request: NextRequest) {
             doubleRoomLabel: data.doubleRoomLabel || null,
             tripleRoomLabel: data.tripleRoomLabel || null,
             quadRoomLabel: data.quadRoomLabel || null,
+            // Option capacity fields (null = unlimited)
+            onCampusCapacity: data.onCampusCapacity ? parseInt(data.onCampusCapacity) : null,
+            onCampusRemaining: data.onCampusCapacity ? parseInt(data.onCampusCapacity) : null,
+            offCampusCapacity: data.offCampusCapacity ? parseInt(data.offCampusCapacity) : null,
+            offCampusRemaining: data.offCampusCapacity ? parseInt(data.offCampusCapacity) : null,
+            dayPassCapacity: data.dayPassCapacity ? parseInt(data.dayPassCapacity) : null,
+            dayPassRemaining: data.dayPassCapacity ? parseInt(data.dayPassCapacity) : null,
+            singleRoomCapacity: data.singleRoomCapacity ? parseInt(data.singleRoomCapacity) : null,
+            singleRoomRemaining: data.singleRoomCapacity ? parseInt(data.singleRoomCapacity) : null,
+            doubleRoomCapacity: data.doubleRoomCapacity ? parseInt(data.doubleRoomCapacity) : null,
+            doubleRoomRemaining: data.doubleRoomCapacity ? parseInt(data.doubleRoomCapacity) : null,
+            tripleRoomCapacity: data.tripleRoomCapacity ? parseInt(data.tripleRoomCapacity) : null,
+            tripleRoomRemaining: data.tripleRoomCapacity ? parseInt(data.tripleRoomCapacity) : null,
+            quadRoomCapacity: data.quadRoomCapacity ? parseInt(data.quadRoomCapacity) : null,
+            quadRoomRemaining: data.quadRoomCapacity ? parseInt(data.quadRoomCapacity) : null,
             landingPageShowPrice: data.landingPageShowPrice !== false,
             landingPageShowSchedule: data.landingPageShowSchedule !== false,
             landingPageShowFaq: data.landingPageShowFaq !== false,
@@ -155,6 +178,20 @@ export async function POST(request: NextRequest) {
             countdownLocation: data.countdownLocation || 'hero',
             countdownBeforeOpen: data.countdownBeforeOpen !== false,
             countdownBeforeClose: data.countdownBeforeClose !== false,
+            // Landing page content
+            faqContent: data.faqContent || null,
+            scheduleContent: data.scheduleContent || null,
+            includedContent: data.includedContent || null,
+            bringContent: data.bringContent || null,
+            contactInfo: data.contactInfo || null,
+            contactEmail: data.contactEmail || null,
+            contactPhone: data.contactPhone || null,
+            // Email options
+            showFaqInEmail: data.showFaqInEmail || false,
+            showBringInEmail: data.showBringInEmail || false,
+            showScheduleInEmail: data.showScheduleInEmail || false,
+            showIncludedInEmail: data.showIncludedInEmail || false,
+            showContactInEmail: data.showContactInEmail !== false,
             backgroundImageUrl: data.backgroundImageUrl || null,
             primaryColor: data.primaryColor || '#1E3A5F',
             secondaryColor: data.secondaryColor || '#9C8466',
@@ -259,6 +296,34 @@ export async function POST(request: NextRequest) {
       where: { id: organizationId },
       data: { eventsUsed: { increment: 1 } },
     })
+
+    // Create day pass options if provided
+    if (data.dayPassOptions && Array.isArray(data.dayPassOptions) && data.dayPassOptions.length > 0) {
+      const dayPassOptionsToCreate = data.dayPassOptions.map((option: {
+        date: string
+        name: string
+        capacity: string
+        price: string
+        youthPrice: string
+        chaperonePrice: string
+        isActive: boolean
+      }) => ({
+        eventId: event.id,
+        organizationId: organizationId,
+        date: new Date(option.date),
+        name: option.name || 'Day Pass',
+        capacity: option.capacity ? parseInt(option.capacity) : 0,
+        remaining: option.capacity ? parseInt(option.capacity) : 0,
+        price: option.price ? parseFloat(option.price) : 50,
+        youthPrice: option.youthPrice ? parseFloat(option.youthPrice) : null,
+        chaperonePrice: option.chaperonePrice ? parseFloat(option.chaperonePrice) : null,
+        isActive: option.isActive !== false,
+      }))
+
+      await prisma.dayPassOption.createMany({
+        data: dayPassOptionsToCreate,
+      })
+    }
 
     return NextResponse.json({ event })
   } catch (error) {

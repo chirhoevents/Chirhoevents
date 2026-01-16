@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Building2, Users, FileText, Shield, Stethoscope, ClipboardCheck, ChevronDown, Menu, X } from "lucide-react"
+import { Building2, Users, FileText, Shield, Stethoscope, ClipboardCheck, ChevronDown, Menu, X, Store } from "lucide-react"
 import { useState } from "react"
 
 interface PublicNavProps {
@@ -30,6 +30,7 @@ export function PublicNav({ currentPage }: PublicNavProps) {
     { href: "/#pricing", label: "Pricing" },
     { href: "/docs", label: "Documentation" },
     { href: "/support", label: "Support" },
+    { href: "/events", label: "Events" },
   ]
 
   const SignInDropdown = () => (
@@ -74,6 +75,17 @@ export function PublicNav({ currentPage }: PublicNavProps) {
           <div>
             <div className="font-medium">Liability Forms</div>
             <div className="text-xs text-gray-500">Complete participant forms</div>
+          </div>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem
+          className="cursor-pointer py-3"
+          onClick={() => router.push('/vendor-portal')}
+        >
+          <Store className="mr-3 h-5 w-5 text-navy" />
+          <div>
+            <div className="font-medium">Vendor Portal</div>
+            <div className="text-xs text-gray-500">Manage your booth & payments</div>
           </div>
         </DropdownMenuItem>
 
@@ -224,6 +236,17 @@ export function PublicNav({ currentPage }: PublicNavProps) {
                     <div>
                       <div className="font-medium">Liability Forms</div>
                       <div className="text-xs text-gray-500">Complete participant forms</div>
+                    </div>
+                  </Link>
+                  <Link
+                    href="/vendor-portal"
+                    className="flex items-center px-2 py-2 text-navy hover:bg-gray-50 rounded-md"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <Store className="mr-3 h-5 w-5" />
+                    <div>
+                      <div className="font-medium">Vendor Portal</div>
+                      <div className="text-xs text-gray-500">Manage your booth & payments</div>
                     </div>
                   </Link>
                   <p className="text-xs font-semibold text-gray-400 px-2 mt-3 mb-1">Staff Portals</p>

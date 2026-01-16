@@ -59,6 +59,10 @@ export function getRegistrationStatus(
   const regOpen = event.registrationOpenDate?.getTime() || null
   const regClose = event.registrationCloseDate?.getTime() || null
 
+  // NOTE: Draft/published status (isPublished field) controls visibility on /events page,
+  // but does NOT affect registration availability. Registration is controlled by the status field.
+  // This allows testing registration while the event is unpublished.
+
   // 0. MANUAL STATUS OVERRIDE - Admin manually closed registration
   if (event.status === 'registration_closed') {
     return {
@@ -99,13 +103,46 @@ export function getRegistrationStatus(
       showCountdown: false,
       countdownTarget: null,
       allowRegistration: false,
-      allowWaitlist: event.enableWaitlist,
+      allowWaitlist: event.settings?.waitlistEnabled ?? event.enableWaitlist,
       spotsRemaining: 0,
       urgentStyle: false,
     }
   }
 
-  // 3. NOT YET OPEN - Before registration opens
+  // 2b. MANUAL STATUS OVERRIDE - Admin manually opened registration
+  // This bypasses date checks and allows registration if capacity is available
+  if (event.status === 'registration_open') {
+    // Still check if we're closing soon based on dates
+    const effectiveCloseDate = regClose ? Math.min(regClose, eventStart) : eventStart
+    const timeUntilClose = effectiveCloseDate - now
+    const hoursUntilClose = timeUntilClose / (1000 * 60 * 60)
+
+    if (hoursUntilClose > 0 && hoursUntilClose <= CLOSING_SOON_HOURS) {
+      return {
+        status: 'closing_soon',
+        message: 'Registration closes soon!',
+        showCountdown: event.settings?.countdownBeforeClose ?? true,
+        countdownTarget: new Date(effectiveCloseDate),
+        allowRegistration: true,
+        allowWaitlist: false,
+        spotsRemaining: event.capacityRemaining,
+        urgentStyle: true,
+      }
+    }
+
+    return {
+      status: 'open',
+      message: 'Registration is open',
+      showCountdown: false,
+      countdownTarget: null,
+      allowRegistration: true,
+      allowWaitlist: false,
+      spotsRemaining: event.capacityRemaining,
+      urgentStyle: false,
+    }
+  }
+
+  // 3. NOT YET OPEN - Before registration opens (only for published status without manual override)
   if (regOpen && now < regOpen) {
     return {
       status: 'not_yet_open',
@@ -128,7 +165,7 @@ export function getRegistrationStatus(
       showCountdown: false,
       countdownTarget: null,
       allowRegistration: false,
-      allowWaitlist: event.enableWaitlist,
+      allowWaitlist: event.settings?.waitlistEnabled ?? event.enableWaitlist,
       spotsRemaining: event.capacityRemaining,
       urgentStyle: false,
     }

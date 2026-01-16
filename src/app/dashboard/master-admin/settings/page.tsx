@@ -11,7 +11,9 @@ import {
   CreditCard,
   AlertTriangle,
   Check,
+  Bell,
 } from 'lucide-react'
+import MasterAdminNotificationsTab from '@/components/master-admin/MasterAdminNotificationsTab'
 
 interface SettingsData {
   platform_name: string
@@ -45,6 +47,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [activeTab, setActiveTab] = useState<'platform' | 'notifications'>('platform')
 
   useEffect(() => {
     fetchSettings()
@@ -129,44 +132,78 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Platform Settings</h1>
-          <p className="text-gray-600">Configure global platform settings and pricing</p>
-        </div>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50"
-        >
-          {saved ? (
-            <>
-              <Check className="h-5 w-5" />
-              Saved!
-            </>
-          ) : (
-            <>
-              <Save className="h-5 w-5" />
-              {saving ? 'Saving...' : 'Save Changes'}
-            </>
-          )}
-        </button>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Platform Settings</h1>
+        <p className="text-gray-600">Configure global platform settings, pricing, and notifications</p>
       </div>
 
-      {/* Maintenance Mode Warning */}
-      {settings.maintenance_mode === 'true' && (
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="font-medium text-orange-800">Maintenance Mode is ON</p>
-            <p className="text-sm text-orange-600">
-              New users cannot access the platform. Only master admins can log in.
-            </p>
-          </div>
-        </div>
-      )}
+      {/* Tabs */}
+      <div className="border-b border-gray-200">
+        <nav className="flex gap-4">
+          <button
+            onClick={() => setActiveTab('platform')}
+            className={`flex items-center gap-2 py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'platform'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Settings className="h-4 w-4" />
+            Platform Settings
+          </button>
+          <button
+            onClick={() => setActiveTab('notifications')}
+            className={`flex items-center gap-2 py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'notifications'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Bell className="h-4 w-4" />
+            Notifications
+          </button>
+        </nav>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {activeTab === 'notifications' ? (
+        <MasterAdminNotificationsTab />
+      ) : (
+        <>
+          {/* Save Button */}
+          <div className="flex justify-end">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50"
+            >
+              {saved ? (
+                <>
+                  <Check className="h-5 w-5" />
+                  Saved!
+                </>
+              ) : (
+                <>
+                  <Save className="h-5 w-5" />
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Maintenance Mode Warning */}
+          {settings.maintenance_mode === 'true' && (
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-orange-800">Maintenance Mode is ON</p>
+                <p className="text-sm text-orange-600">
+                  New users cannot access the platform. Only master admins can log in.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* General Settings */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center gap-2 mb-4">
@@ -448,30 +485,32 @@ export default function SettingsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Save Button (bottom) */}
-      <div className="flex justify-end">
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="flex items-center gap-2 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 disabled:opacity-50"
-        >
-          {saved ? (
-            <>
-              <Check className="h-5 w-5" />
-              Changes Saved!
-            </>
-          ) : (
-            <>
-              <Save className="h-5 w-5" />
-              {saving ? 'Saving...' : 'Save All Changes'}
-            </>
-          )}
-        </button>
-      </div>
+          {/* Save Button (bottom) */}
+          <div className="flex justify-end">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-2 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 disabled:opacity-50"
+            >
+              {saved ? (
+                <>
+                  <Check className="h-5 w-5" />
+                  Changes Saved!
+                </>
+              ) : (
+                <>
+                  <Save className="h-5 w-5" />
+                  {saving ? 'Saving...' : 'Save All Changes'}
+                </>
+              )}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }

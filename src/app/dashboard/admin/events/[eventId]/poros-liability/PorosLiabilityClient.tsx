@@ -14,9 +14,11 @@ import {
   Download,
   Settings,
   ArrowLeft,
-  Loader2
+  Loader2,
+  User
 } from 'lucide-react'
 import { LiabilityFormsTab } from '@/components/admin/poros-liability/LiabilityFormsTab'
+import { IndividualFormsTab } from '@/components/admin/poros-liability/IndividualFormsTab'
 import { SafeEnvironmentTab } from '@/components/admin/poros-liability/SafeEnvironmentTab'
 import { TemplatesTab } from '@/components/admin/poros-liability/TemplatesTab'
 
@@ -194,7 +196,11 @@ export default function PorosLiabilityClient({
         <TabsList className="bg-muted/50 p-1 h-auto">
           <TabsTrigger value="forms" className="flex items-center gap-2">
             <FileText className="w-4 h-4" />
-            Liability Forms
+            Group Forms
+          </TabsTrigger>
+          <TabsTrigger value="individuals" className="flex items-center gap-2">
+            <User className="w-4 h-4" />
+            Individual Forms
           </TabsTrigger>
           <TabsTrigger value="certificates" className="flex items-center gap-2">
             <Shield className="w-4 h-4" />
@@ -208,6 +214,10 @@ export default function PorosLiabilityClient({
 
         <TabsContent value="forms">
           <LiabilityFormsTab eventId={eventId} onUpdate={fetchStats} />
+        </TabsContent>
+
+        <TabsContent value="individuals">
+          <IndividualFormsTab eventId={eventId} onUpdate={fetchStats} />
         </TabsContent>
 
         <TabsContent value="certificates">

@@ -1,24 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createHmac } from 'crypto'
+import { createHmac, timingSafeEqual } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { wrapEmail, emailInfoBox } from '@/lib/email-templates'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-// Verify webhook signature from Resend
-function verifyWebhookSignature(body: string, signature: string | null): boolean {
+// Verify webhook signature from Resend (uses Svix)
+function verifyWebhookSignature(
+  body: string,
+  svixId: string | null,
+  svixTimestamp: string | null,
+  svixSignature: string | null
+): boolean {
   const webhookSecret = process.env.RESEND_WEBHOOK_SECRET
 
-  if (!signature || !webhookSecret) {
-    console.error('[Resend Webhook] Missing signature or webhook secret')
+  if (!svixId || !svixTimestamp || !svixSignature || !webhookSecret) {
+    console.error('[Resend Webhook] Missing signature headers or webhook secret')
     return false
   }
 
   try {
-    const hmac = createHmac('sha256', webhookSecret)
-    const digest = hmac.update(body).digest('hex')
-    return signature === digest
+    // Resend/Svix signature format: "v1,<base64_signature>"
+    // The signed content is: "${svix_id}.${svix_timestamp}.${body}"
+    const signedContent = `${svixId}.${svixTimestamp}.${body}`
+
+    // Extract the secret (remove "whsec_" prefix if present)
+    const secretBytes = Buffer.from(
+      webhookSecret.startsWith('whsec_')
+        ? webhookSecret.slice(6)
+        : webhookSecret,
+      'base64'
+    )
+
+    const hmac = createHmac('sha256', secretBytes)
+    const expectedSignature = hmac.update(signedContent).digest('base64')
+
+    // Svix signature header can contain multiple signatures separated by spaces
+    // Format: "v1,<sig1> v1,<sig2>"
+    const signatures = svixSignature.split(' ')
+
+    for (const sig of signatures) {
+      const [version, signature] = sig.split(',')
+      if (version === 'v1' && signature) {
+        try {
+          const sigBuffer = Buffer.from(signature, 'base64')
+          const expectedBuffer = Buffer.from(expectedSignature, 'base64')
+          if (sigBuffer.length === expectedBuffer.length &&
+              timingSafeEqual(sigBuffer, expectedBuffer)) {
+            return true
+          }
+        } catch {
+          // Continue to next signature
+        }
+      }
+    }
+
+    console.error('[Resend Webhook] No matching signature found')
+    return false
   } catch (error) {
     console.error('[Resend Webhook] Signature verification error:', error)
     return false
@@ -28,11 +67,15 @@ function verifyWebhookSignature(body: string, signature: string | null): boolean
 export async function POST(request: NextRequest) {
   try {
     const body = await request.text()
-    const signature = request.headers.get('resend-signature')
 
-    // Verify webhook is from Resend (skip in development if no secret)
+    // Resend uses Svix headers for webhook signatures
+    const svixId = request.headers.get('svix-id')
+    const svixTimestamp = request.headers.get('svix-timestamp')
+    const svixSignature = request.headers.get('svix-signature')
+
+    // Verify webhook is from Resend (skip if no secret configured)
     if (process.env.RESEND_WEBHOOK_SECRET) {
-      if (!verifyWebhookSignature(body, signature)) {
+      if (!verifyWebhookSignature(body, svixId, svixTimestamp, svixSignature)) {
         console.error('[Resend Webhook] Invalid webhook signature')
         return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
       }
@@ -57,12 +100,45 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleInboundEmail(emailData: any) {
-  console.log('[Resend Webhook] Processing inbound email...')
-  console.log('[Resend Webhook] From:', emailData.from)
-  console.log('[Resend Webhook] To:', emailData.to)
-  console.log('[Resend Webhook] Subject:', emailData.subject)
+  console.log('[Resend Webhook] === Processing inbound email ===')
+  console.log('[Resend Webhook] Email ID:', emailData.email_id)
 
   try {
+    // Webhook only sends metadata - must fetch content from Receiving API
+    let textBody: string | null = null
+    let htmlBody: string | null = null
+
+    if (emailData.email_id) {
+      try {
+        console.log('[Resend Webhook] Fetching content from Receiving API...')
+
+        // Correct endpoint: GET /emails/receiving/{email_id}
+        const response = await fetch(`https://api.resend.com/emails/receiving/${emailData.email_id}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          },
+        })
+
+        if (response.ok) {
+          const emailContent = await response.json()
+          console.log('[Resend Webhook] Received email content fields:', Object.keys(emailContent))
+          textBody = emailContent.text || null
+          htmlBody = emailContent.html || null
+          console.log('[Resend Webhook] Text length:', textBody?.length || 0)
+          console.log('[Resend Webhook] HTML length:', htmlBody?.length || 0)
+        } else {
+          const errorText = await response.text()
+          console.error('[Resend Webhook] API error:', response.status, errorText)
+        }
+      } catch (fetchError) {
+        console.error('[Resend Webhook] Fetch error:', fetchError)
+      }
+    }
+
+    console.log('[Resend Webhook] Final text body:', textBody ? 'present' : 'null')
+    console.log('[Resend Webhook] Final html body:', htmlBody ? 'present' : 'null')
+
     // 1. Save raw email to database
     const receivedEmail = await prisma.receivedEmail.create({
       data: {
@@ -72,8 +148,8 @@ async function handleInboundEmail(emailData: any) {
         ccAddresses: emailData.cc || [],
         bccAddresses: emailData.bcc || [],
         subject: emailData.subject || '(No Subject)',
-        textBody: emailData.text || null,
-        htmlBody: emailData.html || null,
+        textBody: textBody,
+        htmlBody: htmlBody,
         messageId: emailData.message_id || null,
         attachments: emailData.attachments || null,
       },
@@ -97,7 +173,7 @@ async function handleInboundEmail(emailData: any) {
     // 3. Create support ticket if configured (or by default)
     let ticket = null
     if (!forwardConfig || forwardConfig.createTicket) {
-      ticket = await createInboundTicket(emailData, receivedEmail.id)
+      ticket = await createInboundTicket(emailData, receivedEmail.id, textBody, htmlBody)
       console.log('[Resend Webhook] Inbound ticket created:', ticket.ticketNumber)
 
       // 4. Send auto-reply if configured
@@ -130,7 +206,12 @@ async function handleInboundEmail(emailData: any) {
   }
 }
 
-async function createInboundTicket(emailData: any, receivedEmailId: string) {
+async function createInboundTicket(
+  emailData: any,
+  receivedEmailId: string,
+  textBody: string | null,
+  htmlBody: string | null
+) {
   // Extract sender name from "Name <email>" format
   const fromMatch = (emailData.from || '').match(/^(.*?)\s*<(.+?)>$/)
   const fromName = fromMatch ? fromMatch[1].trim() : null
@@ -151,13 +232,16 @@ async function createInboundTicket(emailData: any, receivedEmailId: string) {
     category = 'legal'
   }
 
+  // Use the fetched body content
+  const messageBody = textBody || htmlBody || '(No message body)'
+
   const ticket = await prisma.inboundSupportTicket.create({
     data: {
       receivedEmailId,
       fromEmail,
       fromName: fromName || null,
       subject: emailData.subject || '(No Subject)',
-      message: emailData.text || emailData.html || '(No message body)',
+      message: messageBody,
       category,
       status: 'open',
       priority: 'normal',

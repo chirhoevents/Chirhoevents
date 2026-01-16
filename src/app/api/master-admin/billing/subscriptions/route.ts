@@ -36,7 +36,8 @@ export async function GET(request: NextRequest) {
           select: { organizationId: true },
           distinct: ['organizationId'],
         })
-        where.id = { in: orgsWithOverdueInvoices.map((inv) => inv.organizationId) }
+        type OverdueInvoiceType = typeof orgsWithOverdueInvoices[number]
+        where.id = { in: orgsWithOverdueInvoices.map((inv: OverdueInvoiceType) => inv.organizationId) }
       } else {
         where.subscriptionStatus = status
       }

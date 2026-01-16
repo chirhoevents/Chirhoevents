@@ -17,10 +17,44 @@ interface EventData {
   startDate: string
   endDate: string
   status: string
+  isPublished: boolean
   locationName: string | null
   locationAddress: string | null
   capacityTotal: number | null
   capacityRemaining: number | null
+}
+
+interface DayPassOption {
+  id: string
+  name: string
+  capacity: number
+  remaining: number
+}
+
+interface RecentRegistration {
+  id: string
+  type: 'group' | 'individual'
+  name: string
+  participants: number
+  date: string
+}
+
+interface RecentPayment {
+  id: string
+  amount: number
+  method: string
+  date: string
+  name: string
+}
+
+interface ActivityData {
+  recentRegistrations: RecentRegistration[]
+  recentPayments: RecentPayment[]
+  trends: {
+    today: number
+    thisWeek: number
+    lastWeek: number
+  }
 }
 
 interface EventStats {
@@ -41,6 +75,8 @@ export default function EventDetailPage() {
   const [event, setEvent] = useState<EventData | null>(null)
   const [stats, setStats] = useState<EventStats | null>(null)
   const [settings, setSettings] = useState<any>(null)
+  const [dayPassOptions, setDayPassOptions] = useState<DayPassOption[]>([])
+  const [activity, setActivity] = useState<ActivityData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -83,6 +119,7 @@ export default function EventDetailPage() {
         startDate: data.event.startDate,
         endDate: data.event.endDate,
         status: data.event.status,
+        isPublished: data.event.isPublished ?? false,
         locationName: data.event.locationName,
         locationAddress: data.event.locationAddress,
         capacityTotal: data.event.capacityTotal,
@@ -100,6 +137,17 @@ export default function EventDetailPage() {
 
       // Set settings
       setSettings(data.event.settings || null)
+
+      // Set day pass options
+      setDayPassOptions(data.event.dayPassOptions?.map((dp: any) => ({
+        id: dp.id,
+        name: dp.name,
+        capacity: dp.capacity,
+        remaining: dp.remaining,
+      })) || [])
+
+      // Set activity data
+      setActivity(data.activity || null)
     } catch (err) {
       console.error('Error fetching event:', err)
       setError('Failed to load event')
@@ -144,6 +192,8 @@ export default function EventDetailPage() {
       event={event}
       stats={stats}
       settings={settings}
+      dayPassOptions={dayPassOptions}
+      activity={activity}
     />
   )
 }

@@ -65,7 +65,7 @@ export async function GET(
 
     // Format response with stats
     type GroupResult = typeof groups[number]
-    type FormType = { formStatus: string }
+    type FormType = { formStatus: string; participantType: string | null }
     const formattedGroups = groups.map((group: GroupResult) => {
       const totalSpots = group.totalParticipants
 
@@ -81,6 +81,14 @@ export async function GET(
         (f: FormType) => f.formStatus === 'denied'
       ).length
 
+      // Calculate youth and chaperone submission counts
+      const youthSubmittedCount = allCompletedForms.filter(
+        (f: FormType) => f.participantType === 'youth_u18' || f.participantType === 'youth_o18' || f.participantType === 'youth'
+      ).length
+      const chaperoneSubmittedCount = allCompletedForms.filter(
+        (f: FormType) => f.participantType === 'chaperone' || f.participantType === 'youth_o18_chaperone'
+      ).length
+
       return {
         id: group.id,
         groupName: group.groupName,
@@ -90,6 +98,11 @@ export async function GET(
         approvedCount,
         pendingCount,
         deniedCount,
+        // Youth and chaperone breakdown
+        youthCount: group.youthCount,
+        youthSubmittedCount,
+        chaperoneCount: group.chaperoneCount,
+        chaperoneSubmittedCount,
         participants: allCompletedForms.map((form: GroupResult['liabilityForms'][number]) => ({
           id: form.participant?.id || form.id,
           firstName: form.participantFirstName,

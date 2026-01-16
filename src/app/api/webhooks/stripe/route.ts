@@ -3,6 +3,8 @@ import { headers } from 'next/headers'
 import Stripe from 'stripe'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
+import QRCode from 'qrcode'
+import { generateGroupRegistrationConfirmationEmail } from '@/lib/email-templates'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -31,6 +33,152 @@ export async function POST(request: NextRequest) {
       { error: 'Webhook signature verification failed' },
       { status: 400 }
     )
+  }
+
+  // Handle Platform Invoice Payments (checkout.session.completed with platform_invoice type)
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object as Stripe.Checkout.Session
+
+    // Check if this is a platform invoice payment
+    if (session.metadata?.type === 'platform_invoice' || session.metadata?.invoiceId) {
+      console.log('💳 Processing platform invoice payment')
+      const { invoiceId, invoiceNumber, organizationId, invoiceType } = session.metadata
+
+      if (!invoiceId) {
+        console.error('❌ No invoiceId in session metadata for platform invoice')
+        return NextResponse.json({ error: 'Missing invoice metadata' }, { status: 400 })
+      }
+
+      try {
+        // Update invoice status to paid
+        await prisma.invoice.update({
+          where: { id: invoiceId },
+          data: {
+            status: 'paid',
+            paidAt: new Date(),
+            paymentMethod: 'credit_card',
+            stripePaymentIntentId: session.payment_intent as string,
+            stripeCheckoutSessionId: session.id,
+          },
+        })
+
+        // Fetch invoice and organization separately to avoid schema mismatch
+        const invoice = await prisma.invoice.findUnique({
+          where: { id: invoiceId },
+          select: {
+            id: true,
+            invoiceNumber: true,
+            amount: true,
+            organizationId: true,
+            organization: {
+              select: { id: true, name: true, contactEmail: true },
+            },
+          },
+        })
+
+        if (!invoice) {
+          console.error('❌ Invoice not found after update:', invoiceId)
+          return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+        }
+
+        console.log('✅ Invoice marked as paid:', invoiceNumber)
+
+        // Note: The Payment model is for event registration payments, not platform invoices.
+        // Platform invoice payments are tracked via the Invoice record itself (status, paidAt,
+        // stripePaymentIntentId, stripeCheckoutSessionId fields).
+
+        // Handle subscription activation if this is a subscription invoice
+        if (invoiceType === 'subscription') {
+          await prisma.organization.update({
+            where: { id: organizationId },
+            data: {
+              subscriptionStatus: 'active',
+              subscriptionStartedAt: new Date(),
+            },
+          })
+          console.log('✅ Subscription activated for org:', organizationId)
+        }
+
+        // Handle setup fee
+        if (invoiceType === 'setup_fee') {
+          await prisma.organization.update({
+            where: { id: organizationId },
+            data: {
+              setupFeePaid: true,
+            },
+          })
+          console.log('✅ Setup fee marked as paid for org:', organizationId)
+        }
+
+        // Log platform activity
+        await prisma.platformActivityLog.create({
+          data: {
+            organizationId: organizationId,
+            activityType: 'invoice_paid',
+            description: `Invoice #${invoiceNumber} paid via online payment - $${(session.amount_total! / 100).toFixed(2)}`,
+            metadata: {
+              invoiceId,
+              invoiceNumber,
+              amount: session.amount_total! / 100,
+              paymentMethod: 'card',
+              stripeSessionId: session.id,
+            },
+          },
+        })
+
+        // Note: Billing notes require a createdByUserId, so we skip creating
+        // one for automated webhook payments. The payment is recorded in the
+        // Payment table and invoice status is updated to 'paid'.
+
+        // Send payment confirmation email
+        try {
+          await resend.emails.send({
+            from: process.env.RESEND_FROM_EMAIL || 'billing@chirhoevents.com',
+            to: invoice.organization.contactEmail,
+            subject: `Payment Received - Invoice #${invoiceNumber}`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
+                  <h1 style="color: white; margin: 0;">ChirhoEvents</h1>
+                </div>
+
+                <div style="padding: 30px 20px;">
+                  <div style="background-color: #D4EDDA; padding: 20px; border-left: 4px solid #28A745; margin-bottom: 20px;">
+                    <h2 style="color: #155724; margin-top: 0;">Payment Received!</h2>
+                    <p style="margin: 0; color: #155724;">Thank you for your payment.</p>
+                  </div>
+
+                  <div style="background-color: #F5F5F5; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                    <p style="margin: 5px 0;"><strong>Invoice #:</strong> ${invoiceNumber}</p>
+                    <p style="margin: 5px 0;"><strong>Amount Paid:</strong> $${(session.amount_total! / 100).toFixed(2)}</p>
+                    <p style="margin: 5px 0;"><strong>Payment Method:</strong> Credit Card</p>
+                    <p style="margin: 5px 0;"><strong>Date:</strong> ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                  </div>
+
+                  <p>This email serves as your receipt. If you have any questions, please contact us at support@chirhoevents.com.</p>
+
+                  <p>Best regards,<br><strong>ChirhoEvents Team</strong></p>
+                </div>
+
+                <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
+                  <p>&copy; ${new Date().getFullYear()} ChirhoEvents. All rights reserved.</p>
+                </div>
+              </div>
+            `,
+          })
+          console.log('✅ Payment confirmation email sent to:', invoice.organization.contactEmail)
+        } catch (emailError) {
+          console.error('⚠️ Failed to send payment confirmation email:', emailError)
+        }
+
+        return NextResponse.json({ received: true })
+      } catch (error) {
+        console.error('❌ Error processing platform invoice payment:', error)
+        return NextResponse.json({ error: 'Processing failed' }, { status: 500 })
+      }
+    }
+
+    // Continue to existing checkout.session.completed handling for registrations...
   }
 
   // Handle the event
@@ -138,8 +286,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Processing failed' }, { status: 500 })
     }
   } else if (event.type === 'checkout.session.completed') {
-    console.log('💳 Processing checkout.session.completed event')
+    console.log('💳 Processing checkout.session.completed event for registration')
     const session = event.data.object as Stripe.Checkout.Session
+
+    // Skip if this is a platform invoice payment (already handled above)
+    if (session.metadata?.type === 'platform_invoice' || session.metadata?.invoiceId) {
+      console.log('⏭️ Skipping - already handled as platform invoice payment')
+      return NextResponse.json({ received: true })
+    }
 
     const { registrationId, accessCode, groupName, registrationType } = session.metadata || {}
     console.log('📋 Session metadata:', { registrationId, accessCode, groupName, registrationType })
@@ -257,9 +411,32 @@ export async function POST(request: NextRequest) {
                 <h3 style="color: #1E3A5F;">Next Steps:</h3>
                 <ol>
                   <li><strong>Save Your QR Code:</strong> Visit your confirmation page to download your QR code for check-in.</li>
+                  ${registration.event.settings?.liabilityFormsRequiredIndividual ? `
+                  <li><strong>Complete Your Liability Form:</strong> Click the button below to complete your required liability form.</li>
+                  ` : ''}
                   <li><strong>Check-In:</strong> Bring your QR code (on your phone or printed) to check in at the event.</li>
                   <li><strong>Prepare:</strong> Review your confirmation details and pack accordingly.</li>
                 </ol>
+
+                ${registration.event.settings?.liabilityFormsRequiredIndividual ? `
+                <div style="background-color: #FEF3C7; padding: 20px; border-radius: 8px; margin: 20px 0; border: 2px solid #F59E0B;">
+                  <h3 style="color: #92400E; margin-top: 0;">📋 Liability Form Required</h3>
+                  <p style="color: #92400E; margin-bottom: 15px;">
+                    ${registration.age && registration.age < 18
+                      ? 'Since you are under 18, a parent or guardian must complete and sign your liability form.'
+                      : 'Please complete your liability form before the event.'}
+                  </p>
+                  <div style="text-align: center;">
+                    <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/poros/${registration.confirmationCode}"
+                       style="display: inline-block; background-color: #1E3A5F; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                      Complete Liability Form
+                    </a>
+                  </div>
+                  <p style="color: #78716C; font-size: 12px; margin-top: 15px; text-align: center;">
+                    Or copy this link: ${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/poros/${registration.confirmationCode}
+                  </p>
+                </div>
+                ` : ''}
 
                 ${registration.event.settings?.registrationInstructions ? `
                   <div style="background-color: #F0F8FF; padding: 15px; border-radius: 8px; margin: 20px 0;">
@@ -358,6 +535,12 @@ export async function POST(request: NextRequest) {
             include: {
               settings: true,
               pricing: true,
+              organization: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
             },
           },
         },
@@ -376,75 +559,59 @@ export async function POST(request: NextRequest) {
       const totalAmount = paymentBalance ? Number(paymentBalance.totalAmountDue) : 0
       const balanceRemaining = paymentBalance ? Number(paymentBalance.amountRemaining) : 0
 
+      // Generate QR code if not already stored
+      let qrCodeDataUrl = registration.qrCode
+      if (!qrCodeDataUrl) {
+        const qrData = JSON.stringify({
+          registration_id: registration.id,
+          event_id: registration.eventId,
+          type: 'group',
+          group_name: registration.groupName,
+          access_code: registration.accessCode,
+        })
+        qrCodeDataUrl = await QRCode.toDataURL(qrData, {
+          errorCorrectionLevel: 'H',
+          margin: 1,
+          width: 300,
+        })
+        // Store for future use
+        await prisma.groupRegistration.update({
+          where: { id: registration.id },
+          data: { qrCode: qrCodeDataUrl },
+        })
+      }
+
+      // Build URLs for email
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
+      const porosLiabilityUrl = `${appUrl}/poros/liability?code=${registration.accessCode}`
+      const groupLeaderPortalUrl = `${appUrl}/dashboard/group-leader`
+      const confirmationPageUrl = `${appUrl}/registration/confirmation/${registration.id}`
+
+      // Generate email using the template
+      const emailHtml = generateGroupRegistrationConfirmationEmail({
+        groupName: registration.groupName,
+        groupLeaderName: registration.groupLeaderName,
+        eventName: registration.event.name,
+        accessCode: registration.accessCode,
+        confirmationPageUrl,
+        totalParticipants: registration.totalParticipants,
+        totalAmount,
+        depositAmount: depositPaid,
+        balanceRemaining,
+        paymentMethod: 'card',
+        registrationInstructions: registration.event.settings?.registrationInstructions || undefined,
+        customMessage: registration.event.settings?.confirmationEmailMessage || undefined,
+        organizationName: registration.event.organization.name,
+        porosLiabilityUrl,
+        groupLeaderPortalUrl,
+      })
+
       // Send confirmation email
       await resend.emails.send({
         from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
         to: registration.groupLeaderEmail,
         subject: `Payment Confirmed - ${registration.event.name}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <!-- ChiRho Events Logo Header -->
-            <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
-              <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 200px; height: auto;" />
-            </div>
-
-            <div style="padding: 30px 20px;">
-              <h1 style="color: #1E3A5F; margin-top: 0;">✅ Payment Confirmed!</h1>
-
-              <p>Thank you for your payment! Your registration for <strong>${registration.groupName}</strong> at ${registration.event.name} is now confirmed.</p>
-
-            <div style="background-color: #F5F1E8; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h2 style="color: #9C8466; margin-top: 0;">Your Access Code</h2>
-              <p style="font-size: 24px; font-weight: bold; color: #1E3A5F; font-family: monospace; letter-spacing: 2px;">
-                ${registration.accessCode}
-              </p>
-              <p style="font-size: 14px; color: #666;">
-                Save this code! You'll need it to complete liability forms and access your group portal.
-              </p>
-            </div>
-
-            <div style="background-color: #D4EDDA; padding: 20px; border-left: 4px solid #28A745; margin: 20px 0;">
-              <h3 style="color: #155724; margin-top: 0;">✓ Payment Received</h3>
-              <p style="margin: 5px 0; color: #155724;"><strong>Deposit Paid:</strong> $${depositPaid.toFixed(2)}</p>
-              ${balanceRemaining > 0 ? `
-                <p style="margin: 5px 0; color: #155724;"><strong>Balance Remaining:</strong> $${balanceRemaining.toFixed(2)}</p>
-                <p style="margin: 5px 0; font-size: 14px; color: #155724;">Pay the remaining balance before the event using your access code.</p>
-              ` : `
-                <p style="margin: 5px 0; color: #155724;"><strong>Status:</strong> Paid in Full</p>
-              `}
-            </div>
-
-            <h3 style="color: #1E3A5F;">Registration Summary</h3>
-            <div style="background-color: #F5F5F5; padding: 15px; border-radius: 8px;">
-              <p style="margin: 5px 0;"><strong>Group:</strong> ${registration.groupName}</p>
-              <p style="margin: 5px 0;"><strong>Participants:</strong> ${registration.totalParticipants}</p>
-              <p style="margin: 5px 0;"><strong>Total Cost:</strong> $${totalAmount.toFixed(2)}</p>
-              <p style="margin: 5px 0;"><strong>Amount Paid:</strong> $${depositPaid.toFixed(2)}</p>
-              <p style="margin: 5px 0;"><strong>Payment Method:</strong> Credit Card</p>
-            </div>
-
-            <h3 style="color: #1E3A5F;">Next Steps:</h3>
-            <ol>
-              <li><strong>Complete Liability Forms:</strong> Each participant must complete their liability form using your access code.</li>
-              ${balanceRemaining > 0 ? '<li><strong>Pay Remaining Balance:</strong> Use your access code in the Group Portal to pay the balance before the event.</li>' : ''}
-              <li><strong>Check-In:</strong> Bring your access code to check in at the event.</li>
-            </ol>
-
-            ${registration.event.settings?.registrationInstructions ? `
-              <div style="background-color: #F0F8FF; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                <h3 style="color: #1E3A5F; margin-top: 0;">Important Information</h3>
-                <p style="white-space: pre-line;">${registration.event.settings.registrationInstructions}</p>
-              </div>
-            ` : ''}
-
-            <p>Questions? Reply to this email or contact the event organizer.</p>
-
-            <p style="color: #666; font-size: 12px; margin-top: 30px;">
-              © 2025 ChiRho Events. All rights reserved.
-            </p>
-            </div>
-          </div>
-        `,
+        html: emailHtml,
       })
 
       console.log('✅ Payment confirmed and email sent to:', registration.groupLeaderEmail)

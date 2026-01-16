@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { uploadNameTagImage, deleteNameTagImage, NameTagImageType } from '@/lib/r2/upload-name-tag-image'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import { hasPermission } from '@/lib/permissions'
+import { incrementOrgStorage } from '@/lib/storage/track-storage'
 
 // Helper function to check if user can access Salve portal
 async function requireSalveAccess(request: NextRequest, eventId: string) {
@@ -94,6 +95,16 @@ export async function POST(
 
     // Upload to R2
     const imageUrl = await uploadNameTagImage(buffer, file.name, eventId, imageType)
+
+    // Get event to track storage for the organization
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: { organizationId: true },
+    })
+
+    if (event) {
+      await incrementOrgStorage(event.organizationId, file.size)
+    }
 
     // Update the name tag template in database
     const updateData = imageType === 'logo'

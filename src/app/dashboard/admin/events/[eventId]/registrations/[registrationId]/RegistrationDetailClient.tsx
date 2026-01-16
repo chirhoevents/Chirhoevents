@@ -16,7 +16,9 @@ import {
   Calendar,
   User,
   Home,
-  Shield
+  Shield,
+  XCircle,
+  AlertTriangle,
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -79,7 +81,7 @@ interface GroupRegistration {
   groupLeaderEmail: string
   groupLeaderPhone: string
   totalParticipants: number
-  housingType: string
+  housingType: string | null
   registeredAt: Date
   participants?: any[]
   [key: string]: any
@@ -130,6 +132,9 @@ export default function RegistrationDetailClient({
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [paymentBalance, setPaymentBalance] = useState(initialPaymentBalance)
   const [payments, setPayments] = useState(initialPayments)
+  const [showCancelModal, setShowCancelModal] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+  const [cancelReason, setCancelReason] = useState('')
 
   // Form data for individual registration
   const [formData, setFormData] = useState(() => {
@@ -243,6 +248,136 @@ export default function RegistrationDetailClient({
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleCancelRegistration = async () => {
+    if (cancelling) return
+
+    setCancelling(true)
+    try {
+      const response = await fetch(
+        `/api/admin/registrations/${registration.id}/cancel`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            type: registration.type,
+            reason: cancelReason || 'Cancelled by admin',
+            hardDelete: true,
+          }),
+        }
+      )
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to cancel registration')
+      }
+
+      const result = await response.json()
+
+      // Close modal and show success message
+      setShowCancelModal(false)
+
+      // Determine where to redirect based on if there's a refund needed
+      const hasPayments = paymentBalance && paymentBalance.amountPaid > 0
+
+      if (hasPayments) {
+        // Redirect to refund page
+        alert(`Registration cancelled successfully!\n\n${result.capacityRestored} spot(s) restored to event capacity.\n\nRedirecting to process refund...`)
+        router.push(`/dashboard/admin/events/${event.id}/registrations?refund=${registration.id}&amount=${paymentBalance.amountPaid}&type=${registration.type}`)
+      } else {
+        // No refund needed, just go back to registrations
+        alert(`Registration cancelled successfully!\n\n${result.capacityRestored} spot(s) restored to event capacity.`)
+        router.push(`/dashboard/admin/events/${event.id}/registrations`)
+      }
+    } catch (error) {
+      console.error('Error cancelling registration:', error)
+      alert(`Failed to cancel registration: ${error instanceof Error ? error.message : 'Please try again.'}`)
+    } finally {
+      setCancelling(false)
+    }
+  }
+
+  // Cancel confirmation modal component
+  const CancelConfirmationModal = () => {
+    if (!showCancelModal) return null
+
+    const participantCount = registration.type === 'group'
+      ? (registration as GroupRegistration).totalParticipants
+      : 1
+    const registrationName = registration.type === 'group'
+      ? (registration as GroupRegistration).groupName
+      : `${(registration as IndividualRegistration).firstName} ${(registration as IndividualRegistration).lastName}`
+
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-red-100 rounded-full">
+              <AlertTriangle className="h-6 w-6 text-red-600" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900">Cancel Registration</h2>
+          </div>
+
+          <div className="mb-4">
+            <p className="text-gray-600 mb-3">
+              Are you sure you want to cancel this registration?
+            </p>
+            <div className="bg-gray-50 p-3 rounded-md space-y-1 text-sm">
+              <p><strong>Registration:</strong> {registrationName}</p>
+              <p><strong>Type:</strong> {registration.type === 'group' ? 'Group' : 'Individual'}</p>
+              <p><strong>Spots to restore:</strong> {participantCount}</p>
+              {paymentBalance && paymentBalance.amountPaid > 0 && (
+                <p className="text-orange-600 font-medium">
+                  <strong>Refund needed:</strong> ${paymentBalance.amountPaid.toFixed(2)}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <Label htmlFor="cancelReason">Reason for cancellation (optional)</Label>
+            <Textarea
+              id="cancelReason"
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Enter reason for cancellation..."
+              className="mt-1"
+            />
+          </div>
+
+          <div className="flex gap-3 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCancelModal(false)
+                setCancelReason('')
+              }}
+              disabled={cancelling}
+            >
+              Keep Registration
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleCancelRegistration}
+              disabled={cancelling}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {cancelling ? (
+                'Cancelling...'
+              ) : (
+                <>
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Cancel Registration
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (registration.type === 'group') {
@@ -483,6 +618,31 @@ export default function RegistrationDetailClient({
                     </CardContent>
                   </Card>
                 )}
+
+                {/* Cancel Registration Card */}
+                {canEditRegistration && (
+                  <Card className="border-red-200">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2 text-red-600">
+                        <XCircle className="h-5 w-5" />
+                        Cancel Registration
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <p className="text-sm text-gray-600">
+                        Cancel this group registration and restore {registration.totalParticipants} spot(s) to event capacity.
+                      </p>
+                      <Button
+                        variant="destructive"
+                        className="w-full"
+                        onClick={() => setShowCancelModal(true)}
+                      >
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Cancel Registration
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </div>
           </div>
@@ -503,6 +663,9 @@ export default function RegistrationDetailClient({
             }}
           />
         )}
+
+        {/* Cancel Confirmation Modal */}
+        <CancelConfirmationModal />
       </div>
     )
   }
@@ -866,7 +1029,7 @@ export default function RegistrationDetailClient({
                   <Button
                     onClick={handleSave}
                     disabled={saving}
-                    className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90"
+                    className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white"
                   >
                     {saving ? (
                       <>Saving...</>
@@ -1020,6 +1183,31 @@ export default function RegistrationDetailClient({
                     )}
                   </CardContent>
                 </Card>
+
+                {/* Cancel Registration Card */}
+                {canEditRegistration && (
+                  <Card className="border-red-200">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2 text-red-600">
+                        <XCircle className="h-5 w-5" />
+                        Cancel Registration
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <p className="text-sm text-gray-600">
+                        Cancel this registration and restore 1 spot to event capacity.
+                      </p>
+                      <Button
+                        variant="destructive"
+                        className="w-full"
+                        onClick={() => setShowCancelModal(true)}
+                      >
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Cancel Registration
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             )}
           </div>
@@ -1041,6 +1229,9 @@ export default function RegistrationDetailClient({
           }}
         />
       )}
+
+      {/* Cancel Confirmation Modal */}
+      <CancelConfirmationModal />
     </div>
   )
 }

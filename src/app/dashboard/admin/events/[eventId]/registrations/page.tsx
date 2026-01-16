@@ -1,191 +1,169 @@
-import { requireAdmin } from '@/lib/auth-utils'
-import { getEffectiveOrgId } from '@/lib/get-effective-org'
-import { prisma } from '@/lib/prisma'
-import { notFound } from 'next/navigation'
-import RegistrationsClient from './RegistrationsClient'
+'use client'
 
-interface PageProps {
-  params: Promise<{
-    eventId: string
-  }>
-}
+import { useState, useEffect } from 'react'
+import { useParams, notFound } from 'next/navigation'
+import { useAuth } from '@clerk/nextjs'
+import { Loader2 } from 'lucide-react'
+import RegistrationsClient from './RegistrationsClient'
 
 // UUID validation regex
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-export default async function EventRegistrationsPage({ params }: PageProps) {
-  const user = await requireAdmin()
-  const { eventId } = await params
+interface GroupRegistration {
+  id: string
+  type: 'group'
+  groupName: string
+  parishName: string | null
+  leaderName: string
+  leaderEmail: string
+  leaderPhone: string
+  participantCount: number
+  housingType: string
+  registeredAt: string
+  totalAmount: number
+  amountPaid: number
+  balance: number
+  paymentStatus: string
+  formsCompleted: number
+  formsTotal: number
+}
 
-  // Validate eventId is a valid UUID
-  if (!UUID_REGEX.test(eventId)) {
-    notFound()
-  }
+interface IndividualRegistration {
+  id: string
+  type: 'individual'
+  firstName: string
+  lastName: string
+  preferredName: string | null
+  email: string
+  phone: string
+  age: number | null
+  gender: string | null
+  street: string | null
+  city: string | null
+  state: string | null
+  zip: string | null
+  housingType: string | null
+  roomType: string | null
+  tShirtSize: string | null
+  preferredRoommate: string | null
+  dietaryRestrictions: string | null
+  adaAccommodations: string | null
+  emergencyContact1Name: string | null
+  emergencyContact1Phone: string | null
+  emergencyContact1Relation: string | null
+  emergencyContact2Name: string | null
+  emergencyContact2Phone: string | null
+  emergencyContact2Relation: string | null
+  registeredAt: string
+  totalAmount: number
+  amountPaid: number
+  balance: number
+  paymentStatus: string
+  formStatus: 'complete' | 'pending' | 'not_required'
+  confirmationCode: string | null
+}
 
-  const organizationId = await getEffectiveOrgId(user)
+// NOTE: Auth is handled by the layout with proper retry logic.
+// Server Components using requireAdmin() cause redirect loops in production
+// because Clerk's auth() can fail during initial session hydration.
+export default function EventRegistrationsPage() {
+  const params = useParams()
+  const eventId = params?.eventId as string
+  const { getToken } = useAuth()
+  const [eventName, setEventName] = useState<string>('')
+  const [groupRegistrations, setGroupRegistrations] = useState<GroupRegistration[]>([])
+  const [individualRegistrations, setIndividualRegistrations] = useState<IndividualRegistration[]>([])
+  const [totalRegistrations, setTotalRegistrations] = useState(0)
+  const [totalParticipants, setTotalParticipants] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Verify event exists and belongs to user's organization
-  const event = await prisma.event.findUnique({
-    where: {
-      id: eventId,
-      organizationId: organizationId,
-    },
-    select: {
-      id: true,
-      name: true,
-    },
-  })
-
-  if (!event) {
-    notFound()
-  }
-
-  // Fetch registrations with payment data
-  const groupRegistrations = await prisma.groupRegistration.findMany({
-    where: {
-      eventId: eventId,
-    },
-    include: {
-      participants: {
-        select: {
-          id: true,
-          liabilityFormCompleted: true,
-        },
-      },
-    },
-    orderBy: {
-      registeredAt: 'desc',
-    },
-  })
-
-  const individualRegistrations = await prisma.individualRegistration.findMany({
-    where: {
-      eventId: eventId,
-    },
-    include: {
-      liabilityForms: {
-        select: {
-          id: true,
-          completed: true,
-        },
-      },
-    },
-    orderBy: {
-      registeredAt: 'desc',
-    },
-  })
-
-  // Check if event requires liability forms for individuals
-  const eventSettings = await prisma.eventSettings.findUnique({
-    where: { eventId },
-    select: { liabilityFormsRequiredIndividual: true },
-  })
-  const individualFormsRequired = eventSettings?.liabilityFormsRequiredIndividual ?? false
-
-  // Fetch payment balances
-  const paymentBalances = await prisma.paymentBalance.findMany({
-    where: {
-      eventId: eventId,
-    },
-  })
-
-  // Create a map of payment balances by registration ID
-  const paymentMap = new Map(
-    paymentBalances.map((pb: any) => [pb.registrationId, pb])
-  )
-
-  // Transform group registrations with payment data
-  const groupRegs = groupRegistrations.map((reg: any) => {
-    const payment: any = paymentMap.get(reg.id)
-    const completedForms = reg.participants.filter(
-      (p: any) => p.liabilityFormCompleted
-    ).length
-
-    return {
-      id: reg.id,
-      type: 'group' as const,
-      groupName: reg.groupName,
-      parishName: reg.parishName,
-      leaderName: reg.groupLeaderName,
-      leaderEmail: reg.groupLeaderEmail,
-      leaderPhone: reg.groupLeaderPhone,
-      participantCount: reg.participants.length,
-      housingType: reg.housingType,
-      registeredAt: reg.registeredAt.toISOString(),
-      totalAmount: payment?.totalAmountDue ? Number(payment.totalAmountDue) : 0,
-      amountPaid: payment?.amountPaid ? Number(payment.amountPaid) : 0,
-      balance: payment?.amountRemaining ? Number(payment.amountRemaining) : 0,
-      paymentStatus: payment?.paymentStatus || 'pending',
-      formsCompleted: completedForms,
-      formsTotal: reg.participants.length,
+  useEffect(() => {
+    // Validate eventId is a valid UUID
+    if (!eventId || !UUID_REGEX.test(eventId)) {
+      setError('Invalid event ID')
+      setLoading(false)
+      return
     }
-  })
 
-  // Transform individual registrations with payment data
-  const individualRegs = individualRegistrations.map((reg: any) => {
-    const payment: any = paymentMap.get(reg.id)
+    fetchRegistrations()
+  }, [eventId])
 
-    // Determine form status for individual
-    // 'complete' = form exists and is completed
-    // 'pending' = form exists but not completed
-    // 'not_required' = no form needed for this event
-    let formStatus: 'complete' | 'pending' | 'not_required' = 'not_required'
-    if (individualFormsRequired) {
-      if (reg.liabilityForms && reg.liabilityForms.length > 0) {
-        const hasCompletedForm = reg.liabilityForms.some((f: any) => f.completed)
-        formStatus = hasCompletedForm ? 'complete' : 'pending'
-      } else {
-        formStatus = 'pending' // Forms required but not created yet
+  const fetchRegistrations = async () => {
+    try {
+      const token = await getToken()
+      const response = await fetch(`/api/admin/events/${eventId}/registrations`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
+
+      if (response.status === 404) {
+        setError('Event not found')
+        setLoading(false)
+        return
       }
-    }
 
-    return {
-      id: reg.id,
-      type: 'individual' as const,
-      firstName: reg.firstName,
-      lastName: reg.lastName,
-      preferredName: reg.preferredName,
-      email: reg.email,
-      phone: reg.phone,
-      age: reg.age,
-      gender: reg.gender,
-      street: reg.street,
-      city: reg.city,
-      state: reg.state,
-      zip: reg.zip,
-      housingType: reg.housingType,
-      roomType: reg.roomType,
-      tShirtSize: reg.tShirtSize,
-      preferredRoommate: reg.preferredRoommate,
-      dietaryRestrictions: reg.dietaryRestrictions,
-      adaAccommodations: reg.adaAccommodations,
-      emergencyContact1Name: reg.emergencyContact1Name,
-      emergencyContact1Phone: reg.emergencyContact1Phone,
-      emergencyContact1Relation: reg.emergencyContact1Relation,
-      emergencyContact2Name: reg.emergencyContact2Name,
-      emergencyContact2Phone: reg.emergencyContact2Phone,
-      emergencyContact2Relation: reg.emergencyContact2Relation,
-      registeredAt: reg.registeredAt.toISOString(),
-      totalAmount: payment?.totalAmountDue ? Number(payment.totalAmountDue) : 0,
-      amountPaid: payment?.amountPaid ? Number(payment.amountPaid) : 0,
-      balance: payment?.amountRemaining ? Number(payment.amountRemaining) : 0,
-      paymentStatus: payment?.paymentStatus || 'pending',
-      formStatus,
-      confirmationCode: reg.confirmationCode,
-    }
-  })
+      if (response.status === 403) {
+        setError('You do not have permission to view this event')
+        setLoading(false)
+        return
+      }
 
-  const totalRegistrations = groupRegs.length + individualRegs.length
-  const totalParticipants =
-    groupRegs.reduce((sum: number, reg: any) => sum + reg.participantCount, 0) +
-    individualRegs.length
+      if (!response.ok) {
+        throw new Error('Failed to fetch registrations')
+      }
+
+      const data = await response.json()
+
+      setEventName(data.event.name)
+      setGroupRegistrations(data.groupRegistrations)
+      setIndividualRegistrations(data.individualRegistrations)
+      setTotalRegistrations(data.totalRegistrations)
+      setTotalParticipants(data.totalParticipants)
+    } catch (err) {
+      console.error('Error fetching registrations:', err)
+      setError('Failed to load registrations')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+          <p className="mt-2 text-muted-foreground">Loading registrations...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error === 'Event not found' || error === 'Invalid event ID') {
+    notFound()
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <p className="text-red-600">{error}</p>
+          <button
+            onClick={() => { setLoading(true); setError(null); fetchRegistrations(); }}
+            className="mt-4 px-4 py-2 bg-primary text-white rounded hover:bg-primary/90"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <RegistrationsClient
       eventId={eventId}
-      eventName={event.name}
-      groupRegistrations={groupRegs}
-      individualRegistrations={individualRegs}
+      eventName={eventName}
+      groupRegistrations={groupRegistrations}
+      individualRegistrations={individualRegistrations}
       totalRegistrations={totalRegistrations}
       totalParticipants={totalParticipants}
     />

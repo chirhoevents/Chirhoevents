@@ -33,8 +33,8 @@ const organizationTypes = [
 const eventRanges = [
   { value: '1-3', label: '1-3 events', tier: 'starter' },
   { value: '4-5', label: '4-5 events', tier: 'parish' },
-  { value: '6-10', label: '6-10 events', tier: 'shrine' },
-  { value: '11-25', label: '11-25 events', tier: 'cathedral' },
+  { value: '6-10', label: '6-10 events', tier: 'cathedral' },
+  { value: '11-25', label: '11-25 events', tier: 'shrine' },
   { value: '25+', label: '25+ events', tier: 'basilica' },
 ]
 
@@ -137,7 +137,7 @@ export default function GetStartedPage() {
           </div>
           <h1 className="text-2xl font-bold text-[#1E3A5F] mb-4">Application Submitted!</h1>
           <p className="text-gray-600 mb-8">
-            Thank you for your interest in ChiRho Events! We&apos;ll review your application and contact you within 24 hours.
+            Thank you for your interest in ChiRho Events! Your application will be reviewed and we&apos;ll contact you soon.
           </p>
           <Link
             href="/"
@@ -176,7 +176,7 @@ export default function GetStartedPage() {
         <div className="text-center mb-12">
           <h1 className="text-3xl font-bold text-[#1E3A5F] mb-4">Start Using ChiRho Events</h1>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            Fill out the form below and we&apos;ll review your application within 24 hours.
+            Fill out the form below and your application will be reviewed.
             Once approved, you&apos;ll receive login credentials and can start setting up your events immediately.
           </p>
         </div>
@@ -572,15 +572,16 @@ export default function GetStartedPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tell us about your needs (optional)
+                  Tell us about yourself and how you plan to use ChiRho Events *
                 </label>
                 <textarea
                   name="additionalNotes"
                   value={formData.additionalNotes}
                   onChange={handleChange}
+                  required
                   rows={4}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1E3A5F] focus:border-[#1E3A5F]"
-                  placeholder="Any specific requirements or questions?"
+                  placeholder="What types of events do you run? What challenges are you hoping ChiRho Events will help you solve?"
                 />
               </div>
             </div>

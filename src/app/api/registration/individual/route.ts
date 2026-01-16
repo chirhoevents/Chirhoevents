@@ -5,6 +5,14 @@ import { Resend } from 'resend'
 import QRCode from 'qrcode'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { generateIndividualConfirmationCode } from '@/lib/access-code'
+import {
+  checkOptionCapacity,
+  decrementOptionCapacity,
+  checkDayPassOptionCapacity,
+  decrementDayPassOptionCapacity,
+  type HousingType,
+  type RoomType
+} from '@/lib/option-capacity'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -28,6 +36,7 @@ export async function POST(request: NextRequest) {
       emergencyContact1Phone,
       emergencyContact1Relation,
       paymentMethod = 'card', // 'card' or 'check'
+      couponCode = '',
     } = body
 
     if (!eventId || !firstName || !lastName || !email || !phone || !housingType ||
@@ -88,19 +97,76 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Calculate price for individual registration based on housing type and add-ons
+    // Check capacity before allowing registration
+    if (event.capacityTotal !== null && event.capacityRemaining !== null) {
+      if (event.capacityRemaining <= 0) {
+        return NextResponse.json(
+          { error: 'Event is at full capacity. Please join the waitlist if available.' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Check option-level capacity (housing type and room type)
+    const optionCapacityCheck = checkOptionCapacity(
+      event.settings,
+      housingType as HousingType,
+      (body.roomType || null) as RoomType | null,
+      1 // Individual registration = 1 person
+    )
+
+    if (!optionCapacityCheck.hasCapacity) {
+      return NextResponse.json(
+        {
+          error: optionCapacityCheck.error,
+          housingRemaining: optionCapacityCheck.housingRemaining,
+          roomRemaining: optionCapacityCheck.roomRemaining,
+        },
+        { status: 400 }
+      )
+    }
+
+    // Check day pass option capacity (if applicable)
+    if (body.ticketType === 'day_pass' && body.dayPassOptionId) {
+      const dayPassCapacityCheck = await checkDayPassOptionCapacity(
+        body.dayPassOptionId,
+        1 // Individual registration = 1 person
+      )
+
+      if (!dayPassCapacityCheck.hasCapacity) {
+        return NextResponse.json(
+          {
+            error: dayPassCapacityCheck.error,
+            dayPassRemaining: dayPassCapacityCheck.remaining,
+          },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Calculate price for individual registration based on housing type, early bird, and add-ons
     let totalAmount = 0
 
-    // Base price by housing type
+    // Check for early bird pricing
+    const now = new Date()
+    const earlyBirdDeadline = event.pricing.earlyBirdDeadline ? new Date(event.pricing.earlyBirdDeadline) : null
+    const isEarlyBird = earlyBirdDeadline && now <= earlyBirdDeadline
+
+    // Base price by housing type (with early bird support for default)
     if (housingType === 'on_campus' && event.pricing.individualBasePrice) {
-      totalAmount = Number(event.pricing.individualBasePrice)
+      // For on-campus, use individual base price (early bird is typically for base registration)
+      totalAmount = isEarlyBird
+        ? Number(event.pricing.individualEarlyBirdPrice || event.pricing.individualBasePrice)
+        : Number(event.pricing.individualBasePrice)
     } else if (housingType === 'off_campus' && event.pricing.individualOffCampusPrice) {
       totalAmount = Number(event.pricing.individualOffCampusPrice)
     } else if (housingType === 'day_pass' && event.pricing.individualDayPassPrice) {
       totalAmount = Number(event.pricing.individualDayPassPrice)
     } else {
-      // Fallback to individual base price or youth price
-      totalAmount = Number(event.pricing.individualBasePrice || event.pricing.youthRegularPrice)
+      // Fallback to early bird price if applicable, then individual base price or youth price
+      totalAmount = isEarlyBird
+        ? Number(event.pricing.individualEarlyBirdPrice || event.pricing.individualBasePrice || event.pricing.youthRegularPrice)
+        : Number(event.pricing.individualBasePrice || event.pricing.youthRegularPrice)
     }
 
     // Add room type pricing (for on-campus housing)
@@ -120,6 +186,63 @@ export async function POST(request: NextRequest) {
     // Add meal package if included
     if (body.includeMealPackage && event.pricing.individualMealPackagePrice) {
       totalAmount += Number(event.pricing.individualMealPackagePrice)
+    }
+
+    // Validate and apply coupon if provided
+    let appliedCoupon: { id: string; code: string; discountAmount: number } | null = null
+
+    if (couponCode && event.settings?.couponsEnabled) {
+      const coupon = await prisma.coupon.findFirst({
+        where: {
+          eventId: event.id,
+          code: couponCode.toUpperCase(),
+          active: true,
+        },
+      })
+
+      if (coupon) {
+        // Check expiration
+        const isExpired = coupon.expirationDate && new Date(coupon.expirationDate) < new Date()
+
+        // Check usage limits
+        let hasUsesLeft = true
+        if (coupon.usageLimitType === 'single_use' && coupon.usageCount >= 1) {
+          hasUsesLeft = false
+        } else if (coupon.usageLimitType === 'limited' && coupon.maxUses && coupon.usageCount >= coupon.maxUses) {
+          hasUsesLeft = false
+        }
+
+        // Check email restriction
+        let emailAllowed = true
+        if (coupon.restrictToEmail) {
+          emailAllowed = coupon.restrictToEmail.toLowerCase() === email.toLowerCase()
+        }
+
+        if (!isExpired && hasUsesLeft && emailAllowed) {
+          // Calculate discount
+          let discountAmount = 0
+          if (coupon.discountType === 'percentage') {
+            discountAmount = (totalAmount * Number(coupon.discountValue)) / 100
+          } else {
+            discountAmount = Math.min(Number(coupon.discountValue), totalAmount)
+          }
+
+          // Apply discount
+          totalAmount = Math.max(0, totalAmount - discountAmount)
+
+          appliedCoupon = {
+            id: coupon.id,
+            code: coupon.code,
+            discountAmount,
+          }
+
+          // Increment coupon usage count
+          await prisma.coupon.update({
+            where: { id: coupon.id },
+            data: { usageCount: { increment: 1 } },
+          })
+        }
+      }
     }
 
     // Determine registration status based on payment method
@@ -157,6 +280,8 @@ export async function POST(request: NextRequest) {
         zip: body.zip || null,
         age: body.age || null,
         gender: body.gender || null,
+        ticketType: body.ticketType || 'general_admission',
+        dayPassOptionId: body.dayPassOptionId || null,
         housingType,
         roomType: body.roomType || null,
         preferredRoommate: body.preferredRoommate || null,
@@ -263,6 +388,25 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Update option-level capacity (housing type and room type)
+    // Only decrement housing capacity for general admission (day pass doesn't use housing)
+    if (body.ticketType !== 'day_pass') {
+      await decrementOptionCapacity(
+        event.id,
+        housingType as HousingType,
+        (body.roomType || null) as RoomType | null,
+        1 // Individual registration = 1 person
+      )
+    }
+
+    // Update day pass option capacity (if applicable)
+    if (body.ticketType === 'day_pass' && body.dayPassOptionId) {
+      await decrementDayPassOptionCapacity(
+        body.dayPassOptionId,
+        1 // Individual registration = 1 person
+      )
+    }
+
     // Handle payment method
     if (paymentMethod === 'check') {
       // Check payment - create pending payment record
@@ -346,10 +490,32 @@ export async function POST(request: NextRequest) {
               <h3 style="color: #1E3A5F;">Next Steps:</h3>
               <ol>
                 <li><strong>Mail Your Check:</strong> Send your check using the instructions above.</li>
-                <li><strong>Complete Your Liability Form:</strong> You'll receive a separate email with instructions to complete your liability form.</li>
+                ${liabilityFormsRequired ? `
+                <li><strong>Complete Your Liability Form:</strong> Click the button below to complete your required liability form.</li>
+                ` : ''}
                 <li><strong>Wait for Confirmation:</strong> We'll email you once your check is received and processed.</li>
                 <li><strong>Check-In:</strong> Bring your QR code (save this email or download the QR code) to check in at the event.</li>
               </ol>
+
+              ${liabilityFormsRequired ? `
+              <div style="background-color: #FEF3C7; padding: 20px; border-radius: 8px; margin: 20px 0; border: 2px solid #F59E0B;">
+                <h3 style="color: #92400E; margin-top: 0;">📋 Liability Form Required</h3>
+                <p style="color: #92400E; margin-bottom: 15px;">
+                  ${body.age && body.age < 18
+                    ? 'Since you are under 18, a parent or guardian must complete and sign your liability form.'
+                    : 'Please complete your liability form before the event.'}
+                </p>
+                <div style="text-align: center;">
+                  <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/poros/${confirmationCode}"
+                     style="display: inline-block; background-color: #1E3A5F; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                    Complete Liability Form
+                  </a>
+                </div>
+                <p style="color: #78716C; font-size: 12px; margin-top: 15px; text-align: center;">
+                  Or copy this link: ${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/poros/${confirmationCode}
+                </p>
+              </div>
+              ` : ''}
 
               ${eventSettings?.registrationInstructions ? `
                 <div style="background-color: #F0F8FF; padding: 15px; border-radius: 8px; margin: 20px 0;">

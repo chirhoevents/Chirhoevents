@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { uploadCertificate } from '@/lib/r2/upload-certificate'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { incrementOrgStorage } from '@/lib/storage/track-storage'
 
 export async function POST(request: NextRequest) {
   try {
@@ -91,6 +92,9 @@ export async function POST(request: NextRequest) {
       groupRegistration.organizationId,
       groupRegistration.eventId
     )
+
+    // Track storage usage
+    await incrementOrgStorage(groupRegistration.organizationId, file.size)
 
     // Create certificate record in database
     const certificate = await prisma.safeEnvironmentCertificate.create({

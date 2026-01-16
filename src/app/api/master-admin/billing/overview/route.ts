@@ -80,7 +80,8 @@ export async function GET(request: NextRequest) {
     })
 
     let lastMonthMRR = 0
-    orgsLastMonth.forEach((org) => {
+    type OrgLastMonthType = typeof orgsLastMonth[number]
+    orgsLastMonth.forEach((org: OrgLastMonthType) => {
       if (org.billingCycle === 'monthly') {
         lastMonthMRR += Number(org.monthlyFee) || Number(org.monthlyPrice) || 0
       } else {
@@ -95,7 +96,12 @@ export async function GET(request: NextRequest) {
       where: {
         status: { in: ['pending', 'overdue'] },
       },
-      include: {
+      select: {
+        id: true,
+        invoiceNumber: true,
+        amount: true,
+        dueDate: true,
+        status: true,
         organization: {
           select: { id: true, name: true },
         },
@@ -103,8 +109,9 @@ export async function GET(request: NextRequest) {
       orderBy: { dueDate: 'asc' },
     })
 
+    type InvoiceType = typeof pendingInvoices[number]
     const pendingTotal = pendingInvoices.reduce(
-      (sum, inv) => sum + Number(inv.amount),
+      (sum: number, inv: InvoiceType) => sum + Number(inv.amount),
       0
     )
 
@@ -126,9 +133,11 @@ export async function GET(request: NextRequest) {
           lt: endOfMonth,
         },
       },
+      select: { id: true, amount: true },
     })
+    type SubInvoiceType = typeof subscriptionInvoicesPaidThisMonth[number]
     const subscriptionRevenue = subscriptionInvoicesPaidThisMonth.reduce(
-      (sum, inv) => sum + Number(inv.amount),
+      (sum: number, inv: SubInvoiceType) => sum + Number(inv.amount),
       0
     )
 
@@ -142,9 +151,11 @@ export async function GET(request: NextRequest) {
           lt: endOfMonth,
         },
       },
+      select: { id: true, amount: true },
     })
+    type SetupFeeInvoiceType = typeof setupFeeInvoicesPaidThisMonth[number]
     const setupFeeRevenue = setupFeeInvoicesPaidThisMonth.reduce(
-      (sum, inv) => sum + Number(inv.amount),
+      (sum: number, inv: SetupFeeInvoiceType) => sum + Number(inv.amount),
       0
     )
 
@@ -159,8 +170,9 @@ export async function GET(request: NextRequest) {
         },
       },
     })
+    type PaymentType = typeof paymentsThisMonth[number]
     const platformFeeRevenue = paymentsThisMonth.reduce(
-      (sum, p) => sum + Number(p.platformFeeAmount || 0),
+      (sum: number, p: PaymentType) => sum + Number(p.platformFeeAmount || 0),
       0
     )
 
@@ -170,7 +182,7 @@ export async function GET(request: NextRequest) {
     const totalMonthlyRevenue =
       subscriptionRevenue + setupFeeRevenue + platformFeeRevenue + overageCharges
 
-    // Recent activity - last 5 payments
+    // Recent activity - last 5 payments (from Payment table)
     const recentPayments = await prisma.payment.findMany({
       where: {
         paymentStatus: 'succeeded',
@@ -184,9 +196,36 @@ export async function GET(request: NextRequest) {
       take: 5,
     })
 
+    // Also get recently paid platform invoices (these don't create Payment records)
+    const recentPaidInvoices = await prisma.invoice.findMany({
+      where: {
+        status: 'paid',
+        paidAt: { not: null },
+      },
+      select: {
+        id: true,
+        invoiceNumber: true,
+        amount: true,
+        invoiceType: true,
+        paymentMethod: true,
+        paidAt: true,
+        organization: {
+          select: { name: true },
+        },
+      },
+      orderBy: { paidAt: 'desc' },
+      take: 5,
+    })
+
     // Last 5 invoices created
     const recentInvoices = await prisma.invoice.findMany({
-      include: {
+      select: {
+        id: true,
+        invoiceNumber: true,
+        amount: true,
+        invoiceType: true,
+        status: true,
+        createdAt: true,
         organization: {
           select: { name: true },
         },
@@ -211,6 +250,36 @@ export async function GET(request: NextRequest) {
       take: 5,
     })
 
+    // Type definitions for map operations
+    type RecentPaymentType = typeof recentPayments[number]
+    type RecentInvoiceType = typeof recentInvoices[number]
+    type RecentPaidInvoiceType = typeof recentPaidInvoices[number]
+    type SubscriptionChangeType = typeof recentSubscriptionChanges[number]
+
+    // Combine Payment records and paid Invoice records into a single list
+    const paymentRecords = recentPayments.map((p: RecentPaymentType) => ({
+      id: p.id,
+      amount: Number(p.amount),
+      type: p.paymentType,
+      method: p.paymentMethod,
+      organizationName: p.organization?.name || 'Unknown',
+      date: p.createdAt,
+    }))
+
+    const invoicePaymentRecords = recentPaidInvoices.map((inv: RecentPaidInvoiceType) => ({
+      id: inv.id,
+      amount: Number(inv.amount),
+      type: `Invoice #${inv.invoiceNumber}`,
+      method: inv.paymentMethod || 'credit_card',
+      organizationName: inv.organization?.name || 'Unknown',
+      date: inv.paidAt!,
+    }))
+
+    // Merge and sort by date, take top 5
+    const allRecentPayments = [...paymentRecords, ...invoicePaymentRecords]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 5)
+
     return NextResponse.json({
       mrr: {
         current: currentMRR,
@@ -221,7 +290,7 @@ export async function GET(request: NextRequest) {
       pendingInvoices: {
         count: pendingInvoices.length,
         total: pendingTotal,
-        items: pendingInvoices.slice(0, 5).map((inv) => ({
+        items: pendingInvoices.slice(0, 5).map((inv: InvoiceType) => ({
           id: inv.id,
           invoiceNumber: inv.invoiceNumber,
           amount: Number(inv.amount),
@@ -238,15 +307,8 @@ export async function GET(request: NextRequest) {
         total: totalMonthlyRevenue,
       },
       recentActivity: {
-        payments: recentPayments.map((p) => ({
-          id: p.id,
-          amount: Number(p.amount),
-          type: p.paymentType,
-          method: p.paymentMethod,
-          organizationName: p.organization?.name || 'Unknown',
-          date: p.createdAt,
-        })),
-        invoices: recentInvoices.map((inv) => ({
+        payments: allRecentPayments,
+        invoices: recentInvoices.map((inv: RecentInvoiceType) => ({
           id: inv.id,
           invoiceNumber: inv.invoiceNumber,
           amount: Number(inv.amount),
@@ -255,7 +317,7 @@ export async function GET(request: NextRequest) {
           organizationName: inv.organization?.name || 'Unknown',
           date: inv.createdAt,
         })),
-        subscriptionChanges: recentSubscriptionChanges.map((org) => ({
+        subscriptionChanges: recentSubscriptionChanges.map((org: SubscriptionChangeType) => ({
           id: org.id,
           name: org.name,
           tier: org.subscriptionTier,

@@ -7,11 +7,16 @@ export async function GET(
 ) {
   try {
     const { eventId } = await params
+
+    // Check if eventId is a UUID or a slug
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId)
+
     const event = await prisma.event.findUnique({
-      where: { id: eventId },
+      where: isUuid ? { id: eventId } : { slug: eventId },
       include: {
         pricing: true,
         settings: true,
+        dayPassOptions: true,
       },
     })
 
@@ -22,21 +27,15 @@ export async function GET(
       )
     }
 
-    // Check if registration is open
+    // Determine registration status (don't block access, let frontend handle display)
     const now = new Date()
     const registrationOpen = event.registrationOpenDate && now >= new Date(event.registrationOpenDate)
     const registrationClosed = event.registrationCloseDate && now >= new Date(event.registrationCloseDate)
-
-    if (!registrationOpen || registrationClosed) {
-      return NextResponse.json(
-        { error: 'Registration is not currently open for this event' },
-        { status: 403 }
-      )
-    }
+    const isRegistrationOpen = registrationOpen && !registrationClosed
 
     // Fetch depositPerPerson directly via raw query (Prisma client may not have this field)
     const depositPerPersonResult = await prisma.$queryRaw<Array<{ deposit_per_person: boolean | null }>>`
-      SELECT deposit_per_person FROM event_pricing WHERE event_id = ${eventId}::uuid LIMIT 1
+      SELECT deposit_per_person FROM event_pricing WHERE event_id = ${event.id}::uuid LIMIT 1
     `
     const depositPerPerson = depositPerPersonResult[0]?.deposit_per_person ?? true
 
@@ -49,6 +48,9 @@ export async function GET(
       endDate: event.endDate,
       locationName: event.locationName,
       capacityRemaining: event.capacityRemaining,
+      registrationOpenDate: event.registrationOpenDate,
+      registrationCloseDate: event.registrationCloseDate,
+      isRegistrationOpen,
       pricing: {
         youthRegularPrice: Number(event.pricing?.youthRegularPrice || 0),
         youthEarlyBirdPrice: event.pricing?.youthEarlyBirdPrice ? Number(event.pricing.youthEarlyBirdPrice) : null,
@@ -68,6 +70,17 @@ export async function GET(
         dayPassChaperonePrice: event.pricing?.dayPassChaperonePrice ? Number(event.pricing.dayPassChaperonePrice) : undefined,
       },
       settings: event.settings,
+      dayPassOptions: event.dayPassOptions?.map(opt => ({
+        id: opt.id,
+        date: opt.date,
+        name: opt.name,
+        capacity: opt.capacity,
+        remaining: opt.remaining,
+        price: Number(opt.price || 0),
+        youthPrice: opt.youthPrice ? Number(opt.youthPrice) : null,
+        chaperonePrice: opt.chaperonePrice ? Number(opt.chaperonePrice) : null,
+        isActive: opt.isActive,
+      })) || [],
     })
   } catch (error) {
     console.error('Error fetching event:', error)

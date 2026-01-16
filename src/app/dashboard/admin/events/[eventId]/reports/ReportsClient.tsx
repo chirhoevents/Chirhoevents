@@ -11,6 +11,8 @@ import HousingReportModal from '@/components/admin/reports/HousingReportModal'
 import MedicalReportModal from '@/components/admin/reports/MedicalReportModal'
 import CertificatesReportModal from '@/components/admin/reports/CertificatesReportModal'
 import ChaperoneReportModal from '@/components/admin/reports/ChaperoneReportModal'
+import VendorReportModal from '@/components/admin/reports/VendorReportModal'
+import StaffReportModal from '@/components/admin/reports/StaffReportModal'
 import { CustomReportBuilder } from '@/components/admin/reports/CustomReportBuilder'
 import { usePermissions } from '@/hooks/usePermissions'
 
@@ -20,6 +22,8 @@ interface ReportsClientProps {
   organizationId: string
   startDate: string
   endDate: string
+  groupRegistrationEnabled?: boolean
+  individualRegistrationEnabled?: boolean
 }
 
 export default function ReportsClient({
@@ -28,6 +32,8 @@ export default function ReportsClient({
   organizationId,
   startDate,
   endDate,
+  groupRegistrationEnabled = true,
+  individualRegistrationEnabled = true,
 }: ReportsClientProps) {
   const { canViewFinancial } = usePermissions()
   const canViewFinancialReports = canViewFinancial()
@@ -140,6 +146,20 @@ export default function ReportsClient({
           eventId={eventId}
           onViewReport={() => setActiveModal('chaperones')}
         />
+
+        <ReportCard
+          title="Vendor Report"
+          reportType="vendors"
+          eventId={eventId}
+          onViewReport={() => setActiveModal('vendors')}
+        />
+
+        <ReportCard
+          title="Staff Report"
+          reportType="staff"
+          eventId={eventId}
+          onViewReport={() => setActiveModal('staff')}
+        />
       </div>
 
       {/* Report Modals */}
@@ -194,6 +214,20 @@ export default function ReportsClient({
         eventName={eventName}
       />
 
+      <VendorReportModal
+        isOpen={activeModal === 'vendors'}
+        onClose={() => setActiveModal(null)}
+        eventId={eventId}
+        eventName={eventName}
+      />
+
+      <StaffReportModal
+        isOpen={activeModal === 'staff'}
+        onClose={() => setActiveModal(null)}
+        eventId={eventId}
+        eventName={eventName}
+      />
+
       {/* Custom Report Builder */}
       <CustomReportBuilder
         open={showCustomBuilder}
@@ -201,6 +235,8 @@ export default function ReportsClient({
         eventId={eventId}
         eventName={eventName}
         organizationId={organizationId}
+        groupRegistrationEnabled={groupRegistrationEnabled}
+        individualRegistrationEnabled={individualRegistrationEnabled}
       />
     </>
   )

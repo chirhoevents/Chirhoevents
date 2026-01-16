@@ -3,7 +3,16 @@ import { prisma } from '@/lib/prisma'
 import { generateAccessCode } from '@/lib/access-code'
 import Stripe from 'stripe'
 import { Resend } from 'resend'
+import QRCode from 'qrcode'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
+import { generateGroupRegistrationConfirmationEmail } from '@/lib/email-templates'
+import {
+  checkOptionCapacity,
+  decrementOptionCapacity,
+  checkDayPassOptionCapacity,
+  decrementDayPassOptionCapacity,
+  type HousingType
+} from '@/lib/option-capacity'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -31,6 +40,7 @@ export async function POST(request: NextRequest) {
       housingType,
       specialRequests = '',
       paymentMethod = 'card', // 'card' or 'check'
+      couponCode = '',
     } = body
 
     if (!eventId || !groupName || !groupLeaderName || !groupLeaderEmail || !groupLeaderPhone || !housingType || !alternativeContact1Name || !alternativeContact1Email || !alternativeContact1Phone) {
@@ -70,6 +80,7 @@ export async function POST(request: NextRequest) {
       where: { id: eventId },
       include: {
         pricing: true,
+        settings: true,
         organization: {
           select: {
             id: true,
@@ -103,6 +114,61 @@ export async function POST(request: NextRequest) {
         { error: 'At least one participant is required' },
         { status: 400 }
       )
+    }
+
+    // Check capacity before allowing registration
+    if (event.capacityTotal !== null && event.capacityRemaining !== null) {
+      if (event.capacityRemaining <= 0) {
+        return NextResponse.json(
+          { error: 'Event is at full capacity. Please join the waitlist if available.' },
+          { status: 400 }
+        )
+      }
+      if (event.capacityRemaining < totalParticipants) {
+        return NextResponse.json(
+          {
+            error: `Not enough spots available. Only ${event.capacityRemaining} spot${event.capacityRemaining === 1 ? '' : 's'} remaining, but ${totalParticipants} requested.`,
+            spotsRemaining: event.capacityRemaining
+          },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Check option-level capacity (housing type for group registrations)
+    const optionCapacityCheck = checkOptionCapacity(
+      event.settings,
+      housingType as HousingType,
+      null, // Groups don't have room type selection
+      totalParticipants
+    )
+
+    if (!optionCapacityCheck.hasCapacity) {
+      return NextResponse.json(
+        {
+          error: optionCapacityCheck.error,
+          housingRemaining: optionCapacityCheck.housingRemaining,
+        },
+        { status: 400 }
+      )
+    }
+
+    // Check day pass option capacity (if applicable)
+    if (body.ticketType === 'day_pass' && body.dayPassOptionId) {
+      const dayPassCapacityCheck = await checkDayPassOptionCapacity(
+        body.dayPassOptionId,
+        totalParticipants
+      )
+
+      if (!dayPassCapacityCheck.hasCapacity) {
+        return NextResponse.json(
+          {
+            error: dayPassCapacityCheck.error,
+            dayPassRemaining: dayPassCapacityCheck.remaining,
+          },
+          { status: 400 }
+        )
+      }
     }
 
     // Check for early bird pricing
@@ -140,11 +206,76 @@ export async function POST(request: NextRequest) {
 
     const priestPrice = Number(event.pricing.priestPrice)
 
-    // Calculate total amount
-    const totalAmount =
+    // Calculate total amount before coupon
+    let totalAmount =
       youthCount * youthPrice +
       chaperoneCount * chaperonePrice +
       priestCount * priestPrice
+
+    // Validate and apply coupon if provided
+    let appliedCoupon: { id: string; code: string; discountAmount: number } | null = null
+
+    if (couponCode) {
+      // Check if coupons are enabled
+      const eventSettings = await prisma.eventSettings.findUnique({
+        where: { eventId: event.id },
+        select: { couponsEnabled: true },
+      })
+
+      if (eventSettings?.couponsEnabled) {
+        const coupon = await prisma.coupon.findFirst({
+          where: {
+            eventId: event.id,
+            code: couponCode.toUpperCase(),
+            active: true,
+          },
+        })
+
+        if (coupon) {
+          // Check expiration
+          const isExpired = coupon.expirationDate && new Date(coupon.expirationDate) < new Date()
+
+          // Check usage limits
+          let hasUsesLeft = true
+          if (coupon.usageLimitType === 'single_use' && coupon.usageCount >= 1) {
+            hasUsesLeft = false
+          } else if (coupon.usageLimitType === 'limited' && coupon.maxUses && coupon.usageCount >= coupon.maxUses) {
+            hasUsesLeft = false
+          }
+
+          // Check email restriction
+          let emailAllowed = true
+          if (coupon.restrictToEmail) {
+            emailAllowed = coupon.restrictToEmail.toLowerCase() === groupLeaderEmail.toLowerCase()
+          }
+
+          if (!isExpired && hasUsesLeft && emailAllowed) {
+            // Calculate discount
+            let discountAmount = 0
+            if (coupon.discountType === 'percentage') {
+              discountAmount = (totalAmount * Number(coupon.discountValue)) / 100
+            } else {
+              discountAmount = Math.min(Number(coupon.discountValue), totalAmount)
+            }
+
+            // Apply discount
+            totalAmount = Math.max(0, totalAmount - discountAmount)
+
+            appliedCoupon = {
+              id: coupon.id,
+              code: coupon.code,
+              discountAmount,
+            }
+
+            // Increment coupon usage count
+            await prisma.coupon.update({
+              where: { id: coupon.id },
+              data: { usageCount: { increment: 1 } },
+            })
+          }
+        }
+      }
+    }
 
     // Calculate deposit based on settings
     let depositAmount = 0
@@ -163,6 +294,9 @@ export async function POST(request: NextRequest) {
     }
     // else Option 4: No deposit required (depositAmount = 0)
 
+    // Ensure deposit doesn't exceed total (important when coupon applied)
+    depositAmount = Math.min(depositAmount, totalAmount)
+
     const balanceRemaining = totalAmount - depositAmount
 
     // Generate unique access code
@@ -171,6 +305,14 @@ export async function POST(request: NextRequest) {
     // Determine registration status based on payment method
     const registrationStatus =
       paymentMethod === 'check' ? 'pending_payment' : 'incomplete'
+
+    // Determine initial inventory counts based on housing type
+    const initialOnCampusYouth = housingType === 'on_campus' ? youthCount : 0
+    const initialOnCampusChaperones = housingType === 'on_campus' ? chaperoneCount : 0
+    const initialOffCampusYouth = housingType === 'off_campus' ? youthCount : 0
+    const initialOffCampusChaperones = housingType === 'off_campus' ? chaperoneCount : 0
+    const initialDayPassYouth = housingType === 'day_pass' ? youthCount : 0
+    const initialDayPassChaperones = housingType === 'day_pass' ? chaperoneCount : 0
 
     // Create group registration
     const registration = await prisma.groupRegistration.create({
@@ -198,10 +340,40 @@ export async function POST(request: NextRequest) {
         chaperoneCount,
         priestCount,
         totalParticipants,
+        ticketType: body.ticketType || 'general_admission',
+        dayPassOptionId: body.dayPassOptionId || null,
         housingType,
+        // Set initial inventory counts based on selected housing type
+        onCampusYouth: initialOnCampusYouth > 0 ? initialOnCampusYouth : null,
+        onCampusChaperones: initialOnCampusChaperones > 0 ? initialOnCampusChaperones : null,
+        offCampusYouth: initialOffCampusYouth > 0 ? initialOffCampusYouth : null,
+        offCampusChaperones: initialOffCampusChaperones > 0 ? initialOffCampusChaperones : null,
+        dayPassYouth: initialDayPassYouth > 0 ? initialDayPassYouth : null,
+        dayPassChaperones: initialDayPassChaperones > 0 ? initialDayPassChaperones : null,
         specialRequests,
         registrationStatus,
       },
+    })
+
+    // Generate QR code for check-in (contains access code for SALVE)
+    const qrData = JSON.stringify({
+      registration_id: registration.id,
+      event_id: event.id,
+      type: 'group',
+      group_name: groupName,
+      access_code: accessCode,
+    })
+
+    const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
+      errorCorrectionLevel: 'H',
+      margin: 1,
+      width: 300,
+    })
+
+    // Store QR code in database
+    await prisma.groupRegistration.update({
+      where: { id: registration.id },
+      data: { qrCode: qrCodeDataUrl },
     })
 
     // Increment organization's registration counter
@@ -242,6 +414,25 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Update option-level capacity (housing type for group registrations)
+    // Only decrement housing capacity for general admission (day pass doesn't use housing)
+    if (body.ticketType !== 'day_pass') {
+      await decrementOptionCapacity(
+        event.id,
+        housingType as HousingType,
+        null, // Groups don't have room type selection
+        totalParticipants
+      )
+    }
+
+    // Update day pass option capacity (if applicable)
+    if (body.ticketType === 'day_pass' && body.dayPassOptionId) {
+      await decrementDayPassOptionCapacity(
+        body.dayPassOptionId,
+        totalParticipants
+      )
+    }
+
     // Handle payment method
     if (paymentMethod === 'check') {
       // Check payment - create pending payment record
@@ -263,81 +454,33 @@ export async function POST(request: NextRequest) {
         where: { eventId: event.id },
       })
 
-      // Prepare email content
+      // Build URLs for email
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
+      const porosLiabilityUrl = `${appUrl}/poros/liability?code=${accessCode}`
+      const groupLeaderPortalUrl = `${appUrl}/dashboard/group-leader`
+      const confirmationPageUrl = `${appUrl}/registration/confirmation/${registration.id}`
+
+      // Prepare email content using new template
       const emailSubject = `Registration Received - ${event.name}`
-      const emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <!-- ChiRho Events Logo Header -->
-            <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
-              <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 200px; height: auto;" />
-            </div>
-
-            <div style="padding: 30px 20px;">
-              <h1 style="color: #1E3A5F; margin-top: 0;">Registration Received!</h1>
-
-            <p>Thank you for registering <strong>${groupName}</strong> for ${event.name}!</p>
-
-            <div style="background-color: #F5F1E8; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h2 style="color: #9C8466; margin-top: 0;">Your Access Code</h2>
-              <p style="font-size: 24px; font-weight: bold; color: #1E3A5F; font-family: monospace; letter-spacing: 2px;">
-                ${registration.accessCode}
-              </p>
-              <p style="font-size: 14px; color: #666;">
-                Save this code! You'll need it to complete liability forms and access your group portal.
-              </p>
-            </div>
-
-            <div style="background-color: #FFF3CD; padding: 20px; border-left: 4px solid #FFC107; margin: 20px 0;">
-              <h3 style="color: #856404; margin-top: 0;">⚠️ Payment Required</h3>
-              <p style="color: #856404; margin: 0;">
-                <strong>Your registration is PENDING until we receive your check payment.</strong>
-              </p>
-            </div>
-
-            <div style="background-color: #E8F4F8; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h3 style="color: #1E3A5F; margin-top: 0;">Check Payment Instructions</h3>
-              <p style="margin: 5px 0;"><strong>Make check payable to:</strong> ${eventSettings?.checkPaymentPayableTo || event.organization.name}</p>
-              <p style="margin: 5px 0;"><strong>Amount:</strong> $${depositAmount.toFixed(2)} (deposit) or $${totalAmount.toFixed(2)} (full payment)</p>
-              <p style="margin: 5px 0;"><strong>Write on check memo:</strong> ${groupName}</p>
-              ${eventSettings?.checkPaymentAddress ? `
-                <p style="margin: 10px 0 5px 0;"><strong>Mail to:</strong></p>
-                <p style="margin: 0; white-space: pre-line;">${eventSettings.checkPaymentAddress}</p>
-              ` : ''}
-            </div>
-
-            <h3 style="color: #1E3A5F;">Registration Summary</h3>
-            <div style="background-color: #F5F5F5; padding: 15px; border-radius: 8px;">
-              <p style="margin: 5px 0;"><strong>Group:</strong> ${groupName}</p>
-              <p style="margin: 5px 0;"><strong>Participants:</strong> ${totalParticipants}</p>
-              <p style="margin: 5px 0;"><strong>Total Cost:</strong> $${totalAmount.toFixed(2)}</p>
-              <p style="margin: 5px 0;"><strong>Deposit Amount:</strong> $${depositAmount.toFixed(2)}</p>
-              <p style="margin: 5px 0;"><strong>Balance Remaining:</strong> $${balanceRemaining.toFixed(2)}</p>
-              <p style="margin: 5px 0;"><strong>Payment Method:</strong> Check (Pending)</p>
-            </div>
-
-            <h3 style="color: #1E3A5F;">Next Steps:</h3>
-            <ol>
-              <li><strong>Mail Your Check:</strong> Send your check using the instructions above.</li>
-              <li><strong>Complete Liability Forms:</strong> Each participant must complete their liability form using your access code.</li>
-              <li><strong>Wait for Confirmation:</strong> We'll email you once your check is received and processed.</li>
-              <li><strong>Check-In:</strong> Bring your access code to check in at the event.</li>
-            </ol>
-
-            ${eventSettings?.registrationInstructions ? `
-              <div style="background-color: #F0F8FF; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                <h3 style="color: #1E3A5F; margin-top: 0;">Important Information</h3>
-                <p style="white-space: pre-line;">${eventSettings.registrationInstructions}</p>
-              </div>
-            ` : ''}
-
-            <p>Questions? Reply to this email or contact the event organizer.</p>
-
-            <p style="color: #666; font-size: 12px; margin-top: 30px;">
-              © 2025 ChiRho Events. All rights reserved.
-            </p>
-            </div>
-          </div>
-        `
+      const emailHtml = generateGroupRegistrationConfirmationEmail({
+        groupName,
+        groupLeaderName,
+        eventName: event.name,
+        accessCode: registration.accessCode,
+        confirmationPageUrl,
+        totalParticipants,
+        totalAmount,
+        depositAmount,
+        balanceRemaining,
+        paymentMethod: 'check',
+        checkPayableTo: eventSettings?.checkPaymentPayableTo || event.organization.name,
+        checkMailingAddress: eventSettings?.checkPaymentAddress || undefined,
+        registrationInstructions: eventSettings?.registrationInstructions || undefined,
+        customMessage: eventSettings?.confirmationEmailMessage || undefined,
+        organizationName: event.organization.name,
+        porosLiabilityUrl,
+        groupLeaderPortalUrl,
+      })
 
       // Send confirmation email for check payment
       try {

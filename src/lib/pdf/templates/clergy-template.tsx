@@ -135,6 +135,7 @@ interface ClergyTemplateProps {
     dioceseOfIncardination?: string
     currentAssignment?: string
     facultyInformation?: string
+    needsHousing?: boolean
     medicalConditions?: string
     medications?: string
     allergies?: string
@@ -263,6 +264,13 @@ const ClergyTemplate: React.FC<ClergyTemplateProps> = ({ data }) => {
               </Text>
             </View>
           )}
+
+          <View style={styles.fieldRow}>
+            <Text style={styles.fieldLabel}>Needs Housing:</Text>
+            <Text style={[styles.fieldValue, { fontWeight: 'bold', color: data.needsHousing ? '#059669' : '#6B7280' }]}>
+              {data.needsHousing ? 'Yes' : 'No'}
+            </Text>
+          </View>
         </View>
 
         {/* Medical Information */}
