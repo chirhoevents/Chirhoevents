@@ -96,7 +96,7 @@ export default function GetStartedPage() {
 
   const getSuggestedTier = () => {
     const eventRange = eventRanges.find(r => r.value === formData.eventsPerYear)
-    return eventRange?.tier || 'growing'
+    return eventRange?.tier || 'shrine'
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

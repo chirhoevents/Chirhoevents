@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       }
       currentMRR += monthlyAmount
 
-      const tier = org.subscriptionTier || 'growing'
+      const tier = org.subscriptionTier || 'shrine'
       if (!tierBreakdown[tier]) {
         tierBreakdown[tier] = { count: 0, amount: 0 }
       }

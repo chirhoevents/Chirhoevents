@@ -62,8 +62,8 @@ export async function POST(
       enterprise: { monthly: 199, annual: 1990, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
     }
 
-    const requestedTier = onboardingRequest.requestedTier || 'growing'
-    const pricing = tierPricing[requestedTier] || tierPricing.growing
+    const requestedTier = onboardingRequest.requestedTier || 'shrine'
+    const pricing = tierPricing[requestedTier] || tierPricing.shrine
     const billingCycle = onboardingRequest.billingCyclePreference || 'annual'
 
     // Create organization
@@ -75,7 +75,7 @@ export async function POST(
         contactEmail: onboardingRequest.contactEmail,
         contactPhone: onboardingRequest.contactPhone,
         address: onboardingRequest.billingAddress ? { street: onboardingRequest.billingAddress } : undefined,
-        subscriptionTier: requestedTier as 'starter' | 'small_diocese' | 'growing' | 'conference' | 'enterprise',
+        subscriptionTier: requestedTier as 'starter' | 'parish' | 'shrine' | 'cathedral' | 'basilica',
         subscriptionStatus: 'active',
         status: 'active',
         billingCycle: billingCycle as 'monthly' | 'annual',
@@ -150,10 +150,10 @@ export async function POST(
     // Send welcome email
     const tierLabels: Record<string, string> = {
       starter: 'Starter',
-      small_diocese: 'Small Diocese',
-      growing: 'Growing',
-      conference: 'Conference',
-      enterprise: 'Enterprise',
+      parish: 'Parish',
+      shrine: 'Shrine',
+      cathedral: 'Cathedral',
+      basilica: 'Basilica',
     }
 
     const welcomeEmailHtml = `

@@ -832,10 +832,10 @@ enum OrganizationType {
 enum SubscriptionTier {
   // Current tier names
   starter
-  parish        // Replaces small_diocese
-  cathedral     // Replaces growing
-  shrine        // Replaces conference
-  basilica      // Replaces enterprise
+  parish
+  shrine
+  cathedral
+  basilica
   test
 
   // Legacy tier names (kept for backward compatibility)
