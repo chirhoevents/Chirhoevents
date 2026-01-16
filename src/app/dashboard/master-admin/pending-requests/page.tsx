@@ -38,18 +38,28 @@ interface OnboardingRequest {
 
 const tierLabels: Record<string, string> = {
   starter: 'Starter',
-  small_diocese: 'Small Diocese',
-  growing: 'Growing',
-  conference: 'Conference',
-  enterprise: 'Enterprise',
+  parish: 'Parish',
+  cathedral: 'Cathedral',
+  shrine: 'Shrine',
+  basilica: 'Basilica',
+  // Legacy tier names for backward compatibility
+  small_diocese: 'Parish',
+  growing: 'Cathedral',
+  conference: 'Shrine',
+  enterprise: 'Basilica',
 }
 
 const tierPricing: Record<string, { monthly: number; annual: number }> = {
-  starter: { monthly: 49, annual: 490 },
-  small_diocese: { monthly: 99, annual: 990 },
-  growing: { monthly: 149, annual: 1490 },
-  conference: { monthly: 249, annual: 2490 },
-  enterprise: { monthly: 499, annual: 4990 },
+  starter: { monthly: 25, annual: 250 },
+  parish: { monthly: 45, annual: 450 },
+  cathedral: { monthly: 89, annual: 890 },
+  shrine: { monthly: 120, annual: 1200 },
+  basilica: { monthly: 200, annual: 2000 },
+  // Legacy tier names for backward compatibility
+  small_diocese: { monthly: 45, annual: 450 },
+  growing: { monthly: 89, annual: 890 },
+  conference: { monthly: 120, annual: 1200 },
+  enterprise: { monthly: 200, annual: 2000 },
 }
 
 export default function PendingRequestsPage() {
@@ -146,8 +156,8 @@ export default function PendingRequestsPage() {
   }
 
   const calculateRevenuePotential = (request: OnboardingRequest) => {
-    const tier = request.requestedTier || 'growing'
-    const pricing = tierPricing[tier] || tierPricing.growing
+    const tier = request.requestedTier || 'cathedral'
+    const pricing = tierPricing[tier] || tierPricing.cathedral
     const isAnnual = request.billingCyclePreference === 'annual'
     const subscriptionAmount = isAnnual ? pricing.annual : pricing.monthly * 12
     const setupFee = 250
@@ -208,7 +218,7 @@ export default function PendingRequestsPage() {
                 <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-600">
                   <div className="flex items-center gap-1">
                     <Building2 className="h-4 w-4 text-gray-400" />
-                    {tierLabels[request.requestedTier] || 'Growing'}
+                    {tierLabels[request.requestedTier] || 'Cathedral'}
                   </div>
                   <div className="flex items-center gap-1">
                     <DollarSign className="h-4 w-4 text-gray-400" />
@@ -282,7 +292,7 @@ export default function PendingRequestsPage() {
                     <div className="flex justify-between">
                       <span className="text-green-700">Requested Tier:</span>
                       <span className="font-medium text-green-900">
-                        {tierLabels[selectedRequest.requestedTier] || 'Growing'}
+                        {tierLabels[selectedRequest.requestedTier] || 'Cathedral'}
                       </span>
                     </div>
                     <div className="flex justify-between">

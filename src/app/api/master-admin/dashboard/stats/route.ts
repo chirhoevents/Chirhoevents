@@ -167,10 +167,15 @@ export async function GET(request: NextRequest) {
       },
       subscriptionBreakdown: {
         starter: tierCounts.find((t: { subscriptionTier: string | null }) => t.subscriptionTier === 'starter')?._count.id || 0,
-        smallDiocese: tierCounts.find((t: { subscriptionTier: string | null }) => t.subscriptionTier === 'small_diocese')?._count.id || 0,
-        growing: tierCounts.find((t: { subscriptionTier: string | null }) => t.subscriptionTier === 'growing')?._count.id || 0,
-        conference: tierCounts.find((t: { subscriptionTier: string | null }) => t.subscriptionTier === 'conference')?._count.id || 0,
-        enterprise: tierCounts.find((t: { subscriptionTier: string | null }) => t.subscriptionTier === 'enterprise')?._count.id || 0,
+        // Count both new and legacy tier names
+        parish: (tierCounts.find((t: { subscriptionTier: string | null }) => t.subscriptionTier === 'parish')?._count.id || 0) +
+                (tierCounts.find((t: { subscriptionTier: string | null }) => t.subscriptionTier === 'small_diocese')?._count.id || 0),
+        cathedral: (tierCounts.find((t: { subscriptionTier: string | null }) => t.subscriptionTier === 'cathedral')?._count.id || 0) +
+                   (tierCounts.find((t: { subscriptionTier: string | null }) => t.subscriptionTier === 'growing')?._count.id || 0),
+        shrine: (tierCounts.find((t: { subscriptionTier: string | null }) => t.subscriptionTier === 'shrine')?._count.id || 0) +
+                (tierCounts.find((t: { subscriptionTier: string | null }) => t.subscriptionTier === 'conference')?._count.id || 0),
+        basilica: (tierCounts.find((t: { subscriptionTier: string | null }) => t.subscriptionTier === 'basilica')?._count.id || 0) +
+                  (tierCounts.find((t: { subscriptionTier: string | null }) => t.subscriptionTier === 'enterprise')?._count.id || 0),
         testFree: tierCounts.find((t: { subscriptionTier: string | null }) => t.subscriptionTier === 'test')?._count.id || 0,
         totalActive: activeOrgs,
       },

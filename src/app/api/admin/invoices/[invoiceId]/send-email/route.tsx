@@ -11,10 +11,15 @@ const resend = new Resend(process.env.RESEND_API_KEY!)
 
 const tierLabels: Record<string, string> = {
   starter: 'Starter',
-  small_diocese: 'Small Diocese',
-  growing: 'Growing',
-  conference: 'Conference',
-  enterprise: 'Enterprise',
+  parish: 'Parish',
+  cathedral: 'Cathedral',
+  shrine: 'Shrine',
+  basilica: 'Basilica',
+  // Legacy tier names for backward compatibility
+  small_diocese: 'Parish',
+  growing: 'Cathedral',
+  conference: 'Shrine',
+  enterprise: 'Basilica',
   test: 'Test',
 }
 

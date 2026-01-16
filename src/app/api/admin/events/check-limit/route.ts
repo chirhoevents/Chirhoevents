@@ -6,25 +6,35 @@ import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 
 // Tier limits and pricing
 const TIER_LIMITS: Record<string, { events: number; monthlyPrice: number }> = {
-  starter: { events: 2, monthlyPrice: 49 },
-  small_diocese: { events: 5, monthlyPrice: 99 },
-  growing: { events: 10, monthlyPrice: 149 },
-  conference: { events: 25, monthlyPrice: 249 },
-  enterprise: { events: 999, monthlyPrice: 499 },
+  starter: { events: 3, monthlyPrice: 25 },
+  parish: { events: 5, monthlyPrice: 45 },
+  cathedral: { events: 10, monthlyPrice: 89 },
+  shrine: { events: 25, monthlyPrice: 120 },
+  basilica: { events: 999, monthlyPrice: 200 },
+  // Legacy tier names for backward compatibility
+  small_diocese: { events: 5, monthlyPrice: 45 },
+  growing: { events: 10, monthlyPrice: 89 },
+  conference: { events: 25, monthlyPrice: 120 },
+  enterprise: { events: 999, monthlyPrice: 200 },
   test: { events: 999, monthlyPrice: 0 },
 }
 
 const TIER_LABELS: Record<string, string> = {
   starter: 'Starter',
-  small_diocese: 'Small Diocese',
-  growing: 'Growing',
-  conference: 'Conference',
-  enterprise: 'Enterprise',
+  parish: 'Parish',
+  cathedral: 'Cathedral',
+  shrine: 'Shrine',
+  basilica: 'Basilica',
+  // Legacy tier names for backward compatibility
+  small_diocese: 'Parish',
+  growing: 'Cathedral',
+  conference: 'Shrine',
+  enterprise: 'Basilica',
   test: 'Test',
 }
 
 function getUpgradeTiers(currentTier: string) {
-  const tierOrder = ['starter', 'small_diocese', 'growing', 'conference', 'enterprise']
+  const tierOrder = ['starter', 'parish', 'cathedral', 'shrine', 'basilica']
   const currentIndex = tierOrder.indexOf(currentTier)
 
   if (currentIndex === -1 || currentIndex >= tierOrder.length - 1) {

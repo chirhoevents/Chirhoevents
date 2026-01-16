@@ -19,7 +19,7 @@ const faqCategories = [
       },
       {
         q: "What subscription plan is right for me?",
-        a: "It depends on how many events you run per year and how many participants you expect. The Starter plan ($29/mo) works for small parishes with up to 3 events and 500 people. For diocesan-level events, consider the Growing ($79/mo) or Conference ($99/mo) plans."
+        a: "It depends on how many events you run per year and how many participants you expect. The Starter plan ($25/mo) works for small parishes with up to 3 events and 500 people. For diocesan-level events, consider Cathedral ($89/mo) or Shrine ($120/mo) plans. Cathedral and above include POROS, SALVE, and RAPHA modules."
       },
       {
         q: "How long does setup take?",

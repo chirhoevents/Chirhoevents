@@ -22,19 +22,29 @@ interface UpgradeRequestModalProps {
 
 const tierLabels: Record<string, string> = {
   starter: 'Starter',
-  small_diocese: 'Small Diocese',
-  growing: 'Growing',
-  conference: 'Conference',
-  enterprise: 'Enterprise',
+  parish: 'Parish',
+  cathedral: 'Cathedral',
+  shrine: 'Shrine',
+  basilica: 'Basilica',
+  // Legacy tier names for backward compatibility
+  small_diocese: 'Parish',
+  growing: 'Cathedral',
+  conference: 'Shrine',
+  enterprise: 'Basilica',
   test: 'Test',
 }
 
 const nextTierSuggestions: Record<string, string> = {
-  starter: 'Small Diocese or Growing',
-  small_diocese: 'Growing or Conference',
-  growing: 'Conference',
-  conference: 'Enterprise',
-  enterprise: 'Enterprise (custom)',
+  starter: 'Parish or Cathedral',
+  parish: 'Cathedral or Shrine',
+  cathedral: 'Shrine',
+  shrine: 'Basilica',
+  basilica: 'Basilica (custom)',
+  // Legacy tier names for backward compatibility
+  small_diocese: 'Cathedral or Shrine',
+  growing: 'Shrine',
+  conference: 'Basilica',
+  enterprise: 'Basilica (custom)',
   test: 'Starter',
 }
 
