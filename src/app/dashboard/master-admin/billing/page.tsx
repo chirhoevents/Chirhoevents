@@ -125,6 +125,9 @@ interface Subscription {
   notes: string | null
   status: string
   hasOverdueInvoices: boolean
+  pauseReason: string | null
+  pauseReasonNote: string | null
+  pausedAt: string | null
   recentPayments: Array<{
     id: string
     amount: number
@@ -329,6 +332,23 @@ export default function BillingDashboard() {
     periodStart: format(new Date(), 'yyyy-MM-dd'),
     periodEnd: format(new Date(new Date().setFullYear(new Date().getFullYear() + 1)), 'yyyy-MM-dd'),
   })
+
+  // Pause subscription modal state
+  const [showPauseModal, setShowPauseModal] = useState(false)
+  const [pauseSubscriptionId, setPauseSubscriptionId] = useState<string | null>(null)
+  const [pauseForm, setPauseForm] = useState({
+    reason: 'payment_overdue',
+    note: '',
+  })
+
+  const pauseReasonOptions = [
+    { value: 'payment_overdue', label: 'Payment Overdue' },
+    { value: 'payment_failed', label: 'Payment Failed' },
+    { value: 'account_review', label: 'Account Under Review' },
+    { value: 'user_requested', label: 'User Requested' },
+    { value: 'violation', label: 'Terms Violation' },
+    { value: 'other', label: 'Other' },
+  ]
 
   // Fetch functions
   const fetchOverview = useCallback(async () => {
@@ -585,6 +605,14 @@ export default function BillingDashboard() {
   }
 
   const handleSubscriptionAction = async (subscriptionId: string, action: string) => {
+    // For pause action, open the modal instead of directly pausing
+    if (action === 'pause') {
+      setPauseSubscriptionId(subscriptionId)
+      setPauseForm({ reason: 'payment_overdue', note: '' })
+      setShowPauseModal(true)
+      return
+    }
+
     try {
       const token = await getToken()
       const res = await fetch(`/api/master-admin/billing/subscriptions/${subscriptionId}`, {
@@ -602,6 +630,37 @@ export default function BillingDashboard() {
       setShowSubscriptionDetails(false)
     } catch (err) {
       console.error(`Error ${action} subscription:`, err)
+    }
+  }
+
+  const handleConfirmPause = async () => {
+    if (!pauseSubscriptionId) return
+
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/master-admin/billing/subscriptions/${pauseSubscriptionId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          action: 'pause',
+          pauseReason: pauseForm.reason,
+          pauseReasonNote: pauseForm.note || null,
+        }),
+      })
+
+      if (!res.ok) throw new Error('Failed to pause subscription')
+
+      fetchSubscriptions()
+      setShowPauseModal(false)
+      setShowSubscriptionDetails(false)
+      setPauseSubscriptionId(null)
+      setPauseForm({ reason: 'payment_overdue', note: '' })
+    } catch (err) {
+      console.error('Error pausing subscription:', err)
+      alert('Failed to pause subscription')
     }
   }
 
@@ -2392,6 +2451,70 @@ export default function BillingDashboard() {
                 )}
               </Button>
             ) : null}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pause Subscription Modal */}
+      <Dialog open={showPauseModal} onOpenChange={setShowPauseModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Pause Subscription</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5" />
+                <div>
+                  <p className="font-medium text-orange-800">Important Note</p>
+                  <p className="text-sm text-orange-700 mt-1">
+                    When paused, the organization will see a notification about the pause reason.
+                    Their events will continue to run and people can still register - ministry continues!
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium text-gray-700">Pause Reason</Label>
+              <select
+                value={pauseForm.reason}
+                onChange={(e) => setPauseForm({ ...pauseForm, reason: e.target.value })}
+                className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                {pauseReasonOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <Label htmlFor="pauseNote" className="text-sm font-medium text-gray-700">
+                Additional Note (shown to organization)
+              </Label>
+              <textarea
+                id="pauseNote"
+                value={pauseForm.note}
+                onChange={(e) => setPauseForm({ ...pauseForm, note: e.target.value })}
+                placeholder="Add any additional details about the pause..."
+                rows={3}
+                className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPauseModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmPause}
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              <Pause className="h-4 w-4 mr-1" />
+              Pause Subscription
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

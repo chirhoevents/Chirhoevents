@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Fetch organization branding data (use impersonated org if applicable)
+    // Fetch organization branding data and subscription status (use impersonated org if applicable)
     const organization = await prisma.organization.findUnique({
       where: { id: organizationId },
       select: {
@@ -83,6 +83,10 @@ export async function GET(request: NextRequest) {
         modulesEnabled: true,
         primaryColor: true,
         secondaryColor: true,
+        subscriptionStatus: true,
+        pauseReason: true,
+        pauseReasonNote: true,
+        pausedAt: true,
       },
     })
 
@@ -105,6 +109,11 @@ export async function GET(request: NextRequest) {
       secondaryColor: organization?.secondaryColor || '#9C8466',
       isImpersonating: isImpersonating,
       impersonatedOrgId: isImpersonating ? organizationId : null,
+      // Subscription pause info
+      subscriptionStatus: organization?.subscriptionStatus || 'active',
+      pauseReason: organization?.pauseReason || null,
+      pauseReasonNote: organization?.pauseReasonNote || null,
+      pausedAt: organization?.pausedAt || null,
     })
   } catch (error) {
     console.error('💥 [API check-access] Error:', error)
