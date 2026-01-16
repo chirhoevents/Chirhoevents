@@ -836,10 +836,6 @@ enum SubscriptionTier {
   shrine
   cathedral
   basilica
-  parish        // Replaces small_diocese
-  cathedral     // Replaces growing
-  shrine        // Replaces conference
-  basilica      // Replaces enterprise
   test
 
   // Legacy tier names (kept for backward compatibility)
