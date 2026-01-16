@@ -30,14 +30,14 @@ interface SettingsData {
   ach_enabled: string
   starter_monthly: string
   starter_annual: string
-  small_diocese_monthly: string
-  small_diocese_annual: string
-  growing_monthly: string
-  growing_annual: string
-  conference_monthly: string
-  conference_annual: string
-  enterprise_monthly: string
-  enterprise_annual: string
+  parish_monthly: string
+  parish_annual: string
+  cathedral_monthly: string
+  cathedral_annual: string
+  shrine_monthly: string
+  shrine_annual: string
+  basilica_monthly: string
+  basilica_annual: string
   [key: string]: string
 }
 
@@ -234,10 +234,10 @@ export default function SettingsPage() {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
               >
                 <option value="starter">Starter</option>
-                <option value="small_diocese">Small Diocese</option>
-                <option value="growing">Growing</option>
-                <option value="conference">Conference</option>
-                <option value="enterprise">Enterprise</option>
+                <option value="parish">Parish</option>
+                <option value="cathedral">Cathedral</option>
+                <option value="shrine">Shrine</option>
+                <option value="basilica">Basilica</option>
               </select>
             </div>
 
@@ -455,10 +455,10 @@ export default function SettingsPage() {
               <tbody className="divide-y divide-gray-100">
                 {[
                   { key: 'starter', label: 'Starter' },
-                  { key: 'small_diocese', label: 'Small Diocese' },
-                  { key: 'growing', label: 'Growing' },
-                  { key: 'conference', label: 'Conference' },
-                  { key: 'enterprise', label: 'Enterprise' },
+                  { key: 'parish', label: 'Parish' },
+                  { key: 'cathedral', label: 'Cathedral' },
+                  { key: 'shrine', label: 'Shrine' },
+                  { key: 'basilica', label: 'Basilica' },
                 ].map((tier) => (
                   <tr key={tier.key}>
                     <td className="py-3 px-4 font-medium text-gray-900">{tier.label}</td>

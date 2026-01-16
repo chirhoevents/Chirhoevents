@@ -378,24 +378,24 @@ export default function MasterAdminDashboard() {
 
           <div className="space-y-3">
             <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Starter ($29/mo)</span>
+              <span className="text-sm text-gray-600">Starter ($25/mo)</span>
               <span className="text-sm font-medium text-gray-900">{displayStats.subscriptionBreakdown.starter} orgs</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Small Diocese ($49/mo)</span>
-              <span className="text-sm font-medium text-gray-900">{displayStats.subscriptionBreakdown.smallDiocese} orgs</span>
+              <span className="text-sm text-gray-600">Parish ($45/mo)</span>
+              <span className="text-sm font-medium text-gray-900">{displayStats.subscriptionBreakdown.parish} orgs</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Growing ($79/mo)</span>
-              <span className="text-sm font-medium text-gray-900">{displayStats.subscriptionBreakdown.growing} orgs</span>
+              <span className="text-sm text-gray-600">Cathedral ($89/mo)</span>
+              <span className="text-sm font-medium text-purple-600 font-semibold">{displayStats.subscriptionBreakdown.cathedral} orgs</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Conference ($99/mo)</span>
-              <span className="text-sm font-medium text-purple-600 font-semibold">{displayStats.subscriptionBreakdown.conference} orgs</span>
+              <span className="text-sm text-gray-600">Shrine ($120/mo)</span>
+              <span className="text-sm font-medium text-gray-900">{displayStats.subscriptionBreakdown.shrine} orgs</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Enterprise ($199+/mo)</span>
-              <span className="text-sm font-medium text-gray-900">{displayStats.subscriptionBreakdown.enterprise} orgs</span>
+              <span className="text-sm text-gray-600">Basilica ($200+/mo)</span>
+              <span className="text-sm font-medium text-gray-900">{displayStats.subscriptionBreakdown.basilica} orgs</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-100">
               <span className="text-sm text-gray-500">Test/Free</span>

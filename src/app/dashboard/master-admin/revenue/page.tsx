@@ -102,14 +102,24 @@ interface RevenueData {
 
 const tierLabels: Record<string, string> = {
   starter: 'Starter',
-  small_diocese: 'Small Diocese',
-  growing: 'Growing',
-  conference: 'Conference',
-  enterprise: 'Enterprise',
+  parish: 'Parish',
+  cathedral: 'Cathedral',
+  shrine: 'Shrine',
+  basilica: 'Basilica',
+  // Legacy tier names for backward compatibility
+  small_diocese: 'Parish',
+  growing: 'Cathedral',
+  conference: 'Shrine',
+  enterprise: 'Basilica',
 }
 
 const tierColors: Record<string, string> = {
   starter: 'bg-gray-500',
+  parish: 'bg-blue-500',
+  cathedral: 'bg-green-500',
+  shrine: 'bg-purple-500',
+  basilica: 'bg-amber-500',
+  // Legacy tier names for backward compatibility
   small_diocese: 'bg-blue-500',
   growing: 'bg-green-500',
   conference: 'bg-purple-500',
