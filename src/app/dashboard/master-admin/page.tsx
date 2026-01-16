@@ -48,10 +48,10 @@ interface DashboardStats {
   }
   subscriptionBreakdown: {
     starter: number
-    smallDiocese: number
-    growing: number
-    conference: number
-    enterprise: number
+    parish: number
+    cathedral: number
+    shrine: number
+    basilica: number
     testFree: number
     totalActive: number
   }
@@ -116,10 +116,10 @@ export default function MasterAdminDashboard() {
     },
     subscriptionBreakdown: {
       starter: 0,
-      smallDiocese: 0,
-      growing: 0,
-      conference: 1,
-      enterprise: 0,
+      parish: 0,
+      cathedral: 1,
+      shrine: 0,
+      basilica: 0,
       testFree: 1,
       totalActive: 1,
     },
