@@ -350,7 +350,7 @@ export default function RevenuePage() {
         <TabsContent value="overview" className="space-y-6">
           {/* Charts Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">New Organizations (6 Months)</h3>
               <div className="flex items-end justify-between h-40 gap-2">
                 {data.monthlySignups.map((month) => (
@@ -368,7 +368,7 @@ export default function RevenuePage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue by Tier</h3>
               <div className="space-y-4">
                 {Object.entries(data.tierRevenue).map(([tier, stats]) => (
@@ -397,7 +397,7 @@ export default function RevenuePage() {
 
           {/* Secondary Stats */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
               <h3 className="text-sm font-medium text-gray-600 mb-4">Billing Cycle</h3>
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -411,7 +411,7 @@ export default function RevenuePage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
               <h3 className="text-sm font-medium text-gray-600 mb-4">Setup Fees</h3>
               <div className="space-y-2">
                 <div className="flex justify-between">
@@ -425,7 +425,7 @@ export default function RevenuePage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
               <h3 className="text-sm font-medium text-gray-600 mb-4">Invoices</h3>
               <div className="space-y-2">
                 <div className="flex justify-between">
@@ -443,7 +443,7 @@ export default function RevenuePage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
               <h3 className="text-sm font-medium text-gray-600 mb-4">Collections</h3>
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
@@ -498,15 +498,15 @@ export default function RevenuePage() {
         <TabsContent value="platform-fees" className="space-y-6">
           {/* Platform Fees Summary */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
               <h3 className="text-sm font-medium text-gray-600 mb-2">Total Payments Processed</h3>
               <p className="text-2xl font-bold text-gray-900">{formatCurrency(data.platformFees?.totalPaymentsProcessed || 0)}</p>
             </div>
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
               <h3 className="text-sm font-medium text-gray-600 mb-2">Platform Fees Collected (1%)</h3>
               <p className="text-2xl font-bold text-green-600">{formatCurrency(data.platformFees?.totalCollected || 0)}</p>
             </div>
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
               <h3 className="text-sm font-medium text-gray-600 mb-2">Total Transactions</h3>
               <p className="text-2xl font-bold text-gray-900">{data.platformFees?.transactionCount || 0}</p>
             </div>
@@ -623,19 +623,19 @@ export default function RevenuePage() {
         <TabsContent value="setup-fees" className="space-y-6">
           {/* Setup Fees Summary */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
               <h3 className="text-sm font-medium text-gray-600 mb-2">Total Collected</h3>
               <p className="text-2xl font-bold text-green-600">{formatCurrency(data.setupFees.collected)}</p>
             </div>
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
               <h3 className="text-sm font-medium text-gray-600 mb-2">Outstanding</h3>
               <p className="text-2xl font-bold text-amber-600">{formatCurrency(data.setupFees.outstanding)}</p>
             </div>
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
               <h3 className="text-sm font-medium text-gray-600 mb-2">Paid</h3>
               <p className="text-2xl font-bold text-gray-900">{data.setupFees.paid}</p>
             </div>
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
               <h3 className="text-sm font-medium text-gray-600 mb-2">Pending</h3>
               <p className="text-2xl font-bold text-gray-900">{data.setupFees.owed}</p>
             </div>

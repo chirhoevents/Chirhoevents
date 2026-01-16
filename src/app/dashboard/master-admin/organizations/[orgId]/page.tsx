@@ -1178,7 +1178,10 @@ export default function OrganizationDetailPage() {
                 )}
                 Recalculate Storage
               </button>
-              <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
+              <button
+                onClick={() => router.push('/dashboard/master-admin/revenue')}
+                className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+              >
                 <BarChart3 className="h-4 w-4 text-gray-400" />
                 View Analytics
               </button>

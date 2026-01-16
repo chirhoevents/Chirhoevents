@@ -803,22 +803,22 @@ export default function BillingDashboard() {
               {/* Summary Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {/* MRR Card */}
-                <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl p-6 text-white">
+                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
                   <div className="flex items-center justify-between mb-4">
-                    <DollarSign className="h-8 w-8 opacity-80" />
-                    <TrendingUp className={`h-5 w-5 ${overview.mrr.growth >= 0 ? 'text-green-200' : 'text-red-200'}`} />
+                    <DollarSign className="h-8 w-8 text-green-500" />
+                    <TrendingUp className={`h-5 w-5 ${overview.mrr.growth >= 0 ? 'text-green-500' : 'text-red-500'}`} />
                   </div>
-                  <p className="text-3xl font-bold">{formatCurrency(overview.mrr.current)}</p>
-                  <p className="text-green-100 text-sm">Monthly Recurring Revenue</p>
-                  <p className={`text-sm mt-2 ${overview.mrr.growth >= 0 ? 'text-green-200' : 'text-red-200'}`}>
+                  <p className="text-3xl font-bold text-gray-900">{formatCurrency(overview.mrr.current)}</p>
+                  <p className="text-gray-600 text-sm">Monthly Recurring Revenue</p>
+                  <p className={`text-sm mt-2 ${overview.mrr.growth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {overview.mrr.growth >= 0 ? '+' : ''}{formatCurrency(overview.mrr.growth)} from last month
                   </p>
-                  <div className="mt-4 pt-4 border-t border-green-400/30">
-                    <p className="text-green-100 text-xs">Active Subscriptions: {overview.mrr.activeSubscriptions}</p>
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-gray-500 text-xs">Active Subscriptions: {overview.mrr.activeSubscriptions}</p>
                     <div className="mt-2 space-y-1">
                       {Object.entries(overview.mrr.tierBreakdown).map(([tier, data]) => (
                         data.count > 0 && (
-                          <div key={tier} className="flex justify-between text-xs text-green-100">
+                          <div key={tier} className="flex justify-between text-xs text-gray-600">
                             <span>{formatTierName(tier)}: {data.count}</span>
                             <span>{formatCurrency(data.amount)}</span>
                           </div>
@@ -1237,6 +1237,19 @@ export default function BillingDashboard() {
                               </>
                             )}
                             <button
+                              onClick={() => {
+                                alert(
+                                  `Invoice #${invoice.invoiceNumber}\n\n` +
+                                  `Organization: ${invoice.organization?.name || 'Unknown'}\n` +
+                                  `Type: ${invoice.invoiceType.replace('_', ' ')}\n` +
+                                  `Amount: ${formatCurrency(Number(invoice.amount))}\n` +
+                                  `Due Date: ${format(new Date(invoice.dueDate), 'MMM d, yyyy')}\n` +
+                                  `Status: ${invoice.status}\n` +
+                                  `Created: ${format(new Date(invoice.createdAt), 'MMM d, yyyy')}\n` +
+                                  (invoice.paidAt ? `Paid: ${format(new Date(invoice.paidAt), 'MMM d, yyyy')}\n` : '') +
+                                  (invoice.description ? `Description: ${invoice.description}` : '')
+                                )
+                              }}
                               className="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg"
                               title="View Details"
                             >
@@ -1868,10 +1881,31 @@ export default function BillingDashboard() {
 
               {/* Actions */}
               <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-200">
-                <Button variant="outline" size="sm">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const newTier = prompt(
+                      `Upgrade subscription tier for ${selectedSubscription.name}\n\nCurrent tier: ${formatTierName(selectedSubscription.subscriptionTier)}\n\nEnter new tier (starter, parish, cathedral, shrine, basilica):`,
+                      selectedSubscription.subscriptionTier
+                    )
+                    if (newTier && newTier !== selectedSubscription.subscriptionTier) {
+                      handleSubscriptionAction(selectedSubscription.id, `upgrade_${newTier}`)
+                    }
+                  }}
+                >
                   Upgrade Tier
                 </Button>
-                <Button variant="outline" size="sm">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const newCycle = selectedSubscription.billingCycle === 'annual' ? 'monthly' : 'annual'
+                    if (confirm(`Change billing cycle from ${selectedSubscription.billingCycle} to ${newCycle}?`)) {
+                      handleSubscriptionAction(selectedSubscription.id, `change_cycle_${newCycle}`)
+                    }
+                  }}
+                >
                   Change Billing Cycle
                 </Button>
                 {selectedSubscription.subscriptionStatus === 'active' && (
