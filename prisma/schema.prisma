@@ -798,6 +798,8 @@ enum PaymentStatus {
 enum RegistrationType {
   group
   individual
+  vendor
+  staff
 }
 
 enum PaymentBalanceStatus {
