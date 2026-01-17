@@ -52,10 +52,14 @@ export async function GET() {
           },
         })
 
-        // Get housing assignment counts
-        const housingAssignments = await prisma.housingAssignment.count({
+        // Get room assignment counts
+        const roomAssignments = await prisma.roomAssignment.count({
           where: {
-            eventId: event.id,
+            room: {
+              building: {
+                eventId: event.id,
+              },
+            },
           },
         })
 
@@ -77,7 +81,7 @@ export async function GET() {
           stats: {
             totalParticipants: participantCount + individualCount,
             totalRegistrations: event._count.groupRegistrations + event._count.individualRegistrations,
-            housingAssignments,
+            roomAssignments,
             buildingCount,
           },
         }
