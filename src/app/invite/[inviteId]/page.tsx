@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { useAuth, SignUp, useUser } from '@clerk/nextjs'
+import { useAuth, SignUp, SignIn, useUser } from '@clerk/nextjs'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Loader2, CheckCircle, XCircle, Building2, Mail, User, ShieldCheck, Crown } from 'lucide-react'
@@ -27,6 +27,7 @@ export default function InvitePage() {
   const [error, setError] = useState<string | null>(null)
   const [isAccepting, setIsAccepting] = useState(false)
   const [accepted, setAccepted] = useState(false)
+  const [authMode, setAuthMode] = useState<'signup' | 'signin'>('signup')
 
   // Fetch invite details
   useEffect(() => {
@@ -239,32 +240,79 @@ export default function InvitePage() {
           </CardContent>
         </Card>
 
-        {/* Sign Up Form */}
+        {/* Auth Form - Sign Up or Sign In */}
         {!isSignedIn && (
           <div className="bg-white rounded-lg shadow-xl p-4">
+            {/* Auth Mode Toggle */}
+            <div className="flex justify-center gap-2 mb-4">
+              <button
+                onClick={() => setAuthMode('signup')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  authMode === 'signup'
+                    ? 'bg-[#1E3A5F] text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Create Account
+              </button>
+              <button
+                onClick={() => setAuthMode('signin')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  authMode === 'signin'
+                    ? 'bg-[#1E3A5F] text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Sign In
+              </button>
+            </div>
+
             <p className="text-center text-sm text-gray-600 mb-4">
-              Create your account to get started
+              {authMode === 'signup'
+                ? 'Create your account to get started'
+                : 'Already have an account? Sign in below'}
             </p>
-            <SignUp
-              appearance={{
-                elements: {
-                  rootBox: 'mx-auto',
-                  card: 'shadow-none',
-                  headerTitle: 'hidden',
-                  headerSubtitle: 'hidden',
-                  socialButtonsBlockButton:
-                    'bg-white border-2 border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#F5F1E8]',
-                  formButtonPrimary: 'bg-[#9C8466] hover:bg-[#8B7355] text-white',
-                  formFieldInput:
-                    'border-[#D1D5DB] focus:border-[#9C8466] focus:ring-[#9C8466]',
-                  footerActionLink: 'text-[#9C8466] hover:text-[#8B7355]',
-                },
-              }}
-              initialValues={{
-                emailAddress: inviteDetails?.email,
-              }}
-              redirectUrl={`/invite/${inviteId}`}
-            />
+
+            {authMode === 'signup' ? (
+              <SignUp
+                appearance={{
+                  elements: {
+                    rootBox: 'mx-auto',
+                    card: 'shadow-none',
+                    headerTitle: 'hidden',
+                    headerSubtitle: 'hidden',
+                    socialButtonsBlockButton:
+                      'bg-white border-2 border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#F5F1E8]',
+                    formButtonPrimary: 'bg-[#9C8466] hover:bg-[#8B7355] text-white',
+                    formFieldInput:
+                      'border-[#D1D5DB] focus:border-[#9C8466] focus:ring-[#9C8466]',
+                    footerActionLink: 'text-[#9C8466] hover:text-[#8B7355]',
+                  },
+                }}
+                initialValues={{
+                  emailAddress: inviteDetails?.email,
+                }}
+                redirectUrl={`/invite/${inviteId}`}
+              />
+            ) : (
+              <SignIn
+                appearance={{
+                  elements: {
+                    rootBox: 'mx-auto',
+                    card: 'shadow-none',
+                    headerTitle: 'hidden',
+                    headerSubtitle: 'hidden',
+                    socialButtonsBlockButton:
+                      'bg-white border-2 border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#F5F1E8]',
+                    formButtonPrimary: 'bg-[#9C8466] hover:bg-[#8B7355] text-white',
+                    formFieldInput:
+                      'border-[#D1D5DB] focus:border-[#9C8466] focus:ring-[#9C8466]',
+                    footerActionLink: 'text-[#9C8466] hover:text-[#8B7355]',
+                  },
+                }}
+                redirectUrl={`/invite/${inviteId}`}
+              />
+            )}
           </div>
         )}
 
