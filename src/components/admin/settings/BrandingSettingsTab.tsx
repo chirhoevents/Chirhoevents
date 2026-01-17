@@ -34,6 +34,21 @@ interface BrandingData {
 
 const DEFAULT_PRIMARY = '#1E3A5F'
 const DEFAULT_SECONDARY = '#9C8466'
+const DEFAULT_MODULES = { poros: true, salve: true, rapha: true }
+
+// Helper to properly merge modulesEnabled with defaults
+// This ensures that missing or undefined properties default to true
+function getModulesEnabled(modulesEnabled: unknown): { poros: boolean; salve: boolean; rapha: boolean } {
+  if (!modulesEnabled || typeof modulesEnabled !== 'object') {
+    return { ...DEFAULT_MODULES }
+  }
+  const modules = modulesEnabled as Record<string, unknown>
+  return {
+    poros: modules.poros !== false,
+    salve: modules.salve !== false,
+    rapha: modules.rapha !== false,
+  }
+}
 
 export default function BrandingSettingsTab() {
   const { getToken } = useAuth()
@@ -70,7 +85,7 @@ export default function BrandingSettingsTab() {
       setBranding(data.organization)
       setPrimaryColor(data.organization.primaryColor || DEFAULT_PRIMARY)
       setSecondaryColor(data.organization.secondaryColor || DEFAULT_SECONDARY)
-      setModules(data.organization.modulesEnabled || { poros: true, salve: true, rapha: true })
+      setModules(getModulesEnabled(data.organization.modulesEnabled))
     } catch (err) {
       console.error('Error fetching branding:', err)
       setError('Failed to load branding settings')

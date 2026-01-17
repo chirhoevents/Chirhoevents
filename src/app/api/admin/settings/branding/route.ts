@@ -4,6 +4,24 @@ import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 
+// Default modules configuration
+const DEFAULT_MODULES = { poros: true, salve: true, rapha: true }
+
+// Helper to properly merge modulesEnabled with defaults
+// This ensures that missing or undefined properties default to true
+// Only explicit false values will disable a module
+function getModulesEnabled(modulesEnabled: unknown): { poros: boolean; salve: boolean; rapha: boolean } {
+  if (!modulesEnabled || typeof modulesEnabled !== 'object') {
+    return { ...DEFAULT_MODULES }
+  }
+  const modules = modulesEnabled as Record<string, unknown>
+  return {
+    poros: modules.poros !== false,
+    salve: modules.salve !== false,
+    rapha: modules.rapha !== false,
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     // Try to get userId from JWT token in Authorization header
@@ -44,7 +62,7 @@ export async function GET(request: NextRequest) {
         ...organization,
         primaryColor: organization.primaryColor || '#1E3A5F',
         secondaryColor: organization.secondaryColor || '#9C8466',
-        modulesEnabled: organization.modulesEnabled || { poros: true, salve: true, rapha: true },
+        modulesEnabled: getModulesEnabled(organization.modulesEnabled),
       },
     })
   } catch (error) {
