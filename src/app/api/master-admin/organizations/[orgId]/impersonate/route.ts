@@ -3,6 +3,23 @@ import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 
+// Default modules configuration
+const DEFAULT_MODULES = { poros: true, salve: true, rapha: true }
+
+// Helper to properly merge modulesEnabled with defaults
+// This ensures that missing or undefined properties default to true
+function getModulesEnabled(modulesEnabled: unknown): { poros: boolean; salve: boolean; rapha: boolean } {
+  if (!modulesEnabled || typeof modulesEnabled !== 'object') {
+    return { ...DEFAULT_MODULES }
+  }
+  const modules = modulesEnabled as Record<string, unknown>
+  return {
+    poros: modules.poros !== false,
+    salve: modules.salve !== false,
+    rapha: modules.rapha !== false,
+  }
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ orgId: string }> }
@@ -113,7 +130,7 @@ export async function POST(
       message: `Now impersonating ${organization?.name}`,
       organizationName: organization?.name,
       logoUrl: organization?.logoUrl,
-      modulesEnabled: organization?.modulesEnabled || { poros: true, salve: true, rapha: true },
+      modulesEnabled: getModulesEnabled(organization?.modulesEnabled),
       redirectUrl: '/dashboard/admin',
     })
   } catch (error) {

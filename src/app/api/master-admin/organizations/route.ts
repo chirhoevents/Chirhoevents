@@ -6,6 +6,23 @@ import { generateOrgAdminOnboardingEmail } from '@/emails/org-admin-onboarding'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
+// Default modules configuration
+const DEFAULT_MODULES = { poros: true, salve: true, rapha: true }
+
+// Helper to properly merge modulesEnabled with defaults
+// This ensures that missing or undefined properties default to true
+function getModulesEnabled(modulesEnabled: unknown): { poros: boolean; salve: boolean; rapha: boolean } {
+  if (!modulesEnabled || typeof modulesEnabled !== 'object') {
+    return { ...DEFAULT_MODULES }
+  }
+  const modules = modulesEnabled as Record<string, unknown>
+  return {
+    poros: modules.poros !== false,
+    salve: modules.salve !== false,
+    rapha: modules.rapha !== false,
+  }
+}
+
 // Decode JWT payload to extract user ID when cookies aren't available
 function decodeJwtPayload(token: string): { sub?: string } | null {
   try {
@@ -217,7 +234,7 @@ export async function POST(request: NextRequest) {
         website,
         primaryColor: primaryColor || '#1E3A5F',
         secondaryColor: secondaryColor || '#9C8466',
-        modulesEnabled: modulesEnabled || { poros: true, salve: true, rapha: true },
+        modulesEnabled: getModulesEnabled(modulesEnabled),
         notes,
         createdByUserId: masterAdmin.id,
         subscriptionStartedAt: new Date(),

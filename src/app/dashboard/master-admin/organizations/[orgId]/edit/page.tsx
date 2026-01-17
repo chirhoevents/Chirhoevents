@@ -35,6 +35,23 @@ interface Organization {
   platformFeePercentage: number
 }
 
+// Default modules configuration
+const DEFAULT_MODULES = { poros: true, salve: true, rapha: true }
+
+// Helper to properly merge modulesEnabled with defaults
+// This ensures that missing or undefined properties default to true
+function getModulesEnabled(modulesEnabled: unknown): { poros: boolean; salve: boolean; rapha: boolean } {
+  if (!modulesEnabled || typeof modulesEnabled !== 'object') {
+    return { ...DEFAULT_MODULES }
+  }
+  const modules = modulesEnabled as Record<string, unknown>
+  return {
+    poros: modules.poros !== false,
+    salve: modules.salve !== false,
+    rapha: modules.rapha !== false,
+  }
+}
+
 // Standard tier pricing
 const tierPricing: Record<string, { monthly: number; annual: number; eventsLimit: number; registrationsLimit: number; storageLimit: number }> = {
   starter: { monthly: 25, annual: 250, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
@@ -118,7 +135,7 @@ export default function EditOrganizationPage() {
             setupFeeAmount: org.setupFeeAmount,
             primaryColor: org.primaryColor,
             secondaryColor: org.secondaryColor,
-            modulesEnabled: org.modulesEnabled || { poros: true, salve: true, rapha: true },
+            modulesEnabled: getModulesEnabled(org.modulesEnabled),
             notes: org.notes || '',
             legalEntityName: org.legalEntityName || '',
             website: org.website || '',
