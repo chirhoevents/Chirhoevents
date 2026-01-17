@@ -13,7 +13,7 @@ export async function GET() {
       where: {
         organizationId,
         status: {
-          in: ['published', 'registration_open', 'registration_closed'],
+          in: ['published', 'registration_open', 'registration_closed', 'in_progress'],
         },
         settings: {
           raphaMedicalEnabled: true,

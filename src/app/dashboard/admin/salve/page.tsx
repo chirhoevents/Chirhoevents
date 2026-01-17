@@ -35,12 +35,13 @@ export default function SalveSelectEventPage() {
   const fetchEvents = async () => {
     try {
       const token = await getToken()
-      const response = await fetch('/api/admin/events', {
+      const response = await fetch('/api/admin/salve/events', {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
       if (response.ok) {
         const data = await response.json()
-        const eventsArray = Array.isArray(data) ? data : (data.events || [])
+        // API returns array of events with salveCheckinEnabled
+        const eventsArray = Array.isArray(data) ? data : []
         setEvents(eventsArray)
       }
     } catch (error) {
