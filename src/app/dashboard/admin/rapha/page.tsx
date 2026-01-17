@@ -51,13 +51,14 @@ export default function RaphaSelectEventPage() {
     }
   }
 
-  const activeEvents = events.filter((e) => e.status === 'registration_open' || e.status === 'registration_closed' || e.status === 'in_progress')
+  const activeEvents = events.filter((e) => e.status === 'published' || e.status === 'registration_open' || e.status === 'registration_closed' || e.status === 'in_progress')
   const pastEvents = events.filter((e) => e.status === 'completed')
   const draftEvents = events.filter((e) => e.status === 'draft')
 
   function getStatusBadge(status: string) {
     const colors: Record<string, string> = {
       draft: 'bg-gray-100 text-gray-800',
+      published: 'bg-green-100 text-green-800',
       registration_open: 'bg-green-100 text-green-800',
       registration_closed: 'bg-amber-100 text-amber-800',
       in_progress: 'bg-blue-100 text-blue-800',
@@ -65,6 +66,7 @@ export default function RaphaSelectEventPage() {
     }
     const labels: Record<string, string> = {
       draft: 'Draft',
+      published: 'Published',
       registration_open: 'Registration Open',
       registration_closed: 'Registration Closed',
       in_progress: 'In Progress',
