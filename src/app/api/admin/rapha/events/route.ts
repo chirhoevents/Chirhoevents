@@ -8,15 +8,12 @@ export async function GET() {
     const user = await requireAdmin()
     const organizationId = await getEffectiveOrgId(user)
 
-    // Get events with Rapha enabled
-    const events = await prisma.event.findMany({
+    // Get events with their settings, then filter for Rapha enabled
+    const allEvents = await prisma.event.findMany({
       where: {
         organizationId,
         status: {
           in: ['published', 'registration_open', 'registration_closed', 'in_progress'],
-        },
-        settings: {
-          raphaMedicalEnabled: true,
         },
       },
       include: {
@@ -32,6 +29,9 @@ export async function GET() {
         startDate: 'desc',
       },
     })
+
+    // Filter for events with Rapha Medical enabled
+    const events = allEvents.filter(event => event.settings?.raphaMedicalEnabled === true)
 
     // Get medical stats for each event
     type EventRecord = typeof events[number]
