@@ -35,12 +35,13 @@ export default function RaphaSelectEventPage() {
   const fetchEvents = async () => {
     try {
       const token = await getToken()
-      const response = await fetch('/api/admin/events', {
+      const response = await fetch('/api/admin/rapha/events', {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
       if (response.ok) {
         const data = await response.json()
-        const eventsArray = Array.isArray(data) ? data : (data.events || [])
+        // API returns array of events with raphaMedicalEnabled
+        const eventsArray = Array.isArray(data) ? data : []
         setEvents(eventsArray)
       }
     } catch (error) {
