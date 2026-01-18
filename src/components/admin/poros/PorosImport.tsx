@@ -55,23 +55,28 @@ const TEMPLATES = {
   groups: {
     name: 'Groups',
     icon: Users,
-    description: 'Import youth groups with group codes for check-in',
-    columns: ['group_name', 'parish_name', 'group_leader_name', 'group_leader_email', 'group_leader_phone', 'group_code', 'housing_type', 'special_requests'],
+    description: 'Import youth groups with group codes for check-in. The group_id links to participants.',
+    columns: ['group_id', 'parish_name', 'leader_name', 'leader_email', 'leader_phone', 'group_code', 'housing_type', 'special_requests'],
     sampleData: [
-      ['St. Mary Parish [001]', 'St. Mary Parish', 'John Smith', 'john@stmary.org', '555-123-4567', '1A', 'on_campus', ''],
-      ['Holy Family [002]', 'Holy Family Parish', 'Jane Doe', 'jane@holyfamily.org', '555-234-5678', '2B', 'on_campus', 'Need ground floor'],
+      ['001', 'St. Mary Parish', 'John Smith', 'john@stmary.org', '555-123-4567', '1A', 'on_campus', ''],
+      ['002', 'Holy Family Parish', 'Jane Doe', 'jane@holyfamily.org', '555-234-5678', '2B', 'on_campus', 'Need ground floor'],
     ],
     endpoint: 'groups',
   },
   participants: {
     name: 'Participants',
     icon: UserPlus,
-    description: 'Import participants linked to groups',
-    columns: ['group_id', 'first_name', 'last_name', 'preferred_name', 'email', 'age', 'gender', 'participant_type', 't_shirt_size', 'parent_email'],
+    description: 'Import participants with emergency contacts, medical info, and ADA requirements',
+    columns: [
+      'group_id', 'first_name', 'last_name', 'preferred_name', 'email', 'age', 'gender', 'participant_type', 't_shirt_size', 'parent_email',
+      'emergency_contact_1_name', 'emergency_contact_1_phone', 'emergency_contact_1_relation',
+      'emergency_contact_2_name', 'emergency_contact_2_phone', 'emergency_contact_2_relation',
+      'allergies', 'medications', 'medical_conditions', 'dietary_restrictions', 'ada_requirements'
+    ],
     sampleData: [
-      ['001', 'Michael', 'Johnson', 'Mike', '', '16', 'male', 'youth', 'M', 'parent@email.com'],
-      ['001', 'Sarah', 'Williams', '', '', '15', 'female', 'youth', 'S', 'parent2@email.com'],
-      ['001', 'Robert', 'Brown', '', 'robert@email.com', '45', 'male', 'chaperone', 'L', ''],
+      ['001', 'Michael', 'Johnson', 'Mike', '', '16', 'male', 'youth', 'M', 'parent@email.com', 'John Johnson', '555-111-2222', 'Father', 'Mary Johnson', '555-111-3333', 'Mother', 'Peanuts', '', '', 'Vegetarian', ''],
+      ['001', 'Sarah', 'Williams', '', '', '15', 'female', 'youth', 'S', 'parent2@email.com', 'Tom Williams', '555-222-3333', 'Father', '', '', '', '', 'Ibuprofen daily', 'Asthma', '', 'Wheelchair accessible room'],
+      ['001', 'Robert', 'Brown', '', 'robert@email.com', '45', 'male', 'chaperone', 'L', '', 'Jane Brown', '555-333-4444', 'Spouse', '', '', '', '', '', '', '', ''],
     ],
     endpoint: 'participants',
   },

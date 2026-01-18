@@ -452,6 +452,9 @@ export async function POST(
             }
           })
 
+          // Check if we have medical/emergency info
+          const hasMedicalInfo = row.emergency_contact_1_name || row.allergies || row.medications || row.medical_conditions || row.ada_requirements
+
           const participantData = {
             groupRegistrationId: groupId,
             organizationId: event!.organizationId,
@@ -464,20 +467,73 @@ export async function POST(
             participantType: participantType as any,
             tShirtSize: row.t_shirt_size || null,
             parentEmail: row.parent_email || null,
-            liabilityFormCompleted: false,
+            liabilityFormCompleted: hasMedicalInfo ? true : false,
           }
+
+          let participantId: string
 
           if (existingParticipant) {
             await prisma.participant.update({
               where: { id: existingParticipant.id },
               data: participantData
             })
+            participantId = existingParticipant.id
             results.participantsUpdated++
           } else {
-            await prisma.participant.create({
+            const newParticipant = await prisma.participant.create({
               data: participantData
             })
+            participantId = newParticipant.id
             results.participantsCreated++
+          }
+
+          // Create liability form with medical info if we have any
+          if (hasMedicalInfo) {
+            // Check if liability form already exists
+            const existingForm = await prisma.liabilityForm.findFirst({
+              where: { participantId }
+            })
+
+            const liabilityFormData = {
+              organizationId: event!.organizationId,
+              participantId,
+              eventId,
+              formType: participantType === 'chaperone' ? 'chaperone' : participantType === 'priest' ? 'priest' : 'youth' as any,
+              participantType: participantType as any,
+              participantFirstName: row.first_name,
+              participantLastName: row.last_name,
+              participantPreferredName: row.preferred_name || null,
+              participantAge: age,
+              participantGender: gender as any,
+              participantEmail: row.email || null,
+              parentEmail: row.parent_email || null,
+              emergencyContact1Name: row.emergency_contact_1_name || '',
+              emergencyContact1Phone: row.emergency_contact_1_phone || '',
+              emergencyContact1Relation: row.emergency_contact_1_relation || null,
+              emergencyContact2Name: row.emergency_contact_2_name || null,
+              emergencyContact2Phone: row.emergency_contact_2_phone || null,
+              emergencyContact2Relation: row.emergency_contact_2_relation || null,
+              allergies: row.allergies || null,
+              medications: row.medications || null,
+              medicalConditions: row.medical_conditions || null,
+              dietaryRestrictions: row.dietary_restrictions || null,
+              adaAccommodations: row.ada_requirements || null,
+              signatureData: { imported: true, importedAt: new Date().toISOString() },
+              completed: true,
+              completedAt: new Date(),
+              formStatus: 'approved',
+            }
+
+            if (existingForm) {
+              await prisma.liabilityForm.update({
+                where: { id: existingForm.id },
+                data: liabilityFormData
+              })
+            } else {
+              await prisma.liabilityForm.create({
+                data: liabilityFormData
+              })
+            }
           }
         } catch (err: any) {
           results.errors.push(`Error importing participant ${row.first_name} ${row.last_name}: ${err.message}`)
