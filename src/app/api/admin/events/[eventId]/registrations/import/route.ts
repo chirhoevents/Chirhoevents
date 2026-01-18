@@ -170,7 +170,7 @@ export async function POST(
             const newGroup = await prisma.groupRegistration.create({
               data: {
                 ...groupData,
-                accessCode: generateAccessCode(event!.slug || 'EVT'),
+                accessCode: generateAccessCode(event!.name.substring(0, 6) || 'EVT'),
               }
             })
             groupId = newGroup.id
