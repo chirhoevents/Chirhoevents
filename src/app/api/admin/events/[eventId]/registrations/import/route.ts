@@ -104,16 +104,17 @@ export async function POST(
       console.log('[Groups Import] Number of rows:', rows.length)
       results.detectedHeaders = headers
 
-      // Capture first row for debugging
+      // Capture first row for debugging - check multiple column name variations
       if (rows.length > 0) {
+        const r = rows[0]
         results.debugFirstRow = {
-          raw: rows[0],
+          raw: r,
           parsed: {
-            group_id: rows[0].group_id,
-            parish_name: rows[0].parish_name,
-            total_participants: rows[0].total_participants,
-            fully_paid: rows[0].fully_paid,
-            amount_owed: rows[0].amount_owed,
+            group_id: r.group_id,
+            parish_name: r.parish_name,
+            total_participants: r.total_participants || r.totalparticipants || r.total || r.participants || r.count,
+            fully_paid: r.fully_paid || r.fullypaid || r.paid,
+            amount_owed: r.amount_owed || r.amountowed || r.owed || r.balance || r.amount,
           }
         }
       }
@@ -143,21 +144,23 @@ export async function POST(
             }
           })
 
-          // Get total participants from CSV (no need to separate by type)
-          const totalParticipants = parseInt(row.total_participants || '0') || 0
+          // Get total participants from CSV - try multiple column name variations
+          const totalParticipantsRaw = row.total_participants || row.totalparticipants || row.total || row.participants || row.count || '0'
+          const totalParticipants = parseInt(totalParticipantsRaw) || 0
 
-          // Parse payment info
-          const fullyPaidRaw = (row.fully_paid || 'yes').toLowerCase()
-          const isFullyPaid = fullyPaidRaw === 'yes' || fullyPaidRaw === 'true' || fullyPaidRaw === '1'
-          const amountOwed = parseFloat(row.amount_owed || '0') || 0
+          // Parse payment info - try multiple column name variations
+          const fullyPaidRaw = (row.fully_paid || row.fullypaid || row.paid || 'yes').toLowerCase()
+          const isFullyPaid = fullyPaidRaw === 'yes' || fullyPaidRaw === 'true' || fullyPaidRaw === '1' || fullyPaidRaw === 'y'
+          const amountOwedRaw = row.amount_owed || row.amountowed || row.owed || row.balance || row.amount || '0'
+          const amountOwed = parseFloat(amountOwedRaw) || 0
 
           // Debug logging
           console.log(`[Groups Import] Row data:`, {
             group_id: groupExternalId,
             parish_name: row.parish_name,
-            total_participants: row.total_participants,
-            fully_paid: row.fully_paid,
-            amount_owed: row.amount_owed,
+            total_participants: totalParticipantsRaw,
+            fully_paid: fullyPaidRaw,
+            amount_owed: amountOwedRaw,
             parsed: { totalParticipants, isFullyPaid, amountOwed }
           })
 
