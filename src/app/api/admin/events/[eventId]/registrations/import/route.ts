@@ -453,7 +453,7 @@ export async function POST(
           })
 
           // Check if we have medical/emergency info
-          const hasMedicalInfo = row.emergency_contact_1_name || row.allergies || row.medications || row.medical_conditions
+          const hasMedicalInfo = row.emergency_contact_1_name || row.allergies || row.medications || row.medical_conditions || row.ada_requirements
 
           const participantData = {
             groupRegistrationId: groupId,
@@ -495,12 +495,17 @@ export async function POST(
             })
 
             const liabilityFormData = {
+              organizationId: event!.organizationId,
               participantId,
               eventId,
-              firstName: row.first_name,
-              lastName: row.last_name,
-              age,
-              gender: gender as any,
+              formType: participantType === 'chaperone' ? 'chaperone' : participantType === 'priest' ? 'priest' : 'youth' as any,
+              participantType: participantType as any,
+              participantFirstName: row.first_name,
+              participantLastName: row.last_name,
+              participantPreferredName: row.preferred_name || null,
+              participantAge: age,
+              participantGender: gender as any,
+              participantEmail: row.email || null,
               parentEmail: row.parent_email || null,
               emergencyContact1Name: row.emergency_contact_1_name || '',
               emergencyContact1Phone: row.emergency_contact_1_phone || '',
@@ -512,6 +517,7 @@ export async function POST(
               medications: row.medications || null,
               medicalConditions: row.medical_conditions || null,
               dietaryRestrictions: row.dietary_restrictions || null,
+              adaAccommodations: row.ada_requirements || null,
               signatureData: { imported: true, importedAt: new Date().toISOString() },
               completed: true,
               completedAt: new Date(),
