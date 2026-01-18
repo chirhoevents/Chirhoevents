@@ -12,6 +12,7 @@ import { PorosSettings } from '@/components/admin/poros/PorosSettings'
 import { PorosADA } from '@/components/admin/poros/PorosADA'
 import { PorosResources } from '@/components/admin/poros/PorosResources'
 import { GroupAllocations } from '@/components/admin/poros/GroupAllocations'
+import { PorosImport } from '@/components/admin/poros/PorosImport'
 import {
   LayoutDashboard,
   Home,
@@ -22,7 +23,8 @@ import {
   Settings,
   Accessibility,
   FileText,
-  Building2
+  Building2,
+  Upload
 } from 'lucide-react'
 
 interface PorosPortalClientProps {
@@ -136,6 +138,11 @@ export default function PorosPortalClient({
             Resources
           </TabsTrigger>
 
+          <TabsTrigger value="import" className="flex items-center gap-2">
+            <Upload className="w-4 h-4" />
+            Import
+          </TabsTrigger>
+
           <TabsTrigger value="settings" className="flex items-center gap-2">
             <Settings className="w-4 h-4" />
             Settings
@@ -188,6 +195,10 @@ export default function PorosPortalClient({
 
         <TabsContent value="resources">
           <PorosResources eventId={eventId} />
+        </TabsContent>
+
+        <TabsContent value="import">
+          <PorosImport eventId={eventId} />
         </TabsContent>
 
         <TabsContent value="settings">
