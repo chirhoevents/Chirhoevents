@@ -85,6 +85,8 @@ export async function POST(
       smallGroupAssignments: 0,
       mealGroupAssignments: 0,
       errors: [] as string[],
+      detectedHeaders: [] as string[],
+      debugFirstRow: null as any,
     }
 
     // Cache for staff and assignment lookups
@@ -96,6 +98,25 @@ export async function POST(
     if ((importType === 'groups' || importType === 'both') && groupsFile) {
       const text = await groupsFile.text()
       const { headers, rows } = parseCSV(text)
+
+      // Debug: log headers found
+      console.log('[Groups Import] CSV headers found:', headers)
+      console.log('[Groups Import] Number of rows:', rows.length)
+      results.detectedHeaders = headers
+
+      // Capture first row for debugging
+      if (rows.length > 0) {
+        results.debugFirstRow = {
+          raw: rows[0],
+          parsed: {
+            group_id: rows[0].group_id,
+            parish_name: rows[0].parish_name,
+            total_participants: rows[0].total_participants,
+            fully_paid: rows[0].fully_paid,
+            amount_owed: rows[0].amount_owed,
+          }
+        }
+      }
 
       // Required columns for groups
       const requiredColumns = ['group_id', 'parish_name', 'leader_name', 'leader_email', 'leader_phone']
@@ -129,6 +150,16 @@ export async function POST(
           const fullyPaidRaw = (row.fully_paid || 'yes').toLowerCase()
           const isFullyPaid = fullyPaidRaw === 'yes' || fullyPaidRaw === 'true' || fullyPaidRaw === '1'
           const amountOwed = parseFloat(row.amount_owed || '0') || 0
+
+          // Debug logging
+          console.log(`[Groups Import] Row data:`, {
+            group_id: groupExternalId,
+            parish_name: row.parish_name,
+            total_participants: row.total_participants,
+            fully_paid: row.fully_paid,
+            amount_owed: row.amount_owed,
+            parsed: { totalParticipants, isFullyPaid, amountOwed }
+          })
 
           const housingTypeRaw = (row.housing_type || 'on_campus').toLowerCase().replace(/ /g, '_')
           const housingType = ['on_campus', 'off_campus', 'day_pass'].includes(housingTypeRaw)
@@ -469,23 +500,39 @@ export async function POST(
         select: { id: true, groupName: true }
       })
 
-      // Create a lookup map by external group ID
+      // Create a lookup map by external group ID (handle various formats)
       const groupMap = new Map<string, string>()
       for (const group of groups) {
         // Extract [groupId] from groupName like "Parish Name [123]"
         const match = group.groupName.match(/\[([^\]]+)\]$/)
         if (match) {
-          groupMap.set(match[1], group.id)
+          const extractedId = match[1].trim()
+          groupMap.set(extractedId, group.id)
+          // Also add without leading zeros for flexibility (e.g., "001" also matches "1")
+          const numericId = parseInt(extractedId, 10)
+          if (!isNaN(numericId)) {
+            groupMap.set(String(numericId), group.id)
+          }
         }
       }
+
+      // Debug: log available groups
+      console.log('[Participant Import] Available groups:', Array.from(groupMap.keys()))
 
       for (const row of rows) {
         try {
           const groupExternalId = row.group_id?.trim()
-          const groupId = groupMap.get(groupExternalId)
+          // Try exact match first, then try as number
+          let groupId = groupMap.get(groupExternalId)
+          if (!groupId) {
+            const numericId = parseInt(groupExternalId, 10)
+            if (!isNaN(numericId)) {
+              groupId = groupMap.get(String(numericId))
+            }
+          }
 
           if (!groupId) {
-            results.errors.push(`Group not found for participant ${row.first_name} ${row.last_name} (group_id: ${groupExternalId})`)
+            results.errors.push(`Group not found for participant ${row.first_name} ${row.last_name} (group_id: "${groupExternalId}"). Available: ${Array.from(groupMap.keys()).slice(0, 5).join(', ')}`)
             continue
           }
 

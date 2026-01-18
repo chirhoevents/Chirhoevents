@@ -179,12 +179,51 @@ export function PorosImport({ eventId }: PorosImportProps) {
         throw new Error(data.message || data.error || 'Import failed')
       }
 
-      const successMessage = data.results
-        ? `Imported: ${Object.entries(data.results)
-            .filter(([k, v]) => typeof v === 'number' && v > 0)
-            .map(([k, v]) => `${v} ${k}`)
-            .join(', ')}`
-        : 'Import completed successfully'
+      // Build success message from the response data
+      let successMessage = ''
+
+      if (isRegistrationImport) {
+        // Registration import returns counts directly on data object
+        const parts: string[] = []
+        if (data.groupsCreated > 0) parts.push(`${data.groupsCreated} groups created`)
+        if (data.groupsUpdated > 0) parts.push(`${data.groupsUpdated} groups updated`)
+        if (data.participantsCreated > 0) parts.push(`${data.participantsCreated} participants created`)
+        if (data.participantsUpdated > 0) parts.push(`${data.participantsUpdated} participants updated`)
+        if (data.staffCreated > 0) parts.push(`${data.staffCreated} staff created`)
+
+        if (parts.length > 0) {
+          successMessage = parts.join(', ')
+        } else {
+          successMessage = 'No records imported'
+        }
+
+        // Show errors if any
+        if (data.errors && data.errors.length > 0) {
+          successMessage += `. Errors: ${data.errors.slice(0, 3).join('; ')}`
+          if (data.errors.length > 3) {
+            successMessage += ` (+${data.errors.length - 3} more)`
+          }
+        }
+
+        // Show detected headers for debugging if nothing imported
+        if (data.detectedHeaders && data.detectedHeaders.length > 0 && parts.length === 0) {
+          successMessage += `. CSV columns: ${data.detectedHeaders.join(', ')}`
+        }
+
+        // Always show first row debug info to verify values are being read
+        if (data.debugFirstRow?.parsed) {
+          const p = data.debugFirstRow.parsed
+          successMessage += ` [DEBUG: group_id="${p.group_id}", total="${p.total_participants}", paid="${p.fully_paid}", owed="${p.amount_owed}"]`
+        }
+      } else {
+        // Bulk import returns results object
+        successMessage = data.results
+          ? `Imported: ${Object.entries(data.results)
+              .filter(([k, v]) => typeof v === 'number' && v > 0)
+              .map(([k, v]) => `${v} ${k}`)
+              .join(', ')}`
+          : data.message || 'Import completed successfully'
+      }
 
       setResults(prev => ({
         ...prev,
