@@ -86,6 +86,7 @@ export async function POST(
       mealGroupAssignments: 0,
       errors: [] as string[],
       detectedHeaders: [] as string[],
+      debugFirstRow: null as any,
     }
 
     // Cache for staff and assignment lookups
@@ -102,6 +103,20 @@ export async function POST(
       console.log('[Groups Import] CSV headers found:', headers)
       console.log('[Groups Import] Number of rows:', rows.length)
       results.detectedHeaders = headers
+
+      // Capture first row for debugging
+      if (rows.length > 0) {
+        results.debugFirstRow = {
+          raw: rows[0],
+          parsed: {
+            group_id: rows[0].group_id,
+            parish_name: rows[0].parish_name,
+            total_participants: rows[0].total_participants,
+            fully_paid: rows[0].fully_paid,
+            amount_owed: rows[0].amount_owed,
+          }
+        }
+      }
 
       // Required columns for groups
       const requiredColumns = ['group_id', 'parish_name', 'leader_name', 'leader_email', 'leader_phone']

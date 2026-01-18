@@ -209,6 +209,12 @@ export function PorosImport({ eventId }: PorosImportProps) {
         if (data.detectedHeaders && data.detectedHeaders.length > 0 && parts.length === 0) {
           successMessage += `. CSV columns: ${data.detectedHeaders.join(', ')}`
         }
+
+        // Always show first row debug info to verify values are being read
+        if (data.debugFirstRow?.parsed) {
+          const p = data.debugFirstRow.parsed
+          successMessage += ` [DEBUG: group_id="${p.group_id}", total="${p.total_participants}", paid="${p.fully_paid}", owed="${p.amount_owed}"]`
+        }
       } else {
         // Bulk import returns results object
         successMessage = data.results
