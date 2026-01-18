@@ -81,8 +81,16 @@ export async function POST(
       groupsUpdated: 0,
       participantsCreated: 0,
       participantsUpdated: 0,
+      staffCreated: 0,
+      smallGroupAssignments: 0,
+      mealGroupAssignments: 0,
       errors: [] as string[],
     }
+
+    // Cache for staff and assignment lookups
+    const staffCache = new Map<string, string>() // name -> id
+    const smallGroupCache = new Map<string, string>() // meeting place -> id
+    const mealGroupCache = new Map<string, string>() // color name -> id
 
     // Import groups
     if ((importType === 'groups' || importType === 'both') && groupsFile) {
@@ -148,20 +156,233 @@ export async function POST(
             registrationStatus: 'completed' as const,
           }
 
+          let groupId: string
+
           if (existingGroup) {
             await prisma.groupRegistration.update({
               where: { id: existingGroup.id },
               data: groupData
             })
+            groupId = existingGroup.id
             results.groupsUpdated++
           } else {
-            await prisma.groupRegistration.create({
+            const newGroup = await prisma.groupRegistration.create({
               data: {
                 ...groupData,
                 accessCode: generateAccessCode(event!.slug || 'EVT'),
               }
             })
+            groupId = newGroup.id
             results.groupsCreated++
+          }
+
+          // Handle Seminarian SGL assignment
+          if (row.seminarian_sgl?.trim()) {
+            const sglName = row.seminarian_sgl.trim()
+            let sglId = staffCache.get(sglName)
+
+            if (!sglId) {
+              // Check if staff member exists
+              const nameParts = sglName.replace(/^Seminarian\s+/i, '').split(' ')
+              const firstName = nameParts[0] || sglName
+              const lastName = nameParts.slice(1).join(' ') || ''
+
+              let staff = await prisma.porosStaff.findFirst({
+                where: {
+                  eventId,
+                  firstName: { contains: firstName, mode: 'insensitive' },
+                  lastName: lastName ? { contains: lastName, mode: 'insensitive' } : undefined,
+                  staffType: { in: ['sgl', 'seminarian'] }
+                }
+              })
+
+              if (!staff) {
+                staff = await prisma.porosStaff.create({
+                  data: {
+                    eventId,
+                    firstName,
+                    lastName,
+                    staffType: 'seminarian',
+                  }
+                })
+                results.staffCreated++
+              }
+              sglId = staff.id
+              staffCache.set(sglName, sglId)
+            }
+          }
+
+          // Handle Religious assignment
+          if (row.religious?.trim()) {
+            const religiousName = row.religious.trim()
+            let religiousId = staffCache.get(religiousName)
+
+            if (!religiousId) {
+              // Check if staff member exists
+              const nameParts = religiousName.replace(/^(Sr\.|Sister|Br\.|Brother)\s+/i, '').split(' ')
+              const firstName = nameParts[0] || religiousName
+              const lastName = nameParts.slice(1).join(' ') || ''
+
+              let staff = await prisma.porosStaff.findFirst({
+                where: {
+                  eventId,
+                  firstName: { contains: firstName, mode: 'insensitive' },
+                  lastName: lastName ? { contains: lastName, mode: 'insensitive' } : undefined,
+                  staffType: 'religious'
+                }
+              })
+
+              if (!staff) {
+                staff = await prisma.porosStaff.create({
+                  data: {
+                    eventId,
+                    firstName,
+                    lastName,
+                    staffType: 'religious',
+                  }
+                })
+                results.staffCreated++
+              }
+              religiousId = staff.id
+              staffCache.set(religiousName, religiousId)
+            }
+          }
+
+          // Handle Small Group Location assignment
+          // Store SGL and Religious IDs to link to small group
+          let linkedSglId: string | null = null
+          let linkedReligiousId: string | null = null
+
+          // Get SGL ID if we created/found one
+          if (row.seminarian_sgl?.trim()) {
+            linkedSglId = staffCache.get(row.seminarian_sgl.trim()) || null
+          }
+
+          // Get Religious ID if we created/found one
+          if (row.religious?.trim()) {
+            linkedReligiousId = staffCache.get(row.religious.trim()) || null
+          }
+
+          if (row.small_group_location?.trim()) {
+            const meetingPlace = row.small_group_location.trim()
+            let smallGroupId = smallGroupCache.get(meetingPlace)
+
+            if (!smallGroupId) {
+              // Find or create small group by meeting place
+              let smallGroup = await prisma.smallGroup.findFirst({
+                where: {
+                  eventId,
+                  meetingPlace: { contains: meetingPlace, mode: 'insensitive' }
+                },
+                select: { id: true, sglId: true, coSglId: true }
+              })
+
+              if (!smallGroup) {
+                smallGroup = await prisma.smallGroup.create({
+                  data: {
+                    eventId,
+                    name: meetingPlace,
+                    meetingPlace,
+                    sglId: linkedSglId,
+                    coSglId: linkedReligiousId,
+                  }
+                })
+              } else if (linkedSglId || linkedReligiousId) {
+                // Update existing small group with SGL/religious if provided
+                await prisma.smallGroup.update({
+                  where: { id: smallGroup.id },
+                  data: {
+                    ...(linkedSglId && !smallGroup.sglId ? { sglId: linkedSglId } : {}),
+                    ...(linkedReligiousId && !smallGroup.coSglId ? { coSglId: linkedReligiousId } : {}),
+                  }
+                })
+              }
+              smallGroupId = smallGroup.id
+              smallGroupCache.set(meetingPlace, smallGroupId)
+            }
+
+            // Create assignment if not exists
+            const existingAssignment = await prisma.smallGroupAssignment.findFirst({
+              where: {
+                smallGroupId,
+                groupRegistrationId: groupId
+              }
+            })
+
+            if (!existingAssignment) {
+              await prisma.smallGroupAssignment.create({
+                data: {
+                  smallGroupId,
+                  groupRegistrationId: groupId
+                }
+              })
+              results.smallGroupAssignments++
+            }
+          }
+
+          // Handle Meal Color assignment
+          if (row.meal_color?.trim()) {
+            const colorName = row.meal_color.trim()
+            let mealGroupId = mealGroupCache.get(colorName.toLowerCase())
+
+            if (!mealGroupId) {
+              // Find or create meal group by color name
+              let mealGroup = await prisma.mealGroup.findFirst({
+                where: {
+                  eventId,
+                  name: { equals: colorName, mode: 'insensitive' }
+                }
+              })
+
+              if (!mealGroup) {
+                // Create with default color hex
+                const colorHexMap: Record<string, string> = {
+                  'red': '#e74c3c',
+                  'blue': '#3498db',
+                  'green': '#27ae60',
+                  'yellow': '#f1c40f',
+                  'orange': '#e67e22',
+                  'purple': '#9b59b6',
+                  'pink': '#e83e8c',
+                  'brown': '#8b4513',
+                  'grey': '#95a5a6',
+                  'gray': '#95a5a6',
+                  'black': '#343a40',
+                  'white': '#f8f9fa',
+                }
+                const colorHex = colorHexMap[colorName.toLowerCase()] || '#3498db'
+
+                mealGroup = await prisma.mealGroup.create({
+                  data: {
+                    eventId,
+                    name: colorName,
+                    color: colorName.toLowerCase(),
+                    colorHex,
+                    isActive: true
+                  }
+                })
+              }
+              mealGroupId = mealGroup.id
+              mealGroupCache.set(colorName.toLowerCase(), mealGroupId)
+            }
+
+            // Create assignment if not exists
+            const existingMealAssignment = await prisma.mealGroupAssignment.findFirst({
+              where: {
+                mealGroupId,
+                groupRegistrationId: groupId
+              }
+            })
+
+            if (!existingMealAssignment) {
+              await prisma.mealGroupAssignment.create({
+                data: {
+                  mealGroupId,
+                  groupRegistrationId: groupId
+                }
+              })
+              results.mealGroupAssignments++
+            }
           }
         } catch (err: any) {
           results.errors.push(`Error importing group ${row.group_id}: ${err.message}`)
@@ -291,7 +512,7 @@ export async function POST(
     return NextResponse.json({
       success: true,
       ...results,
-      message: `Import completed. Groups: ${results.groupsCreated} created, ${results.groupsUpdated} updated. Participants: ${results.participantsCreated} created, ${results.participantsUpdated} updated.`
+      message: `Import completed. Groups: ${results.groupsCreated} created, ${results.groupsUpdated} updated. Participants: ${results.participantsCreated} created, ${results.participantsUpdated} updated. Staff: ${results.staffCreated} created. Small group assignments: ${results.smallGroupAssignments}. Meal group assignments: ${results.mealGroupAssignments}.`
     })
 
   } catch (error: any) {
@@ -312,9 +533,10 @@ export async function GET(
   const templateType = searchParams.get('template') || 'groups'
 
   if (templateType === 'groups') {
-    const csv = `group_id,parish_name,diocese_name,leader_name,leader_email,leader_phone,male_youth,female_youth,male_chaperones,female_chaperones,priests,housing_type,special_requests,ada_summary
-1,St. Mary's Parish,Diocese of Arlington,John Smith,john.smith@example.com,555-123-4567,5,6,2,2,1,on_campus,Need early check-in,Wheelchair access needed
-2,Holy Family Church,Archdiocese of Baltimore,Jane Doe,jane.doe@example.com,555-987-6543,8,7,3,2,0,off_campus,,`
+    const csv = `group_id,parish_name,diocese_name,leader_name,leader_email,leader_phone,male_youth,female_youth,male_chaperones,female_chaperones,priests,housing_type,seminarian_sgl,religious,small_group_location,meal_color,special_requests,ada_summary
+1,St. Mary's Parish,Diocese of Arlington,John Smith,john.smith@example.com,555-123-4567,5,6,2,2,1,on_campus,Seminarian John Doe,Sr. Maria Lopez,Room 101 - Cana Hall,Red,Need early check-in,Wheelchair access needed
+2,Holy Family Church,Archdiocese of Baltimore,Jane Doe,jane.doe@example.com,555-987-6543,8,7,3,2,0,off_campus,Seminarian Michael Brown,,,,
+3,Sacred Heart Parish,Diocese of Richmond,Bob Johnson,bob.j@example.com,555-456-7890,4,5,1,2,1,on_campus,,Sr. Teresa of Avila,Classroom B,Blue,Late arrival Friday,`
 
     return new NextResponse(csv, {
       headers: {
