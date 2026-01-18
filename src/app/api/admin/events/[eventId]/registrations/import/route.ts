@@ -154,7 +154,7 @@ export async function POST(
             housingType: housingType as any,
             specialRequests: row.special_requests || null,
             adaAccommodationsSummary: row.ada_summary || null,
-            registrationStatus: 'completed' as const,
+            registrationStatus: 'complete' as const,
           }
 
           let groupId: string

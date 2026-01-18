@@ -187,7 +187,7 @@ export async function POST(
                 totalParticipants: totalYouth + totalChaperones,
                 housingType: group.stayingOffCampus ? 'off_campus' : 'on_campus',
                 specialRequests: group.specialAccommodations || null,
-                registrationStatus: 'completed',
+                registrationStatus: 'complete',
               }
             })
             results.groupsCreated++
