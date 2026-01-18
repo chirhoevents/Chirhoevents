@@ -315,13 +315,18 @@ export function PorosImport({ eventId }: PorosImportProps) {
           <CardTitle className="text-lg">Import Notes</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p><strong>Group Code:</strong> The group_code field (e.g., <code>1A</code>, <code>53B</code>) appears on check-in tables and public pages.</p>
+          <p><strong>group_id vs group_code:</strong></p>
+          <ul className="list-disc list-inside ml-4 space-y-1">
+            <li><code>group_id</code> - Internal linking ID (e.g., <code>001</code>, <code>002</code>). Use the same group_id in Participants CSV to link them to their group.</li>
+            <li><code>group_code</code> - Check-in table code (e.g., <code>1A</code>, <code>53B</code>). This is what staff see at check-in and appears on badges.</li>
+          </ul>
+          <p><strong>Payment Tracking:</strong> Set <code>fully_paid</code> to <code>yes</code> or <code>no</code>. If <code>no</code>, enter the <code>amount_owed</code> so check-in staff know about outstanding balances.</p>
           <p><strong>Room Purpose:</strong> Use <code>housing</code> for dorm rooms, <code>small_group</code> for meeting rooms, or <code>both</code> for dual-purpose rooms.</p>
           <p><strong>Small Group Rooms:</strong> Import meeting rooms through the Rooms import with <code>room_purpose</code> set to <code>small_group</code>. These can be printed for posting.</p>
           <p><strong>Participant Types:</strong> Valid types are: youth, chaperone, priest</p>
           <p><strong>Staff Types:</strong> Valid types are: seminarian, religious, sgl, co_sgl, priest, deacon</p>
           <p><strong>Gender:</strong> Use <code>male</code>, <code>female</code>, or <code>mixed</code> (for rooms/buildings)</p>
-          <p><strong>Existing Records:</strong> The system will skip records that already exist (matched by name/identifier).</p>
+          <p><strong>Existing Records:</strong> The system will update records that already exist (matched by name/identifier).</p>
         </CardContent>
       </Card>
     </div>
