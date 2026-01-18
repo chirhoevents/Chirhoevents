@@ -51,10 +51,23 @@ export async function POST(request: NextRequest) {
     })
 
     if (existingUser) {
-      return NextResponse.json(
-        { error: 'You already have an account. Please sign in with your existing account.' },
-        { status: 400 }
-      )
+      // If the existing user is orphaned (no organization) or is the same record as the pending invite,
+      // we can proceed by clearing the old link
+      if (existingUser.id === pendingUser.id) {
+        // Same record, proceed with the update (shouldn't normally happen but handle it)
+      } else if (!existingUser.organizationId) {
+        // Orphaned user record with this clerkUserId - clear it so we can link to the new invite
+        await prisma.user.update({
+          where: { id: existingUser.id },
+          data: { clerkUserId: null },
+        })
+      } else {
+        // User has an active account in another organization
+        return NextResponse.json(
+          { error: 'This account is already linked to another organization. Please contact support if you need to transfer your account.' },
+          { status: 400 }
+        )
+      }
     }
 
     // Link the Clerk user to the pending invite
