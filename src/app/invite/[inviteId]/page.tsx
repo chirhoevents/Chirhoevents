@@ -292,7 +292,8 @@ export default function InvitePage() {
                 initialValues={{
                   emailAddress: inviteDetails?.email,
                 }}
-                redirectUrl={`/invite/${inviteId}`}
+                forceRedirectUrl={`/invite/${inviteId}`}
+                fallbackRedirectUrl={`/invite/${inviteId}`}
               />
             ) : (
               <SignIn
@@ -310,7 +311,8 @@ export default function InvitePage() {
                     footerActionLink: 'text-[#9C8466] hover:text-[#8B7355]',
                   },
                 }}
-                redirectUrl={`/invite/${inviteId}`}
+                forceRedirectUrl={`/invite/${inviteId}`}
+                fallbackRedirectUrl={`/invite/${inviteId}`}
               />
             )}
           </div>
