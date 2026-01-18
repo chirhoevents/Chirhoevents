@@ -55,11 +55,11 @@ const TEMPLATES = {
   groups: {
     name: 'Groups',
     icon: Users,
-    description: 'Import youth groups with group codes for check-in. The group_id links to participants.',
-    columns: ['group_id', 'parish_name', 'leader_name', 'leader_email', 'leader_phone', 'group_code', 'housing_type', 'special_requests'],
+    description: 'Import youth groups with payment status for check-in. The group_id links to participants.',
+    columns: ['group_id', 'parish_name', 'leader_name', 'leader_email', 'leader_phone', 'group_code', 'total_participants', 'fully_paid', 'amount_owed', 'housing_type', 'special_requests'],
     sampleData: [
-      ['001', 'St. Mary Parish', 'John Smith', 'john@stmary.org', '555-123-4567', '1A', 'on_campus', ''],
-      ['002', 'Holy Family Parish', 'Jane Doe', 'jane@holyfamily.org', '555-234-5678', '2B', 'on_campus', 'Need ground floor'],
+      ['001', 'St. Mary Parish', 'John Smith', 'john@stmary.org', '555-123-4567', '1A', '12', 'yes', '', 'on_campus', ''],
+      ['002', 'Holy Family Parish', 'Jane Doe', 'jane@holyfamily.org', '555-234-5678', '2B', '8', 'no', '150.00', 'on_campus', 'Need ground floor'],
     ],
     endpoint: 'groups',
   },
