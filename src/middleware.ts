@@ -1,4 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
+import { NextResponse } from 'next/server'
 
 const isPublicRoute = createRouteMatcher([
   '/',
@@ -38,6 +39,19 @@ const isPublicRoute = createRouteMatcher([
 ])
 
 export default clerkMiddleware((auth, request) => {
+  const { pathname } = request.nextUrl
+
+  // Handle Clerk verification redirects for invite pages
+  // Clerk appends /verify-email-address, /continue, etc. to the invite URL
+  // Redirect these back to the base invite page
+  const inviteVerifyMatch = pathname.match(/^\/invite\/([^/]+)\/.+$/)
+  if (inviteVerifyMatch) {
+    const inviteId = inviteVerifyMatch[1]
+    const url = request.nextUrl.clone()
+    url.pathname = `/invite/${inviteId}`
+    return NextResponse.redirect(url)
+  }
+
   if (!isPublicRoute(request)) {
     auth().protect()
   }
