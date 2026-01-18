@@ -937,6 +937,12 @@ enum RoomType {
   quad
 }
 
+enum RoomPurpose {
+  housing
+  small_group
+  both
+}
+
 enum ParticipantType {
   youth_u18
   youth_o18
@@ -1441,6 +1447,7 @@ model Room {
   isAvailable     Boolean  @default(true) @map("is_available")
   isAdaAccessible Boolean  @default(false) @map("is_ada_accessible")
   adaFeatures     String?  @map("ada_features") @db.Text
+  roomPurpose     RoomPurpose @default(housing) @map("room_purpose")
   allocatedToGroupId String? @map("allocated_to_group_id") @db.Uuid
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)

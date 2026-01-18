@@ -1,15 +1,19 @@
-building_name,room_number,floor,capacity,gender,housing_type,is_ada_accessible,notes
-Cana Hall,101,1,4,male,youth_u18,yes,ADA accessible room
-Cana Hall,102,1,4,male,youth_u18,no,
-Cana Hall,103,1,4,male,youth_u18,no,
-Cana Hall,201,2,4,male,youth_u18,no,
-Cana Hall,202,2,4,male,youth_u18,no,
-Bethany Hall,101,1,4,female,youth_u18,yes,ADA accessible room
-Bethany Hall,102,1,4,female,youth_u18,no,
-Bethany Hall,103,1,4,female,youth_u18,no,
-Jordan House,101,1,2,male,chaperone_18plus,no,
-Jordan House,102,1,2,male,chaperone_18plus,no,
-Martha House,101,1,2,female,chaperone_18plus,no,
-Martha House,102,1,2,female,chaperone_18plus,no,
-Clergy Residence,101,1,1,male,clergy,no,Single room
-Clergy Residence,102,1,1,male,clergy,no,Single room
+building_name,room_number,floor,capacity,gender,housing_type,room_purpose,is_ada_accessible,notes
+Cana Hall,101,1,4,male,youth_u18,housing,yes,ADA accessible room
+Cana Hall,102,1,4,male,youth_u18,housing,no,
+Cana Hall,103,1,4,male,youth_u18,housing,no,
+Cana Hall,201,2,4,male,youth_u18,housing,no,
+Cana Hall,202,2,4,male,youth_u18,housing,no,
+Bethany Hall,101,1,4,female,youth_u18,housing,yes,ADA accessible room
+Bethany Hall,102,1,4,female,youth_u18,housing,no,
+Bethany Hall,103,1,4,female,youth_u18,housing,no,
+Jordan House,101,1,2,male,chaperone_18plus,housing,no,
+Jordan House,102,1,2,male,chaperone_18plus,housing,no,
+Martha House,101,1,2,female,chaperone_18plus,housing,no,
+Martha House,102,1,2,female,chaperone_18plus,housing,no,
+Clergy Residence,101,1,1,male,clergy,housing,no,Single room
+Clergy Residence,102,1,1,male,clergy,housing,no,Single room
+St. Paul Center,Classroom A,1,30,mixed,general,small_group,no,Small group meeting room
+St. Paul Center,Classroom B,1,30,mixed,general,small_group,no,Small group meeting room
+St. Paul Center,Classroom C,1,30,mixed,general,small_group,no,Small group meeting room
+Chapel Annex,Meeting Room 1,1,20,mixed,general,small_group,no,Small group meeting room

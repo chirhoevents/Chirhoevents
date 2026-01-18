@@ -61,7 +61,13 @@ CREATE TABLE IF NOT EXISTS poros_resources (
 );
 
 -- ============================================
--- SECTION 6: Verify your M2K event data exists
+-- SECTION 6: Add room_purpose column to rooms table
+-- Values: 'housing', 'small_group', 'both'
+-- ============================================
+ALTER TABLE rooms ADD COLUMN IF NOT EXISTS room_purpose TEXT DEFAULT 'housing';
+
+-- ============================================
+-- SECTION 7: Verify your M2K event data exists
 -- ============================================
 SELECT
   (SELECT COUNT(*) FROM group_registrations WHERE event_id = 'b9b70d36-ae35-47a0-aeb7-a50df9a598f1') as groups,

@@ -184,6 +184,10 @@ export async function POST(
 
           const isAdaAccessible = ['yes', 'true', '1', 'y'].includes((row.is_ada_accessible || '').toLowerCase())
 
+          // Room purpose: housing, small_group, or both
+          const roomPurposeRaw = (row.room_purpose || 'housing').toLowerCase().replace(/ /g, '_')
+          const roomPurpose = ['housing', 'small_group', 'both'].includes(roomPurposeRaw) ? roomPurposeRaw : 'housing'
+
           const existingRoom = await prisma.room.findFirst({
             where: { buildingId: building.id, roomNumber }
           })
@@ -193,9 +197,10 @@ export async function POST(
             roomNumber,
             floor: parseInt(row.floor || '1') || 1,
             capacity,
-            bedCount: capacity,
+            bedCount: roomPurpose === 'small_group' ? 0 : capacity, // Small group rooms don't have beds
             gender: gender as any,
             housingType: housingType as any,
+            roomPurpose: roomPurpose as any,
             isAdaAccessible,
             isAvailable: true,
             notes: row.notes || null,
@@ -474,13 +479,14 @@ Clergy Residence,male,clergy,1,Priests and deacons`
     },
     'rooms': {
       filename: 'rooms-import-template.csv',
-      content: `building_name,room_number,floor,capacity,gender,housing_type,is_ada_accessible,notes
-Cana Hall,101,1,4,male,youth_u18,yes,ADA accessible room
-Cana Hall,102,1,4,male,youth_u18,no,
-Cana Hall,103,1,4,male,youth_u18,no,
-Bethany Hall,101,1,4,female,youth_u18,yes,ADA accessible
-Jordan House,101,1,2,male,chaperone_18plus,no,
-Clergy Residence,101,1,1,male,clergy,no,Single room`
+      content: `building_name,room_number,floor,capacity,gender,housing_type,room_purpose,is_ada_accessible,notes
+Cana Hall,101,1,4,male,youth_u18,housing,yes,ADA accessible room
+Cana Hall,102,1,4,male,youth_u18,housing,no,
+Bethany Hall,101,1,4,female,youth_u18,housing,yes,ADA accessible
+Jordan House,101,1,2,male,chaperone_18plus,housing,no,
+Clergy Residence,101,1,1,male,clergy,housing,no,Single room
+St. Paul Center,Classroom A,1,30,mixed,general,small_group,no,Small group meeting room
+Chapel Annex,Meeting Room 1,1,20,mixed,general,small_group,no,Small group meeting room`
     },
     'small-groups': {
       filename: 'small-groups-import-template.csv',
