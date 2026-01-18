@@ -8,6 +8,10 @@ import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
  * Recalculates and resets the organization's usage counters (eventsUsed, registrationsUsed)
  * based on actual current data. This is useful when usage has drifted or when events/registrations
  * have been deleted and you want to reset the counters to reflect current state.
+ *
+ * Counts:
+ * - Events: All non-draft events
+ * - Registrations: All participants from active group registrations + individual registrations
  */
 export async function POST(
   request: NextRequest,
@@ -40,7 +44,6 @@ export async function POST(
         name: true,
         eventsUsed: true,
         registrationsUsed: true,
-        subscriptionStartedAt: true,
       },
     })
 
@@ -48,51 +51,29 @@ export async function POST(
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
     }
 
-    // Calculate the start of the current subscription year
-    // If subscriptionStartedAt exists, use that as the basis; otherwise use current calendar year
-    let yearStart: Date
-    if (organization.subscriptionStartedAt) {
-      const subStart = new Date(organization.subscriptionStartedAt)
-      const now = new Date()
-      // Calculate how many years have passed since subscription started
-      const yearsSinceStart = Math.floor(
-        (now.getTime() - subStart.getTime()) / (365.25 * 24 * 60 * 60 * 1000)
-      )
-      // Current subscription year starts on the anniversary
-      yearStart = new Date(subStart)
-      yearStart.setFullYear(subStart.getFullYear() + yearsSinceStart)
-    } else {
-      // Fall back to calendar year
-      yearStart = new Date(new Date().getFullYear(), 0, 1)
-    }
-
-    // Count events created since the start of the current subscription year
-    // Only count events that are not in draft status
+    // Count all non-draft events for this organization
     const eventsCount = await prisma.event.count({
       where: {
         organizationId: orgId,
-        createdAt: { gte: yearStart },
         status: { not: 'draft' },
       },
     })
 
-    // Count total participants from group registrations (not cancelled)
-    // We count participants rather than group registrations since that's what's tracked
+    // Count total participants from group registrations that are not incomplete
+    // This counts actual people registered
     const groupParticipantsCount = await prisma.participant.count({
       where: {
         organizationId: orgId,
         groupRegistration: {
-          createdAt: { gte: yearStart },
           registrationStatus: { not: 'incomplete' },
         },
       },
     })
 
-    // Count individual registrations (not incomplete/cancelled)
+    // Count individual registrations that are not incomplete
     const individualRegistrationsCount = await prisma.individualRegistration.count({
       where: {
         organizationId: orgId,
-        createdAt: { gte: yearStart },
         registrationStatus: { not: 'incomplete' },
       },
     })
@@ -136,7 +117,6 @@ export async function POST(
         events: eventsCount,
         groupParticipants: groupParticipantsCount,
         individualRegistrations: individualRegistrationsCount,
-        yearStart: yearStart.toISOString(),
       },
     })
   } catch (error) {
