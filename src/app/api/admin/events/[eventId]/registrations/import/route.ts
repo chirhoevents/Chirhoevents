@@ -122,15 +122,13 @@ export async function POST(
             }
           })
 
-          const maleYouth = parseInt(row.male_youth || '0') || 0
-          const femaleYouth = parseInt(row.female_youth || '0') || 0
-          const maleChaperones = parseInt(row.male_chaperones || '0') || 0
-          const femaleChaperones = parseInt(row.female_chaperones || '0') || 0
-          const priests = parseInt(row.priests || '0') || 0
+          // Get total participants from CSV (no need to separate by type)
+          const totalParticipants = parseInt(row.total_participants || '0') || 0
 
-          const totalYouth = maleYouth + femaleYouth
-          const totalChaperones = maleChaperones + femaleChaperones
-          const totalParticipants = totalYouth + totalChaperones + priests
+          // Parse payment info
+          const fullyPaidRaw = (row.fully_paid || 'yes').toLowerCase()
+          const isFullyPaid = fullyPaidRaw === 'yes' || fullyPaidRaw === 'true' || fullyPaidRaw === '1'
+          const amountOwed = parseFloat(row.amount_owed || '0') || 0
 
           const housingTypeRaw = (row.housing_type || 'on_campus').toLowerCase().replace(/ /g, '_')
           const housingType = ['on_campus', 'off_campus', 'day_pass'].includes(housingTypeRaw)
@@ -147,9 +145,9 @@ export async function POST(
             groupLeaderName: row.leader_name,
             groupLeaderEmail: row.leader_email,
             groupLeaderPhone: row.leader_phone,
-            youthCount: totalYouth,
-            chaperoneCount: totalChaperones,
-            priestCount: priests,
+            youthCount: 0, // Will be calculated from participants import
+            chaperoneCount: 0,
+            priestCount: 0,
             totalParticipants,
             housingType: housingType as any,
             specialRequests: row.special_requests || null,
@@ -175,6 +173,66 @@ export async function POST(
             })
             groupId = newGroup.id
             results.groupsCreated++
+          }
+
+          // Create/update PaymentBalance for check-in payment tracking
+          if (amountOwed > 0 || !isFullyPaid) {
+            const existingBalance = await prisma.paymentBalance.findFirst({
+              where: { registrationId: groupId }
+            })
+
+            const paymentBalanceData = {
+              organizationId: event!.organizationId,
+              eventId,
+              registrationId: groupId,
+              registrationType: 'group' as const,
+              totalAmountDue: amountOwed,
+              amountPaid: 0,
+              amountRemaining: amountOwed,
+              paymentStatus: amountOwed > 0 ? 'partial' as const : 'unpaid' as const,
+            }
+
+            if (existingBalance) {
+              await prisma.paymentBalance.update({
+                where: { id: existingBalance.id },
+                data: {
+                  amountRemaining: amountOwed,
+                  paymentStatus: amountOwed > 0 ? 'partial' : 'unpaid',
+                }
+              })
+            } else {
+              await prisma.paymentBalance.create({
+                data: paymentBalanceData
+              })
+            }
+          } else {
+            // Mark as fully paid
+            const existingBalance = await prisma.paymentBalance.findFirst({
+              where: { registrationId: groupId }
+            })
+
+            if (existingBalance) {
+              await prisma.paymentBalance.update({
+                where: { id: existingBalance.id },
+                data: {
+                  amountRemaining: 0,
+                  paymentStatus: 'paid_full',
+                }
+              })
+            } else {
+              await prisma.paymentBalance.create({
+                data: {
+                  organizationId: event!.organizationId,
+                  eventId,
+                  registrationId: groupId,
+                  registrationType: 'group' as const,
+                  totalAmountDue: 0,
+                  amountPaid: 0,
+                  amountRemaining: 0,
+                  paymentStatus: 'paid_full' as const,
+                }
+              })
+            }
           }
 
           // Handle Seminarian SGL assignment
