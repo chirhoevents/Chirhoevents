@@ -7,6 +7,7 @@ import { format } from 'date-fns'
 // Types for the JSON data structure
 interface YouthGroup {
   id: string
+  groupCode?: string // Check-in table code like "53B"
   parish: string
   leader: string
   phone: string
@@ -202,7 +203,15 @@ export default function M2KPublicView({ event, data }: Props) {
 
         {/* Header */}
         <div className="mb-3">
-          <h3 className="text-lg font-bold text-[#1E3A5F] pr-8">{group.parish}</h3>
+          <div className="flex items-start justify-between pr-8">
+            <h3 className="text-lg font-bold text-[#1E3A5F]">{group.parish}</h3>
+            {/* Group Code - Check-in Table Number */}
+            {group.groupCode && (
+              <span className="bg-orange-500 text-white px-3 py-1 rounded-lg text-lg font-bold shadow-md">
+                {group.groupCode}
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2 mt-1">
             <span className="bg-[#1E3A5F] text-white px-2 py-0.5 rounded text-xs font-bold">{group.id}</span>
             <span className="text-gray-600 text-sm">{totalGroup} people</span>

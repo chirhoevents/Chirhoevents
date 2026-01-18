@@ -458,6 +458,7 @@ model GroupRegistration {
   alternativeContact2Email   String?  @map("alternative_contact_2_email") @db.VarChar(255)
   alternativeContact2Phone   String?  @map("alternative_contact_2_phone") @db.VarChar(20)
   accessCode                 String   @unique @map("access_code") @db.VarChar(50)
+  groupCode                  String?  @map("group_code") @db.VarChar(10) // Check-in table code like "53B"
   qrCode                     String?  @map("qr_code") @db.Text
   youthCount                 Int      @default(0) @map("youth_count")
   chaperoneCount             Int      @default(0) @map("chaperone_count")
@@ -935,6 +936,12 @@ enum RoomType {
   double
   triple
   quad
+}
+
+enum RoomPurpose {
+  housing
+  small_group
+  both
 }
 
 enum ParticipantType {
@@ -1441,6 +1448,7 @@ model Room {
   isAvailable     Boolean  @default(true) @map("is_available")
   isAdaAccessible Boolean  @default(false) @map("is_ada_accessible")
   adaFeatures     String?  @map("ada_features") @db.Text
+  roomPurpose     RoomPurpose @default(housing) @map("room_purpose")
   allocatedToGroupId String? @map("allocated_to_group_id") @db.Uuid
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)

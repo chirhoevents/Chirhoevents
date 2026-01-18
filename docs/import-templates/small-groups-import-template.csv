@@ -1,0 +1,6 @@
+group_number,group_name,sgl_first_name,sgl_last_name,co_sgl_first_name,co_sgl_last_name,meeting_room,meeting_time,meeting_place,capacity,notes
+1,Small Group 1,John,Smith,Sr. Maria,Lopez,Room 101 - Cana Hall,After dinner,Cana Hall Room 101,12,
+2,Small Group 2,Michael,Brown,,,Classroom A,After dinner,St. Paul Center Classroom A,12,
+3,Small Group 3,David,Wilson,Sr. Teresa,Avila,Classroom B,After dinner,St. Paul Center Classroom B,12,
+4,Small Group 4,James,Taylor,,,Chapel Annex,After dinner,Main Chapel Annex,12,
+5,Small Group 5,Robert,Anderson,Sr. Catherine,Marie,Room 201 - Bethany Hall,After dinner,Bethany Hall Room 201,12,

@@ -29,16 +29,73 @@ export async function GET(
       )
     }
 
+    // Check if we need full assignment details (for print feature)
+    const { searchParams } = new URL(request.url)
+    const includeAssignments = searchParams.get('includeAssignments') === 'true'
+
     const rooms = await prisma.room.findMany({
       where: {
         building: { eventId },
       },
       include: {
         building: true,
-        roomAssignments: true,
+        roomAssignments: includeAssignments ? {
+          include: {
+            ...(includeAssignments && {
+              // Note: Prisma doesn't support conditional relations directly
+              // We'll handle this separately
+            })
+          }
+        } : true,
       },
       orderBy: [{ buildingId: 'asc' }, { floor: 'asc' }, { roomNumber: 'asc' }],
     })
+
+    // If full assignments requested, fetch additional details
+    if (includeAssignments) {
+      const roomsWithDetails = await Promise.all(rooms.map(async (room) => {
+        const assignments = await prisma.roomAssignment.findMany({
+          where: { roomId: room.id },
+          select: {
+            id: true,
+            groupRegistrationId: true,
+            participantId: true,
+            bedNumber: true,
+            notes: true,
+          }
+        })
+
+        // Get group registration details for assignments
+        const assignmentsWithDetails = await Promise.all(assignments.map(async (assignment) => {
+          let groupRegistration = null
+          let participant = null
+
+          if (assignment.groupRegistrationId) {
+            groupRegistration = await prisma.groupRegistration.findUnique({
+              where: { id: assignment.groupRegistrationId },
+              select: { groupName: true, parishName: true }
+            })
+          }
+
+          if (assignment.participantId) {
+            participant = await prisma.participant.findUnique({
+              where: { id: assignment.participantId },
+              select: {
+                firstName: true,
+                lastName: true,
+                groupRegistration: { select: { parishName: true } }
+              }
+            })
+          }
+
+          return { ...assignment, groupRegistration, participant }
+        }))
+
+        return { ...room, assignments: assignmentsWithDetails }
+      }))
+
+      return NextResponse.json({ rooms: roomsWithDetails })
+    }
 
     return NextResponse.json(rooms)
   } catch (error) {

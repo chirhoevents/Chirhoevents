@@ -16,7 +16,8 @@ import {
 import { BuildingsManager } from './housing/BuildingsManager'
 import { RoomsManager } from './housing/RoomsManager'
 import { ParticipantAssignments } from './housing/ParticipantAssignments'
-import { Building2, DoorOpen, Users, Loader2, Download, Upload, FileSpreadsheet } from 'lucide-react'
+import { PrintRoomPosters } from './housing/PrintRoomPosters'
+import { Building2, DoorOpen, Users, Loader2, Download, Upload, FileSpreadsheet, Printer } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
 interface PorosHousingProps {
@@ -94,6 +95,7 @@ export function PorosHousing({ eventId, settings }: PorosHousingProps) {
 
   // Import/Export state
   const [showImportModal, setShowImportModal] = useState(false)
+  const [showPrintModal, setShowPrintModal] = useState(false)
   const [importFile, setImportFile] = useState<File | null>(null)
   const [importPreview, setImportPreview] = useState<{ headers: string[]; rows: string[][] } | null>(null)
   const [importing, setImporting] = useState(false)
@@ -255,6 +257,12 @@ Marian Hall,female,youth_u18,2,102,1,triple,3,false,,`
           <Button variant="outline" onClick={handleExportData}>
             <Download className="w-4 h-4 mr-2" />
             Export Data
+          </Button>
+        )}
+        {rooms.length > 0 && (
+          <Button variant="outline" onClick={() => setShowPrintModal(true)}>
+            <Printer className="w-4 h-4 mr-2" />
+            Print Room Posters
           </Button>
         )}
       </div>
@@ -462,6 +470,15 @@ Marian Hall,female,youth_u18,2,102,1,triple,3,false,,`
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Print Room Posters Modal */}
+      <PrintRoomPosters
+        eventId={eventId}
+        buildings={buildings}
+        rooms={rooms}
+        isOpen={showPrintModal}
+        onClose={() => setShowPrintModal(false)}
+      />
     </div>
   )
 }

@@ -324,6 +324,103 @@ CREATE TRIGGER update_ada_individuals_updated_at
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================
+-- PART 15: POROS EVENT DATA IMPORTS TABLE (for JSON blob storage)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS poros_event_data_imports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id UUID NOT NULL UNIQUE REFERENCES events(id) ON DELETE CASCADE,
+  json_data JSONB NOT NULL,
+  file_name VARCHAR(255),
+  imported_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_poros_import_event ON poros_event_data_imports(event_id);
+
+-- ============================================
+-- PART 16: SMALL GROUP ASSIGNMENTS UPDATE
+-- Add group_registration_id column for assigning whole groups to small groups
+-- ============================================
+
+-- Check if column exists before adding (run separately if needed)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                 WHERE table_name = 'small_group_assignments'
+                 AND column_name = 'group_registration_id') THEN
+    ALTER TABLE small_group_assignments
+    ADD COLUMN group_registration_id UUID REFERENCES group_registrations(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
+-- Update check constraint to allow group assignments
+ALTER TABLE small_group_assignments DROP CONSTRAINT IF EXISTS small_group_assignments_check;
+ALTER TABLE small_group_assignments ADD CONSTRAINT small_group_assignments_check CHECK (
+  (participant_id IS NOT NULL AND individual_registration_id IS NULL AND group_registration_id IS NULL) OR
+  (participant_id IS NULL AND individual_registration_id IS NOT NULL AND group_registration_id IS NULL) OR
+  (participant_id IS NULL AND individual_registration_id IS NULL AND group_registration_id IS NOT NULL)
+);
+
+CREATE INDEX IF NOT EXISTS idx_small_group_assignments_group_reg ON small_group_assignments(group_registration_id);
+
+-- ============================================
+-- PART 17: POROS SCHEDULE TABLE
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS poros_schedule_entries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  day TEXT NOT NULL,
+  start_time TEXT NOT NULL,
+  end_time TEXT,
+  title TEXT NOT NULL,
+  location TEXT,
+  description TEXT,
+  display_order INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_poros_schedule_event ON poros_schedule_entries(event_id);
+CREATE INDEX IF NOT EXISTS idx_poros_schedule_day ON poros_schedule_entries(day);
+
+-- ============================================
+-- PART 18: POROS RESOURCES TABLE
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS poros_resources (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  type TEXT DEFAULT 'link',
+  url TEXT NOT NULL,
+  description TEXT,
+  display_order INTEGER DEFAULT 0,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_poros_resources_event ON poros_resources(event_id);
+
+-- Note: The 'order' column is mapped as 'display_order' in SQL to avoid reserved word conflicts
+
+-- ============================================
+-- PART 19: POROS SCHEDULE PDF TABLE
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS poros_schedule_pdfs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id UUID NOT NULL UNIQUE REFERENCES events(id) ON DELETE CASCADE,
+  url TEXT NOT NULL,
+  file_name TEXT,
+  uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_poros_schedule_pdf_event ON poros_schedule_pdfs(event_id);
+
+-- ============================================
 -- MIGRATION COMPLETE
 -- ============================================
 -- Run this SQL in your NEON database console
