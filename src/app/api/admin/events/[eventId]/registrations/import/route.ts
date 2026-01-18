@@ -436,11 +436,12 @@ export async function POST(
           const gender = genderRaw === 'male' || genderRaw === 'm' ? 'male' : 'female'
 
           const participantTypeRaw = (row.participant_type || 'youth').toLowerCase()
-          let participantType: 'youth' | 'chaperone' | 'priest' | 'clergy' | 'religious_staff' = 'youth'
+          let participantType: 'youth_u18' | 'youth_o18' | 'chaperone' | 'priest' = 'youth_u18'
           if (participantTypeRaw.includes('chaperone')) participantType = 'chaperone'
-          else if (participantTypeRaw.includes('priest')) participantType = 'priest'
-          else if (participantTypeRaw.includes('clergy')) participantType = 'clergy'
-          else if (participantTypeRaw.includes('religious')) participantType = 'religious_staff'
+          else if (participantTypeRaw.includes('priest') || participantTypeRaw.includes('clergy') || participantTypeRaw.includes('religious')) participantType = 'priest'
+          else if (participantTypeRaw.includes('youth')) {
+            participantType = age >= 18 ? 'youth_o18' : 'youth_u18'
+          }
 
           // Check for existing participant (by name and group)
           const existingParticipant = await prisma.participant.findFirst({
@@ -494,9 +495,9 @@ export async function POST(
       })
 
       for (const group of groupsToUpdate) {
-        const youthCount = group.participants.filter(p => p.participantType === 'youth').length
+        const youthCount = group.participants.filter(p => p.participantType === 'youth_u18' || p.participantType === 'youth_o18').length
         const chaperoneCount = group.participants.filter(p => p.participantType === 'chaperone').length
-        const priestCount = group.participants.filter(p => ['priest', 'clergy', 'religious_staff'].includes(p.participantType)).length
+        const priestCount = group.participants.filter(p => p.participantType === 'priest').length
 
         await prisma.groupRegistration.update({
           where: { id: group.id },
