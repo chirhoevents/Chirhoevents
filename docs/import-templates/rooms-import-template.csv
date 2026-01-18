@@ -1,0 +1,15 @@
+building_name,room_number,floor,capacity,gender,housing_type,is_ada_accessible,notes
+Cana Hall,101,1,4,male,youth_u18,yes,ADA accessible room
+Cana Hall,102,1,4,male,youth_u18,no,
+Cana Hall,103,1,4,male,youth_u18,no,
+Cana Hall,201,2,4,male,youth_u18,no,
+Cana Hall,202,2,4,male,youth_u18,no,
+Bethany Hall,101,1,4,female,youth_u18,yes,ADA accessible room
+Bethany Hall,102,1,4,female,youth_u18,no,
+Bethany Hall,103,1,4,female,youth_u18,no,
+Jordan House,101,1,2,male,chaperone_18plus,no,
+Jordan House,102,1,2,male,chaperone_18plus,no,
+Martha House,101,1,2,female,chaperone_18plus,no,
+Martha House,102,1,2,female,chaperone_18plus,no,
+Clergy Residence,101,1,1,male,clergy,no,Single room
+Clergy Residence,102,1,1,male,clergy,no,Single room
