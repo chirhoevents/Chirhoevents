@@ -64,9 +64,9 @@ export async function POST(
       logPrefix: '[Registrations Import]',
     })
     if (error) return error
-    if (!hasPermission(user!.role, 'registrations.manage')) {
+    if (!hasPermission(user!.role, 'poros.access')) {
       return NextResponse.json(
-        { message: 'Forbidden - Registration management access required' },
+        { message: 'Forbidden - Registration import access required' },
         { status: 403 }
       )
     }
