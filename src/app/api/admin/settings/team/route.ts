@@ -134,10 +134,97 @@ export async function POST(request: NextRequest) {
     })
 
     if (existingUser) {
-      return NextResponse.json(
-        { error: 'A user with this email already exists' },
-        { status: 400 }
-      )
+      // If user already exists in the SAME organization, block the invite
+      if (existingUser.organizationId === organizationId) {
+        return NextResponse.json(
+          { error: 'A user with this email is already a member of this organization' },
+          { status: 400 }
+        )
+      }
+
+      // User exists in a different organization or is orphaned
+      // If they have an active Clerk account in another org, give a more helpful message
+      if (existingUser.clerkUserId && existingUser.organizationId) {
+        return NextResponse.json(
+          { error: 'This email is associated with another organization. The user must be removed from that organization first, or contact support for assistance.' },
+          { status: 400 }
+        )
+      }
+
+      // User exists but is orphaned (no org) or is a pending invite in another org
+      // Update them to be part of this organization instead of blocking
+      const updatedUser = await prisma.user.update({
+        where: { email },
+        data: {
+          firstName,
+          lastName,
+          role,
+          permissions: permissions || null,
+          organizationId: organizationId,
+          createdBy: user.id,
+          clerkUserId: null, // Reset to pending invite state
+        },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          permissions: true,
+          createdAt: true,
+        },
+      })
+
+      // Get organization details for the email
+      const organization = await prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: { name: true },
+      })
+
+      // Send invitation email
+      try {
+        const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/invite/${updatedUser.id}`
+
+        await resend.emails.send({
+          from: 'ChirhoEvents <noreply@chirhoevents.com>',
+          to: email,
+          subject: `You've been invited to join ${organization?.name || 'ChirhoEvents'}`,
+          html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #1E3A5F 0%, #2A4A6F 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                <h1 style="color: white; margin: 0; font-size: 24px;">You're Invited!</h1>
+              </div>
+              <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+                <p>Hi ${firstName},</p>
+                <p><strong>${user.firstName} ${user.lastName}</strong> has invited you to join <strong>${organization?.name || 'their organization'}</strong> on ChiRho Events as an <strong>Administrator</strong>.</p>
+                <p>ChiRho Events helps Catholic organizations manage retreats, conferences, and events with ease.</p>
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="${inviteUrl}" style="background: #9C8466; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Accept Invitation</a>
+                </div>
+                <p style="color: #666; font-size: 14px;">This invitation will expire in 7 days. If you didn't expect this invitation, you can safely ignore this email.</p>
+              </div>
+              <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+                <p>&copy; ${new Date().getFullYear()} ChiRho Events. All rights reserved.</p>
+              </div>
+            </body>
+            </html>
+          `,
+        })
+      } catch (emailError) {
+        console.error('Error sending invitation email:', emailError)
+        // Don't fail the request if email fails - user is still updated
+      }
+
+      return NextResponse.json({
+        message: 'Invitation sent successfully',
+        user: updatedUser,
+      })
     }
 
     // Get organization details for the email
