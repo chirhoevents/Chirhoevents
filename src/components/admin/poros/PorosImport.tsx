@@ -205,15 +205,15 @@ export function PorosImport({ eventId }: PorosImportProps) {
           }
         }
 
-        // Show detected headers for debugging if nothing imported
-        if (data.detectedHeaders && data.detectedHeaders.length > 0 && parts.length === 0) {
-          successMessage += `. CSV columns: ${data.detectedHeaders.join(', ')}`
-        }
-
         // Always show first row debug info to verify values are being read
         if (data.debugFirstRow?.parsed) {
           const p = data.debugFirstRow.parsed
-          successMessage += ` [DEBUG: group_id="${p.group_id}", total="${p.total_participants}", paid="${p.fully_paid}", owed="${p.amount_owed}"]`
+          successMessage += ` [Values: total="${p.total_participants}", paid="${p.fully_paid}", owed="${p.amount_owed}"]`
+        }
+
+        // Always show detected headers so we can see what columns exist
+        if (data.detectedHeaders && data.detectedHeaders.length > 0) {
+          successMessage += ` [Columns: ${data.detectedHeaders.join(', ')}]`
         }
       } else {
         // Bulk import returns results object
