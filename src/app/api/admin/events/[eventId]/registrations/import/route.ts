@@ -603,7 +603,7 @@ export async function POST(
               organizationId: event!.organizationId,
               participantId,
               eventId,
-              formType: participantType === 'chaperone' ? 'chaperone' : participantType === 'priest' ? 'priest' : 'youth' as any,
+              formType: (participantType === 'priest' ? 'clergy' : (participantType === 'chaperone' || age >= 18) ? 'youth_o18_chaperone' : 'youth_u18') as any,
               participantType: participantType as any,
               participantFirstName: row.first_name,
               participantLastName: row.last_name,
