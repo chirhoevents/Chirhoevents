@@ -60,20 +60,25 @@ export async function POST(
     })
 
     // Count total participants from group registrations that are not incomplete
-    // This counts actual people registered
+    // Query through the event relationship to ensure we get all participants for this org's events
     const groupParticipantsCount = await prisma.participant.count({
       where: {
-        organizationId: orgId,
         groupRegistration: {
+          event: {
+            organizationId: orgId,
+          },
           registrationStatus: { not: 'incomplete' },
         },
       },
     })
 
     // Count individual registrations that are not incomplete
+    // Query through the event relationship
     const individualRegistrationsCount = await prisma.individualRegistration.count({
       where: {
-        organizationId: orgId,
+        event: {
+          organizationId: orgId,
+        },
         registrationStatus: { not: 'incomplete' },
       },
     })
