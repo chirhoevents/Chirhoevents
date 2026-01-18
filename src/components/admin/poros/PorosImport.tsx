@@ -148,12 +148,21 @@ export function PorosImport({ eventId }: PorosImportProps) {
     try {
       const token = await getToken()
       const formData = new FormData()
-      formData.append('file', file)
-      formData.append('importType', TEMPLATES[templateKey].endpoint)
 
       // Use the bulk-import endpoint for buildings, rooms, staff, meal-groups
       // Use registrations/import for groups and participants
       const isRegistrationImport = templateKey === 'groups' || templateKey === 'participants'
+
+      if (isRegistrationImport) {
+        // Registration import expects specific file field names
+        const fileFieldName = templateKey === 'groups' ? 'groupsFile' : 'participantsFile'
+        formData.append(fileFieldName, file)
+        formData.append('importType', templateKey) // 'groups' or 'participants'
+      } else {
+        formData.append('file', file)
+        formData.append('importType', TEMPLATES[templateKey].endpoint)
+      }
+
       const endpoint = isRegistrationImport
         ? `/api/admin/events/${eventId}/registrations/import`
         : `/api/admin/events/${eventId}/poros/bulk-import`
