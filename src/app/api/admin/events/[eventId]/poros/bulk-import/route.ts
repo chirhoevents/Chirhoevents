@@ -57,9 +57,9 @@ export async function POST(
       logPrefix: '[Poros Bulk Import]',
     })
     if (error) return error
-    if (!hasPermission(user!.role, 'registrations.manage')) {
+    if (!hasPermission(user!.role, 'poros.access')) {
       return NextResponse.json(
-        { message: 'Forbidden - Admin access required' },
+        { message: 'Forbidden - Poros access required' },
         { status: 403 }
       )
     }
