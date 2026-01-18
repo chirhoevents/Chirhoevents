@@ -96,8 +96,8 @@ async function fetchM2KDataFromDatabase(eventId: string) {
     const youthGroups = groups.map(group => {
       const match = group.groupName.match(/\[([^\]]+)\]$/)
       const groupId = match ? match[1] : group.id
-      const maleTeens = group.participants.filter(p => p.gender === 'male' && p.participantType === 'youth').length
-      const femaleTeens = group.participants.filter(p => p.gender === 'female' && p.participantType === 'youth').length
+      const maleTeens = group.participants.filter(p => p.gender === 'male' && (p.participantType === 'youth_u18' || p.participantType === 'youth_o18')).length
+      const femaleTeens = group.participants.filter(p => p.gender === 'female' && (p.participantType === 'youth_u18' || p.participantType === 'youth_o18')).length
       const maleChaperones = group.participants.filter(p => p.gender === 'male' && p.participantType === 'chaperone').length
       const femaleChaperones = group.participants.filter(p => p.gender === 'female' && p.participantType === 'chaperone').length
 
