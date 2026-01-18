@@ -59,21 +59,22 @@ export async function POST(
       },
     })
 
-    // Count total participants from group registrations that are not incomplete
-    // Query through the event relationship to ensure we get all participants for this org's events
-    const groupParticipantsCount = await prisma.participant.count({
+    // Sum up totalParticipants from all non-incomplete group registrations
+    // This matches how registrations are counted when created (by totalParticipants, not individual Participant records)
+    const groupRegistrations = await prisma.groupRegistration.aggregate({
       where: {
-        groupRegistration: {
-          event: {
-            organizationId: orgId,
-          },
-          registrationStatus: { not: 'incomplete' },
+        event: {
+          organizationId: orgId,
         },
+        registrationStatus: { not: 'incomplete' },
+      },
+      _sum: {
+        totalParticipants: true,
       },
     })
+    const groupParticipantsCount = groupRegistrations._sum.totalParticipants || 0
 
     // Count individual registrations that are not incomplete
-    // Query through the event relationship
     const individualRegistrationsCount = await prisma.individualRegistration.count({
       where: {
         event: {
