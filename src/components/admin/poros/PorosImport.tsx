@@ -31,17 +31,17 @@ const TEMPLATES = {
     name: 'Buildings',
     icon: Building2,
     description: 'Import buildings/dorms for housing assignments',
-    columns: ['name', 'gender', 'housing_type', 'total_floors', 'total_rooms', 'total_beds', 'notes'],
+    columns: ['building_name', 'gender', 'housing_type', 'total_floors', 'notes'],
     sampleData: [
-      ['Dorm A', 'male', 'general', '3', '30', '60', 'Main male housing'],
-      ['Dorm B', 'female', 'general', '3', '30', '60', 'Main female housing'],
+      ['Dorm A', 'male', 'general', '3', 'Main male housing'],
+      ['Dorm B', 'female', 'general', '3', 'Main female housing'],
     ],
     endpoint: 'buildings',
   },
   rooms: {
     name: 'Rooms',
     icon: DoorOpen,
-    description: 'Import rooms with capacity and purpose (housing or small_group)',
+    description: 'Import housing rooms AND small group meeting rooms. Set room_purpose to distinguish them.',
     columns: ['building_name', 'room_number', 'floor', 'capacity', 'bed_count', 'gender', 'room_purpose', 'is_ada_accessible', 'notes'],
     sampleData: [
       ['Dorm A', '101', '1', '4', '4', 'male', 'housing', 'false', ''],
@@ -142,7 +142,7 @@ export function PorosImport({ eventId }: PorosImportProps) {
       const token = await getToken()
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('type', TEMPLATES[templateKey].endpoint)
+      formData.append('importType', TEMPLATES[templateKey].endpoint)
 
       // Use the bulk-import endpoint for buildings, rooms, staff, meal-groups
       // Use registrations/import for groups and participants
@@ -310,6 +310,7 @@ export function PorosImport({ eventId }: PorosImportProps) {
         <CardContent className="space-y-2 text-sm text-muted-foreground">
           <p><strong>Group Code:</strong> The group_code field (e.g., <code>1A</code>, <code>53B</code>) appears on check-in tables and public pages.</p>
           <p><strong>Room Purpose:</strong> Use <code>housing</code> for dorm rooms, <code>small_group</code> for meeting rooms, or <code>both</code> for dual-purpose rooms.</p>
+          <p><strong>Small Group Rooms:</strong> Import meeting rooms through the Rooms import with <code>room_purpose</code> set to <code>small_group</code>. These can be printed for posting.</p>
           <p><strong>Participant Types:</strong> Valid types are: youth, chaperone, priest</p>
           <p><strong>Staff Types:</strong> Valid types are: seminarian, religious, sgl, co_sgl, priest, deacon</p>
           <p><strong>Gender:</strong> Use <code>male</code>, <code>female</code>, or <code>mixed</code> (for rooms/buildings)</p>
