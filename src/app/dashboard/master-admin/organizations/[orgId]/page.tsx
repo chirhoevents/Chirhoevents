@@ -33,6 +33,7 @@ import {
   ChevronDown,
   ChevronUp,
   HardDrive,
+  RefreshCw,
 } from 'lucide-react'
 
 interface Organization {
@@ -503,6 +504,46 @@ export default function OrganizationDetailPage() {
     } catch (error: unknown) {
       console.error('Failed to recalculate storage:', error)
       alert(error instanceof Error ? error.message : 'Failed to recalculate storage')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleResetUsage = async () => {
+    if (!confirm('Reset usage counters for this organization? This will recalculate events and registrations based on actual current data.')) return
+
+    setActionLoading('reset-usage')
+    try {
+      const token = await getToken()
+      const response = await fetch(`/api/master-admin/organizations/${params.orgId}/reset-usage`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to reset usage')
+      }
+
+      // Update local state with new usage values
+      setOrganization(prev => prev ? {
+        ...prev,
+        eventsUsed: data.currentUsage.eventsUsed,
+        registrationsUsed: data.currentUsage.registrationsUsed,
+      } : null)
+
+      alert(
+        `Usage reset successfully!\n\n` +
+        `Events: ${data.previousUsage.eventsUsed} → ${data.currentUsage.eventsUsed}\n` +
+        `Registrations: ${data.previousUsage.registrationsUsed} → ${data.currentUsage.registrationsUsed}`
+      )
+    } catch (error: unknown) {
+      console.error('Failed to reset usage:', error)
+      alert(error instanceof Error ? error.message : 'Failed to reset usage')
     } finally {
       setActionLoading(null)
     }
@@ -1182,6 +1223,18 @@ export default function OrganizationDetailPage() {
                   <HardDrive className="h-4 w-4 text-gray-400" />
                 )}
                 Recalculate Storage
+              </button>
+              <button
+                onClick={handleResetUsage}
+                disabled={actionLoading === 'reset-usage'}
+                className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {actionLoading === 'reset-usage' ? (
+                  <Loader2 className="h-4 w-4 text-gray-400 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 text-gray-400" />
+                )}
+                Reset Usage Counters
               </button>
               <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
                 <BarChart3 className="h-4 w-4 text-gray-400" />
