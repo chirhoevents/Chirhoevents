@@ -67,7 +67,13 @@ CREATE TABLE IF NOT EXISTS poros_resources (
 ALTER TABLE rooms ADD COLUMN IF NOT EXISTS room_purpose TEXT DEFAULT 'housing';
 
 -- ============================================
--- SECTION 7: Verify your M2K event data exists
+-- SECTION 7: Add group_code column to group_registrations
+-- This is the check-in table code like "53B"
+-- ============================================
+ALTER TABLE group_registrations ADD COLUMN IF NOT EXISTS group_code VARCHAR(10);
+
+-- ============================================
+-- SECTION 8: Verify your M2K event data exists
 -- ============================================
 SELECT
   (SELECT COUNT(*) FROM group_registrations WHERE event_id = 'b9b70d36-ae35-47a0-aeb7-a50df9a598f1') as groups,

@@ -458,6 +458,7 @@ model GroupRegistration {
   alternativeContact2Email   String?  @map("alternative_contact_2_email") @db.VarChar(255)
   alternativeContact2Phone   String?  @map("alternative_contact_2_phone") @db.VarChar(20)
   accessCode                 String   @unique @map("access_code") @db.VarChar(50)
+  groupCode                  String?  @map("group_code") @db.VarChar(10) // Check-in table code like "53B"
   qrCode                     String?  @map("qr_code") @db.Text
   youthCount                 Int      @default(0) @map("youth_count")
   chaperoneCount             Int      @default(0) @map("chaperone_count")

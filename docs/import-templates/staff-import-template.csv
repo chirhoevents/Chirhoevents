@@ -1,0 +1,7 @@
+first_name,last_name,staff_type,email,phone,diocese,gender,notes
+John,Smith,seminarian,john.smith@seminary.edu,555-111-2222,Diocese of Arlington,male,Speaks Spanish
+Michael,Brown,seminarian,michael.b@seminary.edu,555-222-3333,Archdiocese of Baltimore,male,
+David,Wilson,seminarian,david.w@seminary.edu,555-333-4444,Diocese of Richmond,male,
+Sr. Maria,Lopez,religious,sr.maria@convent.org,555-444-5555,Diocese of Arlington,female,Dominican Sister
+Sr. Teresa,Avila,religious,sr.teresa@convent.org,555-555-6666,Archdiocese of Baltimore,female,Carmelite
+Br. Francis,Xavier,religious,br.francis@monastery.org,555-666-7777,Diocese of Richmond,male,Franciscan Brother

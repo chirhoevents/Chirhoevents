@@ -141,6 +141,7 @@ export async function POST(
             eventId,
             organizationId: event!.organizationId,
             groupName: `${row.parish_name} [${groupExternalId}]`,
+            groupCode: row.group_code?.trim() || null, // Check-in table code like "53B"
             parishName: row.parish_name || null,
             dioceseName: row.diocese_name || null,
             groupLeaderName: row.leader_name,
@@ -533,10 +534,10 @@ export async function GET(
   const templateType = searchParams.get('template') || 'groups'
 
   if (templateType === 'groups') {
-    const csv = `group_id,parish_name,diocese_name,leader_name,leader_email,leader_phone,male_youth,female_youth,male_chaperones,female_chaperones,priests,housing_type,seminarian_sgl,religious,small_group_location,meal_color,special_requests,ada_summary
-1,St. Mary's Parish,Diocese of Arlington,John Smith,john.smith@example.com,555-123-4567,5,6,2,2,1,on_campus,Seminarian John Doe,Sr. Maria Lopez,Room 101 - Cana Hall,Red,Need early check-in,Wheelchair access needed
-2,Holy Family Church,Archdiocese of Baltimore,Jane Doe,jane.doe@example.com,555-987-6543,8,7,3,2,0,off_campus,Seminarian Michael Brown,,,,
-3,Sacred Heart Parish,Diocese of Richmond,Bob Johnson,bob.j@example.com,555-456-7890,4,5,1,2,1,on_campus,,Sr. Teresa of Avila,Classroom B,Blue,Late arrival Friday,`
+    const csv = `group_id,group_code,parish_name,diocese_name,leader_name,leader_email,leader_phone,male_youth,female_youth,male_chaperones,female_chaperones,priests,housing_type,special_requests,ada_summary
+1,53B,St. Mary's Parish,Diocese of Arlington,John Smith,john.smith@example.com,555-123-4567,5,6,2,2,1,on_campus,Need early check-in,Wheelchair access needed
+2,54A,Holy Family Church,Archdiocese of Baltimore,Jane Doe,jane.doe@example.com,555-987-6543,8,7,3,2,0,off_campus,,
+3,55C,Sacred Heart Parish,Diocese of Richmond,Bob Johnson,bob.j@example.com,555-456-7890,4,5,1,2,1,on_campus,Late arrival Friday,`
 
     return new NextResponse(csv, {
       headers: {

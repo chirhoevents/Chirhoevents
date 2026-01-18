@@ -1,4 +1,4 @@
-group_id,parish_name,diocese_name,leader_name,leader_email,leader_phone,male_youth,female_youth,male_chaperones,female_chaperones,priests,housing_type,seminarian_sgl,religious,small_group_location,meal_color,special_requests,ada_summary
-1,St. Mary's Parish,Diocese of Arlington,John Smith,john.smith@example.com,555-123-4567,5,6,2,2,1,on_campus,Seminarian John Doe,Sr. Maria Lopez,Room 101 - Cana Hall,Red,Need early check-in,Wheelchair access needed for 1 participant
-2,Holy Family Church,Archdiocese of Baltimore,Jane Doe,jane.doe@example.com,555-987-6543,8,7,3,2,0,off_campus,Seminarian Michael Brown,,,,
-3,Sacred Heart Parish,Diocese of Richmond,Bob Johnson,bob.j@example.com,555-456-7890,4,5,1,2,1,on_campus,,Sr. Teresa of Avila,Classroom B - St. Paul Center,Blue,Late arrival Friday,
+group_id,group_code,parish_name,diocese_name,leader_name,leader_email,leader_phone,male_youth,female_youth,male_chaperones,female_chaperones,priests,housing_type,special_requests,ada_summary
+1,53B,St. Mary's Parish,Diocese of Arlington,John Smith,john.smith@example.com,555-123-4567,5,6,2,2,1,on_campus,Need early check-in,Wheelchair access needed for 1 participant
+2,54A,Holy Family Church,Archdiocese of Baltimore,Jane Doe,jane.doe@example.com,555-987-6543,8,7,3,2,0,off_campus,,
+3,55C,Sacred Heart Parish,Diocese of Richmond,Bob Johnson,bob.j@example.com,555-456-7890,4,5,1,2,1,on_campus,Late arrival Friday,

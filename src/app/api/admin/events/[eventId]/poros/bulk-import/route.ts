@@ -437,9 +437,87 @@ export async function POST(
       }
     }
 
+    // ============================================
+    // STAFF IMPORT (Seminarians, Religious, SGLs)
+    // ============================================
+    else if (importType === 'staff') {
+      const requiredColumns = ['first_name', 'last_name', 'staff_type']
+      const missingColumns = requiredColumns.filter(col => !headers.includes(col))
+      if (missingColumns.length > 0) {
+        return NextResponse.json({
+          error: `CSV missing required columns: ${missingColumns.join(', ')}`
+        }, { status: 400 })
+      }
+
+      for (const row of rows) {
+        try {
+          const firstName = row.first_name?.trim()
+          const lastName = row.last_name?.trim()
+          if (!firstName) {
+            results.errors.push('Skipping row with empty first_name')
+            continue
+          }
+
+          // Map staff type
+          const staffTypeRaw = (row.staff_type || 'sgl').toLowerCase()
+          let staffType = 'sgl'
+          if (staffTypeRaw.includes('seminarian') || staffTypeRaw === 'sem') {
+            staffType = 'seminarian'
+          } else if (staffTypeRaw.includes('religious') || staffTypeRaw === 'sr' || staffTypeRaw === 'br' || staffTypeRaw.includes('sister') || staffTypeRaw.includes('brother')) {
+            staffType = 'religious'
+          } else if (staffTypeRaw.includes('priest') || staffTypeRaw === 'fr') {
+            staffType = 'priest'
+          } else if (staffTypeRaw.includes('deacon')) {
+            staffType = 'deacon'
+          } else if (staffTypeRaw.includes('co_sgl') || staffTypeRaw.includes('co-sgl')) {
+            staffType = 'co_sgl'
+          } else if (staffTypeRaw.includes('volunteer')) {
+            staffType = 'volunteer'
+          }
+
+          // Map gender
+          const genderRaw = (row.gender || '').toLowerCase()
+          const gender = genderRaw === 'male' || genderRaw === 'm' ? 'male' : genderRaw === 'female' || genderRaw === 'f' ? 'female' : null
+
+          const existingStaff = await prisma.porosStaff.findFirst({
+            where: {
+              eventId,
+              firstName: { equals: firstName, mode: 'insensitive' },
+              lastName: lastName ? { equals: lastName, mode: 'insensitive' } : undefined,
+            }
+          })
+
+          const staffData = {
+            eventId,
+            firstName,
+            lastName: lastName || '',
+            staffType: staffType as any,
+            email: row.email?.trim() || null,
+            phone: row.phone?.trim() || null,
+            diocese: row.diocese?.trim() || null,
+            gender: gender as any,
+            notes: row.notes?.trim() || null,
+          }
+
+          if (existingStaff) {
+            await prisma.porosStaff.update({
+              where: { id: existingStaff.id },
+              data: staffData
+            })
+            results.updated++
+          } else {
+            await prisma.porosStaff.create({ data: staffData })
+            results.created++
+          }
+        } catch (err: any) {
+          results.errors.push(`Error importing staff ${row.first_name} ${row.last_name}: ${err.message}`)
+        }
+      }
+    }
+
     else {
       return NextResponse.json({
-        error: `Invalid import type: ${importType}. Valid types: buildings, rooms, small-groups, meal-groups`
+        error: `Invalid import type: ${importType}. Valid types: buildings, rooms, small-groups, meal-groups, staff`
       }, { status: 400 })
     }
 
@@ -502,6 +580,15 @@ Red,#e74c3c,7:00 AM,12:00 PM,6:00 PM,150
 Blue,#3498db,7:15 AM,12:15 PM,6:15 PM,150
 Green,#27ae60,7:30 AM,12:30 PM,6:30 PM,150
 Yellow,#f1c40f,7:45 AM,12:45 PM,6:45 PM,150`
+    },
+    'staff': {
+      filename: 'staff-import-template.csv',
+      content: `first_name,last_name,staff_type,email,phone,diocese,gender,notes
+John,Smith,seminarian,john.smith@seminary.edu,555-111-2222,Diocese of Arlington,male,Speaks Spanish
+Michael,Brown,seminarian,michael.b@seminary.edu,555-222-3333,Archdiocese of Baltimore,male,
+Sr. Maria,Lopez,religious,sr.maria@convent.org,555-444-5555,Diocese of Arlington,female,Dominican Sister
+Sr. Teresa,Avila,religious,sr.teresa@convent.org,555-555-6666,Archdiocese of Baltimore,female,Carmelite
+Br. Francis,Xavier,religious,br.francis@monastery.org,555-666-7777,Diocese of Richmond,male,Franciscan Brother`
     }
   }
 

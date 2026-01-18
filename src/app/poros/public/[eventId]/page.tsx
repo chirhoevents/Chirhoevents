@@ -32,6 +32,7 @@ async function fetchM2KDataFromDatabase(eventId: string) {
         select: {
           id: true,
           groupName: true,
+          groupCode: true, // Check-in table code like "53B"
           parishName: true,
           groupLeaderName: true,
           groupLeaderPhone: true,
@@ -105,6 +106,7 @@ async function fetchM2KDataFromDatabase(eventId: string) {
 
       return {
         id: groupId,
+        groupCode: group.groupCode || undefined, // Check-in table code like "53B"
         dbId: group.id,
         parish: group.parishName || group.groupName.replace(/\s*\[[^\]]+\]$/, ''),
         leader: group.groupLeaderName,
