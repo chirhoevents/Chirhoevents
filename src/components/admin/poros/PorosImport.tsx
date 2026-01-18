@@ -308,11 +308,11 @@ export function PorosImport({ eventId }: PorosImportProps) {
           <CardTitle className="text-lg">Import Notes</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p><strong>Group Code:</strong> The group_code field (e.g., "1A", "53B") appears on check-in tables and public pages.</p>
-          <p><strong>Room Purpose:</strong> Use "housing" for dorm rooms, "small_group" for meeting rooms, or "both" for dual-purpose rooms.</p>
+          <p><strong>Group Code:</strong> The group_code field (e.g., <code>1A</code>, <code>53B</code>) appears on check-in tables and public pages.</p>
+          <p><strong>Room Purpose:</strong> Use <code>housing</code> for dorm rooms, <code>small_group</code> for meeting rooms, or <code>both</code> for dual-purpose rooms.</p>
           <p><strong>Participant Types:</strong> Valid types are: youth, chaperone, priest</p>
           <p><strong>Staff Types:</strong> Valid types are: seminarian, religious, sgl, co_sgl, priest, deacon</p>
-          <p><strong>Gender:</strong> Use "male", "female", or "mixed" (for rooms/buildings)</p>
+          <p><strong>Gender:</strong> Use <code>male</code>, <code>female</code>, or <code>mixed</code> (for rooms/buildings)</p>
           <p><strong>Existing Records:</strong> The system will skip records that already exist (matched by name/identifier).</p>
         </CardContent>
       </Card>
