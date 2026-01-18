@@ -186,9 +186,9 @@ export async function POST(
               eventId,
               registrationId: groupId,
               registrationType: 'group' as const,
-              totalAmount: amountOwed, // We only know what's owed
+              totalAmountDue: amountOwed,
               amountPaid: 0,
-              balanceDue: amountOwed,
+              amountRemaining: amountOwed,
               paymentStatus: amountOwed > 0 ? 'partial' as const : 'unpaid' as const,
             }
 
@@ -196,7 +196,7 @@ export async function POST(
               await prisma.paymentBalance.update({
                 where: { id: existingBalance.id },
                 data: {
-                  balanceDue: amountOwed,
+                  amountRemaining: amountOwed,
                   paymentStatus: amountOwed > 0 ? 'partial' : 'unpaid',
                 }
               })
@@ -215,7 +215,7 @@ export async function POST(
               await prisma.paymentBalance.update({
                 where: { id: existingBalance.id },
                 data: {
-                  balanceDue: 0,
+                  amountRemaining: 0,
                   paymentStatus: 'paid_full',
                 }
               })
@@ -226,9 +226,9 @@ export async function POST(
                   eventId,
                   registrationId: groupId,
                   registrationType: 'group' as const,
-                  totalAmount: 0,
+                  totalAmountDue: 0,
                   amountPaid: 0,
-                  balanceDue: 0,
+                  amountRemaining: 0,
                   paymentStatus: 'paid_full' as const,
                 }
               })
