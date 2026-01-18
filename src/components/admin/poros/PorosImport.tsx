@@ -30,11 +30,12 @@ const TEMPLATES = {
   buildings: {
     name: 'Buildings',
     icon: Building2,
-    description: 'Import buildings/dorms for housing assignments',
+    description: 'Import buildings for housing AND small group meeting locations',
     columns: ['building_name', 'gender', 'housing_type', 'total_floors', 'notes'],
     sampleData: [
       ['Dorm A', 'male', 'general', '3', 'Main male housing'],
       ['Dorm B', 'female', 'general', '3', 'Main female housing'],
+      ['Conference Center', 'mixed', 'general', '1', 'Small group meeting rooms'],
     ],
     endpoint: 'buildings',
   },
