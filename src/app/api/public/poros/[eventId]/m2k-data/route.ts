@@ -203,8 +203,8 @@ export async function GET(
       const groupId = match ? match[1] : group.id
 
       // Count participants by gender and type
-      const maleTeens = group.participants.filter(p => p.gender === 'male' && p.participantType === 'youth').length
-      const femaleTeens = group.participants.filter(p => p.gender === 'female' && p.participantType === 'youth').length
+      const maleTeens = group.participants.filter(p => p.gender === 'male' && (p.participantType === 'youth_u18' || p.participantType === 'youth_o18')).length
+      const femaleTeens = group.participants.filter(p => p.gender === 'female' && (p.participantType === 'youth_u18' || p.participantType === 'youth_o18')).length
       const maleChaperones = group.participants.filter(p => p.gender === 'male' && p.participantType === 'chaperone').length
       const femaleChaperones = group.participants.filter(p => p.gender === 'female' && p.participantType === 'chaperone').length
 
