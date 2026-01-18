@@ -256,7 +256,7 @@ export function PorosImport({ eventId }: PorosImportProps) {
                   <Button
                     variant="default"
                     size="sm"
-                    className="w-full justify-start bg-navy hover:bg-navy/90"
+                    className="w-full justify-start bg-navy hover:bg-navy/90 text-white"
                     disabled={isUploading}
                   >
                     {isUploading ? (
