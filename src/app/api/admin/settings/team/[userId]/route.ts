@@ -98,11 +98,12 @@ export async function DELETE(
 
     if (hasEvents > 0 || hasCreatedUsers > 0) {
       // Instead of deleting, we should deactivate/demote the user
-      // For now, change their role to remove admin access
+      // Remove them from the organization so they can be re-invited elsewhere
       await prisma.user.update({
         where: { id: userId },
         data: {
           role: 'individual', // Demote to non-admin role
+          organizationId: null, // Remove from organization
         },
       })
 
@@ -122,13 +123,14 @@ export async function DELETE(
         message: 'Team member removed successfully',
       })
     } catch (deleteError: unknown) {
-      // Foreign key constraint - demote instead
+      // Foreign key constraint - demote and remove from org instead
       console.log('Could not delete user due to constraints, demoting instead:', deleteError)
 
       await prisma.user.update({
         where: { id: userId },
         data: {
           role: 'individual',
+          organizationId: null, // Remove from organization
         },
       })
 

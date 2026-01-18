@@ -134,8 +134,8 @@ export async function POST(request: NextRequest) {
     })
 
     if (existingUser) {
-      // If user already exists in the SAME organization, block the invite
-      if (existingUser.organizationId === organizationId) {
+      // If user already exists in the SAME organization as an ADMIN, block the invite
+      if (existingUser.organizationId === organizationId && ADMIN_ROLES.includes(existingUser.role as any)) {
         return NextResponse.json(
           { error: 'A user with this email is already a member of this organization' },
           { status: 400 }
@@ -144,15 +144,15 @@ export async function POST(request: NextRequest) {
 
       // User exists in a different organization or is orphaned
       // If they have an active Clerk account in another org, give a more helpful message
-      if (existingUser.clerkUserId && existingUser.organizationId) {
+      if (existingUser.clerkUserId && existingUser.organizationId && existingUser.organizationId !== organizationId) {
         return NextResponse.json(
           { error: 'This email is associated with another organization. The user must be removed from that organization first, or contact support for assistance.' },
           { status: 400 }
         )
       }
 
-      // User exists but is orphaned (no org) or is a pending invite in another org
-      // Update them to be part of this organization instead of blocking
+      // User exists but is orphaned (no org), is a pending invite, or was previously
+      // demoted (non-admin in same org). Update them to be part of this organization.
       const updatedUser = await prisma.user.update({
         where: { email },
         data: {
