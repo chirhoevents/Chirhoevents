@@ -31,10 +31,10 @@ const TEMPLATES = {
     name: 'Buildings',
     icon: Building2,
     description: 'Import buildings/dorms for housing assignments',
-    columns: ['name', 'gender', 'housing_type', 'total_floors', 'total_rooms', 'total_beds', 'notes'],
+    columns: ['building_name', 'gender', 'housing_type', 'total_floors', 'notes'],
     sampleData: [
-      ['Dorm A', 'male', 'general', '3', '30', '60', 'Main male housing'],
-      ['Dorm B', 'female', 'general', '3', '30', '60', 'Main female housing'],
+      ['Dorm A', 'male', 'general', '3', 'Main male housing'],
+      ['Dorm B', 'female', 'general', '3', 'Main female housing'],
     ],
     endpoint: 'buildings',
   },
@@ -142,7 +142,7 @@ export function PorosImport({ eventId }: PorosImportProps) {
       const token = await getToken()
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('type', TEMPLATES[templateKey].endpoint)
+      formData.append('importType', TEMPLATES[templateKey].endpoint)
 
       // Use the bulk-import endpoint for buildings, rooms, staff, meal-groups
       // Use registrations/import for groups and participants
