@@ -171,6 +171,7 @@ export async function decrementOptionCapacity(
 
 /**
  * Increment option capacity (e.g., when a registration is cancelled)
+ * This function caps the remaining value at the capacity to prevent invalid states.
  */
 export async function incrementOptionCapacity(
   eventId: string,
@@ -178,25 +179,68 @@ export async function incrementOptionCapacity(
   roomType: RoomType | null,
   partySize: number = 1
 ): Promise<void> {
-  const updateData: Record<string, { increment: number }> = {}
+  // Fetch current settings to cap at capacity
+  const settings = await prisma.eventSettings.findUnique({
+    where: { eventId },
+    select: {
+      onCampusCapacity: true,
+      onCampusRemaining: true,
+      offCampusCapacity: true,
+      offCampusRemaining: true,
+      dayPassCapacity: true,
+      dayPassRemaining: true,
+      singleRoomCapacity: true,
+      singleRoomRemaining: true,
+      doubleRoomCapacity: true,
+      doubleRoomRemaining: true,
+      tripleRoomCapacity: true,
+      tripleRoomRemaining: true,
+      quadRoomCapacity: true,
+      quadRoomRemaining: true,
+    },
+  })
 
-  if (housingType === 'on_campus') {
-    updateData.onCampusRemaining = { increment: partySize }
-  } else if (housingType === 'off_campus') {
-    updateData.offCampusRemaining = { increment: partySize }
-  } else if (housingType === 'day_pass') {
-    updateData.dayPassRemaining = { increment: partySize }
+  if (!settings) return
+
+  const updateData: Record<string, number> = {}
+
+  // Helper to calculate capped remaining value
+  const cappedIncrement = (
+    currentRemaining: number | null,
+    capacity: number | null,
+    increment: number
+  ): number | null => {
+    if (capacity === null) return null // No capacity set, don't update
+    const current = currentRemaining ?? 0
+    return Math.min(current + increment, capacity)
   }
 
+  // Handle housing type capacity
+  if (housingType === 'on_campus' && settings.onCampusCapacity !== null) {
+    const newValue = cappedIncrement(settings.onCampusRemaining, settings.onCampusCapacity, partySize)
+    if (newValue !== null) updateData.onCampusRemaining = newValue
+  } else if (housingType === 'off_campus' && settings.offCampusCapacity !== null) {
+    const newValue = cappedIncrement(settings.offCampusRemaining, settings.offCampusCapacity, partySize)
+    if (newValue !== null) updateData.offCampusRemaining = newValue
+  } else if (housingType === 'day_pass' && settings.dayPassCapacity !== null) {
+    const newValue = cappedIncrement(settings.dayPassRemaining, settings.dayPassCapacity, partySize)
+    if (newValue !== null) updateData.dayPassRemaining = newValue
+  }
+
+  // Handle room type capacity
   if (roomType && housingType === 'on_campus') {
-    if (roomType === 'single') {
-      updateData.singleRoomRemaining = { increment: partySize }
-    } else if (roomType === 'double') {
-      updateData.doubleRoomRemaining = { increment: partySize }
-    } else if (roomType === 'triple') {
-      updateData.tripleRoomRemaining = { increment: partySize }
-    } else if (roomType === 'quad') {
-      updateData.quadRoomRemaining = { increment: partySize }
+    if (roomType === 'single' && settings.singleRoomCapacity !== null) {
+      const newValue = cappedIncrement(settings.singleRoomRemaining, settings.singleRoomCapacity, partySize)
+      if (newValue !== null) updateData.singleRoomRemaining = newValue
+    } else if (roomType === 'double' && settings.doubleRoomCapacity !== null) {
+      const newValue = cappedIncrement(settings.doubleRoomRemaining, settings.doubleRoomCapacity, partySize)
+      if (newValue !== null) updateData.doubleRoomRemaining = newValue
+    } else if (roomType === 'triple' && settings.tripleRoomCapacity !== null) {
+      const newValue = cappedIncrement(settings.tripleRoomRemaining, settings.tripleRoomCapacity, partySize)
+      if (newValue !== null) updateData.tripleRoomRemaining = newValue
+    } else if (roomType === 'quad' && settings.quadRoomCapacity !== null) {
+      const newValue = cappedIncrement(settings.quadRoomRemaining, settings.quadRoomCapacity, partySize)
+      if (newValue !== null) updateData.quadRoomRemaining = newValue
     }
   }
 

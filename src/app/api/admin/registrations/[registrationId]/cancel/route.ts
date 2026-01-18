@@ -85,7 +85,16 @@ export async function POST(
       const offCampusCount = (registration.offCampusYouth || 0) + (registration.offCampusChaperones || 0)
       const dayPassCount = (registration.dayPassYouth || 0) + (registration.dayPassChaperones || 0)
 
-      // Restore housing option capacities
+      // Check if this registration has inventory-style fields set (not a legacy registration)
+      const hasInventoryFields =
+        registration.onCampusYouth !== null ||
+        registration.onCampusChaperones !== null ||
+        registration.offCampusYouth !== null ||
+        registration.offCampusChaperones !== null ||
+        registration.dayPassYouth !== null ||
+        registration.dayPassChaperones !== null
+
+      // Restore housing option capacities based on inventory counts
       if (onCampusCount > 0) {
         await incrementOptionCapacity(eventId, 'on_campus', null, onCampusCount)
       }
@@ -96,8 +105,10 @@ export async function POST(
         await incrementOptionCapacity(eventId, 'day_pass', null, dayPassCount)
       }
 
-      // If no inventory-style counts, fall back to housing type (only for general admission)
-      if (onCampusCount === 0 && offCampusCount === 0 && dayPassCount === 0 && housingType && registration.ticketType !== 'day_pass') {
+      // Only use fallback for LEGACY registrations that don't have inventory fields
+      // (registrations created before the inventory-style tracking was added)
+      // This prevents double-incrementing for registrations that had their counts set to 0
+      if (!hasInventoryFields && housingType && registration.ticketType !== 'day_pass') {
         await incrementOptionCapacity(eventId, housingType, null, participantCount)
       }
 
