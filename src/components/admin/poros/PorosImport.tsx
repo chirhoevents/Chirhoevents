@@ -66,12 +66,17 @@ const TEMPLATES = {
   participants: {
     name: 'Participants',
     icon: UserPlus,
-    description: 'Import participants linked to groups',
-    columns: ['group_id', 'first_name', 'last_name', 'preferred_name', 'email', 'age', 'gender', 'participant_type', 't_shirt_size', 'parent_email'],
+    description: 'Import participants with emergency contacts and medical info for Rapha',
+    columns: [
+      'group_id', 'first_name', 'last_name', 'preferred_name', 'email', 'age', 'gender', 'participant_type', 't_shirt_size', 'parent_email',
+      'emergency_contact_1_name', 'emergency_contact_1_phone', 'emergency_contact_1_relation',
+      'emergency_contact_2_name', 'emergency_contact_2_phone', 'emergency_contact_2_relation',
+      'allergies', 'medications', 'medical_conditions', 'dietary_restrictions'
+    ],
     sampleData: [
-      ['001', 'Michael', 'Johnson', 'Mike', '', '16', 'male', 'youth', 'M', 'parent@email.com'],
-      ['001', 'Sarah', 'Williams', '', '', '15', 'female', 'youth', 'S', 'parent2@email.com'],
-      ['001', 'Robert', 'Brown', '', 'robert@email.com', '45', 'male', 'chaperone', 'L', ''],
+      ['001', 'Michael', 'Johnson', 'Mike', '', '16', 'male', 'youth', 'M', 'parent@email.com', 'John Johnson', '555-111-2222', 'Father', 'Mary Johnson', '555-111-3333', 'Mother', 'Peanuts', '', '', 'Vegetarian'],
+      ['001', 'Sarah', 'Williams', '', '', '15', 'female', 'youth', 'S', 'parent2@email.com', 'Tom Williams', '555-222-3333', 'Father', '', '', '', '', 'Ibuprofen daily', 'Asthma', ''],
+      ['001', 'Robert', 'Brown', '', 'robert@email.com', '45', 'male', 'chaperone', 'L', '', 'Jane Brown', '555-333-4444', 'Spouse', '', '', '', '', '', '', ''],
     ],
     endpoint: 'participants',
   },
