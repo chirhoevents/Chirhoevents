@@ -1,0 +1,11 @@
+group_id,first_name,last_name,age,gender,participant_type,email,parent_email,t_shirt_size
+1,Michael,Williams,16,male,youth,,,M
+1,Sarah,Brown,15,female,youth,,,S
+1,David,Miller,17,male,youth,,,L
+1,Emily,Davis,16,female,youth,,,M
+1,James,Wilson,45,male,chaperone,james.w@example.com,,XL
+1,Mary,Anderson,42,female,chaperone,mary.a@example.com,,M
+1,Fr. Thomas,Moore,55,male,priest,fr.thomas@example.com,,L
+2,Christopher,Taylor,14,male,youth,,,S
+2,Jessica,Thomas,15,female,youth,,,M
+2,Amanda,Jackson,38,female,chaperone,amanda.j@example.com,,L
