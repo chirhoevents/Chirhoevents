@@ -204,6 +204,11 @@ export function PorosImport({ eventId }: PorosImportProps) {
             successMessage += ` (+${data.errors.length - 3} more)`
           }
         }
+
+        // Show detected headers for debugging if nothing imported
+        if (data.detectedHeaders && data.detectedHeaders.length > 0 && parts.length === 0) {
+          successMessage += `. CSV columns: ${data.detectedHeaders.join(', ')}`
+        }
       } else {
         // Bulk import returns results object
         successMessage = data.results
