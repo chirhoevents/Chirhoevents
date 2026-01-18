@@ -10,7 +10,7 @@ import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
  * have been deleted and you want to reset the counters to reflect current state.
  *
  * Counts:
- * - Events: All non-draft, non-cancelled events
+ * - Events: All non-draft events
  * - Registrations: All participants from active group registrations + individual registrations
  */
 export async function POST(
@@ -51,11 +51,11 @@ export async function POST(
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
     }
 
-    // Count all non-draft, non-cancelled events for this organization
+    // Count all non-draft events for this organization
     const eventsCount = await prisma.event.count({
       where: {
         organizationId: orgId,
-        status: { notIn: ['draft', 'cancelled'] },
+        status: { not: 'draft' },
       },
     })
 
