@@ -41,6 +41,16 @@ async function fetchM2KDataFromDatabase(eventId: string) {
           housingType: true,
           specialRequests: true,
           adaAccommodationsSummary: true,
+          // Direct small group assignments
+          smallGroupRoom: {
+            select: { roomNumber: true, building: { select: { name: true } } }
+          },
+          groupStaffAssignments: {
+            select: {
+              role: true,
+              staff: { select: { firstName: true, lastName: true } }
+            }
+          },
           participants: {
             select: { id: true, gender: true, participantType: true }
           }
@@ -101,8 +111,25 @@ async function fetchM2KDataFromDatabase(eventId: string) {
       const maleChaperones = group.participants.filter(p => p.gender === 'male' && p.participantType === 'chaperone').length
       const femaleChaperones = group.participants.filter(p => p.gender === 'female' && p.participantType === 'chaperone').length
 
+      // Get direct staff assignments from group (new model)
+      const directSgls = group.groupStaffAssignments
+        ?.filter((a: { role: string }) => a.role === 'sgl')
+        .map((a: { staff: { firstName: string; lastName: string } }) => `${a.staff.firstName} ${a.staff.lastName}`) || []
+      const directReligious = group.groupStaffAssignments
+        ?.filter((a: { role: string }) => a.role === 'religious')
+        .map((a: { staff: { firstName: string; lastName: string } }) => `${a.staff.firstName} ${a.staff.lastName}`) || []
+
+      // Fallback to old SmallGroup model if no direct assignments
       const groupSmallGroupAssignment = smallGroupAssignments.find(a => a.groupRegistrationId === group.id)
       const smallGroup = groupSmallGroupAssignment ? smallGroups.find(sg => sg.id === groupSmallGroupAssignment.smallGroup.id) : null
+
+      // Get SGL and religious names (prefer direct assignments)
+      const sglNames = directSgls.length > 0
+        ? directSgls.join(', ')
+        : (smallGroup?.sgl ? `${smallGroup.sgl.firstName} ${smallGroup.sgl.lastName}` : undefined)
+      const religiousNames = directReligious.length > 0
+        ? directReligious.join(', ')
+        : (smallGroup?.coSgl ? `${smallGroup.coSgl.firstName} ${smallGroup.coSgl.lastName}` : undefined)
 
       return {
         id: groupId,
@@ -117,8 +144,8 @@ async function fetchM2KDataFromDatabase(eventId: string) {
         femaleChaperones: femaleChaperones || Math.ceil((group.chaperoneCount || 0) / 2),
         stayingOffCampus: group.housingType === 'off_campus',
         specialAccommodations: group.specialRequests || group.adaAccommodationsSummary || undefined,
-        seminarianSgl: smallGroup?.sgl ? `${smallGroup.sgl.firstName} ${smallGroup.sgl.lastName}` : undefined,
-        religious: smallGroup?.coSgl ? `${smallGroup.coSgl.firstName} ${smallGroup.coSgl.lastName}` : undefined,
+        seminarianSgl: sglNames,
+        religious: religiousNames,
       }
     })
 
@@ -159,12 +186,24 @@ async function fetchM2KDataFromDatabase(eventId: string) {
     }
 
     const smallGroupAssignmentsMap: Record<string, string[]> = {}
+    // First, add direct room assignments from groups (new model)
+    for (const group of groups) {
+      if (group.smallGroupRoom) {
+        const match = group.groupName.match(/\[([^\]]+)\]$/)
+        const groupId = match ? match[1] : group.id
+        const meetingPlace = `${group.smallGroupRoom.building.name} - ${group.smallGroupRoom.roomNumber}`
+        smallGroupAssignmentsMap[groupId] = [meetingPlace]
+      }
+    }
+    // Fallback to old SmallGroupAssignment model for groups without direct assignment
     for (const assignment of smallGroupAssignments) {
       if (!assignment.groupRegistrationId) continue
       const group = groups.find(g => g.id === assignment.groupRegistrationId)
       if (!group) continue
       const match = group.groupName.match(/\[([^\]]+)\]$/)
       const groupId = match ? match[1] : group.id
+      // Skip if already has direct assignment
+      if (smallGroupAssignmentsMap[groupId]) continue
       const meetingPlace = assignment.smallGroup.meetingPlace || 'TBD'
       if (!smallGroupAssignmentsMap[groupId]) smallGroupAssignmentsMap[groupId] = []
       if (!smallGroupAssignmentsMap[groupId].includes(meetingPlace)) smallGroupAssignmentsMap[groupId].push(meetingPlace)

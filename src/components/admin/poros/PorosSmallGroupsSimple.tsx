@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -12,11 +13,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Search, Users, Loader2, User, Home, UserCheck } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Search, Users, Loader2, User, Home, UserCheck, X, Wand2, Plus } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
 interface PorosSmallGroupsSimpleProps {
   eventId: string
+}
+
+interface StaffAssignment {
+  id: string
+  name: string
+  assignmentId: string
 }
 
 interface GroupData {
@@ -24,9 +38,9 @@ interface GroupData {
   groupName: string
   parishName: string | null
   totalParticipants: number
-  sgl: { id: string; name: string } | null
-  religious: { id: string; name: string } | null
-  room: { id: string; name: string } | null
+  sglList: StaffAssignment[]
+  religiousList: StaffAssignment[]
+  room: { id: string; name: string; capacity: number } | null
 }
 
 interface StaffOption {
@@ -39,8 +53,10 @@ interface StaffOption {
 interface RoomOption {
   id: string
   name: string
+  capacity: number
   buildingId: string
   buildingName: string
+  isAssigned: boolean
 }
 
 export function PorosSmallGroupsSimple({ eventId }: PorosSmallGroupsSimpleProps) {
@@ -51,6 +67,8 @@ export function PorosSmallGroupsSimple({ eventId }: PorosSmallGroupsSimpleProps)
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [updating, setUpdating] = useState<string | null>(null)
+  const [autoAssigning, setAutoAssigning] = useState(false)
+  const [showAutoAssignDialog, setShowAutoAssignDialog] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -77,43 +95,157 @@ export function PorosSmallGroupsSimple({ eventId }: PorosSmallGroupsSimpleProps)
     }
   }
 
-  async function handleAssignment(
-    groupId: string,
-    field: 'sglStaffId' | 'religiousStaffId' | 'smallGroupRoomId',
-    value: string | null
-  ) {
-    setUpdating(`${groupId}-${field}`)
+  async function handleAddStaff(groupId: string, staffId: string, role: 'sgl' | 'religious') {
+    setUpdating(`${groupId}-${role}`)
     try {
       const response = await fetch(
         `/api/admin/events/${eventId}/poros/group-small-group-assignments`,
         {
-          method: 'PATCH',
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ groupId, field, value }),
+          body: JSON.stringify({ groupId, staffId, role }),
         }
       )
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.message || 'Failed to update')
+        throw new Error(error.error || 'Failed to add staff')
       }
 
       const result = await response.json()
 
       // Update local state
       setGroups((prev) =>
-        prev.map((g) =>
-          g.id === groupId
-            ? { ...g, sgl: result.sgl, religious: result.religious, room: result.room }
-            : g
-        )
+        prev.map((g) => {
+          if (g.id !== groupId) return g
+          if (role === 'sgl') {
+            return { ...g, sglList: [...g.sglList, result.assignment] }
+          } else {
+            return { ...g, religiousList: [...g.religiousList, result.assignment] }
+          }
+        })
       )
 
-      toast.success('Assignment updated')
+      toast.success('Staff assigned')
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to update')
+      toast.error(error instanceof Error ? error.message : 'Failed to add staff')
     } finally {
       setUpdating(null)
+    }
+  }
+
+  async function handleRemoveStaff(groupId: string, assignmentId: string, role: 'sgl' | 'religious') {
+    setUpdating(`${groupId}-${role}`)
+    try {
+      const response = await fetch(
+        `/api/admin/events/${eventId}/poros/group-small-group-assignments`,
+        {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ assignmentId }),
+        }
+      )
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to remove staff')
+      }
+
+      // Update local state
+      setGroups((prev) =>
+        prev.map((g) => {
+          if (g.id !== groupId) return g
+          if (role === 'sgl') {
+            return { ...g, sglList: g.sglList.filter((s) => s.assignmentId !== assignmentId) }
+          } else {
+            return { ...g, religiousList: g.religiousList.filter((s) => s.assignmentId !== assignmentId) }
+          }
+        })
+      )
+
+      toast.success('Staff removed')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to remove staff')
+    } finally {
+      setUpdating(null)
+    }
+  }
+
+  async function handleRoomAssignment(groupId: string, roomId: string | null) {
+    setUpdating(`${groupId}-room`)
+    try {
+      const response = await fetch(
+        `/api/admin/events/${eventId}/poros/group-small-group-assignments`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ groupId, roomId }),
+        }
+      )
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to update room')
+      }
+
+      const result = await response.json()
+
+      // Update local state
+      setGroups((prev) =>
+        prev.map((g) => (g.id === groupId ? { ...g, room: result.room } : g))
+      )
+
+      // Update room availability in rooms list
+      fetchData()
+
+      toast.success('Room updated')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update room')
+    } finally {
+      setUpdating(null)
+    }
+  }
+
+  async function handleAutoAssign() {
+    setAutoAssigning(true)
+    try {
+      // Sort groups by size (largest first)
+      const unassignedGroups = groups.filter((g) => !g.room)
+      const sortedGroups = [...unassignedGroups].sort(
+        (a, b) => b.totalParticipants - a.totalParticipants
+      )
+
+      // Sort rooms by capacity (largest first)
+      const availableRooms = rooms.filter((r) => !r.isAssigned)
+      const sortedRooms = [...availableRooms].sort((a, b) => b.capacity - a.capacity)
+
+      let assigned = 0
+      for (const group of sortedGroups) {
+        // Find the smallest room that fits the group
+        const suitableRoom = sortedRooms.find(
+          (r) => r.capacity >= group.totalParticipants && !rooms.find(
+            (existingRoom) => existingRoom.id === r.id && existingRoom.isAssigned
+          )
+        )
+
+        if (suitableRoom) {
+          await handleRoomAssignment(group.id, suitableRoom.id)
+          // Mark room as assigned locally to avoid double-assigning
+          const roomIndex = sortedRooms.findIndex((r) => r.id === suitableRoom.id)
+          if (roomIndex >= 0) {
+            sortedRooms.splice(roomIndex, 1)
+          }
+          assigned++
+        }
+      }
+
+      setShowAutoAssignDialog(false)
+      toast.success(`Auto-assigned ${assigned} groups to rooms`)
+      fetchData()
+    } catch (error) {
+      toast.error('Auto-assign failed')
+    } finally {
+      setAutoAssigning(false)
     }
   }
 
@@ -126,9 +258,17 @@ export function PorosSmallGroupsSimple({ eventId }: PorosSmallGroupsSimpleProps)
   })
 
   // Stats
-  const assignedSgl = groups.filter((g) => g.sgl).length
-  const assignedReligious = groups.filter((g) => g.religious).length
+  const assignedSgl = groups.filter((g) => g.sglList.length > 0).length
+  const assignedReligious = groups.filter((g) => g.religiousList.length > 0).length
   const assignedRoom = groups.filter((g) => g.room).length
+
+  // Get staff already assigned to a group for filtering dropdowns
+  function getAssignedStaffIds(group: GroupData, role: 'sgl' | 'religious') {
+    if (role === 'sgl') {
+      return group.sglList.map((s) => s.id)
+    }
+    return group.religiousList.map((s) => s.id)
+  }
 
   if (loading) {
     return (
@@ -156,7 +296,7 @@ export function PorosSmallGroupsSimple({ eventId }: PorosSmallGroupsSimpleProps)
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              SGL Assigned
+              With SGL
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -169,7 +309,7 @@ export function PorosSmallGroupsSimple({ eventId }: PorosSmallGroupsSimpleProps)
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Religious Assigned
+              With Religious
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -182,7 +322,7 @@ export function PorosSmallGroupsSimple({ eventId }: PorosSmallGroupsSimpleProps)
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Room Assigned
+              With Room
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -193,20 +333,22 @@ export function PorosSmallGroupsSimple({ eventId }: PorosSmallGroupsSimpleProps)
         </Card>
       </div>
 
-      {/* Search */}
-      <Card>
-        <CardContent className="pt-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by parish name..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </CardContent>
-      </Card>
+      {/* Actions */}
+      <div className="flex justify-between items-center">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by parish name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Button onClick={() => setShowAutoAssignDialog(true)} className="bg-navy hover:bg-navy/90">
+          <Wand2 className="w-4 h-4 mr-2" />
+          Auto-Assign Rooms
+        </Button>
+      </div>
 
       {/* Groups List */}
       <Card>
@@ -226,15 +368,14 @@ export function PorosSmallGroupsSimple({ eventId }: PorosSmallGroupsSimpleProps)
             <ScrollArea className="h-[600px]">
               <div className="space-y-4">
                 {filteredGroups.map((group) => {
-                  const isFullyAssigned = group.sgl && group.religious && group.room
+                  const isComplete =
+                    group.sglList.length > 0 && group.religiousList.length > 0 && group.room
 
                   return (
                     <div
                       key={group.id}
                       className={`p-4 rounded-lg border ${
-                        isFullyAssigned
-                          ? 'bg-green-50 border-green-200'
-                          : 'bg-white border-gray-200'
+                        isComplete ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'
                       }`}
                     >
                       {/* Group Header */}
@@ -247,7 +388,7 @@ export function PorosSmallGroupsSimple({ eventId }: PorosSmallGroupsSimpleProps)
                             {group.totalParticipants} participants
                           </div>
                         </div>
-                        {isFullyAssigned && (
+                        {isComplete && (
                           <Badge className="bg-green-100 text-green-800">
                             <UserCheck className="w-3 h-3 mr-1" />
                             Complete
@@ -259,95 +400,138 @@ export function PorosSmallGroupsSimple({ eventId }: PorosSmallGroupsSimpleProps)
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {/* SGL */}
                         <div>
-                          <label className="text-sm font-medium text-gray-600 flex items-center gap-1 mb-1">
+                          <label className="text-sm font-medium text-gray-600 flex items-center gap-1 mb-2">
                             <User className="w-3 h-3" />
-                            SGL
+                            SGL ({group.sglList.length})
                           </label>
+                          {/* Current assignments */}
+                          <div className="space-y-1 mb-2">
+                            {group.sglList.map((staff) => (
+                              <div
+                                key={staff.assignmentId}
+                                className="flex items-center justify-between bg-blue-50 rounded px-2 py-1"
+                              >
+                                <span className="text-sm">{staff.name}</span>
+                                <button
+                                  onClick={() => handleRemoveStaff(group.id, staff.assignmentId, 'sgl')}
+                                  className="text-red-500 hover:text-red-700"
+                                  disabled={updating === `${group.id}-sgl`}
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                          {/* Add new */}
                           <Select
-                            value={group.sgl?.id || 'none'}
-                            onValueChange={(value) =>
-                              handleAssignment(
-                                group.id,
-                                'sglStaffId',
-                                value === 'none' ? null : value
-                              )
-                            }
-                            disabled={updating === `${group.id}-sglStaffId`}
+                            value=""
+                            onValueChange={(value) => handleAddStaff(group.id, value, 'sgl')}
+                            disabled={updating === `${group.id}-sgl`}
                           >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select SGL..." />
+                            <SelectTrigger className="w-full h-8 text-xs">
+                              <Plus className="w-3 h-3 mr-1" />
+                              <span>Add SGL</span>
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="none">None</SelectItem>
-                              {sglStaff.map((s) => (
-                                <SelectItem key={s.id} value={s.id}>
-                                  {s.firstName} {s.lastName}
-                                </SelectItem>
-                              ))}
+                              {sglStaff
+                                .filter((s) => !getAssignedStaffIds(group, 'sgl').includes(s.id))
+                                .map((s) => (
+                                  <SelectItem key={s.id} value={s.id}>
+                                    {s.firstName} {s.lastName}
+                                  </SelectItem>
+                                ))}
                             </SelectContent>
                           </Select>
                         </div>
 
                         {/* Religious */}
                         <div>
-                          <label className="text-sm font-medium text-gray-600 flex items-center gap-1 mb-1">
+                          <label className="text-sm font-medium text-gray-600 flex items-center gap-1 mb-2">
                             <User className="w-3 h-3" />
-                            Religious
+                            Religious ({group.religiousList.length})
                           </label>
+                          {/* Current assignments */}
+                          <div className="space-y-1 mb-2">
+                            {group.religiousList.map((staff) => (
+                              <div
+                                key={staff.assignmentId}
+                                className="flex items-center justify-between bg-purple-50 rounded px-2 py-1"
+                              >
+                                <span className="text-sm">{staff.name}</span>
+                                <button
+                                  onClick={() => handleRemoveStaff(group.id, staff.assignmentId, 'religious')}
+                                  className="text-red-500 hover:text-red-700"
+                                  disabled={updating === `${group.id}-religious`}
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                          {/* Add new */}
                           <Select
-                            value={group.religious?.id || 'none'}
-                            onValueChange={(value) =>
-                              handleAssignment(
-                                group.id,
-                                'religiousStaffId',
-                                value === 'none' ? null : value
-                              )
-                            }
-                            disabled={updating === `${group.id}-religiousStaffId`}
+                            value=""
+                            onValueChange={(value) => handleAddStaff(group.id, value, 'religious')}
+                            disabled={updating === `${group.id}-religious`}
                           >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select Religious..." />
+                            <SelectTrigger className="w-full h-8 text-xs">
+                              <Plus className="w-3 h-3 mr-1" />
+                              <span>Add Religious</span>
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="none">None</SelectItem>
-                              {religiousStaff.map((s) => (
-                                <SelectItem key={s.id} value={s.id}>
-                                  {s.firstName} {s.lastName}
-                                </SelectItem>
-                              ))}
+                              {religiousStaff
+                                .filter((s) => !getAssignedStaffIds(group, 'religious').includes(s.id))
+                                .map((s) => (
+                                  <SelectItem key={s.id} value={s.id}>
+                                    {s.firstName} {s.lastName}
+                                  </SelectItem>
+                                ))}
                             </SelectContent>
                           </Select>
                         </div>
 
                         {/* Room */}
                         <div>
-                          <label className="text-sm font-medium text-gray-600 flex items-center gap-1 mb-1">
+                          <label className="text-sm font-medium text-gray-600 flex items-center gap-1 mb-2">
                             <Home className="w-3 h-3" />
                             Room
                           </label>
-                          <Select
-                            value={group.room?.id || 'none'}
-                            onValueChange={(value) =>
-                              handleAssignment(
-                                group.id,
-                                'smallGroupRoomId',
-                                value === 'none' ? null : value
-                              )
-                            }
-                            disabled={updating === `${group.id}-smallGroupRoomId`}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select Room..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">None</SelectItem>
-                              {rooms.map((r) => (
-                                <SelectItem key={r.id} value={r.id}>
-                                  {r.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          {group.room ? (
+                            <div className="flex items-center justify-between bg-green-50 rounded px-2 py-1 mb-2">
+                              <span className="text-sm">
+                                {group.room.name}
+                                <span className="text-xs text-gray-500 ml-1">
+                                  (cap: {group.room.capacity})
+                                </span>
+                              </span>
+                              <button
+                                onClick={() => handleRoomAssignment(group.id, null)}
+                                className="text-red-500 hover:text-red-700"
+                                disabled={updating === `${group.id}-room`}
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <Select
+                              value=""
+                              onValueChange={(value) => handleRoomAssignment(group.id, value)}
+                              disabled={updating === `${group.id}-room`}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select Room..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {rooms
+                                  .filter((r) => !r.isAssigned)
+                                  .map((r) => (
+                                    <SelectItem key={r.id} value={r.id}>
+                                      {r.name} (cap: {r.capacity})
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -358,6 +542,40 @@ export function PorosSmallGroupsSimple({ eventId }: PorosSmallGroupsSimpleProps)
           )}
         </CardContent>
       </Card>
+
+      {/* Auto-Assign Dialog */}
+      <Dialog open={showAutoAssignDialog} onOpenChange={setShowAutoAssignDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Auto-Assign Rooms</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground mb-4">
+              This will automatically assign rooms to groups based on group size.
+              Larger groups will be assigned to rooms with higher capacity first.
+            </p>
+            <div className="bg-blue-50 rounded-lg p-3 text-sm">
+              <p>
+                <strong>Groups without rooms:</strong>{' '}
+                {groups.filter((g) => !g.room).length}
+              </p>
+              <p>
+                <strong>Available rooms:</strong>{' '}
+                {rooms.filter((r) => !r.isAssigned).length}
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAutoAssignDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAutoAssign} disabled={autoAssigning}>
+              {autoAssigning && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Auto-Assign
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

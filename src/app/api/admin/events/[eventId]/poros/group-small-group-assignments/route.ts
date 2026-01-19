@@ -23,7 +23,7 @@ export async function GET(
       )
     }
 
-    // Get all groups with their staff and room assignments
+    // Get all groups with their staff assignments and room
     const groups = await prisma.groupRegistration.findMany({
       where: { eventId },
       select: {
@@ -31,30 +31,28 @@ export async function GET(
         groupName: true,
         parishName: true,
         totalParticipants: true,
-        sglStaffId: true,
-        religiousStaffId: true,
         smallGroupRoomId: true,
-        sglStaff: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
-        religiousStaff: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
         smallGroupRoom: {
           select: {
             id: true,
             roomNumber: true,
+            capacity: true,
             building: {
               select: {
                 name: true,
+              },
+            },
+          },
+        },
+        groupStaffAssignments: {
+          select: {
+            id: true,
+            role: true,
+            staff: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
               },
             },
           },
@@ -88,6 +86,7 @@ export async function GET(
       select: {
         id: true,
         roomNumber: true,
+        capacity: true,
         building: {
           select: {
             id: true,
@@ -98,31 +97,45 @@ export async function GET(
       orderBy: [{ building: { name: 'asc' } }, { roomNumber: 'asc' }],
     })
 
+    // Get which rooms are already assigned (for showing availability)
+    const assignedRoomIds = groups
+      .filter((g) => g.smallGroupRoomId)
+      .map((g) => g.smallGroupRoomId)
+
     // Transform data
-    const result = groups.map((group) => ({
-      id: group.id,
-      groupName: group.groupName,
-      parishName: group.parishName,
-      totalParticipants: group.totalParticipants,
-      sgl: group.sglStaff
-        ? {
-            id: group.sglStaff.id,
-            name: `${group.sglStaff.firstName} ${group.sglStaff.lastName}`,
-          }
-        : null,
-      religious: group.religiousStaff
-        ? {
-            id: group.religiousStaff.id,
-            name: `${group.religiousStaff.firstName} ${group.religiousStaff.lastName}`,
-          }
-        : null,
-      room: group.smallGroupRoom
-        ? {
-            id: group.smallGroupRoom.id,
-            name: `${group.smallGroupRoom.building.name} - ${group.smallGroupRoom.roomNumber}`,
-          }
-        : null,
-    }))
+    const result = groups.map((group) => {
+      const sglAssignments = group.groupStaffAssignments
+        .filter((a) => a.role === 'sgl')
+        .map((a) => ({
+          id: a.staff.id,
+          name: `${a.staff.firstName} ${a.staff.lastName}`,
+          assignmentId: a.id,
+        }))
+
+      const religiousAssignments = group.groupStaffAssignments
+        .filter((a) => a.role === 'religious')
+        .map((a) => ({
+          id: a.staff.id,
+          name: `${a.staff.firstName} ${a.staff.lastName}`,
+          assignmentId: a.id,
+        }))
+
+      return {
+        id: group.id,
+        groupName: group.groupName,
+        parishName: group.parishName,
+        totalParticipants: group.totalParticipants,
+        sglList: sglAssignments,
+        religiousList: religiousAssignments,
+        room: group.smallGroupRoom
+          ? {
+              id: group.smallGroupRoom.id,
+              name: `${group.smallGroupRoom.building.name} - ${group.smallGroupRoom.roomNumber}`,
+              capacity: group.smallGroupRoom.capacity,
+            }
+          : null,
+      }
+    })
 
     return NextResponse.json({
       groups: result,
@@ -133,8 +146,10 @@ export async function GET(
       rooms: rooms.map((r) => ({
         id: r.id,
         name: `${r.building.name} - ${r.roomNumber}`,
+        capacity: r.capacity,
         buildingId: r.building.id,
         buildingName: r.building.name,
+        isAssigned: assignedRoomIds.includes(r.id),
       })),
     })
   } catch (error) {
@@ -146,8 +161,144 @@ export async function GET(
   }
 }
 
+// POST /api/admin/events/[eventId]/poros/group-small-group-assignments
+// Add a staff member to a group
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ eventId: string }> }
+) {
+  try {
+    const { eventId } = await params
+    const { error, user } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[POST /api/admin/events/[eventId]/poros/group-small-group-assignments]',
+    })
+    if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
+    }
+
+    const { groupId, staffId, role } = await request.json()
+
+    if (!groupId || !staffId || !role) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      )
+    }
+
+    if (!['sgl', 'religious'].includes(role)) {
+      return NextResponse.json(
+        { error: 'Invalid role. Must be "sgl" or "religious"' },
+        { status: 400 }
+      )
+    }
+
+    // Verify group exists and belongs to this event
+    const group = await prisma.groupRegistration.findFirst({
+      where: { id: groupId, eventId },
+    })
+
+    if (!group) {
+      return NextResponse.json(
+        { error: 'Group not found' },
+        { status: 404 }
+      )
+    }
+
+    // Check if assignment already exists
+    const existing = await prisma.groupStaffAssignment.findFirst({
+      where: { groupRegistrationId: groupId, staffId, role },
+    })
+
+    if (existing) {
+      return NextResponse.json(
+        { error: 'Staff member already assigned to this group with this role' },
+        { status: 400 }
+      )
+    }
+
+    // Create the assignment
+    const assignment = await prisma.groupStaffAssignment.create({
+      data: {
+        groupRegistrationId: groupId,
+        staffId,
+        role,
+        assignedBy: user?.id,
+      },
+      include: {
+        staff: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
+    })
+
+    return NextResponse.json({
+      success: true,
+      assignment: {
+        id: assignment.staff.id,
+        name: `${assignment.staff.firstName} ${assignment.staff.lastName}`,
+        assignmentId: assignment.id,
+      },
+    })
+  } catch (error) {
+    console.error('Error adding staff assignment:', error)
+    return NextResponse.json(
+      { error: 'Failed to add assignment' },
+      { status: 500 }
+    )
+  }
+}
+
+// DELETE /api/admin/events/[eventId]/poros/group-small-group-assignments
+// Remove a staff member from a group
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ eventId: string }> }
+) {
+  try {
+    const { eventId } = await params
+    const { error, user } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[DELETE /api/admin/events/[eventId]/poros/group-small-group-assignments]',
+    })
+    if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
+    }
+
+    const { assignmentId } = await request.json()
+
+    if (!assignmentId) {
+      return NextResponse.json(
+        { error: 'Missing assignment ID' },
+        { status: 400 }
+      )
+    }
+
+    // Delete the assignment
+    await prisma.groupStaffAssignment.delete({
+      where: { id: assignmentId },
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Error removing staff assignment:', error)
+    return NextResponse.json(
+      { error: 'Failed to remove assignment' },
+      { status: 500 }
+    )
+  }
+}
+
 // PATCH /api/admin/events/[eventId]/poros/group-small-group-assignments
-// Update a group's SGL, religious, or room assignment
+// Update a group's room assignment
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
@@ -166,20 +317,11 @@ export async function PATCH(
       )
     }
 
-    const { groupId, field, value } = await request.json()
+    const { groupId, roomId } = await request.json()
 
-    if (!groupId || !field) {
+    if (!groupId) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
-    }
-
-    // Validate field name
-    const allowedFields = ['sglStaffId', 'religiousStaffId', 'smallGroupRoomId']
-    if (!allowedFields.includes(field)) {
-      return NextResponse.json(
-        { error: 'Invalid field' },
+        { error: 'Missing group ID' },
         { status: 400 }
       )
     }
@@ -196,24 +338,38 @@ export async function PATCH(
       )
     }
 
-    // Update the group
+    // If setting a room, check if it's already assigned to another group
+    if (roomId) {
+      const existingAssignment = await prisma.groupRegistration.findFirst({
+        where: {
+          smallGroupRoomId: roomId,
+          id: { not: groupId },
+        },
+        select: { groupName: true, parishName: true },
+      })
+
+      if (existingAssignment) {
+        return NextResponse.json(
+          {
+            error: `Room is already assigned to ${existingAssignment.parishName || existingAssignment.groupName}`,
+          },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Update the group's room assignment
     const updatedGroup = await prisma.groupRegistration.update({
       where: { id: groupId },
       data: {
-        [field]: value || null, // null if empty/clearing
+        smallGroupRoomId: roomId || null,
       },
       select: {
-        id: true,
-        sglStaff: {
-          select: { id: true, firstName: true, lastName: true },
-        },
-        religiousStaff: {
-          select: { id: true, firstName: true, lastName: true },
-        },
         smallGroupRoom: {
           select: {
             id: true,
             roomNumber: true,
+            capacity: true,
             building: { select: { name: true } },
           },
         },
@@ -222,29 +378,18 @@ export async function PATCH(
 
     return NextResponse.json({
       success: true,
-      sgl: updatedGroup.sglStaff
-        ? {
-            id: updatedGroup.sglStaff.id,
-            name: `${updatedGroup.sglStaff.firstName} ${updatedGroup.sglStaff.lastName}`,
-          }
-        : null,
-      religious: updatedGroup.religiousStaff
-        ? {
-            id: updatedGroup.religiousStaff.id,
-            name: `${updatedGroup.religiousStaff.firstName} ${updatedGroup.religiousStaff.lastName}`,
-          }
-        : null,
       room: updatedGroup.smallGroupRoom
         ? {
             id: updatedGroup.smallGroupRoom.id,
             name: `${updatedGroup.smallGroupRoom.building.name} - ${updatedGroup.smallGroupRoom.roomNumber}`,
+            capacity: updatedGroup.smallGroupRoom.capacity,
           }
         : null,
     })
   } catch (error) {
-    console.error('Error updating group assignment:', error)
+    console.error('Error updating room assignment:', error)
     return NextResponse.json(
-      { error: 'Failed to update assignment' },
+      { error: 'Failed to update room assignment' },
       { status: 500 }
     )
   }
