@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PorosOverview } from '@/components/admin/poros/PorosOverview'
 import { PorosHousing } from '@/components/admin/poros/PorosHousing'
 import { PorosSeating } from '@/components/admin/poros/PorosSeating'
-import { PorosSmallGroups } from '@/components/admin/poros/PorosSmallGroups'
+import { PorosSmallGroupsSimple } from '@/components/admin/poros/PorosSmallGroupsSimple'
 import { PorosMealGroups } from '@/components/admin/poros/PorosMealGroups'
 import { PorosStaff } from '@/components/admin/poros/PorosStaff'
 import { PorosSettings } from '@/components/admin/poros/PorosSettings'
@@ -173,7 +173,7 @@ export default function PorosPortalClient({
 
         {smallGroupsEnabled && (
           <TabsContent value="small-groups">
-            <PorosSmallGroups eventId={eventId} />
+            <PorosSmallGroupsSimple eventId={eventId} />
           </TabsContent>
         )}
 
