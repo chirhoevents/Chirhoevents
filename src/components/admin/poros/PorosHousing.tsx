@@ -16,8 +16,9 @@ import {
 import { BuildingsManager } from './housing/BuildingsManager'
 import { RoomsManager } from './housing/RoomsManager'
 import { ParticipantAssignments } from './housing/ParticipantAssignments'
+import { GroupAssignments } from './housing/GroupAssignments'
 import { PrintRoomPosters } from './housing/PrintRoomPosters'
-import { Building2, DoorOpen, Users, Loader2, Download, Upload, FileSpreadsheet, Printer } from 'lucide-react'
+import { Building2, DoorOpen, Users, Loader2, Download, Upload, FileSpreadsheet, Printer, Users2 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
 interface PorosHousingProps {
@@ -90,7 +91,7 @@ export function PorosHousing({ eventId, settings }: PorosHousingProps) {
   const [buildings, setBuildings] = useState<Building[]>([])
   const [rooms, setRooms] = useState<Room[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('assignments')
+  const [activeTab, setActiveTab] = useState('group-assignments')
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null)
 
   // Import/Export state
@@ -344,9 +345,13 @@ Marian Hall,female,youth_u18,2,102,1,triple,3,false,,`
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
+          <TabsTrigger value="group-assignments" className="flex items-center gap-2">
+            <Users2 className="w-4 h-4" />
+            Groups
+          </TabsTrigger>
           <TabsTrigger value="assignments" className="flex items-center gap-2">
             <Users className="w-4 h-4" />
-            Assignments
+            Individuals
           </TabsTrigger>
           <TabsTrigger value="rooms" className="flex items-center gap-2">
             <DoorOpen className="w-4 h-4" />
@@ -357,6 +362,15 @@ Marian Hall,female,youth_u18,2,102,1,triple,3,false,,`
             Buildings
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="group-assignments" className="mt-4">
+          <GroupAssignments
+            eventId={eventId}
+            buildings={buildings}
+            rooms={rooms}
+            onRefresh={fetchData}
+          />
+        </TabsContent>
 
         <TabsContent value="assignments" className="mt-4">
           <ParticipantAssignments
