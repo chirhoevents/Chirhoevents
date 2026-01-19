@@ -337,6 +337,9 @@ model EventSettings {
   quadRoomCapacity                Int?     @map("quad_room_capacity")
   quadRoomRemaining               Int?     @map("quad_room_remaining")
 
+  // Salve Welcome Packet Settings (stored as JSON)
+  salvePacketSettings             Json?    @map("salve_packet_settings") @db.JsonB
+
   createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 

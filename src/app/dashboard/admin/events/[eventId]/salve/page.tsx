@@ -220,7 +220,7 @@ export default function SalveCheckInPage() {
 
       const packetData = await response.json()
 
-      // Generate printable HTML
+      // Generate printable HTML using saved settings from API response
       const printWindow = window.open('', '_blank')
       if (!printWindow) {
         toast.error('Please allow popups to print')
@@ -278,15 +278,16 @@ export default function SalveCheckInPage() {
       invoice: data.invoice,
     }
 
-    // Use settings from the packet settings (matching pre-print exactly)
+    // Use saved settings from the API response (welcome packets editor)
+    const savedSettings = data.packetPrintSettings || {}
     const printSettings = {
-      includeSchedule: true,
-      includeMap: true,
-      includeRoster: true,
-      includeHousingAssignments: true,
+      includeSchedule: savedSettings.includeSchedule ?? true,
+      includeMap: savedSettings.includeMap ?? true,
+      includeRoster: savedSettings.includeRoster ?? true,
+      includeHousingAssignments: savedSettings.includeHousingAssignments ?? true,
       includeHousingColumn: true,
-      includeEmergencyContacts: true,
-      includeInvoice: false, // Don't include invoice by default for check-in print
+      includeEmergencyContacts: savedSettings.includeEmergencyContacts ?? true,
+      includeInvoice: savedSettings.includeInvoice ?? false,
     }
 
     // Get active inserts with imageUrls for printing
