@@ -9,11 +9,13 @@
   /* Reset page margins and background */
   @page {
     margin: 0.5in;
+    size: letter;
   }
 
   body {
     background: white !important;
     color: black !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   }
 
   /* Make sure important info is visible */
@@ -21,11 +23,25 @@
     background: white !important;
   }
 
+  /* Organization logo styling for print */
+  .text-center img[alt] {
+    max-height: 80px !important;
+    margin: 0 auto 16px auto !important;
+  }
+
   /* Ensure cards have visible borders */
   .border-2.border-gold,
   .border-green-200,
   .border-blue-200 {
     border: 2px solid #333 !important;
+    border-radius: 8px !important;
+    margin-bottom: 16px !important;
+  }
+
+  /* Gold card header styling */
+  .bg-gold-50 {
+    background-color: #f5f3e6 !important;
+    border-bottom: 1px solid #333 !important;
   }
 
   /* Improve readability of text */
@@ -41,17 +57,47 @@
     color: #333 !important;
   }
 
+  /* Organization name in header */
+  h2.text-2xl {
+    font-size: 24px !important;
+    font-weight: bold !important;
+    color: #000 !important;
+    margin-bottom: 16px !important;
+  }
+
+  /* Main title styling */
+  h1.text-4xl {
+    font-size: 28px !important;
+    margin-bottom: 8px !important;
+  }
+
+  /* Make QR code prominent */
+  img[alt="Registration QR Code"] {
+    width: 180px !important;
+    height: 180px !important;
+    border: 2px solid #333 !important;
+    padding: 8px !important;
+    background: white !important;
+    border-radius: 8px !important;
+  }
+
   /* Make access code prominent */
   .font-mono.tracking-wider {
     font-size: 2rem !important;
     font-weight: bold !important;
-    border: 3px solid #000 !important;
-    padding: 1rem !important;
+    letter-spacing: 0.1em !important;
   }
 
-  /* Hide success header graphics */
-  .bg-green-100.rounded-full {
-    display: none;
+  /* Access code container styling */
+  .inline-block.bg-white {
+    border: 3px solid #333 !important;
+    padding: 16px 32px !important;
+    border-radius: 8px !important;
+  }
+
+  /* Group name prominent display */
+  .font-semibold.text-navy {
+    font-weight: bold !important;
   }
 
   /* Add page breaks to avoid splitting important sections */
@@ -59,8 +105,90 @@
     page-break-inside: avoid;
   }
 
+  /* Card content padding */
+  .p-8 {
+    padding: 24px !important;
+  }
+
   /* Improve table/grid readability */
   .border-t {
     border-top: 1px solid #333 !important;
+  }
+
+  /* Payment summary styling */
+  .space-y-2 > div {
+    padding: 4px 0 !important;
+  }
+
+  /* Next steps list styling */
+  ol.space-y-4 li {
+    page-break-inside: avoid;
+    margin-bottom: 12px !important;
+  }
+
+  /* Step numbers styling */
+  .w-8.h-8.bg-navy {
+    background-color: #1a365d !important;
+    color: white !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Info boxes */
+  .bg-blue-50,
+  .bg-green-50 {
+    background-color: #f0f4f8 !important;
+    border: 1px solid #666 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Email confirmation card */
+  .bg-green-50.border-green-200 {
+    background-color: #f0fff4 !important;
+    border: 1px solid #38a169 !important;
+  }
+
+  /* Payment due notice */
+  .bg-blue-50.p-4 {
+    background-color: #ebf8ff !important;
+    border: 1px solid #3182ce !important;
+    padding: 12px !important;
+    border-radius: 6px !important;
+  }
+
+  /* Card headers */
+  [class*="CardHeader"] {
+    padding: 12px 16px !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+  }
+
+  /* Card titles */
+  [class*="CardTitle"] {
+    font-size: 18px !important;
+    font-weight: 600 !important;
+  }
+
+  /* Hide checkmark icon in print (already hidden with print:hidden but backup) */
+  .bg-green-100.rounded-full {
+    display: none !important;
+  }
+
+  /* Summary grid layout */
+  .grid.grid-cols-2 {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 16px !important;
+  }
+
+  /* Balance remaining highlight */
+  .text-xl.font-bold {
+    font-size: 20px !important;
+    font-weight: bold !important;
+  }
+
+  /* Ensure links don't show URLs */
+  a::after {
+    content: none !important;
   }
 }

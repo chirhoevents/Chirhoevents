@@ -21,6 +21,8 @@ interface RegistrationData {
   totalAmount: number
   balanceRemaining: number
   registrationStatus: string
+  organizationName: string
+  organizationLogoUrl: string | null
 }
 
 export default function ConfirmationPage() {
@@ -83,9 +85,23 @@ export default function ConfirmationPage() {
     <div className="min-h-screen bg-beige py-12">
       <div className="container mx-auto px-4">
         <div className="max-w-3xl mx-auto">
+          {/* Organization Logo/Name */}
+          <div className="text-center mb-6">
+            {registration.organizationLogoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={registration.organizationLogoUrl}
+                alt={registration.organizationName}
+                className="h-20 mx-auto object-contain"
+              />
+            ) : (
+              <h2 className="text-2xl font-bold text-navy">{registration.organizationName}</h2>
+            )}
+          </div>
+
           {/* Success Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4 print:hidden">
               <CheckCircle className="h-10 w-10 text-green-600" />
             </div>
             <h1 className="text-4xl font-bold text-navy mb-2">

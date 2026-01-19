@@ -10,7 +10,16 @@ export async function GET(
     const registration = await prisma.groupRegistration.findUnique({
       where: { id: registrationId },
       include: {
-        event: true,
+        event: {
+          include: {
+            organization: {
+              select: {
+                name: true,
+                logoUrl: true,
+              },
+            },
+          },
+        },
       },
     })
 
@@ -68,6 +77,8 @@ export async function GET(
       totalAmount,
       balanceRemaining,
       registrationStatus: registration.registrationStatus,
+      organizationName: registration.event.organization.name,
+      organizationLogoUrl: registration.event.organization.logoUrl,
     })
   } catch (error) {
     console.error('Error fetching registration:', error)
