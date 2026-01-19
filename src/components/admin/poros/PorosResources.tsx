@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -33,6 +33,8 @@ import {
   ExternalLink,
   MapPin,
   Info,
+  Download,
+  Upload,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
@@ -75,6 +77,10 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
   // New item form data
   const [newResource, setNewResource] = useState({ name: '', type: 'link', url: '' })
   const [newSchedule, setNewSchedule] = useState({ day: 'day1', startTime: '', endTime: '', title: '', location: '' })
+
+  // Schedule import
+  const [importing, setImporting] = useState(false)
+  const scheduleFileInputRef = useRef<HTMLInputElement>(null)
 
   // Generate days based on event dates
   const getDays = () => {
@@ -210,6 +216,110 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
     }
   }
 
+  // Download schedule CSV template
+  function downloadScheduleTemplate() {
+    const headers = ['day', 'start_time', 'end_time', 'title', 'location']
+    const exampleRows = [
+      ['friday', '5:00 PM', '6:30 PM', 'Arrival / Registration', 'Various'],
+      ['friday', '7:00 PM', '8:00 PM', 'Opening Session', 'Main Hall'],
+      ['friday', '8:30 PM', '9:30 PM', 'Holy Mass', 'Chapel'],
+      ['saturday', '7:30 AM', '8:30 AM', 'Breakfast', 'Dining Hall'],
+      ['saturday', '9:00 AM', '10:00 AM', 'Keynote Speaker', 'Main Hall'],
+      ['saturday', '10:15 AM', '11:15 AM', 'Breakout Sessions', 'Various'],
+      ['sunday', '8:00 AM', '9:00 AM', 'Breakfast', 'Dining Hall'],
+      ['sunday', '10:00 AM', '11:30 AM', 'Closing Mass', 'Chapel'],
+      ['sunday', '12:00 PM', '', 'Departure', 'All Exits'],
+    ]
+
+    const csvContent = [
+      headers.join(','),
+      ...exampleRows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'schedule_template.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // Import schedule from CSV
+  async function handleScheduleImport(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setImporting(true)
+    try {
+      const text = await file.text()
+      const lines = text.split('\n').filter(line => line.trim())
+
+      if (lines.length < 2) {
+        throw new Error('CSV must have a header row and at least one data row')
+      }
+
+      // Parse header
+      const header = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase())
+      const dayIndex = header.findIndex(h => h === 'day')
+      const startTimeIndex = header.findIndex(h => h === 'start_time' || h === 'starttime' || h === 'start time')
+      const endTimeIndex = header.findIndex(h => h === 'end_time' || h === 'endtime' || h === 'end time')
+      const titleIndex = header.findIndex(h => h === 'title' || h === 'event' || h === 'event_name')
+      const locationIndex = header.findIndex(h => h === 'location')
+
+      if (dayIndex === -1 || startTimeIndex === -1 || titleIndex === -1) {
+        throw new Error('CSV must have day, start_time, and title columns')
+      }
+
+      // Parse data rows
+      const entries = []
+      for (let i = 1; i < lines.length; i++) {
+        const row = lines[i].match(/("([^"]*)"|[^,]*)/g)?.map(cell =>
+          cell.replace(/^"|"$/g, '').trim()
+        ) || []
+
+        if (row.length === 0 || !row[dayIndex] || !row[startTimeIndex] || !row[titleIndex]) {
+          continue
+        }
+
+        entries.push({
+          day: row[dayIndex].toLowerCase(),
+          startTime: row[startTimeIndex],
+          endTime: endTimeIndex !== -1 ? row[endTimeIndex] || null : null,
+          title: row[titleIndex],
+          location: locationIndex !== -1 ? row[locationIndex] || null : null,
+        })
+      }
+
+      if (entries.length === 0) {
+        throw new Error('No valid entries found in CSV')
+      }
+
+      // Send to API
+      const response = await fetch(`/api/admin/events/${eventId}/poros/schedule/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entries }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || 'Failed to import schedule')
+      }
+
+      const result = await response.json()
+      toast.success(`Imported ${result.count} schedule entries`)
+      fetchData()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to import schedule')
+    } finally {
+      setImporting(false)
+      if (scheduleFileInputRef.current) {
+        scheduleFileInputRef.current.value = ''
+      }
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-12">
@@ -315,14 +425,40 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
                 Event schedule entries organized by day
               </CardDescription>
             </div>
-            <Button onClick={() => {
-              setEditingSchedule(null)
-              setNewSchedule({ day: days[0] || 'day1', startTime: '', endTime: '', title: '', location: '' })
-              setScheduleDialogOpen(true)
-            }}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Entry
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={downloadScheduleTemplate}>
+                <Download className="w-4 h-4 mr-2" />
+                Template
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => scheduleFileInputRef.current?.click()}
+                disabled={importing}
+              >
+                {importing ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4 mr-2" />
+                )}
+                Import CSV
+              </Button>
+              <input
+                type="file"
+                ref={scheduleFileInputRef}
+                onChange={handleScheduleImport}
+                accept=".csv"
+                className="hidden"
+              />
+              <Button onClick={() => {
+                setEditingSchedule(null)
+                setNewSchedule({ day: days[0] || 'day1', startTime: '', endTime: '', title: '', location: '' })
+                setScheduleDialogOpen(true)
+              }}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Entry
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
