@@ -82,22 +82,61 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
   const [importing, setImporting] = useState(false)
   const scheduleFileInputRef = useRef<HTMLInputElement>(null)
 
-  // Generate days based on event dates
+  // Common day names for events
+  const DAY_NAMES: Record<string, string> = {
+    'friday': 'Friday',
+    'saturday': 'Saturday',
+    'sunday': 'Sunday',
+    'monday': 'Monday',
+    'tuesday': 'Tuesday',
+    'wednesday': 'Wednesday',
+    'thursday': 'Thursday',
+    'day1': 'Day 1',
+    'day2': 'Day 2',
+    'day3': 'Day 3',
+    'day4': 'Day 4',
+    'day5': 'Day 5',
+  }
+
+  // Get display name for a day
+  const getDayDisplayName = (day: string) => {
+    return DAY_NAMES[day.toLowerCase()] || day.charAt(0).toUpperCase() + day.slice(1)
+  }
+
+  // Generate days based on event dates OR from existing schedule entries
   const getDays = () => {
+    // First check if we have schedule entries with specific days
+    const existingDays = new Set(scheduleEntries.map(e => e.day.toLowerCase()))
+
+    // Common day order for sorting
+    const dayOrder = ['friday', 'saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'day1', 'day2', 'day3', 'day4', 'day5']
+
+    if (existingDays.size > 0) {
+      // Use the days from existing entries, sorted properly
+      return Array.from(existingDays).sort((a, b) => {
+        const aIndex = dayOrder.indexOf(a)
+        const bIndex = dayOrder.indexOf(b)
+        if (aIndex === -1 && bIndex === -1) return a.localeCompare(b)
+        if (aIndex === -1) return 1
+        if (bIndex === -1) return -1
+        return aIndex - bIndex
+      })
+    }
+
+    // Fall back to generating days from event dates
     if (!eventStartDate || !eventEndDate) {
-      return ['day1', 'day2', 'day3']
+      return ['friday', 'saturday', 'sunday']
     }
     const start = new Date(eventStartDate)
     const end = new Date(eventEndDate)
     const days: string[] = []
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
     let current = new Date(start)
-    let dayNum = 1
     while (current <= end) {
-      days.push(`day${dayNum}`)
+      days.push(dayNames[current.getDay()])
       current.setDate(current.getDate() + 1)
-      dayNum++
     }
-    return days.length > 0 ? days : ['day1', 'day2', 'day3']
+    return days.length > 0 ? days : ['friday', 'saturday', 'sunday']
   }
 
   const days = getDays()
@@ -516,7 +555,7 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
                 if (dayEntries.length === 0) return null
                 return (
                   <div key={day}>
-                    <h4 className="font-semibold text-lg mb-3 capitalize">{day.replace('day', 'Day ')}</h4>
+                    <h4 className="font-semibold text-lg mb-3">{getDayDisplayName(day)}</h4>
                     <div className="space-y-2">
                       {dayEntries.sort((a, b) => a.startTime.localeCompare(b.startTime)).map((entry) => (
                         <div key={entry.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -639,7 +678,7 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
                 </SelectTrigger>
                 <SelectContent>
                   {days.map((day) => (
-                    <SelectItem key={day} value={day}>{day.replace('day', 'Day ')}</SelectItem>
+                    <SelectItem key={day} value={day}>{getDayDisplayName(day)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -648,23 +687,23 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
               <div>
                 <Label>Start Time</Label>
                 <Input
-                  type="time"
                   value={editingSchedule?.startTime || newSchedule.startTime}
                   onChange={(e) => editingSchedule
                     ? setEditingSchedule({ ...editingSchedule, startTime: e.target.value })
                     : setNewSchedule({ ...newSchedule, startTime: e.target.value })
                   }
+                  placeholder="e.g., 9:00 AM"
                 />
               </div>
               <div>
                 <Label>End Time (optional)</Label>
                 <Input
-                  type="time"
                   value={editingSchedule?.endTime || newSchedule.endTime}
                   onChange={(e) => editingSchedule
                     ? setEditingSchedule({ ...editingSchedule, endTime: e.target.value })
                     : setNewSchedule({ ...newSchedule, endTime: e.target.value })
                   }
+                  placeholder="e.g., 10:00 AM"
                 />
               </div>
             </div>
