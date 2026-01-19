@@ -25,8 +25,8 @@ export async function GET(
     const { eventId } = await context.params
 
     // Verify user has access to this event
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
+    const user = await prisma.user.findFirst({
+      where: { clerkUserId: userId },
       select: { id: true },
     })
 
@@ -98,8 +98,8 @@ export async function PUT(
     }
 
     // Verify user has access to this event
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
+    const user = await prisma.user.findFirst({
+      where: { clerkUserId: userId },
       select: { id: true },
     })
 
