@@ -170,6 +170,11 @@ export async function POST(
             : 'on_campus'
 
           // Set housing counts based on housing type for inventory tracking
+          // Put all participants in "youth" category for inventory (will be refined by participant import)
+          const onCampusYouth = housingType === 'on_campus' ? totalParticipants : 0
+          const offCampusYouth = housingType === 'off_campus' ? totalParticipants : 0
+          const dayPassYouth = housingType === 'day_pass' ? totalParticipants : 0
+          // Also set legacy count fields
           const onCampusCount = housingType === 'on_campus' ? totalParticipants : 0
           const offCampusCount = housingType === 'off_campus' ? totalParticipants : 0
           const dayPassCount = housingType === 'day_pass' ? totalParticipants : 0
@@ -189,7 +194,13 @@ export async function POST(
             priestCount: 0,
             totalParticipants,
             housingType: housingType as any,
-            // Set housing inventory counts
+            // Set housing inventory counts (both youth-specific and legacy)
+            onCampusYouth,
+            onCampusChaperones: 0,
+            offCampusYouth,
+            offCampusChaperones: 0,
+            dayPassYouth,
+            dayPassChaperones: 0,
             onCampusCount,
             offCampusCount,
             dayPassCount,
