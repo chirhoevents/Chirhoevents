@@ -402,11 +402,13 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
       where: {
         eventId,
         isActive: true,
-        OR: [
-          { startDate: null },
-          { startDate: { lte: now } }
-        ],
         AND: [
+          {
+            OR: [
+              { startDate: null },
+              { startDate: { lte: now } }
+            ]
+          },
           {
             OR: [
               { endDate: null },
