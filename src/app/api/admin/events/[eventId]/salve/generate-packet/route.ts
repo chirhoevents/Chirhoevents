@@ -391,7 +391,7 @@ export async function POST(
       // Invoice data
       invoice: {
         groupName: group.groupName,
-        groupLeaderName: `${group.groupLeaderFirstName || ''} ${group.groupLeaderLastName || ''}`.trim() || group.groupLeaderEmail,
+        groupLeaderName: group.groupLeaderName || group.groupLeaderEmail,
         groupLeaderEmail: group.groupLeaderEmail,
         accessCode: group.accessCode,
         lineItems: [
