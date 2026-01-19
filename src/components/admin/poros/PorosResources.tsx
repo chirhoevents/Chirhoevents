@@ -96,7 +96,7 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
   // New item form data
   const [newResource, setNewResource] = useState({ name: '', type: 'link', url: '' })
   const [newSchedule, setNewSchedule] = useState({ day: 'day1', startTime: '', endTime: '', title: '', location: '' })
-  const [newAnnouncement, setNewAnnouncement] = useState({ title: '', message: '', type: 'info' as const, startDate: '', endDate: '', isActive: true })
+  const [newAnnouncement, setNewAnnouncement] = useState<{ title: string; message: string; type: 'info' | 'warning' | 'urgent'; startDate: string; endDate: string; isActive: boolean }>({ title: '', message: '', type: 'info', startDate: '', endDate: '', isActive: true })
 
   // Schedule import
   const [importing, setImporting] = useState(false)
