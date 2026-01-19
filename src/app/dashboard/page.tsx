@@ -57,6 +57,31 @@ export default function DashboardRedirect() {
           return
         }
 
+        // Check for pending portal redirect (set by sign-in page)
+        // This allows Rapha/SALVE coordinators to go directly to their dedicated pages
+        const pendingPortal = typeof window !== 'undefined'
+          ? sessionStorage.getItem('pendingPortalRedirect')
+          : null
+
+        if (pendingPortal) {
+          // Clear the pending redirect
+          sessionStorage.removeItem('pendingPortalRedirect')
+
+          // Redirect to the dedicated coordinator page
+          if (pendingPortal === 'rapha') {
+            setStatus('Redirecting to Rapha Medical Portal...')
+            hasRedirected.current = true
+            router.replace('/coordinator/rapha')
+            return
+          } else if (pendingPortal === 'salve') {
+            setStatus('Redirecting to SALVE Check-In Portal...')
+            hasRedirected.current = true
+            router.replace('/coordinator/salve')
+            return
+          }
+          // For other portals, continue with normal role-based routing
+        }
+
         setStatus('Determining your role...')
 
         let response = await fetch('/api/user/role', {
