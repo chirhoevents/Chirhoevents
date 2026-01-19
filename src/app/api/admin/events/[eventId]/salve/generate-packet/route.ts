@@ -325,6 +325,8 @@ export async function POST(
       inserts: inserts.map((i: any) => ({
         name: i.name,
         fileUrl: i.fileUrl,
+        imageUrls: i.imageUrls,
+        fileType: i.fileType,
         displayOrder: i.displayOrder,
       })),
       settings: settings || {
