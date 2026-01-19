@@ -275,6 +275,7 @@ export default function SalveCheckInPage() {
       },
       resources: data.resources,
       inserts: data.inserts,
+      invoice: data.invoice,
     }
 
     // Use settings from the packet settings (matching pre-print exactly)
@@ -285,6 +286,7 @@ export default function SalveCheckInPage() {
       includeHousingAssignments: true,
       includeHousingColumn: true,
       includeEmergencyContacts: true,
+      includeInvoice: false, // Don't include invoice by default for check-in print
     }
 
     // Get active inserts with imageUrls for printing

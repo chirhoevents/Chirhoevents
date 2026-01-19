@@ -991,6 +991,7 @@ export default function SalveDedicatedPortal() {
         },
         resources: data.resources,
         inserts: data.inserts,
+        invoice: data.invoice,
       }
 
       // Use settings matching pre-print exactly
@@ -1001,6 +1002,7 @@ export default function SalveDedicatedPortal() {
         includeHousingAssignments: true,
         includeHousingColumn: true,
         includeEmergencyContacts: true,
+        includeInvoice: false, // Don't include invoice by default for portal print
       }
 
       // Get active inserts for printing

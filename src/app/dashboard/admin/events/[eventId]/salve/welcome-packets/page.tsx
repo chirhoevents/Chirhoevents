@@ -64,6 +64,7 @@ interface PacketSettings {
   includeRoster: boolean
   includeHousingAssignments: boolean
   includeEmergencyContacts: boolean
+  includeInvoice: boolean
 }
 
 interface MissingResources {
@@ -138,6 +139,7 @@ const DEFAULT_SETTINGS: PacketSettings = {
   includeRoster: true,
   includeHousingAssignments: true,
   includeEmergencyContacts: true,
+  includeInvoice: false,
 }
 
 // Sortable insert item component
@@ -610,6 +612,7 @@ export default function WelcomePacketsPage() {
       },
       resources: packet.resources,
       inserts: packet.inserts,
+      invoice: packet.invoice,
     }))
 
     // Convert settings to the shared PrintSettings format
@@ -620,6 +623,7 @@ export default function WelcomePacketsPage() {
       includeHousingAssignments: settings.includeHousingAssignments,
       includeHousingColumn: settings.includeHousingAssignments,
       includeEmergencyContacts: settings.includeEmergencyContacts,
+      includeInvoice: settings.includeInvoice,
     }
 
     return generateMultiplePacketsHTML(packetData, printSettings, activeInserts)
@@ -772,6 +776,18 @@ export default function WelcomePacketsPage() {
                 <Label htmlFor="includeEmergencyContacts" className="font-normal flex items-center gap-2">
                   <Phone className="w-4 h-4" />
                   Emergency Contacts
+                </Label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="includeInvoice"
+                  checked={settings.includeInvoice}
+                  onCheckedChange={(checked) => updateSettings('includeInvoice', !!checked)}
+                />
+                <Label htmlFor="includeInvoice" className="font-normal flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Invoice / Payment Summary
                 </Label>
               </div>
             </div>

@@ -204,6 +204,32 @@ export async function POST(
       },
     })
 
+    // Get event pricing for invoice calculation
+    const eventPricing = await prisma.eventPricing.findFirst({
+      where: { eventId },
+    })
+
+    // Get payments for invoice
+    const payments = await prisma.payment.findMany({
+      where: { groupRegistrationId: groupId },
+      orderBy: { createdAt: 'asc' },
+    })
+
+    // Calculate invoice totals
+    const youthCount = group.participants.filter(
+      (p: any) => p.participantType !== 'chaperone' && p.participantType !== 'priest'
+    ).length
+    const chaperoneCount = group.participants.filter((p: any) => p.participantType === 'chaperone').length
+    const clergyCount = group.participants.filter((p: any) => p.participantType === 'priest').length
+
+    const youthPrice = Number(eventPricing?.youthRegularPrice || 0)
+    const chaperonePrice = Number(eventPricing?.chaperoneRegularPrice || 0)
+    const clergyPrice = Number(eventPricing?.priestPrice || 0)
+
+    const totalAmount = (youthCount * youthPrice) + (chaperoneCount * chaperonePrice) + (clergyCount * clergyPrice)
+    const totalPaid = payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0)
+    const balanceRemaining = totalAmount - totalPaid
+
     // Get schedule entries from Poros
     const scheduleEntries = await prisma.porosScheduleEntry.findMany({
       where: { eventId },
@@ -361,6 +387,42 @@ export async function POST(
         mealSchedule: mealTimes.length === 0,
         eventSchedule: scheduleEntries.length === 0,
         emergencyProcedures: !settings?.emergencyProceduresUrl,
+      },
+      // Invoice data
+      invoice: {
+        groupName: group.groupName,
+        groupLeaderName: `${group.groupLeaderFirstName || ''} ${group.groupLeaderLastName || ''}`.trim() || group.groupLeaderEmail,
+        groupLeaderEmail: group.groupLeaderEmail,
+        accessCode: group.accessCode,
+        lineItems: [
+          ...(youthCount > 0 ? [{
+            description: 'Youth Registration',
+            quantity: youthCount,
+            unitPrice: youthPrice,
+            total: youthCount * youthPrice,
+          }] : []),
+          ...(chaperoneCount > 0 ? [{
+            description: 'Chaperone Registration',
+            quantity: chaperoneCount,
+            unitPrice: chaperonePrice,
+            total: chaperoneCount * chaperonePrice,
+          }] : []),
+          ...(clergyCount > 0 ? [{
+            description: 'Clergy Registration',
+            quantity: clergyCount,
+            unitPrice: clergyPrice,
+            total: clergyCount * clergyPrice,
+          }] : []),
+        ],
+        payments: payments.map((p: any) => ({
+          date: p.createdAt,
+          method: p.paymentMethod || 'Payment',
+          amount: Number(p.amount),
+          reference: p.stripePaymentIntentId || p.checkNumber || p.id,
+        })),
+        totalAmount,
+        totalPaid,
+        balanceRemaining,
       },
       generatedAt: new Date(),
     }

@@ -88,6 +88,27 @@ export interface PacketData {
     fileUrl?: string
     imageUrls?: string[] | null
   }>
+  invoice?: {
+    groupName: string
+    groupLeaderName?: string
+    groupLeaderEmail?: string
+    accessCode: string
+    lineItems: Array<{
+      description: string
+      quantity: number
+      unitPrice: number
+      total: number
+    }>
+    payments: Array<{
+      date: Date | string
+      method: string
+      amount: number
+      reference?: string
+    }>
+    totalAmount: number
+    totalPaid: number
+    balanceRemaining: number
+  }
 }
 
 export interface PrintSettings {
@@ -97,6 +118,7 @@ export interface PrintSettings {
   includeHousingAssignments?: boolean
   includeHousingColumn?: boolean
   includeEmergencyContacts?: boolean
+  includeInvoice?: boolean
 }
 
 /**
@@ -107,6 +129,7 @@ export function generateWelcomePacketHTML(packet: PacketData, settings: PrintSet
     includeRoster = true,
     includeHousingAssignments = true,
     includeHousingColumn = true,
+    includeInvoice = false,
   } = settings
 
   // Participant rows for roster table
@@ -200,6 +223,98 @@ export function generateWelcomePacketHTML(packet: PacketData, settings: PrintSet
     </div>
   ` : ''
 
+  // Invoice section
+  const invoiceSection = includeInvoice && packet.invoice ? `
+    <div style="page-break-before: always; margin-bottom: 16px;">
+      <div style="font-size: 16px; font-weight: 700; color: #1a365d; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 3px solid #c9a227;">
+        Invoice / Payment Summary
+      </div>
+
+      <!-- Group Info for Invoice -->
+      <div style="margin-bottom: 16px; padding: 12px; background: #f8fafc; border-radius: 6px;">
+        <div style="font-size: 14px; font-weight: 600; color: #1a365d;">${packet.invoice.groupName}</div>
+        ${packet.invoice.groupLeaderName ? `<div style="font-size: 11px; color: #666; margin-top: 2px;">${packet.invoice.groupLeaderName}</div>` : ''}
+        ${packet.invoice.groupLeaderEmail ? `<div style="font-size: 11px; color: #666;">${packet.invoice.groupLeaderEmail}</div>` : ''}
+        <div style="font-size: 11px; color: #666; margin-top: 4px;">Access Code: <strong>${packet.invoice.accessCode}</strong></div>
+      </div>
+
+      <!-- Line Items -->
+      <div style="margin-bottom: 16px;">
+        <div style="font-size: 12px; font-weight: 600; color: #1a365d; margin-bottom: 8px;">Registration Charges</div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+          <thead>
+            <tr style="background: #f5f5f5;">
+              <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Description</th>
+              <th style="padding: 8px; text-align: center; border-bottom: 2px solid #ddd;">Qty</th>
+              <th style="padding: 8px; text-align: right; border-bottom: 2px solid #ddd;">Unit Price</th>
+              <th style="padding: 8px; text-align: right; border-bottom: 2px solid #ddd;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${packet.invoice.lineItems.map((item, i) => `
+              <tr style="${i % 2 === 0 ? 'background: #fafafa;' : ''}">
+                <td style="padding: 6px 8px; border-bottom: 1px solid #eee;">${item.description}</td>
+                <td style="padding: 6px 8px; text-align: center; border-bottom: 1px solid #eee;">${item.quantity}</td>
+                <td style="padding: 6px 8px; text-align: right; border-bottom: 1px solid #eee;">$${item.unitPrice.toFixed(2)}</td>
+                <td style="padding: 6px 8px; text-align: right; border-bottom: 1px solid #eee;">$${item.total.toFixed(2)}</td>
+              </tr>
+            `).join('')}
+            <tr style="background: #f0f0f0; font-weight: 600;">
+              <td colspan="3" style="padding: 8px; text-align: right; border-top: 2px solid #ddd;">Total Registration:</td>
+              <td style="padding: 8px; text-align: right; border-top: 2px solid #ddd;">$${packet.invoice.totalAmount.toFixed(2)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Payments -->
+      ${packet.invoice.payments.length > 0 ? `
+        <div style="margin-bottom: 16px;">
+          <div style="font-size: 12px; font-weight: 600; color: #1a365d; margin-bottom: 8px;">Payment History</div>
+          <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+            <thead>
+              <tr style="background: #f5f5f5;">
+                <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Date</th>
+                <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Method</th>
+                <th style="padding: 8px; text-align: right; border-bottom: 2px solid #ddd;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${packet.invoice.payments.map((payment, i) => `
+                <tr style="${i % 2 === 0 ? 'background: #fafafa;' : ''}">
+                  <td style="padding: 6px 8px; border-bottom: 1px solid #eee;">${new Date(payment.date).toLocaleDateString()}</td>
+                  <td style="padding: 6px 8px; border-bottom: 1px solid #eee;">${payment.method}</td>
+                  <td style="padding: 6px 8px; text-align: right; border-bottom: 1px solid #eee; color: #16a34a;">-$${payment.amount.toFixed(2)}</td>
+                </tr>
+              `).join('')}
+              <tr style="background: #f0f0f0; font-weight: 600;">
+                <td colspan="2" style="padding: 8px; text-align: right; border-top: 2px solid #ddd;">Total Paid:</td>
+                <td style="padding: 8px; text-align: right; border-top: 2px solid #ddd; color: #16a34a;">$${packet.invoice.totalPaid.toFixed(2)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      ` : ''}
+
+      <!-- Balance Summary -->
+      <div style="padding: 16px; border-radius: 8px; ${packet.invoice.balanceRemaining <= 0 ? 'background: #dcfce7; border: 2px solid #16a34a;' : 'background: #fef3c7; border: 2px solid #d97706;'}">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-size: 14px; font-weight: 600; color: ${packet.invoice.balanceRemaining <= 0 ? '#16a34a' : '#d97706'};">
+              ${packet.invoice.balanceRemaining <= 0 ? 'Paid in Full' : 'Balance Due'}
+            </div>
+            <div style="font-size: 11px; color: #666; margin-top: 2px;">
+              ${packet.invoice.balanceRemaining <= 0 ? 'Thank you for your payment!' : 'Please submit payment before the event.'}
+            </div>
+          </div>
+          <div style="font-size: 24px; font-weight: 700; color: ${packet.invoice.balanceRemaining <= 0 ? '#16a34a' : '#d97706'};">
+            $${Math.abs(packet.invoice.balanceRemaining).toFixed(2)}
+          </div>
+        </div>
+      </div>
+    </div>
+  ` : ''
+
   return `
     <div style="page-break-after: always; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; max-width: 8in; margin: 0 auto;">
       <!-- Header with Logos -->
@@ -282,6 +397,9 @@ export function generateWelcomePacketHTML(packet: PacketData, settings: PrintSet
           </table>
         </div>
       ` : ''}
+
+      <!-- Invoice -->
+      ${invoiceSection}
 
       <!-- Footer -->
       <div style="text-align: center; font-size: 9px; color: #999; padding-top: 12px; margin-top: 16px; border-top: 1px solid #eee;">
