@@ -220,9 +220,9 @@ export function generateWelcomePacketHTML(packet: PacketData, settings: PrintSet
         ${packet.event.organizationName ? `<div style="font-size: 12px; color: #666;">${packet.event.organizationName}</div>` : ''}
       </div>
 
-      <!-- Group Welcome Banner -->
+      <!-- Group Salve Banner -->
       <div style="background: linear-gradient(135deg, #1a365d 0%, #2d4a6f 100%); color: white; padding: 14px; border-radius: 8px; text-align: center; margin-bottom: 16px;">
-        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; margin-bottom: 2px;">Welcome</div>
+        <div style="font-size: 14px; font-style: italic; letter-spacing: 1px; opacity: 0.9; margin-bottom: 2px;">Salve,</div>
         <div style="font-size: 18px; font-weight: 700;">${packet.group.name}</div>
         ${packet.group.diocese ? `<div style="font-size: 11px; opacity: 0.9; margin-top: 2px;">${packet.group.diocese}</div>` : ''}
         <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">${packet.participants.total} Participants</div>
