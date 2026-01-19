@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckCircle, Download, Mail, Loader2 } from 'lucide-react'
+import { CheckCircle, Printer, Mail, Loader2 } from 'lucide-react'
 import '@/styles/print-receipt.css'
 import LoadingScreen from '@/components/LoadingScreen'
 
@@ -61,7 +61,177 @@ export default function ConfirmationPage() {
   }, [registrationId, sessionId])
 
   const handleDownloadReceipt = () => {
-    window.print()
+    if (!registration) return
+
+    // Generate a professional printable HTML document
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) {
+      alert('Please allow popups to print your receipt')
+      return
+    }
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <title>Registration Confirmation - ${registration.groupName}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      @page { margin: 0.5in; size: letter; }
+    }
+    body { font-family: system-ui, -apple-system, sans-serif; }
+  </style>
+</head>
+<body class="p-8 max-w-3xl mx-auto bg-white">
+  <!-- Header with Logos -->
+  <div class="relative mb-8 pb-4 border-b-2 border-gray-200">
+    <!-- ChirhoEvents Logo - Small, top left -->
+    <div class="absolute top-0 left-0">
+      <img src="/logo-horizontal.png" alt="ChiRho Events" class="h-8" onerror="this.style.display='none'" />
+    </div>
+
+    <!-- Org Logo - Centered -->
+    <div class="flex flex-col items-center justify-center pt-4">
+      ${registration.organizationLogoUrl
+        ? `<img src="${registration.organizationLogoUrl}" alt="${registration.organizationName}" class="h-20 mb-3 object-contain" onerror="this.parentElement.innerHTML='<h2 class=\\'text-2xl font-bold text-gray-800\\'>${registration.organizationName}</h2>'" />`
+        : `<h2 class="text-2xl font-bold text-gray-800">${registration.organizationName}</h2>`
+      }
+      <h1 class="text-3xl font-bold text-center text-[#1a365d] mt-2">${registration.eventName}</h1>
+      <p class="text-lg text-gray-600 mt-1">Registration Confirmation</p>
+    </div>
+  </div>
+
+  <!-- Group Info Banner -->
+  <div class="mb-6 bg-gradient-to-r from-[#1a365d] to-[#2d4a6f] text-white p-6 rounded-xl">
+    <div class="text-center">
+      <p class="text-sm uppercase tracking-wider opacity-80 mb-1">Welcome</p>
+      <h2 class="text-2xl font-bold">${registration.groupName}</h2>
+      <p class="text-sm opacity-80 mt-1">${registration.totalParticipants} Participants</p>
+    </div>
+  </div>
+
+  <!-- QR Code & Access Code -->
+  <div class="mb-6 border-2 border-[#c9a227] rounded-xl overflow-hidden">
+    <div class="bg-[#faf8f0] px-4 py-3 border-b border-[#c9a227]">
+      <h3 class="text-lg font-bold text-center text-[#1a365d]">Check-In Information</h3>
+    </div>
+    <div class="p-8 text-center bg-white">
+      ${registration.qrCode ? `
+        <div class="mb-6">
+          <img src="${registration.qrCode}" alt="QR Code" class="w-48 h-48 mx-auto border-2 border-gray-200 rounded-lg p-2 bg-white" />
+          <p class="text-sm text-gray-500 mt-2">Scan this QR code at check-in</p>
+        </div>
+      ` : ''}
+
+      <div class="inline-block bg-gradient-to-br from-gray-50 to-white px-10 py-6 rounded-xl border-3 border-[#c9a227] shadow-lg">
+        <p class="text-sm text-gray-500 mb-2 uppercase tracking-wider">Group Access Code</p>
+        <p class="text-4xl font-bold text-[#1a365d] font-mono tracking-[0.2em]">${registration.accessCode}</p>
+      </div>
+      <p class="text-gray-500 text-sm mt-4 max-w-md mx-auto">
+        Save this code! You'll need it to complete liability forms and access your Group Leader Portal.
+      </p>
+    </div>
+  </div>
+
+  <!-- Payment Summary -->
+  <div class="mb-6 border border-gray-200 rounded-xl overflow-hidden">
+    <div class="bg-gray-50 px-4 py-3 border-b">
+      <h3 class="text-lg font-bold text-[#1a365d]">Payment Summary</h3>
+    </div>
+    <div class="p-6 bg-white">
+      <div class="space-y-3">
+        <div class="flex justify-between text-gray-600">
+          <span>Total Registration Cost:</span>
+          <span class="font-semibold text-gray-800">$${registration.totalAmount.toFixed(2)}</span>
+        </div>
+        <div class="flex justify-between text-green-600">
+          <span>Deposit Paid:</span>
+          <span class="font-semibold">-$${registration.depositPaid.toFixed(2)}</span>
+        </div>
+        <div class="flex justify-between pt-3 border-t-2 border-gray-200">
+          <span class="font-bold text-[#1a365d]">Balance Remaining:</span>
+          <span class="text-2xl font-bold text-[#1a365d]">$${registration.balanceRemaining.toFixed(2)}</span>
+        </div>
+      </div>
+      ${registration.balanceRemaining > 0 ? `
+        <div class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p class="text-sm text-blue-800">
+            <strong>Payment Due:</strong> Your balance is due before the event. Make payments anytime in your Group Leader Portal.
+          </p>
+        </div>
+      ` : `
+        <div class="mt-4 bg-green-50 border border-green-200 rounded-lg p-4">
+          <p class="text-sm text-green-800 font-medium">
+            ✓ Paid in Full - Thank you!
+          </p>
+        </div>
+      `}
+    </div>
+  </div>
+
+  <!-- Next Steps -->
+  <div class="mb-6 border border-gray-200 rounded-xl overflow-hidden">
+    <div class="bg-gray-50 px-4 py-3 border-b">
+      <h3 class="text-lg font-bold text-[#1a365d]">Next Steps</h3>
+    </div>
+    <div class="p-6 bg-white">
+      <div class="space-y-4">
+        <div class="flex items-start gap-4">
+          <div class="flex-shrink-0 w-8 h-8 bg-[#1a365d] text-white rounded-full flex items-center justify-center font-bold text-sm">1</div>
+          <div>
+            <p class="font-semibold text-[#1a365d]">Complete Liability Forms</p>
+            <p class="text-sm text-gray-600">Each participant must complete their form at the Poros liability platform using your access code.</p>
+          </div>
+        </div>
+        <div class="flex items-start gap-4">
+          <div class="flex-shrink-0 w-8 h-8 bg-[#1a365d] text-white rounded-full flex items-center justify-center font-bold text-sm">2</div>
+          <div>
+            <p class="font-semibold text-[#1a365d]">Access Your Group Leader Dashboard</p>
+            <p class="text-sm text-gray-600">Sign in to manage your group, make payments, and track liability form completion.</p>
+          </div>
+        </div>
+        <div class="flex items-start gap-4">
+          <div class="flex-shrink-0 w-8 h-8 bg-[#1a365d] text-white rounded-full flex items-center justify-center font-bold text-sm">3</div>
+          <div>
+            <p class="font-semibold text-[#1a365d]">Check-In at the Event</p>
+            <p class="text-sm text-gray-600">Bring this QR code (on your phone or printed) for quick check-in at the conference!</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contact Info -->
+  <div class="bg-green-50 border border-green-200 rounded-xl p-6 mb-6">
+    <div class="flex items-start gap-3">
+      <div class="text-green-600 text-xl">✉</div>
+      <div>
+        <p class="font-semibold text-green-900">Confirmation Email Sent</p>
+        <p class="text-sm text-green-800">
+          We've sent a confirmation to <strong>${registration.groupLeaderEmail}</strong> with your access code and next steps.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="text-center text-xs text-gray-400 pt-6 border-t border-gray-200">
+    <p>Registration ID: ${registration.id}</p>
+    <p class="mt-1">Generated on ${new Date().toLocaleString()}</p>
+    <p class="mt-2 font-medium">Powered by ChiRho Events</p>
+  </div>
+</body>
+</html>`
+
+    printWindow.document.write(html)
+    printWindow.document.close()
+    printWindow.focus()
+
+    // Give it a moment to load Tailwind CSS, then print
+    setTimeout(() => {
+      printWindow.print()
+    }, 500)
   }
 
   if (loading) {
@@ -307,8 +477,8 @@ export default function ConfirmationPage() {
           {/* Action Buttons */}
           <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center print:hidden">
             <Button size="lg" variant="outline" onClick={handleDownloadReceipt}>
-              <Download className="mr-2 h-4 w-4" />
-              Download Receipt
+              <Printer className="mr-2 h-4 w-4" />
+              Print Confirmation
             </Button>
             <Button
               size="lg"
