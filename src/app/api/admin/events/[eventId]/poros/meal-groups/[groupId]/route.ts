@@ -29,6 +29,7 @@ export async function PUT(
         name: body.name,
         color: body.color,
         colorHex: body.colorHex,
+        accommodationType: body.accommodationType,
         breakfastTime: body.breakfastTime,
         lunchTime: body.lunchTime,
         dinnerTime: body.dinnerTime,

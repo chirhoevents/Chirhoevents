@@ -1629,6 +1629,8 @@ model MealGroup {
   name         String   @db.VarChar(100)
   color        String   @db.VarChar(50)
   colorHex     String   @map("color_hex") @db.VarChar(7)
+  // Accommodation type: 'on_campus', 'off_campus', or 'all' (default)
+  accommodationType String @default("all") @map("accommodation_type") @db.VarChar(20)
   // Saturday meals
   breakfastTime String? @map("breakfast_time") @db.VarChar(50)
   lunchTime    String?  @map("lunch_time") @db.VarChar(50)

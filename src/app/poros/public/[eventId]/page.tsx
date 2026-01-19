@@ -59,7 +59,7 @@ async function fetchM2KDataFromDatabase(eventId: string) {
       }),
       prisma.mealGroup.findMany({
         where: { eventId, isActive: true },
-        select: { id: true, name: true, colorHex: true, breakfastTime: true, lunchTime: true, dinnerTime: true },
+        select: { id: true, name: true, colorHex: true, breakfastTime: true, lunchTime: true, dinnerTime: true, sundayBreakfastTime: true },
         orderBy: { displayOrder: 'asc' }
       }),
       prisma.mealGroupAssignment.findMany({
@@ -168,7 +168,8 @@ async function fetchM2KDataFromDatabase(eventId: string) {
         satBreakfast: mg.breakfastTime || '',
         satLunch: mg.lunchTime || '',
         satDinner: mg.dinnerTime || '',
-        sunBreakfast: mg.breakfastTime || '',
+        sunBreakfast: mg.sundayBreakfastTime || mg.breakfastTime || '',
+        colorHex: mg.colorHex || '',
       }
     }
 
@@ -357,6 +358,16 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
         color: group.name,
         colorHex: group.colorHex,
         time: group.dinnerTime
+      })
+    }
+    if (group.sundayBreakfastTime) {
+      times.push({
+        id: `${group.id}-sunday-breakfast`,
+        day: 'sunday',
+        meal: 'breakfast',
+        color: group.name,
+        colorHex: group.colorHex,
+        time: group.sundayBreakfastTime
       })
     }
     return times

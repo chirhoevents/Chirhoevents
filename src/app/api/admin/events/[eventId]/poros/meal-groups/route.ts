@@ -63,6 +63,7 @@ export async function POST(
         name: body.name,
         color: body.color,
         colorHex: body.colorHex,
+        accommodationType: body.accommodationType || 'all',
         breakfastTime: body.breakfastTime || null,
         lunchTime: body.lunchTime || null,
         dinnerTime: body.dinnerTime || null,

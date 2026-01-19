@@ -131,6 +131,50 @@ export async function POST(
       },
     })
 
+    // Get meal color assignment for this group
+    const mealGroupAssignment = await prisma.mealGroupAssignment.findFirst({
+      where: { groupRegistrationId: groupId },
+      include: {
+        mealGroup: {
+          select: {
+            name: true,
+            colorHex: true,
+            breakfastTime: true,
+            lunchTime: true,
+            dinnerTime: true,
+            sundayBreakfastTime: true,
+          },
+        },
+      },
+    })
+
+    // Get small group staff assignments (SGL, Religious)
+    const staffAssignments = await prisma.groupStaffAssignment.findMany({
+      where: { groupRegistrationId: groupId },
+      include: {
+        staff: {
+          select: {
+            firstName: true,
+            lastName: true,
+            staffType: true,
+          },
+        },
+      },
+    })
+
+    // Get small group room assignment
+    const groupWithSmallGroupRoom = await prisma.groupRegistration.findUnique({
+      where: { id: groupId },
+      select: {
+        smallGroupRoom: {
+          select: {
+            roomNumber: true,
+            building: { select: { name: true } },
+          },
+        },
+      },
+    })
+
     // Create a map of participantId -> room assignment
     const assignmentMap = new Map<string, { buildingName: string; roomNumber: string; bedNumber: number | null }>(
       roomAssignments.map((ra: any) => [
@@ -204,6 +248,14 @@ export async function POST(
       }
     })
 
+    // Extract SGL and Religious staff
+    const sglStaff = staffAssignments
+      .filter((a: any) => a.role === 'sgl')
+      .map((a: any) => `${a.staff.firstName} ${a.staff.lastName}`)
+    const religiousStaff = staffAssignments
+      .filter((a: any) => a.role === 'religious')
+      .map((a: any) => `${a.staff.firstName} ${a.staff.lastName}`)
+
     // Build the packet data
     const packetData = {
       event: {
@@ -221,6 +273,23 @@ export async function POST(
         accessCode: group.accessCode,
         contactEmail: group.groupLeaderEmail,
         contactPhone: group.groupLeaderPhone,
+      },
+      // Meal Color assignment
+      mealColor: mealGroupAssignment?.mealGroup ? {
+        name: mealGroupAssignment.mealGroup.name,
+        colorHex: mealGroupAssignment.mealGroup.colorHex,
+        saturdayBreakfast: mealGroupAssignment.mealGroup.breakfastTime,
+        saturdayLunch: mealGroupAssignment.mealGroup.lunchTime,
+        saturdayDinner: mealGroupAssignment.mealGroup.dinnerTime,
+        sundayBreakfast: mealGroupAssignment.mealGroup.sundayBreakfastTime,
+      } : null,
+      // Small Group assignment
+      smallGroup: {
+        sgl: sglStaff.length > 0 ? sglStaff.join(', ') : null,
+        religious: religiousStaff.length > 0 ? religiousStaff.join(', ') : null,
+        meetingRoom: groupWithSmallGroupRoom?.smallGroupRoom
+          ? `${groupWithSmallGroupRoom.smallGroupRoom.building.name} - ${groupWithSmallGroupRoom.smallGroupRoom.roomNumber}`
+          : null,
       },
       participants: {
         total: group.participants.length,
