@@ -74,9 +74,6 @@ export default function RaphaPage() {
   const [eventDates, setEventDates] = useState('')
   const [stats, setStats] = useState<RaphaStats | null>(null)
   const [upcomingFollowUps, setUpcomingFollowUps] = useState<FollowUp[]>([])
-  const [quickSearch, setQuickSearch] = useState('')
-  const [searchResults, setSearchResults] = useState<any[]>([])
-  const [searching, setSearching] = useState(false)
 
   // State for incident creation from participants
   const [incidentParticipant, setIncidentParticipant] = useState<RaphaParticipant | null>(null)
@@ -106,29 +103,6 @@ export default function RaphaPage() {
       toast.error('Failed to load Rapha data')
     } finally {
       setLoading(false)
-    }
-  }
-
-  async function handleQuickSearch(query: string) {
-    setQuickSearch(query)
-    if (query.length < 2) {
-      setSearchResults([])
-      return
-    }
-
-    setSearching(true)
-    try {
-      const response = await fetch(
-        `/api/admin/events/${eventId}/rapha/participants/search?q=${encodeURIComponent(query)}`
-      )
-      if (response.ok) {
-        const data = await response.json()
-        setSearchResults(data.participants || [])
-      }
-    } catch (error) {
-      console.error('Search failed:', error)
-    } finally {
-      setSearching(false)
     }
   }
 
@@ -423,99 +397,25 @@ export default function RaphaPage() {
               </CardContent>
             </Card>
 
-            {/* Quick Search */}
+            {/* Search Participants */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Search className="w-5 h-5 text-[#0077BE]" />
-                  Emergency Quick Search
+                  Search Participants
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search by name, condition, allergy..."
-                    value={quickSearch}
-                    onChange={(e) => handleQuickSearch(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-
-                {searching && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Searching...
-                  </div>
-                )}
-
-                {searchResults.length > 0 && (
-                  <div className="border rounded-lg divide-y max-h-[300px] overflow-y-auto">
-                    {searchResults.map((p) => (
-                      <div
-                        key={p.liabilityFormId}
-                        className="p-3 hover:bg-gray-50 transition-colors cursor-pointer"
-                        onClick={() => {
-                          setActiveTab('participants')
-                          setQuickSearch('')
-                          setSearchResults([])
-                          // Use liabilityFormId for direct lookup - this ensures the exact participant is found
-                          router.push(
-                            `/dashboard/admin/events/${eventId}/rapha?tab=participants&id=${p.liabilityFormId}`
-                          )
-                        }}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">
-                                {p.firstName} {p.lastName}
-                              </span>
-                              {p.hasSevereAllergy && (
-                                <Badge className="bg-red-500 text-xs">SEVERE</Badge>
-                              )}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {p.groupName} &bull; Age {p.age}
-                            </div>
-                            {(p.allergies || p.medicalConditions) && (
-                              <div className="mt-1 text-xs text-amber-600">
-                                {p.allergies && <span>Allergies: {p.allergies}</span>}
-                                {p.medicalConditions && (
-                                  <span className="ml-2">Conditions: {p.medicalConditions}</span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                          <ChevronRight className="w-4 h-4 text-muted-foreground mt-1" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground font-medium">Common Searches:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { label: 'Peanut', query: 'peanut' },
-                      { label: 'Tree Nuts', query: 'tree nut' },
-                      { label: 'Gluten', query: 'gluten' },
-                      { label: 'Diabetes', query: 'diabetes' },
-                      { label: 'Asthma', query: 'asthma' },
-                      { label: 'Seizures', query: 'seizure' },
-                    ].map((item) => (
-                      <Button
-                        key={item.query}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleQuickSearch(item.query)}
-                      >
-                        {item.label}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
+                <p className="text-sm text-muted-foreground">
+                  Search for participants by name, medical condition, allergy, or medication.
+                </p>
+                <Button
+                  className="w-full bg-[#0077BE] hover:bg-[#0077BE]/90"
+                  onClick={() => setActiveTab('participants')}
+                >
+                  <Search className="w-4 h-4 mr-2" />
+                  Go to Participants Search
+                </Button>
               </CardContent>
             </Card>
           </div>
