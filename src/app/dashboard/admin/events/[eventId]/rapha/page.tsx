@@ -453,14 +453,14 @@ export default function RaphaPage() {
                   <div className="border rounded-lg divide-y max-h-[300px] overflow-y-auto">
                     {searchResults.map((p) => (
                       <button
-                        key={p.id}
+                        key={p.liabilityFormId}
                         onClick={() => {
                           setActiveTab('participants')
                           setQuickSearch('')
                           setSearchResults([])
-                          // Use ID for direct lookup - this ensures the exact participant is found
+                          // Use liabilityFormId for direct lookup - this ensures the exact participant is found
                           router.push(
-                            `/dashboard/admin/events/${eventId}/rapha?tab=participants&id=${p.id}`
+                            `/dashboard/admin/events/${eventId}/rapha?tab=participants&id=${p.liabilityFormId}`
                           )
                         }}
                         className="w-full text-left p-3 hover:bg-gray-50 transition-colors"
