@@ -607,6 +607,23 @@ export default function WelcomePacketsPage() {
             border-bottom: 3px solid #9C8466;
             margin-bottom: 1em;
             padding-bottom: 1em;
+            position: relative;
+          }
+          .header-logos {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            position: relative;
+          }
+          .chirho-logo {
+            position: absolute;
+            left: 0;
+            top: 0;
+            max-height: 30px;
+          }
+          .org-logo {
+            max-height: 60px;
+            margin-bottom: 10px;
           }
           .header img {
             max-height: 60px;
@@ -710,9 +727,14 @@ export default function WelcomePacketsPage() {
         ${packets.map((packet, packetIndex) => `
           <div class="packet">
             <div class="header">
-              ${packet.event.logoUrl ? `<img src="${packet.event.logoUrl}" alt="Logo" />` : ''}
-              <h1>Welcome to ${packet.event.name}!</h1>
-              ${packet.event.organizationName ? `<p style="color: #666; margin: 0;">${packet.event.organizationName}</p>` : ''}
+              <div class="header-logos">
+                <img src="/logo-horizontal.png" alt="ChiRho Events" class="chirho-logo" onerror="this.style.display='none'" />
+                <div style="text-align: center;">
+                  ${packet.event.logoUrl ? `<img src="${packet.event.logoUrl}" alt="Logo" class="org-logo" onerror="this.style.display='none'" />` : ''}
+                  <h1 style="margin-top: 5px;">Welcome to ${packet.event.name}!</h1>
+                  ${packet.event.organizationName ? `<p style="color: #666; margin: 0;">${packet.event.organizationName}</p>` : ''}
+                </div>
+              </div>
             </div>
 
             <p class="welcome">Salve, ${packet.group.name}!</p>
