@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyEventAccess } from '@/lib/api-auth'
+import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
-import { getAuthenticatedUser } from '@/lib/auth'
 
 // POST /api/admin/events/[eventId]/poros/group-room-assignments
 // Create a group-level room assignment
@@ -10,7 +11,18 @@ export async function POST(
 ) {
   try {
     const { eventId } = await params
-    const user = await getAuthenticatedUser()
+    const { error, user } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[POST /api/admin/events/[eventId]/poros/group-room-assignments]',
+    })
+    if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
+    }
+
     const { groupRegistrationId, roomId, gender } = await request.json()
 
     if (!groupRegistrationId || !roomId) {

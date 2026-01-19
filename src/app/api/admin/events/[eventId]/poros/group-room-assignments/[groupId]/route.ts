@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyEventAccess } from '@/lib/api-auth'
+import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 
 // DELETE /api/admin/events/[eventId]/poros/group-room-assignments/[groupId]
@@ -9,6 +11,18 @@ export async function DELETE(
 ) {
   try {
     const { eventId, groupId } = await params
+    const { error, user } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[DELETE /api/admin/events/[eventId]/poros/group-room-assignments/[groupId]]',
+    })
+    if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
+    }
+
     const { roomId } = await request.json()
 
     if (!roomId) {

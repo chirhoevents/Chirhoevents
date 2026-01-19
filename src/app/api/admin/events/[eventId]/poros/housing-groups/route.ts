@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyEventAccess } from '@/lib/api-auth'
+import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 
 // GET /api/admin/events/[eventId]/poros/housing-groups
@@ -9,6 +11,17 @@ export async function GET(
 ) {
   try {
     const { eventId } = await params
+    const { error, user } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[GET /api/admin/events/[eventId]/poros/housing-groups]',
+    })
+    if (error) return error
+    if (!hasPermission(user!.role, 'poros.access')) {
+      return NextResponse.json(
+        { message: 'Forbidden - Poros portal access required' },
+        { status: 403 }
+      )
+    }
 
     // Get all groups with their participants and room assignments
     const groups = await prisma.groupRegistration.findMany({
@@ -29,7 +42,7 @@ export async function GET(
     })
 
     // Get room assignments for this event's groups
-    const groupIds = groups.map((g: { id: string }) => g.id)
+    const groupIds = groups.map((g) => g.id)
     const roomAssignments = await prisma.roomAssignment.findMany({
       where: {
         groupRegistrationId: { in: groupIds },
