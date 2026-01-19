@@ -68,6 +68,356 @@ export default function IndividualConfirmationPage() {
     document.body.removeChild(link)
   }
 
+  const handlePrintConfirmation = () => {
+    if (!registration) return
+
+    const isPendingPayment = registration.paymentStatus === 'pending_check_payment' ||
+                             registration.registrationStatus === 'pending_payment'
+
+    const printHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Registration Confirmation - ${registration.firstName} ${registration.lastName}</title>
+        <style>
+          @page {
+            size: letter;
+            margin: 0.75in;
+          }
+          * {
+            box-sizing: border-box;
+          }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: #333;
+            line-height: 1.6;
+            font-size: 14px;
+            max-width: 8.5in;
+            margin: 0 auto;
+            padding: 0;
+          }
+          .header {
+            border-bottom: 3px solid #9C8466;
+            margin-bottom: 1.5em;
+            padding-bottom: 1em;
+            text-align: center;
+          }
+          .header-logos {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 15px;
+          }
+          .chirho-logo {
+            height: 40px;
+          }
+          .org-logo {
+            max-height: 70px;
+            max-width: 200px;
+          }
+          h1 {
+            color: #1E3A5F;
+            font-size: 28px;
+            margin: 10px 0 5px 0;
+          }
+          .event-name {
+            color: #9C8466;
+            font-size: 18px;
+            margin: 0;
+          }
+          h2 {
+            color: #9C8466;
+            margin-top: 1.5em;
+            font-size: 18px;
+            border-bottom: 2px solid #9C8466;
+            padding-bottom: 5px;
+          }
+          .welcome-box {
+            background: linear-gradient(135deg, #f8f6f3 0%, #f0ebe4 100%);
+            border: 2px solid #9C8466;
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            margin: 20px 0;
+          }
+          .participant-name {
+            font-size: 28px;
+            font-weight: bold;
+            color: #1E3A5F;
+            margin-bottom: 5px;
+          }
+          .qr-section {
+            text-align: center;
+            margin: 25px 0;
+            padding: 20px;
+            background: white;
+            border: 2px solid #1E3A5F;
+            border-radius: 12px;
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
+          }
+          .qr-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #1E3A5F;
+            margin-bottom: 15px;
+          }
+          .qr-code {
+            width: 200px;
+            height: 200px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 8px;
+            background: white;
+          }
+          .qr-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 12px;
+          }
+          .qr-tip {
+            font-size: 11px;
+            color: #888;
+            margin-top: 8px;
+            font-style: italic;
+          }
+          .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+          }
+          .info-box {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #9C8466;
+          }
+          .info-box h3 {
+            margin: 0 0 10px 0;
+            color: #1E3A5F;
+            font-size: 14px;
+          }
+          .info-box p {
+            margin: 5px 0;
+            font-size: 13px;
+          }
+          .payment-summary {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+          }
+          .payment-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+          }
+          .payment-row:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            font-size: 16px;
+            color: #1E3A5F;
+          }
+          .payment-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+          }
+          .status-paid {
+            background: #dcfce7;
+            color: #166534;
+          }
+          .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+          }
+          .next-steps {
+            margin: 25px 0;
+          }
+          .step {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 15px;
+          }
+          .step-number {
+            width: 28px;
+            height: 28px;
+            background: #1E3A5F;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            margin-right: 12px;
+            flex-shrink: 0;
+          }
+          .step-content h4 {
+            margin: 0 0 3px 0;
+            color: #1E3A5F;
+            font-size: 14px;
+          }
+          .step-content p {
+            margin: 0;
+            color: #666;
+            font-size: 13px;
+          }
+          .footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            color: #888;
+            font-size: 11px;
+          }
+          .highlight-box {
+            background: #e8f4e8;
+            border: 1px solid #4ade80;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+          }
+          .highlight-box p {
+            margin: 0;
+            color: #166534;
+            font-size: 13px;
+          }
+          .warning-box {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+          }
+          .warning-box p {
+            margin: 0;
+            color: #92400e;
+            font-size: 13px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="header-logos">
+            <img src="/logo-horizontal.png" alt="ChiRho Events" class="chirho-logo" onerror="this.style.display='none'" />
+            ${registration.organizationLogoUrl ? `<img src="${registration.organizationLogoUrl}" alt="${registration.organizationName}" class="org-logo" onerror="this.style.display='none'" />` : ''}
+          </div>
+          <h1>Registration Confirmation</h1>
+          <p class="event-name">${registration.eventName}</p>
+        </div>
+
+        <div class="welcome-box">
+          <div class="participant-name">${registration.firstName} ${registration.lastName}</div>
+          <p style="margin: 0; color: #666;">Welcome to ${registration.eventName}!</p>
+        </div>
+
+        ${isPendingPayment ? `
+          <div class="warning-box">
+            <p><strong>⚠️ Payment Pending:</strong> Your registration is received, but payment is still pending. Please mail your check as instructed in your confirmation email.</p>
+          </div>
+        ` : ''}
+
+        ${registration.qrCode ? `
+          <div class="qr-section">
+            <div class="qr-title">Your Check-In QR Code</div>
+            <img src="${registration.qrCode}" alt="QR Code" class="qr-code" />
+            <p class="qr-label">Scan this QR code at event check-in</p>
+            <p class="qr-tip">Save this to your phone or print it for quick check-in!</p>
+          </div>
+        ` : ''}
+
+        <div class="info-grid">
+          <div class="info-box">
+            <h3>Personal Information</h3>
+            <p><strong>Name:</strong> ${registration.firstName} ${registration.lastName}</p>
+            <p><strong>Email:</strong> ${registration.email}</p>
+          </div>
+          <div class="info-box">
+            <h3>Registration Details</h3>
+            <p><strong>Housing:</strong> ${registration.housingType.replace('_', ' ')}</p>
+            ${registration.roomType ? `<p><strong>Room Type:</strong> ${registration.roomType}</p>` : ''}
+          </div>
+        </div>
+
+        <h2>Payment Summary</h2>
+        <div class="payment-summary">
+          <div class="payment-row">
+            <span>Total Amount:</span>
+            <span>$${registration.totalAmount.toFixed(2)}</span>
+          </div>
+          <div class="payment-row">
+            <span>Payment Status:</span>
+            <span class="payment-status ${isPendingPayment ? 'status-pending' : 'status-paid'}">
+              ${isPendingPayment ? 'Pending (Check)' : 'Paid'}
+            </span>
+          </div>
+        </div>
+
+        <h2>Next Steps</h2>
+        <div class="next-steps">
+          ${isPendingPayment ? `
+            <div class="step">
+              <div class="step-number">1</div>
+              <div class="step-content">
+                <h4>Mail Your Check</h4>
+                <p>Send your payment using the instructions in your confirmation email.</p>
+              </div>
+            </div>
+          ` : ''}
+          <div class="step">
+            <div class="step-number">${isPendingPayment ? '2' : '1'}</div>
+            <div class="step-content">
+              <h4>Check Your Email</h4>
+              <p>We've sent a confirmation email to ${registration.email} with your QR code and event details.</p>
+            </div>
+          </div>
+          ${registration.liabilityFormRequired ? `
+            <div class="step">
+              <div class="step-number">${isPendingPayment ? '3' : '2'}</div>
+              <div class="step-content">
+                <h4>Complete Your Liability Form</h4>
+                <p>You'll receive a separate email with instructions to complete your required liability form.</p>
+              </div>
+            </div>
+          ` : ''}
+          <div class="step">
+            <div class="step-number">${isPendingPayment ? (registration.liabilityFormRequired ? '4' : '3') : (registration.liabilityFormRequired ? '3' : '2')}</div>
+            <div class="step-content">
+              <h4>Check-In at the Event</h4>
+              <p>Bring your QR code (on your phone or printed) for quick check-in at the event!</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="highlight-box">
+          <p><strong>Confirmation Email Sent!</strong> We've sent all these details to ${registration.email}. Check your spam folder if you don't see it.</p>
+        </div>
+
+        <div class="footer">
+          <p>Generated on ${new Date().toLocaleString()}</p>
+          <p>Questions? Reply to your confirmation email or contact the event organizer.</p>
+        </div>
+      </body>
+      </html>
+    `
+
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      printWindow.document.write(printHTML)
+      printWindow.document.close()
+      setTimeout(() => {
+        printWindow.print()
+      }, 500)
+    }
+  }
+
   if (loading) {
     return <LoadingScreen message="Loading confirmation..." />
   }
@@ -303,9 +653,9 @@ export default function IndividualConfirmationPage() {
 
           {/* Action Buttons */}
           <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
-            <Button variant="outline" onClick={() => window.print()}>
+            <Button variant="outline" onClick={handlePrintConfirmation}>
               <Download className="h-4 w-4 mr-2" />
-              Print This Page
+              Print Confirmation
             </Button>
             <Button onClick={() => window.location.href = '/'} className="bg-navy hover:bg-navy/90 !text-white">
               Return to Home

@@ -21,6 +21,8 @@ interface RegistrationData {
   totalAmount: number
   balanceRemaining: number
   registrationStatus: string
+  organizationName: string
+  organizationLogoUrl: string | null
 }
 
 export default function ConfirmationPage() {
@@ -59,7 +61,324 @@ export default function ConfirmationPage() {
   }, [registrationId, sessionId])
 
   const handleDownloadReceipt = () => {
-    window.print()
+    if (!registration) return
+
+    const printHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Registration Confirmation - ${registration.groupName}</title>
+        <style>
+          @page {
+            size: letter;
+            margin: 0.75in;
+          }
+          * {
+            box-sizing: border-box;
+          }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: #333;
+            line-height: 1.6;
+            font-size: 14px;
+            max-width: 8.5in;
+            margin: 0 auto;
+            padding: 0;
+          }
+          .header {
+            border-bottom: 3px solid #9C8466;
+            margin-bottom: 1.5em;
+            padding-bottom: 1em;
+            text-align: center;
+          }
+          .header-logos {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 15px;
+          }
+          .chirho-logo {
+            height: 40px;
+          }
+          .org-logo {
+            max-height: 70px;
+            max-width: 200px;
+          }
+          h1 {
+            color: #1E3A5F;
+            font-size: 28px;
+            margin: 10px 0 5px 0;
+          }
+          .event-name {
+            color: #9C8466;
+            font-size: 18px;
+            margin: 0;
+          }
+          h2 {
+            color: #9C8466;
+            margin-top: 1.5em;
+            font-size: 18px;
+            border-bottom: 2px solid #9C8466;
+            padding-bottom: 5px;
+          }
+          .welcome-box {
+            background: linear-gradient(135deg, #f8f6f3 0%, #f0ebe4 100%);
+            border: 2px solid #9C8466;
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            margin: 20px 0;
+          }
+          .group-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1E3A5F;
+            margin-bottom: 10px;
+          }
+          .access-code-box {
+            background: white;
+            border: 3px solid #1E3A5F;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px auto;
+            max-width: 350px;
+          }
+          .access-code-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+          }
+          .access-code {
+            font-size: 36px;
+            font-weight: bold;
+            color: #1E3A5F;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 3px;
+          }
+          .qr-section {
+            text-align: center;
+            margin: 25px 0;
+          }
+          .qr-code {
+            width: 180px;
+            height: 180px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 8px;
+            background: white;
+          }
+          .qr-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+          }
+          .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+          }
+          .info-box {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #9C8466;
+          }
+          .info-box h3 {
+            margin: 0 0 10px 0;
+            color: #1E3A5F;
+            font-size: 14px;
+          }
+          .info-box p {
+            margin: 5px 0;
+            font-size: 13px;
+          }
+          .payment-summary {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+          }
+          .payment-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+          }
+          .payment-row:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            font-size: 16px;
+            color: #1E3A5F;
+            padding-top: 12px;
+            border-top: 2px solid #9C8466;
+            margin-top: 8px;
+          }
+          .next-steps {
+            margin: 25px 0;
+          }
+          .step {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 15px;
+          }
+          .step-number {
+            width: 28px;
+            height: 28px;
+            background: #1E3A5F;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            margin-right: 12px;
+            flex-shrink: 0;
+          }
+          .step-content h4 {
+            margin: 0 0 3px 0;
+            color: #1E3A5F;
+            font-size: 14px;
+          }
+          .step-content p {
+            margin: 0;
+            color: #666;
+            font-size: 13px;
+          }
+          .footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            color: #888;
+            font-size: 11px;
+          }
+          .highlight-box {
+            background: #e8f4e8;
+            border: 1px solid #4ade80;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+          }
+          .highlight-box p {
+            margin: 0;
+            color: #166534;
+            font-size: 13px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="header-logos">
+            <img src="/logo-horizontal.png" alt="ChiRho Events" class="chirho-logo" onerror="this.style.display='none'" />
+            ${registration.organizationLogoUrl ? `<img src="${registration.organizationLogoUrl}" alt="${registration.organizationName}" class="org-logo" onerror="this.style.display='none'" />` : ''}
+          </div>
+          <h1>Registration Confirmation</h1>
+          <p class="event-name">${registration.eventName}</p>
+        </div>
+
+        <div class="welcome-box">
+          <div class="group-name">${registration.groupName}</div>
+          <p style="margin: 0; color: #666;">Thank you for registering ${registration.totalParticipants} participant${registration.totalParticipants !== 1 ? 's' : ''}!</p>
+        </div>
+
+        <div class="access-code-box">
+          <div class="access-code-label">Your Group Access Code</div>
+          <div class="access-code">${registration.accessCode}</div>
+        </div>
+
+        ${registration.qrCode ? `
+          <div class="qr-section">
+            <img src="${registration.qrCode}" alt="QR Code" class="qr-code" />
+            <p class="qr-label">Scan this QR code at check-in</p>
+          </div>
+        ` : ''}
+
+        <div class="info-grid">
+          <div class="info-box">
+            <h3>Group Information</h3>
+            <p><strong>Group:</strong> ${registration.groupName}</p>
+            <p><strong>Participants:</strong> ${registration.totalParticipants}</p>
+            <p><strong>Access Code:</strong> ${registration.accessCode}</p>
+          </div>
+          <div class="info-box">
+            <h3>Contact Information</h3>
+            <p><strong>Email:</strong> ${registration.groupLeaderEmail}</p>
+            <p><strong>Registration ID:</strong> ${registration.id.slice(0, 8)}...</p>
+          </div>
+        </div>
+
+        <h2>Payment Summary</h2>
+        <div class="payment-summary">
+          <div class="payment-row">
+            <span>Total Registration Cost:</span>
+            <span>$${registration.totalAmount.toFixed(2)}</span>
+          </div>
+          <div class="payment-row" style="color: #16a34a;">
+            <span>Deposit Paid:</span>
+            <span>-$${registration.depositPaid.toFixed(2)}</span>
+          </div>
+          <div class="payment-row">
+            <span>Balance Remaining:</span>
+            <span>$${registration.balanceRemaining.toFixed(2)}</span>
+          </div>
+        </div>
+
+        <h2>Next Steps</h2>
+        <div class="next-steps">
+          <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              <h4>Complete Liability Forms</h4>
+              <p>Each participant must complete their liability form using your access code at the Poros portal.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              <h4>Access Group Leader Portal</h4>
+              <p>Sign in to manage your group, track form completion, and make payments.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              <h4>Pay Remaining Balance</h4>
+              <p>Your balance of $${registration.balanceRemaining.toFixed(2)} is due before the event.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number">4</div>
+            <div class="step-content">
+              <h4>Check-In at the Event</h4>
+              <p>Bring this confirmation or your QR code for quick check-in!</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="highlight-box">
+          <p><strong>Confirmation Email Sent!</strong> We've sent all these details to ${registration.groupLeaderEmail}. Check your spam folder if you don't see it.</p>
+        </div>
+
+        <div class="footer">
+          <p>Generated on ${new Date().toLocaleString()}</p>
+          <p>Questions? Reply to your confirmation email or contact the event organizer.</p>
+        </div>
+      </body>
+      </html>
+    `
+
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      printWindow.document.write(printHTML)
+      printWindow.document.close()
+      setTimeout(() => {
+        printWindow.print()
+      }, 500)
+    }
   }
 
   if (loading) {
