@@ -39,6 +39,7 @@ import {
   Printer,
   AlertCircle,
   User,
+  Users,
   Building,
   Utensils,
   Accessibility,
@@ -61,6 +62,7 @@ export interface RaphaParticipant {
   groupId: string | null
   groupName: string
   parishName: string | null
+  isGroupRegistration?: boolean // true if part of a group registration
   roomAssignment: string | null
   incidentCount: number
   alertLevel: 'none' | 'low' | 'medium' | 'high'
@@ -96,9 +98,10 @@ interface RaphaParticipantsProps {
   eventId: string
   onCreateIncident?: (participant: Participant) => void
   initialSearch?: string
+  initialLookupId?: string // Direct lookup by liability form ID
 }
 
-export default function RaphaParticipants({ eventId, onCreateIncident, initialSearch }: RaphaParticipantsProps) {
+export default function RaphaParticipants({ eventId, onCreateIncident, initialSearch, initialLookupId }: RaphaParticipantsProps) {
   const searchParams = useSearchParams()
 
   const [loading, setLoading] = useState(true)
@@ -119,17 +122,31 @@ export default function RaphaParticipants({ eventId, onCreateIncident, initialSe
   const [emailMessage, setEmailMessage] = useState('')
   const [sendingEmail, setSendingEmail] = useState(false)
 
+  // State for direct participant ID lookup
+  const [lookupId, setLookupId] = useState(initialLookupId || '')
+
   // Watch for URL search params changes
   useEffect(() => {
     const urlSearch = searchParams.get('search') || ''
     const urlFilter = searchParams.get('filter') || 'all'
+    const urlId = searchParams.get('id') || ''
     if (urlSearch !== search) {
       setSearch(urlSearch)
     }
     if (urlFilter !== filter) {
       setFilter(urlFilter)
     }
+    if (urlId !== lookupId) {
+      setLookupId(urlId)
+    }
   }, [searchParams])
+
+  // Handle initialLookupId prop changes (from portal search)
+  useEffect(() => {
+    if (initialLookupId !== undefined && initialLookupId !== '' && initialLookupId !== lookupId) {
+      setLookupId(initialLookupId)
+    }
+  }, [initialLookupId])
 
   // Update search when initialSearch prop changes and immediately fetch
   useEffect(() => {
@@ -162,7 +179,7 @@ export default function RaphaParticipants({ eventId, onCreateIncident, initialSe
 
   useEffect(() => {
     fetchParticipants()
-  }, [eventId, filter, sortBy])
+  }, [eventId, filter, sortBy, lookupId])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -177,7 +194,8 @@ export default function RaphaParticipants({ eventId, onCreateIncident, initialSe
       const params = new URLSearchParams({
         filter,
         sortBy,
-        ...(search && { search }),
+        ...(lookupId && { id: lookupId }),
+        ...(search && !lookupId && { search }),
       })
       const response = await fetch(`/api/admin/events/${eventId}/rapha/participants?${params}`)
       if (response.ok) {
@@ -358,6 +376,16 @@ This is regarding ${participant.firstName} ${participant.lastName}.
           <div class="critical">
             <div class="critical-title">⚠️ CRITICAL ALERT - SEVERE ALLERGY</div>
             <p style="color: #dc2626; margin: 0;">${participant.medical.allergies}</p>
+          </div>
+        ` : ''}
+
+        ${participant.isGroupRegistration ? `
+          <div style="background: #eff6ff; border: 2px solid #3b82f6; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+            <div style="color: #1d4ed8; font-weight: bold; margin-bottom: 8px;">👥 GROUP REGISTRATION</div>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+              <div><strong>Group:</strong> ${participant.groupName}</div>
+              ${participant.parishName ? `<div><strong>Parish:</strong> ${participant.parishName}</div>` : ''}
+            </div>
           </div>
         ` : ''}
 
@@ -651,6 +679,28 @@ This is regarding ${participant.firstName} ${participant.lastName}.
               </DialogHeader>
 
               <div className="space-y-6 py-4">
+                {/* Group Registration Info - show prominently if part of a group */}
+                {selectedParticipant.isGroupRegistration && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-blue-700 font-bold mb-2">
+                      <Users className="w-5 h-5" />
+                      GROUP REGISTRATION
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-blue-600">Group Name:</span>{' '}
+                        <span className="font-medium">{selectedParticipant.groupName}</span>
+                      </div>
+                      {selectedParticipant.parishName && (
+                        <div>
+                          <span className="text-blue-600">Parish:</span>{' '}
+                          <span className="font-medium">{selectedParticipant.parishName}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Basic Info */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>

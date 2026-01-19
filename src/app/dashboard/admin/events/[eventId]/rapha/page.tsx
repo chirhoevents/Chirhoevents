@@ -456,10 +456,11 @@ export default function RaphaPage() {
                         key={p.id}
                         onClick={() => {
                           setActiveTab('participants')
+                          setQuickSearch('')
+                          setSearchResults([])
+                          // Use ID for direct lookup - this ensures the exact participant is found
                           router.push(
-                            `/dashboard/admin/events/${eventId}/rapha?tab=participants&search=${encodeURIComponent(
-                              `${p.firstName} ${p.lastName}`
-                            )}`
+                            `/dashboard/admin/events/${eventId}/rapha?tab=participants&id=${p.id}`
                           )
                         }}
                         className="w-full text-left p-3 hover:bg-gray-50 transition-colors"

@@ -109,7 +109,7 @@ export default function RaphaDedicatedPortal() {
   // State for incident creation from participants
   const [incidentParticipant, setIncidentParticipant] = useState<PreSelectedParticipant | null>(null)
   const [openIncidentModal, setOpenIncidentModal] = useState(false)
-  const [selectedSearchParticipant, setSelectedSearchParticipant] = useState<string>('')
+  const [selectedSearchParticipantId, setSelectedSearchParticipantId] = useState<string>('')
 
   // QR Scanner state
   const [qrScannerOpen, setQrScannerOpen] = useState(false)
@@ -607,7 +607,8 @@ export default function RaphaDedicatedPortal() {
                           onClick={() => {
                             setQuickSearch('')
                             setSearchResults([])
-                            setSelectedSearchParticipant(`${p.firstName} ${p.lastName}`)
+                            // Use ID for direct lookup - this ensures the exact participant is found
+                            setSelectedSearchParticipantId(p.id)
                             setActiveTab('participants')
                           }}
                         >
@@ -783,7 +784,7 @@ export default function RaphaDedicatedPortal() {
                 <Loader2 className="w-8 h-8 animate-spin text-red-600" />
               </div>
             }>
-              <RaphaParticipants eventId={eventId} onCreateIncident={handleCreateIncident} initialSearch={selectedSearchParticipant} />
+              <RaphaParticipants eventId={eventId} onCreateIncident={handleCreateIncident} initialLookupId={selectedSearchParticipantId} />
             </Suspense>
           </TabsContent>
 
