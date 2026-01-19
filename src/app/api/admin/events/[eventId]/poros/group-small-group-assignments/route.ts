@@ -61,11 +61,11 @@ export async function GET(
       orderBy: { groupName: 'asc' },
     })
 
-    // Get available staff (SGL and religious types)
+    // Get available staff (SGL, seminarian, and religious types)
     const staff = await prisma.porosStaff.findMany({
       where: {
         eventId,
-        staffType: { in: ['sgl', 'co_sgl', 'religious'] },
+        staffType: { in: ['sgl', 'co_sgl', 'seminarian', 'religious', 'priest', 'deacon'] },
       },
       select: {
         id: true,
@@ -140,8 +140,8 @@ export async function GET(
     return NextResponse.json({
       groups: result,
       staff: {
-        sgl: staff.filter((s) => s.staffType === 'sgl' || s.staffType === 'co_sgl'),
-        religious: staff.filter((s) => s.staffType === 'religious'),
+        sgl: staff.filter((s) => ['sgl', 'co_sgl', 'seminarian'].includes(s.staffType)),
+        religious: staff.filter((s) => ['religious', 'priest', 'deacon'].includes(s.staffType)),
       },
       rooms: rooms.map((r) => ({
         id: r.id,
