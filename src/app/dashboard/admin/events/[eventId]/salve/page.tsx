@@ -277,12 +277,17 @@ export default function SalveCheckInPage() {
       inserts: data.inserts,
     }
 
-    return generateMultiplePacketsHTML([packetData], {
+    // Use settings from the packet settings (same as pre-print)
+    const printSettings = {
+      includeSchedule: data.settings?.includeEventSchedule !== false,
+      includeMap: data.settings?.includeCampusMap !== false,
       includeRoster: true,
       includeHousingAssignments: true,
       includeHousingColumn: data.settings?.includeHousingColumn !== false,
-      includeSchedule: true,
-    }, data.inserts)
+      includeEmergencyContacts: data.settings?.includeEmergencyProcedures !== false,
+    }
+
+    return generateMultiplePacketsHTML([packetData], printSettings, data.inserts)
   }
 
   async function handleSearch() {

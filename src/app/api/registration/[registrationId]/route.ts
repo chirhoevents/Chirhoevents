@@ -20,6 +20,12 @@ export async function GET(
             },
           },
         },
+        participants: {
+          select: {
+            id: true,
+            participantType: true,
+          },
+        },
       },
     })
 
@@ -57,10 +63,21 @@ export async function GET(
       )
     }
 
+    // Count actual participants (not just stored counts which might be outdated)
+    const actualYouthCount = registration.participants.filter(
+      (p: { participantType: string }) => p.participantType !== 'chaperone' && p.participantType !== 'priest'
+    ).length
+    const actualChaperoneCount = registration.participants.filter(
+      (p: { participantType: string }) => p.participantType === 'chaperone'
+    ).length
+    const actualPriestCount = registration.participants.filter(
+      (p: { participantType: string }) => p.participantType === 'priest'
+    ).length
+
     const totalAmount =
-      registration.youthCount * Number(eventPricing.youthRegularPrice) +
-      registration.chaperoneCount * Number(eventPricing.chaperoneRegularPrice) +
-      registration.priestCount * Number(eventPricing.priestPrice)
+      actualYouthCount * Number(eventPricing.youthRegularPrice) +
+      actualChaperoneCount * Number(eventPricing.chaperoneRegularPrice) +
+      actualPriestCount * Number(eventPricing.priestPrice)
 
     const balanceRemaining = totalAmount - depositPaid
 
@@ -70,7 +87,7 @@ export async function GET(
       accessCode: registration.accessCode,
       qrCode: registration.qrCode,
       groupLeaderEmail: registration.groupLeaderEmail,
-      totalParticipants: registration.totalParticipants,
+      totalParticipants: registration.participants.length, // Use actual count
       eventName: registration.event.name,
       eventId: registration.eventId,
       depositPaid,
