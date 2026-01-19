@@ -66,6 +66,7 @@ export async function POST(
         breakfastTime: body.breakfastTime || null,
         lunchTime: body.lunchTime || null,
         dinnerTime: body.dinnerTime || null,
+        sundayBreakfastTime: body.sundayBreakfastTime || null,
         capacity: body.capacity || 100,
         displayOrder: body.displayOrder || 0,
         isActive: body.isActive ?? true,

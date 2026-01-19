@@ -1629,9 +1629,12 @@ model MealGroup {
   name         String   @db.VarChar(100)
   color        String   @db.VarChar(50)
   colorHex     String   @map("color_hex") @db.VarChar(7)
+  // Saturday meals
   breakfastTime String? @map("breakfast_time") @db.VarChar(50)
   lunchTime    String?  @map("lunch_time") @db.VarChar(50)
   dinnerTime   String?  @map("dinner_time") @db.VarChar(50)
+  // Sunday meals
+  sundayBreakfastTime String? @map("sunday_breakfast_time") @db.VarChar(50)
   capacity     Int      @default(100)
   currentSize  Int      @default(0) @map("current_size")
   displayOrder Int      @default(0) @map("display_order")
