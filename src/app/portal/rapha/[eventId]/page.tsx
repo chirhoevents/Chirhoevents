@@ -602,13 +602,13 @@ export default function RaphaDedicatedPortal() {
                     <div className="border rounded-lg divide-y max-h-[300px] overflow-y-auto">
                       {searchResults.map((p) => (
                         <div
-                          key={p.id}
+                          key={p.liabilityFormId}
                           className="p-3 hover:bg-gray-50 transition-colors cursor-pointer"
                           onClick={() => {
                             setQuickSearch('')
                             setSearchResults([])
-                            // Use ID for direct lookup - this ensures the exact participant is found
-                            setSelectedSearchParticipantId(p.id)
+                            // Use liabilityFormId for direct lookup - this ensures the exact participant is found
+                            setSelectedSearchParticipantId(p.liabilityFormId)
                             setActiveTab('participants')
                           }}
                         >
