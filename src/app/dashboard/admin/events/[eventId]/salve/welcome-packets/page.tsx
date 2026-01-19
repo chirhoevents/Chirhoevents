@@ -263,11 +263,12 @@ export default function WelcomePacketsPage() {
       const token = await getToken()
       const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
 
-      const [eventRes, groupsRes, insertsRes, packetRes] = await Promise.all([
+      const [eventRes, groupsRes, insertsRes, packetRes, settingsRes] = await Promise.all([
         fetch(`/api/admin/events/${eventId}`, { headers }),
         fetch(`/api/admin/events/${eventId}/groups`, { headers }),
         fetch(`/api/admin/events/${eventId}/salve/inserts`, { headers }),
         fetch(`/api/admin/events/${eventId}/salve/generate-packet`, { headers }),
+        fetch(`/api/admin/events/${eventId}/salve/packet-settings`, { headers }),
       ])
 
       if (eventRes.ok) {
@@ -296,6 +297,13 @@ export default function WelcomePacketsPage() {
           setMissingResources(packetData.missingResources)
         }
       }
+
+      if (settingsRes.ok) {
+        const settingsData = await settingsRes.json()
+        if (settingsData.settings) {
+          setSettings({ ...DEFAULT_SETTINGS, ...settingsData.settings })
+        }
+      }
     } catch (error) {
       console.error('Failed to fetch data:', error)
       toast.error('Failed to load data')
@@ -304,8 +312,24 @@ export default function WelcomePacketsPage() {
     }
   }
 
-  function updateSettings(key: keyof PacketSettings, value: boolean) {
-    setSettings((prev) => ({ ...prev, [key]: value }))
+  async function updateSettings(key: keyof PacketSettings, value: boolean) {
+    const newSettings = { ...settings, [key]: value }
+    setSettings(newSettings)
+
+    // Save to database
+    try {
+      const token = await getToken()
+      await fetch(`/api/admin/events/${eventId}/salve/packet-settings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ settings: newSettings }),
+      })
+    } catch (error) {
+      console.error('Failed to save settings:', error)
+    }
   }
 
   function toggleGroup(groupId: string) {

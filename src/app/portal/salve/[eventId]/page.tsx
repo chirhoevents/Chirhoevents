@@ -994,15 +994,16 @@ export default function SalveDedicatedPortal() {
         invoice: data.invoice,
       }
 
-      // Use settings matching pre-print exactly
+      // Use saved settings from welcome packets editor (returned by API)
+      const savedSettings = data.packetPrintSettings || {}
       const printSettings: PrintSettings = {
-        includeSchedule: true,
-        includeMap: true,
-        includeRoster: true,
-        includeHousingAssignments: true,
+        includeSchedule: savedSettings.includeSchedule ?? true,
+        includeMap: savedSettings.includeMap ?? true,
+        includeRoster: savedSettings.includeRoster ?? true,
+        includeHousingAssignments: savedSettings.includeHousingAssignments ?? true,
         includeHousingColumn: true,
-        includeEmergencyContacts: true,
-        includeInvoice: false, // Don't include invoice by default for portal print
+        includeEmergencyContacts: savedSettings.includeEmergencyContacts ?? true,
+        includeInvoice: savedSettings.includeInvoice ?? false,
       }
 
       // Get active inserts for printing

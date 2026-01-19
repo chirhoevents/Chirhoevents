@@ -187,7 +187,7 @@ export async function POST(
       ])
     )
 
-    // Get event details
+    // Get event details with settings
     const event = await prisma.event.findUnique({
       where: { id: eventId },
       select: {
@@ -199,6 +199,11 @@ export async function POST(
           select: {
             name: true,
             logoUrl: true,
+          },
+        },
+        settings: {
+          select: {
+            salvePacketSettings: true,
           },
         },
       },
@@ -423,6 +428,15 @@ export async function POST(
         totalAmount,
         totalPaid,
         balanceRemaining,
+      },
+      // Print settings from welcome packets editor (what to include in the packet)
+      packetPrintSettings: event?.settings?.salvePacketSettings || {
+        includeSchedule: true,
+        includeMap: true,
+        includeRoster: true,
+        includeHousingAssignments: true,
+        includeEmergencyContacts: true,
+        includeInvoice: false,
       },
       generatedAt: new Date(),
     }
