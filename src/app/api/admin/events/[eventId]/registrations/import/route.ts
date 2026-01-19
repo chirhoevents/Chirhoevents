@@ -169,6 +169,11 @@ export async function POST(
             ? housingTypeRaw
             : 'on_campus'
 
+          // Set housing counts based on housing type for inventory tracking
+          const onCampusCount = housingType === 'on_campus' ? totalParticipants : 0
+          const offCampusCount = housingType === 'off_campus' ? totalParticipants : 0
+          const dayPassCount = housingType === 'day_pass' ? totalParticipants : 0
+
           const groupData = {
             eventId,
             organizationId: event!.organizationId,
@@ -179,11 +184,15 @@ export async function POST(
             groupLeaderName: row.leader_name,
             groupLeaderEmail: row.leader_email,
             groupLeaderPhone: row.leader_phone,
-            youthCount: 0, // Will be calculated from participants import
+            youthCount: totalParticipants, // Use total for now, will be updated by participant import
             chaperoneCount: 0,
             priestCount: 0,
             totalParticipants,
             housingType: housingType as any,
+            // Set housing inventory counts
+            onCampusCount,
+            offCampusCount,
+            dayPassCount,
             specialRequests: row.special_requests || null,
             adaAccommodationsSummary: row.ada_summary || null,
             registrationStatus: 'complete' as const,
