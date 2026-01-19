@@ -56,6 +56,8 @@ interface MealGroup {
   name: string
   color: string
   colorHex: string
+  // Accommodation type: 'on_campus', 'off_campus', or 'all'
+  accommodationType: string
   // Saturday meals
   breakfastTime: string | null
   lunchTime: string | null
@@ -104,6 +106,7 @@ export function PorosMealGroups({ eventId }: PorosMealGroupsProps) {
     name: '',
     color: 'Red',
     colorHex: '#DC2626',
+    accommodationType: 'all',
     breakfastTime: '',
     lunchTime: '',
     dinnerTime: '',
@@ -155,6 +158,7 @@ export function PorosMealGroups({ eventId }: PorosMealGroupsProps) {
       name: '',
       color: 'Red',
       colorHex: '#DC2626',
+      accommodationType: 'all',
       breakfastTime: '',
       lunchTime: '',
       dinnerTime: '',
@@ -171,6 +175,7 @@ export function PorosMealGroups({ eventId }: PorosMealGroupsProps) {
       name: group.name,
       color: group.color,
       colorHex: group.colorHex,
+      accommodationType: group.accommodationType || 'all',
       breakfastTime: group.breakfastTime || '',
       lunchTime: group.lunchTime || '',
       dinnerTime: group.dinnerTime || '',
@@ -325,12 +330,12 @@ export function PorosMealGroups({ eventId }: PorosMealGroupsProps) {
 
   // Download CSV template
   function handleDownloadTemplate() {
-    const template = `Color Name,Color Hex,Sat Breakfast,Sat Lunch,Sat Dinner,Sun Breakfast,Capacity,Active
-Red,#DC2626,7:00 AM,12:00 PM,5:30 PM,8:00 AM,100,true
-Orange,#EA580C,7:15 AM,12:15 PM,5:45 PM,8:15 AM,100,true
-Yellow,#CA8A04,7:30 AM,12:30 PM,6:00 PM,8:30 AM,100,true
-Green,#16A34A,7:45 AM,12:45 PM,6:15 PM,8:45 AM,100,true
-Blue,#2563EB,8:00 AM,1:00 PM,6:30 PM,9:00 AM,100,true`
+    const template = `Color Name,Color Hex,For Groups,Sat Breakfast,Sat Lunch,Sat Dinner,Sun Breakfast,Capacity,Active
+Red,#DC2626,all,7:00 AM,12:00 PM,5:30 PM,8:00 AM,100,true
+Orange,#EA580C,on_campus,7:15 AM,12:15 PM,5:45 PM,8:15 AM,100,true
+Yellow,#CA8A04,off_campus,7:30 AM,12:30 PM,6:00 PM,8:30 AM,100,true
+Green,#16A34A,all,7:45 AM,12:45 PM,6:15 PM,8:45 AM,100,true
+Blue,#2563EB,all,8:00 AM,1:00 PM,6:30 PM,9:00 AM,100,true`
 
     const blob = new Blob([template], { type: 'text/csv' })
     const url = window.URL.createObjectURL(blob)
@@ -347,10 +352,11 @@ Blue,#2563EB,8:00 AM,1:00 PM,6:30 PM,9:00 AM,100,true`
   async function handleExportData() {
     try {
       // Create CSV from current meal groups
-      const headers = ['Color Name', 'Color Hex', 'Sat Breakfast', 'Sat Lunch', 'Sat Dinner', 'Sun Breakfast', 'Capacity', 'Active']
+      const headers = ['Color Name', 'Color Hex', 'For Groups', 'Sat Breakfast', 'Sat Lunch', 'Sat Dinner', 'Sun Breakfast', 'Capacity', 'Active']
       const rows = mealGroups.map(g => [
         g.name,
         g.colorHex,
+        g.accommodationType || 'all',
         g.breakfastTime || '',
         g.lunchTime || '',
         g.dinnerTime || '',
@@ -726,9 +732,17 @@ Blue,#2563EB,8:00 AM,1:00 PM,6:30 PM,9:00 AM,100,true`
                           </>
                         )}
                       </div>
-                      {!group.isActive && (
-                        <Badge variant="secondary">Inactive</Badge>
-                      )}
+                      <div className="flex flex-wrap gap-1">
+                        {group.accommodationType === 'on_campus' && (
+                          <Badge variant="outline" className="text-xs">On-Campus</Badge>
+                        )}
+                        {group.accommodationType === 'off_campus' && (
+                          <Badge variant="outline" className="text-xs">Off-Campus</Badge>
+                        )}
+                        {!group.isActive && (
+                          <Badge variant="secondary" className="text-xs">Inactive</Badge>
+                        )}
+                      </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
                           className="rounded-full h-2"
@@ -883,7 +897,7 @@ Blue,#2563EB,8:00 AM,1:00 PM,6:30 PM,9:00 AM,100,true`
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Name</Label>
                 <Input
@@ -893,6 +907,22 @@ Blue,#2563EB,8:00 AM,1:00 PM,6:30 PM,9:00 AM,100,true`
                   placeholder="e.g., Red, St. Joseph"
                   required
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="accommodationType">For Groups</Label>
+                <Select
+                  value={groupForm.accommodationType}
+                  onValueChange={(value) => setGroupForm({ ...groupForm, accommodationType: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Groups</SelectItem>
+                    <SelectItem value="on_campus">On-Campus Only</SelectItem>
+                    <SelectItem value="off_campus">Off-Campus Only</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="capacity">Capacity</Label>
