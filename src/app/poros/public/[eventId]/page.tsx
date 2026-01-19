@@ -394,6 +394,33 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
     // Table might not exist yet
   }
 
+  // Get active announcements (filtered by date if applicable)
+  let announcements: any[] = []
+  try {
+    const now = new Date()
+    announcements = await prisma.porosAnnouncement.findMany({
+      where: {
+        eventId,
+        isActive: true,
+        OR: [
+          { startDate: null },
+          { startDate: { lte: now } }
+        ],
+        AND: [
+          {
+            OR: [
+              { endDate: null },
+              { endDate: { gte: now } }
+            ]
+          }
+        ]
+      },
+      orderBy: [{ order: 'asc' }, { createdAt: 'desc' }]
+    })
+  } catch {
+    // Table might not exist yet
+  }
+
   // Organize schedule by day
   const scheduleByDay = scheduleEntries.reduce((acc: any, entry: any) => {
     if (!acc[entry.day]) acc[entry.day] = []
@@ -455,6 +482,7 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
       scheduleByDay={scheduleByDay}
       mealTimes={mealTimes}
       resources={resources}
+      announcements={announcements}
       seatingEnabled={settings?.porosSeatingEnabled ?? false}
       schedulePdfUrl={schedulePdf?.url || null}
     />

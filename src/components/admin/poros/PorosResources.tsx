@@ -35,7 +35,13 @@ import {
   Info,
   Download,
   Upload,
+  Megaphone,
+  AlertTriangle,
+  AlertCircle,
+  Bell,
 } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
 import { toast } from '@/lib/toast'
 
 interface PorosResourcesProps {
@@ -60,23 +66,37 @@ interface ScheduleEntry {
   location: string | null
 }
 
+interface Announcement {
+  id: string
+  title: string
+  message: string
+  type: 'info' | 'warning' | 'urgent'
+  startDate: string | null
+  endDate: string | null
+  isActive: boolean
+}
+
 export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosResourcesProps) {
   const [resources, setResources] = useState<Resource[]>([])
   const [scheduleEntries, setScheduleEntries] = useState<ScheduleEntry[]>([])
+  const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
   // Dialog states
   const [resourceDialogOpen, setResourceDialogOpen] = useState(false)
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
+  const [announcementDialogOpen, setAnnouncementDialogOpen] = useState(false)
 
   // Form states
   const [editingResource, setEditingResource] = useState<Resource | null>(null)
   const [editingSchedule, setEditingSchedule] = useState<ScheduleEntry | null>(null)
+  const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null)
 
   // New item form data
   const [newResource, setNewResource] = useState({ name: '', type: 'link', url: '' })
   const [newSchedule, setNewSchedule] = useState({ day: 'day1', startTime: '', endTime: '', title: '', location: '' })
+  const [newAnnouncement, setNewAnnouncement] = useState({ title: '', message: '', type: 'info' as const, startDate: '', endDate: '', isActive: true })
 
   // Schedule import
   const [importing, setImporting] = useState(false)
@@ -109,9 +129,10 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
   async function fetchData() {
     setLoading(true)
     try {
-      const [resourcesRes, scheduleRes] = await Promise.all([
+      const [resourcesRes, scheduleRes, announcementsRes] = await Promise.all([
         fetch(`/api/admin/events/${eventId}/poros/resources`),
         fetch(`/api/admin/events/${eventId}/poros/schedule`),
+        fetch(`/api/admin/events/${eventId}/poros/announcements`),
       ])
 
       if (resourcesRes.ok) {
@@ -122,6 +143,11 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
       if (scheduleRes.ok) {
         const data = await scheduleRes.json()
         setScheduleEntries(data.schedule || [])
+      }
+
+      if (announcementsRes.ok) {
+        const data = await announcementsRes.json()
+        setAnnouncements(data.announcements || [])
       }
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -213,6 +239,90 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
       fetchData()
     } catch (error) {
       toast.error('Failed to delete schedule entry')
+    }
+  }
+
+  // Announcement functions
+  async function saveAnnouncement() {
+    setSaving(true)
+    try {
+      const data = editingAnnouncement || newAnnouncement
+      const method = editingAnnouncement ? 'PUT' : 'POST'
+      const url = editingAnnouncement
+        ? `/api/admin/events/${eventId}/poros/announcements/${editingAnnouncement.id}`
+        : `/api/admin/events/${eventId}/poros/announcements`
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...data,
+          startDate: data.startDate || null,
+          endDate: data.endDate || null,
+        }),
+      })
+
+      if (!response.ok) throw new Error('Failed to save announcement')
+
+      toast.success(editingAnnouncement ? 'Announcement updated' : 'Announcement added')
+      setAnnouncementDialogOpen(false)
+      setEditingAnnouncement(null)
+      setNewAnnouncement({ title: '', message: '', type: 'info', startDate: '', endDate: '', isActive: true })
+      fetchData()
+    } catch (error) {
+      toast.error('Failed to save announcement')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function deleteAnnouncement(id: string) {
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}/poros/announcements/${id}`, {
+        method: 'DELETE',
+      })
+      if (!response.ok) throw new Error('Failed to delete')
+      toast.success('Announcement deleted')
+      fetchData()
+    } catch (error) {
+      toast.error('Failed to delete announcement')
+    }
+  }
+
+  async function toggleAnnouncementActive(announcement: Announcement) {
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}/poros/announcements/${announcement.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !announcement.isActive }),
+      })
+      if (!response.ok) throw new Error('Failed to update')
+      toast.success(announcement.isActive ? 'Announcement hidden' : 'Announcement shown')
+      fetchData()
+    } catch (error) {
+      toast.error('Failed to update announcement')
+    }
+  }
+
+  function getAnnouncementTypeIcon(type: string) {
+    switch (type) {
+      case 'urgent':
+        return <AlertTriangle className="w-5 h-5 text-red-600" />
+      case 'warning':
+        return <AlertCircle className="w-5 h-5 text-amber-600" />
+      default:
+        return <Bell className="w-5 h-5 text-blue-600" />
+    }
+  }
+
+  function getAnnouncementTypeBadge(type: string) {
+    switch (type) {
+      case 'urgent':
+        return <Badge variant="destructive">Urgent</Badge>
+      case 'warning':
+        return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Warning</Badge>
+      default:
+        return <Badge variant="secondary">Info</Badge>
     }
   }
 
@@ -380,10 +490,97 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
             <Info className="w-5 h-5 text-blue-600 mt-0.5" />
             <div className="text-sm text-blue-800">
               <p className="font-medium">About Resources</p>
-              <p>Resources and schedule entries you add here will be visible on the public portal for participants.</p>
+              <p>Resources, announcements, and schedule entries you add here will be visible on the public portal for participants.</p>
               <p className="mt-1"><strong>Meal Times:</strong> Configure meal times in the <strong>Meal Groups</strong> tab - each color group has its own breakfast, lunch, and dinner times.</p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Announcements Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Megaphone className="w-5 h-5" />
+                Announcements
+              </CardTitle>
+              <CardDescription>
+                Temporary notices and updates for participants (can be time-limited)
+              </CardDescription>
+            </div>
+            <Button onClick={() => {
+              setEditingAnnouncement(null)
+              setNewAnnouncement({ title: '', message: '', type: 'info', startDate: '', endDate: '', isActive: true })
+              setAnnouncementDialogOpen(true)
+            }}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Announcement
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {announcements.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">
+              No announcements added yet. Create one to notify participants of important updates.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {announcements.map((announcement) => (
+                <div
+                  key={announcement.id}
+                  className={`flex items-start justify-between p-4 rounded-lg ${
+                    !announcement.isActive ? 'bg-gray-100 opacity-60' :
+                    announcement.type === 'urgent' ? 'bg-red-50 border border-red-200' :
+                    announcement.type === 'warning' ? 'bg-amber-50 border border-amber-200' :
+                    'bg-blue-50 border border-blue-200'
+                  }`}
+                >
+                  <div className="flex items-start gap-3 flex-1">
+                    {getAnnouncementTypeIcon(announcement.type)}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-medium">{announcement.title}</p>
+                        {getAnnouncementTypeBadge(announcement.type)}
+                        {!announcement.isActive && (
+                          <Badge variant="outline" className="text-gray-500">Hidden</Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600 whitespace-pre-wrap">{announcement.message}</p>
+                      {(announcement.startDate || announcement.endDate) && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {announcement.startDate && `From: ${new Date(announcement.startDate).toLocaleDateString()}`}
+                          {announcement.startDate && announcement.endDate && ' • '}
+                          {announcement.endDate && `Until: ${new Date(announcement.endDate).toLocaleDateString()}`}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 ml-4">
+                    <Switch
+                      checked={announcement.isActive}
+                      onCheckedChange={() => toggleAnnouncementActive(announcement)}
+                      aria-label="Toggle announcement visibility"
+                    />
+                    <Button variant="ghost" size="sm" onClick={() => {
+                      setEditingAnnouncement({
+                        ...announcement,
+                        startDate: announcement.startDate ? announcement.startDate.split('T')[0] : null,
+                        endDate: announcement.endDate ? announcement.endDate.split('T')[0] : null,
+                      })
+                      setAnnouncementDialogOpen(true)
+                    }}>
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => deleteAnnouncement(announcement.id)}>
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -694,6 +891,121 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
           <DialogFooter>
             <Button variant="outline" onClick={() => setScheduleDialogOpen(false)}>Cancel</Button>
             <Button onClick={saveScheduleEntry} disabled={saving}>
+              {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Announcement Dialog */}
+      <Dialog open={announcementDialogOpen} onOpenChange={setAnnouncementDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingAnnouncement ? 'Edit Announcement' : 'Add Announcement'}</DialogTitle>
+            <DialogDescription>
+              Create a notice for participants (e.g., schedule changes, reminders)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Title</Label>
+              <Input
+                value={editingAnnouncement?.title || newAnnouncement.title}
+                onChange={(e) => editingAnnouncement
+                  ? setEditingAnnouncement({ ...editingAnnouncement, title: e.target.value })
+                  : setNewAnnouncement({ ...newAnnouncement, title: e.target.value })
+                }
+                placeholder="e.g., Schedule Change"
+              />
+            </div>
+            <div>
+              <Label>Message</Label>
+              <Textarea
+                value={editingAnnouncement?.message || newAnnouncement.message}
+                onChange={(e) => editingAnnouncement
+                  ? setEditingAnnouncement({ ...editingAnnouncement, message: e.target.value })
+                  : setNewAnnouncement({ ...newAnnouncement, message: e.target.value })
+                }
+                placeholder="Enter the announcement message..."
+                rows={4}
+              />
+            </div>
+            <div>
+              <Label>Type</Label>
+              <Select
+                value={editingAnnouncement?.type || newAnnouncement.type}
+                onValueChange={(value: 'info' | 'warning' | 'urgent') => editingAnnouncement
+                  ? setEditingAnnouncement({ ...editingAnnouncement, type: value })
+                  : setNewAnnouncement({ ...newAnnouncement, type: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="info">
+                    <div className="flex items-center gap-2">
+                      <Bell className="w-4 h-4 text-blue-600" />
+                      Info - General notice
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="warning">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-600" />
+                      Warning - Important notice
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="urgent">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-red-600" />
+                      Urgent - Critical notice
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Start Date (optional)</Label>
+                <Input
+                  type="date"
+                  value={editingAnnouncement?.startDate || newAnnouncement.startDate}
+                  onChange={(e) => editingAnnouncement
+                    ? setEditingAnnouncement({ ...editingAnnouncement, startDate: e.target.value })
+                    : setNewAnnouncement({ ...newAnnouncement, startDate: e.target.value })
+                  }
+                />
+                <p className="text-xs text-muted-foreground mt-1">When to start showing</p>
+              </div>
+              <div>
+                <Label>End Date (optional)</Label>
+                <Input
+                  type="date"
+                  value={editingAnnouncement?.endDate || newAnnouncement.endDate}
+                  onChange={(e) => editingAnnouncement
+                    ? setEditingAnnouncement({ ...editingAnnouncement, endDate: e.target.value })
+                    : setNewAnnouncement({ ...newAnnouncement, endDate: e.target.value })
+                  }
+                />
+                <p className="text-xs text-muted-foreground mt-1">When to stop showing</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="isActive"
+                checked={editingAnnouncement?.isActive ?? newAnnouncement.isActive}
+                onCheckedChange={(checked) => editingAnnouncement
+                  ? setEditingAnnouncement({ ...editingAnnouncement, isActive: checked })
+                  : setNewAnnouncement({ ...newAnnouncement, isActive: checked })
+                }
+              />
+              <Label htmlFor="isActive">Show on public portal</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAnnouncementDialogOpen(false)}>Cancel</Button>
+            <Button onClick={saveAnnouncement} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Save
             </Button>
