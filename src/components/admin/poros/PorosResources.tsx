@@ -253,14 +253,37 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
     setImporting(true)
     try {
       const text = await file.text()
-      const lines = text.split('\n').filter(line => line.trim())
+      // Handle different line endings and filter empty lines
+      const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(line => line.trim())
 
       if (lines.length < 2) {
         throw new Error('CSV must have a header row and at least one data row')
       }
 
+      // Better CSV parsing function that handles quoted fields
+      function parseCSVLine(line: string): string[] {
+        const result: string[] = []
+        let current = ''
+        let inQuotes = false
+
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i]
+
+          if (char === '"') {
+            inQuotes = !inQuotes
+          } else if (char === ',' && !inQuotes) {
+            result.push(current.trim())
+            current = ''
+          } else {
+            current += char
+          }
+        }
+        result.push(current.trim())
+        return result
+      }
+
       // Parse header
-      const header = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase())
+      const header = parseCSVLine(lines[0]).map(h => h.toLowerCase())
       const dayIndex = header.findIndex(h => h === 'day')
       const startTimeIndex = header.findIndex(h => h === 'start_time' || h === 'starttime' || h === 'start time')
       const endTimeIndex = header.findIndex(h => h === 'end_time' || h === 'endtime' || h === 'end time')
@@ -268,31 +291,45 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
       const locationIndex = header.findIndex(h => h === 'location')
 
       if (dayIndex === -1 || startTimeIndex === -1 || titleIndex === -1) {
-        throw new Error('CSV must have day, start_time, and title columns')
+        throw new Error(`CSV must have day, start_time, and title columns. Found columns: ${header.join(', ')}`)
       }
 
       // Parse data rows
       const entries = []
-      for (let i = 1; i < lines.length; i++) {
-        const row = lines[i].match(/("([^"]*)"|[^,]*)/g)?.map(cell =>
-          cell.replace(/^"|"$/g, '').trim()
-        ) || []
+      const errors: string[] = []
 
-        if (row.length === 0 || !row[dayIndex] || !row[startTimeIndex] || !row[titleIndex]) {
+      for (let i = 1; i < lines.length; i++) {
+        const row = parseCSVLine(lines[i])
+
+        const day = row[dayIndex] || ''
+        const startTime = row[startTimeIndex] || ''
+        const title = row[titleIndex] || ''
+
+        // Skip empty rows
+        if (!day && !startTime && !title) {
+          continue
+        }
+
+        // Validate required fields
+        if (!day || !startTime || !title) {
+          errors.push(`Row ${i + 1}: Missing required field (day="${day}", start_time="${startTime}", title="${title}")`)
           continue
         }
 
         entries.push({
-          day: row[dayIndex].toLowerCase(),
-          startTime: row[startTimeIndex],
-          endTime: endTimeIndex !== -1 ? row[endTimeIndex] || null : null,
-          title: row[titleIndex],
-          location: locationIndex !== -1 ? row[locationIndex] || null : null,
+          day: day.toLowerCase(),
+          startTime: startTime,
+          endTime: endTimeIndex !== -1 && row[endTimeIndex] ? row[endTimeIndex] : null,
+          title: title,
+          location: locationIndex !== -1 && row[locationIndex] ? row[locationIndex] : null,
         })
       }
 
       if (entries.length === 0) {
-        throw new Error('No valid entries found in CSV')
+        const errorMsg = errors.length > 0
+          ? `No valid entries found. Errors:\n${errors.slice(0, 5).join('\n')}`
+          : 'No valid entries found in CSV'
+        throw new Error(errorMsg)
       }
 
       // Send to API
@@ -308,9 +345,15 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
       }
 
       const result = await response.json()
-      toast.success(`Imported ${result.count} schedule entries`)
+
+      if (errors.length > 0) {
+        toast.success(`Imported ${result.count} entries (${errors.length} rows skipped)`)
+      } else {
+        toast.success(`Imported ${result.count} schedule entries`)
+      }
       fetchData()
     } catch (error) {
+      console.error('CSV import error:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to import schedule')
     } finally {
       setImporting(false)
