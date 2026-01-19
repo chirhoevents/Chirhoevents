@@ -328,6 +328,7 @@ export async function POST(
         imageUrls: i.imageUrls,
         fileType: i.fileType,
         displayOrder: i.displayOrder,
+        isActive: i.isActive,
       })),
       settings: settings || {
         includeCampusMap: true,
