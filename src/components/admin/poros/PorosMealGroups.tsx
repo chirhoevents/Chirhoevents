@@ -56,9 +56,12 @@ interface MealGroup {
   name: string
   color: string
   colorHex: string
+  // Saturday meals
   breakfastTime: string | null
   lunchTime: string | null
   dinnerTime: string | null
+  // Sunday meals
+  sundayBreakfastTime: string | null
   capacity: number
   currentSize: number
   displayOrder: number
@@ -104,6 +107,7 @@ export function PorosMealGroups({ eventId }: PorosMealGroupsProps) {
     breakfastTime: '',
     lunchTime: '',
     dinnerTime: '',
+    sundayBreakfastTime: '',
     capacity: 100,
     isActive: true,
   })
@@ -154,6 +158,7 @@ export function PorosMealGroups({ eventId }: PorosMealGroupsProps) {
       breakfastTime: '',
       lunchTime: '',
       dinnerTime: '',
+      sundayBreakfastTime: '',
       capacity: 100,
       isActive: true,
     })
@@ -169,6 +174,7 @@ export function PorosMealGroups({ eventId }: PorosMealGroupsProps) {
       breakfastTime: group.breakfastTime || '',
       lunchTime: group.lunchTime || '',
       dinnerTime: group.dinnerTime || '',
+      sundayBreakfastTime: group.sundayBreakfastTime || '',
       capacity: group.capacity,
       isActive: group.isActive,
     })
@@ -319,12 +325,12 @@ export function PorosMealGroups({ eventId }: PorosMealGroupsProps) {
 
   // Download CSV template
   function handleDownloadTemplate() {
-    const template = `Color Name,Color Hex,Breakfast Time,Lunch Time,Dinner Time,Capacity,Active
-Red,#DC2626,7:00 AM,12:00 PM,5:30 PM,100,true
-Orange,#EA580C,7:15 AM,12:15 PM,5:45 PM,100,true
-Yellow,#CA8A04,7:30 AM,12:30 PM,6:00 PM,100,true
-Green,#16A34A,7:45 AM,12:45 PM,6:15 PM,100,true
-Blue,#2563EB,8:00 AM,1:00 PM,6:30 PM,100,true`
+    const template = `Color Name,Color Hex,Sat Breakfast,Sat Lunch,Sat Dinner,Sun Breakfast,Capacity,Active
+Red,#DC2626,7:00 AM,12:00 PM,5:30 PM,8:00 AM,100,true
+Orange,#EA580C,7:15 AM,12:15 PM,5:45 PM,8:15 AM,100,true
+Yellow,#CA8A04,7:30 AM,12:30 PM,6:00 PM,8:30 AM,100,true
+Green,#16A34A,7:45 AM,12:45 PM,6:15 PM,8:45 AM,100,true
+Blue,#2563EB,8:00 AM,1:00 PM,6:30 PM,9:00 AM,100,true`
 
     const blob = new Blob([template], { type: 'text/csv' })
     const url = window.URL.createObjectURL(blob)
@@ -341,13 +347,14 @@ Blue,#2563EB,8:00 AM,1:00 PM,6:30 PM,100,true`
   async function handleExportData() {
     try {
       // Create CSV from current meal groups
-      const headers = ['Color Name', 'Color Hex', 'Breakfast Time', 'Lunch Time', 'Dinner Time', 'Capacity', 'Active']
+      const headers = ['Color Name', 'Color Hex', 'Sat Breakfast', 'Sat Lunch', 'Sat Dinner', 'Sun Breakfast', 'Capacity', 'Active']
       const rows = mealGroups.map(g => [
         g.name,
         g.colorHex,
         g.breakfastTime || '',
         g.lunchTime || '',
         g.dinnerTime || '',
+        g.sundayBreakfastTime || '',
         g.capacity.toString(),
         g.isActive.toString()
       ])
@@ -686,6 +693,7 @@ Blue,#2563EB,8:00 AM,1:00 PM,6:30 PM,100,true`
                         {group.currentSize}/{group.capacity} assigned
                       </div>
                       <div className="space-y-1 text-sm">
+                        <p className="text-xs font-medium text-muted-foreground">Saturday:</p>
                         {group.breakfastTime && (
                           <div className="flex items-center gap-2">
                             <Clock className="w-3 h-3" />
@@ -706,6 +714,16 @@ Blue,#2563EB,8:00 AM,1:00 PM,6:30 PM,100,true`
                             <span className="text-muted-foreground">Dinner:</span>
                             <span>{group.dinnerTime}</span>
                           </div>
+                        )}
+                        {group.sundayBreakfastTime && (
+                          <>
+                            <p className="text-xs font-medium text-muted-foreground pt-1">Sunday:</p>
+                            <div className="flex items-center gap-2">
+                              <Clock className="w-3 h-3" />
+                              <span className="text-muted-foreground">Breakfast:</span>
+                              <span>{group.sundayBreakfastTime}</span>
+                            </div>
+                          </>
                         )}
                       </div>
                       {!group.isActive && (
@@ -890,32 +908,48 @@ Blue,#2563EB,8:00 AM,1:00 PM,6:30 PM,100,true`
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="breakfastTime">Breakfast</Label>
-                <Input
-                  id="breakfastTime"
-                  value={groupForm.breakfastTime}
-                  onChange={(e) => setGroupForm({ ...groupForm, breakfastTime: e.target.value })}
-                  placeholder="7:00 AM"
-                />
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Saturday Meals</Label>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="breakfastTime" className="text-xs text-muted-foreground">Breakfast</Label>
+                  <Input
+                    id="breakfastTime"
+                    value={groupForm.breakfastTime}
+                    onChange={(e) => setGroupForm({ ...groupForm, breakfastTime: e.target.value })}
+                    placeholder="7:00 AM"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lunchTime" className="text-xs text-muted-foreground">Lunch</Label>
+                  <Input
+                    id="lunchTime"
+                    value={groupForm.lunchTime}
+                    onChange={(e) => setGroupForm({ ...groupForm, lunchTime: e.target.value })}
+                    placeholder="12:00 PM"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dinnerTime" className="text-xs text-muted-foreground">Dinner</Label>
+                  <Input
+                    id="dinnerTime"
+                    value={groupForm.dinnerTime}
+                    onChange={(e) => setGroupForm({ ...groupForm, dinnerTime: e.target.value })}
+                    placeholder="6:00 PM"
+                  />
+                </div>
               </div>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Sunday Meals</Label>
               <div className="space-y-2">
-                <Label htmlFor="lunchTime">Lunch</Label>
+                <Label htmlFor="sundayBreakfastTime" className="text-xs text-muted-foreground">Breakfast</Label>
                 <Input
-                  id="lunchTime"
-                  value={groupForm.lunchTime}
-                  onChange={(e) => setGroupForm({ ...groupForm, lunchTime: e.target.value })}
-                  placeholder="12:00 PM"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="dinnerTime">Dinner</Label>
-                <Input
-                  id="dinnerTime"
-                  value={groupForm.dinnerTime}
-                  onChange={(e) => setGroupForm({ ...groupForm, dinnerTime: e.target.value })}
-                  placeholder="6:00 PM"
+                  id="sundayBreakfastTime"
+                  value={groupForm.sundayBreakfastTime}
+                  onChange={(e) => setGroupForm({ ...groupForm, sundayBreakfastTime: e.target.value })}
+                  placeholder="8:00 AM"
                 />
               </div>
             </div>

@@ -32,6 +32,7 @@ export async function PUT(
         breakfastTime: body.breakfastTime,
         lunchTime: body.lunchTime,
         dinnerTime: body.dinnerTime,
+        sundayBreakfastTime: body.sundayBreakfastTime,
         capacity: body.capacity,
         isActive: body.isActive,
       },
