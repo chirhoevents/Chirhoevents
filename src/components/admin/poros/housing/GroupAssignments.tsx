@@ -29,6 +29,7 @@ import {
   Loader2,
   Building2,
   ChevronRight,
+  Edit2,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
@@ -69,6 +70,9 @@ export function GroupAssignments({
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null)
   const [assignLoading, setAssignLoading] = useState(false)
+
+  // Housing type update state
+  const [updatingHousingType, setUpdatingHousingType] = useState<string | null>(null)
 
   useEffect(() => {
     fetchGroups()
@@ -196,6 +200,32 @@ export function GroupAssignments({
     setIsAssignDialogOpen(true)
   }
 
+  async function handleUpdateHousingType(groupId: string, newHousingType: string) {
+    setUpdatingHousingType(groupId)
+    try {
+      const response = await fetch(
+        `/api/admin/events/${eventId}/poros/groups/${groupId}/housing-type`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ housingType: newHousingType }),
+        }
+      )
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to update housing type')
+      }
+
+      toast.success(`Housing type updated to ${newHousingType.replace('_', '-')}`)
+      fetchGroups()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update housing type')
+    } finally {
+      setUpdatingHousingType(null)
+    }
+  }
+
   const unassignedCount = groups.filter(
     (g) => g.maleRoomAssignments.length === 0 && g.femaleRoomAssignments.length === 0
   ).length
@@ -306,22 +336,30 @@ export function GroupAssignments({
                             <span className="font-medium text-lg">
                               {group.parishName || group.groupName}
                             </span>
-                            {group.housingType && (
-                              <Badge
-                                className={
-                                  group.housingType === 'on_campus'
-                                    ? 'bg-green-100 text-green-800'
+                            <Select
+                              value={group.housingType || 'on_campus'}
+                              onValueChange={(value) => handleUpdateHousingType(group.id, value)}
+                              disabled={updatingHousingType === group.id}
+                            >
+                              <SelectTrigger
+                                className={`w-[130px] h-7 text-xs ${
+                                  group.housingType === 'on_campus' || !group.housingType
+                                    ? 'bg-green-100 text-green-800 border-green-200'
                                     : group.housingType === 'off_campus'
-                                    ? 'bg-orange-100 text-orange-800'
-                                    : 'bg-purple-100 text-purple-800'
-                                }
+                                    ? 'bg-orange-100 text-orange-800 border-orange-200'
+                                    : 'bg-purple-100 text-purple-800 border-purple-200'
+                                }`}
                               >
-                                {group.housingType === 'on_campus'
-                                  ? 'On-Campus'
-                                  : group.housingType === 'off_campus'
-                                  ? 'Off-Campus'
-                                  : 'Mixed'}
-                              </Badge>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="on_campus">On-Campus</SelectItem>
+                                <SelectItem value="off_campus">Off-Campus</SelectItem>
+                                <SelectItem value="mixed">Mixed</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {updatingHousingType === group.id && (
+                              <Loader2 className="w-4 h-4 animate-spin" />
                             )}
                           </div>
                           <div className="text-sm text-muted-foreground">
