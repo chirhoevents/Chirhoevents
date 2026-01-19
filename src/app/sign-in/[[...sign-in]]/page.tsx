@@ -16,6 +16,12 @@ function SignInContent() {
     sessionStorage.setItem('pendingAccessCode', accessCode)
   }
 
+  // Save portal type to sessionStorage so we can redirect to the right page after sign-in
+  // This allows Rapha/SALVE coordinators to go directly to their dedicated pages
+  if (typeof window !== 'undefined' && portal) {
+    sessionStorage.setItem('pendingPortalRedirect', portal)
+  }
+
   // NOTE: We intentionally DON'T use forceRedirectUrl here.
   // This allows Clerk to use NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL ("/dashboard")
   // The /dashboard page then routes users based on their role.
