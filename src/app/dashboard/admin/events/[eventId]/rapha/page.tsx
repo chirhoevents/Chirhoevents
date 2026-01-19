@@ -452,8 +452,9 @@ export default function RaphaPage() {
                 {searchResults.length > 0 && (
                   <div className="border rounded-lg divide-y max-h-[300px] overflow-y-auto">
                     {searchResults.map((p) => (
-                      <button
+                      <div
                         key={p.liabilityFormId}
+                        className="p-3 hover:bg-gray-50 transition-colors cursor-pointer"
                         onClick={() => {
                           setActiveTab('participants')
                           setQuickSearch('')
@@ -463,10 +464,9 @@ export default function RaphaPage() {
                             `/dashboard/admin/events/${eventId}/rapha?tab=participants&id=${p.liabilityFormId}`
                           )
                         }}
-                        className="w-full text-left p-3 hover:bg-gray-50 transition-colors"
                       >
                         <div className="flex items-start justify-between">
-                          <div>
+                          <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <span className="font-medium">
                                 {p.firstName} {p.lastName}
@@ -476,19 +476,20 @@ export default function RaphaPage() {
                               )}
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              {p.groupName} • Age {p.age}
+                              {p.groupName} &bull; Age {p.age}
                             </div>
-                          </div>
-                        </div>
-                        {(p.allergies || p.medicalConditions) && (
-                          <div className="mt-1 text-xs text-amber-600">
-                            {p.allergies && <span>Allergies: {p.allergies}</span>}
-                            {p.medicalConditions && (
-                              <span className="ml-2">Conditions: {p.medicalConditions}</span>
+                            {(p.allergies || p.medicalConditions) && (
+                              <div className="mt-1 text-xs text-amber-600">
+                                {p.allergies && <span>Allergies: {p.allergies}</span>}
+                                {p.medicalConditions && (
+                                  <span className="ml-2">Conditions: {p.medicalConditions}</span>
+                                )}
+                              </div>
                             )}
                           </div>
-                        )}
-                      </button>
+                          <ChevronRight className="w-4 h-4 text-muted-foreground mt-1" />
+                        </div>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -497,12 +498,12 @@ export default function RaphaPage() {
                   <p className="text-sm text-muted-foreground font-medium">Common Searches:</p>
                   <div className="flex flex-wrap gap-2">
                     {[
-                      { label: '🥜 Peanut', query: 'peanut' },
-                      { label: '🌳 Tree Nuts', query: 'tree nut' },
-                      { label: '🌾 Gluten', query: 'gluten' },
-                      { label: '💉 Diabetes', query: 'diabetes' },
-                      { label: '😮‍💨 Asthma', query: 'asthma' },
-                      { label: '⚡ Seizures', query: 'seizure' },
+                      { label: 'Peanut', query: 'peanut' },
+                      { label: 'Tree Nuts', query: 'tree nut' },
+                      { label: 'Gluten', query: 'gluten' },
+                      { label: 'Diabetes', query: 'diabetes' },
+                      { label: 'Asthma', query: 'asthma' },
+                      { label: 'Seizures', query: 'seizure' },
                     ].map((item) => (
                       <Button
                         key={item.query}
