@@ -576,35 +576,40 @@ export default function WelcomePacketsPage() {
     }
   }
 
-  function generatePrintableHTML(packets: PacketPreview[], settings: PacketSettings): string {
+  function generatePrintableHTML(packets: any[], settings: PacketSettings): string {
     // Get active inserts that have images (can be embedded directly)
     const activeInserts = inserts.filter(i => i.isActive)
 
     // Convert to the shared PacketData format
     const packetData: PacketData[] = packets.map(packet => ({
       event: {
-        name: packet.event.name,
-        organizationName: packet.event.organizationName,
-        logoUrl: packet.event.logoUrl,
+        name: packet.event?.name || 'Event',
+        organizationName: packet.event?.organizationName,
+        logoUrl: packet.event?.logoUrl,
       },
       group: {
-        id: packet.group.id,
-        name: packet.group.name,
-        diocese: packet.group.diocese,
-        accessCode: packet.group.accessCode,
-        contactEmail: packet.group.contactEmail,
-        contactPhone: packet.group.contactPhone,
+        id: packet.group?.id || '',
+        name: packet.group?.name || 'Group',
+        diocese: packet.group?.diocese,
+        accessCode: packet.group?.accessCode || '',
+        contactEmail: packet.group?.contactEmail,
+        contactPhone: packet.group?.contactPhone,
       },
       mealColor: packet.mealColor,
       smallGroup: packet.smallGroup,
       participants: {
-        total: packet.participants.total,
-        youth: packet.participants.youth,
-        chaperones: packet.participants.chaperones,
-        clergy: packet.participants.clergy,
-        list: packet.participants.list,
+        total: packet.participants?.total || 0,
+        youth: packet.participants?.youth || 0,
+        chaperones: packet.participants?.chaperones || 0,
+        clergy: packet.participants?.clergy || 0,
+        list: packet.participants?.list || [],
       },
-      housing: packet.housing,
+      housing: {
+        totalRooms: packet.housing?.totalRooms || 0,
+        summary: packet.housing?.summary || [],
+      },
+      resources: packet.resources,
+      inserts: packet.inserts,
     }))
 
     // Convert settings to the shared PrintSettings format

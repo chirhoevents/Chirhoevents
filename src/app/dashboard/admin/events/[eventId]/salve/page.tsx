@@ -245,7 +245,7 @@ export default function SalveCheckInPage() {
   }
 
   function generatePrintablePacketHTML(data: any) {
-    // Convert to the shared PacketData format
+    // Convert to the shared PacketData format (matching pre-print exactly)
     const packetData: PacketData = {
       event: {
         name: data.event?.name || 'Event',
@@ -277,17 +277,20 @@ export default function SalveCheckInPage() {
       inserts: data.inserts,
     }
 
-    // Use settings from the packet settings (same as pre-print)
+    // Use settings from the packet settings (matching pre-print exactly)
     const printSettings = {
-      includeSchedule: data.settings?.includeEventSchedule !== false,
-      includeMap: data.settings?.includeCampusMap !== false,
+      includeSchedule: true,
+      includeMap: true,
       includeRoster: true,
       includeHousingAssignments: true,
-      includeHousingColumn: data.settings?.includeHousingColumn !== false,
-      includeEmergencyContacts: data.settings?.includeEmergencyProcedures !== false,
+      includeHousingColumn: true,
+      includeEmergencyContacts: true,
     }
 
-    return generateMultiplePacketsHTML([packetData], printSettings, data.inserts)
+    // Get active inserts with imageUrls for printing
+    const activeInserts = data.inserts?.filter((i: any) => i.isActive !== false) || []
+
+    return generateMultiplePacketsHTML([packetData], printSettings, activeInserts)
   }
 
   async function handleSearch() {
