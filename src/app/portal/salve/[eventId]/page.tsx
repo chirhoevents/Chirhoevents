@@ -37,6 +37,7 @@ import {
   Undo2,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
+import { generateMultiplePacketsHTML, type PacketData, type PrintSettings } from '@/lib/welcome-packet-print'
 
 // Dynamic import for QR scanner to avoid SSR issues
 const QRScanner = dynamic(
@@ -960,149 +961,58 @@ export default function SalveDedicatedPortal() {
 
       const data = await response.json()
 
-      // Get event info, schedule, and inserts from the response
-      const eventInfo = data.event || {}
-      const resources = data.resources || {}
-      const inserts = data.inserts || []
-      const settings = data.settings || {}
-      const participants = data.participants?.list || []
-      const housing = data.housing?.summary || []
+      // Convert to the shared PacketData format (matching pre-print exactly)
+      const packetData: PacketData = {
+        event: {
+          name: data.event?.name || 'Event',
+          organizationName: data.event?.organizationName,
+          logoUrl: data.event?.logoUrl,
+        },
+        group: {
+          id: data.group?.id || '',
+          name: data.group?.name || groupData.groupName,
+          diocese: data.group?.diocese,
+          accessCode: data.group?.accessCode || groupData.accessCode,
+          contactEmail: data.group?.contactEmail || groupData.groupLeaderEmail,
+          contactPhone: data.group?.contactPhone,
+        },
+        mealColor: data.mealColor,
+        smallGroup: data.smallGroup,
+        participants: {
+          total: data.participants?.total || groupData.totalParticipants,
+          youth: data.participants?.youth || 0,
+          chaperones: data.participants?.chaperones || 0,
+          clergy: data.participants?.clergy || 0,
+          list: data.participants?.list || [],
+        },
+        housing: {
+          totalRooms: data.housing?.totalRooms || 0,
+          summary: data.housing?.summary || [],
+        },
+        resources: data.resources,
+        inserts: data.inserts,
+      }
+
+      // Use settings matching pre-print exactly
+      const printSettings: PrintSettings = {
+        includeSchedule: true,
+        includeMap: true,
+        includeRoster: true,
+        includeHousingAssignments: true,
+        includeHousingColumn: true,
+        includeEmergencyContacts: true,
+      }
+
+      // Get active inserts for printing
+      const activeInserts = data.inserts?.filter((i: any) => i.isActive !== false) || []
+
+      // Generate HTML using the shared template
+      const html = generateMultiplePacketsHTML([packetData], printSettings, activeInserts)
 
       // Open packet in a new window for printing
       const printWindow = window.open('', '_blank')
       if (printWindow) {
-        printWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <title>Welcome Packet - ${groupData.groupName}</title>
-            <style>
-              @page { size: letter; margin: 0.75in; }
-              @media print {
-                .no-print { display: none !important; }
-                .page-break { page-break-before: always; }
-              }
-              body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; max-width: 8.5in; margin: 0 auto; color: #333; line-height: 1.6; font-size: 14px; }
-              h1 { color: #1E3A5F; margin-bottom: 0.5em; font-size: 28px; }
-              h2 { color: #9C8466; margin-top: 1.5em; font-size: 20px; border-bottom: 2px solid #9C8466; padding-bottom: 5px; }
-              h3 { color: #1E3A5F; font-size: 16px; margin-top: 1em; }
-              .header { border-bottom: 3px solid #9C8466; margin-bottom: 1em; padding-bottom: 1em; }
-              .header img { max-height: 60px; margin-bottom: 10px; }
-              .welcome { font-size: 1.3em; margin-bottom: 1em; font-style: italic; }
-              table { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 14px; }
-              th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
-              th { background: #f5f5f5; font-weight: bold; }
-              .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1em; margin: 1em 0; }
-              .info-box { background: #f9f9f9; padding: 1em; border-radius: 8px; border-left: 4px solid #9C8466; }
-              .info-box h3 { margin-top: 0; }
-              .schedule-day { margin-bottom: 1.5em; }
-              .schedule-item { padding: 8px 0; border-bottom: 1px dashed #ddd; }
-              .schedule-time { font-weight: bold; color: #1E3A5F; width: 100px; display: inline-block; }
-              .insert-image { max-width: 100%; height: auto; margin: 20px 0; }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              ${eventInfo.logoUrl ? `<img src="${eventInfo.logoUrl}" alt="Logo" />` : ''}
-              <h1>Welcome to ${eventInfo.name || eventName}!</h1>
-              ${eventInfo.organizationName ? `<p style="color: #666; margin: 0;">${eventInfo.organizationName}</p>` : ''}
-            </div>
-
-            <p class="welcome">Salve, ${groupData.groupLeaderName}!</p>
-            <p>Welcome to ${eventInfo.name || eventName}. Your group <strong>${groupData.groupName}</strong>${data.group?.diocese ? ` from ${data.group.diocese}` : ''} has ${groupData.totalParticipants} registered participants.</p>
-
-            <div class="info-grid">
-              <div class="info-box">
-                <h3>Registration Status</h3>
-                <p><strong>Status:</strong> ${groupData.registrationStatus}</p>
-                <p><strong>Payment:</strong> ${groupData.payment.balanceRemaining <= 0 ? 'Paid in Full ✓' : `$${groupData.payment.balanceRemaining.toFixed(2)} remaining`}</p>
-                <p><strong>Forms:</strong> ${groupData.forms.completed}/${groupData.forms.completed + groupData.forms.pending} Complete</p>
-              </div>
-              <div class="info-box">
-                <h3>Contact Information</h3>
-                ${data.group?.contactEmail ? `<p><strong>Email:</strong> ${data.group.contactEmail}</p>` : ''}
-                ${data.group?.contactPhone ? `<p><strong>Phone:</strong> ${data.group.contactPhone}</p>` : ''}
-                ${data.group?.accessCode ? `<p><strong>Access Code:</strong> ${data.group.accessCode}</p>` : ''}
-              </div>
-            </div>
-
-            <h2>Participant Roster</h2>
-            <table>
-              <tr>
-                <th>Name</th>
-                <th>Type</th>
-                ${settings.includeHousingColumn !== false ? '<th>Housing</th>' : ''}
-              </tr>
-              ${participants.map((p: any) => `
-                <tr>
-                  <td>${p.name}</td>
-                  <td>${p.isClergy ? 'Clergy' : p.isChaperone ? 'Chaperone' : 'Youth'}</td>
-                  ${settings.includeHousingColumn !== false ? `<td>${p.housing ? `${p.housing.building} ${p.housing.room}${p.housing.bed ? ` - Bed ${p.housing.bed}` : ''}` : 'TBD'}</td>` : ''}
-                </tr>
-              `).join('')}
-            </table>
-
-            ${housing.length > 0 ? `
-              <h2>Housing Summary</h2>
-              ${housing.map((room: any) => `
-                <div style="margin-bottom: 1em; padding: 10px; background: #f9f9f9; border-radius: 8px;">
-                  <h3 style="margin: 0 0 10px 0;">${room.building} - Room ${room.roomNumber}</h3>
-                  <p style="margin: 5px 0; color: #666;">Floor ${room.floor || 'N/A'} | Capacity: ${room.capacity} | ${room.gender || 'Mixed'}</p>
-                  <ul style="margin: 5px 0;">
-                    ${room.occupants.map((o: any) => `<li>${o.name}${o.bedLetter ? ` (Bed ${o.bedLetter})` : ''} - ${o.participantType}</li>`).join('')}
-                  </ul>
-                </div>
-              `).join('')}
-            ` : ''}
-
-            ${resources.schedule && resources.schedule.length > 0 && settings.includeEventSchedule !== false ? `
-              <h2 class="page-break">Event Schedule</h2>
-              ${Array.from(new Set(resources.schedule.map((s: any) => s.day))).map((day: any) => `
-                <div class="schedule-day">
-                  <h3>${day}</h3>
-                  ${resources.schedule.filter((s: any) => s.day === day).map((entry: any) => `
-                    <div class="schedule-item">
-                      <span class="schedule-time">${entry.startTime}${entry.endTime ? ` - ${entry.endTime}` : ''}</span>
-                      <strong>${entry.title}</strong>
-                      ${entry.location ? `<span style="color: #666;"> @ ${entry.location}</span>` : ''}
-                      ${entry.description ? `<br/><span style="font-size: 12px; color: #666;">${entry.description}</span>` : ''}
-                    </div>
-                  `).join('')}
-                </div>
-              `).join('')}
-            ` : ''}
-
-            ${resources.mealTimes && resources.mealTimes.length > 0 && settings.includeMealSchedule !== false ? `
-              <h2>Meal Schedule</h2>
-              <table>
-                <tr><th>Day</th><th>Meal</th><th>Time</th></tr>
-                ${resources.mealTimes.map((mt: any) => `
-                  <tr>
-                    <td>${mt.day}</td>
-                    <td>${mt.meal}</td>
-                    <td>${mt.time}</td>
-                  </tr>
-                `).join('')}
-              </table>
-            ` : ''}
-
-            ${/* Embed image inserts directly - each on its own page */
-              inserts.filter((insert: any) => insert.imageUrls && insert.imageUrls.length > 0).map((insert: any) =>
-                insert.imageUrls.map((imageUrl: string, imgIndex: number) => `
-                  <div class="page-break" style="text-align: center;">
-                    ${imgIndex === 0 ? `<h2 style="margin-top: 0; text-align: left;">${insert.name}</h2>` : ''}
-                    <img src="${imageUrl}" alt="${insert.name}" style="max-width: 100%; height: auto; margin: 20px 0;" />
-                  </div>
-                `).join('')
-              ).join('')
-            }
-
-            <div style="margin-top: 2em; padding-top: 1em; border-top: 1px solid #ddd; text-align: center; color: #888; font-size: 12px;">
-              Generated on ${new Date().toLocaleString()}
-            </div>
-          </body>
-          </html>
-        `)
+        printWindow.document.write(html)
         printWindow.document.close()
         printWindow.focus()
         setTimeout(() => printWindow.print(), 500)
