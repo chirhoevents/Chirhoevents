@@ -211,7 +211,7 @@ export async function POST(
 
     // Get payments for invoice
     const payments = await prisma.payment.findMany({
-      where: { groupRegistrationId: groupId },
+      where: { registrationId: groupId },
       orderBy: { createdAt: 'asc' },
     })
 
