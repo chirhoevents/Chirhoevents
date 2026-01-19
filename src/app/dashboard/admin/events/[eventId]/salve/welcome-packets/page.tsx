@@ -104,6 +104,19 @@ interface PacketPreview {
     contactEmail: string
     contactPhone: string
   }
+  mealColor: {
+    name: string
+    colorHex: string
+    saturdayBreakfast: string | null
+    saturdayLunch: string | null
+    saturdayDinner: string | null
+    sundayBreakfast: string | null
+  } | null
+  smallGroup: {
+    sgl: string | null
+    religious: string | null
+    meetingRoom: string | null
+  } | null
   participants: {
     total: number
     youth: number
@@ -719,6 +732,36 @@ export default function WelcomePacketsPage() {
               </div>
             </div>
 
+            ${packet.mealColor ? `
+              <div class="info-box" style="margin-top: 1em; border-left-color: ${packet.mealColor.colorHex};">
+                <h3 style="display: flex; align-items: center; gap: 10px;">
+                  <span style="display: inline-block; width: 20px; height: 20px; background: ${packet.mealColor.colorHex}; border-radius: 50%;"></span>
+                  Meal Color: ${packet.mealColor.name}
+                </h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+                  <div>
+                    <strong>Saturday</strong>
+                    ${packet.mealColor.saturdayBreakfast ? `<p style="margin: 2px 0;">Breakfast: ${packet.mealColor.saturdayBreakfast}</p>` : ''}
+                    ${packet.mealColor.saturdayLunch ? `<p style="margin: 2px 0;">Lunch: ${packet.mealColor.saturdayLunch}</p>` : ''}
+                    ${packet.mealColor.saturdayDinner ? `<p style="margin: 2px 0;">Dinner: ${packet.mealColor.saturdayDinner}</p>` : ''}
+                  </div>
+                  <div>
+                    <strong>Sunday</strong>
+                    ${packet.mealColor.sundayBreakfast ? `<p style="margin: 2px 0;">Breakfast: ${packet.mealColor.sundayBreakfast}</p>` : ''}
+                  </div>
+                </div>
+              </div>
+            ` : ''}
+
+            ${packet.smallGroup && (packet.smallGroup.sgl || packet.smallGroup.religious || packet.smallGroup.meetingRoom) ? `
+              <div class="info-box" style="margin-top: 1em;">
+                <h3>Small Group</h3>
+                ${packet.smallGroup.sgl ? `<p><strong>SGL:</strong> ${packet.smallGroup.sgl}</p>` : ''}
+                ${packet.smallGroup.religious ? `<p><strong>Religious:</strong> ${packet.smallGroup.religious}</p>` : ''}
+                ${packet.smallGroup.meetingRoom ? `<p><strong>Meeting Room:</strong> ${packet.smallGroup.meetingRoom}</p>` : ''}
+              </div>
+            ` : ''}
+
             ${settings.includeRoster ? `
               <h2>Participant Roster</h2>
               <table>
@@ -1214,6 +1257,40 @@ export default function WelcomePacketsPage() {
                   {previewData.participants.clergy} Clergy
                 </div>
               </div>
+
+              {/* Meal Color */}
+              {previewData.mealColor && (
+                <div className="p-4 rounded-lg border-l-4" style={{ borderLeftColor: previewData.mealColor.colorHex, backgroundColor: `${previewData.mealColor.colorHex}10` }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-5 h-5 rounded-full" style={{ backgroundColor: previewData.mealColor.colorHex }} />
+                    <strong>Meal Color: {previewData.mealColor.name}</strong>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <strong>Saturday</strong>
+                      {previewData.mealColor.saturdayBreakfast && <p>Breakfast: {previewData.mealColor.saturdayBreakfast}</p>}
+                      {previewData.mealColor.saturdayLunch && <p>Lunch: {previewData.mealColor.saturdayLunch}</p>}
+                      {previewData.mealColor.saturdayDinner && <p>Dinner: {previewData.mealColor.saturdayDinner}</p>}
+                    </div>
+                    <div>
+                      <strong>Sunday</strong>
+                      {previewData.mealColor.sundayBreakfast && <p>Breakfast: {previewData.mealColor.sundayBreakfast}</p>}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Small Group */}
+              {previewData.smallGroup && (previewData.smallGroup.sgl || previewData.smallGroup.religious || previewData.smallGroup.meetingRoom) && (
+                <div className="p-4 rounded-lg bg-beige">
+                  <strong className="text-navy">Small Group</strong>
+                  <div className="grid grid-cols-2 gap-4 text-sm mt-2">
+                    {previewData.smallGroup.sgl && <div><strong>SGL:</strong> {previewData.smallGroup.sgl}</div>}
+                    {previewData.smallGroup.religious && <div><strong>Religious:</strong> {previewData.smallGroup.religious}</div>}
+                    {previewData.smallGroup.meetingRoom && <div className="col-span-2"><strong>Meeting Room:</strong> {previewData.smallGroup.meetingRoom}</div>}
+                  </div>
+                </div>
+              )}
 
               {settings.includeRoster && (
                 <div>
