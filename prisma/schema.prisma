@@ -489,6 +489,10 @@ model GroupRegistration {
   housingAssignmentsSubmittedAt DateTime? @map("housing_assignments_submitted_at") @db.Timestamptz(6)
   housingUnlockRequested     Boolean  @default(false) @map("housing_unlock_requested")
   housingUnlockRequestedAt   DateTime? @map("housing_unlock_requested_at") @db.Timestamptz(6)
+  // Small group staff assignments (direct to group)
+  sglStaffId                 String?  @map("sgl_staff_id") @db.Uuid
+  religiousStaffId           String?  @map("religious_staff_id") @db.Uuid
+  smallGroupRoomId           String?  @map("small_group_room_id") @db.Uuid
   registeredAt               DateTime @default(now()) @map("registered_at") @db.Timestamptz(6)
   createdAt                  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -497,6 +501,9 @@ model GroupRegistration {
   event          Event           @relation(fields: [eventId], references: [id])
   organization   Organization    @relation(fields: [organizationId], references: [id])
   dayPassOption  DayPassOption?  @relation(fields: [dayPassOptionId], references: [id])
+  sglStaff       PorosStaff?     @relation("GroupSGL", fields: [sglStaffId], references: [id], onDelete: SetNull)
+  religiousStaff PorosStaff?     @relation("GroupReligious", fields: [religiousStaffId], references: [id], onDelete: SetNull)
+  smallGroupRoom Room?           @relation("GroupSmallGroupRoom", fields: [smallGroupRoomId], references: [id], onDelete: SetNull)
   participants   Participant[]
   liabilityForms LiabilityForm[]
   userPreferences UserPreferences[]
@@ -1456,6 +1463,7 @@ model Room {
   // Relations
   building        Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
   allocatedToGroup GroupRegistration? @relation("RoomsAllocatedToGroup", fields: [allocatedToGroupId], references: [id], onDelete: SetNull)
+  smallGroupAssignedGroups GroupRegistration[] @relation("GroupSmallGroupRoom")
   roomAssignments RoomAssignment[]
   smallGroups     SmallGroup[]
   adaIndividuals  AdaIndividual[]
@@ -1546,6 +1554,8 @@ model PorosStaff {
   // Relations
   sglSmallGroups   SmallGroup[] @relation("SmallGroupSGL")
   coSglSmallGroups SmallGroup[] @relation("SmallGroupCoSGL")
+  sglGroups        GroupRegistration[] @relation("GroupSGL")
+  religiousGroups  GroupRegistration[] @relation("GroupReligious")
 
   @@index([eventId], name: "idx_poros_staff_event")
   @@index([staffType], name: "idx_poros_staff_type")
