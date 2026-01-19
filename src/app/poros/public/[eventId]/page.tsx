@@ -466,6 +466,7 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
             locationName: event.locationName
           }}
           data={m2kData}
+          announcements={announcements}
         />
       )
     }
