@@ -56,6 +56,7 @@ import {
   ExternalLink,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
+import { generateMultiplePacketsHTML, type PacketData, type PrintSettings } from '@/lib/welcome-packet-print'
 
 interface PacketSettings {
   includeSchedule: boolean
@@ -579,263 +580,44 @@ export default function WelcomePacketsPage() {
     // Get active inserts that have images (can be embedded directly)
     const activeInserts = inserts.filter(i => i.isActive)
 
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Welcome Packets</title>
-        <style>
-          @page {
-            size: letter;
-            margin: 0.75in;
-          }
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            color: #333;
-            line-height: 1.6;
-            font-size: 14px;
-            max-width: 8.5in;
-            margin: 0 auto;
-          }
-          .packet {
-            page-break-after: always;
-          }
-          .packet:last-child {
-            page-break-after: auto;
-          }
-          .header {
-            border-bottom: 3px solid #9C8466;
-            margin-bottom: 1em;
-            padding-bottom: 1em;
-            position: relative;
-          }
-          .header-logos {
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            position: relative;
-          }
-          .chirho-logo {
-            position: absolute;
-            left: 0;
-            top: 0;
-            max-height: 30px;
-          }
-          .org-logo {
-            max-height: 60px;
-            margin-bottom: 10px;
-          }
-          .header img {
-            max-height: 60px;
-            margin-bottom: 10px;
-          }
-          h1 {
-            color: #1E3A5F;
-            font-size: 28px;
-            margin-bottom: 0.5em;
-          }
-          h2 {
-            color: #9C8466;
-            margin-top: 1.5em;
-            font-size: 20px;
-            border-bottom: 2px solid #9C8466;
-            padding-bottom: 5px;
-          }
-          h3 {
-            color: #1E3A5F;
-            font-size: 16px;
-            margin-top: 1em;
-          }
-          .welcome {
-            font-size: 1.3em;
-            margin-bottom: 1em;
-            font-style: italic;
-          }
-          .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1em;
-            margin: 1em 0;
-          }
-          .info-box {
-            background: #f9f9f9;
-            padding: 1em;
-            border-radius: 8px;
-            border-left: 4px solid #9C8466;
-          }
-          .info-box h3 {
-            margin-top: 0;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 1em 0;
-            font-size: 14px;
-          }
-          th, td {
-            padding: 10px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-          }
-          th {
-            background: #f5f5f5;
-            font-weight: bold;
-          }
-          .housing-room {
-            margin-bottom: 1em;
-            padding: 10px;
-            background: #f9f9f9;
-            border-radius: 8px;
-          }
-          .housing-room h3 {
-            margin: 0 0 10px 0;
-          }
-          .housing-room p {
-            margin: 5px 0;
-            color: #666;
-          }
-          .housing-room ul {
-            margin: 5px 0;
-          }
-          .insert-page {
-            page-break-before: always;
-          }
-          .insert-image {
-            max-width: 100%;
-            height: auto;
-            margin: 20px 0;
-          }
-          .insert-title {
-            color: #1E3A5F;
-            font-size: 20px;
-            font-weight: bold;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #9C8466;
-          }
-          .footer {
-            margin-top: 2em;
-            padding-top: 1em;
-            border-top: 1px solid #ddd;
-            text-align: center;
-            color: #888;
-            font-size: 12px;
-          }
-        </style>
-      </head>
-      <body>
-        ${packets.map((packet, packetIndex) => `
-          <div class="packet">
-            <div class="header">
-              <div class="header-logos">
-                <img src="/logo-horizontal.png" alt="ChiRho Events" class="chirho-logo" onerror="this.style.display='none'" />
-                <div style="text-align: center;">
-                  ${packet.event.logoUrl ? `<img src="${packet.event.logoUrl}" alt="Logo" class="org-logo" onerror="this.style.display='none'" />` : ''}
-                  <h1 style="margin-top: 5px;">Welcome to ${packet.event.name}!</h1>
-                  ${packet.event.organizationName ? `<p style="color: #666; margin: 0;">${packet.event.organizationName}</p>` : ''}
-                </div>
-              </div>
-            </div>
+    // Convert to the shared PacketData format
+    const packetData: PacketData[] = packets.map(packet => ({
+      event: {
+        name: packet.event.name,
+        organizationName: packet.event.organizationName,
+        logoUrl: packet.event.logoUrl,
+      },
+      group: {
+        id: packet.group.id,
+        name: packet.group.name,
+        diocese: packet.group.diocese,
+        accessCode: packet.group.accessCode,
+        contactEmail: packet.group.contactEmail,
+        contactPhone: packet.group.contactPhone,
+      },
+      mealColor: packet.mealColor,
+      smallGroup: packet.smallGroup,
+      participants: {
+        total: packet.participants.total,
+        youth: packet.participants.youth,
+        chaperones: packet.participants.chaperones,
+        clergy: packet.participants.clergy,
+        list: packet.participants.list,
+      },
+      housing: packet.housing,
+    }))
 
-            <p class="welcome">Salve, ${packet.group.name}!</p>
-            <p>Welcome to ${packet.event.name}. ${packet.group.diocese ? `Your group from ${packet.group.diocese} has` : 'You have'} ${packet.participants.total} registered participants.</p>
+    // Convert settings to the shared PrintSettings format
+    const printSettings: PrintSettings = {
+      includeSchedule: settings.includeSchedule,
+      includeMap: settings.includeMap,
+      includeRoster: settings.includeRoster,
+      includeHousingAssignments: settings.includeHousingAssignments,
+      includeHousingColumn: settings.includeHousingAssignments,
+      includeEmergencyContacts: settings.includeEmergencyContacts,
+    }
 
-            <div class="info-grid">
-              <div class="info-box">
-                <h3>Group Information</h3>
-                <p><strong>Group:</strong> ${packet.group.name}</p>
-                ${packet.group.diocese ? `<p><strong>Diocese:</strong> ${packet.group.diocese}</p>` : ''}
-                <p><strong>Access Code:</strong> ${packet.group.accessCode}</p>
-              </div>
-              <div class="info-box">
-                <h3>Contact Information</h3>
-                ${packet.group.contactEmail ? `<p><strong>Email:</strong> ${packet.group.contactEmail}</p>` : ''}
-                ${packet.group.contactPhone ? `<p><strong>Phone:</strong> ${packet.group.contactPhone}</p>` : ''}
-              </div>
-            </div>
-
-            ${packet.mealColor ? `
-              <div class="info-box" style="margin-top: 1em; border-left-color: ${packet.mealColor.colorHex};">
-                <h3 style="display: flex; align-items: center; gap: 10px;">
-                  <span style="display: inline-block; width: 20px; height: 20px; background: ${packet.mealColor.colorHex}; border-radius: 50%;"></span>
-                  Meal Color: ${packet.mealColor.name}
-                </h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
-                  <div>
-                    <strong>Saturday</strong>
-                    ${packet.mealColor.saturdayBreakfast ? `<p style="margin: 2px 0;">Breakfast: ${packet.mealColor.saturdayBreakfast}</p>` : ''}
-                    ${packet.mealColor.saturdayLunch ? `<p style="margin: 2px 0;">Lunch: ${packet.mealColor.saturdayLunch}</p>` : ''}
-                    ${packet.mealColor.saturdayDinner ? `<p style="margin: 2px 0;">Dinner: ${packet.mealColor.saturdayDinner}</p>` : ''}
-                  </div>
-                  <div>
-                    <strong>Sunday</strong>
-                    ${packet.mealColor.sundayBreakfast ? `<p style="margin: 2px 0;">Breakfast: ${packet.mealColor.sundayBreakfast}</p>` : ''}
-                  </div>
-                </div>
-              </div>
-            ` : ''}
-
-            ${packet.smallGroup && (packet.smallGroup.sgl || packet.smallGroup.religious || packet.smallGroup.meetingRoom) ? `
-              <div class="info-box" style="margin-top: 1em;">
-                <h3>Small Group</h3>
-                ${packet.smallGroup.sgl ? `<p><strong>SGL:</strong> ${packet.smallGroup.sgl}</p>` : ''}
-                ${packet.smallGroup.religious ? `<p><strong>Religious:</strong> ${packet.smallGroup.religious}</p>` : ''}
-                ${packet.smallGroup.meetingRoom ? `<p><strong>Meeting Room:</strong> ${packet.smallGroup.meetingRoom}</p>` : ''}
-              </div>
-            ` : ''}
-
-            ${settings.includeRoster ? `
-              <h2>Participant Roster</h2>
-              <table>
-                <tr>
-                  <th>Name</th>
-                  <th>Type</th>
-                  ${settings.includeHousingAssignments ? '<th>Housing</th>' : ''}
-                </tr>
-                ${packet.participants.list.map((p: any) => `
-                  <tr>
-                    <td>${p.name}</td>
-                    <td>${p.isClergy ? 'Clergy' : p.isChaperone ? 'Chaperone' : 'Youth'}</td>
-                    ${settings.includeHousingAssignments ? `
-                      <td>${p.housing ? `${p.housing.building} ${p.housing.room}${p.housing.bed ? ` - Bed ${p.housing.bed}` : ''}` : 'TBD'}</td>
-                    ` : ''}
-                  </tr>
-                `).join('')}
-              </table>
-            ` : ''}
-
-            ${settings.includeHousingAssignments && packet.housing.summary.length > 0 ? `
-              <h2>Housing Summary</h2>
-              ${packet.housing.summary.map((room: any) => `
-                <div class="housing-room">
-                  <h3>${room.building} - Room ${room.roomNumber}</h3>
-                  <p>Floor ${room.floor || 'N/A'} | Capacity: ${room.capacity} | ${room.gender || 'Mixed'}</p>
-                  <ul>
-                    ${room.occupants.map((o: any) => `<li>${o.name}${o.bedLetter ? ` (Bed ${o.bedLetter})` : ''} - ${o.participantType || ''}</li>`).join('')}
-                  </ul>
-                </div>
-              `).join('')}
-            ` : ''}
-
-            <div class="footer">
-              Generated on ${new Date().toLocaleString()}
-            </div>
-          </div>
-
-          ${/* Embed image inserts directly after each packet - each image on its own page */
-            activeInserts.filter(insert => insert.imageUrls && insert.imageUrls.length > 0).map((insert) =>
-              (insert.imageUrls as string[]).map((imageUrl, imgIndex) => `
-                <div class="insert-page">
-                  ${imgIndex === 0 ? `<div class="insert-title">${insert.name}</div>` : ''}
-                  <img src="${imageUrl}" alt="${insert.name}" class="insert-image" />
-                </div>
-              `).join('')
-            ).join('')
-          }
-        `).join('')}
-      </body>
-      </html>
-    `
+    return generateMultiplePacketsHTML(packetData, printSettings, activeInserts)
   }
 
   const selectedCount = selectedGroups.size
