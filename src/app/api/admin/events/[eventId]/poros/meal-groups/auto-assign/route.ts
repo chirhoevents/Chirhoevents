@@ -37,16 +37,27 @@ export async function POST(
       )
     }
 
-    // Get all group registrations without meal group assignments
-    const unassignedGroups = await prisma.groupRegistration.findMany({
-      where: {
-        eventId,
-        mealGroupAssignments: {
-          none: {},
-        },
-      },
+    // Get all group registrations for this event
+    const allGroups = await prisma.groupRegistration.findMany({
+      where: { eventId },
       orderBy: { groupName: 'asc' },
     })
+
+    // Get existing meal group assignments for this event
+    const existingAssignments = await prisma.mealGroupAssignment.findMany({
+      where: {
+        mealGroup: { eventId },
+        groupRegistrationId: { not: null },
+      },
+      select: { groupRegistrationId: true },
+    })
+
+    const assignedGroupIds = new Set(
+      existingAssignments.map((a) => a.groupRegistrationId).filter(Boolean)
+    )
+
+    // Filter to unassigned groups
+    const unassignedGroups = allGroups.filter((g) => !assignedGroupIds.has(g.id))
 
     if (unassignedGroups.length === 0) {
       return NextResponse.json({
