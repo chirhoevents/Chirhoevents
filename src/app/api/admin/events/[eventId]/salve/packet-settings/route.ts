@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { getCurrentUser } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
+import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+import { hasPermission } from '@/lib/permissions'
 
 const DEFAULT_PACKET_SETTINGS = {
   includeSchedule: true,
@@ -11,35 +13,56 @@ const DEFAULT_PACKET_SETTINGS = {
   includeInvoice: false,
 }
 
+// Helper function to check if user can access Salve portal
+async function requireSalveAccess(request: NextRequest, eventId: string) {
+  const overrideUserId = getClerkUserIdFromHeader(request)
+  const user = await getCurrentUser(overrideUserId)
+
+  if (!user) {
+    throw new Error('Unauthorized')
+  }
+
+  // Check if user has salve.access permission (covers salve_coordinator, event_manager, org_admin, master_admin)
+  // Also check custom permissions for salve_user role or explicit portal access
+  const hasSalvePermission = hasPermission(user.role, 'salve.access')
+  const hasCustomSalveAccess = user.permissions?.['salve.access'] === true ||
+    user.permissions?.['portals.salve.view'] === true
+
+  if (!hasSalvePermission && !hasCustomSalveAccess) {
+    console.error(`[SALVE] ❌ User ${user.email} (role: ${user.role}) lacks salve.access permission`)
+    throw new Error('Access denied - SALVE portal access required')
+  }
+
+  // Verify the event belongs to the user's organization (unless master_admin)
+  if (user.role !== 'master_admin') {
+    const event = await prisma.event.findFirst({
+      where: {
+        id: eventId,
+        organizationId: user.organizationId,
+      },
+    })
+
+    if (!event) {
+      throw new Error('Access denied to this event')
+    }
+  }
+
+  return user
+}
+
 // GET: Fetch packet settings for an event
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { eventId } = await context.params
+    await requireSalveAccess(request, eventId)
 
-    // Verify user has access to this event
-    const user = await prisma.user.findFirst({
-      where: { clerkUserId: userId },
-      select: { id: true },
-    })
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
-
-    // Check if user is admin for the event's organization
+    // Fetch event settings
     const event = await prisma.event.findUnique({
       where: { id: eventId },
       select: {
-        id: true,
-        organizationId: true,
         settings: {
           select: {
             salvePacketSettings: true,
@@ -48,29 +71,20 @@ export async function GET(
       },
     })
 
-    if (!event) {
-      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-    }
-
-    // Verify user has access to the organization
-    const membership = await prisma.organizationMember.findFirst({
-      where: {
-        organizationId: event.organizationId,
-        userId: user.id,
-        role: { in: ['owner', 'admin', 'member'] },
-      },
-    })
-
-    if (!membership) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
     // Return saved settings or defaults
-    const settings = event.settings?.salvePacketSettings || DEFAULT_PACKET_SETTINGS
+    const settings = event?.settings?.salvePacketSettings || DEFAULT_PACKET_SETTINGS
 
     return NextResponse.json({ settings })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching packet settings:', error)
+
+    if (error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (error.message?.includes('Access denied')) {
+      return NextResponse.json({ error: error.message }, { status: 403 })
+    }
+
     return NextResponse.json(
       { error: 'Failed to fetch packet settings' },
       { status: 500 }
@@ -84,53 +98,14 @@ export async function PUT(
   context: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { eventId } = await context.params
+    await requireSalveAccess(request, eventId)
+
     const body = await request.json()
     const { settings } = body
 
     if (!settings) {
       return NextResponse.json({ error: 'Settings required' }, { status: 400 })
-    }
-
-    // Verify user has access to this event
-    const user = await prisma.user.findFirst({
-      where: { clerkUserId: userId },
-      select: { id: true },
-    })
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
-
-    // Check if user is admin for the event's organization
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
-      select: {
-        id: true,
-        organizationId: true,
-      },
-    })
-
-    if (!event) {
-      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-    }
-
-    // Verify user has admin access to the organization
-    const membership = await prisma.organizationMember.findFirst({
-      where: {
-        organizationId: event.organizationId,
-        userId: user.id,
-        role: { in: ['owner', 'admin'] },
-      },
-    })
-
-    if (!membership) {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 })
     }
 
     // Update or create event settings with packet settings
@@ -152,8 +127,16 @@ export async function PUT(
       success: true,
       settings: updatedSettings.salvePacketSettings
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating packet settings:', error)
+
+    if (error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (error.message?.includes('Access denied')) {
+      return NextResponse.json({ error: error.message }, { status: 403 })
+    }
+
     return NextResponse.json(
       { error: 'Failed to update packet settings' },
       { status: 500 }
