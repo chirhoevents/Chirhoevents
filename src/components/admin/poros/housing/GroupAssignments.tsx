@@ -43,6 +43,7 @@ interface YouthGroup {
   id: string
   groupName: string
   parishName: string | null
+  housingType: 'on_campus' | 'off_campus' | 'mixed' | null
   maleCount: number
   femaleCount: number
   totalCount: number
@@ -60,6 +61,7 @@ export function GroupAssignments({
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'assigned' | 'unassigned'>('all')
+  const [housingTypeFilter, setHousingTypeFilter] = useState<'all' | 'on_campus' | 'off_campus' | 'mixed'>('all')
 
   // Assignment dialog state
   const [selectedGroup, setSelectedGroup] = useState<YouthGroup | null>(null)
@@ -100,6 +102,10 @@ export function GroupAssignments({
     }
     if (statusFilter === 'unassigned') {
       if (g.maleRoomAssignments.length > 0 || g.femaleRoomAssignments.length > 0) return false
+    }
+
+    if (housingTypeFilter !== 'all') {
+      if (g.housingType !== housingTypeFilter) return false
     }
 
     return true
@@ -246,6 +252,21 @@ export function GroupAssignments({
                 <SelectItem value="unassigned">Unassigned</SelectItem>
               </SelectContent>
             </Select>
+
+            <Select
+              value={housingTypeFilter}
+              onValueChange={(v: 'all' | 'on_campus' | 'off_campus' | 'mixed') => setHousingTypeFilter(v)}
+            >
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Housing Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Housing</SelectItem>
+                <SelectItem value="on_campus">On-Campus</SelectItem>
+                <SelectItem value="off_campus">Off-Campus</SelectItem>
+                <SelectItem value="mixed">Mixed</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -281,8 +302,27 @@ export function GroupAssignments({
                       {/* Group Header */}
                       <div className="flex items-center justify-between mb-3">
                         <div>
-                          <div className="font-medium text-lg">
-                            {group.parishName || group.groupName}
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-lg">
+                              {group.parishName || group.groupName}
+                            </span>
+                            {group.housingType && (
+                              <Badge
+                                className={
+                                  group.housingType === 'on_campus'
+                                    ? 'bg-green-100 text-green-800'
+                                    : group.housingType === 'off_campus'
+                                    ? 'bg-orange-100 text-orange-800'
+                                    : 'bg-purple-100 text-purple-800'
+                                }
+                              >
+                                {group.housingType === 'on_campus'
+                                  ? 'On-Campus'
+                                  : group.housingType === 'off_campus'
+                                  ? 'Off-Campus'
+                                  : 'Mixed'}
+                              </Badge>
+                            )}
                           </div>
                           <div className="text-sm text-muted-foreground">
                             {group.totalCount} participants total
