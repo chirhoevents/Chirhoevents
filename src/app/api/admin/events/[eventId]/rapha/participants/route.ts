@@ -44,25 +44,57 @@ export async function GET(
 
     // Parse filters
     const search = searchParams.get('search') || ''
+    const participantLookupId = searchParams.get('id') || '' // Direct lookup by liability form ID
     const filter = searchParams.get('filter') || 'all' // all, allergies, medications, conditions, dietary, ada, severe
     const sortBy = searchParams.get('sortBy') || 'name' // name, age, severity, group
+
+    // Build search condition - split search terms for better matching
+    let searchCondition = {}
+    if (participantLookupId) {
+      // Direct lookup by ID - highest priority
+      searchCondition = { id: participantLookupId }
+    } else if (search) {
+      // Split search into individual terms for better matching
+      const searchTerms = search.trim().split(/\s+/)
+      if (searchTerms.length > 1) {
+        // Multiple words - try to match first name AND last name
+        searchCondition = {
+          OR: [
+            // Try matching first word as first name and second as last name
+            {
+              AND: [
+                { participantFirstName: { contains: searchTerms[0], mode: 'insensitive' } },
+                { participantLastName: { contains: searchTerms[searchTerms.length - 1], mode: 'insensitive' } },
+              ],
+            },
+            // Also search all terms in medical fields
+            ...searchTerms.flatMap((term: string) => [
+              { allergies: { contains: term, mode: 'insensitive' } },
+              { medicalConditions: { contains: term, mode: 'insensitive' } },
+              { medications: { contains: term, mode: 'insensitive' } },
+            ]),
+          ],
+        }
+      } else {
+        // Single word - search across all fields
+        searchCondition = {
+          OR: [
+            { participantFirstName: { contains: search, mode: 'insensitive' } },
+            { participantLastName: { contains: search, mode: 'insensitive' } },
+            { allergies: { contains: search, mode: 'insensitive' } },
+            { medicalConditions: { contains: search, mode: 'insensitive' } },
+            { medications: { contains: search, mode: 'insensitive' } },
+          ],
+        }
+      }
+    }
 
     // Get all participants with their liability form medical info
     const liabilityForms = await prisma.liabilityForm.findMany({
       where: {
         eventId,
         completed: true,
-        ...(search
-          ? {
-              OR: [
-                { participantFirstName: { contains: search, mode: 'insensitive' } },
-                { participantLastName: { contains: search, mode: 'insensitive' } },
-                { allergies: { contains: search, mode: 'insensitive' } },
-                { medicalConditions: { contains: search, mode: 'insensitive' } },
-                { medications: { contains: search, mode: 'insensitive' } },
-              ],
-            }
-          : {}),
+        ...searchCondition,
         // Apply filters
         ...(filter === 'allergies' ? { allergies: { not: null }, NOT: { allergies: '' } } : {}),
         ...(filter === 'medications' ? { medications: { not: null }, NOT: { medications: '' } } : {}),
@@ -86,6 +118,16 @@ export async function GET(
             id: true,
             groupName: true,
             parishName: true,
+            dioceseName: true,
+            groupLeaderName: true,
+            groupLeaderEmail: true,
+            groupLeaderPhone: true,
+            alternativeContact1Name: true,
+            alternativeContact1Email: true,
+            alternativeContact1Phone: true,
+            alternativeContact2Name: true,
+            alternativeContact2Email: true,
+            alternativeContact2Phone: true,
           },
         },
         participant: {
@@ -181,6 +223,19 @@ export async function GET(
         groupId: form.groupRegistrationId,
         groupName: form.groupRegistration?.groupName || 'Individual',
         parishName: form.groupRegistration?.parishName,
+        dioceseName: form.groupRegistration?.dioceseName,
+        isGroupRegistration: !!form.groupRegistrationId,
+        groupContact: form.groupRegistration ? {
+          leaderName: form.groupRegistration.groupLeaderName,
+          leaderEmail: form.groupRegistration.groupLeaderEmail,
+          leaderPhone: form.groupRegistration.groupLeaderPhone,
+          altContact1Name: form.groupRegistration.alternativeContact1Name,
+          altContact1Email: form.groupRegistration.alternativeContact1Email,
+          altContact1Phone: form.groupRegistration.alternativeContact1Phone,
+          altContact2Name: form.groupRegistration.alternativeContact2Name,
+          altContact2Email: form.groupRegistration.alternativeContact2Email,
+          altContact2Phone: form.groupRegistration.alternativeContact2Phone,
+        } : null,
         roomAssignment: form.participantId ? roomMap.get(form.participantId) : null,
         incidentCount: form.participantId ? incidentMap.get(form.participantId) || 0 : 0,
         alertLevel,

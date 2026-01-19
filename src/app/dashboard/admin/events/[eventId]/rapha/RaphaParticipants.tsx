@@ -39,6 +39,7 @@ import {
   Printer,
   AlertCircle,
   User,
+  Users,
   Building,
   Utensils,
   Accessibility,
@@ -61,6 +62,19 @@ export interface RaphaParticipant {
   groupId: string | null
   groupName: string
   parishName: string | null
+  dioceseName: string | null
+  isGroupRegistration?: boolean // true if part of a group registration
+  groupContact: {
+    leaderName: string | null
+    leaderEmail: string | null
+    leaderPhone: string | null
+    altContact1Name: string | null
+    altContact1Email: string | null
+    altContact1Phone: string | null
+    altContact2Name: string | null
+    altContact2Email: string | null
+    altContact2Phone: string | null
+  } | null
   roomAssignment: string | null
   incidentCount: number
   alertLevel: 'none' | 'low' | 'medium' | 'high'
@@ -96,9 +110,10 @@ interface RaphaParticipantsProps {
   eventId: string
   onCreateIncident?: (participant: Participant) => void
   initialSearch?: string
+  initialLookupId?: string // Direct lookup by liability form ID
 }
 
-export default function RaphaParticipants({ eventId, onCreateIncident, initialSearch }: RaphaParticipantsProps) {
+export default function RaphaParticipants({ eventId, onCreateIncident, initialSearch, initialLookupId }: RaphaParticipantsProps) {
   const searchParams = useSearchParams()
 
   const [loading, setLoading] = useState(true)
@@ -119,17 +134,31 @@ export default function RaphaParticipants({ eventId, onCreateIncident, initialSe
   const [emailMessage, setEmailMessage] = useState('')
   const [sendingEmail, setSendingEmail] = useState(false)
 
+  // State for direct participant ID lookup
+  const [lookupId, setLookupId] = useState(initialLookupId || '')
+
   // Watch for URL search params changes
   useEffect(() => {
     const urlSearch = searchParams.get('search') || ''
     const urlFilter = searchParams.get('filter') || 'all'
+    const urlId = searchParams.get('id') || ''
     if (urlSearch !== search) {
       setSearch(urlSearch)
     }
     if (urlFilter !== filter) {
       setFilter(urlFilter)
     }
+    if (urlId !== lookupId) {
+      setLookupId(urlId)
+    }
   }, [searchParams])
+
+  // Handle initialLookupId prop changes (from portal search)
+  useEffect(() => {
+    if (initialLookupId !== undefined && initialLookupId !== '' && initialLookupId !== lookupId) {
+      setLookupId(initialLookupId)
+    }
+  }, [initialLookupId])
 
   // Update search when initialSearch prop changes and immediately fetch
   useEffect(() => {
@@ -162,7 +191,7 @@ export default function RaphaParticipants({ eventId, onCreateIncident, initialSe
 
   useEffect(() => {
     fetchParticipants()
-  }, [eventId, filter, sortBy])
+  }, [eventId, filter, sortBy, lookupId])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -177,7 +206,8 @@ export default function RaphaParticipants({ eventId, onCreateIncident, initialSe
       const params = new URLSearchParams({
         filter,
         sortBy,
-        ...(search && { search }),
+        ...(lookupId && { id: lookupId }),
+        ...(search && !lookupId && { search }),
       })
       const response = await fetch(`/api/admin/events/${eventId}/rapha/participants?${params}`)
       if (response.ok) {
@@ -358,6 +388,48 @@ This is regarding ${participant.firstName} ${participant.lastName}.
           <div class="critical">
             <div class="critical-title">⚠️ CRITICAL ALERT - SEVERE ALLERGY</div>
             <p style="color: #dc2626; margin: 0;">${participant.medical.allergies}</p>
+          </div>
+        ` : ''}
+
+        ${participant.isGroupRegistration ? `
+          <div style="background: #eff6ff; border: 2px solid #3b82f6; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+            <div style="color: #1d4ed8; font-weight: bold; margin-bottom: 8px;">👥 GROUP REGISTRATION</div>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px;">
+              <div><strong>Group:</strong> ${participant.groupName}</div>
+              ${participant.parishName ? `<div><strong>Parish:</strong> ${participant.parishName}</div>` : ''}
+              ${participant.dioceseName ? `<div><strong>Diocese:</strong> ${participant.dioceseName}</div>` : ''}
+            </div>
+            ${participant.groupContact ? `
+              <div style="border-top: 1px solid #93c5fd; padding-top: 10px;">
+                <div style="color: #1d4ed8; font-weight: 600; font-size: 12px; margin-bottom: 8px;">Group Contacts:</div>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                  ${participant.groupContact.leaderName ? `
+                    <div style="background: white; padding: 8px; border-radius: 4px; border: 1px solid #bfdbfe;">
+                      <div style="font-weight: 600; font-size: 12px;">${participant.groupContact.leaderName}</div>
+                      <div style="font-size: 10px; color: #3b82f6;">Group Leader</div>
+                      ${participant.groupContact.leaderPhone ? `<div style="font-size: 11px; color: #0077BE;">📞 ${participant.groupContact.leaderPhone}</div>` : ''}
+                      ${participant.groupContact.leaderEmail ? `<div style="font-size: 10px; color: #0077BE;">✉️ ${participant.groupContact.leaderEmail}</div>` : ''}
+                    </div>
+                  ` : ''}
+                  ${participant.groupContact.altContact1Name ? `
+                    <div style="background: white; padding: 8px; border-radius: 4px; border: 1px solid #bfdbfe;">
+                      <div style="font-weight: 600; font-size: 12px;">${participant.groupContact.altContact1Name}</div>
+                      <div style="font-size: 10px; color: #3b82f6;">Alt. Contact</div>
+                      ${participant.groupContact.altContact1Phone ? `<div style="font-size: 11px; color: #0077BE;">📞 ${participant.groupContact.altContact1Phone}</div>` : ''}
+                      ${participant.groupContact.altContact1Email ? `<div style="font-size: 10px; color: #0077BE;">✉️ ${participant.groupContact.altContact1Email}</div>` : ''}
+                    </div>
+                  ` : ''}
+                  ${participant.groupContact.altContact2Name ? `
+                    <div style="background: white; padding: 8px; border-radius: 4px; border: 1px solid #bfdbfe;">
+                      <div style="font-weight: 600; font-size: 12px;">${participant.groupContact.altContact2Name}</div>
+                      <div style="font-size: 10px; color: #3b82f6;">Alt. Contact</div>
+                      ${participant.groupContact.altContact2Phone ? `<div style="font-size: 11px; color: #0077BE;">📞 ${participant.groupContact.altContact2Phone}</div>` : ''}
+                      ${participant.groupContact.altContact2Email ? `<div style="font-size: 10px; color: #0077BE;">✉️ ${participant.groupContact.altContact2Email}</div>` : ''}
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+            ` : ''}
           </div>
         ` : ''}
 
@@ -651,6 +723,120 @@ This is regarding ${participant.firstName} ${participant.lastName}.
               </DialogHeader>
 
               <div className="space-y-6 py-4">
+                {/* Group Registration Info - show prominently if part of a group */}
+                {selectedParticipant.isGroupRegistration && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-blue-700 font-bold">
+                      <Users className="w-5 h-5" />
+                      GROUP REGISTRATION
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-blue-600">Group Name:</span>{' '}
+                        <span className="font-medium">{selectedParticipant.groupName}</span>
+                      </div>
+                      {selectedParticipant.parishName && (
+                        <div>
+                          <span className="text-blue-600">Parish:</span>{' '}
+                          <span className="font-medium">{selectedParticipant.parishName}</span>
+                        </div>
+                      )}
+                      {selectedParticipant.dioceseName && (
+                        <div>
+                          <span className="text-blue-600">Diocese:</span>{' '}
+                          <span className="font-medium">{selectedParticipant.dioceseName}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Group Contacts */}
+                    {selectedParticipant.groupContact && (
+                      <div className="border-t border-blue-200 pt-3 mt-3">
+                        <p className="text-blue-700 font-medium text-sm mb-2">Group Contacts:</p>
+                        <div className="grid md:grid-cols-2 gap-3">
+                          {/* Group Leader */}
+                          {selectedParticipant.groupContact.leaderName && (
+                            <div className="bg-white p-2 rounded border border-blue-100">
+                              <p className="font-medium text-sm">{selectedParticipant.groupContact.leaderName}</p>
+                              <p className="text-xs text-blue-600">Group Leader</p>
+                              {selectedParticipant.groupContact.leaderPhone && (
+                                <a
+                                  href={`tel:${selectedParticipant.groupContact.leaderPhone}`}
+                                  className="text-[#0077BE] text-sm hover:underline flex items-center gap-1 mt-1"
+                                >
+                                  <Phone className="w-3 h-3" />
+                                  {selectedParticipant.groupContact.leaderPhone}
+                                </a>
+                              )}
+                              {selectedParticipant.groupContact.leaderEmail && (
+                                <a
+                                  href={`mailto:${selectedParticipant.groupContact.leaderEmail}`}
+                                  className="text-[#0077BE] text-xs hover:underline flex items-center gap-1"
+                                >
+                                  <Mail className="w-3 h-3" />
+                                  {selectedParticipant.groupContact.leaderEmail}
+                                </a>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Alternative Contact 1 */}
+                          {selectedParticipant.groupContact.altContact1Name && (
+                            <div className="bg-white p-2 rounded border border-blue-100">
+                              <p className="font-medium text-sm">{selectedParticipant.groupContact.altContact1Name}</p>
+                              <p className="text-xs text-blue-600">Alt. Contact</p>
+                              {selectedParticipant.groupContact.altContact1Phone && (
+                                <a
+                                  href={`tel:${selectedParticipant.groupContact.altContact1Phone}`}
+                                  className="text-[#0077BE] text-sm hover:underline flex items-center gap-1 mt-1"
+                                >
+                                  <Phone className="w-3 h-3" />
+                                  {selectedParticipant.groupContact.altContact1Phone}
+                                </a>
+                              )}
+                              {selectedParticipant.groupContact.altContact1Email && (
+                                <a
+                                  href={`mailto:${selectedParticipant.groupContact.altContact1Email}`}
+                                  className="text-[#0077BE] text-xs hover:underline flex items-center gap-1"
+                                >
+                                  <Mail className="w-3 h-3" />
+                                  {selectedParticipant.groupContact.altContact1Email}
+                                </a>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Alternative Contact 2 */}
+                          {selectedParticipant.groupContact.altContact2Name && (
+                            <div className="bg-white p-2 rounded border border-blue-100">
+                              <p className="font-medium text-sm">{selectedParticipant.groupContact.altContact2Name}</p>
+                              <p className="text-xs text-blue-600">Alt. Contact</p>
+                              {selectedParticipant.groupContact.altContact2Phone && (
+                                <a
+                                  href={`tel:${selectedParticipant.groupContact.altContact2Phone}`}
+                                  className="text-[#0077BE] text-sm hover:underline flex items-center gap-1 mt-1"
+                                >
+                                  <Phone className="w-3 h-3" />
+                                  {selectedParticipant.groupContact.altContact2Phone}
+                                </a>
+                              )}
+                              {selectedParticipant.groupContact.altContact2Email && (
+                                <a
+                                  href={`mailto:${selectedParticipant.groupContact.altContact2Email}`}
+                                  className="text-[#0077BE] text-xs hover:underline flex items-center gap-1"
+                                >
+                                  <Mail className="w-3 h-3" />
+                                  {selectedParticipant.groupContact.altContact2Email}
+                                </a>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Basic Info */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
