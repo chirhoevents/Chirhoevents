@@ -26,6 +26,7 @@ interface MealTimes {
   satLunch?: string
   satDinner?: string
   sunBreakfast?: string
+  colorHex?: string
 }
 
 interface ScheduleEvent {
@@ -89,8 +90,12 @@ const MEAL_COLOR_STYLES: Record<string, { background: string; color: string }> =
   'White': { background: '#f8f9fa', color: '#212529' },
 }
 
-function getMealColorStyle(color: string | undefined) {
+function getMealColorStyle(color: string | undefined, colorHex?: string) {
   if (!color) return { background: '#f8f9fa', color: '#6c757d', text: 'No Color' }
+  // Use colorHex from database if available, otherwise fall back to predefined colors
+  if (colorHex) {
+    return { background: colorHex, color: 'white', text: color }
+  }
   return { ...MEAL_COLOR_STYLES[color] || { background: '#f8f9fa', color: '#6c757d' }, text: color }
 }
 
@@ -185,7 +190,8 @@ export default function M2KPublicView({ event, data }: Props) {
     const femaleTotal = group.femaleTeens + group.femaleChaperones
     const totalGroup = maleTotal + femaleTotal
     const mealColor = data.mealColorAssignments?.[group.id]
-    const mealColorStyle = getMealColorStyle(mealColor)
+    const mealColorHex = mealColor ? data.mealTimes?.[mealColor]?.colorHex : undefined
+    const mealColorStyle = getMealColorStyle(mealColor, mealColorHex)
     const maleHousingRooms = getHousingRoomNames(group.id, 'male')
     const femaleHousingRooms = getHousingRoomNames(group.id, 'female')
     const smallGroupRooms = getSmallGroupRoomNames(group.id)
@@ -542,7 +548,8 @@ export default function M2KPublicView({ event, data }: Props) {
           </p>
           <div className="flex flex-wrap gap-2 justify-center mb-4">
             {activeColors.map(color => {
-              const style = getMealColorStyle(color)
+              const colorHex = data.mealTimes?.[color]?.colorHex
+              const style = getMealColorStyle(color, colorHex)
               return (
                 <button
                   key={color}

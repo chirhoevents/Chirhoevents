@@ -121,6 +121,7 @@ export default function SalveCheckInPage() {
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false)
   const [checkedInCount, setCheckedInCount] = useState(0)
   const [notCheckedInParticipants, setNotCheckedInParticipants] = useState<ParticipantData[]>([])
+  const [printingPacket, setPrintingPacket] = useState(false)
 
   useEffect(() => {
     fetchEventInfo()
@@ -199,6 +200,186 @@ export default function SalveCheckInPage() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to update check-in status')
     }
+  }
+
+  async function handlePrintWelcomePacket() {
+    if (!groupData) return
+    setPrintingPacket(true)
+
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}/salve/generate-packet`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupId: groupData.id }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to generate welcome packet')
+      }
+
+      const packetData = await response.json()
+
+      // Generate printable HTML
+      const printWindow = window.open('', '_blank')
+      if (!printWindow) {
+        toast.error('Please allow popups to print')
+        return
+      }
+
+      const html = generatePrintablePacketHTML(packetData)
+      printWindow.document.write(html)
+      printWindow.document.close()
+      printWindow.focus()
+
+      setTimeout(() => {
+        printWindow.print()
+      }, 500)
+
+      toast.success('Welcome packet opened for printing')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to print welcome packet')
+    } finally {
+      setPrintingPacket(false)
+    }
+  }
+
+  function generatePrintablePacketHTML(data: any) {
+    const participantRows = data.participants?.list?.map((p: any, i: number) => `
+      <tr class="${i % 2 === 0 ? 'bg-gray-50' : ''}">
+        <td class="px-3 py-2 text-sm">${p.name}</td>
+        <td class="px-3 py-2 text-sm text-center">${p.participantType === 'chaperone' ? 'Chaperone' : p.participantType === 'priest' ? 'Clergy' : 'Youth'}</td>
+        <td class="px-3 py-2 text-sm text-center">${p.gender === 'male' ? 'M' : 'F'}</td>
+        ${data.settings?.includeHousingColumn !== false ? `<td class="px-3 py-2 text-sm">${p.housing ? `${p.housing.building} ${p.housing.room}${p.housing.bed ? '-' + p.housing.bed : ''}` : '-'}</td>` : ''}
+      </tr>
+    `).join('') || ''
+
+    const mealColorSection = data.mealColor ? `
+      <div class="mb-6 p-4 rounded-lg" style="background-color: ${data.mealColor.colorHex}20; border-left: 4px solid ${data.mealColor.colorHex};">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-8 h-8 rounded-full" style="background-color: ${data.mealColor.colorHex};"></div>
+          <h3 class="text-lg font-bold" style="color: ${data.mealColor.colorHex};">Meal Color: ${data.mealColor.name}</h3>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-sm">
+          ${data.mealColor.saturdayBreakfast ? `<div><strong>Sat Breakfast:</strong> ${data.mealColor.saturdayBreakfast}</div>` : ''}
+          ${data.mealColor.saturdayLunch ? `<div><strong>Sat Lunch:</strong> ${data.mealColor.saturdayLunch}</div>` : ''}
+          ${data.mealColor.saturdayDinner ? `<div><strong>Sat Dinner:</strong> ${data.mealColor.saturdayDinner}</div>` : ''}
+          ${data.mealColor.sundayBreakfast ? `<div><strong>Sun Breakfast:</strong> ${data.mealColor.sundayBreakfast}</div>` : ''}
+        </div>
+      </div>
+    ` : ''
+
+    const smallGroupSection = (data.smallGroup?.sgl || data.smallGroup?.religious || data.smallGroup?.meetingRoom) ? `
+      <div class="mb-6 p-4 bg-purple-50 rounded-lg border-l-4 border-purple-500">
+        <h3 class="text-lg font-bold text-purple-800 mb-3">Small Group Information</h3>
+        <div class="grid grid-cols-1 gap-2 text-sm">
+          ${data.smallGroup.sgl ? `<div><strong>Small Group Leader (SGL):</strong> ${data.smallGroup.sgl}</div>` : ''}
+          ${data.smallGroup.religious ? `<div><strong>Religious:</strong> ${data.smallGroup.religious}</div>` : ''}
+          ${data.smallGroup.meetingRoom ? `<div><strong>Meeting Location:</strong> ${data.smallGroup.meetingRoom}</div>` : ''}
+        </div>
+      </div>
+    ` : ''
+
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <title>Welcome Packet - ${data.group?.name || 'Group'}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .page-break { page-break-after: always; }
+      @page { margin: 0.5in; }
+    }
+    body { font-family: system-ui, -apple-system, sans-serif; }
+  </style>
+</head>
+<body class="p-6 max-w-4xl mx-auto">
+  <!-- Header with Logos -->
+  <div class="relative mb-6 pb-4 border-b-2 border-gray-200">
+    <!-- ChirhoEvents Logo - Small, top left -->
+    <div class="absolute top-0 left-0">
+      <img src="/logo-horizontal.png" alt="ChiRho Events" class="h-8" onerror="this.style.display='none'" />
+    </div>
+
+    <!-- Org Logo - Centered -->
+    <div class="flex flex-col items-center justify-center pt-2">
+      ${data.event?.logoUrl ? `<img src="${data.event.logoUrl}" alt="${data.event?.organizationName || 'Organization'}" class="h-16 mb-2" onerror="this.style.display='none'" />` : ''}
+      <h1 class="text-2xl font-bold text-center text-gray-800">${data.event?.name || 'Event'}</h1>
+      <p class="text-gray-600">${data.event?.organizationName || ''}</p>
+    </div>
+  </div>
+
+  <!-- Group Info -->
+  <div class="mb-6 bg-blue-50 p-4 rounded-lg">
+    <div class="flex justify-between items-start">
+      <div>
+        <h2 class="text-xl font-bold text-blue-900">${data.group?.name || 'Group'}</h2>
+        ${data.group?.diocese ? `<p class="text-blue-700">${data.group.diocese}</p>` : ''}
+        ${data.group?.accessCode ? `<p class="text-sm text-blue-600 mt-1">Access Code: <span class="font-mono font-bold">${data.group.accessCode}</span></p>` : ''}
+      </div>
+      <div class="text-right text-sm text-blue-700">
+        ${data.group?.contactEmail ? `<p>${data.group.contactEmail}</p>` : ''}
+        ${data.group?.contactPhone ? `<p>${data.group.contactPhone}</p>` : ''}
+      </div>
+    </div>
+  </div>
+
+  <!-- Meal Color Section -->
+  ${mealColorSection}
+
+  <!-- Small Group Section -->
+  ${smallGroupSection}
+
+  <!-- Housing Summary -->
+  ${data.housing?.summary?.length > 0 ? `
+  <div class="mb-6">
+    <h3 class="text-lg font-bold mb-3 text-gray-800">Housing Assignments</h3>
+    <div class="grid grid-cols-2 gap-3">
+      ${data.housing.summary.map((room: any) => `
+        <div class="p-3 bg-gray-50 rounded-lg border">
+          <p class="font-semibold text-sm">${room.building} - ${room.roomNumber}</p>
+          <p class="text-xs text-gray-500">${room.gender === 'male' ? 'Male' : room.gender === 'female' ? 'Female' : 'Mixed'} • Capacity: ${room.capacity}</p>
+          ${room.occupants?.length > 0 ? `
+            <ul class="mt-2 text-xs">
+              ${room.occupants.map((o: any) => `<li class="text-gray-600">${o.name}${o.bedLetter ? ` (Bed ${o.bedLetter})` : ''}</li>`).join('')}
+            </ul>
+          ` : ''}
+        </div>
+      `).join('')}
+    </div>
+  </div>
+  ` : ''}
+
+  <!-- Participant Roster -->
+  <div class="mb-6">
+    <h3 class="text-lg font-bold mb-3 text-gray-800">
+      Participant Roster
+      <span class="text-sm font-normal text-gray-500">
+        (${data.participants?.total || 0} total: ${data.participants?.youth || 0} youth, ${data.participants?.chaperones || 0} chaperones${data.participants?.clergy ? `, ${data.participants.clergy} clergy` : ''})
+      </span>
+    </h3>
+    <table class="w-full border-collapse border border-gray-200 text-sm">
+      <thead>
+        <tr class="bg-gray-100">
+          <th class="px-3 py-2 text-left border-b">Name</th>
+          <th class="px-3 py-2 text-center border-b">Type</th>
+          <th class="px-3 py-2 text-center border-b">Gender</th>
+          ${data.settings?.includeHousingColumn !== false ? '<th class="px-3 py-2 text-left border-b">Housing</th>' : ''}
+        </tr>
+      </thead>
+      <tbody>
+        ${participantRows}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Footer -->
+  <div class="text-center text-xs text-gray-400 mt-8 pt-4 border-t">
+    <p>Generated on ${new Date().toLocaleString()}</p>
+    <p class="mt-1">Powered by ChiRho Events</p>
+  </div>
+</body>
+</html>`
   }
 
   async function handleSearch() {
@@ -878,8 +1059,17 @@ export default function SalveCheckInPage() {
             <div className="space-y-2">
               <p className="font-medium">Next Steps:</p>
               <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" className="h-auto py-3">
-                  <Printer className="w-4 h-4 mr-2" />
+                <Button
+                  variant="outline"
+                  className="h-auto py-3"
+                  onClick={handlePrintWelcomePacket}
+                  disabled={printingPacket}
+                >
+                  {printingPacket ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Printer className="w-4 h-4 mr-2" />
+                  )}
                   Print Welcome Packet
                 </Button>
                 <Button variant="outline" className="h-auto py-3">
