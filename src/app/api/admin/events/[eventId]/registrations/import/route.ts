@@ -683,6 +683,21 @@ export async function POST(
         const youthCount = group.participants.filter(p => p.participantType === 'youth_u18' || p.participantType === 'youth_o18').length
         const chaperoneCount = group.participants.filter(p => p.participantType === 'chaperone').length
         const priestCount = group.participants.filter(p => p.participantType === 'priest').length
+        const totalParticipants = youthCount + chaperoneCount + priestCount
+
+        // Calculate housing-specific counts based on the group's housing type
+        const housingType = group.housingType || 'on_campus'
+        const housingCounts = {
+          onCampusYouth: housingType === 'on_campus' ? youthCount : 0,
+          onCampusChaperones: housingType === 'on_campus' ? chaperoneCount : 0,
+          offCampusYouth: housingType === 'off_campus' ? youthCount : 0,
+          offCampusChaperones: housingType === 'off_campus' ? chaperoneCount : 0,
+          dayPassYouth: housingType === 'day_pass' ? youthCount : 0,
+          dayPassChaperones: housingType === 'day_pass' ? chaperoneCount : 0,
+          onCampusCount: housingType === 'on_campus' ? totalParticipants : 0,
+          offCampusCount: housingType === 'off_campus' ? totalParticipants : 0,
+          dayPassCount: housingType === 'day_pass' ? totalParticipants : 0,
+        }
 
         await prisma.groupRegistration.update({
           where: { id: group.id },
@@ -690,7 +705,8 @@ export async function POST(
             youthCount,
             chaperoneCount,
             priestCount,
-            totalParticipants: youthCount + chaperoneCount + priestCount
+            totalParticipants,
+            ...housingCounts
           }
         })
       }

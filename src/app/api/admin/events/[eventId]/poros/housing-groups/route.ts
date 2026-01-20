@@ -30,6 +30,7 @@ export async function GET(
         id: true,
         groupName: true,
         parishName: true,
+        housingType: true,
         participants: {
           select: {
             id: true,
@@ -100,6 +101,7 @@ export async function GET(
         id: group.id,
         groupName: group.groupName,
         parishName: group.parishName,
+        housingType: group.housingType,
         maleCount,
         femaleCount,
         totalCount: maleCount + femaleCount,

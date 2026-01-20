@@ -29,6 +29,7 @@ import {
   Loader2,
   Building2,
   ChevronRight,
+  Edit2,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
@@ -43,6 +44,7 @@ interface YouthGroup {
   id: string
   groupName: string
   parishName: string | null
+  housingType: 'on_campus' | 'off_campus' | 'mixed' | null
   maleCount: number
   femaleCount: number
   totalCount: number
@@ -60,6 +62,7 @@ export function GroupAssignments({
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'assigned' | 'unassigned'>('all')
+  const [housingTypeFilter, setHousingTypeFilter] = useState<'all' | 'on_campus' | 'off_campus' | 'mixed'>('all')
 
   // Assignment dialog state
   const [selectedGroup, setSelectedGroup] = useState<YouthGroup | null>(null)
@@ -67,6 +70,9 @@ export function GroupAssignments({
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null)
   const [assignLoading, setAssignLoading] = useState(false)
+
+  // Housing type update state
+  const [updatingHousingType, setUpdatingHousingType] = useState<string | null>(null)
 
   useEffect(() => {
     fetchGroups()
@@ -100,6 +106,10 @@ export function GroupAssignments({
     }
     if (statusFilter === 'unassigned') {
       if (g.maleRoomAssignments.length > 0 || g.femaleRoomAssignments.length > 0) return false
+    }
+
+    if (housingTypeFilter !== 'all') {
+      if (g.housingType !== housingTypeFilter) return false
     }
 
     return true
@@ -190,6 +200,32 @@ export function GroupAssignments({
     setIsAssignDialogOpen(true)
   }
 
+  async function handleUpdateHousingType(groupId: string, newHousingType: string) {
+    setUpdatingHousingType(groupId)
+    try {
+      const response = await fetch(
+        `/api/admin/events/${eventId}/poros/groups/${groupId}/housing-type`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ housingType: newHousingType }),
+        }
+      )
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to update housing type')
+      }
+
+      toast.success(`Housing type updated to ${newHousingType.replace('_', '-')}`)
+      fetchGroups()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update housing type')
+    } finally {
+      setUpdatingHousingType(null)
+    }
+  }
+
   const unassignedCount = groups.filter(
     (g) => g.maleRoomAssignments.length === 0 && g.femaleRoomAssignments.length === 0
   ).length
@@ -246,6 +282,21 @@ export function GroupAssignments({
                 <SelectItem value="unassigned">Unassigned</SelectItem>
               </SelectContent>
             </Select>
+
+            <Select
+              value={housingTypeFilter}
+              onValueChange={(v: 'all' | 'on_campus' | 'off_campus' | 'mixed') => setHousingTypeFilter(v)}
+            >
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Housing Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Housing</SelectItem>
+                <SelectItem value="on_campus">On-Campus</SelectItem>
+                <SelectItem value="off_campus">Off-Campus</SelectItem>
+                <SelectItem value="mixed">Mixed</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -281,8 +332,35 @@ export function GroupAssignments({
                       {/* Group Header */}
                       <div className="flex items-center justify-between mb-3">
                         <div>
-                          <div className="font-medium text-lg">
-                            {group.parishName || group.groupName}
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-lg">
+                              {group.parishName || group.groupName}
+                            </span>
+                            <Select
+                              value={group.housingType || 'on_campus'}
+                              onValueChange={(value) => handleUpdateHousingType(group.id, value)}
+                              disabled={updatingHousingType === group.id}
+                            >
+                              <SelectTrigger
+                                className={`w-[130px] h-7 text-xs ${
+                                  group.housingType === 'on_campus' || !group.housingType
+                                    ? 'bg-green-100 text-green-800 border-green-200'
+                                    : group.housingType === 'off_campus'
+                                    ? 'bg-orange-100 text-orange-800 border-orange-200'
+                                    : 'bg-purple-100 text-purple-800 border-purple-200'
+                                }`}
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="on_campus">On-Campus</SelectItem>
+                                <SelectItem value="off_campus">Off-Campus</SelectItem>
+                                <SelectItem value="mixed">Mixed</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {updatingHousingType === group.id && (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            )}
                           </div>
                           <div className="text-sm text-muted-foreground">
                             {group.totalCount} participants total
