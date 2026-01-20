@@ -117,12 +117,17 @@ export async function GET(
     const totalParticipants = allParticipants.length + individualRegistrations.length
 
     // Count by housing type from group registrations
-    const onCampusGroups = groupRegistrations.filter((gr: { housingType: string | null }) => gr.housingType === 'on_campus')
+    // Treat null/undefined housing type as on_campus (default)
+    const onCampusGroups = groupRegistrations.filter((gr: { housingType: string | null }) =>
+      gr.housingType === 'on_campus' || gr.housingType === null || gr.housingType === undefined
+    )
     const offCampusGroups = groupRegistrations.filter((gr: { housingType: string | null }) => gr.housingType === 'off_campus')
     const dayPassGroups = groupRegistrations.filter((gr: { housingType: string | null }) => gr.housingType === 'day_pass')
 
     const onCampusCount = onCampusGroups.reduce((sum: number, gr: { participants: unknown[] }) => sum + gr.participants.length, 0) +
-      individualRegistrations.filter((ir: { housingType: string | null }) => ir.housingType === 'on_campus').length
+      individualRegistrations.filter((ir: { housingType: string | null }) =>
+        ir.housingType === 'on_campus' || ir.housingType === null || ir.housingType === undefined
+      ).length
     const offCampusCount = offCampusGroups.reduce((sum: number, gr: { participants: unknown[] }) => sum + gr.participants.length, 0) +
       individualRegistrations.filter((ir: { housingType: string | null }) => ir.housingType === 'off_campus').length
     const dayPassCount = dayPassGroups.reduce((sum: number, gr: { participants: unknown[] }) => sum + gr.participants.length, 0) +
