@@ -35,23 +35,28 @@ export async function GET(
     const purposeFilter = searchParams.get('purpose') // 'housing', 'small_group', 'both', or null for all
 
     // Build where clause with optional purpose filter
-    const whereClause: any = {
+    let whereClause: any = {
       building: { eventId },
     }
 
     if (purposeFilter === 'housing') {
-      // For housing, include rooms with purpose 'housing', 'both', or NULL (NULL defaults to housing)
-      whereClause.OR = [
-        { roomPurpose: { in: ['housing', 'both'] } },
-        { roomPurpose: null }
-      ]
+      // For housing: rooms with purpose 'housing' or NULL (default)
+      whereClause = {
+        AND: [
+          { building: { eventId } },
+          {
+            OR: [
+              { roomPurpose: 'housing' },
+              { roomPurpose: null }
+            ]
+          }
+        ]
+      }
     } else if (purposeFilter === 'small_group') {
-      // For small groups, include rooms with purpose 'small_group' or 'both' only (NOT null)
-      whereClause.roomPurpose = { in: ['small_group', 'both'] }
-    } else if (purposeFilter) {
-      // Exact match for other values
-      whereClause.roomPurpose = purposeFilter
+      // For small groups: only rooms explicitly set to 'small_group'
+      whereClause.roomPurpose = 'small_group'
     }
+    // If no purposeFilter, show all rooms
 
     const rooms = await prisma.room.findMany({
       where: whereClause,
@@ -71,7 +76,8 @@ export async function GET(
 
     // If full assignments requested, fetch additional details
     if (includeAssignments) {
-      const roomsWithDetails = await Promise.all(rooms.map(async (room) => {
+      type RoomType = typeof rooms[number]
+      const roomsWithDetails = await Promise.all(rooms.map(async (room: RoomType) => {
         const assignments = await prisma.roomAssignment.findMany({
           where: { roomId: room.id },
           select: {
@@ -84,7 +90,8 @@ export async function GET(
         })
 
         // Get group registration details for assignments
-        const assignmentsWithDetails = await Promise.all(assignments.map(async (assignment) => {
+        type AssignmentType = typeof assignments[number]
+        const assignmentsWithDetails = await Promise.all(assignments.map(async (assignment: AssignmentType) => {
           let groupRegistration = null
           let participant = null
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 
 export async function POST(
   request: NextRequest,
@@ -52,12 +53,14 @@ export async function POST(
       select: { groupRegistrationId: true },
     })
 
+    type AssignmentType = typeof existingAssignments[number]
     const assignedGroupIds = new Set(
-      existingAssignments.map((a) => a.groupRegistrationId).filter(Boolean)
+      existingAssignments.map((a: AssignmentType) => a.groupRegistrationId).filter(Boolean)
     )
 
     // Filter to unassigned groups
-    const unassignedGroups = allGroups.filter((g) => !assignedGroupIds.has(g.id))
+    type GroupType = typeof allGroups[number]
+    const unassignedGroups = allGroups.filter((g: GroupType) => !assignedGroupIds.has(g.id))
 
     if (unassignedGroups.length === 0) {
       return NextResponse.json({
@@ -67,16 +70,17 @@ export async function POST(
     }
 
     // Separate meal groups by accommodation type
+    type MealGroupType = typeof mealGroups[number]
     const onCampusGroups = mealGroups.filter(
-      (g) => g.accommodationType === 'on_campus' || g.accommodationType === 'all'
+      (g: MealGroupType) => g.accommodationType === 'on_campus' || g.accommodationType === 'all'
     )
     const offCampusGroups = mealGroups.filter(
-      (g) => g.accommodationType === 'off_campus' || g.accommodationType === 'all'
+      (g: MealGroupType) => g.accommodationType === 'off_campus' || g.accommodationType === 'all'
     )
 
     // Track current size for each meal group
     const groupSizes = new Map<string, number>()
-    mealGroups.forEach((g) => groupSizes.set(g.id, g.currentSize))
+    mealGroups.forEach((g: MealGroupType) => groupSizes.set(g.id, g.currentSize))
 
     // Helper to find best meal group for a registration
     const findBestMealGroup = (
@@ -152,7 +156,7 @@ export async function POST(
     }
 
     // Create all assignments in a transaction
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Create meal group assignments
       await tx.mealGroupAssignment.createMany({
         data: assignments,
@@ -161,14 +165,14 @@ export async function POST(
       // Update current sizes for each meal group
       for (const mg of mealGroups) {
         const assignedToThisGroup = assignments.filter(
-          (a) => a.mealGroupId === mg.id
+          (a: { mealGroupId: string; groupRegistrationId: string }) => a.mealGroupId === mg.id
         )
         if (assignedToThisGroup.length > 0) {
           const additionalSize = unassignedGroups
-            .filter((g) =>
-              assignedToThisGroup.some((a) => a.groupRegistrationId === g.id)
+            .filter((g: GroupType) =>
+              assignedToThisGroup.some((a: { mealGroupId: string; groupRegistrationId: string }) => a.groupRegistrationId === g.id)
             )
-            .reduce((sum, g) => sum + g.totalParticipants, 0)
+            .reduce((sum: number, g: GroupType) => sum + g.totalParticipants, 0)
 
           await tx.mealGroup.update({
             where: { id: mg.id },

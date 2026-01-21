@@ -69,7 +69,6 @@ const ROOM_TYPE_OPTIONS = [
 const ROOM_PURPOSE_OPTIONS = [
   { value: 'housing', label: 'Housing', color: 'bg-blue-100 text-blue-800' },
   { value: 'small_group', label: 'Small Group', color: 'bg-purple-100 text-purple-800' },
-  { value: 'both', label: 'Both', color: 'bg-green-100 text-green-800' },
 ]
 
 export function RoomsManager({
@@ -85,14 +84,16 @@ export function RoomsManager({
   const [editingRoom, setEditingRoom] = useState<Room | null>(null)
   const [loading, setLoading] = useState(false)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
-  const [purposeFilter, setPurposeFilter] = useState<'all' | 'housing' | 'small_group' | 'both'>('all')
+  const [purposeFilter, setPurposeFilter] = useState<'all' | 'housing' | 'small_group'>('all')
+  const [selectedRoomIds, setSelectedRoomIds] = useState<Set<string>>(new Set())
+  const [bulkUpdating, setBulkUpdating] = useState(false)
 
   const [formData, setFormData] = useState({
     buildingId: '',
     roomNumber: '',
     floor: 1,
     roomType: 'double' as 'single' | 'double' | 'triple' | 'quad' | 'custom',
-    roomPurpose: 'housing' as 'housing' | 'small_group' | 'both',
+    roomPurpose: 'housing' as 'housing' | 'small_group',
     capacity: 2,
     isAvailable: true,
     isAdaAccessible: false,
@@ -273,6 +274,62 @@ export function RoomsManager({
     }
   }
 
+  // Toggle room selection
+  function toggleRoomSelection(roomId: string) {
+    setSelectedRoomIds(prev => {
+      const next = new Set(prev)
+      if (next.has(roomId)) {
+        next.delete(roomId)
+      } else {
+        next.add(roomId)
+      }
+      return next
+    })
+  }
+
+  // Select/deselect all visible rooms
+  function toggleSelectAll() {
+    if (selectedRoomIds.size === filteredRooms.length) {
+      setSelectedRoomIds(new Set())
+    } else {
+      setSelectedRoomIds(new Set(filteredRooms.map(r => r.id)))
+    }
+  }
+
+  // Bulk update room purposes
+  async function handleBulkPurposeUpdate(newPurpose: 'housing' | 'small_group') {
+    if (selectedRoomIds.size === 0) {
+      toast.error('No rooms selected')
+      return
+    }
+
+    setBulkUpdating(true)
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}/poros/rooms/bulk-purpose`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomIds: Array.from(selectedRoomIds),
+          roomPurpose: newPurpose,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || 'Failed to update rooms')
+      }
+
+      const result = await response.json()
+      toast.success(`Updated ${result.count} rooms to ${newPurpose === 'housing' ? 'Housing' : 'Small Group'}`)
+      setSelectedRoomIds(new Set())
+      onRefresh()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update rooms')
+    } finally {
+      setBulkUpdating(false)
+    }
+  }
+
   function handleRoomTypeChange(type: 'single' | 'double' | 'triple' | 'quad' | 'custom') {
     const option = ROOM_TYPE_OPTIONS.find(o => o.value === type)
     setFormData({
@@ -322,7 +379,7 @@ export function RoomsManager({
           </Select>
           <Select
             value={purposeFilter}
-            onValueChange={(value: 'all' | 'housing' | 'small_group' | 'both') => setPurposeFilter(value)}
+            onValueChange={(value: 'all' | 'housing' | 'small_group') => setPurposeFilter(value)}
           >
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="All Purposes" />
@@ -331,7 +388,6 @@ export function RoomsManager({
               <SelectItem value="all">All Purposes</SelectItem>
               <SelectItem value="housing">Housing Only</SelectItem>
               <SelectItem value="small_group">Small Group Only</SelectItem>
-              <SelectItem value="both">Both</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -347,6 +403,44 @@ export function RoomsManager({
         </div>
       </CardHeader>
       <CardContent>
+        {/* Bulk Action Toolbar */}
+        {selectedRoomIds.size > 0 && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+            <span className="text-sm font-medium text-blue-800">
+              {selectedRoomIds.size} room{selectedRoomIds.size !== 1 ? 's' : ''} selected
+            </span>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleBulkPurposeUpdate('housing')}
+                disabled={bulkUpdating}
+                className="bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200"
+              >
+                {bulkUpdating ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
+                Set as Housing
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleBulkPurposeUpdate('small_group')}
+                disabled={bulkUpdating}
+                className="bg-purple-100 text-purple-800 border-purple-300 hover:bg-purple-200"
+              >
+                {bulkUpdating ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
+                Set as Small Group
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setSelectedRoomIds(new Set())}
+              >
+                Clear
+              </Button>
+            </div>
+          </div>
+        )}
+
         {buildings.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <DoorOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
@@ -363,6 +457,12 @@ export function RoomsManager({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[40px]">
+                  <Checkbox
+                    checked={selectedRoomIds.size === filteredRooms.length && filteredRooms.length > 0}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
                 <TableHead>Room #</TableHead>
                 {!selectedBuildingId && <TableHead>Building</TableHead>}
                 <TableHead>Floor</TableHead>
@@ -378,6 +478,12 @@ export function RoomsManager({
                 const building = buildings.find(b => b.id === room.buildingId)
                 return (
                   <TableRow key={room.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedRoomIds.has(room.id)}
+                        onCheckedChange={() => toggleRoomSelection(room.id)}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         {room.roomNumber}
@@ -548,7 +654,7 @@ export function RoomsManager({
                 <Label htmlFor="roomPurpose">Room Purpose</Label>
                 <Select
                   value={formData.roomPurpose}
-                  onValueChange={(value: 'housing' | 'small_group' | 'both') =>
+                  onValueChange={(value: 'housing' | 'small_group') =>
                     setFormData({ ...formData, roomPurpose: value })
                   }
                 >
@@ -564,7 +670,7 @@ export function RoomsManager({
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  Housing = bed assignments, Small Group = meeting rooms, Both = can be used for either
+                  Housing = bed assignments, Small Group = meeting rooms
                 </p>
               </div>
 

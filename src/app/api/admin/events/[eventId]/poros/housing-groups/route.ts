@@ -43,7 +43,8 @@ export async function GET(
     })
 
     // Get room assignments for this event's groups
-    const groupIds = groups.map((g) => g.id)
+    type GroupType = typeof groups[number]
+    const groupIds = groups.map((g: GroupType) => g.id)
     const roomAssignments = await prisma.roomAssignment.findMany({
       where: {
         groupRegistrationId: { in: groupIds },
@@ -67,31 +68,33 @@ export async function GET(
     })
 
     // Transform data
-    const result = groups.map((group) => {
+    type RoomAssignmentType = typeof roomAssignments[number]
+    type ParticipantType = GroupType['participants'][number]
+    const result = groups.map((group: GroupType) => {
       const groupAssignments = roomAssignments.filter(
-        (a) => a.groupRegistrationId === group.id
+        (a: RoomAssignmentType) => a.groupRegistrationId === group.id
       )
 
       // Count participants by gender
       const maleCount = group.participants.filter(
-        (p) => p.gender?.toLowerCase() === 'male'
+        (p: ParticipantType) => p.gender?.toLowerCase() === 'male'
       ).length
       const femaleCount = group.participants.filter(
-        (p) => p.gender?.toLowerCase() === 'female'
+        (p: ParticipantType) => p.gender?.toLowerCase() === 'female'
       ).length
 
       // Group room assignments by gender
       const maleRoomAssignments = groupAssignments
-        .filter((a) => a.room.gender === 'male' || !a.room.gender)
-        .map((a) => ({
+        .filter((a: RoomAssignmentType) => a.room.gender === 'male' || !a.room.gender)
+        .map((a: RoomAssignmentType) => ({
           roomId: a.roomId,
           roomNumber: a.room.roomNumber,
           buildingName: a.room.building.name,
         }))
 
       const femaleRoomAssignments = groupAssignments
-        .filter((a) => a.room.gender === 'female')
-        .map((a) => ({
+        .filter((a: RoomAssignmentType) => a.room.gender === 'female')
+        .map((a: RoomAssignmentType) => ({
           roomId: a.roomId,
           roomNumber: a.room.roomNumber,
           buildingName: a.room.building.name,

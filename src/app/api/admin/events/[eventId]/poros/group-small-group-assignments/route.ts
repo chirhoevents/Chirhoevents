@@ -99,22 +99,24 @@ export async function GET(
 
     // Get which rooms are already assigned (for showing availability)
     const assignedRoomIds = groups
-      .filter((g) => g.smallGroupRoomId)
-      .map((g) => g.smallGroupRoomId)
+      .filter((g: { smallGroupRoomId: string | null }) => g.smallGroupRoomId)
+      .map((g: { smallGroupRoomId: string | null }) => g.smallGroupRoomId)
 
     // Transform data
-    const result = groups.map((group) => {
+    type GroupType = typeof groups[number]
+    type AssignmentType = GroupType['groupStaffAssignments'][number]
+    const result = groups.map((group: GroupType) => {
       const sglAssignments = group.groupStaffAssignments
-        .filter((a) => a.role === 'sgl')
-        .map((a) => ({
+        .filter((a: AssignmentType) => a.role === 'sgl')
+        .map((a: AssignmentType) => ({
           id: a.staff.id,
           name: `${a.staff.firstName} ${a.staff.lastName}`,
           assignmentId: a.id,
         }))
 
       const religiousAssignments = group.groupStaffAssignments
-        .filter((a) => a.role === 'religious')
-        .map((a) => ({
+        .filter((a: AssignmentType) => a.role === 'religious')
+        .map((a: AssignmentType) => ({
           id: a.staff.id,
           name: `${a.staff.firstName} ${a.staff.lastName}`,
           assignmentId: a.id,
@@ -137,13 +139,15 @@ export async function GET(
       }
     })
 
+    type StaffType = typeof staff[number]
+    type RoomType = typeof rooms[number]
     return NextResponse.json({
       groups: result,
       staff: {
-        sgl: staff.filter((s) => ['sgl', 'co_sgl', 'seminarian'].includes(s.staffType)),
-        religious: staff.filter((s) => ['religious', 'priest', 'deacon'].includes(s.staffType)),
+        sgl: staff.filter((s: StaffType) => ['sgl', 'co_sgl', 'seminarian'].includes(s.staffType)),
+        religious: staff.filter((s: StaffType) => ['religious', 'priest', 'deacon'].includes(s.staffType)),
       },
-      rooms: rooms.map((r) => ({
+      rooms: rooms.map((r: RoomType) => ({
         id: r.id,
         name: `${r.building.name} - ${r.roomNumber}`,
         capacity: r.capacity,

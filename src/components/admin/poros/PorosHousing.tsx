@@ -49,7 +49,7 @@ export interface Room {
   roomType: 'single' | 'double' | 'triple' | 'quad' | 'custom' | null
   gender: 'male' | 'female' | 'mixed' | null
   housingType: 'youth_u18' | 'chaperone_18plus' | 'clergy' | 'general' | null
-  roomPurpose: 'housing' | 'small_group' | 'both'
+  roomPurpose: 'housing' | 'small_group' | null
   capacity: number
   currentOccupancy: number
   notes: string | null
@@ -110,10 +110,10 @@ export function PorosHousing({ eventId, settings }: PorosHousingProps) {
   async function fetchData() {
     setLoading(true)
     try {
-      // Fetch buildings and only housing-purpose rooms
+      // Fetch buildings and ALL rooms (filtering happens in UI based on tab)
       const [buildingsRes, roomsRes] = await Promise.all([
         fetch(`/api/admin/events/${eventId}/poros/buildings`),
-        fetch(`/api/admin/events/${eventId}/poros/rooms?purpose=housing`)
+        fetch(`/api/admin/events/${eventId}/poros/rooms`)
       ])
 
       if (buildingsRes.ok) {

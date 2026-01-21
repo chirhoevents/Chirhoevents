@@ -94,15 +94,17 @@ export async function GET(
     })
 
     // Combine and sort recent registrations
+    type GroupRegType = typeof recentGroupRegistrations[number]
+    type IndividualRegType = typeof recentIndividualRegistrations[number]
     const recentRegistrations = [
-      ...recentGroupRegistrations.map(r => ({
+      ...recentGroupRegistrations.map((r: GroupRegType) => ({
         id: r.id,
         type: 'group' as const,
         name: r.groupName || 'Unnamed Group',
         participants: r.totalParticipants,
         date: r.registeredAt,
       })),
-      ...recentIndividualRegistrations.map(r => ({
+      ...recentIndividualRegistrations.map((r: IndividualRegType) => ({
         id: r.id,
         type: 'individual' as const,
         name: `${r.firstName} ${r.lastName}`,
@@ -196,11 +198,11 @@ export async function GET(
         balance: totalRevenue - totalPaid,
       },
       activity: {
-        recentRegistrations: recentRegistrations.map(r => ({
+        recentRegistrations: recentRegistrations.map((r: { id: string; type: 'group' | 'individual'; name: string; participants: number; date: Date }) => ({
           ...r,
           date: r.date.toISOString(),
         })),
-        recentPayments: recentPayments.map(p => ({
+        recentPayments: recentPayments.map((p: typeof recentPayments[number]) => ({
           id: p.id,
           amount: Number(p.amount),
           method: p.paymentMethod,
@@ -767,13 +769,13 @@ export async function PUT(
         select: { id: true },
       })
 
-      const existingIds = existingOptions.map(opt => opt.id)
+      const existingIds = existingOptions.map((opt: { id: string }) => opt.id)
       const newOptionIds = data.dayPassOptions
         .filter((opt: { id: string }) => !opt.id.startsWith('temp-'))
         .map((opt: { id: string }) => opt.id)
 
       // Delete options that are no longer in the list
-      const idsToDelete = existingIds.filter(id => !newOptionIds.includes(id))
+      const idsToDelete = existingIds.filter((id: string) => !newOptionIds.includes(id))
       if (idsToDelete.length > 0) {
         await prisma.dayPassOption.deleteMany({
           where: { id: { in: idsToDelete } },
