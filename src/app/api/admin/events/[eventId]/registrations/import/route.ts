@@ -321,7 +321,7 @@ export async function POST(
                 results.staffCreated++
               }
               sglId = staff.id
-              staffCache.set(sglName, sglId)
+              staffCache.set(sglName, staff.id)
             }
           }
 
@@ -357,7 +357,7 @@ export async function POST(
                 results.staffCreated++
               }
               religiousId = staff.id
-              staffCache.set(religiousName, religiousId)
+              staffCache.set(religiousName, staff.id)
             }
           }
 
@@ -411,7 +411,7 @@ export async function POST(
                 })
               }
               smallGroupId = smallGroup.id
-              smallGroupCache.set(meetingPlace, smallGroupId)
+              smallGroupCache.set(meetingPlace, smallGroup.id)
             }
 
             // Create assignment if not exists
@@ -476,7 +476,7 @@ export async function POST(
                 })
               }
               mealGroupId = mealGroup.id
-              mealGroupCache.set(colorName.toLowerCase(), mealGroupId)
+              mealGroupCache.set(colorName.toLowerCase(), mealGroup.id)
             }
 
             // Create assignment if not exists
@@ -678,10 +678,11 @@ export async function POST(
         }
       })
 
+      type ParticipantType = { participantType: string | null }
       for (const group of groupsToUpdate) {
-        const youthCount = group.participants.filter(p => p.participantType === 'youth_u18' || p.participantType === 'youth_o18').length
-        const chaperoneCount = group.participants.filter(p => p.participantType === 'chaperone').length
-        const priestCount = group.participants.filter(p => p.participantType === 'priest').length
+        const youthCount = group.participants.filter((p: ParticipantType) => p.participantType === 'youth_u18' || p.participantType === 'youth_o18').length
+        const chaperoneCount = group.participants.filter((p: ParticipantType) => p.participantType === 'chaperone').length
+        const priestCount = group.participants.filter((p: ParticipantType) => p.participantType === 'priest').length
         const totalParticipants = youthCount + chaperoneCount + priestCount
 
         // Calculate housing-specific counts based on the group's housing type

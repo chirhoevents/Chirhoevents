@@ -155,7 +155,8 @@ export async function POST(
         where: { eventId },
         select: { id: true, name: true, gender: true, housingType: true }
       })
-      const buildingMap = new Map(buildings.map(b => [b.name.toLowerCase(), b]))
+      type BuildingType = { id: string; name: string; gender: string | null; housingType: string | null }
+      const buildingMap = new Map<string, BuildingType>(buildings.map((b: BuildingType) => [b.name.toLowerCase(), b]))
 
       for (const row of rows) {
         try {
@@ -287,7 +288,7 @@ export async function POST(
                 })
               }
               sglId = staff.id
-              staffCache.set(sglKey, sglId)
+              staffCache.set(sglKey, staff.id)
             }
           }
 
@@ -319,7 +320,7 @@ export async function POST(
                 })
               }
               coSglId = staff.id
-              staffCache.set(coSglKey, coSglId)
+              staffCache.set(coSglKey, staff.id)
             }
           }
 

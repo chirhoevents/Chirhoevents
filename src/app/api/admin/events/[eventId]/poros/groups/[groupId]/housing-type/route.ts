@@ -51,11 +51,12 @@ export async function PATCH(
     }
 
     // Calculate counts
+    type ParticipantType = { participantType: string | null }
     const youthCount = group.participants.filter(
-      p => p.participantType === 'youth_u18' || p.participantType === 'youth_o18'
+      (p: ParticipantType) => p.participantType === 'youth_u18' || p.participantType === 'youth_o18'
     ).length
     const chaperoneCount = group.participants.filter(
-      p => p.participantType === 'chaperone'
+      (p: ParticipantType) => p.participantType === 'chaperone'
     ).length
     const totalParticipants = group.participants.length
 

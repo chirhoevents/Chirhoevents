@@ -654,7 +654,7 @@ export function RoomsManager({
                 <Label htmlFor="roomPurpose">Room Purpose</Label>
                 <Select
                   value={formData.roomPurpose}
-                  onValueChange={(value: 'housing' | 'small_group' | 'both') =>
+                  onValueChange={(value: 'housing' | 'small_group') =>
                     setFormData({ ...formData, roomPurpose: value })
                   }
                 >
@@ -670,7 +670,7 @@ export function RoomsManager({
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  Housing = bed assignments, Small Group = meeting rooms, Both = can be used for either
+                  Housing = bed assignments, Small Group = meeting rooms
                 </p>
               </div>
 

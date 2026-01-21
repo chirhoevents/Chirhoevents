@@ -76,7 +76,8 @@ export async function GET(
 
     // If full assignments requested, fetch additional details
     if (includeAssignments) {
-      const roomsWithDetails = await Promise.all(rooms.map(async (room) => {
+      type RoomType = typeof rooms[number]
+      const roomsWithDetails = await Promise.all(rooms.map(async (room: RoomType) => {
         const assignments = await prisma.roomAssignment.findMany({
           where: { roomId: room.id },
           select: {
@@ -89,7 +90,8 @@ export async function GET(
         })
 
         // Get group registration details for assignments
-        const assignmentsWithDetails = await Promise.all(assignments.map(async (assignment) => {
+        type AssignmentType = typeof assignments[number]
+        const assignmentsWithDetails = await Promise.all(assignments.map(async (assignment: AssignmentType) => {
           let groupRegistration = null
           let participant = null
 

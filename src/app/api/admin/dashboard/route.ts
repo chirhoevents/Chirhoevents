@@ -190,7 +190,14 @@ export async function GET(request: NextRequest) {
         formsCompleted,
         formsTotal,
       },
-      upcomingEvents: upcomingEvents.map((event) => ({
+      upcomingEvents: upcomingEvents.map((event: {
+        id: string
+        name: string
+        slug: string
+        startDate: Date
+        endDate: Date
+        _count: { groupRegistrations: number; individualRegistrations: number }
+      }) => ({
         id: event.id,
         name: event.name,
         slug: event.slug,

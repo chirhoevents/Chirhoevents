@@ -36,15 +36,16 @@ export async function POST(
 
     let updatedCount = 0
 
+    type ParticipantType = { participantType: string | null }
     for (const group of groups) {
       const youthCount = group.participants.filter(
-        p => p.participantType === 'youth_u18' || p.participantType === 'youth_o18'
+        (p: ParticipantType) => p.participantType === 'youth_u18' || p.participantType === 'youth_o18'
       ).length
       const chaperoneCount = group.participants.filter(
-        p => p.participantType === 'chaperone'
+        (p: ParticipantType) => p.participantType === 'chaperone'
       ).length
       const priestCount = group.participants.filter(
-        p => p.participantType === 'priest'
+        (p: ParticipantType) => p.participantType === 'priest'
       ).length
       const totalParticipants = youthCount + chaperoneCount + priestCount
 
@@ -129,23 +130,24 @@ export async function GET(
       }
     })
 
+    type GroupSummaryType = typeof groups[number]
     const summary = {
       totalGroups: groups.length,
       byHousingType: {
-        on_campus: groups.filter(g => g.housingType === 'on_campus').length,
-        off_campus: groups.filter(g => g.housingType === 'off_campus').length,
-        day_pass: groups.filter(g => g.housingType === 'day_pass').length,
-        null_or_empty: groups.filter(g => !g.housingType).length,
+        on_campus: groups.filter((g: GroupSummaryType) => g.housingType === 'on_campus').length,
+        off_campus: groups.filter((g: GroupSummaryType) => g.housingType === 'off_campus').length,
+        day_pass: groups.filter((g: GroupSummaryType) => g.housingType === 'day_pass').length,
+        null_or_empty: groups.filter((g: GroupSummaryType) => !g.housingType).length,
       },
       counts: {
-        onCampusYouth: groups.reduce((sum, g) => sum + (g.onCampusYouth || 0), 0),
-        onCampusChaperones: groups.reduce((sum, g) => sum + (g.onCampusChaperones || 0), 0),
-        offCampusYouth: groups.reduce((sum, g) => sum + (g.offCampusYouth || 0), 0),
-        offCampusChaperones: groups.reduce((sum, g) => sum + (g.offCampusChaperones || 0), 0),
-        dayPassYouth: groups.reduce((sum, g) => sum + (g.dayPassYouth || 0), 0),
-        dayPassChaperones: groups.reduce((sum, g) => sum + (g.dayPassChaperones || 0), 0),
+        onCampusYouth: groups.reduce((sum: number, g: GroupSummaryType) => sum + (g.onCampusYouth || 0), 0),
+        onCampusChaperones: groups.reduce((sum: number, g: GroupSummaryType) => sum + (g.onCampusChaperones || 0), 0),
+        offCampusYouth: groups.reduce((sum: number, g: GroupSummaryType) => sum + (g.offCampusYouth || 0), 0),
+        offCampusChaperones: groups.reduce((sum: number, g: GroupSummaryType) => sum + (g.offCampusChaperones || 0), 0),
+        dayPassYouth: groups.reduce((sum: number, g: GroupSummaryType) => sum + (g.dayPassYouth || 0), 0),
+        dayPassChaperones: groups.reduce((sum: number, g: GroupSummaryType) => sum + (g.dayPassChaperones || 0), 0),
       },
-      groups: groups.map(g => ({
+      groups: groups.map((g: GroupSummaryType) => ({
         id: g.id,
         name: g.parishName || g.groupName,
         housingType: g.housingType,
