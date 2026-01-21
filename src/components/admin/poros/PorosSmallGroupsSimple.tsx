@@ -195,8 +195,20 @@ export function PorosSmallGroupsSimple({ eventId }: PorosSmallGroupsSimpleProps)
         prev.map((g) => (g.id === groupId ? { ...g, room: result.room } : g))
       )
 
-      // Update room availability in rooms list
-      fetchData()
+      // Update room availability in local rooms list (instead of full refresh)
+      if (roomId) {
+        // Mark this room as assigned
+        setRooms((prev) =>
+          prev.map((r) => (r.id === roomId ? { ...r, isAssigned: true } : r))
+        )
+      }
+      // If unassigning, mark old room as available
+      const group = groups.find(g => g.id === groupId)
+      if (group?.room?.id && group.room.id !== roomId) {
+        setRooms((prev) =>
+          prev.map((r) => (r.id === group.room!.id ? { ...r, isAssigned: false } : r))
+        )
+      }
 
       toast.success('Room updated')
     } catch (error) {
