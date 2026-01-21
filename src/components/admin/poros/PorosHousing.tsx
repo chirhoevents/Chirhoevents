@@ -110,9 +110,10 @@ export function PorosHousing({ eventId, settings }: PorosHousingProps) {
   async function fetchData() {
     setLoading(true)
     try {
+      // Fetch buildings and only housing-purpose rooms
       const [buildingsRes, roomsRes] = await Promise.all([
         fetch(`/api/admin/events/${eventId}/poros/buildings`),
-        fetch(`/api/admin/events/${eventId}/poros/rooms`)
+        fetch(`/api/admin/events/${eventId}/poros/rooms?purpose=housing`)
       ])
 
       if (buildingsRes.ok) {
