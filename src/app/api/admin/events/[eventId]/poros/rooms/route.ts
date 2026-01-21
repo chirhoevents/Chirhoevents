@@ -32,11 +32,26 @@ export async function GET(
     // Check if we need full assignment details (for print feature)
     const { searchParams } = new URL(request.url)
     const includeAssignments = searchParams.get('includeAssignments') === 'true'
+    const purposeFilter = searchParams.get('purpose') // 'housing', 'small_group', 'both', or null for all
+
+    // Build where clause with optional purpose filter
+    const whereClause: any = {
+      building: { eventId },
+    }
+
+    if (purposeFilter === 'housing') {
+      // For housing, include rooms with purpose 'housing' or 'both'
+      whereClause.roomPurpose = { in: ['housing', 'both'] }
+    } else if (purposeFilter === 'small_group') {
+      // For small groups, include rooms with purpose 'small_group' or 'both'
+      whereClause.roomPurpose = { in: ['small_group', 'both'] }
+    } else if (purposeFilter) {
+      // Exact match for other values
+      whereClause.roomPurpose = purposeFilter
+    }
 
     const rooms = await prisma.room.findMany({
-      where: {
-        building: { eventId },
-      },
+      where: whereClause,
       include: {
         building: true,
         roomAssignments: includeAssignments ? {
