@@ -35,23 +35,28 @@ export async function GET(
     const purposeFilter = searchParams.get('purpose') // 'housing', 'small_group', 'both', or null for all
 
     // Build where clause with optional purpose filter
-    const whereClause: any = {
+    let whereClause: any = {
       building: { eventId },
     }
 
     if (purposeFilter === 'housing') {
-      // For housing, include rooms with purpose 'housing', 'both', or NULL (NULL defaults to housing)
-      whereClause.OR = [
-        { roomPurpose: { in: ['housing', 'both'] } },
-        { roomPurpose: null }
-      ]
+      // For housing: rooms with purpose 'housing' or NULL (default)
+      whereClause = {
+        AND: [
+          { building: { eventId } },
+          {
+            OR: [
+              { roomPurpose: 'housing' },
+              { roomPurpose: null }
+            ]
+          }
+        ]
+      }
     } else if (purposeFilter === 'small_group') {
-      // For small groups, include rooms with purpose 'small_group' or 'both' only (NOT null)
-      whereClause.roomPurpose = { in: ['small_group', 'both'] }
-    } else if (purposeFilter) {
-      // Exact match for other values
-      whereClause.roomPurpose = purposeFilter
+      // For small groups: only rooms explicitly set to 'small_group'
+      whereClause.roomPurpose = 'small_group'
     }
+    // If no purposeFilter, show all rooms
 
     const rooms = await prisma.room.findMany({
       where: whereClause,

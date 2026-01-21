@@ -115,10 +115,12 @@ export function GroupAssignments({
     return true
   })
 
-  // Get rooms for a specific gender
+  // Get rooms for a specific gender (housing rooms only, not small group rooms)
   function getGenderRooms(gender: 'male' | 'female') {
     return rooms.filter((r) => {
       if (!r.isAvailable) return false
+      // Exclude small_group rooms - only show housing rooms (null defaults to housing)
+      if (r.roomPurpose === 'small_group') return false
       // Accept rooms that match gender or are mixed
       if (r.gender && r.gender !== gender && r.gender !== 'mixed') return false
       return true
