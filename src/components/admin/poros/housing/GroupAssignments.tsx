@@ -115,11 +115,12 @@ export function GroupAssignments({
     return true
   })
 
-  // Get rooms for a specific gender (housing rooms only, not small group rooms)
+  // Get rooms for a specific gender - ONLY housing rooms (not small_group)
   function getGenderRooms(gender: 'male' | 'female') {
     return rooms.filter((r) => {
       if (!r.isAvailable) return false
-      // Exclude small_group rooms - only show housing rooms (null defaults to housing)
+      // Only show housing rooms (roomPurpose === 'housing' or null)
+      // Exclude small_group rooms - they should only appear in small group assignments
       if (r.roomPurpose === 'small_group') return false
       // Accept rooms that match gender or are mixed
       if (r.gender && r.gender !== gender && r.gender !== 'mixed') return false
@@ -157,11 +158,44 @@ export function GroupAssignments({
         throw new Error(error.message || 'Failed to assign room')
       }
 
-      toast.success('Group assigned to room')
-      setIsAssignDialogOpen(false)
-      setSelectedGroup(null)
-      fetchGroups()
-      onRefresh()
+      const result = await response.json()
+      const room = rooms.find(r => r.id === roomId)
+      const building = room?.building
+
+      // Update local state instead of refreshing - prevents scroll reset
+      setGroups(prev => prev.map(g => {
+        if (g.id !== groupId) return g
+        const newAssignment = {
+          roomId,
+          roomNumber: room?.roomNumber || '',
+          buildingName: building?.name || '',
+        }
+        if (gender === 'male') {
+          return { ...g, maleRoomAssignments: [...g.maleRoomAssignments, newAssignment] }
+        } else {
+          return { ...g, femaleRoomAssignments: [...g.femaleRoomAssignments, newAssignment] }
+        }
+      }))
+
+      // Also update selectedGroup so the dialog stays in sync
+      if (selectedGroup && selectedGroup.id === groupId) {
+        setSelectedGroup(prev => {
+          if (!prev) return prev
+          const newAssignment = {
+            roomId,
+            roomNumber: room?.roomNumber || '',
+            buildingName: building?.name || '',
+          }
+          if (gender === 'male') {
+            return { ...prev, maleRoomAssignments: [...prev.maleRoomAssignments, newAssignment] }
+          } else {
+            return { ...prev, femaleRoomAssignments: [...prev.femaleRoomAssignments, newAssignment] }
+          }
+        })
+      }
+
+      toast.success('Room assigned')
+      // NOTE: NOT calling fetchGroups() or onRefresh() - prevents scroll to top
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to assign room')
     } finally {
@@ -185,9 +219,18 @@ export function GroupAssignments({
         throw new Error(error.message || 'Failed to remove assignment')
       }
 
-      toast.success('Room assignment removed')
-      fetchGroups()
-      onRefresh()
+      // Update local state instead of refreshing - prevents scroll reset
+      setGroups(prev => prev.map(g => {
+        if (g.id !== groupId) return g
+        if (gender === 'male') {
+          return { ...g, maleRoomAssignments: g.maleRoomAssignments.filter(a => a.roomId !== roomId) }
+        } else {
+          return { ...g, femaleRoomAssignments: g.femaleRoomAssignments.filter(a => a.roomId !== roomId) }
+        }
+      }))
+
+      toast.success('Room removed')
+      // NOTE: NOT calling fetchGroups() or onRefresh() - prevents scroll to top
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to remove assignment')
     }
