@@ -76,9 +76,9 @@ export default function InvitePage() {
         }
 
         setAccepted(true)
-        // Redirect to admin dashboard after a short delay
+        // Redirect to homepage after a short delay
         setTimeout(() => {
-          router.push('/dashboard/admin')
+          router.push('/')
         }, 2000)
       } catch (err) {
         console.error('Error accepting invite:', err)
@@ -138,7 +138,7 @@ export default function InvitePage() {
             <CardTitle className="text-green-600">Welcome!</CardTitle>
             <CardDescription>
               Your account has been linked to {inviteDetails?.organizationName}.
-              Redirecting to dashboard...
+              Redirecting to homepage...
             </CardDescription>
           </CardHeader>
           <CardContent className="flex items-center justify-center">
