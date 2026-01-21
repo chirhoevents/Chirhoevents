@@ -40,10 +40,13 @@ export async function GET(
     }
 
     if (purposeFilter === 'housing') {
-      // For housing, include rooms with purpose 'housing' or 'both'
-      whereClause.roomPurpose = { in: ['housing', 'both'] }
+      // For housing, include rooms with purpose 'housing', 'both', or NULL (NULL defaults to housing)
+      whereClause.OR = [
+        { roomPurpose: { in: ['housing', 'both'] } },
+        { roomPurpose: null }
+      ]
     } else if (purposeFilter === 'small_group') {
-      // For small groups, include rooms with purpose 'small_group' or 'both'
+      // For small groups, include rooms with purpose 'small_group' or 'both' only (NOT null)
       whereClause.roomPurpose = { in: ['small_group', 'both'] }
     } else if (purposeFilter) {
       // Exact match for other values

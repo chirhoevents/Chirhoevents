@@ -113,7 +113,11 @@ export function RoomsManager({
   const selectedBuilding = buildings.find(b => b.id === selectedBuildingId)
   const filteredRooms = rooms.filter(r => {
     if (selectedBuildingId && r.buildingId !== selectedBuildingId) return false
-    if (purposeFilter !== 'all' && r.roomPurpose !== purposeFilter) return false
+    if (purposeFilter !== 'all') {
+      // Treat null/undefined roomPurpose as 'housing' (the default)
+      const roomPurpose = r.roomPurpose || 'housing'
+      if (roomPurpose !== purposeFilter) return false
+    }
     return true
   })
 
