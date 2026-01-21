@@ -330,6 +330,34 @@ export function RoomsManager({
     }
   }
 
+  // Auto-fix room purposes based on M2K spreadsheet data
+  const [fixingPurposes, setFixingPurposes] = useState(false)
+  async function handleFixRoomPurposes() {
+    if (!confirm('This will set room purposes based on the M2K spreadsheet data:\n\n• Housing: Off Campus, ARCC GYM FLOOR, Knott Academic Center rooms 320, 310, 327, 227, 224, 222, 220, 107, 109, 111, 104, 108\n• Small Group: Everything else\n\nContinue?')) {
+      return
+    }
+
+    setFixingPurposes(true)
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}/poros/fix-room-purposes`, {
+        method: 'POST',
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || 'Failed to fix room purposes')
+      }
+
+      const result = await response.json()
+      toast.success(result.message)
+      onRefresh()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to fix room purposes')
+    } finally {
+      setFixingPurposes(false)
+    }
+  }
+
   function handleRoomTypeChange(type: 'single' | 'double' | 'triple' | 'quad' | 'custom') {
     const option = ROOM_TYPE_OPTIONS.find(o => o.value === type)
     setFormData({
@@ -392,6 +420,15 @@ export function RoomsManager({
           </Select>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleFixRoomPurposes}
+            disabled={fixingPurposes}
+            className="bg-yellow-50 text-yellow-800 border-yellow-300 hover:bg-yellow-100"
+          >
+            {fixingPurposes ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+            Fix Room Purposes
+          </Button>
           <Button variant="outline" onClick={openBulkDialog} disabled={buildings.length === 0}>
             <Plus className="w-4 h-4 mr-2" />
             Bulk Add
