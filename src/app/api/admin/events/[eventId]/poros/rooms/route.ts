@@ -139,6 +139,7 @@ export async function POST(
         roomType: body.roomType,
         gender: body.gender,
         housingType: body.housingType,
+        roomPurpose: body.roomPurpose || 'housing',
         capacity: body.capacity || 2,
         currentOccupancy: 0,
         notes: body.notes,

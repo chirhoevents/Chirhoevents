@@ -66,6 +66,12 @@ const ROOM_TYPE_OPTIONS = [
   { value: 'custom', label: 'Custom', beds: 0 },
 ]
 
+const ROOM_PURPOSE_OPTIONS = [
+  { value: 'housing', label: 'Housing', color: 'bg-blue-100 text-blue-800' },
+  { value: 'small_group', label: 'Small Group', color: 'bg-purple-100 text-purple-800' },
+  { value: 'both', label: 'Both', color: 'bg-green-100 text-green-800' },
+]
+
 export function RoomsManager({
   eventId,
   buildings,
@@ -79,12 +85,14 @@ export function RoomsManager({
   const [editingRoom, setEditingRoom] = useState<Room | null>(null)
   const [loading, setLoading] = useState(false)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [purposeFilter, setPurposeFilter] = useState<'all' | 'housing' | 'small_group' | 'both'>('all')
 
   const [formData, setFormData] = useState({
     buildingId: '',
     roomNumber: '',
     floor: 1,
     roomType: 'double' as 'single' | 'double' | 'triple' | 'quad' | 'custom',
+    roomPurpose: 'housing' as 'housing' | 'small_group' | 'both',
     capacity: 2,
     isAvailable: true,
     isAdaAccessible: false,
@@ -103,9 +111,11 @@ export function RoomsManager({
   })
 
   const selectedBuilding = buildings.find(b => b.id === selectedBuildingId)
-  const filteredRooms = selectedBuildingId
-    ? rooms.filter(r => r.buildingId === selectedBuildingId)
-    : rooms
+  const filteredRooms = rooms.filter(r => {
+    if (selectedBuildingId && r.buildingId !== selectedBuildingId) return false
+    if (purposeFilter !== 'all' && r.roomPurpose !== purposeFilter) return false
+    return true
+  })
 
   function openCreateDialog() {
     setEditingRoom(null)
@@ -114,6 +124,7 @@ export function RoomsManager({
       roomNumber: '',
       floor: 1,
       roomType: 'double',
+      roomPurpose: 'housing',
       capacity: 2,
       isAvailable: true,
       isAdaAccessible: false,
@@ -129,6 +140,7 @@ export function RoomsManager({
       roomNumber: room.roomNumber,
       floor: room.floor,
       roomType: room.roomType || 'double',
+      roomPurpose: room.roomPurpose || 'housing',
       capacity: room.capacity,
       isAvailable: room.isAvailable,
       isAdaAccessible: room.isAdaAccessible,
@@ -161,6 +173,7 @@ export function RoomsManager({
         ...formData,
         gender: building?.gender,
         housingType: building?.housingType,
+        roomPurpose: formData.roomPurpose,
       }
 
       const url = editingRoom
@@ -303,6 +316,20 @@ export function RoomsManager({
               ))}
             </SelectContent>
           </Select>
+          <Select
+            value={purposeFilter}
+            onValueChange={(value: 'all' | 'housing' | 'small_group' | 'both') => setPurposeFilter(value)}
+          >
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="All Purposes" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Purposes</SelectItem>
+              <SelectItem value="housing">Housing Only</SelectItem>
+              <SelectItem value="small_group">Small Group Only</SelectItem>
+              <SelectItem value="both">Both</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={openBulkDialog} disabled={buildings.length === 0}>
@@ -336,6 +363,7 @@ export function RoomsManager({
                 {!selectedBuildingId && <TableHead>Building</TableHead>}
                 <TableHead>Floor</TableHead>
                 <TableHead>Type</TableHead>
+                <TableHead>Purpose</TableHead>
                 <TableHead className="text-center">Occupancy</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
@@ -359,6 +387,16 @@ export function RoomsManager({
                     )}
                     <TableCell>{room.floor}</TableCell>
                     <TableCell className="capitalize">{room.roomType || '-'}</TableCell>
+                    <TableCell>
+                      {(() => {
+                        const purpose = ROOM_PURPOSE_OPTIONS.find(p => p.value === room.roomPurpose) || ROOM_PURPOSE_OPTIONS[0]
+                        return (
+                          <Badge className={purpose.color}>
+                            {purpose.label}
+                          </Badge>
+                        )
+                      })()}
+                    </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-1">
                         <Users className="w-4 h-4 text-muted-foreground" />
@@ -500,6 +538,30 @@ export function RoomsManager({
                     disabled={formData.roomType !== 'custom'}
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="roomPurpose">Room Purpose</Label>
+                <Select
+                  value={formData.roomPurpose}
+                  onValueChange={(value: 'housing' | 'small_group' | 'both') =>
+                    setFormData({ ...formData, roomPurpose: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROOM_PURPOSE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Housing = bed assignments, Small Group = meeting rooms, Both = can be used for either
+                </p>
               </div>
 
               <div className="flex items-center gap-6">

@@ -38,6 +38,7 @@ export async function PUT(
         roomType: body.roomType,
         gender: body.gender,
         housingType: body.housingType,
+        roomPurpose: body.roomPurpose,
         capacity: body.capacity,
         notes: body.notes,
         isAvailable: body.isAvailable,

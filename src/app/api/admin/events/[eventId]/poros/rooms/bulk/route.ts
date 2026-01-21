@@ -45,6 +45,7 @@ export async function POST(
         roomType: room.roomType,
         gender: room.gender,
         housingType: room.housingType,
+        roomPurpose: room.roomPurpose || 'housing',
         capacity: room.capacity || 2,
         currentOccupancy: 0,
         isAvailable: room.isAvailable ?? true,

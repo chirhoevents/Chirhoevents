@@ -49,6 +49,7 @@ export interface Room {
   roomType: 'single' | 'double' | 'triple' | 'quad' | 'custom' | null
   gender: 'male' | 'female' | 'mixed' | null
   housingType: 'youth_u18' | 'chaperone_18plus' | 'clergy' | 'general' | null
+  roomPurpose: 'housing' | 'small_group' | 'both'
   capacity: number
   currentOccupancy: number
   notes: string | null
