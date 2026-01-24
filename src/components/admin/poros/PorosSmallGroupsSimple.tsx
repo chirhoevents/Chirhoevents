@@ -37,6 +37,7 @@ interface GroupData {
   id: string
   groupName: string
   parishName: string | null
+  groupCode: string | null
   totalParticipants: number
   sglList: StaffAssignment[]
   religiousList: StaffAssignment[]
@@ -266,7 +267,8 @@ export function PorosSmallGroupsSimple({ eventId }: PorosSmallGroupsSimpleProps)
     if (!searchQuery) return true
     const query = searchQuery.toLowerCase()
     const name = (g.parishName || g.groupName).toLowerCase()
-    return name.includes(query)
+    const code = (g.groupCode || '').toLowerCase()
+    return name.includes(query) || code.includes(query)
   })
 
   // Stats
@@ -350,7 +352,7 @@ export function PorosSmallGroupsSimple({ eventId }: PorosSmallGroupsSimpleProps)
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search by parish name..."
+            placeholder="Search by parish name or group code..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
@@ -395,6 +397,9 @@ export function PorosSmallGroupsSimple({ eventId }: PorosSmallGroupsSimpleProps)
                         <div>
                           <div className="font-medium text-lg">
                             {group.parishName || group.groupName}
+                            {group.groupCode && (
+                              <span className="ml-2 text-orange-600 font-bold">[{group.groupCode}]</span>
+                            )}
                           </div>
                           <div className="text-sm text-muted-foreground">
                             {group.totalParticipants} participants
