@@ -30,6 +30,7 @@ export async function GET(
         id: true,
         groupName: true,
         parishName: true,
+        groupCode: true,
         housingType: true,
         participants: {
           select: {
@@ -57,6 +58,7 @@ export async function GET(
             id: true,
             roomNumber: true,
             gender: true,
+            capacity: true,
             building: {
               select: {
                 name: true,
@@ -90,6 +92,7 @@ export async function GET(
           roomId: a.roomId,
           roomNumber: a.room.roomNumber,
           buildingName: a.room.building.name,
+          capacity: a.room.capacity,
         }))
 
       const femaleRoomAssignments = groupAssignments
@@ -98,12 +101,14 @@ export async function GET(
           roomId: a.roomId,
           roomNumber: a.room.roomNumber,
           buildingName: a.room.building.name,
+          capacity: a.room.capacity,
         }))
 
       return {
         id: group.id,
         groupName: group.groupName,
         parishName: group.parishName,
+        groupCode: group.groupCode,
         housingType: group.housingType,
         maleCount,
         femaleCount,

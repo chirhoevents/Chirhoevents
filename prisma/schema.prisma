@@ -492,8 +492,8 @@ model GroupRegistration {
   housingAssignmentsSubmittedAt DateTime? @map("housing_assignments_submitted_at") @db.Timestamptz(6)
   housingUnlockRequested     Boolean  @default(false) @map("housing_unlock_requested")
   housingUnlockRequestedAt   DateTime? @map("housing_unlock_requested_at") @db.Timestamptz(6)
-  // Small group room assignment (one group per room enforced by unique constraint)
-  smallGroupRoomId           String?  @unique @map("small_group_room_id") @db.Uuid
+  // Small group room assignment (multiple groups can share a room)
+  smallGroupRoomId           String?  @map("small_group_room_id") @db.Uuid
   registeredAt               DateTime @default(now()) @map("registered_at") @db.Timestamptz(6)
   createdAt                  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)

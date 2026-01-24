@@ -44,12 +44,13 @@ interface YouthGroup {
   id: string
   groupName: string
   parishName: string | null
+  groupCode: string | null
   housingType: 'on_campus' | 'off_campus' | 'mixed' | null
   maleCount: number
   femaleCount: number
   totalCount: number
-  maleRoomAssignments: { roomId: string; roomNumber: string; buildingName: string }[]
-  femaleRoomAssignments: { roomId: string; roomNumber: string; buildingName: string }[]
+  maleRoomAssignments: { roomId: string; roomNumber: string; buildingName: string; capacity: number }[]
+  femaleRoomAssignments: { roomId: string; roomNumber: string; buildingName: string; capacity: number }[]
 }
 
 export function GroupAssignments({
@@ -98,7 +99,8 @@ export function GroupAssignments({
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       const name = (g.parishName || g.groupName).toLowerCase()
-      if (!name.includes(query)) return false
+      const code = (g.groupCode || '').toLowerCase()
+      if (!name.includes(query) && !code.includes(query)) return false
     }
 
     if (statusFilter === 'assigned') {
@@ -169,6 +171,7 @@ export function GroupAssignments({
           roomId,
           roomNumber: room?.roomNumber || '',
           buildingName: building?.name || '',
+          capacity: room?.capacity || 0,
         }
         if (gender === 'male') {
           return { ...g, maleRoomAssignments: [...g.maleRoomAssignments, newAssignment] }
@@ -185,6 +188,7 @@ export function GroupAssignments({
             roomId,
             roomNumber: room?.roomNumber || '',
             buildingName: building?.name || '',
+            capacity: room?.capacity || 0,
           }
           if (gender === 'male') {
             return { ...prev, maleRoomAssignments: [...prev.maleRoomAssignments, newAssignment] }
@@ -306,7 +310,7 @@ export function GroupAssignments({
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by parish name..."
+                  placeholder="Search by parish name or group code..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
@@ -380,6 +384,9 @@ export function GroupAssignments({
                           <div className="flex items-center gap-2">
                             <span className="font-medium text-lg">
                               {group.parishName || group.groupName}
+                              {group.groupCode && (
+                                <span className="ml-2 text-orange-600 font-bold">[{group.groupCode}]</span>
+                              )}
                             </span>
                             <Select
                               value={group.housingType || 'on_campus'}
@@ -443,6 +450,7 @@ export function GroupAssignments({
                                   >
                                     <span className="text-sm">
                                       {assignment.buildingName} - {assignment.roomNumber}
+                                      <span className="text-xs text-gray-500 ml-1">(cap: {assignment.capacity})</span>
                                     </span>
                                     <Button
                                       variant="ghost"
@@ -491,6 +499,7 @@ export function GroupAssignments({
                                   >
                                     <span className="text-sm">
                                       {assignment.buildingName} - {assignment.roomNumber}
+                                      <span className="text-xs text-gray-500 ml-1">(cap: {assignment.capacity})</span>
                                     </span>
                                     <Button
                                       variant="ghost"
