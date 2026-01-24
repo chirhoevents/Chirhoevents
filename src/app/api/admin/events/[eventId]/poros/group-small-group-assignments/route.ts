@@ -344,22 +344,20 @@ export async function PATCH(
       )
     }
 
-    // If setting a room, check if it's already assigned to another group
+    // If setting a room, verify it exists and is a small_group room
     if (roomId) {
-      const existingAssignment = await prisma.groupRegistration.findFirst({
+      const room = await prisma.room.findFirst({
         where: {
-          smallGroupRoomId: roomId,
-          id: { not: groupId },
+          id: roomId,
+          building: { eventId },
+          roomPurpose: 'small_group',
         },
-        select: { groupName: true, parishName: true },
       })
 
-      if (existingAssignment) {
+      if (!room) {
         return NextResponse.json(
-          {
-            error: `Room is already assigned to ${existingAssignment.parishName || existingAssignment.groupName}`,
-          },
-          { status: 400 }
+          { error: 'Room not found or not a small group room' },
+          { status: 404 }
         )
       }
     }
