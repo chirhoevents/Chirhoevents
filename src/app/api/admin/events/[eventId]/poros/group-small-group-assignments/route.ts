@@ -30,6 +30,7 @@ export async function GET(
         id: true,
         groupName: true,
         parishName: true,
+        groupCode: true,
         totalParticipants: true,
         smallGroupRoomId: true,
         smallGroupRoom: {
@@ -126,6 +127,7 @@ export async function GET(
         id: group.id,
         groupName: group.groupName,
         parishName: group.parishName,
+        groupCode: group.groupCode,
         totalParticipants: group.totalParticipants,
         sglList: sglAssignments,
         religiousList: religiousAssignments,
