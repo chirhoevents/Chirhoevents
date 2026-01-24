@@ -344,19 +344,18 @@ export async function PATCH(
       )
     }
 
-    // If setting a room, verify it exists and is a small_group room
+    // If setting a room, verify it exists for this event
     if (roomId) {
       const room = await prisma.room.findFirst({
         where: {
           id: roomId,
           building: { eventId },
-          roomPurpose: 'small_group',
         },
       })
 
       if (!room) {
         return NextResponse.json(
-          { error: 'Room not found or not a small group room' },
+          { error: 'Room not found' },
           { status: 404 }
         )
       }
