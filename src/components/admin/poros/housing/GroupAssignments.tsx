@@ -282,6 +282,16 @@ export function GroupAssignments({
     (g) => g.maleRoomAssignments.length > 0 || g.femaleRoomAssignments.length > 0
   ).length
 
+  // Get groups assigned to a specific room (for showing in room selection)
+  function getGroupsInRoom(roomId: string, gender: 'male' | 'female'): string[] {
+    return groups
+      .filter((g) => {
+        const assignments = gender === 'male' ? g.maleRoomAssignments : g.femaleRoomAssignments
+        return assignments.some((a) => a.roomId === roomId)
+      })
+      .map((g) => g.groupCode || g.parishName || g.groupName)
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -443,27 +453,36 @@ export function GroupAssignments({
                             </div>
                             {group.maleRoomAssignments.length > 0 ? (
                               <div className="space-y-1">
-                                {group.maleRoomAssignments.map((assignment, i) => (
-                                  <div
-                                    key={i}
-                                    className="flex items-center justify-between bg-white rounded px-2 py-1"
-                                  >
-                                    <span className="text-sm">
-                                      {assignment.buildingName} - {assignment.roomNumber}
-                                      <span className="text-xs text-gray-500 ml-1">(cap: {assignment.capacity})</span>
-                                    </span>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6 text-red-600 hover:text-red-700"
-                                      onClick={() =>
-                                        handleUnassign(group.id, assignment.roomId, 'male')
-                                      }
-                                    >
-                                      <UserMinus className="w-3 h-3" />
-                                    </Button>
-                                  </div>
-                                ))}
+                                {group.maleRoomAssignments.map((assignment, i) => {
+                                  const otherGroups = getGroupsInRoom(assignment.roomId, 'male').filter(
+                                    (g) => g !== (group.groupCode || group.parishName || group.groupName)
+                                  )
+                                  return (
+                                    <div key={i}>
+                                      <div className="flex items-center justify-between bg-white rounded px-2 py-1">
+                                        <span className="text-sm">
+                                          {assignment.buildingName} - {assignment.roomNumber}
+                                          <span className="text-xs text-gray-500 ml-1">(cap: {assignment.capacity})</span>
+                                        </span>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6 text-red-600 hover:text-red-700"
+                                          onClick={() =>
+                                            handleUnassign(group.id, assignment.roomId, 'male')
+                                          }
+                                        >
+                                          <UserMinus className="w-3 h-3" />
+                                        </Button>
+                                      </div>
+                                      {otherGroups.length > 0 && (
+                                        <div className="text-xs text-orange-600 px-2">
+                                          Also in room: {otherGroups.join(', ')}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )
+                                })}
                               </div>
                             ) : (
                               <p className="text-sm text-blue-600">No rooms assigned</p>
@@ -492,27 +511,36 @@ export function GroupAssignments({
                             </div>
                             {group.femaleRoomAssignments.length > 0 ? (
                               <div className="space-y-1">
-                                {group.femaleRoomAssignments.map((assignment, i) => (
-                                  <div
-                                    key={i}
-                                    className="flex items-center justify-between bg-white rounded px-2 py-1"
-                                  >
-                                    <span className="text-sm">
-                                      {assignment.buildingName} - {assignment.roomNumber}
-                                      <span className="text-xs text-gray-500 ml-1">(cap: {assignment.capacity})</span>
-                                    </span>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6 text-red-600 hover:text-red-700"
-                                      onClick={() =>
-                                        handleUnassign(group.id, assignment.roomId, 'female')
-                                      }
-                                    >
-                                      <UserMinus className="w-3 h-3" />
-                                    </Button>
-                                  </div>
-                                ))}
+                                {group.femaleRoomAssignments.map((assignment, i) => {
+                                  const otherGroups = getGroupsInRoom(assignment.roomId, 'female').filter(
+                                    (g) => g !== (group.groupCode || group.parishName || group.groupName)
+                                  )
+                                  return (
+                                    <div key={i}>
+                                      <div className="flex items-center justify-between bg-white rounded px-2 py-1">
+                                        <span className="text-sm">
+                                          {assignment.buildingName} - {assignment.roomNumber}
+                                          <span className="text-xs text-gray-500 ml-1">(cap: {assignment.capacity})</span>
+                                        </span>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6 text-red-600 hover:text-red-700"
+                                          onClick={() =>
+                                            handleUnassign(group.id, assignment.roomId, 'female')
+                                          }
+                                        >
+                                          <UserMinus className="w-3 h-3" />
+                                        </Button>
+                                      </div>
+                                      {otherGroups.length > 0 && (
+                                        <div className="text-xs text-orange-600 px-2">
+                                          Also in room: {otherGroups.join(', ')}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )
+                                })}
                               </div>
                             ) : (
                               <p className="text-sm text-pink-600">No rooms assigned</p>
@@ -602,28 +630,37 @@ export function GroupAssignments({
                         </Badge>
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pl-6">
-                        {availableRooms.map((room) => (
-                          <Button
-                            key={room.id}
-                            variant="outline"
-                            className="h-auto py-2 px-3 justify-start"
-                            onClick={() =>
-                              selectedGroup &&
-                              handleAssign(selectedGroup.id, room.id, selectedGender)
-                            }
-                            disabled={assignLoading}
-                          >
-                            <div className="flex items-center gap-2">
-                              <Home className="w-4 h-4 text-muted-foreground" />
-                              <div className="text-left">
-                                <div className="font-medium">{room.roomNumber}</div>
-                                <div className="text-xs text-muted-foreground">
-                                  {room.currentOccupancy}/{room.capacity} beds
+                        {availableRooms.map((room) => {
+                          const assignedGroups = getGroupsInRoom(room.id, selectedGender)
+                          const hasOtherGroups = assignedGroups.length > 0
+                          return (
+                            <Button
+                              key={room.id}
+                              variant="outline"
+                              className={`h-auto py-2 px-3 justify-start ${hasOtherGroups ? 'border-orange-300 bg-orange-50' : ''}`}
+                              onClick={() =>
+                                selectedGroup &&
+                                handleAssign(selectedGroup.id, room.id, selectedGender)
+                              }
+                              disabled={assignLoading}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Home className="w-4 h-4 text-muted-foreground" />
+                                <div className="text-left">
+                                  <div className="font-medium">{room.roomNumber}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    cap: {room.capacity}
+                                  </div>
+                                  {hasOtherGroups && (
+                                    <div className="text-xs text-orange-600 font-medium">
+                                      [{assignedGroups.join(', ')}]
+                                    </div>
+                                  )}
                                 </div>
                               </div>
-                            </div>
-                          </Button>
-                        ))}
+                            </Button>
+                          )
+                        })}
                       </div>
                     </div>
                   )
