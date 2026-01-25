@@ -41,9 +41,19 @@ export async function uploadPacketInsert(
   const bucketName = process.env.R2_BUCKET_NAME
   const publicUrl = process.env.R2_PUBLIC_URL
 
-  if (!client || !bucketName) {
-    console.error('R2 not configured - cannot upload packet insert')
-    throw new Error('File storage not configured. Please contact administrator.')
+  if (!client) {
+    console.error('R2 credentials not configured - cannot upload packet insert')
+    throw new Error('File storage credentials not configured. Please check R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, and R2_SECRET_ACCESS_KEY environment variables.')
+  }
+
+  if (!bucketName) {
+    console.error('R2 bucket name not configured - cannot upload packet insert')
+    throw new Error('File storage bucket not configured. Please check R2_BUCKET_NAME environment variable.')
+  }
+
+  if (!publicUrl) {
+    console.error('R2 public URL not configured - cannot upload packet insert')
+    throw new Error('File storage public URL not configured. Please check R2_PUBLIC_URL environment variable.')
   }
 
   // Determine content type based on file extension
@@ -68,6 +78,16 @@ export async function uploadPacketInsert(
     return fileUrl
   } catch (error) {
     console.error('Failed to upload packet insert to R2:', error)
+    if (error instanceof Error) {
+      // Provide more specific error message based on the error
+      if (error.message.includes('AccessDenied')) {
+        throw new Error('Access denied to file storage. Please check R2 credentials and permissions.')
+      }
+      if (error.message.includes('NoSuchBucket')) {
+        throw new Error('File storage bucket not found. Please check R2_BUCKET_NAME.')
+      }
+      throw new Error(`Upload failed: ${error.message}`)
+    }
     throw new Error('Failed to upload file. Please try again.')
   }
 }
