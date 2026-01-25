@@ -13,18 +13,11 @@ export default function PorosPublicLayout({
       <style>{`
         html, body {
           background-color: #1E3A5F !important;
+          min-height: 100vh;
+          min-height: 100dvh;
         }
       `}</style>
-      <div
-        className="min-h-screen bg-[#1E3A5F]"
-        style={{
-          // Ensure the background color covers the full viewport on all browsers
-          minHeight: '100vh',
-          backgroundColor: '#1E3A5F',
-        }}
-      >
-        {children}
-      </div>
+      {children}
     </>
   )
 }
