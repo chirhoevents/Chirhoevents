@@ -57,7 +57,13 @@ export async function GET(
       orderBy: { displayOrder: 'asc' },
     })
 
-    return NextResponse.json({ inserts })
+    // Convert BigInt to string for JSON serialization
+    const serializedInserts = inserts.map(insert => ({
+      ...insert,
+      fileSizeBytes: insert.fileSizeBytes?.toString() || null,
+    }))
+
+    return NextResponse.json({ inserts: serializedInserts })
   } catch (error) {
     console.error('Failed to fetch inserts:', error)
     return NextResponse.json(
@@ -177,7 +183,13 @@ export async function POST(
         },
       })
 
-      return NextResponse.json({ insert })
+      // Convert BigInt to string for JSON serialization
+      return NextResponse.json({
+        insert: {
+          ...insert,
+          fileSizeBytes: insert.fileSizeBytes?.toString() || null,
+        },
+      })
     }
 
     // Handle JSON request (text-only insert without file)
