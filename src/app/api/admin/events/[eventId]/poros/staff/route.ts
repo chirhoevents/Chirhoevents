@@ -29,10 +29,62 @@ export async function GET(
         eventId,
         ...(types ? { staffType: { in: types as any } } : {}),
       },
+      include: {
+        // Small groups where this staff is SGL
+        sglSmallGroups: {
+          select: {
+            id: true,
+            name: true,
+            groupNumber: true,
+          },
+        },
+        // Small groups where this staff is Co-SGL
+        coSglSmallGroups: {
+          select: {
+            id: true,
+            name: true,
+            groupNumber: true,
+          },
+        },
+        // Group registration assignments (for seminarians/religious assigned to parish groups)
+        groupStaffAssignments: {
+          select: {
+            id: true,
+            role: true,
+            groupRegistration: {
+              select: {
+                id: true,
+                parishName: true,
+                groupCode: true,
+              },
+            },
+          },
+        },
+      },
       orderBy: [{ staffType: 'asc' }, { lastName: 'asc' }],
     })
 
-    return NextResponse.json(staff)
+    // Transform the data to include assignment summary
+    const staffWithAssignments = staff.map(s => ({
+      ...s,
+      assignments: {
+        smallGroups: [
+          ...s.sglSmallGroups.map(g => ({ ...g, role: 'SGL' })),
+          ...s.coSglSmallGroups.map(g => ({ ...g, role: 'Co-SGL' })),
+        ],
+        groupRegistrations: s.groupStaffAssignments.map(a => ({
+          id: a.groupRegistration.id,
+          parishName: a.groupRegistration.parishName,
+          groupCode: a.groupRegistration.groupCode,
+          role: a.role,
+        })),
+      },
+      isAssigned: s.sglSmallGroups.length > 0 ||
+                  s.coSglSmallGroups.length > 0 ||
+                  s.groupStaffAssignments.length > 0,
+    }))
+
+    return NextResponse.json(staffWithAssignments)
   } catch (error) {
     console.error('Failed to fetch staff:', error)
     return NextResponse.json(
