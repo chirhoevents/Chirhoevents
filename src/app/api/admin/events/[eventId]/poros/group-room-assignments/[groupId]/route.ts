@@ -23,7 +23,7 @@ export async function DELETE(
       )
     }
 
-    const { roomId } = await request.json()
+    const { roomId, gender } = await request.json()
 
     if (!roomId) {
       return NextResponse.json(
@@ -35,6 +35,11 @@ export async function DELETE(
     // Verify group exists and belongs to this event
     const group = await prisma.groupRegistration.findFirst({
       where: { id: groupId, eventId },
+      include: {
+        participants: {
+          select: { gender: true }
+        }
+      }
     })
 
     if (!group) {
@@ -59,9 +64,25 @@ export async function DELETE(
       )
     }
 
-    await prisma.roomAssignment.delete({
-      where: { id: assignment.id },
-    })
+    // Count participants of this gender in the group
+    const genderCount = group.participants.filter(
+      (p: { gender: string | null }) => p.gender?.toLowerCase() === gender?.toLowerCase()
+    ).length
+
+    // Delete assignment and update room occupancy
+    await prisma.$transaction([
+      prisma.roomAssignment.delete({
+        where: { id: assignment.id },
+      }),
+      prisma.room.update({
+        where: { id: roomId },
+        data: {
+          currentOccupancy: {
+            decrement: genderCount || group.participants.length,
+          },
+        },
+      }),
+    ])
 
     return NextResponse.json({ success: true })
   } catch (error) {

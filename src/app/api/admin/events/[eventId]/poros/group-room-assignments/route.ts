@@ -35,6 +35,11 @@ export async function POST(
     // Verify group exists and belongs to this event
     const group = await prisma.groupRegistration.findFirst({
       where: { id: groupRegistrationId, eventId },
+      include: {
+        participants: {
+          select: { gender: true }
+        }
+      }
     })
 
     if (!group) {
@@ -75,15 +80,30 @@ export async function POST(
       )
     }
 
-    // Create the assignment
-    const assignment = await prisma.roomAssignment.create({
-      data: {
-        roomId,
-        groupRegistrationId,
-        assignedBy: user?.id,
-        notes: `${gender || 'mixed'} housing assignment`,
-      },
-    })
+    // Count participants of this gender in the group
+    const genderCount = group.participants.filter(
+      (p: { gender: string | null }) => p.gender?.toLowerCase() === gender?.toLowerCase()
+    ).length
+
+    // Create the assignment and update room occupancy
+    const [assignment] = await prisma.$transaction([
+      prisma.roomAssignment.create({
+        data: {
+          roomId,
+          groupRegistrationId,
+          assignedBy: user?.id,
+          notes: `${gender || 'mixed'} housing assignment`,
+        },
+      }),
+      prisma.room.update({
+        where: { id: roomId },
+        data: {
+          currentOccupancy: {
+            increment: genderCount || group.participants.length,
+          },
+        },
+      }),
+    ])
 
     return NextResponse.json({
       success: true,
