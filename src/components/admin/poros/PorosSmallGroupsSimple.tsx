@@ -55,6 +55,7 @@ interface RoomOption {
   id: string
   name: string
   capacity: number
+  currentOccupancy: number
   buildingId: string
   buildingName: string
   isAssigned: boolean
@@ -564,9 +565,12 @@ export function PorosSmallGroupsSimple({ eventId }: PorosSmallGroupsSimpleProps)
                                 {rooms.map((r) => {
                                   const assignedGroups = getGroupsInRoom(r.id)
                                   const hasAssignments = assignedGroups.length > 0
+                                  const isOverCapacity = r.currentOccupancy >= r.capacity
                                   return (
                                     <SelectItem key={r.id} value={r.id}>
-                                      {r.name} (cap: {r.capacity})
+                                      <span className={isOverCapacity ? 'text-red-600' : ''}>
+                                        {r.name} ({r.currentOccupancy}/{r.capacity})
+                                      </span>
                                       {hasAssignments && (
                                         <span className="text-orange-600 ml-1">
                                           [{assignedGroups.join(', ')}]

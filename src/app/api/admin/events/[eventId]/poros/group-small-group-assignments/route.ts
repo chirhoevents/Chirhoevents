@@ -88,6 +88,7 @@ export async function GET(
         id: true,
         roomNumber: true,
         capacity: true,
+        currentOccupancy: true,
         building: {
           select: {
             id: true,
@@ -153,6 +154,7 @@ export async function GET(
         id: r.id,
         name: `${r.building.name} - ${r.roomNumber}`,
         capacity: r.capacity,
+        currentOccupancy: r.currentOccupancy || 0,
         buildingId: r.building.id,
         buildingName: r.building.name,
         isAssigned: assignedRoomIds.includes(r.id),

@@ -26,26 +26,36 @@ export async function POST(
 
     const { mealGroupId, groupRegistrationId, individualRegistrationId } = body
 
+    // Get participant count for group registrations
+    let participantCount = 1 // Default for individual registrations
+    if (groupRegistrationId) {
+      const group = await prisma.groupRegistration.findUnique({
+        where: { id: groupRegistrationId },
+        select: { totalParticipants: true },
+      })
+      participantCount = group?.totalParticipants || 1
+    }
+
     // Check if already assigned and update
     if (groupRegistrationId) {
       const existing = await prisma.mealGroupAssignment.findFirst({
         where: { groupRegistrationId },
       })
       if (existing) {
-        // Update old group size
+        // Update old group size (decrement by participant count)
         await prisma.mealGroup.update({
           where: { id: existing.mealGroupId },
-          data: { currentSize: { decrement: 1 } },
+          data: { currentSize: { decrement: participantCount } },
         })
         // Update assignment
         await prisma.mealGroupAssignment.update({
           where: { id: existing.id },
           data: { mealGroupId },
         })
-        // Update new group size
+        // Update new group size (increment by participant count)
         await prisma.mealGroup.update({
           where: { id: mealGroupId },
-          data: { currentSize: { increment: 1 } },
+          data: { currentSize: { increment: participantCount } },
         })
         return NextResponse.json({ updated: true })
       }
@@ -56,6 +66,7 @@ export async function POST(
         where: { individualRegistrationId },
       })
       if (existing) {
+        // Individual registrations count as 1
         await prisma.mealGroup.update({
           where: { id: existing.mealGroupId },
           data: { currentSize: { decrement: 1 } },
@@ -82,10 +93,10 @@ export async function POST(
       },
     })
 
-    // Update group size
+    // Update group size (increment by participant count)
     await prisma.mealGroup.update({
       where: { id: mealGroupId },
-      data: { currentSize: { increment: 1 } },
+      data: { currentSize: { increment: participantCount } },
     })
 
     return NextResponse.json(assignment, { status: 201 })
