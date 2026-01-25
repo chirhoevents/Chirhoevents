@@ -74,7 +74,13 @@ export async function POST(
 ) {
   try {
     const { eventId } = await params
-    await requireSalveAccess(request, eventId)
+
+    try {
+      await requireSalveAccess(request, eventId)
+    } catch (authError) {
+      const message = authError instanceof Error ? authError.message : 'Unauthorized'
+      return NextResponse.json({ message }, { status: 403 })
+    }
 
     // Get event to find organization ID for file storage
     const event = await prisma.event.findUnique({
@@ -204,8 +210,9 @@ export async function POST(
     return NextResponse.json({ insert })
   } catch (error) {
     console.error('Failed to create insert:', error)
+    const message = error instanceof Error ? error.message : 'Failed to create insert'
     return NextResponse.json(
-      { message: 'Failed to create insert' },
+      { message },
       { status: 500 }
     )
   }
