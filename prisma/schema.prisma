@@ -943,6 +943,7 @@ enum RoomType {
   double
   triple
   quad
+  custom
 }
 
 enum RoomPurpose {

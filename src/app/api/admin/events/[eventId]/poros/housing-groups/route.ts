@@ -92,7 +92,7 @@ export async function GET(
           roomId: a.roomId,
           roomNumber: a.room.roomNumber,
           buildingName: a.room.building.name,
-          capacity: a.room.capacity,
+          capacity: a.room.capacity || 0,
         }))
 
       const femaleRoomAssignments = groupAssignments
@@ -101,7 +101,7 @@ export async function GET(
           roomId: a.roomId,
           roomNumber: a.room.roomNumber,
           buildingName: a.room.building.name,
-          capacity: a.room.capacity,
+          capacity: a.room.capacity || 0,
         }))
 
       return {
