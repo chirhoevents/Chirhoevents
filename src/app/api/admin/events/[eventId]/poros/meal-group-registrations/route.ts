@@ -6,7 +6,23 @@ import { prisma } from '@/lib/prisma'
 interface GroupRegistrationRecord {
   id: string
   parishName: string | null
+  groupCode: string | null
+  onCampusYouth: number | null
+  onCampusChaperones: number | null
+  offCampusYouth: number | null
+  offCampusChaperones: number | null
+  totalParticipants: number
   _count: { participants: number }
+}
+
+function getAccommodationType(r: GroupRegistrationRecord): 'on_campus' | 'off_campus' | 'mixed' {
+  const isOnCampus = (r.onCampusYouth || 0) > 0 || (r.onCampusChaperones || 0) > 0
+  const isOffCampus = (r.offCampusYouth || 0) > 0 || (r.offCampusChaperones || 0) > 0
+
+  if (isOnCampus && isOffCampus) return 'mixed'
+  if (isOnCampus) return 'on_campus'
+  if (isOffCampus) return 'off_campus'
+  return 'on_campus' // Default
 }
 
 interface IndividualRegistrationRecord {
@@ -47,7 +63,15 @@ export async function GET(
     // Get group registrations
     const groupRegs = await prisma.groupRegistration.findMany({
       where: { eventId },
-      include: {
+      select: {
+        id: true,
+        parishName: true,
+        groupCode: true,
+        onCampusYouth: true,
+        onCampusChaperones: true,
+        offCampusYouth: true,
+        offCampusChaperones: true,
+        totalParticipants: true,
         _count: { select: { participants: true } },
       },
     })
@@ -89,7 +113,9 @@ export async function GET(
           id: r.id,
           type: 'group' as const,
           name: r.parishName,
-          participantCount: r._count.participants,
+          groupCode: r.groupCode,
+          participantCount: r.totalParticipants || r._count.participants,
+          accommodationType: getAccommodationType(r),
           mealGroupAssignment: assignment
             ? {
                 groupId: assignment.mealGroupId,
@@ -105,7 +131,9 @@ export async function GET(
           id: r.id,
           type: 'individual' as const,
           name: `${r.firstName} ${r.lastName}`,
+          groupCode: null,
           participantCount: 1,
+          accommodationType: 'on_campus' as const, // Individuals default to on-campus
           mealGroupAssignment: assignment
             ? {
                 groupId: assignment.mealGroupId,

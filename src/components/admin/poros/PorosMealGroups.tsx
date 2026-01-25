@@ -74,7 +74,9 @@ interface Registration {
   id: string
   type: 'group' | 'individual'
   name: string
+  groupCode?: string | null
   participantCount?: number
+  accommodationType?: 'on_campus' | 'off_campus' | 'mixed'
   mealGroupAssignment?: {
     groupId: string
     groupName: string
@@ -120,6 +122,7 @@ export function PorosMealGroups({ eventId }: PorosMealGroupsProps) {
   // Assignment state
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'assigned' | 'unassigned'>('all')
+  const [accommodationFilter, setAccommodationFilter] = useState<'all' | 'on_campus' | 'off_campus' | 'mixed'>('all')
   const [selectedRegistration, setSelectedRegistration] = useState<Registration | null>(null)
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
   const [assignLoading, setAssignLoading] = useState(false)
@@ -243,6 +246,10 @@ export function PorosMealGroups({ eventId }: PorosMealGroupsProps) {
     setAssignLoading(true)
     try {
       const registration = registrations.find(r => r.id === registrationId)
+      const mealGroup = mealGroups.find(g => g.id === groupId)
+      const participantCount = registration?.participantCount || 1
+      const previousGroupId = registration?.mealGroupAssignment?.groupId
+
       const response = await fetch(`/api/admin/events/${eventId}/poros/meal-group-assignments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -258,10 +265,40 @@ export function PorosMealGroups({ eventId }: PorosMealGroupsProps) {
         throw new Error(error.message || 'Failed to assign meal group')
       }
 
+      // Update local state instead of refetching
+      setRegistrations(prev =>
+        prev.map(r =>
+          r.id === registrationId
+            ? {
+                ...r,
+                mealGroupAssignment: mealGroup
+                  ? {
+                      groupId: mealGroup.id,
+                      groupName: mealGroup.name,
+                      colorHex: mealGroup.colorHex,
+                    }
+                  : null,
+              }
+            : r
+        )
+      )
+
+      // Update meal group sizes locally
+      setMealGroups(prev =>
+        prev.map(g => {
+          if (g.id === groupId) {
+            return { ...g, currentSize: g.currentSize + participantCount }
+          }
+          if (previousGroupId && g.id === previousGroupId) {
+            return { ...g, currentSize: Math.max(0, g.currentSize - participantCount) }
+          }
+          return g
+        })
+      )
+
       toast.success('Meal group assigned')
       setIsAssignDialogOpen(false)
       setSelectedRegistration(null)
-      fetchData()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to assign meal group')
     } finally {
@@ -272,6 +309,9 @@ export function PorosMealGroups({ eventId }: PorosMealGroupsProps) {
   async function handleUnassign(registrationId: string) {
     try {
       const registration = registrations.find(r => r.id === registrationId)
+      const previousGroupId = registration?.mealGroupAssignment?.groupId
+      const participantCount = registration?.participantCount || 1
+
       const response = await fetch(
         `/api/admin/events/${eventId}/poros/meal-group-assignments/${registrationId}`,
         {
@@ -286,8 +326,25 @@ export function PorosMealGroups({ eventId }: PorosMealGroupsProps) {
         throw new Error(error.message || 'Failed to remove assignment')
       }
 
+      // Update local state instead of refetching
+      setRegistrations(prev =>
+        prev.map(r =>
+          r.id === registrationId ? { ...r, mealGroupAssignment: null } : r
+        )
+      )
+
+      // Update meal group size locally
+      if (previousGroupId) {
+        setMealGroups(prev =>
+          prev.map(g =>
+            g.id === previousGroupId
+              ? { ...g, currentSize: Math.max(0, g.currentSize - participantCount) }
+              : g
+          )
+        )
+      }
+
       toast.success('Meal group assignment removed')
-      fetchData()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to remove assignment')
     }
@@ -433,11 +490,15 @@ Blue,#2563EB,all,8:00 AM,1:00 PM,6:30 PM,9:00 AM,100,true`
 
   // Filter registrations
   const filteredRegistrations = registrations.filter(r => {
-    if (searchQuery && !r.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      const nameMatch = r.name?.toLowerCase().includes(query)
+      const codeMatch = r.groupCode?.toLowerCase().includes(query)
+      if (!nameMatch && !codeMatch) return false
     }
     if (statusFilter === 'assigned' && !r.mealGroupAssignment) return false
     if (statusFilter === 'unassigned' && r.mealGroupAssignment) return false
+    if (accommodationFilter !== 'all' && r.accommodationType !== accommodationFilter) return false
     return true
   })
 
@@ -787,9 +848,23 @@ Blue,#2563EB,all,8:00 AM,1:00 PM,6:30 PM,9:00 AM,100,true`
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="assigned">Assigned</SelectItem>
                     <SelectItem value="unassigned">Unassigned</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={accommodationFilter}
+                  onValueChange={(v: 'all' | 'on_campus' | 'off_campus' | 'mixed') => setAccommodationFilter(v)}
+                >
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Housing</SelectItem>
+                    <SelectItem value="on_campus">On-Campus</SelectItem>
+                    <SelectItem value="off_campus">Off-Campus</SelectItem>
+                    <SelectItem value="mixed">Mixed</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -820,10 +895,35 @@ Blue,#2563EB,all,8:00 AM,1:00 PM,6:30 PM,9:00 AM,100,true`
                         }`}
                       >
                         <div>
-                          <div className="font-medium">{reg.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {reg.type === 'group' ? 'Group Registration' : 'Individual'}
-                            {reg.participantCount && ` • ${reg.participantCount} participants`}
+                          <div className="font-medium">
+                            {reg.name}
+                            {reg.groupCode && (
+                              <span className="ml-2 text-orange-600 font-bold">[{reg.groupCode}]</span>
+                            )}
+                          </div>
+                          <div className="text-sm text-muted-foreground flex items-center gap-2">
+                            <span>
+                              {reg.type === 'group' ? 'Group Registration' : 'Individual'}
+                              {reg.participantCount && ` • ${reg.participantCount} participants`}
+                            </span>
+                            {reg.type === 'group' && reg.accommodationType && (
+                              <Badge
+                                variant="outline"
+                                className={`text-xs ${
+                                  reg.accommodationType === 'on_campus'
+                                    ? 'border-blue-300 text-blue-700'
+                                    : reg.accommodationType === 'off_campus'
+                                    ? 'border-amber-300 text-amber-700'
+                                    : 'border-purple-300 text-purple-700'
+                                }`}
+                              >
+                                {reg.accommodationType === 'on_campus'
+                                  ? 'On-Campus'
+                                  : reg.accommodationType === 'off_campus'
+                                  ? 'Off-Campus'
+                                  : 'Mixed'}
+                              </Badge>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
