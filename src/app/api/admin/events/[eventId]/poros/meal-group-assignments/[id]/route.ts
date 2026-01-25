@@ -47,14 +47,24 @@ export async function DELETE(
 
     const groupId = assignment.mealGroupId
 
+    // Get participant count for group registrations
+    let participantCount = 1 // Default for individual registrations
+    if (assignment.groupRegistrationId) {
+      const group = await prisma.groupRegistration.findUnique({
+        where: { id: assignment.groupRegistrationId },
+        select: { totalParticipants: true },
+      })
+      participantCount = group?.totalParticipants || 1
+    }
+
     await prisma.mealGroupAssignment.delete({
       where: { id: assignment.id },
     })
 
-    // Update group size
+    // Update group size (decrement by participant count)
     await prisma.mealGroup.update({
       where: { id: groupId },
-      data: { currentSize: { decrement: 1 } },
+      data: { currentSize: { decrement: participantCount } },
     })
 
     return NextResponse.json({ success: true })
