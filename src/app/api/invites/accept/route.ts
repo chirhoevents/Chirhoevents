@@ -111,6 +111,7 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  // First, try to find a pending (unclaimed) invite
   const pendingUser = await prisma.user.findFirst({
     where: {
       id: inviteId,
@@ -125,21 +126,58 @@ export async function GET(request: NextRequest) {
     },
   })
 
-  if (!pendingUser) {
-    return NextResponse.json(
-      { valid: false, error: 'Invalid or expired invitation' },
-      { status: 404 }
-    )
+  if (pendingUser) {
+    return NextResponse.json({
+      valid: true,
+      invite: {
+        firstName: pendingUser.firstName,
+        lastName: pendingUser.lastName,
+        email: pendingUser.email,
+        organizationName: pendingUser.organization?.name || 'Unknown',
+        role: pendingUser.role,
+      },
+    })
   }
 
-  return NextResponse.json({
-    valid: true,
-    invite: {
-      firstName: pendingUser.firstName,
-      lastName: pendingUser.lastName,
-      email: pendingUser.email,
-      organizationName: pendingUser.organization?.name || 'Unknown',
-      role: pendingUser.role,
-    },
-  })
+  // If no pending invite, check if this invite was already claimed
+  // This handles the case where user signed up and got redirected back
+  const { userId: clerkUserId } = await auth()
+
+  if (clerkUserId) {
+    // Check if the current user already claimed this invite
+    const claimedUser = await prisma.user.findFirst({
+      where: {
+        id: inviteId,
+        clerkUserId: clerkUserId,
+      },
+      include: {
+        organization: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    })
+
+    if (claimedUser) {
+      // User already accepted this invite - return success with alreadyAccepted flag
+      return NextResponse.json({
+        valid: true,
+        alreadyAccepted: true,
+        invite: {
+          firstName: claimedUser.firstName,
+          lastName: claimedUser.lastName,
+          email: claimedUser.email,
+          organizationName: claimedUser.organization?.name || 'Unknown',
+          role: claimedUser.role,
+        },
+      })
+    }
+  }
+
+  // Neither pending nor claimed by current user - truly invalid
+  return NextResponse.json(
+    { valid: false, error: 'Invalid or expired invitation' },
+    { status: 404 }
+  )
 }
