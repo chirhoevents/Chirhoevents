@@ -133,7 +133,14 @@ export default function PorosPublicClient({
   const closeModal = () => setActiveModal(null)
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#1E3A5F] to-[#0f1f33]">
+    <div
+      className="min-h-screen bg-gradient-to-b from-[#1E3A5F] to-[#0f1f33]"
+      style={{
+        // Ensure full viewport coverage on all browsers including Chrome desktop
+        minHeight: '100vh',
+        minHeight: '100dvh',
+      }}
+    >
       {/* Header */}
       <header className="bg-[#1E3A5F] border-b border-white/10 sticky top-0 z-50">
         <div className="max-w-lg mx-auto px-4 py-4">
