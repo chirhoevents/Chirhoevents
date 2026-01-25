@@ -47,11 +47,27 @@ import {
   Download,
   Mail,
   Phone,
+  Users,
+  AlertCircle,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
 interface PorosStaffProps {
   eventId: string
+}
+
+interface SmallGroupAssignment {
+  id: string
+  name: string
+  groupNumber: number | null
+  role: string
+}
+
+interface GroupRegistrationAssignment {
+  id: string
+  parishName: string | null
+  groupCode: string | null
+  role: string
 }
 
 interface Staff {
@@ -66,6 +82,11 @@ interface Staff {
   diocese: string | null
   notes: string | null
   createdAt: string
+  assignments?: {
+    smallGroups: SmallGroupAssignment[]
+    groupRegistrations: GroupRegistrationAssignment[]
+  }
+  isAssigned?: boolean
 }
 
 const STAFF_TYPES = [
@@ -85,6 +106,7 @@ export function PorosStaff({ eventId }: PorosStaffProps) {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('all')
+  const [assignmentFilter, setAssignmentFilter] = useState<'all' | 'assigned' | 'unassigned'>('all')
 
   // Dialog state
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -311,8 +333,18 @@ export function PorosStaff({ eventId }: PorosStaffProps) {
     if (typeFilter !== 'all' && s.staffType !== typeFilter) {
       return false
     }
+    if (assignmentFilter === 'assigned' && !s.isAssigned) {
+      return false
+    }
+    if (assignmentFilter === 'unassigned' && s.isAssigned) {
+      return false
+    }
     return true
   })
+
+  // Count assigned/unassigned
+  const assignedCount = staff.filter(s => s.isAssigned).length
+  const unassignedCount = staff.filter(s => !s.isAssigned).length
 
   // Count by type
   const countByType = STAFF_TYPES.map((type) => ({
@@ -432,7 +464,27 @@ export function PorosStaff({ eventId }: PorosStaffProps) {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={assignmentFilter} onValueChange={(v: 'all' | 'assigned' | 'unassigned') => setAssignmentFilter(v)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by assignment" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All ({staff.length})</SelectItem>
+                <SelectItem value="assigned">Assigned ({assignedCount})</SelectItem>
+                <SelectItem value="unassigned">Unassigned ({unassignedCount})</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
+
+          {/* Unassigned warning */}
+          {unassignedCount > 0 && (
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-600" />
+              <span className="text-amber-800">
+                <strong>{unassignedCount}</strong> staff member{unassignedCount !== 1 ? 's' : ''} not assigned to any group
+              </span>
+            </div>
+          )}
 
           {/* Staff Table */}
           {filteredStaff.length === 0 ? (
@@ -446,6 +498,7 @@ export function PorosStaff({ eventId }: PorosStaffProps) {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Type</TableHead>
+                  <TableHead>Assignment</TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead>Diocese</TableHead>
                   <TableHead className="w-[50px]"></TableHead>
@@ -467,6 +520,39 @@ export function PorosStaff({ eventId }: PorosStaffProps) {
                       </div>
                     </TableCell>
                     <TableCell>{getStaffTypeBadge(member.staffType)}</TableCell>
+                    <TableCell>
+                      {member.assignments && (member.assignments.smallGroups.length > 0 || member.assignments.groupRegistrations.length > 0) ? (
+                        <div className="space-y-1">
+                          {member.assignments.smallGroups.map((sg) => (
+                            <div key={sg.id} className="flex items-center gap-1">
+                              <Users className="w-3 h-3 text-blue-600" />
+                              <span className="text-sm">
+                                {sg.name}
+                                {sg.groupNumber && <span className="text-muted-foreground"> #{sg.groupNumber}</span>}
+                                <Badge variant="outline" className="ml-1 text-xs">{sg.role}</Badge>
+                              </span>
+                            </div>
+                          ))}
+                          {member.assignments.groupRegistrations.map((gr) => (
+                            <div key={gr.id} className="flex items-center gap-1">
+                              <Users className="w-3 h-3 text-green-600" />
+                              <span className="text-sm">
+                                {gr.parishName || 'Parish Group'}
+                                {gr.groupCode && (
+                                  <span className="ml-1 text-orange-600 font-medium">[{gr.groupCode}]</span>
+                                )}
+                                <Badge variant="outline" className="ml-1 text-xs capitalize">{gr.role}</Badge>
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-amber-600 text-sm flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          Not assigned
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <div className="space-y-1">
                         {member.email && (
