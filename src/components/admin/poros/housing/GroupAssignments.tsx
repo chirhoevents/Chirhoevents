@@ -633,11 +633,12 @@ export function GroupAssignments({
                         {availableRooms.map((room) => {
                           const assignedGroups = getGroupsInRoom(room.id, selectedGender)
                           const hasOtherGroups = assignedGroups.length > 0
+                          const isOverCapacity = room.currentOccupancy >= room.capacity
                           return (
                             <Button
                               key={room.id}
                               variant="outline"
-                              className={`h-auto py-2 px-3 justify-start ${hasOtherGroups ? 'border-orange-300 bg-orange-50' : ''}`}
+                              className={`h-auto py-2 px-3 justify-start ${hasOtherGroups ? 'border-orange-300 bg-orange-50' : ''} ${isOverCapacity ? 'border-red-300 bg-red-50' : ''}`}
                               onClick={() =>
                                 selectedGroup &&
                                 handleAssign(selectedGroup.id, room.id, selectedGender)
@@ -648,8 +649,8 @@ export function GroupAssignments({
                                 <Home className="w-4 h-4 text-muted-foreground" />
                                 <div className="text-left">
                                   <div className="font-medium">{room.roomNumber}</div>
-                                  <div className="text-xs text-muted-foreground">
-                                    cap: {room.capacity}
+                                  <div className={`text-xs ${isOverCapacity ? 'text-red-600 font-bold' : 'text-muted-foreground'}`}>
+                                    {room.currentOccupancy}/{room.capacity}
                                   </div>
                                   {hasOtherGroups && (
                                     <div className="text-xs text-orange-600 font-medium">
