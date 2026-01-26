@@ -124,6 +124,24 @@ async function executeRegistrationsReport(eventId: string, config: any) {
     where,
     include: {
       participants: { select: { id: true, participantType: true } },
+      smallGroupRoom: {
+        select: {
+          id: true,
+          roomNumber: true,
+          floor: true,
+          capacity: true,
+          building: { select: { name: true } },
+        },
+      },
+      allocatedRooms: {
+        select: {
+          id: true,
+          roomNumber: true,
+          floor: true,
+          capacity: true,
+          building: { select: { name: true } },
+        },
+      },
     },
     orderBy: getSortOrder(config.sortBy, config.sortDirection) || { createdAt: 'desc' },
   })
@@ -149,6 +167,19 @@ async function executeRegistrationsReport(eventId: string, config: any) {
     const chaperoneCount = reg.participants.filter((p: { participantType: string }) => p.participantType === 'chaperone').length
     const priestCount = reg.participants.filter((p: { participantType: string }) => p.participantType === 'priest').length
 
+    // Format small group room info
+    const smallGroupRoom = reg.smallGroupRoom ? {
+      buildingName: reg.smallGroupRoom.building?.name || '',
+      roomNumber: reg.smallGroupRoom.roomNumber,
+      floor: reg.smallGroupRoom.floor,
+      capacity: reg.smallGroupRoom.capacity,
+    } : null
+
+    // Format allocated rooms summary
+    const allocatedRoomsSummary = reg.allocatedRooms && reg.allocatedRooms.length > 0
+      ? reg.allocatedRooms.map((r: any) => `${r.building?.name} ${r.roomNumber}`).join(', ')
+      : ''
+
     return {
       ...reg,
       youthCount,
@@ -159,7 +190,10 @@ async function executeRegistrationsReport(eventId: string, config: any) {
       totalAmountDue: balance ? Number(balance.totalAmountDue) : 0,
       amountPaid: balance ? Number(balance.amountPaid) : 0,
       amountRemaining: balance ? Number(balance.amountRemaining) : 0,
+      smallGroupRoom,
+      allocatedRoomsSummary,
       participants: undefined, // Remove participants array for cleaner output
+      allocatedRooms: undefined, // Remove raw array for cleaner output
     }
   })
 
@@ -241,12 +275,44 @@ async function executeParticipantsReport(eventId: string, config: any) {
     orderBy: getSortOrder(config.sortBy, config.sortDirection) || { lastName: 'asc' },
   })
 
+  // Fetch room assignments separately (Participant doesn't have direct relation)
+  const participantIds = participants.map((p: { id: string }) => p.id)
+  const roomAssignments = await prisma.roomAssignment.findMany({
+    where: { participantId: { in: participantIds } },
+    select: {
+      participantId: true,
+      bedNumber: true,
+      room: {
+        select: {
+          roomNumber: true,
+          floor: true,
+          building: { select: { name: true } },
+        },
+      },
+    },
+  })
+  const roomAssignmentMap = new Map(
+    roomAssignments.map((ra: typeof roomAssignments[number]) => [ra.participantId, ra])
+  )
+
   // Transform data
-  let results = participants.map((p: typeof participants[number]) => ({
-    ...p,
-    liabilityForm: p.liabilityForms?.[0] || null,
-    liabilityForms: undefined,
-  }))
+  let results = participants.map((p: typeof participants[number]) => {
+    // Format room assignment data
+    const roomAssign = roomAssignmentMap.get(p.id)
+    const roomAssignment = roomAssign ? {
+      buildingName: roomAssign.room?.building?.name || '',
+      roomNumber: roomAssign.room?.roomNumber || '',
+      floor: roomAssign.room?.floor || '',
+      bedNumber: roomAssign.bedNumber || '',
+    } : null
+
+    return {
+      ...p,
+      liabilityForm: p.liabilityForms?.[0] || null,
+      roomAssignment,
+      liabilityForms: undefined,
+    }
+  })
 
   // Filter by medical needs
   if (config.filters?.hasMedicalNeeds) {

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Download, Loader2, Building2, Users, ChevronDown, ChevronRight, Filter } from 'lucide-react'
+import { Download, Loader2, Building2, Users, ChevronDown, ChevronRight, Filter, Printer } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -158,6 +158,280 @@ export default function RoomAllocationReportModal({
     } finally {
       setExporting(null)
     }
+  }
+
+  const handlePrintPDF = () => {
+    if (!data) return
+
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) {
+      alert('Please allow popups to print reports')
+      return
+    }
+
+    const reportHtml = generatePrintHTML()
+    printWindow.document.write(reportHtml)
+    printWindow.document.close()
+
+    printWindow.onload = () => {
+      printWindow.focus()
+      printWindow.print()
+    }
+  }
+
+  const generatePrintHTML = (): string => {
+    if (!data) return ''
+
+    const purposeLabel = purposeFilter === 'all' ? 'All Rooms' :
+      purposeFilter === 'housing' ? 'Housing Rooms' :
+      purposeFilter === 'small_group' ? 'Small Group Rooms' : 'Dual Purpose Rooms'
+
+    const groupedRooms = groupRoomsByBuilding(data.rooms)
+
+    let roomsHTML = ''
+    for (const [buildingName, rooms] of Object.entries(groupedRooms)) {
+      const buildingInfo = data.summary.byBuilding.find((b: any) => b.buildingName === buildingName)
+
+      roomsHTML += `
+        <div class="building-section">
+          <div class="building-header">
+            <h2>${buildingName}</h2>
+            <span class="building-stats">${buildingInfo?.totalOccupied || 0}/${buildingInfo?.totalCapacity || 0} occupied | ${rooms.length} rooms</span>
+          </div>
+          <table class="rooms-table">
+            <thead>
+              <tr>
+                <th>Room</th>
+                <th>Floor</th>
+                <th>Purpose</th>
+                <th>Capacity</th>
+                <th>Occupied</th>
+                <th>Groups Assigned</th>
+                <th>Participants</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rooms.map((room: RoomData) => {
+                const groupNames = room.assignedGroups && room.assignedGroups.length > 0
+                  ? room.assignedGroups.map(g => g.groupName).join(', ')
+                  : room.allocatedGroup?.groupName || '-'
+
+                const participants = room.assignedGroups && room.assignedGroups.length > 0
+                  ? room.assignedGroups.reduce((sum, g) => sum + g.actualParticipantCount, 0)
+                  : room.allocatedGroup?.participantCount || room.assignedPeople?.length || 0
+
+                return `
+                  <tr>
+                    <td><strong>${room.roomNumber}</strong></td>
+                    <td>${room.floor}</td>
+                    <td>${formatPurpose(room.roomPurpose)}</td>
+                    <td>${room.capacity}</td>
+                    <td class="${room.currentOccupancy >= room.capacity ? 'full' : room.currentOccupancy > 0 ? 'partial' : 'empty'}">${room.currentOccupancy}</td>
+                    <td>${groupNames}</td>
+                    <td>${participants}</td>
+                  </tr>
+                `
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      `
+    }
+
+    // Detailed groups section for small group rooms
+    let detailedGroupsHTML = ''
+    const roomsWithGroups = data.rooms.filter((r: RoomData) => r.assignedGroups && r.assignedGroups.length > 0)
+    if (roomsWithGroups.length > 0) {
+      detailedGroupsHTML = `
+        <div class="page-break"></div>
+        <h2 class="section-title">Detailed Group Assignments (Small Group Rooms)</h2>
+        ${roomsWithGroups.map((room: RoomData) => `
+          <div class="room-detail">
+            <h3>${room.buildingName} - Room ${room.roomNumber}</h3>
+            <p class="room-info">Capacity: ${room.capacity} | Purpose: ${formatPurpose(room.roomPurpose)}</p>
+            <table class="groups-table">
+              <thead>
+                <tr>
+                  <th>Group Name</th>
+                  <th>Parish</th>
+                  <th>Diocese</th>
+                  <th>Participants</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${room.assignedGroups?.map(group => `
+                  <tr>
+                    <td><strong>${group.groupName}</strong></td>
+                    <td>${group.parishName || '-'}</td>
+                    <td>${group.dioceseName || '-'}</td>
+                    <td>${group.actualParticipantCount}</td>
+                  </tr>
+                `).join('') || ''}
+              </tbody>
+            </table>
+          </div>
+        `).join('')}
+      `
+    }
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Room Allocation Report - ${eventName}</title>
+        <style>
+          @page {
+            size: landscape;
+            margin: 0.5in;
+          }
+          @media print {
+            .page-break { page-break-before: always; }
+          }
+          body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            font-size: 10pt;
+            color: #333;
+          }
+          .header {
+            border-bottom: 3px solid #1E3A5F;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+          }
+          h1 {
+            font-size: 24px;
+            margin: 0 0 5px 0;
+            color: #1E3A5F;
+          }
+          .subtitle {
+            color: #666;
+            font-size: 12px;
+            margin-bottom: 10px;
+          }
+          .summary-grid {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+          }
+          .summary-card {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px 15px;
+            min-width: 120px;
+          }
+          .summary-card .label {
+            font-size: 9px;
+            color: #666;
+            text-transform: uppercase;
+          }
+          .summary-card .value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1E3A5F;
+          }
+          .building-section {
+            margin-bottom: 25px;
+            page-break-inside: avoid;
+          }
+          .building-header {
+            background: #1E3A5F;
+            color: white;
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          .building-header h2 {
+            margin: 0;
+            font-size: 14px;
+          }
+          .building-stats {
+            font-size: 11px;
+            opacity: 0.9;
+          }
+          .rooms-table, .groups-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 9pt;
+          }
+          .rooms-table th, .rooms-table td,
+          .groups-table th, .groups-table td {
+            border: 1px solid #ddd;
+            padding: 6px 8px;
+            text-align: left;
+          }
+          .rooms-table th, .groups-table th {
+            background: #e5e7eb;
+            font-weight: bold;
+            font-size: 8pt;
+          }
+          .rooms-table tr:nth-child(even) {
+            background: #f9fafb;
+          }
+          .full { color: #dc2626; font-weight: bold; }
+          .partial { color: #ea580c; }
+          .empty { color: #16a34a; }
+          .section-title {
+            color: #1E3A5F;
+            border-bottom: 2px solid #9C8466;
+            padding-bottom: 8px;
+            margin-top: 30px;
+            margin-bottom: 15px;
+          }
+          .room-detail {
+            margin-bottom: 20px;
+            page-break-inside: avoid;
+          }
+          .room-detail h3 {
+            margin: 0 0 5px 0;
+            color: #1E3A5F;
+            font-size: 12pt;
+          }
+          .room-info {
+            margin: 0 0 10px 0;
+            color: #666;
+            font-size: 9pt;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Room Allocation Report</h1>
+          <div class="subtitle">${eventName} | ${purposeLabel} | Generated ${new Date().toLocaleString()}</div>
+        </div>
+
+        <div class="summary-grid">
+          <div class="summary-card">
+            <div class="label">Total Rooms</div>
+            <div class="value">${data.summary.totalRooms}</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">Total Capacity</div>
+            <div class="value">${data.summary.totalCapacity}</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">Occupied</div>
+            <div class="value">${data.summary.totalOccupied}</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">Available</div>
+            <div class="value">${data.summary.totalCapacity - data.summary.totalOccupied}</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">With Groups</div>
+            <div class="value">${data.summary.roomsWithGroups}</div>
+          </div>
+        </div>
+
+        ${roomsHTML}
+
+        ${detailedGroupsHTML}
+      </body>
+      </html>
+    `
   }
 
   const toggleBuilding = (buildingName: string) => {
@@ -503,6 +777,13 @@ export default function RoomAllocationReportModal({
             {/* Export Buttons */}
             <div className="flex gap-3 pt-4 border-t">
               <Button
+                onClick={handlePrintPDF}
+                className="flex-1 bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
+              >
+                <Printer className="h-4 w-4 mr-2" />
+                Print / PDF
+              </Button>
+              <Button
                 onClick={() => handleExport('csv')}
                 disabled={exporting !== null}
                 variant="outline"
@@ -514,19 +795,6 @@ export default function RoomAllocationReportModal({
                   <Download className="h-4 w-4 mr-2" />
                 )}
                 Export CSV
-              </Button>
-              <Button
-                onClick={() => handleExport('pdf')}
-                disabled={exporting !== null}
-                variant="outline"
-                className="flex-1"
-              >
-                {exporting === 'pdf' ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Download className="h-4 w-4 mr-2" />
-                )}
-                Export Text
               </Button>
               <Button onClick={onClose} variant="outline" className="border-[#1E3A5F] text-[#1E3A5F]">
                 Close
