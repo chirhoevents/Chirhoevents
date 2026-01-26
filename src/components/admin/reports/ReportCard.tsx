@@ -16,11 +16,12 @@ import {
   Loader2,
   Store,
   UserCog,
+  Building2,
 } from 'lucide-react'
 
 interface ReportCardProps {
   title: string
-  reportType: 'financial' | 'registrations' | 'forms' | 'housing' | 'medical' | 'certificates' | 'chaperones' | 'vendors' | 'staff'
+  reportType: 'financial' | 'registrations' | 'forms' | 'housing' | 'room-allocations' | 'medical' | 'certificates' | 'chaperones' | 'vendors' | 'staff'
   eventId: string
   onViewReport: () => void
 }
@@ -36,6 +37,7 @@ const ICONS = {
   registrations: Users,
   forms: FileText,
   housing: Home,
+  'room-allocations': Building2,
   medical: Heart,
   certificates: Shield,
   chaperones: UserCheck,
@@ -104,6 +106,12 @@ export default function ReportCard({
           stat1: { label: 'On-Campus', value: `${data.onCampus || 0} people` },
           stat2: { label: 'Off-Campus', value: `${data.offCampus || 0} people` },
           stat3: { label: 'Day Pass', value: `${data.dayPass || 0} people` },
+        }
+      case 'room-allocations':
+        return {
+          stat1: { label: 'Total Rooms', value: data.totalRooms || 0 },
+          stat2: { label: 'Occupied', value: `${data.totalOccupied || 0}/${data.totalCapacity || 0}` },
+          stat3: { label: 'Occupancy Rate', value: `${data.occupancyRate || 0}%` },
         }
       case 'medical':
         return {

@@ -8,6 +8,7 @@ import FinancialReportModal from '@/components/admin/reports/FinancialReportModa
 import RegistrationReportModal from '@/components/admin/reports/RegistrationReportModal'
 import FormsReportModal from '@/components/admin/reports/FormsReportModal'
 import HousingReportModal from '@/components/admin/reports/HousingReportModal'
+import RoomAllocationReportModal from '@/components/admin/reports/RoomAllocationReportModal'
 import MedicalReportModal from '@/components/admin/reports/MedicalReportModal'
 import CertificatesReportModal from '@/components/admin/reports/CertificatesReportModal'
 import ChaperoneReportModal from '@/components/admin/reports/ChaperoneReportModal'
@@ -127,6 +128,13 @@ export default function ReportsClient({
         />
 
         <ReportCard
+          title="Room Allocation Report"
+          reportType="room-allocations"
+          eventId={eventId}
+          onViewReport={() => setActiveModal('room-allocations')}
+        />
+
+        <ReportCard
           title="Dietary/Medical Report"
           reportType="medical"
           eventId={eventId}
@@ -188,6 +196,13 @@ export default function ReportsClient({
 
       <HousingReportModal
         isOpen={activeModal === 'housing'}
+        onClose={() => setActiveModal(null)}
+        eventId={eventId}
+        eventName={eventName}
+      />
+
+      <RoomAllocationReportModal
+        isOpen={activeModal === 'room-allocations'}
         onClose={() => setActiveModal(null)}
         eventId={eventId}
         eventName={eventName}
