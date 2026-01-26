@@ -216,7 +216,7 @@ export async function POST(request: NextRequest) {
                 <div style="text-align: center; margin: 30px 0;">
                   <a href="${inviteUrl}" style="background: #9C8466; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Accept Invitation</a>
                 </div>
-                <p style="color: #666; font-size: 14px;">After accepting, you'll be taken to your dashboard where you can access the features available to your role.</p>
+                <p style="color: #666; font-size: 14px;">After accepting, you can sign in from the homepage to access the features available to your role.</p>
                 <p style="color: #666; font-size: 14px;">This invitation will expire in 7 days. If you didn't expect this invitation, you can safely ignore this email.</p>
               </div>
               <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
@@ -299,7 +299,7 @@ export async function POST(request: NextRequest) {
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${inviteUrl}" style="background: #9C8466; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Accept Invitation</a>
               </div>
-              <p style="color: #666; font-size: 14px;">After accepting, you'll be taken to your dashboard where you can access the features available to your role.</p>
+              <p style="color: #666; font-size: 14px;">After accepting, you can sign in from the homepage to access the features available to your role.</p>
               <p style="color: #666; font-size: 14px;">This invitation will expire in 7 days. If you didn't expect this invitation, you can safely ignore this email.</p>
             </div>
             <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
