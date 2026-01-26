@@ -64,6 +64,25 @@ export async function GET(
                 },
               },
             },
+            // Groups assigned to this room for small group meetings
+            smallGroupAssignedGroups: {
+              select: {
+                id: true,
+                groupName: true,
+                parishName: true,
+                dioceseName: true,
+                totalParticipants: true,
+                participants: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    gender: true,
+                    participantType: true,
+                  },
+                },
+              },
+            },
           },
           orderBy: [
             { floor: 'asc' },
@@ -86,7 +105,7 @@ export async function GET(
           totalRooms++
           totalCapacity += room.capacity
           totalOccupied += room.currentOccupancy
-          if (room.allocatedToGroupId || room.smallGroups.length > 0) {
+          if (room.allocatedToGroupId || room.smallGroups.length > 0 || room.smallGroupAssignedGroups.length > 0) {
             roomsWithGroups++
           }
         }
@@ -186,7 +205,7 @@ export async function GET(
         else if (room.roomPurpose === 'small_group') summaryStats.smallGroupRooms++
         else if (room.roomPurpose === 'both') summaryStats.bothPurposeRooms++
 
-        if (room.allocatedToGroupId || room.smallGroups.length > 0) {
+        if (room.allocatedToGroupId || room.smallGroups.length > 0 || room.smallGroupAssignedGroups.length > 0) {
           summaryStats.roomsWithGroups++
         }
 
@@ -264,6 +283,21 @@ export async function GET(
             currentSize: sg.currentSize,
             capacity: sg.capacity,
             sglName: sg.sgl ? `${sg.sgl.firstName} ${sg.sgl.lastName}` : null,
+          })),
+          // Groups assigned to this small group room
+          assignedGroups: room.smallGroupAssignedGroups.map(group => ({
+            id: group.id,
+            groupName: group.groupName,
+            parishName: group.parishName,
+            dioceseName: group.dioceseName,
+            totalParticipants: group.totalParticipants,
+            actualParticipantCount: group.participants.length,
+            participants: group.participants.map(p => ({
+              id: p.id,
+              name: `${p.firstName} ${p.lastName}`,
+              gender: p.gender,
+              type: p.participantType,
+            })),
           })),
           // Individual bed assignments
           assignedPeople,
