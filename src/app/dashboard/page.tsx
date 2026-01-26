@@ -117,8 +117,9 @@ export default function DashboardRedirect() {
           'finance_manager': '/dashboard/admin',
           'staff': '/dashboard/admin',
           'poros_coordinator': '/dashboard/admin/poros',
-          'salve_coordinator': '/dashboard/admin/salve',
-          'rapha_coordinator': '/dashboard/admin/rapha',
+          // Coordinator-only roles go to dedicated standalone pages (simpler, no admin layout)
+          'salve_coordinator': '/coordinator/salve',
+          'rapha_coordinator': '/coordinator/rapha',
         }
 
         const destination = routes[role] || '/dashboard/group-leader'
