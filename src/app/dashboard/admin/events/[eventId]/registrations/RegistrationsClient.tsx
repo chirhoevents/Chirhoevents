@@ -26,6 +26,7 @@ import Link from 'next/link'
 import EditGroupRegistrationModal from '@/components/admin/EditGroupRegistrationModal'
 import EditIndividualRegistrationModal from '@/components/admin/EditIndividualRegistrationModal'
 import EmailResendModal from '@/components/admin/EmailResendModal'
+import SendReminderEmailModal from '@/components/admin/SendReminderEmailModal'
 import ViewRegistrationModal from '@/components/admin/registrations/ViewRegistrationModal'
 import PaymentsModal from '@/components/admin/registrations/PaymentsModal'
 
@@ -117,6 +118,9 @@ export default function RegistrationsClient({
     type: 'group' | 'individual'
     name: string
   } | null>(null)
+
+  // Send reminder email modal state
+  const [reminderModalOpen, setReminderModalOpen] = useState(false)
 
   // Filter registrations
   const filteredGroupRegs = useMemo(() => {
@@ -272,7 +276,7 @@ export default function RegistrationsClient({
                 variant="outline"
                 size="sm"
                 className="border-[#1E3A5F] text-[#1E3A5F]"
-                disabled
+                onClick={() => setReminderModalOpen(true)}
               >
                 <Mail className="h-4 w-4 mr-2" />
                 Email All
@@ -904,6 +908,14 @@ export default function RegistrationsClient({
           }}
         />
       )}
+
+      {/* Send Reminder Email Modal */}
+      <SendReminderEmailModal
+        open={reminderModalOpen}
+        onOpenChange={setReminderModalOpen}
+        eventId={eventId}
+        eventName={eventName}
+      />
     </div>
   )
 }
