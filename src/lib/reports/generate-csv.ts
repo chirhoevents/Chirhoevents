@@ -322,3 +322,72 @@ export function generateStaffCSV(reportData: any): string {
 
   return generateCSV(summaryRows, ['Metric', 'Value'])
 }
+
+export function generateRoomAllocationsCSV(reportData: any): string {
+  const headers = [
+    'Building',
+    'Room Number',
+    'Floor',
+    'Room Purpose',
+    'Room Type',
+    'Gender',
+    'Housing Type',
+    'Capacity',
+    'Beds',
+    'Current Occupancy',
+    'Available',
+    'ADA Accessible',
+    'Allocated Group',
+    'Group Parish',
+    'Group Participant Count',
+    'Small Groups',
+    'Assigned People',
+    'Notes',
+  ]
+
+  const rows = reportData.rooms.map((room: any) => {
+    // Format assigned people as a list
+    const assignedPeopleStr = room.assignedPeople && room.assignedPeople.length > 0
+      ? room.assignedPeople
+          .map((p: any) => {
+            const bedInfo = p.bedNumber ? ` [Bed ${p.bedNumber}]` : ''
+            const groupInfo = p.groupName ? ` (${p.groupName})` : ''
+            return `${p.name}${bedInfo}${groupInfo}`
+          })
+          .join('; ')
+      : ''
+
+    // Format small groups
+    const smallGroupsStr = room.smallGroups && room.smallGroups.length > 0
+      ? room.smallGroups
+          .map((sg: any) => {
+            const sglInfo = sg.sglName ? ` - SGL: ${sg.sglName}` : ''
+            return `${sg.name} (${sg.currentSize}/${sg.capacity})${sglInfo}`
+          })
+          .join('; ')
+      : ''
+
+    return {
+      'Building': room.buildingName,
+      'Room Number': room.roomNumber,
+      'Floor': room.floor,
+      'Room Purpose': room.roomPurpose?.replace(/_/g, ' ') || '',
+      'Room Type': room.roomType?.replace(/_/g, ' ') || '',
+      'Gender': room.gender || room.buildingGender || '',
+      'Housing Type': room.housingType?.replace(/_/g, ' ') || room.buildingHousingType?.replace(/_/g, ' ') || '',
+      'Capacity': room.capacity,
+      'Beds': room.bedCount,
+      'Current Occupancy': room.currentOccupancy,
+      'Available': room.availableBeds,
+      'ADA Accessible': room.isAdaAccessible ? 'Yes' : 'No',
+      'Allocated Group': room.allocatedGroup?.groupName || '',
+      'Group Parish': room.allocatedGroup?.parishName || '',
+      'Group Participant Count': room.allocatedGroup?.participantCount || '',
+      'Small Groups': smallGroupsStr,
+      'Assigned People': assignedPeopleStr,
+      'Notes': room.notes || '',
+    }
+  })
+
+  return generateCSV(rows, headers)
+}
