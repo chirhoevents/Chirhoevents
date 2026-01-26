@@ -225,35 +225,10 @@ export async function POST(
             group.totalPaid = Number(paymentBalance.amountPaid) || 0
             group.balance = Number(paymentBalance.amountRemaining) || 0
           } else {
-            // Fallback: Calculate from ParticipantCost records
-            const participantCosts = await prisma.participantCost.findMany({
-              where: {
-                groupRegistrationId: group.id,
-              },
-              select: {
-                totalCost: true,
-              }
-            })
-
-            const totalCost = participantCosts.reduce((sum, pc) => sum + (Number(pc.totalCost) || 0), 0)
-
-            // Get payments for this registration
-            const payments = await prisma.payment.findMany({
-              where: {
-                registrationId: group.id,
-                registrationType: 'group',
-                paymentStatus: 'completed',
-              },
-              select: {
-                amount: true,
-              }
-            })
-
-            const totalPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
-
-            group.totalCost = totalCost
-            group.totalPaid = totalPaid
-            group.balance = totalCost - totalPaid
+            // No payment balance record - set to 0
+            group.totalCost = 0
+            group.totalPaid = 0
+            group.balance = 0
           }
         }
       }
