@@ -41,6 +41,17 @@ export default function InvitePage() {
           return
         }
 
+        // If the invite was already accepted by the current user, redirect to dashboard
+        if (data.alreadyAccepted) {
+          setAccepted(true)
+          setInviteDetails(data.invite)
+          // Redirect to dashboard immediately since they're already set up
+          setTimeout(() => {
+            router.push('/dashboard')
+          }, 1500)
+          return
+        }
+
         setInviteDetails(data.invite)
       } catch (err) {
         console.error('Error fetching invite:', err)
@@ -53,7 +64,7 @@ export default function InvitePage() {
     if (inviteId) {
       fetchInvite()
     }
-  }, [inviteId])
+  }, [inviteId, router])
 
   // Accept invite when signed in
   useEffect(() => {
@@ -76,9 +87,9 @@ export default function InvitePage() {
         }
 
         setAccepted(true)
-        // Redirect to homepage after a short delay
+        // Redirect to dashboard after a short delay
         setTimeout(() => {
-          router.push('/')
+          router.push('/dashboard')
         }, 2000)
       } catch (err) {
         console.error('Error accepting invite:', err)
@@ -138,7 +149,7 @@ export default function InvitePage() {
             <CardTitle className="text-green-600">Welcome!</CardTitle>
             <CardDescription>
               Your account has been linked to {inviteDetails?.organizationName}.
-              Redirecting to homepage...
+              Redirecting to your dashboard...
             </CardDescription>
           </CardHeader>
           <CardContent className="flex items-center justify-center">
