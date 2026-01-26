@@ -202,38 +202,59 @@ export async function POST(
               }
             }
           } : false,
-          // Include payments if payment info is enabled
-          payments: includePaymentInfo ? {
-            where: {
-              status: 'completed',
-            },
-            select: {
-              amount: true,
-            }
-          } : false,
         },
       })
 
-      // If payment info is needed, fetch the total cost for each group
+      // If payment info is needed, fetch payment balances for each group
       if (includePaymentInfo) {
         for (const group of groupRegistrations) {
-          // Calculate total cost based on event pricing
-          const totalPaid = group.payments?.reduce((sum: number, p: { amount: number }) => sum + (p.amount || 0), 0) || 0
-
-          // Get participant costs from the event
-          const participantCosts = await prisma.participantCost.findMany({
+          // Get payment balance from PaymentBalance table
+          const paymentBalance = await prisma.paymentBalance.findUnique({
             where: {
-              groupRegistrationId: group.id,
+              registrationId: group.id,
             },
             select: {
-              totalCost: true,
+              totalAmountDue: true,
+              amountPaid: true,
+              amountRemaining: true,
             }
           })
 
-          const totalCost = participantCosts.reduce((sum, pc) => sum + (pc.totalCost || 0), 0)
-          group.totalCost = totalCost
-          group.totalPaid = totalPaid
-          group.balance = totalCost - totalPaid
+          if (paymentBalance) {
+            group.totalCost = Number(paymentBalance.totalAmountDue) || 0
+            group.totalPaid = Number(paymentBalance.amountPaid) || 0
+            group.balance = Number(paymentBalance.amountRemaining) || 0
+          } else {
+            // Fallback: Calculate from ParticipantCost records
+            const participantCosts = await prisma.participantCost.findMany({
+              where: {
+                groupRegistrationId: group.id,
+              },
+              select: {
+                totalCost: true,
+              }
+            })
+
+            const totalCost = participantCosts.reduce((sum, pc) => sum + (Number(pc.totalCost) || 0), 0)
+
+            // Get payments for this registration
+            const payments = await prisma.payment.findMany({
+              where: {
+                registrationId: group.id,
+                registrationType: 'group',
+                paymentStatus: 'completed',
+              },
+              select: {
+                amount: true,
+              }
+            })
+
+            const totalPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
+
+            group.totalCost = totalCost
+            group.totalPaid = totalPaid
+            group.balance = totalCost - totalPaid
+          }
         }
       }
     }
