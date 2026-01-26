@@ -61,6 +61,8 @@ export default function SendReminderEmailModal({
   const [housingInstructions, setHousingInstructions] = useState('')
   const [includeGroupAssignments, setIncludeGroupAssignments] = useState(false)
   const [groupAssignmentInfo, setGroupAssignmentInfo] = useState('')
+  const [includePaymentInfo, setIncludePaymentInfo] = useState(false)
+  const [includeStaffAssignments, setIncludeStaffAssignments] = useState(false)
   const [customLinks, setCustomLinks] = useState<CustomLink[]>([])
   const [testEmail, setTestEmail] = useState('')
 
@@ -98,6 +100,8 @@ export default function SendReminderEmailModal({
     housingInstructions: includeHousingInfo ? housingInstructions : '',
     includeGroupAssignments,
     groupAssignmentInfo: includeGroupAssignments ? groupAssignmentInfo : '',
+    includePaymentInfo,
+    includeStaffAssignments,
     customLinks: customLinks.filter(link => link.label && link.url),
   })
 
@@ -197,6 +201,8 @@ export default function SendReminderEmailModal({
     setHousingInstructions('')
     setIncludeGroupAssignments(false)
     setGroupAssignmentInfo('')
+    setIncludePaymentInfo(false)
+    setIncludeStaffAssignments(false)
     setCustomLinks([])
     setTestEmail('')
     setRecipients('all')
@@ -357,7 +363,31 @@ export default function SendReminderEmailModal({
               </div>
 
               {/* Advanced Options Accordion */}
-              <Accordion type="single" collapsible className="w-full">
+              <Accordion type="multiple" className="w-full">
+                <AccordionItem value="payment">
+                  <AccordionTrigger className="text-sm font-medium">
+                    Payment Information
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-4 pt-2">
+                    {/* Include Payment Info */}
+                    <div className="flex items-start space-x-3">
+                      <Checkbox
+                        id="includePayment"
+                        checked={includePaymentInfo}
+                        onCheckedChange={(checked) => setIncludePaymentInfo(checked as boolean)}
+                      />
+                      <div className="space-y-1">
+                        <Label htmlFor="includePayment" className="font-medium">
+                          Include Payment Summary
+                        </Label>
+                        <p className="text-xs text-[#6B7280]">
+                          Include registration total, amount paid, and remaining balance in the email.
+                        </p>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
                 <AccordionItem value="housing">
                   <AccordionTrigger className="text-sm font-medium">
                     Housing & Assignments
@@ -375,7 +405,7 @@ export default function SendReminderEmailModal({
                           Include Housing Information
                         </Label>
                         <p className="text-xs text-[#6B7280]">
-                          Include housing assignments in the email (pulled from registration data).
+                          Include housing type and participant breakdown in the email.
                         </p>
                       </div>
                     </div>
@@ -402,29 +432,43 @@ export default function SendReminderEmailModal({
                       />
                       <div className="space-y-1">
                         <Label htmlFor="includeGroups" className="font-medium">
-                          Include Group/Staff Assignments
+                          Include Small Group Room Assignment
                         </Label>
                         <p className="text-xs text-[#6B7280]">
-                          Include small group, seminarian, staff, or other role assignments.
+                          Include the assigned small group meeting room.
                         </p>
                       </div>
                     </div>
 
                     {includeGroupAssignments && (
                       <div className="space-y-2 ml-6">
-                        <Label htmlFor="groupAssignmentInfo">Group Assignment Details</Label>
+                        <Label htmlFor="groupAssignmentInfo">Additional Group Instructions</Label>
                         <Textarea
                           id="groupAssignmentInfo"
                           value={groupAssignmentInfo}
                           onChange={(e) => setGroupAssignmentInfo(e.target.value)}
-                          placeholder="e.g., Your small group leader is [Name]. You've been assigned to Group 3. Your seminarian contact is [Name]..."
+                          placeholder="e.g., Small groups will meet after the Friday evening session..."
                           className="min-h-[80px]"
                         />
-                        <p className="text-xs text-[#6B7280]">
-                          This text will be included for all recipients. For personalized assignments, those will be pulled from each registration&apos;s data.
-                        </p>
                       </div>
                     )}
+
+                    {/* Include Staff Assignments (seminarians, religious) */}
+                    <div className="flex items-start space-x-3">
+                      <Checkbox
+                        id="includeStaff"
+                        checked={includeStaffAssignments}
+                        onCheckedChange={(checked) => setIncludeStaffAssignments(checked as boolean)}
+                      />
+                      <div className="space-y-1">
+                        <Label htmlFor="includeStaff" className="font-medium">
+                          Include Staff Assignments (Seminarians/Religious)
+                        </Label>
+                        <p className="text-xs text-[#6B7280]">
+                          Include assigned seminarians, small group leaders, and religious staff contacts.
+                        </p>
+                      </div>
+                    </div>
                   </AccordionContent>
                 </AccordionItem>
 
