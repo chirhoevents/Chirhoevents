@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import { Resend } from 'resend'
+import { getRoleName, getRoleDescription, type UserRole } from '@/lib/permissions'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -60,11 +61,13 @@ export async function POST(
 
     // Resend invitation email
     const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/invite/${pendingUser.id}`
+    const roleName = getRoleName(pendingUser.role as UserRole)
+    const roleDescription = getRoleDescription(pendingUser.role as UserRole)
 
     await resend.emails.send({
       from: 'ChirhoEvents <noreply@chirhoevents.com>',
       to: pendingUser.email,
-      subject: `Reminder: You've been invited to join ${organization?.name || 'ChirhoEvents'}`,
+      subject: `Reminder: You've been invited to join ${organization?.name || 'ChirhoEvents'} as ${roleName}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -78,11 +81,18 @@ export async function POST(
           </div>
           <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
             <p>Hi ${pendingUser.firstName},</p>
-            <p>This is a friendly reminder that <strong>${user.firstName} ${user.lastName}</strong> has invited you to join <strong>${organization?.name || 'their organization'}</strong> on ChiRho Events as an <strong>Administrator</strong>.</p>
+            <p>This is a friendly reminder that <strong>${user.firstName} ${user.lastName}</strong> has invited you to join <strong>${organization?.name || 'their organization'}</strong> on ChiRho Events.</p>
+
+            <div style="background: #F5F1E8; border-left: 4px solid #9C8466; padding: 15px; margin: 20px 0; border-radius: 0 5px 5px 0;">
+              <p style="margin: 0 0 5px 0; font-weight: bold; color: #1E3A5F;">Your Role: ${roleName}</p>
+              <p style="margin: 0; color: #666; font-size: 14px;">${roleDescription}</p>
+            </div>
+
             <p>ChiRho Events helps Catholic organizations manage retreats, conferences, and events with ease.</p>
             <div style="text-align: center; margin: 30px 0;">
               <a href="${inviteUrl}" style="background: #9C8466; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Accept Invitation</a>
             </div>
+            <p style="color: #666; font-size: 14px;">After accepting, you can sign in from the homepage to access the features available to your role.</p>
             <p style="color: #666; font-size: 14px;">If you didn't expect this invitation, you can safely ignore this email.</p>
           </div>
           <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">

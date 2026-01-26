@@ -41,13 +41,13 @@ export default function InvitePage() {
           return
         }
 
-        // If the invite was already accepted by the current user, redirect to dashboard
+        // If the invite was already accepted by the current user, redirect to homepage
         if (data.alreadyAccepted) {
           setAccepted(true)
           setInviteDetails(data.invite)
-          // Redirect to dashboard immediately since they're already set up
+          // Redirect to homepage - user can sign in from there
           setTimeout(() => {
-            router.push('/dashboard')
+            router.push('/')
           }, 1500)
           return
         }
@@ -87,9 +87,9 @@ export default function InvitePage() {
         }
 
         setAccepted(true)
-        // Redirect to dashboard after a short delay
+        // Redirect to homepage after a short delay - user can sign in from there
         setTimeout(() => {
-          router.push('/dashboard')
+          router.push('/')
         }, 2000)
       } catch (err) {
         console.error('Error accepting invite:', err)
@@ -149,7 +149,7 @@ export default function InvitePage() {
             <CardTitle className="text-green-600">Welcome!</CardTitle>
             <CardDescription>
               Your account has been linked to {inviteDetails?.organizationName}.
-              Redirecting to your dashboard...
+              Redirecting to homepage where you can sign in...
             </CardDescription>
           </CardHeader>
           <CardContent className="flex items-center justify-center">
