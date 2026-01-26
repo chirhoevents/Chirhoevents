@@ -61,6 +61,7 @@ export async function POST(
       includeGroupAssignments = false,
       groupAssignmentInfo = '',
       includePaymentInfo = false,
+      showBalanceDue = true,
       includeStaffAssignments = false,
       customLinks = [] as { label: string; url: string }[],
       testMode = false,
@@ -114,7 +115,9 @@ export async function POST(
         additionalInfo += '**Payment Summary:**\n'
         additionalInfo += 'Total: $XXX.XX\n'
         additionalInfo += 'Paid: $XXX.XX\n'
-        additionalInfo += 'Balance: $XXX.XX\n'
+        if (showBalanceDue) {
+          additionalInfo += 'Balance: $XXX.XX\n'
+        }
         additionalInfo += '\n'
       }
 
@@ -374,10 +377,12 @@ export async function POST(
         info += '**Payment Summary:**\n'
         info += `Total: $${totalCost.toFixed(2)}\n`
         info += `Paid: $${totalPaid.toFixed(2)}\n`
-        if (balance > 0) {
-          info += `<strong style="color: #DC2626;">Balance Due: $${balance.toFixed(2)}</strong>\n`
-        } else {
-          info += `<span style="color: #16A34A;">✓ Paid in Full</span>\n`
+        if (showBalanceDue) {
+          if (balance > 0) {
+            info += `<strong style="color: #DC2626;">Balance Due: $${balance.toFixed(2)}</strong>\n`
+          } else {
+            info += `<span style="color: #16A34A;">✓ Paid in Full</span>\n`
+          }
         }
         info += '\n'
       }

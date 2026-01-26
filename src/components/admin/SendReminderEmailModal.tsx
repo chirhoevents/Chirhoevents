@@ -62,6 +62,7 @@ export default function SendReminderEmailModal({
   const [includeGroupAssignments, setIncludeGroupAssignments] = useState(false)
   const [groupAssignmentInfo, setGroupAssignmentInfo] = useState('')
   const [includePaymentInfo, setIncludePaymentInfo] = useState(false)
+  const [showBalanceDue, setShowBalanceDue] = useState(true)
   const [includeStaffAssignments, setIncludeStaffAssignments] = useState(false)
   const [customLinks, setCustomLinks] = useState<CustomLink[]>([])
   const [testEmail, setTestEmail] = useState('')
@@ -101,6 +102,7 @@ export default function SendReminderEmailModal({
     includeGroupAssignments,
     groupAssignmentInfo: includeGroupAssignments ? groupAssignmentInfo : '',
     includePaymentInfo,
+    showBalanceDue: includePaymentInfo ? showBalanceDue : false,
     includeStaffAssignments,
     customLinks: customLinks.filter(link => link.label && link.url),
   })
@@ -202,6 +204,7 @@ export default function SendReminderEmailModal({
     setIncludeGroupAssignments(false)
     setGroupAssignmentInfo('')
     setIncludePaymentInfo(false)
+    setShowBalanceDue(true)
     setIncludeStaffAssignments(false)
     setCustomLinks([])
     setTestEmail('')
@@ -381,10 +384,28 @@ export default function SendReminderEmailModal({
                           Include Payment Summary
                         </Label>
                         <p className="text-xs text-[#6B7280]">
-                          Include registration total, amount paid, and remaining balance in the email.
+                          Include registration total and amount paid in the email.
                         </p>
                       </div>
                     </div>
+
+                    {includePaymentInfo && (
+                      <div className="flex items-start space-x-3 ml-6">
+                        <Checkbox
+                          id="showBalance"
+                          checked={showBalanceDue}
+                          onCheckedChange={(checked) => setShowBalanceDue(checked as boolean)}
+                        />
+                        <div className="space-y-1">
+                          <Label htmlFor="showBalance" className="font-medium">
+                            Show Balance Due
+                          </Label>
+                          <p className="text-xs text-[#6B7280]">
+                            Include remaining balance amount. Uncheck if payment data may be inaccurate.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </AccordionContent>
                 </AccordionItem>
 
