@@ -271,27 +271,34 @@ async function executeParticipantsReport(eventId: string, config: any) {
         },
         take: 1,
       },
-      roomAssignments: {
-        select: {
-          bedNumber: true,
-          room: {
-            select: {
-              roomNumber: true,
-              floor: true,
-              building: { select: { name: true } },
-            },
-          },
-        },
-        take: 1,
-      },
     },
     orderBy: getSortOrder(config.sortBy, config.sortDirection) || { lastName: 'asc' },
   })
 
+  // Fetch room assignments separately (Participant doesn't have direct relation)
+  const participantIds = participants.map((p: { id: string }) => p.id)
+  const roomAssignments = await prisma.roomAssignment.findMany({
+    where: { participantId: { in: participantIds } },
+    select: {
+      participantId: true,
+      bedNumber: true,
+      room: {
+        select: {
+          roomNumber: true,
+          floor: true,
+          building: { select: { name: true } },
+        },
+      },
+    },
+  })
+  const roomAssignmentMap = new Map(
+    roomAssignments.map((ra: typeof roomAssignments[number]) => [ra.participantId, ra])
+  )
+
   // Transform data
   let results = participants.map((p: typeof participants[number]) => {
     // Format room assignment data
-    const roomAssign = p.roomAssignments?.[0]
+    const roomAssign = roomAssignmentMap.get(p.id)
     const roomAssignment = roomAssign ? {
       buildingName: roomAssign.room?.building?.name || '',
       roomNumber: roomAssign.room?.roomNumber || '',
@@ -304,7 +311,6 @@ async function executeParticipantsReport(eventId: string, config: any) {
       liabilityForm: p.liabilityForms?.[0] || null,
       roomAssignment,
       liabilityForms: undefined,
-      roomAssignments: undefined,
     }
   })
 
