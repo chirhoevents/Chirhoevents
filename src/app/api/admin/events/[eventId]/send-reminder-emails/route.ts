@@ -60,6 +60,8 @@ export async function POST(
       housingInstructions = '',
       includeGroupAssignments = false,
       groupAssignmentInfo = '',
+      includePaymentInfo = false,
+      includeStaffAssignments = false,
       customLinks = [] as { label: string; url: string }[],
       testMode = false,
       testEmail = '',
@@ -96,11 +98,23 @@ export async function POST(
         additionalInfo += '\n'
       }
       if (includeGroupAssignments) {
-        additionalInfo += '**Group/Staff Assignments:**\n'
-        additionalInfo += '[Assignment details will be pulled from registration data]\n'
+        additionalInfo += '**Small Group Assignment:**\n'
+        additionalInfo += '[Small group room will be pulled from registration data]\n'
         if (groupAssignmentInfo) {
           additionalInfo += groupAssignmentInfo + '\n'
         }
+        additionalInfo += '\n'
+      }
+      if (includeStaffAssignments) {
+        additionalInfo += '**Staff Contacts:**\n'
+        additionalInfo += '[Assigned seminarian and religious staff will be pulled from registration data]\n'
+        additionalInfo += '\n'
+      }
+      if (includePaymentInfo) {
+        additionalInfo += '**Payment Summary:**\n'
+        additionalInfo += 'Total: $XXX.XX\n'
+        additionalInfo += 'Paid: $XXX.XX\n'
+        additionalInfo += 'Balance: $XXX.XX\n'
         additionalInfo += '\n'
       }
 
@@ -173,8 +187,55 @@ export async function POST(
               },
             }
           } : false,
+          // Include staff assignments (seminarians, religious) if enabled
+          groupStaffAssignments: includeStaffAssignments ? {
+            select: {
+              role: true,
+              staff: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  staffType: true,
+                  email: true,
+                  phone: true,
+                }
+              }
+            }
+          } : false,
+          // Include payments if payment info is enabled
+          payments: includePaymentInfo ? {
+            where: {
+              status: 'completed',
+            },
+            select: {
+              amount: true,
+            }
+          } : false,
         },
       })
+
+      // If payment info is needed, fetch the total cost for each group
+      if (includePaymentInfo) {
+        for (const group of groupRegistrations) {
+          // Calculate total cost based on event pricing
+          const totalPaid = group.payments?.reduce((sum: number, p: { amount: number }) => sum + (p.amount || 0), 0) || 0
+
+          // Get participant costs from the event
+          const participantCosts = await prisma.participantCost.findMany({
+            where: {
+              groupRegistrationId: group.id,
+            },
+            select: {
+              totalCost: true,
+            }
+          })
+
+          const totalCost = participantCosts.reduce((sum, pc) => sum + (pc.totalCost || 0), 0)
+          group.totalCost = totalCost
+          group.totalPaid = totalPaid
+          group.balance = totalCost - totalPaid
+        }
+      }
     }
 
     if (recipients === 'all' || recipients === 'individuals') {
@@ -197,6 +258,9 @@ export async function POST(
           preferredRoommate: true,
         },
       })
+
+      // Individual registrations don't have the same payment structure
+      // They would need their own payment logic if needed
     }
 
     const results = {
@@ -264,17 +328,60 @@ export async function POST(
         info += '\n'
       }
 
-      // Include group/staff assignments if enabled
+      // Include small group room assignment if enabled
       if (includeGroupAssignments) {
-        info += '**Group/Staff Assignments:**\n'
         // For groups, show small group room if assigned
         if (isGroup && registration.smallGroupRoom) {
+          info += '**Small Group Assignment:**\n'
           const room = registration.smallGroupRoom
           const buildingName = room.building?.name || ''
-          info += `Small Group Room: ${buildingName ? `${buildingName} - ` : ''}Room ${room.roomNumber}\n`
+          info += `Meeting Room: ${buildingName ? `${buildingName} - ` : ''}Room ${room.roomNumber}\n`
+          if (groupAssignmentInfo) {
+            info += groupAssignmentInfo + '\n'
+          }
+          info += '\n'
         }
-        if (groupAssignmentInfo) {
-          info += groupAssignmentInfo + '\n'
+      }
+
+      // Include staff assignments (seminarians, religious) if enabled
+      if (includeStaffAssignments && isGroup && registration.groupStaffAssignments?.length > 0) {
+        info += '**Your Staff Contacts:**\n'
+        for (const assignment of registration.groupStaffAssignments) {
+          const staff = assignment.staff
+          const staffName = `${staff.firstName} ${staff.lastName}`
+          const staffTypeLabels: Record<string, string> = {
+            sgl: 'Small Group Leader',
+            co_sgl: 'Co-Small Group Leader',
+            seminarian: 'Seminarian',
+            priest: 'Priest',
+            deacon: 'Deacon',
+            religious: 'Religious',
+            counselor: 'Counselor',
+            volunteer: 'Volunteer',
+          }
+          const roleLabel = staffTypeLabels[staff.staffType] || staff.staffType
+          info += `${roleLabel}: ${staffName}`
+          if (staff.email) {
+            info += ` (${staff.email})`
+          }
+          info += '\n'
+        }
+        info += '\n'
+      }
+
+      // Include payment info if enabled
+      if (includePaymentInfo && isGroup) {
+        const totalCost = registration.totalCost || 0
+        const totalPaid = registration.totalPaid || 0
+        const balance = registration.balance || 0
+
+        info += '**Payment Summary:**\n'
+        info += `Total: $${totalCost.toFixed(2)}\n`
+        info += `Paid: $${totalPaid.toFixed(2)}\n`
+        if (balance > 0) {
+          info += `<strong style="color: #DC2626;">Balance Due: $${balance.toFixed(2)}</strong>\n`
+        } else {
+          info += `<span style="color: #16A34A;">✓ Paid in Full</span>\n`
         }
         info += '\n'
       }
