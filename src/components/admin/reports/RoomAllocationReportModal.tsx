@@ -53,6 +53,20 @@ interface RoomData {
     capacity: number
     sglName: string | null
   }>
+  assignedGroups: Array<{
+    id: string
+    groupName: string
+    parishName: string
+    dioceseName: string
+    totalParticipants: number
+    actualParticipantCount: number
+    participants: Array<{
+      id: string
+      name: string
+      gender: string
+      type: string
+    }>
+  }>
   assignedPeople: Array<{
     id: string
     name: string
@@ -410,6 +424,38 @@ export default function RoomAllocationReportModal({
                                   {sg.sglName && <span className="ml-2">SGL: {sg.sglName}</span>}
                                 </div>
                               ))}
+                            </div>
+                          )}
+
+                          {/* Groups Assigned to Small Group Room */}
+                          {room.assignedGroups && room.assignedGroups.length > 0 && (
+                            <div className="mt-2 p-2 bg-green-50 rounded border border-green-200">
+                              <div className="flex items-center gap-2 text-sm font-medium text-green-800 mb-2">
+                                <Users className="h-4 w-4" />
+                                Groups Assigned to This Room ({room.assignedGroups.length}):
+                              </div>
+                              <div className="space-y-2">
+                                {room.assignedGroups.map((group) => (
+                                  <div key={group.id} className="p-2 bg-white rounded border border-green-100">
+                                    <div className="font-medium text-green-900">{group.groupName}</div>
+                                    {group.parishName && (
+                                      <div className="text-xs text-green-700">{group.parishName}</div>
+                                    )}
+                                    {group.dioceseName && (
+                                      <div className="text-xs text-green-600">{group.dioceseName}</div>
+                                    )}
+                                    <div className="text-xs text-green-700 mt-1">
+                                      {group.actualParticipantCount} participants
+                                    </div>
+                                    {group.participants.length > 0 && (
+                                      <div className="mt-1 text-xs text-green-600">
+                                        {group.participants.slice(0, 5).map(p => p.name).join(', ')}
+                                        {group.participants.length > 5 && ` +${group.participants.length - 5} more`}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           )}
 

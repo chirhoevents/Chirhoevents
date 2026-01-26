@@ -118,6 +118,24 @@ function generateRoomAllocationsPDFText(data: any): string {
       }
     }
 
+    if (room.assignedGroups && room.assignedGroups.length > 0) {
+      lines.push(`  GROUPS ASSIGNED TO THIS ROOM (${room.assignedGroups.length}):`)
+      for (const group of room.assignedGroups) {
+        lines.push(`    * ${group.groupName}`)
+        if (group.parishName) {
+          lines.push(`      Parish: ${group.parishName}`)
+        }
+        if (group.dioceseName) {
+          lines.push(`      Diocese: ${group.dioceseName}`)
+        }
+        lines.push(`      Participants: ${group.actualParticipantCount}`)
+        if (group.participants && group.participants.length > 0) {
+          const participantNames = group.participants.slice(0, 10).map((p: any) => p.name).join(', ')
+          lines.push(`      Members: ${participantNames}${group.participants.length > 10 ? ` +${group.participants.length - 10} more` : ''}`)
+        }
+      }
+    }
+
     if (room.assignedPeople && room.assignedPeople.length > 0) {
       lines.push(`  Assigned:`)
       for (const person of room.assignedPeople) {

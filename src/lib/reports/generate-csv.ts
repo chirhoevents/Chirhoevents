@@ -340,6 +340,8 @@ export function generateRoomAllocationsCSV(reportData: any): string {
     'Allocated Group',
     'Group Parish',
     'Group Participant Count',
+    'Assigned Groups (Small Group Rooms)',
+    'Assigned Groups Count',
     'Small Groups',
     'Assigned People',
     'Notes',
@@ -367,6 +369,17 @@ export function generateRoomAllocationsCSV(reportData: any): string {
           .join('; ')
       : ''
 
+    // Format assigned groups (groups assigned to small group rooms)
+    const assignedGroupsStr = room.assignedGroups && room.assignedGroups.length > 0
+      ? room.assignedGroups
+          .map((g: any) => {
+            const parishInfo = g.parishName ? ` - ${g.parishName}` : ''
+            const dioceseInfo = g.dioceseName ? ` (${g.dioceseName})` : ''
+            return `${g.groupName}${parishInfo}${dioceseInfo} [${g.actualParticipantCount} participants]`
+          })
+          .join('; ')
+      : ''
+
     return {
       'Building': room.buildingName,
       'Room Number': room.roomNumber,
@@ -383,6 +396,8 @@ export function generateRoomAllocationsCSV(reportData: any): string {
       'Allocated Group': room.allocatedGroup?.groupName || '',
       'Group Parish': room.allocatedGroup?.parishName || '',
       'Group Participant Count': room.allocatedGroup?.participantCount || '',
+      'Assigned Groups (Small Group Rooms)': assignedGroupsStr,
+      'Assigned Groups Count': room.assignedGroups?.length || 0,
       'Small Groups': smallGroupsStr,
       'Assigned People': assignedPeopleStr,
       'Notes': room.notes || '',
