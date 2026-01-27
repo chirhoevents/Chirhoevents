@@ -7,6 +7,7 @@ import { format } from 'date-fns'
 // Types for the JSON data structure
 interface YouthGroup {
   id: string
+  dbId?: string // Unique database UUID for React keys
   groupCode?: string // Check-in table code like "53B"
   parish: string
   leader: string
@@ -468,13 +469,13 @@ export default function M2KPublicView({ event, data, announcements = [] }: Props
           </div>
 
           {/* Search Results */}
-          {searchTerm && (
+          {searchTerm.trim() !== '' && (
             <div className="mt-4 space-y-3">
               {filteredGroups.length > 0 ? (
                 <>
                   <p className="text-white/70 text-sm">{filteredGroups.length} group(s) found</p>
                   {filteredGroups.map(group => (
-                    <FullGroupCard key={group.id} group={group} />
+                    <FullGroupCard key={group.dbId || group.id} group={group} />
                   ))}
                 </>
               ) : (
@@ -487,17 +488,18 @@ export default function M2KPublicView({ event, data, announcements = [] }: Props
         </div>
 
         {/* Favorited Groups (My Groups) - Shows as big 2x2 style card */}
-        {!searchTerm && favoritedGroups.length > 0 && (
+        {/* Only show favorites when there is NO active search (searchTerm must be empty string) */}
+        {searchTerm.trim() === '' && favoritedGroups.length > 0 && (
           <div className="mb-6 space-y-3">
             <h3 className="text-white font-semibold text-center">⭐ My Groups</h3>
             {favoritedGroups.map(group => (
-              <FullGroupCard key={group.id} group={group} />
+              <FullGroupCard key={group.dbId || group.id} group={group} />
             ))}
           </div>
         )}
 
         {/* Main Action Buttons - 2x3 Grid */}
-        {!searchTerm && (
+        {searchTerm.trim() === '' && (
           <div className="grid grid-cols-2 gap-4 mb-6">
             {/* Schedule - 1x1 */}
             <button
@@ -567,7 +569,7 @@ export default function M2KPublicView({ event, data, announcements = [] }: Props
         )}
 
         {/* Add to Home Screen Tip */}
-        {!searchTerm && (
+        {searchTerm.trim() === '' && (
           <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
             <p className="text-white/80 text-sm">
               <span className="font-semibold">Tip:</span> Add this page to your home screen for quick access!
@@ -736,8 +738,8 @@ export default function M2KPublicView({ event, data, announcements = [] }: Props
             />
           </div>
           <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-            {(searchTerm ? filteredGroups : data.youthGroups).map(group => (
-              <FullGroupCard key={group.id} group={group} />
+            {(searchTerm.trim() !== '' ? filteredGroups : data.youthGroups).map(group => (
+              <FullGroupCard key={group.dbId || group.id} group={group} />
             ))}
           </div>
         </Modal>
