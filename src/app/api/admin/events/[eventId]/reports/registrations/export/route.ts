@@ -3,7 +3,6 @@ import { verifyReportAccess } from '@/lib/api-auth'
 import { generateRegistrationCSV } from '@/lib/reports/generate-csv'
 import { renderToBuffer } from '@react-pdf/renderer'
 import { RegistrationReportPDF } from '@/lib/reports/pdf-generator'
-import React from 'react'
 
 // Deep sanitize function to ensure all values are primitives
 function sanitizeForPDF(obj: any): any {
@@ -137,11 +136,12 @@ export async function POST(
       })
     } else if (format === 'pdf') {
       console.log('[Registration Export] Starting PDF generation with sanitized data...')
+      console.log('[Registration Export] Demographics keys:', Object.keys(reportData?.demographics || {}))
+      console.log('[Registration Export] Top groups sample:', reportData?.topGroups?.slice(0, 2))
 
       try {
-        // Use React.createElement instead of calling component directly
-        // This ensures proper React element creation for react-pdf
-        const pdfElement = React.createElement(RegistrationReportPDF, { reportData, eventName })
+        // Call the component function directly - it returns a <Document> element
+        const pdfElement = RegistrationReportPDF({ reportData, eventName })
         console.log('[Registration Export] PDF element created, calling renderToBuffer...')
 
         const pdfBuffer = await renderToBuffer(pdfElement)

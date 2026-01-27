@@ -3,7 +3,6 @@ import { verifyFinancialReportAccess } from '@/lib/api-auth'
 import { generateFinancialCSV } from '@/lib/reports/generate-csv'
 import { renderToBuffer } from '@react-pdf/renderer'
 import { FinancialReportPDF } from '@/lib/reports/pdf-generator'
-import React from 'react'
 
 // Deep sanitize function to ensure all values are primitives
 function sanitizeForPDF(obj: any): any {
@@ -118,8 +117,8 @@ export async function POST(
       console.log('[Financial Export] Starting PDF generation with sanitized data...')
 
       try {
-        // Use React.createElement for proper React element creation
-        const pdfElement = React.createElement(FinancialReportPDF, { reportData, eventName })
+        // Call the component function directly - it returns a <Document> element
+        const pdfElement = FinancialReportPDF({ reportData, eventName })
         console.log('[Financial Export] PDF element created, calling renderToBuffer...')
 
         const pdfBuffer = await renderToBuffer(pdfElement)
