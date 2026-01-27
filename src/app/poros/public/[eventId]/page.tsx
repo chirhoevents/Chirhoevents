@@ -164,6 +164,17 @@ async function fetchM2KDataFromDatabase(eventId: string) {
       console.log('[M2K Debug] Duplicate group IDs found:', duplicates)
     }
 
+    // Deduplicate groups by ID (keep first occurrence, use dbId as tiebreaker)
+    const seenIds = new Set<string>()
+    const deduplicatedGroups = youthGroups.filter(g => {
+      if (seenIds.has(g.id)) {
+        console.log(`[M2K Debug] Removing duplicate group: ${g.parish} (id: ${g.id}, dbId: ${g.dbId})`)
+        return false
+      }
+      seenIds.add(g.id)
+      return true
+    })
+
     // Build maps
     const mealColorAssignments: Record<string, string> = {}
     for (const assignment of mealAssignments) {
@@ -249,7 +260,7 @@ async function fetchM2KDataFromDatabase(eventId: string) {
     }))
 
     return {
-      youthGroups, rooms: roomsData, housingAssignments, smallGroupAssignments: smallGroupAssignmentsMap,
+      youthGroups: deduplicatedGroups, rooms: roomsData, housingAssignments, smallGroupAssignments: smallGroupAssignmentsMap,
       mealColorAssignments, mealTimes, activeColors: mealGroups.map(mg => mg.name),
       schedule: scheduleData, resources: resourcesData, adaIndividuals: adaData,
       _source: 'database',
