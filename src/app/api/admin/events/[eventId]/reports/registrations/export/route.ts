@@ -166,8 +166,20 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid report data' }, { status: 500 })
     }
 
+    console.log('[Registration Export] Report data summary:', {
+      totalRegistrations: reportData.totalRegistrations,
+      groupCount: reportData.groupCount,
+      individualCount: reportData.individualCount,
+      format,
+    })
+
     if (format === 'csv') {
       const csv = generateRegistrationCSV(reportData)
+      console.log('[Registration Export] CSV generated, length:', csv.length)
+      if (!csv || csv.length < 10) {
+        console.error('[Registration Export] CSV generation produced empty/small output')
+        return NextResponse.json({ error: 'CSV generation failed' }, { status: 500 })
+      }
       return new NextResponse(csv, {
         headers: {
           'Content-Type': 'text/csv',
@@ -175,22 +187,38 @@ export async function POST(
         },
       })
     } else if (format === 'pdf') {
-      // Generate actual PDF using @react-pdf/renderer
-      const pdfElement = RegistrationReportPDF({ reportData, eventName })
-      const pdfBuffer = await renderToBuffer(pdfElement)
-      // Convert Buffer to Uint8Array for NextResponse
-      const pdfData = new Uint8Array(pdfBuffer)
-      return new NextResponse(pdfData, {
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': 'attachment; filename="registration_report.pdf"',
-        },
-      })
+      try {
+        // Generate actual PDF using @react-pdf/renderer
+        console.log('[Registration Export] Starting PDF generation...')
+        const pdfElement = RegistrationReportPDF({ reportData, eventName })
+        console.log('[Registration Export] PDF element created, rendering to buffer...')
+        const pdfBuffer = await renderToBuffer(pdfElement)
+        console.log('[Registration Export] PDF buffer generated, size:', pdfBuffer.length)
+
+        // Validate PDF buffer - a valid PDF should be at least a few KB
+        if (!pdfBuffer || pdfBuffer.length < 100) {
+          console.error('[Registration Export] PDF generation produced empty/small buffer:', pdfBuffer?.length)
+          return NextResponse.json({ error: 'PDF generation failed - empty output' }, { status: 500 })
+        }
+
+        // Convert Buffer to Uint8Array for NextResponse
+        const pdfData = new Uint8Array(pdfBuffer)
+        return new NextResponse(pdfData, {
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': 'attachment; filename="registration_report.pdf"',
+          },
+        })
+      } catch (pdfError) {
+        console.error('[Registration Export] PDF generation error:', pdfError)
+        return NextResponse.json({ error: 'PDF generation failed: ' + String(pdfError) }, { status: 500 })
+      }
     }
 
+    console.error('[Registration Export] Invalid format requested:', format)
     return NextResponse.json({ error: 'Invalid format' }, { status: 400 })
   } catch (error) {
     console.error('[Registration Export] Error:', error)
-    return NextResponse.json({ error: 'Export failed' }, { status: 500 })
+    return NextResponse.json({ error: 'Export failed: ' + String(error) }, { status: 500 })
   }
 }
