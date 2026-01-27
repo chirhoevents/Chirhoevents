@@ -149,6 +149,21 @@ async function fetchM2KDataFromDatabase(eventId: string) {
       }
     })
 
+    // Debug: Log data for St. John Bosco (group ID "2") to investigate search issue
+    const boscoGroup = youthGroups.find(g => g.id === '2' || g.parish?.toLowerCase().includes('bosco'))
+    if (boscoGroup) {
+      console.log('[M2K Debug] St. John Bosco data:', JSON.stringify(boscoGroup, null, 2))
+    }
+    // Check for duplicate group IDs
+    const idCounts = youthGroups.reduce((acc, g) => {
+      acc[g.id] = (acc[g.id] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
+    const duplicates = Object.entries(idCounts).filter(([, count]) => count > 1)
+    if (duplicates.length > 0) {
+      console.log('[M2K Debug] Duplicate group IDs found:', duplicates)
+    }
+
     // Build maps
     const mealColorAssignments: Record<string, string> = {}
     for (const assignment of mealAssignments) {
