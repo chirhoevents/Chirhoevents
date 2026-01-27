@@ -3,7 +3,7 @@ import { verifyFinancialReportAccess } from '@/lib/api-auth'
 import { generateFinancialCSV } from '@/lib/reports/generate-csv'
 import { renderToBuffer } from '@react-pdf/renderer'
 import { FinancialReportPDF } from '@/lib/reports/pdf-generator'
-import React from 'react'
+import { prisma } from '@/lib/prisma'
 
 // Helper to sanitize report data and ensure all values are primitives
 function sanitizeReportData(data: any): any {
@@ -53,8 +53,7 @@ export async function POST(
 
     const { format } = await request.json()
 
-    // Query database directly instead of using internal fetch
-    const { prisma } = await import('@/lib/prisma')
+    console.log('[Financial Export] Starting export for event:', eventId, 'format:', format)
 
     // Handle "all" events - filter by organization unless master_admin
     let eventFilter: { eventId?: string; organizationId?: string } = {}

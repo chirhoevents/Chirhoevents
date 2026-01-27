@@ -3,7 +3,7 @@ import { verifyReportAccess } from '@/lib/api-auth'
 import { generateRegistrationCSV } from '@/lib/reports/generate-csv'
 import { renderToBuffer } from '@react-pdf/renderer'
 import { RegistrationReportPDF } from '@/lib/reports/pdf-generator'
-import React from 'react'
+import { prisma } from '@/lib/prisma'
 
 // Helper to sanitize report data and ensure all values are primitives
 function sanitizeReportData(data: any): any {
@@ -65,9 +65,7 @@ export async function POST(
 
     const { format } = await request.json()
 
-    // Use direct database query instead of internal fetch to avoid potential issues
-    // with cookie forwarding, URL configuration, or caching
-    const { prisma } = await import('@/lib/prisma')
+    console.log('[Registration Export] Starting export for event:', eventId, 'format:', format)
 
     const eventFilter = eventId === 'all' ? {} : { eventId }
 
