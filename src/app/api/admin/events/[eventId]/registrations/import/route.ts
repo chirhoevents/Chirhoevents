@@ -559,7 +559,77 @@ export async function POST(
             continue
           }
 
-          const age = parseInt(row.age || '0') || 0
+          // Parse age - support both direct age values and date of birth formats
+          let age = 0
+          const ageValue = row.age?.trim() || row.dob?.trim() || row.date_of_birth?.trim() || row.birthdate?.trim() || ''
+
+          if (ageValue) {
+            // First try parsing as integer age
+            const parsedInt = parseInt(ageValue, 10)
+            if (!isNaN(parsedInt) && parsedInt > 0 && parsedInt < 150) {
+              age = parsedInt
+            } else {
+              // Try parsing as a date (birthdate)
+              const dateFormats = [
+                // ISO format: 2010-05-15
+                /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
+                // US format: 05/15/2010 or 5/15/2010
+                /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
+                // US format with 2-digit year: 05/15/10
+                /^(\d{1,2})\/(\d{1,2})\/(\d{2})$/,
+              ]
+
+              let birthDate: Date | null = null
+
+              for (const format of dateFormats) {
+                const match = ageValue.match(format)
+                if (match) {
+                  if (format.source.startsWith('^(\\d{4})')) {
+                    // ISO format: YYYY-MM-DD
+                    birthDate = new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]))
+                  } else if (match[3].length === 4) {
+                    // US format with 4-digit year: MM/DD/YYYY
+                    birthDate = new Date(parseInt(match[3]), parseInt(match[1]) - 1, parseInt(match[2]))
+                  } else {
+                    // US format with 2-digit year: MM/DD/YY
+                    let year = parseInt(match[3])
+                    // Assume 00-29 is 2000s, 30-99 is 1900s
+                    year = year < 30 ? 2000 + year : 1900 + year
+                    birthDate = new Date(year, parseInt(match[1]) - 1, parseInt(match[2]))
+                  }
+                  break
+                }
+              }
+
+              // Also try standard Date parsing as fallback
+              if (!birthDate) {
+                const parsedDate = new Date(ageValue)
+                if (!isNaN(parsedDate.getTime()) && parsedDate.getFullYear() > 1900) {
+                  birthDate = parsedDate
+                }
+              }
+
+              if (birthDate && !isNaN(birthDate.getTime())) {
+                // Calculate age from birthdate
+                const today = new Date()
+                age = today.getFullYear() - birthDate.getFullYear()
+                const monthDiff = today.getMonth() - birthDate.getMonth()
+                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                  age--
+                }
+                // Validate calculated age
+                if (age < 0 || age > 150) {
+                  results.errors.push(`Invalid birthdate for ${row.first_name} ${row.last_name}: "${ageValue}" calculated age ${age}`)
+                  age = 0
+                }
+              } else {
+                results.errors.push(`Could not parse age for ${row.first_name} ${row.last_name}: "${ageValue}"`)
+              }
+            }
+          } else {
+            results.errors.push(`Missing age for ${row.first_name} ${row.last_name}`)
+          }
+
           const genderRaw = (row.gender || '').toLowerCase()
           const gender = genderRaw === 'male' || genderRaw === 'm' ? 'male' : 'female'
 
@@ -749,11 +819,13 @@ export async function GET(
       }
     })
   } else if (templateType === 'participants') {
-    const csv = `group_id,first_name,last_name,preferred_name,age,gender,participant_type,email,parent_email,t_shirt_size
-1,Michael,Williams,,16,male,youth,,,M
-1,Sarah,Brown,,15,female,youth,,,S
-1,James,Wilson,,45,male,chaperone,james.w@example.com,,XL
-1,Fr. Thomas,Moore,,55,male,priest,fr.thomas@example.com,,L`
+    // Note: age column supports integer age OR date of birth (YYYY-MM-DD, MM/DD/YYYY, MM/DD/YY)
+    // Alternative column names also supported: dob, date_of_birth, birthdate
+    const csv = `group_id,first_name,last_name,preferred_name,age,gender,participant_type,email,parent_email,t_shirt_size,emergency_contact_1_name,emergency_contact_1_phone,allergies,medications,medical_conditions,dietary_restrictions,ada_requirements
+1,Michael,Williams,,16,male,youth,,,M,Jane Williams,555-111-2222,None,None,None,None,None
+1,Sarah,Brown,,2010-03-15,female,youth,,,S,Tom Brown,555-333-4444,Peanuts,None,Asthma,Vegetarian,None
+1,James,Wilson,,45,male,chaperone,james.w@example.com,,XL,Mary Wilson,555-555-6666,None,None,None,None,None
+1,Fr. Thomas,Moore,,55,male,priest,fr.thomas@example.com,,L,,,None,None,None,None,None`
 
     return new NextResponse(csv, {
       headers: {

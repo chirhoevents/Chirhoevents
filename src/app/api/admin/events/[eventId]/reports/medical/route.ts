@@ -39,6 +39,7 @@ export async function GET(
           select: {
             firstName: true,
             lastName: true,
+            age: true,
             groupRegistration: {
               select: {
                 groupName: true,
@@ -88,6 +89,7 @@ export async function GET(
         if (foodAllergyKeywords.some(keyword => lower.includes(keyword))) {
           foodAllergies.push({
             name: `${form.participant?.firstName} ${form.participant?.lastName}`,
+            age: form.participantAge || form.participant?.age || null,
             group: form.participant?.groupRegistration?.groupName || form.participant?.groupRegistration?.parishName || 'Individual',
             groupLeaderEmail: form.participant?.groupRegistration?.groupLeaderEmail,
             groupLeaderPhone: form.participant?.groupRegistration?.groupLeaderPhone,
@@ -135,6 +137,7 @@ export async function GET(
 
         dietaryRestrictions.push({
           name: `${form.participant?.firstName} ${form.participant?.lastName}`,
+          age: form.participantAge || form.participant?.age || null,
           group: form.participant?.groupRegistration?.groupName || form.participant?.groupRegistration?.parishName || 'Individual',
           restrictions: restrictions.length > 0 ? restrictions : ['See notes'],
           fullText: form.dietaryRestrictions,
@@ -174,6 +177,7 @@ export async function GET(
 
         medicalConditions.push({
           name: `${form.participant?.firstName} ${form.participant?.lastName}`,
+          age: form.participantAge || form.participant?.age || null,
           group: form.participant?.groupRegistration?.groupName || form.participant?.groupRegistration?.parishName || 'Individual',
           groupLeaderEmail: form.participant?.groupRegistration?.groupLeaderEmail,
           groupLeaderPhone: form.participant?.groupRegistration?.groupLeaderPhone,
@@ -207,6 +211,7 @@ export async function GET(
 
         criticalMedications.push({
           name: `${form.participant?.firstName} ${form.participant?.lastName}`,
+          age: form.participantAge || form.participant?.age || null,
           group: form.participant?.groupRegistration?.groupName || form.participant?.groupRegistration?.parishName || 'Individual',
           groupLeaderEmail: form.participant?.groupRegistration?.groupLeaderEmail,
           groupLeaderPhone: form.participant?.groupRegistration?.groupLeaderPhone,
@@ -220,6 +225,7 @@ export async function GET(
     const adaForms = forms.filter((f: any) => f.adaAccommodations && f.adaAccommodations !== '')
     const adaDetails: any[] = adaForms.map((form: any) => ({
       name: `${form.participant?.firstName} ${form.participant?.lastName}`,
+      age: form.participantAge || form.participant?.age || null,
       group: form.participant?.groupRegistration?.groupName || form.participant?.groupRegistration?.parishName || 'Individual',
       groupLeaderEmail: form.participant?.groupRegistration?.groupLeaderEmail,
       accommodations: form.adaAccommodations,

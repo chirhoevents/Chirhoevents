@@ -18,7 +18,8 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
-  FileSpreadsheet
+  FileSpreadsheet,
+  FileDown
 } from 'lucide-react'
 
 interface PorosImportProps {
@@ -111,6 +112,7 @@ type TemplateKey = keyof typeof TEMPLATES
 export function PorosImport({ eventId }: PorosImportProps) {
   const { getToken } = useAuth()
   const [uploading, setUploading] = useState<TemplateKey | null>(null)
+  const [exporting, setExporting] = useState<TemplateKey | null>(null)
   const [results, setResults] = useState<Record<TemplateKey, { success: boolean; message: string } | null>>({
     buildings: null,
     rooms: null,
@@ -139,6 +141,49 @@ export function PorosImport({ eventId }: PorosImportProps) {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
+  }
+
+  const exportCurrentData = async (templateKey: TemplateKey) => {
+    if (templateKey !== 'participants') return // Only participants export supported for now
+
+    setExporting(templateKey)
+    try {
+      const token = await getToken()
+      const response = await fetch(`/api/admin/events/${eventId}/registrations/export/participants`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
+
+      if (!response.ok) {
+        throw new Error('Export failed')
+      }
+
+      // Get the filename from Content-Disposition header or use default
+      const contentDisposition = response.headers.get('Content-Disposition')
+      const filenameMatch = contentDisposition?.match(/filename="(.+)"/)
+      const filename = filenameMatch ? filenameMatch[1] : 'participants-export.csv'
+
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
+      setResults(prev => ({
+        ...prev,
+        [templateKey]: { success: true, message: 'Export downloaded. Edit ages and re-upload to fix.' }
+      }))
+    } catch (error: any) {
+      setResults(prev => ({
+        ...prev,
+        [templateKey]: { success: false, message: error.message || 'Export failed' }
+      }))
+    } finally {
+      setExporting(null)
+    }
   }
 
   const handleFileUpload = async (templateKey: TemplateKey, file: File) => {
@@ -282,6 +327,29 @@ export function PorosImport({ eventId }: PorosImportProps) {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
+                {/* Export Current Data - only for participants */}
+                {templateKey === 'participants' && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="w-full justify-start bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300"
+                    onClick={() => exportCurrentData(templateKey)}
+                    disabled={exporting === templateKey}
+                  >
+                    {exporting === templateKey ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Exporting...
+                      </>
+                    ) : (
+                      <>
+                        <FileDown className="w-4 h-4 mr-2" />
+                        Export Current Data (to fix ages)
+                      </>
+                    )}
+                  </Button>
+                )}
+
                 {/* Template Download */}
                 <Button
                   variant="outline"
@@ -371,6 +439,8 @@ export function PorosImport({ eventId }: PorosImportProps) {
           <p><strong>Payment Tracking:</strong> Set <code>fully_paid</code> to <code>yes</code> or <code>no</code>. If <code>no</code>, enter the <code>amount_owed</code> so check-in staff know about outstanding balances.</p>
           <p><strong>Room Purpose:</strong> Use <code>housing</code> for dorm rooms, <code>small_group</code> for meeting rooms, or <code>both</code> for dual-purpose rooms.</p>
           <p><strong>Small Group Rooms:</strong> Import meeting rooms through the Rooms import with <code>room_purpose</code> set to <code>small_group</code>. These can be printed for posting.</p>
+          <p><strong>Age Field:</strong> Supports integer ages (e.g., <code>16</code>) OR birthdates (e.g., <code>2010-03-15</code>, <code>03/15/2010</code>). Column names <code>age</code>, <code>dob</code>, <code>date_of_birth</code>, or <code>birthdate</code> all work.</p>
+          <p><strong>Fix Ages:</strong> Use &quot;Export Current Data&quot; on Participants to download all participants with their current ages, edit the ages, then re-upload.</p>
           <p><strong>Participant Types:</strong> Valid types are: youth, chaperone, priest</p>
           <p><strong>Staff Types:</strong> Valid types are: seminarian, religious, sgl, co_sgl, priest, deacon</p>
           <p><strong>Gender:</strong> Use <code>male</code>, <code>female</code>, or <code>mixed</code> (for rooms/buildings)</p>
