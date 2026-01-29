@@ -152,36 +152,111 @@ export function generateHousingCSV(reportData: any): string {
 }
 
 export function generateMedicalCSV(reportData: any): string {
-  const rows: any[] = []
+  const headers = [
+    'Name',
+    'Age',
+    'Group',
+    'Allergies',
+    'Allergy Severity',
+    'Allergy Notes',
+    'Dietary Restrictions',
+    'Dietary Notes',
+    'Medical Conditions',
+    'Medical Notes',
+    'Medications',
+    'Medication Notes',
+    'ADA Accommodations',
+    'Group Leader Email',
+    'Group Leader Phone',
+  ]
 
-  rows.push({
-    Category: 'Summary',
-    Type: 'Total with Allergies',
-    Count: reportData.allergiesCount,
-  })
-  rows.push({
-    Category: 'Summary',
-    Type: 'Total with Dietary Restrictions',
-    Count: reportData.dietaryCount,
-  })
-  rows.push({
-    Category: 'Summary',
-    Type: 'Total with Medical Conditions',
-    Count: reportData.medicalCount,
-  })
+  // Consolidate all details by student name so each student appears once
+  const studentMap = new Map<string, any>()
 
-  // Severe allergies
-  if (reportData.allergies?.severe) {
-    reportData.allergies.severe.forEach((allergy: any) => {
-      rows.push({
-        Category: 'Severe Allergies',
-        Type: allergy.type,
-        Count: allergy.count,
+  const getOrCreate = (detail: any) => {
+    const key = detail.name
+    if (!studentMap.has(key)) {
+      studentMap.set(key, {
+        Name: detail.name,
+        Age: detail.age || '',
+        Group: detail.group || 'Individual',
+        Allergies: '',
+        'Allergy Severity': '',
+        'Allergy Notes': '',
+        'Dietary Restrictions': '',
+        'Dietary Notes': '',
+        'Medical Conditions': '',
+        'Medical Notes': '',
+        Medications: '',
+        'Medication Notes': '',
+        'ADA Accommodations': '',
+        'Group Leader Email': detail.groupLeaderEmail || '',
+        'Group Leader Phone': detail.groupLeaderPhone || '',
       })
-    })
+    }
+    return studentMap.get(key)!
   }
 
-  return generateCSV(rows, ['Category', 'Type', 'Count'])
+  // Food allergies
+  if (reportData.foodAllergies?.details) {
+    for (const detail of reportData.foodAllergies.details) {
+      const student = getOrCreate(detail)
+      student.Allergies = (detail.allergies || []).join(', ')
+      student['Allergy Severity'] = detail.severity || ''
+      student['Allergy Notes'] = detail.fullText || ''
+      if (detail.groupLeaderEmail) student['Group Leader Email'] = detail.groupLeaderEmail
+      if (detail.groupLeaderPhone) student['Group Leader Phone'] = detail.groupLeaderPhone
+    }
+  }
+
+  // Dietary restrictions
+  if (reportData.dietaryRestrictions?.details) {
+    for (const detail of reportData.dietaryRestrictions.details) {
+      const student = getOrCreate(detail)
+      student['Dietary Restrictions'] = (detail.restrictions || []).join(', ')
+      student['Dietary Notes'] = detail.fullText || ''
+    }
+  }
+
+  // Medical conditions
+  if (reportData.medicalConditions?.details) {
+    for (const detail of reportData.medicalConditions.details) {
+      const student = getOrCreate(detail)
+      student['Medical Conditions'] = (detail.conditions || []).join(', ')
+      student['Medical Notes'] = detail.fullText || ''
+      if (detail.groupLeaderEmail) student['Group Leader Email'] = detail.groupLeaderEmail
+      if (detail.groupLeaderPhone) student['Group Leader Phone'] = detail.groupLeaderPhone
+    }
+  }
+
+  // Medications
+  if (reportData.medications?.details) {
+    for (const detail of reportData.medications.details) {
+      const student = getOrCreate(detail)
+      student.Medications = (detail.medications || []).join(', ')
+      student['Medication Notes'] = detail.fullText || ''
+      if (detail.groupLeaderEmail) student['Group Leader Email'] = detail.groupLeaderEmail
+      if (detail.groupLeaderPhone) student['Group Leader Phone'] = detail.groupLeaderPhone
+    }
+  }
+
+  // ADA accommodations
+  if (reportData.ada?.details) {
+    for (const detail of reportData.ada.details) {
+      const student = getOrCreate(detail)
+      student['ADA Accommodations'] = detail.accommodations || ''
+      if (detail.groupLeaderEmail) student['Group Leader Email'] = detail.groupLeaderEmail
+    }
+  }
+
+  // Sort: SEVERE first, then alphabetical by name
+  const rows = Array.from(studentMap.values()).sort((a: any, b: any) => {
+    if (a['Allergy Severity'] === 'SEVERE' && b['Allergy Severity'] !== 'SEVERE') return -1
+    if (a['Allergy Severity'] !== 'SEVERE' && b['Allergy Severity'] === 'SEVERE') return 1
+    return a.Name.localeCompare(b.Name)
+  })
+
+  return generateCSV(rows, headers)
 }
 
 export function generateCertificatesCSV(reportData: any): string {
