@@ -504,6 +504,10 @@ export default function MedicalReportModal({ isOpen, onClose, eventId, eventName
                 {exporting === 'csv' ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
                 Export CSV
               </Button>
+              <Button onClick={() => handleExport('pdf')} disabled={exporting !== null} variant="outline" className="flex-1 border-[#9C8466] text-[#1E3A5F]">
+                {exporting === 'pdf' ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                Export PDF
+              </Button>
               <Button onClick={onClose} variant="outline" className="border-[#1E3A5F] text-[#1E3A5F]">Close</Button>
             </div>
           </div>

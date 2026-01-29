@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyRaphaAccess } from '@/lib/api-auth'
 import { generateMedicalCSV } from '@/lib/reports/generate-csv'
+import { renderToBuffer } from '@react-pdf/renderer'
+import { MedicalReportPDF } from '@/lib/reports/pdf-generator'
 
 export async function POST(
   request: NextRequest,
@@ -25,15 +27,39 @@ export async function POST(
     if (!reportResponse.ok) throw new Error()
 
     const data = await reportResponse.json()
-    const csv = format === 'csv' ? generateMedicalCSV(data) : 'PDF not implemented'
+    const eventName = event?.name || 'Event'
 
+    if (format === 'pdf') {
+      try {
+        // Call the component function directly - it returns a <Document> element
+        const pdfElement = MedicalReportPDF({ reportData: data, eventName })
+        const pdfBuffer = await renderToBuffer(pdfElement)
+
+        if (!pdfBuffer || pdfBuffer.length < 100) {
+          return NextResponse.json({ error: 'PDF generation failed' }, { status: 500 })
+        }
+
+        return new NextResponse(Buffer.from(pdfBuffer), {
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename="medical_report_${eventName.replace(/\s+/g, '_')}.pdf"`,
+          },
+        })
+      } catch (pdfError: any) {
+        console.error('[Medical Export] PDF generation error:', pdfError?.message || pdfError)
+        return NextResponse.json({ error: 'PDF generation failed: ' + String(pdfError?.message || pdfError) }, { status: 500 })
+      }
+    }
+
+    const csv = generateMedicalCSV(data)
     return new NextResponse(csv, {
       headers: {
         'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="medical_report.${format}"`,
+        'Content-Disposition': `attachment; filename="medical_report_${eventName.replace(/\s+/g, '_')}.csv"`,
       },
     })
   } catch (error) {
+    console.error('[Medical Export] Error:', error)
     return NextResponse.json({ error: 'Export failed' }, { status: 500 })
   }
 }
