@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Download, Loader2, AlertTriangle, Users, List, Pill, ChevronDown, ChevronUp } from 'lucide-react'
+import { Download, Loader2, AlertTriangle, Users, List, Pill, ChevronDown, ChevronUp, Filter } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 
 interface MedicalReportModalProps {
@@ -48,6 +48,7 @@ export default function MedicalReportModal({ isOpen, onClose, eventId, eventName
   const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('by-student')
   const [showMedications, setShowMedications] = useState(false)
+  const [allergiesOnly, setAllergiesOnly] = useState(false)
 
   useEffect(() => {
     if (isOpen) fetchData()
@@ -166,14 +167,27 @@ export default function MedicalReportModal({ isOpen, onClose, eventId, eventName
   }
 
   const renderByStudentView = () => {
-    const students = getStudentConsolidated()
+    let students = getStudentConsolidated()
     if (students.length === 0) {
       return <p className="text-center text-[#6B7280] py-4">No medical data found</p>
     }
 
+    const totalCount = students.length
+    if (allergiesOnly) {
+      students = students.filter(s => {
+        const display = formatItems(s.allergies, s.allergyFullText)
+        return display !== ''
+      })
+    }
+
     return (
       <div className="space-y-1">
-        <p className="text-sm text-[#6B7280] mb-3">{students.length} students with dietary/medical information</p>
+        <p className="text-sm text-[#6B7280] mb-3">
+          {allergiesOnly
+            ? `${students.length} students with allergies (of ${totalCount} total)`
+            : `${students.length} students with dietary/medical information`
+          }
+        </p>
 
         {/* Table header */}
         <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-[#1E3A5F] text-white text-xs font-semibold rounded-t">
@@ -452,20 +466,35 @@ export default function MedicalReportModal({ isOpen, onClose, eventId, eventName
                   By Category
                 </Button>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowMedications(!showMedications)}
-                className={
-                  showMedications
-                    ? 'bg-purple-600 text-white border-purple-600 hover:bg-purple-700 hover:text-white'
-                    : 'text-purple-700 border-purple-300 hover:bg-purple-50'
-                }
-              >
-                <Pill className="h-3.5 w-3.5 mr-1" />
-                Medications
-                {showMedications ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />}
-              </Button>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAllergiesOnly(!allergiesOnly)}
+                  className={
+                    allergiesOnly
+                      ? 'bg-red-600 text-white border-red-600 hover:bg-red-700 hover:text-white'
+                      : 'text-red-700 border-red-300 hover:bg-red-50'
+                  }
+                >
+                  <Filter className="h-3.5 w-3.5 mr-1" />
+                  Allergies Only
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowMedications(!showMedications)}
+                  className={
+                    showMedications
+                      ? 'bg-purple-600 text-white border-purple-600 hover:bg-purple-700 hover:text-white'
+                      : 'text-purple-700 border-purple-300 hover:bg-purple-50'
+                  }
+                >
+                  <Pill className="h-3.5 w-3.5 mr-1" />
+                  Medications
+                  {showMedications ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />}
+                </Button>
+              </div>
             </div>
 
             {viewMode === 'by-student' ? renderByStudentView() : renderByCategoryView()}
