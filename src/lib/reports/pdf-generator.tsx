@@ -314,3 +314,227 @@ export const RegistrationReportPDF = ({ reportData, eventName }: { reportData: a
     </Page>
   </Document>
 )
+
+// Helper: show detected keywords or fall back to raw text, never "See notes"
+function formatMedicalItems(items: string[] | undefined, fullText: string | undefined): string {
+  const filtered = (items || []).filter(i => i && i !== 'See notes')
+  if (filtered.length > 0) return filtered.join(', ')
+  if (fullText) return fullText
+  return ''
+}
+
+// Medical Report PDF styles
+const medStyles = StyleSheet.create({
+  severeRow: {
+    flexDirection: 'row',
+    borderBottom: '1 solid #ccc',
+    padding: 6,
+    backgroundColor: '#FEF2F2',
+  },
+  normalRow: {
+    flexDirection: 'row',
+    borderBottom: '1 solid #eee',
+    padding: 6,
+  },
+  altRow: {
+    flexDirection: 'row',
+    borderBottom: '1 solid #eee',
+    padding: 6,
+    backgroundColor: '#F9FAFB',
+  },
+  nameCell: {
+    width: '25%',
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#1E3A5F',
+  },
+  groupCell: {
+    width: '20%',
+    fontSize: 8,
+    color: '#6B7280',
+  },
+  allergyCell: {
+    width: '30%',
+    fontSize: 9,
+  },
+  dietaryCell: {
+    width: '25%',
+    fontSize: 9,
+  },
+  severeBadge: {
+    fontSize: 7,
+    color: '#DC2626',
+    fontWeight: 'bold',
+  },
+  summaryBox: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#F5F1E8',
+    padding: 12,
+    marginBottom: 15,
+    borderLeft: '3 solid #9C8466',
+  },
+  summaryItem: {
+    alignItems: 'center',
+  },
+  summaryLabel: {
+    fontSize: 8,
+    color: '#6B7280',
+  },
+  summaryValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1E3A5F',
+  },
+  warning: {
+    backgroundColor: '#FEF2F2',
+    padding: 8,
+    marginBottom: 12,
+    borderLeft: '3 solid #DC2626',
+  },
+  warningText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#991B1B',
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#1E3A5F',
+    padding: 6,
+  },
+  categoryHeaderText: {
+    color: 'white',
+    fontSize: 8,
+    fontWeight: 'bold',
+  },
+})
+
+// Medical Report PDF
+export const MedicalReportPDF = ({ reportData, eventName }: { reportData: any; eventName: string }) => {
+  // Consolidate students (same logic as the UI)
+  const studentMap = new Map<string, any>()
+
+  const getOrCreate = (detail: any) => {
+    const key = detail.name
+    if (!studentMap.has(key)) {
+      studentMap.set(key, {
+        name: detail.name,
+        age: detail.age,
+        group: detail.group || 'Individual',
+        allergies: [],
+        allergyFullText: undefined,
+        allergySeverity: undefined,
+        dietaryRestrictions: [],
+        dietaryFullText: undefined,
+        medications: [],
+        medicationsFullText: undefined,
+      })
+    }
+    return studentMap.get(key)!
+  }
+
+  if (reportData.foodAllergies?.details) {
+    for (const d of reportData.foodAllergies.details) {
+      const s = getOrCreate(d)
+      s.allergies = d.allergies || []
+      s.allergyFullText = d.fullText
+      s.allergySeverity = d.severity
+    }
+  }
+  if (reportData.dietaryRestrictions?.details) {
+    for (const d of reportData.dietaryRestrictions.details) {
+      const s = getOrCreate(d)
+      s.dietaryRestrictions = d.restrictions || []
+      s.dietaryFullText = d.fullText
+    }
+  }
+  if (reportData.medications?.details) {
+    for (const d of reportData.medications.details) {
+      const s = getOrCreate(d)
+      s.medications = d.medications || []
+      s.medicationsFullText = d.fullText
+    }
+  }
+
+  const students = Array.from(studentMap.values()).sort((a: any, b: any) => {
+    if (a.allergySeverity === 'SEVERE' && b.allergySeverity !== 'SEVERE') return -1
+    if (a.allergySeverity !== 'SEVERE' && b.allergySeverity === 'SEVERE') return 1
+    return a.name.localeCompare(b.name)
+  })
+
+  const allergiesCount = reportData.summary?.foodAllergiesCount ?? reportData.foodAllergies?.total ?? 0
+  const dietaryCount = reportData.summary?.dietaryRestrictionsCount ?? reportData.dietaryRestrictions?.total ?? 0
+  const medicalCount = reportData.summary?.medicalConditionsCount ?? reportData.medicalConditions?.total ?? 0
+  const medsCount = reportData.summary?.medicationsCount ?? reportData.medications?.total ?? 0
+
+  return (
+    <Document>
+      <Page size="A4" style={styles.page}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Dietary & Medical Report</Text>
+          <Text style={styles.subtitle}>{safeString(eventName, 'Event')}</Text>
+          <Text style={styles.subtitle}>Generated: {new Date().toLocaleDateString()}</Text>
+        </View>
+
+        <View style={medStyles.warning}>
+          <Text style={medStyles.warningText}>CRITICAL INFORMATION FOR EVENT SAFETY</Text>
+        </View>
+
+        <View style={medStyles.summaryBox}>
+          <View style={medStyles.summaryItem}>
+            <Text style={medStyles.summaryLabel}>Allergies</Text>
+            <Text style={{ ...medStyles.summaryValue, color: '#DC2626' }}>{safeNumber(allergiesCount)}</Text>
+          </View>
+          <View style={medStyles.summaryItem}>
+            <Text style={medStyles.summaryLabel}>Dietary</Text>
+            <Text style={{ ...medStyles.summaryValue, color: '#EA580C' }}>{safeNumber(dietaryCount)}</Text>
+          </View>
+          <View style={medStyles.summaryItem}>
+            <Text style={medStyles.summaryLabel}>Medical</Text>
+            <Text style={{ ...medStyles.summaryValue, color: '#2563EB' }}>{safeNumber(medicalCount)}</Text>
+          </View>
+          <View style={medStyles.summaryItem}>
+            <Text style={medStyles.summaryLabel}>Medications</Text>
+            <Text style={{ ...medStyles.summaryValue, color: '#9333EA' }}>{safeNumber(medsCount)}</Text>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Student Details ({safeNumber(students.length)} students)</Text>
+          <View style={medStyles.categoryHeader}>
+            <Text style={{ ...medStyles.categoryHeaderText, width: '25%' }}>Name</Text>
+            <Text style={{ ...medStyles.categoryHeaderText, width: '20%' }}>Group</Text>
+            <Text style={{ ...medStyles.categoryHeaderText, width: '30%' }}>Allergies</Text>
+            <Text style={{ ...medStyles.categoryHeaderText, width: '25%' }}>Dietary</Text>
+          </View>
+          {students.map((student: any, idx: number) => {
+            const allergyDisplay = formatMedicalItems(student.allergies, student.allergyFullText)
+            const dietaryDisplay = formatMedicalItems(student.dietaryRestrictions, student.dietaryFullText)
+            const isSevere = student.allergySeverity === 'SEVERE'
+            const rowStyle = isSevere
+              ? medStyles.severeRow
+              : idx % 2 === 0
+              ? medStyles.normalRow
+              : medStyles.altRow
+
+            return (
+              <View key={idx} style={rowStyle} wrap={false}>
+                <View style={medStyles.nameCell}>
+                  <Text>{safeString(student.name)}</Text>
+                  {isSevere && <Text style={medStyles.severeBadge}>SEVERE</Text>}
+                </View>
+                <Text style={medStyles.groupCell}>{safeString(student.group)}</Text>
+                <Text style={medStyles.allergyCell}>{allergyDisplay || '--'}</Text>
+                <Text style={medStyles.dietaryCell}>{dietaryDisplay || '--'}</Text>
+              </View>
+            )
+          })}
+        </View>
+
+        <View style={styles.footer}>
+          <Text>ChiRho Events - Dietary & Medical Report - CONFIDENTIAL</Text>
+        </View>
+      </Page>
+    </Document>
+  )
+}

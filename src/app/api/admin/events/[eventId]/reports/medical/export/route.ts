@@ -1,6 +1,9 @@
+import React from 'react'
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyRaphaAccess } from '@/lib/api-auth'
 import { generateMedicalCSV } from '@/lib/reports/generate-csv'
+import { renderToBuffer } from '@react-pdf/renderer'
+import { MedicalReportPDF } from '@/lib/reports/pdf-generator'
 
 export async function POST(
   request: NextRequest,
@@ -25,15 +28,32 @@ export async function POST(
     if (!reportResponse.ok) throw new Error()
 
     const data = await reportResponse.json()
-    const csv = format === 'csv' ? generateMedicalCSV(data) : 'PDF not implemented'
+    const eventName = event?.name || 'Event'
 
+    if (format === 'pdf') {
+      const pdfElement = React.createElement(MedicalReportPDF, {
+        reportData: data,
+        eventName,
+      })
+      const pdfBuffer = await renderToBuffer(pdfElement)
+
+      return new NextResponse(pdfBuffer, {
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="medical_report.pdf"`,
+        },
+      })
+    }
+
+    const csv = generateMedicalCSV(data)
     return new NextResponse(csv, {
       headers: {
         'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="medical_report.${format}"`,
+        'Content-Disposition': `attachment; filename="medical_report.csv"`,
       },
     })
   } catch (error) {
+    console.error('[Medical Export] Error:', error)
     return NextResponse.json({ error: 'Export failed' }, { status: 500 })
   }
 }
