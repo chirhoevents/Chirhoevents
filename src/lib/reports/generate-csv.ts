@@ -170,6 +170,15 @@ export function generateMedicalCSV(reportData: any): string {
     'Group Leader Phone',
   ]
 
+  // Show detected keywords if available, otherwise fall back to raw text.
+  // Never export "See notes" — show the actual data instead.
+  const formatItems = (items: string[] | undefined, fullText: string | undefined): string => {
+    const filtered = (items || []).filter(i => i && i !== 'See notes')
+    if (filtered.length > 0) return filtered.join(', ')
+    if (fullText) return fullText
+    return ''
+  }
+
   // Consolidate all details by student name so each student appears once
   const studentMap = new Map<string, any>()
 
@@ -201,7 +210,7 @@ export function generateMedicalCSV(reportData: any): string {
   if (reportData.foodAllergies?.details) {
     for (const detail of reportData.foodAllergies.details) {
       const student = getOrCreate(detail)
-      student.Allergies = (detail.allergies || []).join(', ')
+      student.Allergies = formatItems(detail.allergies, detail.fullText)
       student['Allergy Severity'] = detail.severity || ''
       student['Allergy Notes'] = detail.fullText || ''
       if (detail.groupLeaderEmail) student['Group Leader Email'] = detail.groupLeaderEmail
@@ -213,7 +222,7 @@ export function generateMedicalCSV(reportData: any): string {
   if (reportData.dietaryRestrictions?.details) {
     for (const detail of reportData.dietaryRestrictions.details) {
       const student = getOrCreate(detail)
-      student['Dietary Restrictions'] = (detail.restrictions || []).join(', ')
+      student['Dietary Restrictions'] = formatItems(detail.restrictions, detail.fullText)
       student['Dietary Notes'] = detail.fullText || ''
     }
   }
@@ -222,7 +231,7 @@ export function generateMedicalCSV(reportData: any): string {
   if (reportData.medicalConditions?.details) {
     for (const detail of reportData.medicalConditions.details) {
       const student = getOrCreate(detail)
-      student['Medical Conditions'] = (detail.conditions || []).join(', ')
+      student['Medical Conditions'] = formatItems(detail.conditions, detail.fullText)
       student['Medical Notes'] = detail.fullText || ''
       if (detail.groupLeaderEmail) student['Group Leader Email'] = detail.groupLeaderEmail
       if (detail.groupLeaderPhone) student['Group Leader Phone'] = detail.groupLeaderPhone
@@ -233,7 +242,7 @@ export function generateMedicalCSV(reportData: any): string {
   if (reportData.medications?.details) {
     for (const detail of reportData.medications.details) {
       const student = getOrCreate(detail)
-      student.Medications = (detail.medications || []).join(', ')
+      student.Medications = formatItems(detail.medications, detail.fullText)
       student['Medication Notes'] = detail.fullText || ''
       if (detail.groupLeaderEmail) student['Group Leader Email'] = detail.groupLeaderEmail
       if (detail.groupLeaderPhone) student['Group Leader Phone'] = detail.groupLeaderPhone
