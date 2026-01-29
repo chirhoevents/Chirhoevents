@@ -1,4 +1,3 @@
-import React from 'react'
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyRaphaAccess } from '@/lib/api-auth'
 import { generateMedicalCSV } from '@/lib/reports/generate-csv'
@@ -31,25 +30,32 @@ export async function POST(
     const eventName = event?.name || 'Event'
 
     if (format === 'pdf') {
-      const pdfElement = React.createElement(MedicalReportPDF, {
-        reportData: data,
-        eventName,
-      })
-      const pdfBuffer = await renderToBuffer(pdfElement)
+      try {
+        // Call the component function directly - it returns a <Document> element
+        const pdfElement = MedicalReportPDF({ reportData: data, eventName })
+        const pdfBuffer = await renderToBuffer(pdfElement)
 
-      return new NextResponse(pdfBuffer, {
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="medical_report.pdf"`,
-        },
-      })
+        if (!pdfBuffer || pdfBuffer.length < 100) {
+          return NextResponse.json({ error: 'PDF generation failed' }, { status: 500 })
+        }
+
+        return new NextResponse(Buffer.from(pdfBuffer), {
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename="medical_report_${eventName.replace(/\s+/g, '_')}.pdf"`,
+          },
+        })
+      } catch (pdfError: any) {
+        console.error('[Medical Export] PDF generation error:', pdfError?.message || pdfError)
+        return NextResponse.json({ error: 'PDF generation failed: ' + String(pdfError?.message || pdfError) }, { status: 500 })
+      }
     }
 
     const csv = generateMedicalCSV(data)
     return new NextResponse(csv, {
       headers: {
         'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="medical_report.csv"`,
+        'Content-Disposition': `attachment; filename="medical_report_${eventName.replace(/\s+/g, '_')}.csv"`,
       },
     })
   } catch (error) {
