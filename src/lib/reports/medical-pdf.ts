@@ -97,11 +97,16 @@ function prepareMedicalData(reportData: any) {
   }
 }
 
-export async function generateMedicalPDF(reportData: any, eventName: string): Promise<Buffer> {
+export async function generateMedicalPDF(reportData: any, eventName: string, options?: { allergiesOnly?: boolean }): Promise<Buffer> {
   // Dynamic import to avoid bundling issues
   const PDFDocument = (await import('pdfkit')).default
 
   const data = prepareMedicalData(reportData)
+
+  // Apply allergiesOnly filter if requested
+  if (options?.allergiesOnly) {
+    data.students = data.students.filter(s => s.allergies !== '')
+  }
 
   return new Promise((resolve, reject) => {
     try {

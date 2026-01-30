@@ -18,8 +18,8 @@ export async function POST(
     )
     if (error) return error
 
-    const { format } = await request.json()
-    console.log('[Medical Export] Format requested:', format)
+    const { format, allergiesOnly } = await request.json()
+    console.log('[Medical Export] Format requested:', format, '| allergiesOnly:', allergiesOnly)
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `https://${request.headers.get('host')}`
     const reportResponse = await fetch(
@@ -46,7 +46,7 @@ export async function POST(
     if (format === 'pdf') {
       try {
         console.log('[Medical Export] Generating PDF with pdfkit...')
-        const pdfBuffer = await generateMedicalPDF(data, eventName)
+        const pdfBuffer = await generateMedicalPDF(data, eventName, { allergiesOnly: !!allergiesOnly })
         console.log('[Medical Export] PDF generated, size:', pdfBuffer.length, 'bytes')
 
         if (!pdfBuffer || pdfBuffer.length < 100) {
@@ -67,7 +67,7 @@ export async function POST(
       }
     }
 
-    const csv = generateMedicalCSV(data)
+    const csv = generateMedicalCSV(data, { allergiesOnly: !!allergiesOnly })
     return new NextResponse(csv, {
       headers: {
         'Content-Type': 'text/csv',
