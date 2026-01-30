@@ -323,48 +323,108 @@ function formatMedicalItems(items: string[] | undefined, fullText: string | unde
   return ''
 }
 
+// Pre-process medical report data outside the component (avoids Map/complex logic in JSX)
+export function prepareMedicalPDFData(reportData: any) {
+  const studentObj: Record<string, any> = {}
+
+  const getOrCreate = (detail: any) => {
+    const key = detail.name
+    if (!studentObj[key]) {
+      studentObj[key] = {
+        name: String(detail.name || ''),
+        group: String(detail.group || 'Individual'),
+        allergies: '',
+        dietary: '',
+        severity: '',
+      }
+    }
+    return studentObj[key]
+  }
+
+  if (reportData.foodAllergies?.details) {
+    for (const d of reportData.foodAllergies.details) {
+      const s = getOrCreate(d)
+      s.allergies = formatMedicalItems(d.allergies, d.fullText)
+      s.severity = d.severity || ''
+    }
+  }
+  if (reportData.dietaryRestrictions?.details) {
+    for (const d of reportData.dietaryRestrictions.details) {
+      const s = getOrCreate(d)
+      s.dietary = formatMedicalItems(d.restrictions, d.fullText)
+    }
+  }
+
+  const students = Object.values(studentObj).sort((a: any, b: any) => {
+    if (a.severity === 'SEVERE' && b.severity !== 'SEVERE') return -1
+    if (a.severity !== 'SEVERE' && b.severity === 'SEVERE') return 1
+    return a.name.localeCompare(b.name)
+  })
+
+  // Count allergy types
+  const allergyCounts: Record<string, number> = {}
+  const dietaryCounts: Record<string, number> = {}
+  for (const s of students as any[]) {
+    if (s.allergies) {
+      const items = s.allergies.split(', ')
+      for (const item of items) {
+        if (item) allergyCounts[item] = (allergyCounts[item] || 0) + 1
+      }
+    }
+    if (s.dietary) {
+      const items = s.dietary.split(', ')
+      for (const item of items) {
+        if (item) dietaryCounts[item] = (dietaryCounts[item] || 0) + 1
+      }
+    }
+  }
+
+  const allergyBreakdown = Object.entries(allergyCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([type, count]) => ({ type: String(type), count: Number(count) }))
+
+  const dietaryBreakdown = Object.entries(dietaryCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([type, count]) => ({ type: String(type), count: Number(count) }))
+
+  return {
+    students: students as Array<{ name: string; group: string; allergies: string; dietary: string; severity: string }>,
+    allergyBreakdown,
+    dietaryBreakdown,
+    allergiesCount: String(reportData.summary?.foodAllergiesCount ?? reportData.foodAllergies?.total ?? 0),
+    dietaryCount: String(reportData.summary?.dietaryRestrictionsCount ?? reportData.dietaryRestrictions?.total ?? 0),
+    medicalCount: String(reportData.summary?.medicalConditionsCount ?? reportData.medicalConditions?.total ?? 0),
+    medsCount: String(reportData.summary?.medicationsCount ?? reportData.medications?.total ?? 0),
+    studentCount: String(students.length),
+  }
+}
+
 // Medical Report PDF styles
 const medStyles = StyleSheet.create({
-  severeRow: {
+  tableRow: {
     flexDirection: 'row',
-    borderBottom: '1 solid #ccc',
-    padding: 6,
-    backgroundColor: '#FEF2F2',
-  },
-  normalRow: {
-    flexDirection: 'row',
-    borderBottom: '1 solid #eee',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eeeeee',
     padding: 6,
   },
-  altRow: {
+  tableRowAlt: {
     flexDirection: 'row',
-    borderBottom: '1 solid #eee',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eeeeee',
     padding: 6,
     backgroundColor: '#F9FAFB',
   },
-  nameCell: {
-    width: '25%',
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#1E3A5F',
+  tableRowSevere: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#cccccc',
+    padding: 6,
+    backgroundColor: '#FEF2F2',
   },
-  groupCell: {
-    width: '20%',
-    fontSize: 8,
-    color: '#6B7280',
-  },
-  allergyCell: {
-    width: '30%',
-    fontSize: 9,
-  },
-  dietaryCell: {
-    width: '25%',
-    fontSize: 9,
-  },
-  severeBadge: {
-    fontSize: 7,
-    color: '#DC2626',
-    fontWeight: 'bold',
+  headerRow: {
+    flexDirection: 'row',
+    backgroundColor: '#1E3A5F',
+    padding: 6,
   },
   summaryBox: {
     flexDirection: 'row',
@@ -372,93 +432,41 @@ const medStyles = StyleSheet.create({
     backgroundColor: '#F5F1E8',
     padding: 12,
     marginBottom: 15,
-    borderLeft: '3 solid #9C8466',
-  },
-  summaryItem: {
-    alignItems: 'center',
-  },
-  summaryLabel: {
-    fontSize: 8,
-    color: '#6B7280',
-  },
-  summaryValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1E3A5F',
+    borderLeftWidth: 3,
+    borderLeftColor: '#9C8466',
   },
   warning: {
     backgroundColor: '#FEF2F2',
     padding: 8,
     marginBottom: 12,
-    borderLeft: '3 solid #DC2626',
+    borderLeftWidth: 3,
+    borderLeftColor: '#DC2626',
   },
-  warningText: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#991B1B',
-  },
-  categoryHeader: {
+  breakdownRow: {
     flexDirection: 'row',
-    backgroundColor: '#1E3A5F',
-    padding: 6,
+    justifyContent: 'space-between',
+    paddingTop: 3,
+    paddingBottom: 3,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
-  categoryHeaderText: {
-    color: 'white',
-    fontSize: 8,
-    fontWeight: 'bold',
+  breakdownTotalRed: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 4,
+    paddingBottom: 4,
+    marginTop: 2,
+    borderTopWidth: 2,
+    borderTopColor: '#DC2626',
   },
-  // Pre-defined colored summary values (no spread needed)
-  summaryValueRed: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#DC2626',
-  },
-  summaryValueOrange: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#EA580C',
-  },
-  summaryValueBlue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2563EB',
-  },
-  summaryValuePurple: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#9333EA',
-  },
-  // Column header variants
-  colHeaderName: {
-    color: 'white',
-    fontSize: 8,
-    fontWeight: 'bold',
-    width: '25%',
-  },
-  colHeaderGroup: {
-    color: 'white',
-    fontSize: 8,
-    fontWeight: 'bold',
-    width: '20%',
-  },
-  colHeaderAllergy: {
-    color: 'white',
-    fontSize: 8,
-    fontWeight: 'bold',
-    width: '30%',
-  },
-  colHeaderDietary: {
-    color: 'white',
-    fontSize: 8,
-    fontWeight: 'bold',
-    width: '25%',
-  },
-  // Breakdown section styles
-  breakdownTitle: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#1E3A5F',
-    marginBottom: 6,
+  breakdownTotalOrange: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 4,
+    paddingBottom: 4,
+    marginTop: 2,
+    borderTopWidth: 2,
+    borderTopColor: '#EA580C',
   },
   breakdownContainerRed: {
     borderLeftWidth: 3,
@@ -470,260 +478,100 @@ const medStyles = StyleSheet.create({
     borderLeftColor: '#EA580C',
     paddingLeft: 10,
   },
-  breakdownRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 3,
-    paddingBottom: 3,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  breakdownLabel: {
-    fontSize: 9,
-    color: '#374151',
-  },
-  breakdownValueRed: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#DC2626',
-  },
-  breakdownValueOrange: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#EA580C',
-  },
-  breakdownTotalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 4,
-    paddingBottom: 4,
-    marginTop: 2,
-  },
-  breakdownTotalRowRed: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 4,
-    paddingBottom: 4,
-    marginTop: 2,
-    borderTopWidth: 2,
-    borderTopColor: '#DC2626',
-  },
-  breakdownTotalRowOrange: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 4,
-    paddingBottom: 4,
-    marginTop: 2,
-    borderTopWidth: 2,
-    borderTopColor: '#EA580C',
-  },
-  breakdownTotalLabel: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#1E3A5F',
-  },
-  breakdownTotalValueRed: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#DC2626',
-  },
-  breakdownTotalValueOrange: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#EA580C',
-  },
 })
 
-// Medical Report PDF
-export const MedicalReportPDF = ({ reportData, eventName }: { reportData: any; eventName: string }) => {
-  // Consolidate students (same logic as the UI)
-  const studentMap = new Map<string, any>()
+// Medical Report PDF - receives pre-processed data only (no complex logic)
+export const MedicalReportPDF = ({ data, eventName }: { data: ReturnType<typeof prepareMedicalPDFData>; eventName: string }) => (
+  <Document>
+    <Page size="A4" style={styles.page}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Dietary & Medical Report</Text>
+        <Text style={styles.subtitle}>{safeString(eventName, 'Event')}</Text>
+        <Text style={styles.subtitle}>Generated: {new Date().toLocaleDateString()}</Text>
+      </View>
 
-  const getOrCreate = (detail: any) => {
-    const key = detail.name
-    if (!studentMap.has(key)) {
-      studentMap.set(key, {
-        name: detail.name,
-        age: detail.age,
-        group: detail.group || 'Individual',
-        allergies: [],
-        allergyFullText: undefined,
-        allergySeverity: undefined,
-        dietaryRestrictions: [],
-        dietaryFullText: undefined,
-        medications: [],
-        medicationsFullText: undefined,
-      })
-    }
-    return studentMap.get(key)!
-  }
+      <View style={medStyles.warning}>
+        <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#991B1B' }}>CRITICAL INFORMATION FOR EVENT SAFETY</Text>
+      </View>
 
-  if (reportData.foodAllergies?.details) {
-    for (const d of reportData.foodAllergies.details) {
-      const s = getOrCreate(d)
-      s.allergies = d.allergies || []
-      s.allergyFullText = d.fullText
-      s.allergySeverity = d.severity
-    }
-  }
-  if (reportData.dietaryRestrictions?.details) {
-    for (const d of reportData.dietaryRestrictions.details) {
-      const s = getOrCreate(d)
-      s.dietaryRestrictions = d.restrictions || []
-      s.dietaryFullText = d.fullText
-    }
-  }
-  if (reportData.medications?.details) {
-    for (const d of reportData.medications.details) {
-      const s = getOrCreate(d)
-      s.medications = d.medications || []
-      s.medicationsFullText = d.fullText
-    }
-  }
-
-  const students = Array.from(studentMap.values()).sort((a: any, b: any) => {
-    if (a.allergySeverity === 'SEVERE' && b.allergySeverity !== 'SEVERE') return -1
-    if (a.allergySeverity !== 'SEVERE' && b.allergySeverity === 'SEVERE') return 1
-    return a.name.localeCompare(b.name)
-  })
-
-  const allergiesCount = reportData.summary?.foodAllergiesCount ?? reportData.foodAllergies?.total ?? 0
-  const dietaryCount = reportData.summary?.dietaryRestrictionsCount ?? reportData.dietaryRestrictions?.total ?? 0
-  const medicalCount = reportData.summary?.medicalConditionsCount ?? reportData.medicalConditions?.total ?? 0
-  const medsCount = reportData.summary?.medicationsCount ?? reportData.medications?.total ?? 0
-
-  // Build allergy type breakdown: count how many students have each allergy
-  const allergyTypeCounts: Record<string, number> = {}
-  const dietaryTypeCounts: Record<string, number> = {}
-  for (const student of students) {
-    const allergyItems = (student.allergies || []).filter((i: string) => i && i !== 'See notes')
-    if (allergyItems.length > 0) {
-      for (const item of allergyItems) {
-        allergyTypeCounts[item] = (allergyTypeCounts[item] || 0) + 1
-      }
-    } else if (student.allergyFullText) {
-      allergyTypeCounts['Other'] = (allergyTypeCounts['Other'] || 0) + 1
-    }
-    const dietaryItems = (student.dietaryRestrictions || []).filter((i: string) => i && i !== 'See notes')
-    if (dietaryItems.length > 0) {
-      for (const item of dietaryItems) {
-        dietaryTypeCounts[item] = (dietaryTypeCounts[item] || 0) + 1
-      }
-    } else if (student.dietaryFullText) {
-      dietaryTypeCounts['Other'] = (dietaryTypeCounts['Other'] || 0) + 1
-    }
-  }
-
-  // Sort by count descending
-  const allergyBreakdown = Object.entries(allergyTypeCounts).sort((a, b) => b[1] - a[1])
-  const dietaryBreakdown = Object.entries(dietaryTypeCounts).sort((a, b) => b[1] - a[1])
-
-  return (
-    <Document>
-      <Page size="A4" style={styles.page}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Dietary & Medical Report</Text>
-          <Text style={styles.subtitle}>{safeString(eventName, 'Event')}</Text>
-          <Text style={styles.subtitle}>Generated: {new Date().toLocaleDateString()}</Text>
+      <View style={medStyles.summaryBox}>
+        <View style={{ alignItems: 'center' }}>
+          <Text style={{ fontSize: 8, color: '#6B7280' }}>Allergies</Text>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#DC2626' }}>{data.allergiesCount}</Text>
         </View>
-
-        <View style={medStyles.warning}>
-          <Text style={medStyles.warningText}>CRITICAL INFORMATION FOR EVENT SAFETY</Text>
+        <View style={{ alignItems: 'center' }}>
+          <Text style={{ fontSize: 8, color: '#6B7280' }}>Dietary</Text>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#EA580C' }}>{data.dietaryCount}</Text>
         </View>
-
-        <View style={medStyles.summaryBox}>
-          <View style={medStyles.summaryItem}>
-            <Text style={medStyles.summaryLabel}>Allergies</Text>
-            <Text style={medStyles.summaryValueRed}>{safeNumber(allergiesCount)}</Text>
-          </View>
-          <View style={medStyles.summaryItem}>
-            <Text style={medStyles.summaryLabel}>Dietary</Text>
-            <Text style={medStyles.summaryValueOrange}>{safeNumber(dietaryCount)}</Text>
-          </View>
-          <View style={medStyles.summaryItem}>
-            <Text style={medStyles.summaryLabel}>Medical</Text>
-            <Text style={medStyles.summaryValueBlue}>{safeNumber(medicalCount)}</Text>
-          </View>
-          <View style={medStyles.summaryItem}>
-            <Text style={medStyles.summaryLabel}>Medications</Text>
-            <Text style={medStyles.summaryValuePurple}>{safeNumber(medsCount)}</Text>
-          </View>
+        <View style={{ alignItems: 'center' }}>
+          <Text style={{ fontSize: 8, color: '#6B7280' }}>Medical</Text>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#2563EB' }}>{data.medicalCount}</Text>
         </View>
+        <View style={{ alignItems: 'center' }}>
+          <Text style={{ fontSize: 8, color: '#6B7280' }}>Medications</Text>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#9333EA' }}>{data.medsCount}</Text>
+        </View>
+      </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Student Details ({safeNumber(students.length)} students)</Text>
-          <View style={medStyles.categoryHeader}>
-            <Text style={medStyles.colHeaderName}>Name</Text>
-            <Text style={medStyles.colHeaderGroup}>Group</Text>
-            <Text style={medStyles.colHeaderAllergy}>Allergies</Text>
-            <Text style={medStyles.colHeaderDietary}>Dietary</Text>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Student Details ({data.studentCount} students)</Text>
+        <View style={medStyles.headerRow}>
+          <Text style={{ color: 'white', fontSize: 8, fontWeight: 'bold', width: '25%' }}>Name</Text>
+          <Text style={{ color: 'white', fontSize: 8, fontWeight: 'bold', width: '20%' }}>Group</Text>
+          <Text style={{ color: 'white', fontSize: 8, fontWeight: 'bold', width: '30%' }}>Allergies</Text>
+          <Text style={{ color: 'white', fontSize: 8, fontWeight: 'bold', width: '25%' }}>Dietary</Text>
+        </View>
+        {data.students.map((student, idx) => (
+          <View key={idx} style={student.severity === 'SEVERE' ? medStyles.tableRowSevere : idx % 2 === 0 ? medStyles.tableRow : medStyles.tableRowAlt} wrap={false}>
+            <Text style={{ width: '25%', fontSize: 9, fontWeight: 'bold', color: '#1E3A5F' }}>
+              {student.name}{student.severity === 'SEVERE' ? ' [SEVERE]' : ''}
+            </Text>
+            <Text style={{ width: '20%', fontSize: 8, color: '#6B7280' }}>{student.group}</Text>
+            <Text style={{ width: '30%', fontSize: 9 }}>{student.allergies || '--'}</Text>
+            <Text style={{ width: '25%', fontSize: 9 }}>{student.dietary || '--'}</Text>
           </View>
-          {students.map((student: any, idx: number) => {
-            const allergyDisplay = formatMedicalItems(student.allergies, student.allergyFullText)
-            const dietaryDisplay = formatMedicalItems(student.dietaryRestrictions, student.dietaryFullText)
-            const isSevere = student.allergySeverity === 'SEVERE'
-            const rowStyle = isSevere
-              ? medStyles.severeRow
-              : idx % 2 === 0
-              ? medStyles.normalRow
-              : medStyles.altRow
+        ))}
+      </View>
 
-            return (
-              <View key={idx} style={rowStyle} wrap={false}>
-                <View style={medStyles.nameCell}>
-                  <Text>{safeString(student.name)}</Text>
-                  {isSevere && <Text style={medStyles.severeBadge}>SEVERE</Text>}
-                </View>
-                <Text style={medStyles.groupCell}>{safeString(student.group)}</Text>
-                <Text style={medStyles.allergyCell}>{allergyDisplay || '--'}</Text>
-                <Text style={medStyles.dietaryCell}>{dietaryDisplay || '--'}</Text>
+      {data.allergyBreakdown.length > 0 ? (
+        <View style={{ marginTop: 20 }} wrap={false}>
+          <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#1E3A5F', marginBottom: 6 }}>Allergy Totals by Type</Text>
+          <View style={medStyles.breakdownContainerRed}>
+            {data.allergyBreakdown.map((item, idx) => (
+              <View key={idx} style={medStyles.breakdownRow}>
+                <Text style={{ fontSize: 9, color: '#374151' }}>{item.type}</Text>
+                <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#DC2626' }}>{String(item.count)} {item.count === 1 ? 'student' : 'students'}</Text>
               </View>
-            )
-          })}
-        </View>
-
-        {/* Allergy Totals Breakdown */}
-        {allergyBreakdown.length > 0 && (
-          <View style={{ marginTop: 20 }} wrap={false}>
-            <Text style={medStyles.breakdownTitle}>Allergy Totals by Type</Text>
-            <View style={medStyles.breakdownContainerRed}>
-              {allergyBreakdown.map(([type, count], idx) => (
-                <View key={idx} style={medStyles.breakdownRow}>
-                  <Text style={medStyles.breakdownLabel}>{String(type)}</Text>
-                  <Text style={medStyles.breakdownValueRed}>{String(count)} {count === 1 ? 'student' : 'students'}</Text>
-                </View>
-              ))}
-              <View style={medStyles.breakdownTotalRowRed}>
-                <Text style={medStyles.breakdownTotalLabel}>Total with Allergies</Text>
-                <Text style={medStyles.breakdownTotalValueRed}>{safeNumber(allergiesCount)}</Text>
-              </View>
+            ))}
+            <View style={medStyles.breakdownTotalRed}>
+              <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#1E3A5F' }}>Total with Allergies</Text>
+              <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#DC2626' }}>{data.allergiesCount}</Text>
             </View>
           </View>
-        )}
+        </View>
+      ) : null}
 
-        {/* Dietary Totals Breakdown */}
-        {dietaryBreakdown.length > 0 && (
-          <View style={{ marginTop: 15 }} wrap={false}>
-            <Text style={medStyles.breakdownTitle}>Dietary Restriction Totals by Type</Text>
-            <View style={medStyles.breakdownContainerOrange}>
-              {dietaryBreakdown.map(([type, count], idx) => (
-                <View key={idx} style={medStyles.breakdownRow}>
-                  <Text style={medStyles.breakdownLabel}>{String(type)}</Text>
-                  <Text style={medStyles.breakdownValueOrange}>{String(count)} {count === 1 ? 'student' : 'students'}</Text>
-                </View>
-              ))}
-              <View style={medStyles.breakdownTotalRowOrange}>
-                <Text style={medStyles.breakdownTotalLabel}>Total with Dietary Restrictions</Text>
-                <Text style={medStyles.breakdownTotalValueOrange}>{safeNumber(dietaryCount)}</Text>
+      {data.dietaryBreakdown.length > 0 ? (
+        <View style={{ marginTop: 15 }} wrap={false}>
+          <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#1E3A5F', marginBottom: 6 }}>Dietary Restriction Totals by Type</Text>
+          <View style={medStyles.breakdownContainerOrange}>
+            {data.dietaryBreakdown.map((item, idx) => (
+              <View key={idx} style={medStyles.breakdownRow}>
+                <Text style={{ fontSize: 9, color: '#374151' }}>{item.type}</Text>
+                <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#EA580C' }}>{String(item.count)} {item.count === 1 ? 'student' : 'students'}</Text>
               </View>
+            ))}
+            <View style={medStyles.breakdownTotalOrange}>
+              <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#1E3A5F' }}>Total with Dietary Restrictions</Text>
+              <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#EA580C' }}>{data.dietaryCount}</Text>
             </View>
           </View>
-        )}
-
-        <View style={styles.footer}>
-          <Text>ChiRho Events - Dietary & Medical Report - CONFIDENTIAL</Text>
         </View>
-      </Page>
-    </Document>
-  )
-}
+      ) : null}
+
+      <View style={styles.footer}>
+        <Text>ChiRho Events - Dietary & Medical Report - CONFIDENTIAL</Text>
+      </View>
+    </Page>
+  </Document>
+)
