@@ -403,21 +403,18 @@ export function prepareMedicalPDFData(reportData: any) {
 const medStyles = StyleSheet.create({
   tableRow: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eeeeee',
+    borderBottom: '1 solid #eeeeee',
     padding: 6,
   },
   tableRowAlt: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eeeeee',
+    borderBottom: '1 solid #eeeeee',
     padding: 6,
     backgroundColor: '#F9FAFB',
   },
   tableRowSevere: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#cccccc',
+    borderBottom: '1 solid #cccccc',
     padding: 6,
     backgroundColor: '#FEF2F2',
   },
@@ -432,50 +429,156 @@ const medStyles = StyleSheet.create({
     backgroundColor: '#F5F1E8',
     padding: 12,
     marginBottom: 15,
-    borderLeftWidth: 3,
-    borderLeftColor: '#9C8466',
+    borderLeft: '3 solid #9C8466',
+  },
+  summaryItem: {
+    alignItems: 'center',
+  },
+  summaryLabel: {
+    fontSize: 8,
+    color: '#6B7280',
+  },
+  summaryValueRed: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#DC2626',
+  },
+  summaryValueOrange: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#EA580C',
+  },
+  summaryValueBlue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2563EB',
+  },
+  summaryValuePurple: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#9333EA',
   },
   warning: {
     backgroundColor: '#FEF2F2',
     padding: 8,
     marginBottom: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: '#DC2626',
+    borderLeft: '3 solid #DC2626',
+  },
+  warningText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#991B1B',
+  },
+  colHeaderName: {
+    color: 'white',
+    fontSize: 8,
+    fontWeight: 'bold',
+    width: '25%',
+  },
+  colHeaderGroup: {
+    color: 'white',
+    fontSize: 8,
+    fontWeight: 'bold',
+    width: '20%',
+  },
+  colHeaderAllergy: {
+    color: 'white',
+    fontSize: 8,
+    fontWeight: 'bold',
+    width: '30%',
+  },
+  colHeaderDietary: {
+    color: 'white',
+    fontSize: 8,
+    fontWeight: 'bold',
+    width: '25%',
+  },
+  cellName: {
+    width: '25%',
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#1E3A5F',
+  },
+  cellGroup: {
+    width: '20%',
+    fontSize: 8,
+    color: '#6B7280',
+  },
+  cellAllergy: {
+    width: '30%',
+    fontSize: 9,
+  },
+  cellDietary: {
+    width: '25%',
+    fontSize: 9,
+  },
+  breakdownSection: {
+    marginTop: 20,
+  },
+  breakdownSectionAlt: {
+    marginTop: 15,
+  },
+  breakdownTitle: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#1E3A5F',
+    marginBottom: 6,
   },
   breakdownRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingTop: 3,
-    paddingBottom: 3,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    paddingVertical: 3,
+    borderBottom: '1 solid #F3F4F6',
+  },
+  breakdownLabel: {
+    fontSize: 9,
+    color: '#374151',
+  },
+  breakdownValueRed: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#DC2626',
+  },
+  breakdownValueOrange: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#EA580C',
   },
   breakdownTotalRed: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingTop: 4,
-    paddingBottom: 4,
+    paddingVertical: 4,
     marginTop: 2,
-    borderTopWidth: 2,
-    borderTopColor: '#DC2626',
+    borderTop: '2 solid #DC2626',
   },
   breakdownTotalOrange: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingTop: 4,
-    paddingBottom: 4,
+    paddingVertical: 4,
     marginTop: 2,
-    borderTopWidth: 2,
-    borderTopColor: '#EA580C',
+    borderTop: '2 solid #EA580C',
+  },
+  breakdownTotalLabel: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#1E3A5F',
+  },
+  breakdownTotalValueRed: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#DC2626',
+  },
+  breakdownTotalValueOrange: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#EA580C',
   },
   breakdownContainerRed: {
-    borderLeftWidth: 3,
-    borderLeftColor: '#DC2626',
+    borderLeft: '3 solid #DC2626',
     paddingLeft: 10,
   },
   breakdownContainerOrange: {
-    borderLeftWidth: 3,
-    borderLeftColor: '#EA580C',
+    borderLeft: '3 solid #EA580C',
     paddingLeft: 10,
   },
 })
@@ -491,79 +594,79 @@ export const MedicalReportPDF = ({ data, eventName }: { data: ReturnType<typeof 
       </View>
 
       <View style={medStyles.warning}>
-        <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#991B1B' }}>CRITICAL INFORMATION FOR EVENT SAFETY</Text>
+        <Text style={medStyles.warningText}>CRITICAL INFORMATION FOR EVENT SAFETY</Text>
       </View>
 
       <View style={medStyles.summaryBox}>
-        <View style={{ alignItems: 'center' }}>
-          <Text style={{ fontSize: 8, color: '#6B7280' }}>Allergies</Text>
-          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#DC2626' }}>{data.allergiesCount}</Text>
+        <View style={medStyles.summaryItem}>
+          <Text style={medStyles.summaryLabel}>Allergies</Text>
+          <Text style={medStyles.summaryValueRed}>{data.allergiesCount}</Text>
         </View>
-        <View style={{ alignItems: 'center' }}>
-          <Text style={{ fontSize: 8, color: '#6B7280' }}>Dietary</Text>
-          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#EA580C' }}>{data.dietaryCount}</Text>
+        <View style={medStyles.summaryItem}>
+          <Text style={medStyles.summaryLabel}>Dietary</Text>
+          <Text style={medStyles.summaryValueOrange}>{data.dietaryCount}</Text>
         </View>
-        <View style={{ alignItems: 'center' }}>
-          <Text style={{ fontSize: 8, color: '#6B7280' }}>Medical</Text>
-          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#2563EB' }}>{data.medicalCount}</Text>
+        <View style={medStyles.summaryItem}>
+          <Text style={medStyles.summaryLabel}>Medical</Text>
+          <Text style={medStyles.summaryValueBlue}>{data.medicalCount}</Text>
         </View>
-        <View style={{ alignItems: 'center' }}>
-          <Text style={{ fontSize: 8, color: '#6B7280' }}>Medications</Text>
-          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#9333EA' }}>{data.medsCount}</Text>
+        <View style={medStyles.summaryItem}>
+          <Text style={medStyles.summaryLabel}>Medications</Text>
+          <Text style={medStyles.summaryValuePurple}>{data.medsCount}</Text>
         </View>
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Student Details ({data.studentCount} students)</Text>
         <View style={medStyles.headerRow}>
-          <Text style={{ color: 'white', fontSize: 8, fontWeight: 'bold', width: '25%' }}>Name</Text>
-          <Text style={{ color: 'white', fontSize: 8, fontWeight: 'bold', width: '20%' }}>Group</Text>
-          <Text style={{ color: 'white', fontSize: 8, fontWeight: 'bold', width: '30%' }}>Allergies</Text>
-          <Text style={{ color: 'white', fontSize: 8, fontWeight: 'bold', width: '25%' }}>Dietary</Text>
+          <Text style={medStyles.colHeaderName}>Name</Text>
+          <Text style={medStyles.colHeaderGroup}>Group</Text>
+          <Text style={medStyles.colHeaderAllergy}>Allergies</Text>
+          <Text style={medStyles.colHeaderDietary}>Dietary</Text>
         </View>
         {data.students.map((student, idx) => (
           <View key={idx} style={student.severity === 'SEVERE' ? medStyles.tableRowSevere : idx % 2 === 0 ? medStyles.tableRow : medStyles.tableRowAlt} wrap={false}>
-            <Text style={{ width: '25%', fontSize: 9, fontWeight: 'bold', color: '#1E3A5F' }}>
+            <Text style={medStyles.cellName}>
               {student.name}{student.severity === 'SEVERE' ? ' [SEVERE]' : ''}
             </Text>
-            <Text style={{ width: '20%', fontSize: 8, color: '#6B7280' }}>{student.group}</Text>
-            <Text style={{ width: '30%', fontSize: 9 }}>{student.allergies || '--'}</Text>
-            <Text style={{ width: '25%', fontSize: 9 }}>{student.dietary || '--'}</Text>
+            <Text style={medStyles.cellGroup}>{student.group}</Text>
+            <Text style={medStyles.cellAllergy}>{student.allergies || '--'}</Text>
+            <Text style={medStyles.cellDietary}>{student.dietary || '--'}</Text>
           </View>
         ))}
       </View>
 
       {data.allergyBreakdown.length > 0 ? (
-        <View style={{ marginTop: 20 }} wrap={false}>
-          <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#1E3A5F', marginBottom: 6 }}>Allergy Totals by Type</Text>
+        <View style={medStyles.breakdownSection} wrap={false}>
+          <Text style={medStyles.breakdownTitle}>Allergy Totals by Type</Text>
           <View style={medStyles.breakdownContainerRed}>
             {data.allergyBreakdown.map((item, idx) => (
               <View key={idx} style={medStyles.breakdownRow}>
-                <Text style={{ fontSize: 9, color: '#374151' }}>{item.type}</Text>
-                <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#DC2626' }}>{String(item.count)} {item.count === 1 ? 'student' : 'students'}</Text>
+                <Text style={medStyles.breakdownLabel}>{item.type}</Text>
+                <Text style={medStyles.breakdownValueRed}>{String(item.count)} {item.count === 1 ? 'student' : 'students'}</Text>
               </View>
             ))}
             <View style={medStyles.breakdownTotalRed}>
-              <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#1E3A5F' }}>Total with Allergies</Text>
-              <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#DC2626' }}>{data.allergiesCount}</Text>
+              <Text style={medStyles.breakdownTotalLabel}>Total with Allergies</Text>
+              <Text style={medStyles.breakdownTotalValueRed}>{data.allergiesCount}</Text>
             </View>
           </View>
         </View>
       ) : null}
 
       {data.dietaryBreakdown.length > 0 ? (
-        <View style={{ marginTop: 15 }} wrap={false}>
-          <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#1E3A5F', marginBottom: 6 }}>Dietary Restriction Totals by Type</Text>
+        <View style={medStyles.breakdownSectionAlt} wrap={false}>
+          <Text style={medStyles.breakdownTitle}>Dietary Restriction Totals by Type</Text>
           <View style={medStyles.breakdownContainerOrange}>
             {data.dietaryBreakdown.map((item, idx) => (
               <View key={idx} style={medStyles.breakdownRow}>
-                <Text style={{ fontSize: 9, color: '#374151' }}>{item.type}</Text>
-                <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#EA580C' }}>{String(item.count)} {item.count === 1 ? 'student' : 'students'}</Text>
+                <Text style={medStyles.breakdownLabel}>{item.type}</Text>
+                <Text style={medStyles.breakdownValueOrange}>{String(item.count)} {item.count === 1 ? 'student' : 'students'}</Text>
               </View>
             ))}
             <View style={medStyles.breakdownTotalOrange}>
-              <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#1E3A5F' }}>Total with Dietary Restrictions</Text>
-              <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#EA580C' }}>{data.dietaryCount}</Text>
+              <Text style={medStyles.breakdownTotalLabel}>Total with Dietary Restrictions</Text>
+              <Text style={medStyles.breakdownTotalValueOrange}>{data.dietaryCount}</Text>
             </View>
           </View>
         </View>
