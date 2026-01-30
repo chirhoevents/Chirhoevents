@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyRaphaAccess } from '@/lib/api-auth'
 import { generateMedicalCSV } from '@/lib/reports/generate-csv'
 import { renderToBuffer } from '@react-pdf/renderer'
-import { MedicalReportPDF } from '@/lib/reports/pdf-generator'
+import { MedicalReportPDF, prepareMedicalPDFData } from '@/lib/reports/pdf-generator'
 
 export async function POST(
   request: NextRequest,
@@ -31,8 +31,9 @@ export async function POST(
 
     if (format === 'pdf') {
       try {
-        // Call the component function directly - it returns a <Document> element
-        const pdfElement = MedicalReportPDF({ reportData: data, eventName })
+        // Pre-process data outside the component, then render
+        const pdfData = prepareMedicalPDFData(data)
+        const pdfElement = MedicalReportPDF({ data: pdfData, eventName })
         const pdfBuffer = await renderToBuffer(pdfElement)
 
         if (!pdfBuffer || pdfBuffer.length < 100) {
