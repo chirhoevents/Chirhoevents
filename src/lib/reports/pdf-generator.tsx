@@ -399,282 +399,104 @@ export function prepareMedicalPDFData(reportData: any) {
   }
 }
 
-// Medical Report PDF styles
-const medStyles = StyleSheet.create({
-  tableRow: {
-    flexDirection: 'row',
-    borderBottom: '1 solid #eeeeee',
-    padding: 6,
-  },
-  tableRowAlt: {
-    flexDirection: 'row',
-    borderBottom: '1 solid #eeeeee',
-    padding: 6,
-    backgroundColor: '#F9FAFB',
-  },
-  tableRowSevere: {
-    flexDirection: 'row',
-    borderBottom: '1 solid #cccccc',
-    padding: 6,
-    backgroundColor: '#FEF2F2',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    backgroundColor: '#1E3A5F',
-    padding: 6,
-  },
-  summaryBox: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: '#F5F1E8',
-    padding: 12,
-    marginBottom: 15,
-    borderLeft: '3 solid #9C8466',
-  },
-  summaryItem: {
-    alignItems: 'center',
-  },
-  summaryLabel: {
-    fontSize: 8,
-    color: '#6B7280',
-  },
-  summaryValueRed: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#DC2626',
-  },
-  summaryValueOrange: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#EA580C',
-  },
-  summaryValueBlue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2563EB',
-  },
-  summaryValuePurple: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#9333EA',
-  },
-  warning: {
-    backgroundColor: '#FEF2F2',
-    padding: 8,
-    marginBottom: 12,
-    borderLeft: '3 solid #DC2626',
-  },
-  warningText: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#991B1B',
-  },
-  colHeaderName: {
-    color: 'white',
-    fontSize: 8,
-    fontWeight: 'bold',
-    width: '25%',
-  },
-  colHeaderGroup: {
-    color: 'white',
-    fontSize: 8,
-    fontWeight: 'bold',
-    width: '20%',
-  },
-  colHeaderAllergy: {
-    color: 'white',
-    fontSize: 8,
-    fontWeight: 'bold',
-    width: '30%',
-  },
-  colHeaderDietary: {
-    color: 'white',
-    fontSize: 8,
-    fontWeight: 'bold',
-    width: '25%',
-  },
-  cellName: {
-    width: '25%',
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#1E3A5F',
-  },
-  cellGroup: {
-    width: '20%',
-    fontSize: 8,
-    color: '#6B7280',
-  },
-  cellAllergy: {
-    width: '30%',
-    fontSize: 9,
-  },
-  cellDietary: {
-    width: '25%',
-    fontSize: 9,
-  },
-  breakdownSection: {
-    marginTop: 20,
-  },
-  breakdownSectionAlt: {
-    marginTop: 15,
-  },
-  breakdownTitle: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#1E3A5F',
-    marginBottom: 6,
-  },
-  breakdownRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 3,
-    borderBottom: '1 solid #F3F4F6',
-  },
-  breakdownLabel: {
-    fontSize: 9,
-    color: '#374151',
-  },
-  breakdownValueRed: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#DC2626',
-  },
-  breakdownValueOrange: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#EA580C',
-  },
-  breakdownTotalRed: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-    marginTop: 2,
-    borderTop: '2 solid #DC2626',
-  },
-  breakdownTotalOrange: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-    marginTop: 2,
-    borderTop: '2 solid #EA580C',
-  },
-  breakdownTotalLabel: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#1E3A5F',
-  },
-  breakdownTotalValueRed: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#DC2626',
-  },
-  breakdownTotalValueOrange: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#EA580C',
-  },
-  breakdownContainerRed: {
-    borderLeft: '3 solid #DC2626',
-    paddingLeft: 10,
-  },
-  breakdownContainerOrange: {
-    borderLeft: '3 solid #EA580C',
-    paddingLeft: 10,
-  },
-})
+// Medical Report PDF - follows same simple pattern as FinancialReportPDF
+export const MedicalReportPDF = ({ reportData, eventName }: { reportData: any; eventName: string }) => {
+  // Extract pre-processed fields with safe defaults
+  const students: Array<{ name: string; group: string; allergies: string; dietary: string; severity: string }> = reportData?.students || []
+  const allergyBreakdown: Array<{ type: string; count: number }> = reportData?.allergyBreakdown || []
+  const dietaryBreakdown: Array<{ type: string; count: number }> = reportData?.dietaryBreakdown || []
+  const allergiesCount = safeString(reportData?.allergiesCount, '0')
+  const dietaryCount = safeString(reportData?.dietaryCount, '0')
+  const medicalCount = safeString(reportData?.medicalCount, '0')
+  const medsCount = safeString(reportData?.medsCount, '0')
+  const studentCount = safeString(reportData?.studentCount, '0')
 
-// Medical Report PDF - receives pre-processed data only (no complex logic)
-export const MedicalReportPDF = ({ data, eventName }: { data: ReturnType<typeof prepareMedicalPDFData>; eventName: string }) => (
-  <Document>
-    <Page size="A4" style={styles.page}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Dietary & Medical Report</Text>
-        <Text style={styles.subtitle}>{safeString(eventName, 'Event')}</Text>
-        <Text style={styles.subtitle}>Generated: {new Date().toLocaleDateString()}</Text>
-      </View>
+  // Build student rows as simple array
+  const studentRows = students.map((student: any, idx: number) => (
+    <View key={String(idx)} style={styles.tableRow}>
+      <Text style={styles.label}>{safeString(student?.name, 'Unknown')}{student?.severity === 'SEVERE' ? ' [SEVERE]' : ''}</Text>
+      <Text style={styles.value}>
+        {safeString(student?.group, 'Individual')} | Allergies: {safeString(student?.allergies, '--')} | Dietary: {safeString(student?.dietary, '--')}
+      </Text>
+    </View>
+  ))
 
-      <View style={medStyles.warning}>
-        <Text style={medStyles.warningText}>CRITICAL INFORMATION FOR EVENT SAFETY</Text>
-      </View>
+  // Build allergy breakdown rows
+  const allergyRows = allergyBreakdown.map((item: any, idx: number) => (
+    <View key={String(idx)} style={styles.row}>
+      <Text style={styles.label}>{safeString(item?.type, 'Unknown')}:</Text>
+      <Text style={styles.value}>{safeNumber(item?.count)} {Number(item?.count) === 1 ? 'student' : 'students'}</Text>
+    </View>
+  ))
 
-      <View style={medStyles.summaryBox}>
-        <View style={medStyles.summaryItem}>
-          <Text style={medStyles.summaryLabel}>Allergies</Text>
-          <Text style={medStyles.summaryValueRed}>{data.allergiesCount}</Text>
-        </View>
-        <View style={medStyles.summaryItem}>
-          <Text style={medStyles.summaryLabel}>Dietary</Text>
-          <Text style={medStyles.summaryValueOrange}>{data.dietaryCount}</Text>
-        </View>
-        <View style={medStyles.summaryItem}>
-          <Text style={medStyles.summaryLabel}>Medical</Text>
-          <Text style={medStyles.summaryValueBlue}>{data.medicalCount}</Text>
-        </View>
-        <View style={medStyles.summaryItem}>
-          <Text style={medStyles.summaryLabel}>Medications</Text>
-          <Text style={medStyles.summaryValuePurple}>{data.medsCount}</Text>
-        </View>
-      </View>
+  // Build dietary breakdown rows
+  const dietaryRows = dietaryBreakdown.map((item: any, idx: number) => (
+    <View key={String(idx)} style={styles.row}>
+      <Text style={styles.label}>{safeString(item?.type, 'Unknown')}:</Text>
+      <Text style={styles.value}>{safeNumber(item?.count)} {Number(item?.count) === 1 ? 'student' : 'students'}</Text>
+    </View>
+  ))
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Student Details ({data.studentCount} students)</Text>
-        <View style={medStyles.headerRow}>
-          <Text style={medStyles.colHeaderName}>Name</Text>
-          <Text style={medStyles.colHeaderGroup}>Group</Text>
-          <Text style={medStyles.colHeaderAllergy}>Allergies</Text>
-          <Text style={medStyles.colHeaderDietary}>Dietary</Text>
+  return (
+    <Document>
+      <Page size="A4" style={styles.page}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Dietary & Medical Report</Text>
+          <Text style={styles.subtitle}>{safeString(eventName, 'Event')}</Text>
+          <Text style={styles.subtitle}>Generated: {new Date().toLocaleDateString()}</Text>
         </View>
-        {data.students.map((student, idx) => (
-          <View key={idx} style={student.severity === 'SEVERE' ? medStyles.tableRowSevere : idx % 2 === 0 ? medStyles.tableRow : medStyles.tableRowAlt} wrap={false}>
-            <Text style={medStyles.cellName}>
-              {student.name}{student.severity === 'SEVERE' ? ' [SEVERE]' : ''}
-            </Text>
-            <Text style={medStyles.cellGroup}>{student.group}</Text>
-            <Text style={medStyles.cellAllergy}>{student.allergies || '--'}</Text>
-            <Text style={medStyles.cellDietary}>{student.dietary || '--'}</Text>
+
+        <View style={styles.highlight}>
+          <Text style={styles.sectionTitle}>Summary</Text>
+          <View style={styles.row}>
+            <Text style={styles.label}>Allergies:</Text>
+            <Text style={styles.value}>{allergiesCount}</Text>
           </View>
-        ))}
-      </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Dietary Restrictions:</Text>
+            <Text style={styles.value}>{dietaryCount}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Medical Conditions:</Text>
+            <Text style={styles.value}>{medicalCount}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Medications:</Text>
+            <Text style={styles.value}>{medsCount}</Text>
+          </View>
+        </View>
 
-      {data.allergyBreakdown.length > 0 ? (
-        <View style={medStyles.breakdownSection} wrap={false}>
-          <Text style={medStyles.breakdownTitle}>Allergy Totals by Type</Text>
-          <View style={medStyles.breakdownContainerRed}>
-            {data.allergyBreakdown.map((item, idx) => (
-              <View key={idx} style={medStyles.breakdownRow}>
-                <Text style={medStyles.breakdownLabel}>{item.type}</Text>
-                <Text style={medStyles.breakdownValueRed}>{String(item.count)} {item.count === 1 ? 'student' : 'students'}</Text>
-              </View>
-            ))}
-            <View style={medStyles.breakdownTotalRed}>
-              <Text style={medStyles.breakdownTotalLabel}>Total with Allergies</Text>
-              <Text style={medStyles.breakdownTotalValueRed}>{data.allergiesCount}</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Student Details ({studentCount} students)</Text>
+          {studentRows}
+        </View>
+
+        {allergyRows.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Allergy Totals by Type</Text>
+            {allergyRows}
+            <View style={styles.row}>
+              <Text style={styles.label}>Total with Allergies:</Text>
+              <Text style={styles.value}>{allergiesCount}</Text>
             </View>
           </View>
-        </View>
-      ) : null}
+        )}
 
-      {data.dietaryBreakdown.length > 0 ? (
-        <View style={medStyles.breakdownSectionAlt} wrap={false}>
-          <Text style={medStyles.breakdownTitle}>Dietary Restriction Totals by Type</Text>
-          <View style={medStyles.breakdownContainerOrange}>
-            {data.dietaryBreakdown.map((item, idx) => (
-              <View key={idx} style={medStyles.breakdownRow}>
-                <Text style={medStyles.breakdownLabel}>{item.type}</Text>
-                <Text style={medStyles.breakdownValueOrange}>{String(item.count)} {item.count === 1 ? 'student' : 'students'}</Text>
-              </View>
-            ))}
-            <View style={medStyles.breakdownTotalOrange}>
-              <Text style={medStyles.breakdownTotalLabel}>Total with Dietary Restrictions</Text>
-              <Text style={medStyles.breakdownTotalValueOrange}>{data.dietaryCount}</Text>
+        {dietaryRows.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Dietary Restriction Totals by Type</Text>
+            {dietaryRows}
+            <View style={styles.row}>
+              <Text style={styles.label}>Total with Dietary Restrictions:</Text>
+              <Text style={styles.value}>{dietaryCount}</Text>
             </View>
           </View>
-        </View>
-      ) : null}
+        )}
 
-      <View style={styles.footer}>
-        <Text>ChiRho Events - Dietary & Medical Report - CONFIDENTIAL</Text>
-      </View>
-    </Page>
-  </Document>
-)
+        <View style={styles.footer}>
+          <Text>ChiRho Events - Dietary & Medical Report - CONFIDENTIAL</Text>
+        </View>
+      </Page>
+    </Document>
+  )
+}
