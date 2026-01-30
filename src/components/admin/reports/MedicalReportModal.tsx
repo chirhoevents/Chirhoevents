@@ -73,7 +73,7 @@ export default function MedicalReportModal({ isOpen, onClose, eventId, eventName
       const response = await fetch(`/api/admin/events/${eventId}/reports/medical/export`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ format }),
+        body: JSON.stringify({ format, allergiesOnly }),
       })
       if (!response.ok) throw new Error()
       const blob = await response.blob()

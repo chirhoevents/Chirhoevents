@@ -151,7 +151,7 @@ export function generateHousingCSV(reportData: any): string {
   return generateCSV(rows, ['Housing Type', 'Count', 'Percentage'])
 }
 
-export function generateMedicalCSV(reportData: any): string {
+export function generateMedicalCSV(reportData: any, options?: { allergiesOnly?: boolean }): string {
   const headers = [
     'Name',
     'Age',
@@ -259,11 +259,16 @@ export function generateMedicalCSV(reportData: any): string {
   }
 
   // Sort: SEVERE first, then alphabetical by name
-  const rows = Array.from(studentMap.values()).sort((a: any, b: any) => {
+  let rows = Array.from(studentMap.values()).sort((a: any, b: any) => {
     if (a['Allergy Severity'] === 'SEVERE' && b['Allergy Severity'] !== 'SEVERE') return -1
     if (a['Allergy Severity'] !== 'SEVERE' && b['Allergy Severity'] === 'SEVERE') return 1
     return a.Name.localeCompare(b.Name)
   })
+
+  // Apply allergiesOnly filter if requested
+  if (options?.allergiesOnly) {
+    rows = rows.filter((r: any) => r.Allergies !== '')
+  }
 
   return generateCSV(rows, headers)
 }
