@@ -407,6 +407,131 @@ const medStyles = StyleSheet.create({
     fontSize: 8,
     fontWeight: 'bold',
   },
+  // Pre-defined colored summary values (no spread needed)
+  summaryValueRed: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#DC2626',
+  },
+  summaryValueOrange: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#EA580C',
+  },
+  summaryValueBlue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2563EB',
+  },
+  summaryValuePurple: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#9333EA',
+  },
+  // Column header variants
+  colHeaderName: {
+    color: 'white',
+    fontSize: 8,
+    fontWeight: 'bold',
+    width: '25%',
+  },
+  colHeaderGroup: {
+    color: 'white',
+    fontSize: 8,
+    fontWeight: 'bold',
+    width: '20%',
+  },
+  colHeaderAllergy: {
+    color: 'white',
+    fontSize: 8,
+    fontWeight: 'bold',
+    width: '30%',
+  },
+  colHeaderDietary: {
+    color: 'white',
+    fontSize: 8,
+    fontWeight: 'bold',
+    width: '25%',
+  },
+  // Breakdown section styles
+  breakdownTitle: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#1E3A5F',
+    marginBottom: 6,
+  },
+  breakdownContainerRed: {
+    borderLeftWidth: 3,
+    borderLeftColor: '#DC2626',
+    paddingLeft: 10,
+  },
+  breakdownContainerOrange: {
+    borderLeftWidth: 3,
+    borderLeftColor: '#EA580C',
+    paddingLeft: 10,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 3,
+    paddingBottom: 3,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  breakdownLabel: {
+    fontSize: 9,
+    color: '#374151',
+  },
+  breakdownValueRed: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#DC2626',
+  },
+  breakdownValueOrange: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#EA580C',
+  },
+  breakdownTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 4,
+    paddingBottom: 4,
+    marginTop: 2,
+  },
+  breakdownTotalRowRed: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 4,
+    paddingBottom: 4,
+    marginTop: 2,
+    borderTopWidth: 2,
+    borderTopColor: '#DC2626',
+  },
+  breakdownTotalRowOrange: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 4,
+    paddingBottom: 4,
+    marginTop: 2,
+    borderTopWidth: 2,
+    borderTopColor: '#EA580C',
+  },
+  breakdownTotalLabel: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#1E3A5F',
+  },
+  breakdownTotalValueRed: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#DC2626',
+  },
+  breakdownTotalValueOrange: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#EA580C',
+  },
 })
 
 // Medical Report PDF
@@ -509,29 +634,29 @@ export const MedicalReportPDF = ({ reportData, eventName }: { reportData: any; e
         <View style={medStyles.summaryBox}>
           <View style={medStyles.summaryItem}>
             <Text style={medStyles.summaryLabel}>Allergies</Text>
-            <Text style={{ ...medStyles.summaryValue, color: '#DC2626' }}>{safeNumber(allergiesCount)}</Text>
+            <Text style={medStyles.summaryValueRed}>{safeNumber(allergiesCount)}</Text>
           </View>
           <View style={medStyles.summaryItem}>
             <Text style={medStyles.summaryLabel}>Dietary</Text>
-            <Text style={{ ...medStyles.summaryValue, color: '#EA580C' }}>{safeNumber(dietaryCount)}</Text>
+            <Text style={medStyles.summaryValueOrange}>{safeNumber(dietaryCount)}</Text>
           </View>
           <View style={medStyles.summaryItem}>
             <Text style={medStyles.summaryLabel}>Medical</Text>
-            <Text style={{ ...medStyles.summaryValue, color: '#2563EB' }}>{safeNumber(medicalCount)}</Text>
+            <Text style={medStyles.summaryValueBlue}>{safeNumber(medicalCount)}</Text>
           </View>
           <View style={medStyles.summaryItem}>
             <Text style={medStyles.summaryLabel}>Medications</Text>
-            <Text style={{ ...medStyles.summaryValue, color: '#9333EA' }}>{safeNumber(medsCount)}</Text>
+            <Text style={medStyles.summaryValuePurple}>{safeNumber(medsCount)}</Text>
           </View>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Student Details ({safeNumber(students.length)} students)</Text>
           <View style={medStyles.categoryHeader}>
-            <Text style={{ ...medStyles.categoryHeaderText, width: '25%' }}>Name</Text>
-            <Text style={{ ...medStyles.categoryHeaderText, width: '20%' }}>Group</Text>
-            <Text style={{ ...medStyles.categoryHeaderText, width: '30%' }}>Allergies</Text>
-            <Text style={{ ...medStyles.categoryHeaderText, width: '25%' }}>Dietary</Text>
+            <Text style={medStyles.colHeaderName}>Name</Text>
+            <Text style={medStyles.colHeaderGroup}>Group</Text>
+            <Text style={medStyles.colHeaderAllergy}>Allergies</Text>
+            <Text style={medStyles.colHeaderDietary}>Dietary</Text>
           </View>
           {students.map((student: any, idx: number) => {
             const allergyDisplay = formatMedicalItems(student.allergies, student.allergyFullText)
@@ -560,19 +685,17 @@ export const MedicalReportPDF = ({ reportData, eventName }: { reportData: any; e
         {/* Allergy Totals Breakdown */}
         {allergyBreakdown.length > 0 && (
           <View style={{ marginTop: 20 }} wrap={false}>
-            <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#1E3A5F', marginBottom: 6 }}>
-              Allergy Totals by Type
-            </Text>
-            <View style={{ borderLeft: '3 solid #DC2626', paddingLeft: 10 }}>
+            <Text style={medStyles.breakdownTitle}>Allergy Totals by Type</Text>
+            <View style={medStyles.breakdownContainerRed}>
               {allergyBreakdown.map(([type, count], idx) => (
-                <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3, borderBottom: '1 solid #F3F4F6' }}>
-                  <Text style={{ fontSize: 9, color: '#374151' }}>{type}</Text>
-                  <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#DC2626' }}>{count} {count === 1 ? 'student' : 'students'}</Text>
+                <View key={idx} style={medStyles.breakdownRow}>
+                  <Text style={medStyles.breakdownLabel}>{String(type)}</Text>
+                  <Text style={medStyles.breakdownValueRed}>{String(count)} {count === 1 ? 'student' : 'students'}</Text>
                 </View>
               ))}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, marginTop: 2, borderTop: '2 solid #DC2626' }}>
-                <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#1E3A5F' }}>Total with Allergies</Text>
-                <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#DC2626' }}>{safeNumber(allergiesCount)}</Text>
+              <View style={medStyles.breakdownTotalRowRed}>
+                <Text style={medStyles.breakdownTotalLabel}>Total with Allergies</Text>
+                <Text style={medStyles.breakdownTotalValueRed}>{safeNumber(allergiesCount)}</Text>
               </View>
             </View>
           </View>
@@ -581,19 +704,17 @@ export const MedicalReportPDF = ({ reportData, eventName }: { reportData: any; e
         {/* Dietary Totals Breakdown */}
         {dietaryBreakdown.length > 0 && (
           <View style={{ marginTop: 15 }} wrap={false}>
-            <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#1E3A5F', marginBottom: 6 }}>
-              Dietary Restriction Totals by Type
-            </Text>
-            <View style={{ borderLeft: '3 solid #EA580C', paddingLeft: 10 }}>
+            <Text style={medStyles.breakdownTitle}>Dietary Restriction Totals by Type</Text>
+            <View style={medStyles.breakdownContainerOrange}>
               {dietaryBreakdown.map(([type, count], idx) => (
-                <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3, borderBottom: '1 solid #F3F4F6' }}>
-                  <Text style={{ fontSize: 9, color: '#374151' }}>{type}</Text>
-                  <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#EA580C' }}>{count} {count === 1 ? 'student' : 'students'}</Text>
+                <View key={idx} style={medStyles.breakdownRow}>
+                  <Text style={medStyles.breakdownLabel}>{String(type)}</Text>
+                  <Text style={medStyles.breakdownValueOrange}>{String(count)} {count === 1 ? 'student' : 'students'}</Text>
                 </View>
               ))}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, marginTop: 2, borderTop: '2 solid #EA580C' }}>
-                <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#1E3A5F' }}>Total with Dietary Restrictions</Text>
-                <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#EA580C' }}>{safeNumber(dietaryCount)}</Text>
+              <View style={medStyles.breakdownTotalRowOrange}>
+                <Text style={medStyles.breakdownTotalLabel}>Total with Dietary Restrictions</Text>
+                <Text style={medStyles.breakdownTotalValueOrange}>{safeNumber(dietaryCount)}</Text>
               </View>
             </View>
           </View>
