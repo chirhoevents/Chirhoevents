@@ -467,6 +467,32 @@ export const MedicalReportPDF = ({ reportData, eventName }: { reportData: any; e
   const medicalCount = reportData.summary?.medicalConditionsCount ?? reportData.medicalConditions?.total ?? 0
   const medsCount = reportData.summary?.medicationsCount ?? reportData.medications?.total ?? 0
 
+  // Build allergy type breakdown: count how many students have each allergy
+  const allergyTypeCounts: Record<string, number> = {}
+  const dietaryTypeCounts: Record<string, number> = {}
+  for (const student of students) {
+    const allergyItems = (student.allergies || []).filter((i: string) => i && i !== 'See notes')
+    if (allergyItems.length > 0) {
+      for (const item of allergyItems) {
+        allergyTypeCounts[item] = (allergyTypeCounts[item] || 0) + 1
+      }
+    } else if (student.allergyFullText) {
+      allergyTypeCounts['Other'] = (allergyTypeCounts['Other'] || 0) + 1
+    }
+    const dietaryItems = (student.dietaryRestrictions || []).filter((i: string) => i && i !== 'See notes')
+    if (dietaryItems.length > 0) {
+      for (const item of dietaryItems) {
+        dietaryTypeCounts[item] = (dietaryTypeCounts[item] || 0) + 1
+      }
+    } else if (student.dietaryFullText) {
+      dietaryTypeCounts['Other'] = (dietaryTypeCounts['Other'] || 0) + 1
+    }
+  }
+
+  // Sort by count descending
+  const allergyBreakdown = Object.entries(allergyTypeCounts).sort((a, b) => b[1] - a[1])
+  const dietaryBreakdown = Object.entries(dietaryTypeCounts).sort((a, b) => b[1] - a[1])
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -530,6 +556,48 @@ export const MedicalReportPDF = ({ reportData, eventName }: { reportData: any; e
             )
           })}
         </View>
+
+        {/* Allergy Totals Breakdown */}
+        {allergyBreakdown.length > 0 && (
+          <View style={{ marginTop: 20 }} wrap={false}>
+            <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#1E3A5F', marginBottom: 6 }}>
+              Allergy Totals by Type
+            </Text>
+            <View style={{ borderLeft: '3 solid #DC2626', paddingLeft: 10 }}>
+              {allergyBreakdown.map(([type, count], idx) => (
+                <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3, borderBottom: '1 solid #F3F4F6' }}>
+                  <Text style={{ fontSize: 9, color: '#374151' }}>{type}</Text>
+                  <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#DC2626' }}>{count} {count === 1 ? 'student' : 'students'}</Text>
+                </View>
+              ))}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, marginTop: 2, borderTop: '2 solid #DC2626' }}>
+                <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#1E3A5F' }}>Total with Allergies</Text>
+                <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#DC2626' }}>{safeNumber(allergiesCount)}</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Dietary Totals Breakdown */}
+        {dietaryBreakdown.length > 0 && (
+          <View style={{ marginTop: 15 }} wrap={false}>
+            <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#1E3A5F', marginBottom: 6 }}>
+              Dietary Restriction Totals by Type
+            </Text>
+            <View style={{ borderLeft: '3 solid #EA580C', paddingLeft: 10 }}>
+              {dietaryBreakdown.map(([type, count], idx) => (
+                <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3, borderBottom: '1 solid #F3F4F6' }}>
+                  <Text style={{ fontSize: 9, color: '#374151' }}>{type}</Text>
+                  <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#EA580C' }}>{count} {count === 1 ? 'student' : 'students'}</Text>
+                </View>
+              ))}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, marginTop: 2, borderTop: '2 solid #EA580C' }}>
+                <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#1E3A5F' }}>Total with Dietary Restrictions</Text>
+                <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#EA580C' }}>{safeNumber(dietaryCount)}</Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         <View style={styles.footer}>
           <Text>ChiRho Events - Dietary & Medical Report - CONFIDENTIAL</Text>
