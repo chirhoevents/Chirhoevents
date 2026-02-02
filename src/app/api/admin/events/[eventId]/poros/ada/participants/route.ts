@@ -52,24 +52,81 @@ export async function GET(
       )
     }
 
-    // Query AdaIndividual without relations (they're not defined in schema)
+    // Track all results by a unique key to avoid duplicates
+    const resultsMap = new Map<string, {
+      id: string
+      type: 'participant' | 'individual'
+      firstName: string
+      lastName: string
+      adaDescription: string | null
+      groupName: string | null
+      assigned: boolean
+      buildingName?: string
+      roomNumber?: string
+    }>()
+
+    // === Source 1: AdaIndividual table (manually tracked ADA records) ===
     const adaIndividuals = await prisma.adaIndividual.findMany({
       where: { eventId: eventId }
     })
 
-    // Extract IDs for separate queries
-    const participantIds = adaIndividuals
+    const adaParticipantIds = adaIndividuals
       .filter((a: AdaIndividualRecord) => a.participantId)
       .map((a: AdaIndividualRecord) => a.participantId!)
 
-    const individualIds = adaIndividuals
+    const adaIndividualIds = adaIndividuals
       .filter((a: AdaIndividualRecord) => a.individualRegistrationId)
       .map((a: AdaIndividualRecord) => a.individualRegistrationId!)
 
-    // Query participants and individuals separately
-    const participants: ParticipantWithGroup[] = participantIds.length > 0
+    // === Source 2: Liability forms with adaAccommodations filled in ===
+    const liabilityFormsWithAda = await prisma.liabilityForm.findMany({
+      where: {
+        eventId,
+        completed: true,
+        adaAccommodations: { not: null },
+        NOT: { adaAccommodations: '' },
+      },
+      select: {
+        participantId: true,
+        participantFirstName: true,
+        participantLastName: true,
+        adaAccommodations: true,
+        groupRegistration: {
+          select: { groupName: true }
+        },
+      },
+    })
+
+    // === Source 3: Individual registrations with adaAccommodations filled in ===
+    const individualRegsWithAda = await prisma.individualRegistration.findMany({
+      where: {
+        eventId,
+        adaAccommodations: { not: null },
+        NOT: { adaAccommodations: '' },
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        adaAccommodations: true,
+      },
+    })
+
+    // Collect all participant/individual IDs we need room assignments for
+    const allParticipantIds = new Set<string>(adaParticipantIds)
+    const allIndividualIds = new Set<string>(adaIndividualIds)
+
+    for (const form of liabilityFormsWithAda) {
+      if (form.participantId) allParticipantIds.add(form.participantId)
+    }
+    for (const reg of individualRegsWithAda) {
+      allIndividualIds.add(reg.id)
+    }
+
+    // Query participants referenced by AdaIndividual table (for name/group lookup)
+    const adaParticipants: ParticipantWithGroup[] = adaParticipantIds.length > 0
       ? await prisma.participant.findMany({
-          where: { id: { in: participantIds } },
+          where: { id: { in: adaParticipantIds } },
           include: {
             groupRegistration: {
               select: { groupName: true }
@@ -78,19 +135,19 @@ export async function GET(
         })
       : []
 
-    const individuals: IndividualRegistrationRecord[] = individualIds.length > 0
+    const adaIndividualRegs: IndividualRegistrationRecord[] = adaIndividualIds.length > 0
       ? await prisma.individualRegistration.findMany({
-          where: { id: { in: individualIds } }
+          where: { id: { in: adaIndividualIds } }
         })
       : []
 
-    // Build room assignment query
+    // Build room assignment lookups for all relevant IDs
     const orConditions: Array<{ participantId?: { in: string[] }; individualRegistrationId?: { in: string[] } }> = []
-    if (participantIds.length > 0) {
-      orConditions.push({ participantId: { in: participantIds } })
+    if (allParticipantIds.size > 0) {
+      orConditions.push({ participantId: { in: [...allParticipantIds] } })
     }
-    if (individualIds.length > 0) {
-      orConditions.push({ individualRegistrationId: { in: individualIds } })
+    if (allIndividualIds.size > 0) {
+      orConditions.push({ individualRegistrationId: { in: [...allIndividualIds] } })
     }
 
     const roomAssignments: RoomAssignmentWithRoom[] = orConditions.length > 0
@@ -106,13 +163,6 @@ export async function GET(
         })
       : []
 
-    // Create lookup maps
-    const participantMap = new Map<string, ParticipantWithGroup>(
-      participants.map((p: ParticipantWithGroup) => [p.id, p])
-    )
-    const individualMap = new Map<string, IndividualRegistrationRecord>(
-      individuals.map((i: IndividualRegistrationRecord) => [i.id, i])
-    )
     const participantAssignmentMap = new Map<string, RoomAssignmentWithRoom>(
       roomAssignments
         .filter((a: RoomAssignmentWithRoom) => a.participantId)
@@ -124,15 +174,23 @@ export async function GET(
         .map((a: RoomAssignmentWithRoom) => [a.individualRegistrationId!, a])
     )
 
-    // Format the response
-    const results = adaIndividuals.map((ada: AdaIndividualRecord) => {
+    // Create lookup maps for AdaIndividual-referenced records
+    const participantMap = new Map<string, ParticipantWithGroup>(
+      adaParticipants.map((p: ParticipantWithGroup) => [p.id, p])
+    )
+    const individualMap = new Map<string, IndividualRegistrationRecord>(
+      adaIndividualRegs.map((i: IndividualRegistrationRecord) => [i.id, i])
+    )
+
+    // Add results from AdaIndividual table
+    for (const ada of adaIndividuals) {
       if (ada.participantId) {
         const participant = participantMap.get(ada.participantId)
-        if (!participant) return null
+        if (!participant) continue
         const assignment = participantAssignmentMap.get(ada.participantId)
-        return {
+        resultsMap.set(`participant-${ada.participantId}`, {
           id: ada.participantId,
-          type: 'participant' as const,
+          type: 'participant',
           firstName: participant.firstName,
           lastName: participant.lastName,
           adaDescription: ada.accessibilityNeed,
@@ -140,14 +198,14 @@ export async function GET(
           assigned: !!assignment,
           buildingName: assignment?.room.building.name,
           roomNumber: assignment?.room.roomNumber,
-        }
+        })
       } else if (ada.individualRegistrationId) {
         const individual = individualMap.get(ada.individualRegistrationId)
-        if (!individual) return null
+        if (!individual) continue
         const assignment = individualAssignmentMap.get(ada.individualRegistrationId)
-        return {
+        resultsMap.set(`individual-${ada.individualRegistrationId}`, {
           id: ada.individualRegistrationId,
-          type: 'individual' as const,
+          type: 'individual',
           firstName: individual.firstName,
           lastName: individual.lastName,
           adaDescription: ada.accessibilityNeed,
@@ -155,11 +213,48 @@ export async function GET(
           assigned: !!assignment,
           buildingName: assignment?.room.building.name,
           roomNumber: assignment?.room.roomNumber,
-        }
+        })
       }
-      return null
-    }).filter(Boolean)
+    }
 
+    // Add results from liability forms (skip if already added from AdaIndividual)
+    for (const form of liabilityFormsWithAda) {
+      if (!form.participantId) continue
+      const key = `participant-${form.participantId}`
+      if (resultsMap.has(key)) continue
+      const assignment = participantAssignmentMap.get(form.participantId)
+      resultsMap.set(key, {
+        id: form.participantId,
+        type: 'participant',
+        firstName: form.participantFirstName,
+        lastName: form.participantLastName,
+        adaDescription: form.adaAccommodations,
+        groupName: form.groupRegistration?.groupName || null,
+        assigned: !!assignment,
+        buildingName: assignment?.room.building.name,
+        roomNumber: assignment?.room.roomNumber,
+      })
+    }
+
+    // Add results from individual registrations (skip if already added)
+    for (const reg of individualRegsWithAda) {
+      const key = `individual-${reg.id}`
+      if (resultsMap.has(key)) continue
+      const assignment = individualAssignmentMap.get(reg.id)
+      resultsMap.set(key, {
+        id: reg.id,
+        type: 'individual',
+        firstName: reg.firstName,
+        lastName: reg.lastName,
+        adaDescription: reg.adaAccommodations,
+        groupName: null,
+        assigned: !!assignment,
+        buildingName: assignment?.room.building.name,
+        roomNumber: assignment?.room.roomNumber,
+      })
+    }
+
+    const results = [...resultsMap.values()]
     return NextResponse.json(results)
   } catch (error) {
     console.error('ADA participants fetch error:', error)
