@@ -74,8 +74,6 @@ interface ConfessionTime {
   endTime: string | null
   location: string
   description: string | null
-  location: string | null
-  confessor: string | null
 }
 
 interface Announcement {
@@ -112,7 +110,6 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
   const [newResource, setNewResource] = useState({ name: '', type: 'link', url: '' })
   const [newSchedule, setNewSchedule] = useState({ day: 'day1', startTime: '', endTime: '', title: '', location: '' })
   const [newConfession, setNewConfession] = useState({ day: 'saturday', startTime: '', endTime: '', location: '', description: '' })
-  const [newConfession, setNewConfession] = useState({ day: 'saturday', startTime: '', endTime: '', location: '', confessor: '' })
   const [newAnnouncement, setNewAnnouncement] = useState<{ title: string; message: string; type: 'info' | 'warning' | 'urgent'; startDate: string; endDate: string; isActive: boolean }>({ title: '', message: '', type: 'info', startDate: '', endDate: '', isActive: true })
 
   // Schedule import
@@ -189,7 +186,6 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
         fetch(`/api/admin/events/${eventId}/poros/resources`),
         fetch(`/api/admin/events/${eventId}/poros/schedule`),
         fetch(`/api/admin/events/${eventId}/poros/confessions`),
-        fetch(`/api/admin/events/${eventId}/poros/confession-times`),
         fetch(`/api/admin/events/${eventId}/poros/announcements`),
       ])
 
@@ -206,7 +202,6 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
       if (confessionRes.ok) {
         const data = await confessionRes.json()
         setConfessionTimes(data.confessions || [])
-        setConfessionTimes(data.confessionTimes || [])
       }
 
       if (announcementsRes.ok) {
@@ -315,10 +310,6 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
       const url = editingConfession
         ? `/api/admin/events/${eventId}/poros/confessions/${editingConfession.id}`
         : `/api/admin/events/${eventId}/poros/confessions`
-      const method = editingConfession ? 'PUT' : 'POST'
-      const url = editingConfession
-        ? `/api/admin/events/${eventId}/poros/confession-times/${editingConfession.id}`
-        : `/api/admin/events/${eventId}/poros/confession-times`
 
       const response = await fetch(url, {
         method,
@@ -335,7 +326,6 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
       setConfessionDialogOpen(false)
       setEditingConfession(null)
       setNewConfession({ day: 'saturday', startTime: '', endTime: '', location: '', description: '' })
-      setNewConfession({ day: 'saturday', startTime: '', endTime: '', location: '', confessor: '' })
       fetchData()
     } catch (error) {
       console.error('Confession time save error:', error)
@@ -348,7 +338,6 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
   async function deleteConfessionTime(id: string) {
     try {
       const response = await fetch(`/api/admin/events/${eventId}/poros/confessions/${id}`, {
-      const response = await fetch(`/api/admin/events/${eventId}/poros/confession-times/${id}`, {
         method: 'DELETE',
       })
       if (!response.ok) {
@@ -887,7 +876,6 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
             <Button onClick={() => {
               setEditingConfession(null)
               setNewConfession({ day: days[0] || 'saturday', startTime: '', endTime: '', location: '', description: '' })
-              setNewConfession({ day: days[0] || 'saturday', startTime: '', endTime: '', location: '', confessor: '' })
               setConfessionDialogOpen(true)
             }}>
               <Plus className="w-4 h-4 mr-2" />
@@ -927,11 +915,6 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
                               )}
                               {!entry.location && !entry.description && (
                                 <p className="text-sm text-muted-foreground italic">No location specified</p>
-                              {entry.confessor && (
-                                <p className="text-sm text-muted-foreground">{entry.confessor}</p>
-                              )}
-                              {!entry.location && !entry.confessor && (
-                                <p className="text-sm text-muted-foreground italic">No location or confessor specified</p>
                               )}
                             </div>
                           </div>
@@ -977,8 +960,6 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
                                 )}
                                 {entry.description && (
                                   <p className="text-sm text-muted-foreground">{entry.description}</p>
-                                {entry.confessor && (
-                                  <p className="text-sm text-muted-foreground">{entry.confessor}</p>
                                 )}
                               </div>
                             </div>
@@ -1078,14 +1059,6 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
                   : setNewConfession({ ...newConfession, description: e.target.value })
                 }
                 placeholder="e.g., Multiple priests available"
-              <Label>Confessor (optional)</Label>
-              <Input
-                value={editingConfession?.confessor || newConfession.confessor}
-                onChange={(e) => editingConfession
-                  ? setEditingConfession({ ...editingConfession, confessor: e.target.value })
-                  : setNewConfession({ ...newConfession, confessor: e.target.value })
-                }
-                placeholder="e.g., Fr. John Smith"
               />
             </div>
           </div>
