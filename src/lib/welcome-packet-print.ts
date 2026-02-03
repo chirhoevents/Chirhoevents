@@ -82,6 +82,13 @@ export interface PacketData {
       time: string
       color?: string
     }>
+    confessionTimes?: Array<{
+      day: string
+      startTime: string
+      endTime?: string | null
+      location?: string | null
+      confessor?: string | null
+    }>
   }
   inserts?: Array<{
     name: string
@@ -113,6 +120,7 @@ export interface PacketData {
 
 export interface PrintSettings {
   includeSchedule?: boolean
+  includeConfessionSchedule?: boolean
   includeMap?: boolean
   includeRoster?: boolean
   includeHousingAssignments?: boolean
@@ -222,6 +230,59 @@ export function generateWelcomePacketHTML(packet: PacketData, settings: PrintSet
       </table>
     </div>
   ` : ''
+
+  // Confession schedule section
+  const confessionSection = settings.includeConfessionSchedule && packet.resources?.confessionTimes && packet.resources.confessionTimes.length > 0 ? (() => {
+    // Group confession times by day
+    const byDay = new Map<string, typeof packet.resources.confessionTimes>()
+    for (const ct of packet.resources!.confessionTimes!) {
+      if (!byDay.has(ct.day)) byDay.set(ct.day, [])
+      byDay.get(ct.day)!.push(ct)
+    }
+
+    const dayOrder = ['friday', 'saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'day1', 'day2', 'day3', 'day4', 'day5']
+    const sortedDays = Array.from(byDay.keys()).sort((a, b) => {
+      const aIdx = dayOrder.indexOf(a.toLowerCase())
+      const bIdx = dayOrder.indexOf(b.toLowerCase())
+      if (aIdx === -1 && bIdx === -1) return a.localeCompare(b)
+      if (aIdx === -1) return 1
+      if (bIdx === -1) return -1
+      return aIdx - bIdx
+    })
+
+    const getDayName = (day: string) => {
+      const names: Record<string, string> = { friday: 'Friday', saturday: 'Saturday', sunday: 'Sunday', monday: 'Monday', tuesday: 'Tuesday', wednesday: 'Wednesday', thursday: 'Thursday', day1: 'Day 1', day2: 'Day 2', day3: 'Day 3' }
+      return names[day.toLowerCase()] || day.charAt(0).toUpperCase() + day.slice(1)
+    }
+
+    return `
+      <div style="margin-bottom: 16px;">
+        <div style="font-size: 13px; font-weight: 600; color: #1a365d; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid #c9a227;">Confession Schedule</div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+          <thead>
+            <tr style="background: #f5f5f5;">
+              <th style="padding: 6px; text-align: left; border-bottom: 1px solid #ddd;">Day</th>
+              <th style="padding: 6px; text-align: left; border-bottom: 1px solid #ddd;">Time</th>
+              <th style="padding: 6px; text-align: left; border-bottom: 1px solid #ddd;">Location</th>
+              <th style="padding: 6px; text-align: left; border-bottom: 1px solid #ddd;">Confessor</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sortedDays.map(day =>
+              byDay.get(day)!.map((ct, i) => `
+                <tr style="${i % 2 === 0 ? 'background: #fafafa;' : ''}">
+                  <td style="padding: 4px 6px; border-bottom: 1px solid #eee;">${getDayName(ct.day)}</td>
+                  <td style="padding: 4px 6px; border-bottom: 1px solid #eee;">${ct.startTime}${ct.endTime ? ` - ${ct.endTime}` : ''}</td>
+                  <td style="padding: 4px 6px; border-bottom: 1px solid #eee;">${ct.location || '-'}</td>
+                  <td style="padding: 4px 6px; border-bottom: 1px solid #eee;">${ct.confessor || '-'}</td>
+                </tr>
+              `).join('')
+            ).join('')}
+          </tbody>
+        </table>
+      </div>
+    `
+  })() : ''
 
   // Invoice section
   const invoiceSection = includeInvoice && packet.invoice ? `
@@ -369,6 +430,9 @@ export function generateWelcomePacketHTML(packet: PacketData, settings: PrintSet
 
       <!-- Schedule -->
       ${scheduleSection}
+
+      <!-- Confession Schedule -->
+      ${confessionSection}
 
       <!-- Housing Summary -->
       ${housingSummarySection}

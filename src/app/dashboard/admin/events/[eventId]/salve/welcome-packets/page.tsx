@@ -57,12 +57,14 @@ import {
   Pencil,
   Check,
   X,
+  Cross,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { generateMultiplePacketsHTML, type PacketData, type PrintSettings } from '@/lib/welcome-packet-print'
 
 interface PacketSettings {
   includeSchedule: boolean
+  includeConfessionSchedule: boolean
   includeMap: boolean
   includeRoster: boolean
   includeHousingAssignments: boolean
@@ -138,6 +140,7 @@ interface PacketPreview {
 
 const DEFAULT_SETTINGS: PacketSettings = {
   includeSchedule: true,
+  includeConfessionSchedule: true,
   includeMap: true,
   includeRoster: true,
   includeHousingAssignments: true,
@@ -714,6 +717,7 @@ export default function WelcomePacketsPage() {
     // Convert settings to the shared PrintSettings format
     const printSettings: PrintSettings = {
       includeSchedule: settings.includeSchedule,
+      includeConfessionSchedule: settings.includeConfessionSchedule,
       includeMap: settings.includeMap,
       includeRoster: settings.includeRoster,
       includeHousingAssignments: settings.includeHousingAssignments,
@@ -823,6 +827,18 @@ export default function WelcomePacketsPage() {
                   <Calendar className="w-4 h-4" />
                   Event Schedule
                   {missingResources.eventSchedule && <span className="text-yellow-600 text-xs">(not configured)</span>}
+                </Label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="includeConfessionSchedule"
+                  checked={settings.includeConfessionSchedule}
+                  onCheckedChange={(checked) => updateSettings('includeConfessionSchedule', !!checked)}
+                />
+                <Label htmlFor="includeConfessionSchedule" className="font-normal flex items-center gap-2">
+                  <Cross className="w-4 h-4" />
+                  Confession Schedule
                 </Label>
               </div>
 
