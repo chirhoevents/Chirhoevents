@@ -433,6 +433,22 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
     // Table might not exist yet
   }
 
+  // Get active info items
+  let infoItems: any[] = []
+  try {
+    if (settings?.porosInfoEnabled) {
+      infoItems = await prisma.porosInfoItem.findMany({
+        where: { eventId, isActive: true },
+        orderBy: { order: 'asc' }
+      })
+    }
+  } catch {
+    // Table might not exist yet
+  }
+
+  // Get reconciliation guide URL
+  const reconciliationGuideUrl = settings?.confessionsReconciliationGuideUrl || null
+
   // Get active announcements (filtered by date if applicable)
   let announcements: any[] = []
   try {
@@ -507,6 +523,8 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
           data={m2kData}
           announcements={announcements}
           confessions={confessions}
+          reconciliationGuideUrl={reconciliationGuideUrl}
+          infoItems={infoItems}
         />
       )
     }
@@ -527,6 +545,8 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
       resources={resources}
       announcements={announcements}
       confessions={confessions}
+      reconciliationGuideUrl={reconciliationGuideUrl}
+      infoItems={infoItems}
       seatingEnabled={settings?.porosSeatingEnabled ?? false}
       schedulePdfUrl={schedulePdf?.url || null}
     />

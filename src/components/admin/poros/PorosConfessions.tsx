@@ -30,6 +30,8 @@ import {
   MapPin,
   Clock,
   Calendar,
+  ExternalLink,
+  Link as LinkIcon,
 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
@@ -67,6 +69,10 @@ export function PorosConfessions({ eventId }: PorosConfessionsProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
+  // Reconciliation guide
+  const [reconciliationGuideUrl, setReconciliationGuideUrl] = useState('')
+  const [savingGuideUrl, setSavingGuideUrl] = useState(false)
+
   // Form state
   const [formDay, setFormDay] = useState('saturday')
   const [formStartTime, setFormStartTime] = useState('')
@@ -77,6 +83,7 @@ export function PorosConfessions({ eventId }: PorosConfessionsProps) {
 
   useEffect(() => {
     loadConfessions()
+    loadSettings()
   }, [eventId])
 
   async function loadConfessions() {
@@ -91,6 +98,35 @@ export function PorosConfessions({ eventId }: PorosConfessionsProps) {
       toast.error('Failed to load confession times')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadSettings() {
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}/settings`)
+      if (response.ok) {
+        const data = await response.json()
+        setReconciliationGuideUrl(data.confessionsReconciliationGuideUrl || '')
+      }
+    } catch (error) {
+      console.error('Failed to load settings:', error)
+    }
+  }
+
+  async function saveGuideUrl() {
+    setSavingGuideUrl(true)
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}/settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confessionsReconciliationGuideUrl: reconciliationGuideUrl || null }),
+      })
+      if (!response.ok) throw new Error('Failed to save')
+      toast.success('Reconciliation guide link saved')
+    } catch {
+      toast.error('Failed to save reconciliation guide link')
+    } finally {
+      setSavingGuideUrl(false)
     }
   }
 
@@ -326,6 +362,44 @@ export function PorosConfessions({ eventId }: PorosConfessionsProps) {
                 </div>
               ))}
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Reconciliation Guide Link */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <LinkIcon className="w-4 h-4" />
+            Reconciliation Guide
+          </CardTitle>
+          <CardDescription>
+            Add a link to a reconciliation/examination of conscience guide that will be shown to participants
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-3">
+            <Input
+              value={reconciliationGuideUrl}
+              onChange={(e) => setReconciliationGuideUrl(e.target.value)}
+              placeholder="https://example.com/reconciliation-guide"
+              className="flex-1"
+            />
+            <Button onClick={saveGuideUrl} disabled={savingGuideUrl}>
+              {savingGuideUrl && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Save
+            </Button>
+          </div>
+          {reconciliationGuideUrl && (
+            <a
+              href={reconciliationGuideUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 mt-2"
+            >
+              <ExternalLink className="w-3 h-3" />
+              Preview link
+            </a>
           )}
         </CardContent>
       </Card>

@@ -35,6 +35,7 @@ import {
   Upload,
   FileJson,
   X,
+  Info,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
@@ -360,8 +361,8 @@ export function PorosSettings({ eventId, settings: initialSettings, onUpdate }: 
           {/* Confessions */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-100 rounded-lg">
-                <Church className="w-5 h-5 text-amber-600" />
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <Church className="w-5 h-5 text-purple-600" />
               </div>
               <div>
                 <Label className="text-base font-medium">Confessions</Label>
@@ -373,6 +374,28 @@ export function PorosSettings({ eventId, settings: initialSettings, onUpdate }: 
             <Switch
               checked={settings.porosConfessionsEnabled ?? false}
               onCheckedChange={(checked) => updateSetting('porosConfessionsEnabled', checked)}
+              disabled={saving}
+            />
+          </div>
+
+          <Separator />
+
+          {/* Info */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-amber-100 rounded-lg">
+                <Info className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <Label className="text-base font-medium">Info</Label>
+                <p className="text-sm text-muted-foreground">
+                  Custom information items for participants
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={settings.porosInfoEnabled ?? false}
+              onCheckedChange={(checked) => updateSetting('porosInfoEnabled', checked)}
               disabled={saving}
             />
           </div>

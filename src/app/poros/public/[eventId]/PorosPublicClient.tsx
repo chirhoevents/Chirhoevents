@@ -48,6 +48,14 @@ interface Confession {
   description: string | null
 }
 
+interface InfoItem {
+  id: string
+  title: string
+  content: string
+  type: string
+  url: string | null
+}
+
 interface Props {
   event: {
     id: string
@@ -61,6 +69,8 @@ interface Props {
   resources: Resource[]
   announcements: Announcement[]
   confessions: Confession[]
+  reconciliationGuideUrl: string | null
+  infoItems: InfoItem[]
   seatingEnabled: boolean
   schedulePdfUrl: string | null
 }
@@ -84,6 +94,8 @@ export default function PorosPublicClient({
   resources,
   announcements,
   confessions,
+  reconciliationGuideUrl,
+  infoItems,
   seatingEnabled,
   schedulePdfUrl
 }: Props) {
@@ -253,24 +265,11 @@ export default function PorosPublicClient({
             <span className="text-white font-semibold text-lg">Resources</span>
           </button>
 
-          {/* Info / Seating */}
-          <button
-            onClick={() => setActiveModal('info')}
-            className="portal-button bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700"
-          >
-            <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mb-3">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <span className="text-white font-semibold text-lg">Info</span>
-          </button>
-
           {/* Confessions */}
           {confessions.length > 0 && (
             <button
               onClick={() => setActiveModal('confessions')}
-              className="portal-button bg-gradient-to-br from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700"
+              className="portal-button bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700"
             >
               <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mb-3">
                 <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -280,6 +279,19 @@ export default function PorosPublicClient({
               <span className="text-white font-semibold text-lg">Confessions</span>
             </button>
           )}
+
+          {/* Info */}
+          <button
+            onClick={() => setActiveModal('info')}
+            className="portal-button bg-gradient-to-br from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700"
+          >
+            <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mb-3">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <span className="text-white font-semibold text-lg">Info</span>
+          </button>
         </div>
 
         {/* Quick Links from Resources */}
@@ -494,6 +506,27 @@ export default function PorosPublicClient({
               <p className="text-sm text-gray-600 text-center mb-4">
                 Available confession times and locations
               </p>
+              {reconciliationGuideUrl && (
+                <a
+                  href={reconciliationGuideUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 p-4 bg-purple-50 rounded-xl hover:bg-purple-100 transition-colors border border-purple-200"
+                >
+                  <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-purple-800">Reconciliation Guide</div>
+                    <div className="text-sm text-purple-600">Examination of conscience &amp; preparation</div>
+                  </div>
+                  <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
+              )}
               {(() => {
                 const dayOrder = ['thursday', 'friday', 'saturday', 'sunday', 'monday']
                 const confessionsByDay = confessions.reduce((acc: Record<string, Confession[]>, c) => {
@@ -510,7 +543,7 @@ export default function PorosPublicClient({
                     <div className="space-y-2">
                       {confessionsByDay[day].map(confession => (
                         <div key={confession.id} className="flex gap-3 p-3 bg-gray-50 rounded-lg">
-                          <div className="text-sm font-semibold text-amber-600 w-28 flex-shrink-0">
+                          <div className="text-sm font-semibold text-purple-600 w-28 flex-shrink-0">
                             {confession.startTime}
                             {confession.endTime && ` - ${confession.endTime}`}
                           </div>
@@ -550,6 +583,25 @@ export default function PorosPublicClient({
                 <p className="text-gray-500 text-sm">{event.locationName}</p>
               )}
             </div>
+            {infoItems.map(item => (
+              <div key={item.id} className="p-4 bg-gray-50 rounded-xl">
+                <h4 className="font-semibold text-[#1E3A5F] mb-2">{item.title}</h4>
+                <p className="text-gray-600 text-sm whitespace-pre-wrap">{item.content}</p>
+                {item.url && (
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 mt-2 font-medium"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    Open Link
+                  </a>
+                )}
+              </div>
+            ))}
             <div className="p-4 bg-blue-50 rounded-xl">
               <h4 className="font-semibold text-blue-800 mb-2">Need Help?</h4>
               <p className="text-blue-600 text-sm">
