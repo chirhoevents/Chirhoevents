@@ -23,6 +23,8 @@ const VALID_SETTINGS_FIELDS = [
   'porosReligiousStaffEnabled',
   'porosAdaEnabled',
   'porosConfessionsEnabled',
+  'confessionsReconciliationGuideUrl',
+  'porosInfoEnabled',
   'porosPublicPortalEnabled',
   'publicPortalEnabled',
   'salveCheckinEnabled',
