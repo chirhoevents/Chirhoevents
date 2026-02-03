@@ -74,6 +74,15 @@ interface Announcement {
   endDate: string | null
 }
 
+interface Confession {
+  id: string
+  day: string
+  startTime: string
+  endTime: string | null
+  location: string
+  description: string | null
+}
+
 interface Props {
   event: {
     id: string
@@ -84,6 +93,7 @@ interface Props {
   }
   data: M2KData
   announcements?: Announcement[]
+  confessions?: Confession[]
 }
 
 // Color map for meal colors
@@ -122,7 +132,7 @@ function saveFavorites(favorites: string[]) {
   localStorage.setItem('m2k_favorites', JSON.stringify(favorites))
 }
 
-export default function M2KPublicView({ event, data, announcements = [] }: Props) {
+export default function M2KPublicView({ event, data, announcements = [], confessions = [] }: Props) {
   const [activeModal, setActiveModal] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [favorites, setFavorites] = useState<string[]>([])
@@ -553,6 +563,21 @@ export default function M2KPublicView({ event, data, announcements = [] }: Props
               <span className="text-white font-semibold text-lg">Info</span>
             </button>
 
+            {/* Confessions */}
+            {confessions.length > 0 && (
+              <button
+                onClick={() => setActiveModal('confessions')}
+                className="portal-button bg-gradient-to-br from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 col-span-2"
+              >
+                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mb-3">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                <span className="text-white font-semibold text-lg">Confessions</span>
+              </button>
+            )}
+
             {/* All Groups - spans 2 columns */}
             <button
               onClick={() => setActiveModal('groups')}
@@ -698,6 +723,55 @@ export default function M2KPublicView({ event, data, announcements = [] }: Props
             </div>
           ) : (
             <p className="text-center text-gray-500 py-8">No resources available yet.</p>
+          )}
+        </Modal>
+      )}
+
+      {/* Confessions Modal */}
+      {activeModal === 'confessions' && (
+        <Modal onClose={closeModal} title="Confessions">
+          {confessions.length > 0 ? (
+            <div className="space-y-6">
+              <p className="text-sm text-gray-600 text-center mb-4">
+                Available confession times and locations
+              </p>
+              {(() => {
+                const dayOrder = ['thursday', 'friday', 'saturday', 'sunday', 'monday']
+                const confessionsByDay = confessions.reduce((acc: Record<string, Confession[]>, c) => {
+                  if (!acc[c.day]) acc[c.day] = []
+                  acc[c.day].push(c)
+                  return acc
+                }, {})
+                const sortedDays = Object.keys(confessionsByDay).sort(
+                  (a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b)
+                )
+                return sortedDays.map(day => (
+                  <div key={day}>
+                    <h4 className="font-bold text-lg mb-3 capitalize text-[#1E3A5F]">{day}</h4>
+                    <div className="space-y-2">
+                      {confessionsByDay[day].map(confession => (
+                        <div key={confession.id} className="flex gap-3 p-3 bg-gray-50 rounded-lg">
+                          <div className="text-sm font-semibold text-amber-600 w-28 flex-shrink-0">
+                            {confession.startTime}
+                            {confession.endTime && ` - ${confession.endTime}`}
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-medium">{confession.location}</div>
+                            {confession.description && (
+                              <div className="text-sm text-gray-500 mt-1">{confession.description}</div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              })()}
+            </div>
+          ) : (
+            <p className="text-center text-gray-500 py-8">
+              Confession times will be posted soon!
+            </p>
           )}
         </Modal>
       )}
