@@ -22,6 +22,7 @@ const VALID_SETTINGS_FIELDS = [
   'porosSeminarianEnabled',
   'porosReligiousStaffEnabled',
   'porosAdaEnabled',
+  'porosConfessionsEnabled',
   'porosPublicPortalEnabled',
   'publicPortalEnabled',
   'salveCheckinEnabled',

@@ -420,6 +420,19 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
     // Table might not exist yet
   }
 
+  // Get active confession times
+  let confessions: any[] = []
+  try {
+    if (settings?.porosConfessionsEnabled) {
+      confessions = await prisma.porosConfession.findMany({
+        where: { eventId, isActive: true },
+        orderBy: [{ day: 'asc' }, { startTime: 'asc' }, { order: 'asc' }]
+      })
+    }
+  } catch {
+    // Table might not exist yet
+  }
+
   // Get active announcements (filtered by date if applicable)
   let announcements: any[] = []
   try {
@@ -512,6 +525,7 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
       mealTimes={mealTimes}
       resources={resources}
       announcements={announcements}
+      confessions={confessions}
       seatingEnabled={settings?.porosSeatingEnabled ?? false}
       schedulePdfUrl={schedulePdf?.url || null}
     />

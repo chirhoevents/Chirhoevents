@@ -340,6 +340,9 @@ model EventSettings {
   // Salve Welcome Packet Settings (stored as JSON)
   salvePacketSettings             Json?    @map("salve_packet_settings") @db.JsonB
 
+  // Confessions feature
+  porosConfessionsEnabled         Boolean  @default(false) @map("poros_confessions_enabled")
+
   createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -1818,6 +1821,24 @@ model PorosAnnouncement {
   @@index([eventId], name: "idx_poros_announcements_event")
   @@index([isActive], name: "idx_poros_announcements_active")
   @@map("poros_announcements")
+}
+
+model PorosConfession {
+  id          String   @id @default(uuid()) @db.Uuid
+  eventId     String   @map("event_id") @db.Uuid
+  day         String   @db.VarChar(50) // friday, saturday, sunday, or custom day name
+  startTime   String   @map("start_time") @db.VarChar(20)
+  endTime     String?  @map("end_time") @db.VarChar(20)
+  location    String   @db.VarChar(255)
+  description String?  @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  order       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([eventId], name: "idx_poros_confessions_event")
+  @@index([isActive], name: "idx_poros_confessions_active")
+  @@map("poros_confessions")
 }
 
 // ===================================
