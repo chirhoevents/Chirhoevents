@@ -215,6 +215,7 @@ model EventSettings {
   porosSeminarianEnabled          Boolean  @default(false) @map("poros_seminarian_enabled")
   porosReligiousStaffEnabled      Boolean  @default(false) @map("poros_religious_staff_enabled")
   porosAdaEnabled                 Boolean  @default(false) @map("poros_ada_enabled")
+  porosConfessionsEnabled         Boolean  @default(false) @map("poros_confessions_enabled")
   porosPublicPortalEnabled        Boolean  @default(false) @map("poros_public_portal_enabled")
   publicPortalEnabled             Boolean  @default(false) @map("public_portal_enabled")
   salveCheckinEnabled             Boolean  @default(false) @map("salve_checkin_enabled")
