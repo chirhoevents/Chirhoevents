@@ -39,6 +39,7 @@ import {
   AlertTriangle,
   AlertCircle,
   Bell,
+  Cross,
 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
@@ -66,6 +67,15 @@ interface ScheduleEntry {
   location: string | null
 }
 
+interface ConfessionTime {
+  id: string
+  day: string
+  startTime: string
+  endTime: string | null
+  location: string
+  description: string | null
+}
+
 interface Announcement {
   id: string
   title: string
@@ -79,6 +89,7 @@ interface Announcement {
 export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosResourcesProps) {
   const [resources, setResources] = useState<Resource[]>([])
   const [scheduleEntries, setScheduleEntries] = useState<ScheduleEntry[]>([])
+  const [confessionTimes, setConfessionTimes] = useState<ConfessionTime[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -86,16 +97,19 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
   // Dialog states
   const [resourceDialogOpen, setResourceDialogOpen] = useState(false)
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
+  const [confessionDialogOpen, setConfessionDialogOpen] = useState(false)
   const [announcementDialogOpen, setAnnouncementDialogOpen] = useState(false)
 
   // Form states
   const [editingResource, setEditingResource] = useState<Resource | null>(null)
   const [editingSchedule, setEditingSchedule] = useState<ScheduleEntry | null>(null)
+  const [editingConfession, setEditingConfession] = useState<ConfessionTime | null>(null)
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null)
 
   // New item form data
   const [newResource, setNewResource] = useState({ name: '', type: 'link', url: '' })
   const [newSchedule, setNewSchedule] = useState({ day: 'day1', startTime: '', endTime: '', title: '', location: '' })
+  const [newConfession, setNewConfession] = useState({ day: 'saturday', startTime: '', endTime: '', location: '', description: '' })
   const [newAnnouncement, setNewAnnouncement] = useState<{ title: string; message: string; type: 'info' | 'warning' | 'urgent'; startDate: string; endDate: string; isActive: boolean }>({ title: '', message: '', type: 'info', startDate: '', endDate: '', isActive: true })
 
   // Schedule import
@@ -168,9 +182,10 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
   async function fetchData() {
     setLoading(true)
     try {
-      const [resourcesRes, scheduleRes, announcementsRes] = await Promise.all([
+      const [resourcesRes, scheduleRes, confessionRes, announcementsRes] = await Promise.all([
         fetch(`/api/admin/events/${eventId}/poros/resources`),
         fetch(`/api/admin/events/${eventId}/poros/schedule`),
+        fetch(`/api/admin/events/${eventId}/poros/confessions`),
         fetch(`/api/admin/events/${eventId}/poros/announcements`),
       ])
 
@@ -182,6 +197,11 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
       if (scheduleRes.ok) {
         const data = await scheduleRes.json()
         setScheduleEntries(data.schedule || [])
+      }
+
+      if (confessionRes.ok) {
+        const data = await confessionRes.json()
+        setConfessionTimes(data.confessions || [])
       }
 
       if (announcementsRes.ok) {
@@ -278,6 +298,57 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
       fetchData()
     } catch (error) {
       toast.error('Failed to delete schedule entry')
+    }
+  }
+
+  // Confession time functions
+  async function saveConfessionTime() {
+    setSaving(true)
+    try {
+      const data = editingConfession || newConfession
+      const method = editingConfession ? 'PATCH' : 'POST'
+      const url = editingConfession
+        ? `/api/admin/events/${eventId}/poros/confessions/${editingConfession.id}`
+        : `/api/admin/events/${eventId}/poros/confessions`
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || errorData.message || 'Failed to save confession time')
+      }
+
+      toast.success(editingConfession ? 'Confession time updated' : 'Confession time added')
+      setConfessionDialogOpen(false)
+      setEditingConfession(null)
+      setNewConfession({ day: 'saturday', startTime: '', endTime: '', location: '', description: '' })
+      fetchData()
+    } catch (error) {
+      console.error('Confession time save error:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to save confession time')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function deleteConfessionTime(id: string) {
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}/poros/confessions/${id}`, {
+        method: 'DELETE',
+      })
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || errorData.message || 'Failed to delete')
+      }
+      toast.success('Confession time deleted')
+      fetchData()
+    } catch (error) {
+      console.error('Confession time delete error:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to delete confession time')
     }
   }
 
@@ -788,6 +859,218 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
           )}
         </CardContent>
       </Card>
+
+      {/* Confession Schedule Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Cross className="w-5 h-5" />
+                Confession Schedule
+              </CardTitle>
+              <CardDescription>
+                Confession/Reconciliation times available during the event
+              </CardDescription>
+            </div>
+            <Button onClick={() => {
+              setEditingConfession(null)
+              setNewConfession({ day: days[0] || 'saturday', startTime: '', endTime: '', location: '', description: '' })
+              setConfessionDialogOpen(true)
+            }}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Time
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {confessionTimes.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">
+              No confession times added yet. Add times when confession/reconciliation will be available.
+            </p>
+          ) : (
+            <div className="space-y-6">
+              {days.map((day) => {
+                const dayEntries = confessionTimes.filter(e => e.day === day)
+                if (dayEntries.length === 0) return null
+                return (
+                  <div key={day}>
+                    <h4 className="font-semibold text-lg mb-3">{getDayDisplayName(day)}</h4>
+                    <div className="space-y-2">
+                      {dayEntries.sort((a, b) => a.startTime.localeCompare(b.startTime)).map((entry) => (
+                        <div key={entry.id} className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-100">
+                          <div className="flex items-center gap-4">
+                            <Badge variant="outline" className="font-mono">
+                              {entry.startTime}{entry.endTime && ` - ${entry.endTime}`}
+                            </Badge>
+                            <div>
+                              {entry.location && (
+                                <p className="font-medium flex items-center gap-1">
+                                  <MapPin className="w-3.5 h-3.5" />
+                                  {entry.location}
+                                </p>
+                              )}
+                              {entry.description && (
+                                <p className="text-sm text-muted-foreground">{entry.description}</p>
+                              )}
+                              {!entry.location && !entry.description && (
+                                <p className="text-sm text-muted-foreground italic">No location specified</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button variant="ghost" size="sm" onClick={() => {
+                              setEditingConfession(entry)
+                              setConfessionDialogOpen(true)
+                            }}>
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => deleteConfessionTime(entry.id)}>
+                              <Trash2 className="w-4 h-4 text-red-500" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+              {/* Show entries for days not in the standard list */}
+              {confessionTimes
+                .filter(e => !days.includes(e.day))
+                .reduce<string[]>((acc, e) => acc.includes(e.day) ? acc : [...acc, e.day], [])
+                .map(day => {
+                  const dayEntries = confessionTimes.filter(e => e.day === day)
+                  return (
+                    <div key={day}>
+                      <h4 className="font-semibold text-lg mb-3">{getDayDisplayName(day)}</h4>
+                      <div className="space-y-2">
+                        {dayEntries.sort((a, b) => a.startTime.localeCompare(b.startTime)).map((entry) => (
+                          <div key={entry.id} className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-100">
+                            <div className="flex items-center gap-4">
+                              <Badge variant="outline" className="font-mono">
+                                {entry.startTime}{entry.endTime && ` - ${entry.endTime}`}
+                              </Badge>
+                              <div>
+                                {entry.location && (
+                                  <p className="font-medium flex items-center gap-1">
+                                    <MapPin className="w-3.5 h-3.5" />
+                                    {entry.location}
+                                  </p>
+                                )}
+                                {entry.description && (
+                                  <p className="text-sm text-muted-foreground">{entry.description}</p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button variant="ghost" size="sm" onClick={() => {
+                                setEditingConfession(entry)
+                                setConfessionDialogOpen(true)
+                              }}>
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => deleteConfessionTime(entry.id)}>
+                                <Trash2 className="w-4 h-4 text-red-500" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })
+              }
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Confession Time Dialog */}
+      <Dialog open={confessionDialogOpen} onOpenChange={setConfessionDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingConfession ? 'Edit Confession Time' : 'Add Confession Time'}</DialogTitle>
+            <DialogDescription>
+              Add a time when confession/reconciliation is available
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Day</Label>
+              <Select
+                value={editingConfession?.day || newConfession.day}
+                onValueChange={(value) => editingConfession
+                  ? setEditingConfession({ ...editingConfession, day: value })
+                  : setNewConfession({ ...newConfession, day: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {days.map((day) => (
+                    <SelectItem key={day} value={day}>{getDayDisplayName(day)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Start Time</Label>
+                <Input
+                  value={editingConfession?.startTime || newConfession.startTime}
+                  onChange={(e) => editingConfession
+                    ? setEditingConfession({ ...editingConfession, startTime: e.target.value })
+                    : setNewConfession({ ...newConfession, startTime: e.target.value })
+                  }
+                  placeholder="e.g., 3:00 PM"
+                />
+              </div>
+              <div>
+                <Label>End Time (optional)</Label>
+                <Input
+                  value={editingConfession?.endTime || newConfession.endTime}
+                  onChange={(e) => editingConfession
+                    ? setEditingConfession({ ...editingConfession, endTime: e.target.value })
+                    : setNewConfession({ ...newConfession, endTime: e.target.value })
+                  }
+                  placeholder="e.g., 5:00 PM"
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Location (optional)</Label>
+              <Input
+                value={editingConfession?.location || newConfession.location}
+                onChange={(e) => editingConfession
+                  ? setEditingConfession({ ...editingConfession, location: e.target.value })
+                  : setNewConfession({ ...newConfession, location: e.target.value })
+                }
+                placeholder="e.g., Chapel, Confessional Room A"
+              />
+            </div>
+            <div>
+              <Label>Description (optional)</Label>
+              <Input
+                value={editingConfession?.description || newConfession.description}
+                onChange={(e) => editingConfession
+                  ? setEditingConfession({ ...editingConfession, description: e.target.value })
+                  : setNewConfession({ ...newConfession, description: e.target.value })
+                }
+                placeholder="e.g., Multiple priests available"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfessionDialogOpen(false)}>Cancel</Button>
+            <Button onClick={saveConfessionTime} disabled={saving}>
+              {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Resource Dialog */}
       <Dialog open={resourceDialogOpen} onOpenChange={setResourceDialogOpen}>

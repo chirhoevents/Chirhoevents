@@ -215,6 +215,7 @@ model EventSettings {
   porosSeminarianEnabled          Boolean  @default(false) @map("poros_seminarian_enabled")
   porosReligiousStaffEnabled      Boolean  @default(false) @map("poros_religious_staff_enabled")
   porosAdaEnabled                 Boolean  @default(false) @map("poros_ada_enabled")
+  porosConfessionsEnabled         Boolean  @default(false) @map("poros_confessions_enabled")
   porosPublicPortalEnabled        Boolean  @default(false) @map("poros_public_portal_enabled")
   publicPortalEnabled             Boolean  @default(false) @map("public_portal_enabled")
   salveCheckinEnabled             Boolean  @default(false) @map("salve_checkin_enabled")
@@ -341,7 +342,6 @@ model EventSettings {
   salvePacketSettings             Json?    @map("salve_packet_settings") @db.JsonB
 
   // Confessions feature
-  porosConfessionsEnabled         Boolean  @default(false) @map("poros_confessions_enabled")
   confessionsReconciliationGuideUrl String? @map("confessions_reconciliation_guide_url") @db.Text
 
   // Info feature
@@ -1787,6 +1787,9 @@ model PorosMealTime {
   @@index([eventId], name: "idx_poros_meal_times_event")
   @@map("poros_meal_times")
 }
+
+// NOTE: PorosConfessionTime model removed - confessions are now managed
+// via raw SQL in poros_confessions table to prevent data loss during deployments.
 
 model MealColorAssignment {
   id                  String   @id @default(uuid()) @db.Uuid
