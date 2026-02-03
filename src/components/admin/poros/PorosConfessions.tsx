@@ -32,6 +32,8 @@ import {
   Calendar,
   ExternalLink,
   Link as LinkIcon,
+  Check,
+  AlertCircle,
 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
@@ -71,7 +73,9 @@ export function PorosConfessions({ eventId }: PorosConfessionsProps) {
 
   // Reconciliation guide
   const [reconciliationGuideUrl, setReconciliationGuideUrl] = useState('')
+  const [savedGuideUrl, setSavedGuideUrl] = useState('')
   const [savingGuideUrl, setSavingGuideUrl] = useState(false)
+  const [guideSaved, setGuideSaved] = useState(false)
 
   // Form state
   const [formDay, setFormDay] = useState('saturday')
@@ -106,12 +110,16 @@ export function PorosConfessions({ eventId }: PorosConfessionsProps) {
       const response = await fetch(`/api/admin/events/${eventId}/settings`)
       if (response.ok) {
         const data = await response.json()
-        setReconciliationGuideUrl(data.confessionsReconciliationGuideUrl || '')
+        const url = data.confessionsReconciliationGuideUrl || ''
+        setReconciliationGuideUrl(url)
+        setSavedGuideUrl(url)
       }
     } catch (error) {
       console.error('Failed to load settings:', error)
     }
   }
+
+  const guideUrlDirty = reconciliationGuideUrl !== savedGuideUrl
 
   async function saveGuideUrl() {
     setSavingGuideUrl(true)
@@ -122,7 +130,10 @@ export function PorosConfessions({ eventId }: PorosConfessionsProps) {
         body: JSON.stringify({ confessionsReconciliationGuideUrl: reconciliationGuideUrl || null }),
       })
       if (!response.ok) throw new Error('Failed to save')
-      toast.success('Reconciliation guide link saved')
+      setSavedGuideUrl(reconciliationGuideUrl)
+      setGuideSaved(true)
+      toast.success('Reconciliation guide link saved successfully!')
+      setTimeout(() => setGuideSaved(false), 3000)
     } catch {
       toast.error('Failed to save reconciliation guide link')
     } finally {
@@ -367,7 +378,7 @@ export function PorosConfessions({ eventId }: PorosConfessionsProps) {
       </Card>
 
       {/* Reconciliation Guide Link */}
-      <Card>
+      <Card className={guideUrlDirty ? 'border-amber-300 ring-1 ring-amber-200' : ''}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <LinkIcon className="w-4 h-4" />
@@ -381,16 +392,40 @@ export function PorosConfessions({ eventId }: PorosConfessionsProps) {
           <div className="flex gap-3">
             <Input
               value={reconciliationGuideUrl}
-              onChange={(e) => setReconciliationGuideUrl(e.target.value)}
+              onChange={(e) => {
+                setReconciliationGuideUrl(e.target.value)
+                setGuideSaved(false)
+              }}
               placeholder="https://example.com/reconciliation-guide"
               className="flex-1"
             />
-            <Button onClick={saveGuideUrl} disabled={savingGuideUrl}>
-              {savingGuideUrl && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Save
+            <Button
+              onClick={saveGuideUrl}
+              disabled={savingGuideUrl}
+              variant={guideUrlDirty ? 'default' : 'outline'}
+              className={guideUrlDirty ? 'bg-navy hover:bg-navy/90 animate-pulse-once' : ''}
+            >
+              {savingGuideUrl ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : guideSaved ? (
+                <Check className="w-4 h-4 mr-2 text-green-400" />
+              ) : null}
+              {guideSaved ? 'Saved!' : 'Save Link'}
             </Button>
           </div>
-          {reconciliationGuideUrl && (
+          {guideUrlDirty && (
+            <p className="text-sm text-amber-600 mt-2 flex items-center gap-1">
+              <AlertCircle className="w-3.5 h-3.5" />
+              You have unsaved changes — click &quot;Save Link&quot; to keep them
+            </p>
+          )}
+          {guideSaved && !guideUrlDirty && (
+            <p className="text-sm text-green-600 mt-2 flex items-center gap-1">
+              <Check className="w-3.5 h-3.5" />
+              Link saved successfully
+            </p>
+          )}
+          {reconciliationGuideUrl && !guideUrlDirty && !guideSaved && (
             <a
               href={reconciliationGuideUrl}
               target="_blank"
