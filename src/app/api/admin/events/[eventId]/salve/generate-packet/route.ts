@@ -247,6 +247,17 @@ export async function POST(
       orderBy: [{ day: 'asc' }, { order: 'asc' }],
     })
 
+    // Get confession times from Poros
+    let confessionTimes: any[] = []
+    try {
+      confessionTimes = await prisma.porosConfessionTime.findMany({
+        where: { eventId },
+        orderBy: [{ day: 'asc' }, { order: 'asc' }, { startTime: 'asc' }],
+      })
+    } catch {
+      // Table might not exist yet
+    }
+
     // Generate housing summary
     const housingSummary = group.allocatedRooms.map((room: any) => {
       const occupantIds = room.roomAssignments
@@ -385,6 +396,13 @@ export async function POST(
           meal: mt.meal,
           time: mt.time,
           color: mt.color,
+        })),
+        confessionTimes: confessionTimes.map((ct: any) => ({
+          day: ct.day,
+          startTime: ct.startTime,
+          endTime: ct.endTime,
+          location: ct.location,
+          confessor: ct.confessor,
         })),
       },
       missingResources: {
