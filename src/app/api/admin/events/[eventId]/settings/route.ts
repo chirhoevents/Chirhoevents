@@ -25,6 +25,7 @@ const VALID_SETTINGS_FIELDS = [
   'porosConfessionsEnabled',
   'confessionsReconciliationGuideUrl',
   'porosInfoEnabled',
+  'porosAdorationEnabled',
   'porosPublicPortalEnabled',
   'publicPortalEnabled',
   'salveCheckinEnabled',

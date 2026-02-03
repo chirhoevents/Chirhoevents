@@ -56,6 +56,15 @@ interface InfoItem {
   url: string | null
 }
 
+interface Adoration {
+  id: string
+  day: string
+  startTime: string
+  endTime: string | null
+  location: string
+  description: string | null
+}
+
 interface Props {
   event: {
     id: string
@@ -71,6 +80,7 @@ interface Props {
   confessions: Confession[]
   reconciliationGuideUrl: string | null
   infoItems: InfoItem[]
+  adorations: Adoration[]
   seatingEnabled: boolean
   schedulePdfUrl: string | null
 }
@@ -96,6 +106,7 @@ export default function PorosPublicClient({
   confessions,
   reconciliationGuideUrl,
   infoItems,
+  adorations,
   seatingEnabled,
   schedulePdfUrl
 }: Props) {
@@ -273,7 +284,7 @@ export default function PorosPublicClient({
             >
               <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mb-3">
                 <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2v4m0 0l-4 3v12h8V9l-4-3zm-4 19H5a1 1 0 01-1-1v-7l4-3v11zm8 0h3a1 1 0 001-1v-7l-4-3v11zm-4-9v2m0-6V2m-2 0h4" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3v2m0 0v1m0-1h-1m1 0h1M8 10v11h8V10l-4-4-4 4zm-3 11V13l3-3v11H5zm14 0V13l-3-3v11h3zM10 17v4h4v-4h-4z" />
                 </svg>
               </div>
               <span className="text-white font-semibold text-lg">Confessions</span>
@@ -292,6 +303,22 @@ export default function PorosPublicClient({
             </div>
             <span className="text-white font-semibold text-lg">Info</span>
           </button>
+
+          {/* Adoration */}
+          {adorations.length > 0 && (
+            <button
+              onClick={() => setActiveModal('adoration')}
+              className="portal-button bg-gradient-to-br from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700"
+            >
+              <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mb-3">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="5" strokeWidth={2} />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 1v2m0 18v2m11-11h-2M3 12H1m18.07-7.07l-1.41 1.41M6.34 17.66l-1.41 1.41m14.14 0l-1.41-1.41M6.34 6.34L4.93 4.93" />
+                </svg>
+              </div>
+              <span className="text-white font-semibold text-lg">Adoration</span>
+            </button>
+          )}
         </div>
 
         {/* Quick Links from Resources */}
@@ -609,6 +636,55 @@ export default function PorosPublicClient({
               </p>
             </div>
           </div>
+        </Modal>
+      )}
+
+      {/* Adoration Modal */}
+      {activeModal === 'adoration' && (
+        <Modal onClose={closeModal} title="Adoration">
+          {adorations.length > 0 ? (
+            <div className="space-y-6">
+              <p className="text-sm text-gray-600 text-center mb-4">
+                Available adoration times and locations
+              </p>
+              {(() => {
+                const dayOrder = ['thursday', 'friday', 'saturday', 'sunday', 'monday']
+                const adorationsByDay = adorations.reduce((acc: Record<string, Adoration[]>, a) => {
+                  if (!acc[a.day]) acc[a.day] = []
+                  acc[a.day].push(a)
+                  return acc
+                }, {})
+                const sortedDays = Object.keys(adorationsByDay).sort(
+                  (a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b)
+                )
+                return sortedDays.map(day => (
+                  <div key={day}>
+                    <h4 className="font-bold text-lg mb-3 capitalize text-[#1E3A5F]">{day}</h4>
+                    <div className="space-y-2">
+                      {adorationsByDay[day].map(adoration => (
+                        <div key={adoration.id} className="flex gap-3 p-3 bg-gray-50 rounded-lg">
+                          <div className="text-sm font-semibold text-rose-600 w-28 flex-shrink-0">
+                            {adoration.startTime}
+                            {adoration.endTime && ` - ${adoration.endTime}`}
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-medium">{adoration.location}</div>
+                            {adoration.description && (
+                              <div className="text-sm text-gray-500 mt-1">{adoration.description}</div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              })()}
+            </div>
+          ) : (
+            <p className="text-center text-gray-500 py-8">
+              Adoration times will be posted soon!
+            </p>
+          )}
         </Modal>
       )}
 
