@@ -78,6 +78,7 @@ export async function GET(
     if (includeAssignments) {
       type RoomType = typeof rooms[number]
       const roomsWithDetails = await Promise.all(rooms.map(async (room: RoomType) => {
+        // Fetch housing room assignments
         const assignments = await prisma.roomAssignment.findMany({
           where: { roomId: room.id },
           select: {
@@ -89,7 +90,7 @@ export async function GET(
           }
         })
 
-        // Get group registration details for assignments
+        // Get group registration details for housing assignments
         type AssignmentType = typeof assignments[number]
         const assignmentsWithDetails = await Promise.all(assignments.map(async (assignment: AssignmentType) => {
           let groupRegistration = null
@@ -116,7 +117,21 @@ export async function GET(
           return { ...assignment, groupRegistration, participant }
         }))
 
-        return { ...room, assignments: assignmentsWithDetails }
+        // Fetch small group room assignments (groups assigned to this room for small group meetings)
+        const smallGroupAssignedGroups = await prisma.groupRegistration.findMany({
+          where: { smallGroupRoomId: room.id },
+          select: {
+            id: true,
+            groupName: true,
+            parishName: true,
+          }
+        })
+
+        return {
+          ...room,
+          assignments: assignmentsWithDetails,
+          smallGroupAssignedGroups,
+        }
       }))
 
       return NextResponse.json({ rooms: roomsWithDetails })

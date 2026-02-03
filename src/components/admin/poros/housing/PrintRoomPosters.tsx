@@ -18,6 +18,7 @@ interface Room {
   gender: 'male' | 'female' | 'mixed' | null
   notes: string | null
   isAdaAccessible: boolean
+  roomPurpose?: 'housing' | 'small_group' | null
   building?: {
     id: string
     name: string
@@ -38,6 +39,11 @@ interface Room {
         parishName: string
       }
     }
+  }>
+  smallGroupAssignedGroups?: Array<{
+    id: string
+    groupName: string
+    parishName?: string
   }>
 }
 
@@ -105,6 +111,15 @@ export function PrintRoomPosters({ eventId, buildings, rooms, isOpen, onClose }:
 
   const filteredRooms = roomsWithAssignments.filter(room => {
     if (!selectedBuildings.includes(room.buildingId)) return false
+    // Filter by room type
+    if (roomType === 'housing') {
+      // Housing rooms have null or 'housing' purpose
+      if (room.roomPurpose === 'small_group') return false
+    } else if (roomType === 'smallGroup') {
+      // Small group rooms have 'small_group' purpose
+      if (room.roomPurpose !== 'small_group') return false
+    }
+    // 'all' shows everything
     return true
   })
 
@@ -125,100 +140,173 @@ export function PrintRoomPosters({ eventId, buildings, rooms, isOpen, onClose }:
         <title>Room Posters</title>
         <style>
           * { box-sizing: border-box; margin: 0; padding: 0; }
-          body { font-family: Arial, sans-serif; }
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; }
           .room-poster {
             page-break-after: always;
             page-break-inside: avoid;
-            padding: 40px;
+            padding: 48px;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            background: white;
           }
           .room-poster:last-child { page-break-after: auto; }
+
+          /* Header with gradient banner */
           .room-header {
             text-align: center;
-            border-bottom: 4px solid #1E3A5F;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+            background: linear-gradient(135deg, #1E3A5F 0%, #2d5a8a 100%);
+            color: white;
+            padding: 32px 24px;
+            border-radius: 16px;
+            margin-bottom: 32px;
+            box-shadow: 0 10px 40px rgba(30, 58, 95, 0.3);
+          }
+          .room-type-label {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+            font-weight: 600;
           }
           .room-number {
-            font-size: 72px;
-            font-weight: bold;
-            color: #1E3A5F;
+            font-size: 80px;
+            font-weight: 800;
+            line-height: 1.1;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
           }
           .building-name {
-            font-size: 24px;
-            color: #666;
-            margin-top: 10px;
+            font-size: 20px;
+            opacity: 0.9;
+            margin-top: 8px;
+            font-weight: 500;
           }
+
+          /* Small group specific header */
+          .room-header.small-group {
+            background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+          }
+
+          /* Info badges row */
           .room-info {
             display: flex;
             justify-content: center;
-            gap: 30px;
-            margin-top: 15px;
+            gap: 16px;
+            margin-top: 24px;
             flex-wrap: wrap;
           }
           .room-badge {
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: bold;
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
           }
-          .badge-male { background: #dbeafe; color: #1e40af; }
-          .badge-female { background: #fce7f3; color: #be185d; }
-          .badge-mixed { background: #f3e8ff; color: #7c3aed; }
-          .badge-capacity { background: #ecfdf5; color: #065f46; }
-          .badge-ada { background: #fef3c7; color: #92400e; }
+          .badge-male { background: #dbeafe; color: #1e40af; border: 2px solid #93c5fd; }
+          .badge-female { background: #fce7f3; color: #be185d; border: 2px solid #f9a8d4; }
+          .badge-mixed { background: #f3e8ff; color: #7c3aed; border: 2px solid #c4b5fd; }
+          .badge-capacity { background: #ecfdf5; color: #065f46; border: 2px solid #6ee7b7; }
+          .badge-ada { background: #fef3c7; color: #92400e; border: 2px solid #fcd34d; }
+          .badge-small-group { background: #f3e8ff; color: #7c3aed; border: 2px solid #c4b5fd; }
+
+          /* Assignments section */
           .assignments-section {
             flex: 1;
-            margin-top: 20px;
+            margin-top: 8px;
           }
           .assignments-title {
-            font-size: 20px;
-            font-weight: bold;
-            color: #1E3A5F;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #e5e7eb;
+            font-size: 18px;
+            font-weight: 700;
+            color: #374151;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 3px solid #e5e7eb;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
           }
+          .assignments-title::before {
+            content: '';
+            width: 6px;
+            height: 24px;
+            background: linear-gradient(135deg, #1E3A5F 0%, #2d5a8a 100%);
+            border-radius: 3px;
+          }
+          .assignments-title.small-group::before {
+            background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+          }
+
+          /* Assignment cards */
           .assignment-item {
-            padding: 15px;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            background: #f9fafb;
+            padding: 20px 24px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-left: 5px solid #1E3A5F;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+          }
+          .assignment-item.small-group-assignment {
+            border-left-color: #7c3aed;
           }
           .group-name {
-            font-size: 20px;
-            font-weight: bold;
-            color: #1E3A5F;
+            font-size: 22px;
+            font-weight: 700;
+            color: #1f2937;
           }
           .parish-name {
             font-size: 16px;
             color: #6b7280;
-            margin-top: 5px;
+            margin-top: 6px;
+            font-style: italic;
           }
           .participant-name {
-            font-size: 18px;
-            font-weight: bold;
+            font-size: 20px;
+            font-weight: 600;
+            color: #1f2937;
           }
           .no-assignments {
             text-align: center;
-            padding: 40px;
+            padding: 60px 40px;
             color: #9ca3af;
             font-size: 18px;
             font-style: italic;
+            background: #f9fafb;
+            border-radius: 12px;
+            border: 2px dashed #e5e7eb;
           }
+
+          /* Notes section */
           .room-notes {
             margin-top: auto;
-            padding-top: 20px;
-            border-top: 1px solid #e5e7eb;
+            padding: 20px 24px;
+            border-radius: 12px;
+            background: #fffbeb;
+            border: 2px solid #fde68a;
             font-size: 14px;
-            color: #6b7280;
+            color: #92400e;
           }
+          .room-notes strong {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+          }
+
           @media print {
-            .room-poster { padding: 20px; }
-            .room-number { font-size: 60px; }
+            body { background: white; }
+            .room-poster { padding: 32px; }
+            .room-number { font-size: 72px; }
+            .room-header { box-shadow: none; }
+            .assignment-item { box-shadow: none; }
           }
         </style>
       </head>
@@ -263,6 +351,21 @@ export function PrintRoomPosters({ eventId, buildings, rooms, isOpen, onClose }:
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Room Type Selection */}
+          <div>
+            <Label className="mb-2 block">Poster Type</Label>
+            <Select value={roomType} onValueChange={(value: 'all' | 'housing' | 'smallGroup') => setRoomType(value)}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select poster type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Rooms</SelectItem>
+                <SelectItem value="housing">Housing Rooms Only</SelectItem>
+                <SelectItem value="smallGroup">Small Group Rooms Only</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Building Selection */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -308,126 +411,203 @@ export function PrintRoomPosters({ eventId, buildings, rooms, isOpen, onClose }:
 
           {/* Preview (hidden, used for printing) */}
           <div id="print-room-posters-content" className="hidden">
-            {filteredRooms.map(room => (
-              <div key={room.id} className="room-poster">
-                <div className="room-header">
-                  <div className="room-number">
-                    {room.building?.name} {room.roomNumber}
-                  </div>
-                  <div className="building-name">
-                    {room.building?.name}
-                  </div>
-                  <div className="room-info">
-                    <span className={`room-badge ${getGenderBadgeClass(room.gender || room.building?.gender || null)}`}>
-                      {getGenderLabel(room.gender || room.building?.gender || null)}
-                    </span>
-                    <span className="room-badge badge-capacity">
-                      Capacity: {room.capacity}
-                    </span>
-                    {room.isAdaAccessible && (
-                      <span className="room-badge badge-ada">
-                        ♿ ADA Accessible
+            {filteredRooms.map(room => {
+              const isSmallGroupRoom = room.roomPurpose === 'small_group'
+              const hasHousingAssignments = room.assignments && room.assignments.length > 0
+              const hasSmallGroupAssignments = room.smallGroupAssignedGroups && room.smallGroupAssignedGroups.length > 0
+              const hasAnyAssignments = hasHousingAssignments || hasSmallGroupAssignments
+
+              return (
+                <div key={room.id} className="room-poster">
+                  <div className={`room-header ${isSmallGroupRoom ? 'small-group' : ''}`}>
+                    <div className="room-type-label">
+                      {isSmallGroupRoom ? 'Small Group Room' : 'Housing'}
+                    </div>
+                    <div className="room-number">
+                      {room.roomNumber}
+                    </div>
+                    <div className="building-name">
+                      {room.building?.name}
+                    </div>
+                    <div className="room-info">
+                      {isSmallGroupRoom ? (
+                        <span className="room-badge badge-small-group">
+                          Small Group
+                        </span>
+                      ) : (
+                        <span className={`room-badge ${getGenderBadgeClass(room.gender || room.building?.gender || null)}`}>
+                          {getGenderLabel(room.gender || room.building?.gender || null)}
+                        </span>
+                      )}
+                      <span className="room-badge badge-capacity">
+                        Capacity: {room.capacity}
                       </span>
+                      {room.isAdaAccessible && (
+                        <span className="room-badge badge-ada">
+                          ADA Accessible
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="assignments-section">
+                    {/* Small Group Assignments */}
+                    {isSmallGroupRoom && (
+                      <>
+                        <div className="assignments-title small-group">
+                          Assigned Groups
+                        </div>
+                        {!hasSmallGroupAssignments ? (
+                          <div className="no-assignments">
+                            No groups assigned yet
+                          </div>
+                        ) : (
+                          room.smallGroupAssignedGroups!.map((group, idx) => (
+                            <div key={group.id || idx} className="assignment-item small-group-assignment">
+                              <div className="group-name">
+                                {group.groupName}
+                              </div>
+                              {group.parishName && (
+                                <div className="parish-name">
+                                  {group.parishName}
+                                </div>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </>
+                    )}
+
+                    {/* Housing Assignments */}
+                    {!isSmallGroupRoom && (
+                      <>
+                        <div className="assignments-title">
+                          Assigned Groups / Participants
+                        </div>
+                        {!hasHousingAssignments ? (
+                          <div className="no-assignments">
+                            No assignments yet
+                          </div>
+                        ) : (
+                          room.assignments!.map((assignment, idx) => (
+                            <div key={assignment.id || idx} className="assignment-item">
+                              {assignment.groupRegistration ? (
+                                <>
+                                  <div className="group-name">
+                                    {assignment.groupRegistration.groupName}
+                                  </div>
+                                  {assignment.groupRegistration.parishName && (
+                                    <div className="parish-name">
+                                      {assignment.groupRegistration.parishName}
+                                    </div>
+                                  )}
+                                </>
+                              ) : assignment.participant ? (
+                                <>
+                                  <div className="participant-name">
+                                    {assignment.participant.firstName} {assignment.participant.lastName}
+                                  </div>
+                                  {assignment.participant.groupRegistration?.parishName && (
+                                    <div className="parish-name">
+                                      {assignment.participant.groupRegistration.parishName}
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                <div className="group-name">Unknown assignment</div>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </>
                     )}
                   </div>
-                </div>
 
-                <div className="assignments-section">
-                  <div className="assignments-title">
-                    Assigned Groups / Participants
-                  </div>
-
-                  {(!room.assignments || room.assignments.length === 0) ? (
-                    <div className="no-assignments">
-                      No assignments yet
+                  {room.notes && (
+                    <div className="room-notes">
+                      <strong>Notes:</strong> {room.notes}
                     </div>
-                  ) : (
-                    room.assignments.map((assignment, idx) => (
-                      <div key={assignment.id || idx} className="assignment-item">
-                        {assignment.groupRegistration ? (
-                          <>
-                            <div className="group-name">
-                              {assignment.groupRegistration.groupName}
-                            </div>
-                            {assignment.groupRegistration.parishName && (
-                              <div className="parish-name">
-                                {assignment.groupRegistration.parishName}
-                              </div>
-                            )}
-                          </>
-                        ) : assignment.participant ? (
-                          <>
-                            <div className="participant-name">
-                              {assignment.participant.firstName} {assignment.participant.lastName}
-                            </div>
-                            {assignment.participant.groupRegistration?.parishName && (
-                              <div className="parish-name">
-                                {assignment.participant.groupRegistration.parishName}
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <div className="group-name">Unknown assignment</div>
-                        )}
-                      </div>
-                    ))
                   )}
                 </div>
-
-                {room.notes && (
-                  <div className="room-notes">
-                    <strong>Notes:</strong> {room.notes}
-                  </div>
-                )}
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           {/* Sample Preview */}
-          {filteredRooms.length > 0 && (
-            <div className="border rounded p-4">
-              <Label className="mb-2 block">Sample Preview (first room):</Label>
-              <div className="border rounded p-4 bg-gray-50">
-                <div className="text-center border-b-2 border-[#1E3A5F] pb-3 mb-3">
-                  <div className="text-3xl font-bold text-[#1E3A5F]">
-                    {filteredRooms[0].building?.name} {filteredRooms[0].roomNumber}
-                  </div>
-                  <div className="flex justify-center gap-2 mt-2">
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      filteredRooms[0].gender === 'male' ? 'bg-blue-100 text-blue-700' :
-                      filteredRooms[0].gender === 'female' ? 'bg-pink-100 text-pink-700' :
-                      'bg-purple-100 text-purple-700'
-                    }`}>
-                      {getGenderLabel(filteredRooms[0].gender)}
-                    </span>
-                    <span className="text-xs px-2 py-1 rounded bg-green-100 text-green-700">
-                      Capacity: {filteredRooms[0].capacity}
-                    </span>
-                  </div>
-                </div>
-                <div className="text-sm text-gray-600">
-                  {filteredRooms[0].assignments && filteredRooms[0].assignments.length > 0 ? (
-                    <div>
-                      <strong>Assignments:</strong>
-                      <ul className="mt-1">
-                        {filteredRooms[0].assignments.slice(0, 3).map((a, i) => (
-                          <li key={i}>
-                            {a.groupRegistration?.groupName ||
-                             (a.participant ? `${a.participant.firstName} ${a.participant.lastName}` : 'Unknown')}
-                          </li>
-                        ))}
-                        {filteredRooms[0].assignments.length > 3 && (
-                          <li className="text-gray-400">...and {filteredRooms[0].assignments.length - 3} more</li>
-                        )}
-                      </ul>
+          {filteredRooms.length > 0 && (() => {
+            const previewRoom = filteredRooms[0]
+            const isSmallGroup = previewRoom.roomPurpose === 'small_group'
+            const previewAssignments = isSmallGroup
+              ? previewRoom.smallGroupAssignedGroups || []
+              : previewRoom.assignments || []
+
+            return (
+              <div className="border rounded-lg overflow-hidden">
+                <Label className="block px-4 py-2 bg-gray-100 border-b font-medium">
+                  Sample Preview (first room):
+                </Label>
+                <div className={`p-4 ${isSmallGroup ? 'bg-purple-50' : 'bg-blue-50'}`}>
+                  <div className={`text-center rounded-lg p-4 mb-3 ${
+                    isSmallGroup
+                      ? 'bg-gradient-to-r from-purple-600 to-purple-500 text-white'
+                      : 'bg-gradient-to-r from-[#1E3A5F] to-[#2d5a8a] text-white'
+                  }`}>
+                    <div className="text-xs uppercase tracking-wider opacity-90 mb-1">
+                      {isSmallGroup ? 'Small Group Room' : 'Housing'}
                     </div>
-                  ) : (
-                    <span className="italic text-gray-400">No assignments yet</span>
-                  )}
+                    <div className="text-2xl font-bold">
+                      {previewRoom.roomNumber}
+                    </div>
+                    <div className="text-sm opacity-90">
+                      {previewRoom.building?.name}
+                    </div>
+                    <div className="flex justify-center gap-2 mt-3">
+                      {isSmallGroup ? (
+                        <span className="text-xs px-3 py-1 rounded-full bg-white/20 font-medium">
+                          Small Group
+                        </span>
+                      ) : (
+                        <span className={`text-xs px-3 py-1 rounded-full bg-white/20 font-medium`}>
+                          {getGenderLabel(previewRoom.gender)}
+                        </span>
+                      )}
+                      <span className="text-xs px-3 py-1 rounded-full bg-white/20 font-medium">
+                        Capacity: {previewRoom.capacity}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-sm text-gray-700">
+                    {previewAssignments.length > 0 ? (
+                      <div>
+                        <strong className="text-xs uppercase tracking-wider text-gray-500">
+                          {isSmallGroup ? 'Assigned Groups:' : 'Assignments:'}
+                        </strong>
+                        <ul className="mt-2 space-y-1">
+                          {previewAssignments.slice(0, 3).map((a: any, i: number) => (
+                            <li key={i} className="bg-white px-3 py-2 rounded border-l-4 border-gray-300">
+                              {isSmallGroup
+                                ? a.groupName
+                                : (a.groupRegistration?.groupName ||
+                                   (a.participant ? `${a.participant.firstName} ${a.participant.lastName}` : 'Unknown'))}
+                            </li>
+                          ))}
+                          {previewAssignments.length > 3 && (
+                            <li className="text-gray-400 italic px-3">
+                              ...and {previewAssignments.length - 3} more
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+                    ) : (
+                      <div className="text-center py-4 text-gray-400 italic">
+                        No assignments yet
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )
+          })()}
         </div>
 
         <DialogFooter>
