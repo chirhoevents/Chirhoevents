@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { hasPermission } from '@/lib/permissions'
-import { prisma } from '@/lib/prisma'
+import { updateInfoItem, deleteInfoItem } from '@/lib/poros-raw-queries'
 
 // PATCH - Update an info item
 export async function PATCH(
@@ -25,17 +25,13 @@ export async function PATCH(
     const body = await request.json()
     const { title, content, type, url, isActive, order } = body
 
-    const updateData: any = {}
-    if (title !== undefined) updateData.title = title
-    if (content !== undefined) updateData.content = content
-    if (type !== undefined) updateData.type = type
-    if (url !== undefined) updateData.url = url || null
-    if (isActive !== undefined) updateData.isActive = isActive
-    if (order !== undefined) updateData.order = order
-
-    const item = await prisma.porosInfoItem.update({
-      where: { id: itemId },
-      data: updateData,
+    const item = await updateInfoItem(itemId, {
+      title,
+      content,
+      type,
+      url: url !== undefined ? (url || null) : undefined,
+      isActive,
+      order,
     })
 
     return NextResponse.json(item)
@@ -64,9 +60,7 @@ export async function DELETE(
       )
     }
 
-    await prisma.porosInfoItem.delete({
-      where: { id: itemId },
-    })
+    await deleteInfoItem(itemId)
 
     return NextResponse.json({ success: true })
   } catch (error) {

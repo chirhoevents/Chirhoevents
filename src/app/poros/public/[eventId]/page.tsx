@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import PorosPublicClient from './PorosPublicClient'
 import M2KPublicView from '@/components/poros/M2KPublicView'
+import { getConfessions, getInfoItems, getAdorations } from '@/lib/poros-raw-queries'
 
 // M2K specific event - hardcoded for custom portal
 const M2K_EVENT_ID = 'b9b70d36-ae35-47a0-aeb7-a50df9a598f1'
@@ -425,10 +426,7 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
   let confessions: any[] = []
   try {
     if (settings?.porosConfessionsEnabled || isM2KEvent) {
-      confessions = await prisma.porosConfession.findMany({
-        where: { eventId, isActive: true },
-        orderBy: [{ day: 'asc' }, { startTime: 'asc' }, { order: 'asc' }]
-      })
+      confessions = await getConfessions(eventId, true) // true = activeOnly
     }
   } catch {
     // Table might not exist yet
@@ -438,10 +436,7 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
   let infoItems: any[] = []
   try {
     if (settings?.porosInfoEnabled || isM2KEvent) {
-      infoItems = await prisma.porosInfoItem.findMany({
-        where: { eventId, isActive: true },
-        orderBy: { order: 'asc' }
-      })
+      infoItems = await getInfoItems(eventId, true) // true = activeOnly
     }
   } catch {
     // Table might not exist yet
@@ -451,10 +446,7 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
   let adorations: any[] = []
   try {
     if (settings?.porosAdorationEnabled || isM2KEvent) {
-      adorations = await prisma.porosAdoration.findMany({
-        where: { eventId, isActive: true },
-        orderBy: [{ day: 'asc' }, { startTime: 'asc' }, { order: 'asc' }]
-      })
+      adorations = await getAdorations(eventId, true) // true = activeOnly
     }
   } catch {
     // Table might not exist yet

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { hasPermission } from '@/lib/permissions'
-import { prisma } from '@/lib/prisma'
+import { getConfessions, createConfession } from '@/lib/poros-raw-queries'
 
 // GET - List all confession time slots for an event
 export async function GET(
@@ -24,10 +24,7 @@ export async function GET(
 
     let confessions: any[] = []
     try {
-      confessions = await prisma.porosConfession.findMany({
-        where: { eventId },
-        orderBy: [{ day: 'asc' }, { startTime: 'asc' }, { order: 'asc' }]
-      })
+      confessions = await getConfessions(eventId)
     } catch (error) {
       console.error('Confessions table might not exist:', error)
     }
@@ -68,29 +65,14 @@ export async function POST(
       )
     }
 
-    // Get max order for new confession slot
-    let maxOrderValue = 0
-    try {
-      const maxOrder = await prisma.porosConfession.aggregate({
-        where: { eventId },
-        _max: { order: true }
-      })
-      maxOrderValue = maxOrder._max.order ?? 0
-    } catch {
-      // Table might not exist
-    }
-
-    const confession = await prisma.porosConfession.create({
-      data: {
-        eventId,
-        day,
-        startTime,
-        endTime: endTime || null,
-        location,
-        description: description || null,
-        isActive: isActive ?? true,
-        order: maxOrderValue + 1,
-      }
+    const confession = await createConfession({
+      eventId,
+      day,
+      startTime,
+      endTime: endTime || null,
+      location,
+      description: description || null,
+      isActive: isActive ?? true,
     })
 
     return NextResponse.json(confession, { status: 201 })

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { hasPermission } from '@/lib/permissions'
-import { prisma } from '@/lib/prisma'
+import { updateAdoration, deleteAdoration } from '@/lib/poros-raw-queries'
 
 // PATCH - Update an adoration time slot
 export async function PATCH(
@@ -25,18 +25,14 @@ export async function PATCH(
     const body = await request.json()
     const { day, startTime, endTime, location, description, isActive, order } = body
 
-    const updateData: any = {}
-    if (day !== undefined) updateData.day = day
-    if (startTime !== undefined) updateData.startTime = startTime
-    if (endTime !== undefined) updateData.endTime = endTime || null
-    if (location !== undefined) updateData.location = location
-    if (description !== undefined) updateData.description = description || null
-    if (isActive !== undefined) updateData.isActive = isActive
-    if (order !== undefined) updateData.order = order
-
-    const adoration = await prisma.porosAdoration.update({
-      where: { id: adorationId },
-      data: updateData,
+    const adoration = await updateAdoration(adorationId, {
+      day,
+      startTime,
+      endTime: endTime !== undefined ? (endTime || null) : undefined,
+      location,
+      description: description !== undefined ? (description || null) : undefined,
+      isActive,
+      order,
     })
 
     return NextResponse.json(adoration)
@@ -65,9 +61,7 @@ export async function DELETE(
       )
     }
 
-    await prisma.porosAdoration.delete({
-      where: { id: adorationId },
-    })
+    await deleteAdoration(adorationId)
 
     return NextResponse.json({ success: true })
   } catch (error) {

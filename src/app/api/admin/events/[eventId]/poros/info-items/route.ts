@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { hasPermission } from '@/lib/permissions'
-import { prisma } from '@/lib/prisma'
+import { getInfoItems, createInfoItem } from '@/lib/poros-raw-queries'
 
 // GET - List all info items for an event
 export async function GET(
@@ -24,10 +24,7 @@ export async function GET(
 
     let items: any[] = []
     try {
-      items = await prisma.porosInfoItem.findMany({
-        where: { eventId },
-        orderBy: { order: 'asc' }
-      })
+      items = await getInfoItems(eventId)
     } catch (error) {
       console.error('Info items table might not exist:', error)
     }
@@ -68,27 +65,13 @@ export async function POST(
       )
     }
 
-    let maxOrderValue = 0
-    try {
-      const maxOrder = await prisma.porosInfoItem.aggregate({
-        where: { eventId },
-        _max: { order: true }
-      })
-      maxOrderValue = maxOrder._max.order ?? 0
-    } catch {
-      // Table might not exist
-    }
-
-    const item = await prisma.porosInfoItem.create({
-      data: {
-        eventId,
-        title,
-        content,
-        type: type || 'info',
-        url: url || null,
-        isActive: isActive ?? true,
-        order: maxOrderValue + 1,
-      }
+    const item = await createInfoItem({
+      eventId,
+      title,
+      content,
+      type: type || 'info',
+      url: url || null,
+      isActive: isActive ?? true,
     })
 
     return NextResponse.json(item, { status: 201 })

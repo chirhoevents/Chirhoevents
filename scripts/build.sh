@@ -4,9 +4,9 @@ set -e
 # Build v2.2 - Fixed duplicate Prisma field
 echo "=== Build Script Starting ==="
 
-echo "Running pre-migration cleanup and data backup..."
+echo "Running pre-migration cleanup..."
 
-# Create a temp SQL file for the cleanup and backup
+# Create a temp SQL file for the cleanup
 cat > /tmp/cleanup.sql << 'SQLEOF'
 -- Drop orphaned waitlist constraint if it exists
 ALTER TABLE "waitlist_entries" DROP CONSTRAINT IF EXISTS "waitlist_entries_registration_token_key";
@@ -30,103 +30,59 @@ ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "confessions_reconciliatio
 ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "poros_info_enabled" BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "poros_adoration_enabled" BOOLEAN NOT NULL DEFAULT false;
 
--- BACKUP: Create backup tables and copy data BEFORE prisma runs
--- This preserves data even if prisma db push --accept-data-loss drops the tables
+-- Create confession/adoration/info tables if they don't exist
+-- These tables are managed outside of Prisma to prevent data loss during deployments
+CREATE TABLE IF NOT EXISTS "poros_confessions" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "event_id" UUID NOT NULL,
+    "day" VARCHAR(50) NOT NULL,
+    "start_time" VARCHAR(20) NOT NULL,
+    "end_time" VARCHAR(20),
+    "location" VARCHAR(255) NOT NULL,
+    "description" TEXT,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "order" INTEGER NOT NULL DEFAULT 0,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "poros_confessions_pkey" PRIMARY KEY ("id")
+);
 
--- Backup confessions
-DROP TABLE IF EXISTS "_backup_poros_confessions";
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'poros_confessions') THEN
-        CREATE TABLE "_backup_poros_confessions" AS SELECT * FROM "poros_confessions";
-        RAISE NOTICE 'Backed up poros_confessions data';
-    END IF;
-END $$;
+CREATE TABLE IF NOT EXISTS "poros_info_items" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "event_id" UUID NOT NULL,
+    "title" VARCHAR(255) NOT NULL,
+    "content" TEXT NOT NULL,
+    "type" VARCHAR(20) NOT NULL DEFAULT 'info',
+    "url" TEXT,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "order" INTEGER NOT NULL DEFAULT 0,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "poros_info_items_pkey" PRIMARY KEY ("id")
+);
 
--- Backup info items
-DROP TABLE IF EXISTS "_backup_poros_info_items";
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'poros_info_items') THEN
-        CREATE TABLE "_backup_poros_info_items" AS SELECT * FROM "poros_info_items";
-        RAISE NOTICE 'Backed up poros_info_items data';
-    END IF;
-END $$;
+CREATE TABLE IF NOT EXISTS "poros_adoration" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "event_id" UUID NOT NULL,
+    "day" VARCHAR(50) NOT NULL,
+    "start_time" VARCHAR(20) NOT NULL,
+    "end_time" VARCHAR(20),
+    "location" VARCHAR(255) NOT NULL,
+    "description" TEXT,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "order" INTEGER NOT NULL DEFAULT 0,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "poros_adoration_pkey" PRIMARY KEY ("id")
+);
 
--- Backup adoration
-DROP TABLE IF EXISTS "_backup_poros_adoration";
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'poros_adoration') THEN
-        CREATE TABLE "_backup_poros_adoration" AS SELECT * FROM "poros_adoration";
-        RAISE NOTICE 'Backed up poros_adoration data';
-    END IF;
-END $$;
-SQLEOF
-
-# Run cleanup and backup SQL
-echo "Executing cleanup and backup SQL..."
-npx prisma db execute --file /tmp/cleanup.sql --schema prisma/schema.prisma || echo "Cleanup/backup SQL completed (some statements may have been skipped)"
-
-echo "Running prisma db push..."
-npx prisma db push --accept-data-loss
-
-echo "Restoring backed up data..."
-
-# Create restore SQL
-cat > /tmp/restore.sql << 'SQLEOF'
--- RESTORE: Copy data back from backup tables after prisma recreated the tables
-
--- Restore confessions
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '_backup_poros_confessions') THEN
-        -- Only restore if backup has data and main table is empty or has fewer rows
-        IF (SELECT COUNT(*) FROM "_backup_poros_confessions") > 0 THEN
-            -- Delete any rows prisma might have created (should be none)
-            DELETE FROM "poros_confessions" WHERE id NOT IN (SELECT id FROM "_backup_poros_confessions");
-            -- Insert backed up data, ignoring conflicts
-            INSERT INTO "poros_confessions" (id, event_id, day, start_time, end_time, location, description, is_active, "order", created_at, updated_at)
-            SELECT id, event_id, day, start_time, end_time, location, description, is_active, "order", created_at, updated_at
-            FROM "_backup_poros_confessions"
-            ON CONFLICT (id) DO NOTHING;
-            RAISE NOTICE 'Restored poros_confessions data';
-        END IF;
-        DROP TABLE "_backup_poros_confessions";
-    END IF;
-END $$;
-
--- Restore info items
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '_backup_poros_info_items') THEN
-        IF (SELECT COUNT(*) FROM "_backup_poros_info_items") > 0 THEN
-            DELETE FROM "poros_info_items" WHERE id NOT IN (SELECT id FROM "_backup_poros_info_items");
-            INSERT INTO "poros_info_items" (id, event_id, title, content, type, url, is_active, "order", created_at, updated_at)
-            SELECT id, event_id, title, content, type, url, is_active, "order", created_at, updated_at
-            FROM "_backup_poros_info_items"
-            ON CONFLICT (id) DO NOTHING;
-            RAISE NOTICE 'Restored poros_info_items data';
-        END IF;
-        DROP TABLE "_backup_poros_info_items";
-    END IF;
-END $$;
-
--- Restore adoration
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '_backup_poros_adoration') THEN
-        IF (SELECT COUNT(*) FROM "_backup_poros_adoration") > 0 THEN
-            DELETE FROM "poros_adoration" WHERE id NOT IN (SELECT id FROM "_backup_poros_adoration");
-            INSERT INTO "poros_adoration" (id, event_id, day, start_time, end_time, location, description, is_active, "order", created_at, updated_at)
-            SELECT id, event_id, day, start_time, end_time, location, description, is_active, "order", created_at, updated_at
-            FROM "_backup_poros_adoration"
-            ON CONFLICT (id) DO NOTHING;
-            RAISE NOTICE 'Restored poros_adoration data';
-        END IF;
-        DROP TABLE "_backup_poros_adoration";
-    END IF;
-END $$;
+-- Create indexes if they don't exist
+CREATE INDEX IF NOT EXISTS "idx_poros_confessions_event" ON "poros_confessions"("event_id");
+CREATE INDEX IF NOT EXISTS "idx_poros_confessions_active" ON "poros_confessions"("is_active");
+CREATE INDEX IF NOT EXISTS "idx_poros_info_items_event" ON "poros_info_items"("event_id");
+CREATE INDEX IF NOT EXISTS "idx_poros_info_items_active" ON "poros_info_items"("is_active");
+CREATE INDEX IF NOT EXISTS "idx_poros_adoration_event" ON "poros_adoration"("event_id");
+CREATE INDEX IF NOT EXISTS "idx_poros_adoration_active" ON "poros_adoration"("is_active");
 
 -- Make sure confessions, adoration, and info are always enabled for Mount 2000 2026
 UPDATE "event_settings"
@@ -136,8 +92,12 @@ SET "poros_confessions_enabled" = true,
 WHERE "event_id" = 'b9b70d36-ae35-47a0-aeb7-a50df9a598f1';
 SQLEOF
 
-# Run restore SQL
-npx prisma db execute --file /tmp/restore.sql --schema prisma/schema.prisma || echo "Restore SQL completed (may have been skipped)"
+# Run cleanup SQL
+echo "Executing cleanup SQL..."
+npx prisma db execute --file /tmp/cleanup.sql --schema prisma/schema.prisma || echo "Cleanup SQL completed (some statements may have been skipped)"
+
+echo "Running prisma db push..."
+npx prisma db push --accept-data-loss
 
 echo "Running next build..."
 npx next build
