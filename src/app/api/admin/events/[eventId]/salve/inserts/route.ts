@@ -265,6 +265,16 @@ export async function PUT(
       return NextResponse.json({ insert })
     }
 
+    // Update insert name
+    if (insertId && typeof body.name === 'string') {
+      const insert = await prisma.welcomePacketInsert.update({
+        where: { id: insertId },
+        data: { name: body.name.trim() },
+      })
+
+      return NextResponse.json({ insert })
+    }
+
     return NextResponse.json(
       { message: 'Invalid request' },
       { status: 400 }
