@@ -89,6 +89,18 @@ npx prisma db execute --file /tmp/cleanup.sql --schema prisma/schema.prisma || e
 echo "Running prisma db push..."
 npx prisma db push --accept-data-loss
 
+# Ensure M2K event always has confessions, adoration, and info enabled
+echo "Ensuring M2K event settings are active..."
+cat > /tmp/m2k_settings.sql << 'SQLEOF'
+-- Make sure confessions, adoration, and info are always enabled for Mount 2000 2026
+UPDATE "event_settings"
+SET "poros_confessions_enabled" = true,
+    "poros_info_enabled" = true,
+    "poros_adoration_enabled" = true
+WHERE "event_id" = 'b9b70d36-ae35-47a0-aeb7-a50df9a598f1';
+SQLEOF
+npx prisma db execute --file /tmp/m2k_settings.sql --schema prisma/schema.prisma || echo "M2K settings update completed (may have been skipped)"
+
 echo "Running next build..."
 npx next build
 
