@@ -266,15 +266,19 @@ export async function POST(
       orderBy: [{ day: 'asc' }, { order: 'asc' }],
     })
 
-    // Get confession times from Poros
+    // Get confession times from Poros (using raw SQL since Prisma client may not have this model yet)
     let confessionTimes: any[] = []
     try {
-      confessionTimes = await prisma.porosConfessionTime.findMany({
-        where: { eventId },
-        orderBy: [{ day: 'asc' }, { order: 'asc' }, { startTime: 'asc' }],
-      })
+      confessionTimes = await prisma.$queryRaw`
+        SELECT id, event_id as "eventId", day, day_date as "dayDate",
+               start_time as "startTime", end_time as "endTime",
+               location, confessor, "order"
+        FROM poros_confession_times
+        WHERE event_id = ${eventId}::uuid
+        ORDER BY day ASC, "order" ASC, start_time ASC
+      `
     } catch (confessionError) {
-      console.warn('[SALVE] Could not fetch confession times (table may not exist yet or Prisma client needs regeneration):', confessionError)
+      console.warn('[SALVE] Could not fetch confession times (table may not exist yet):', confessionError)
     }
 
     // Generate housing summary from multiple sources:

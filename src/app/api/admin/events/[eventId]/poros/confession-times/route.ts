@@ -24,10 +24,15 @@ export async function GET(
 
     let confessionTimes: any[] = []
     try {
-      confessionTimes = await prisma.porosConfessionTime.findMany({
-        where: { eventId },
-        orderBy: [{ day: 'asc' }, { order: 'asc' }, { startTime: 'asc' }],
-      })
+      confessionTimes = await prisma.$queryRaw`
+        SELECT id, event_id as "eventId", day, day_date as "dayDate",
+               start_time as "startTime", end_time as "endTime",
+               location, confessor, "order",
+               created_at as "createdAt", updated_at as "updatedAt"
+        FROM poros_confession_times
+        WHERE event_id = ${eventId}::uuid
+        ORDER BY day ASC, "order" ASC, start_time ASC
+      `
     } catch (error) {
       console.error('Confession times table might not exist:', error)
     }
@@ -69,25 +74,23 @@ export async function POST(
     }
 
     // Get max order for the day
-    const maxOrder = await prisma.porosConfessionTime.aggregate({
-      where: { eventId, day },
-      _max: { order: true },
-    })
+    const maxOrderResult: any[] = await prisma.$queryRaw`
+      SELECT COALESCE(MAX("order"), 0) as max_order
+      FROM poros_confession_times
+      WHERE event_id = ${eventId}::uuid AND day = ${day}
+    `
+    const nextOrder = (maxOrderResult[0]?.max_order ?? 0) + 1
 
-    const entry = await prisma.porosConfessionTime.create({
-      data: {
-        eventId,
-        day,
-        dayDate: dayDate ? new Date(dayDate) : null,
-        startTime,
-        endTime: endTime || null,
-        location: location || null,
-        confessor: confessor || null,
-        order: (maxOrder._max.order ?? 0) + 1,
-      },
-    })
+    const entries: any[] = await prisma.$queryRaw`
+      INSERT INTO poros_confession_times (id, event_id, day, day_date, start_time, end_time, location, confessor, "order", created_at, updated_at)
+      VALUES (gen_random_uuid(), ${eventId}::uuid, ${day}, ${dayDate ? new Date(dayDate) : null}::date, ${startTime}, ${endTime || null}, ${location || null}, ${confessor || null}, ${nextOrder}, NOW(), NOW())
+      RETURNING id, event_id as "eventId", day, day_date as "dayDate",
+                start_time as "startTime", end_time as "endTime",
+                location, confessor, "order",
+                created_at as "createdAt", updated_at as "updatedAt"
+    `
 
-    return NextResponse.json(entry, { status: 201 })
+    return NextResponse.json(entries[0], { status: 201 })
   } catch (error) {
     console.error('Failed to create confession time:', error)
     return NextResponse.json({ error: 'Failed to create confession time' }, { status: 500 })
@@ -113,9 +116,9 @@ export async function DELETE(
       )
     }
 
-    await prisma.porosConfessionTime.deleteMany({
-      where: { eventId },
-    })
+    await prisma.$queryRaw`
+      DELETE FROM poros_confession_times WHERE event_id = ${eventId}::uuid
+    `
 
     return NextResponse.json({ success: true })
   } catch (error) {

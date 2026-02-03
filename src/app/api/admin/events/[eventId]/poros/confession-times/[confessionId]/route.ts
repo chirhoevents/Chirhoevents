@@ -25,18 +25,23 @@ export async function PUT(
     const body = await request.json()
     const { day, startTime, endTime, location, confessor } = body
 
-    const entry = await prisma.porosConfessionTime.update({
-      where: { id: confessionId },
-      data: {
-        day,
-        startTime,
-        endTime: endTime || null,
-        location: location || null,
-        confessor: confessor || null,
-      },
-    })
+    const entries: any[] = await prisma.$queryRaw`
+      UPDATE poros_confession_times
+      SET day = ${day}, start_time = ${startTime}, end_time = ${endTime || null},
+          location = ${location || null}, confessor = ${confessor || null},
+          updated_at = NOW()
+      WHERE id = ${confessionId}::uuid AND event_id = ${eventId}::uuid
+      RETURNING id, event_id as "eventId", day, day_date as "dayDate",
+                start_time as "startTime", end_time as "endTime",
+                location, confessor, "order",
+                created_at as "createdAt", updated_at as "updatedAt"
+    `
 
-    return NextResponse.json(entry)
+    if (entries.length === 0) {
+      return NextResponse.json({ error: 'Confession time not found' }, { status: 404 })
+    }
+
+    return NextResponse.json(entries[0])
   } catch (error) {
     console.error('Failed to update confession time:', error)
     return NextResponse.json({ error: 'Failed to update confession time' }, { status: 500 })
@@ -62,9 +67,10 @@ export async function DELETE(
       )
     }
 
-    await prisma.porosConfessionTime.delete({
-      where: { id: confessionId },
-    })
+    await prisma.$queryRaw`
+      DELETE FROM poros_confession_times
+      WHERE id = ${confessionId}::uuid AND event_id = ${eventId}::uuid
+    `
 
     return NextResponse.json({ success: true })
   } catch (error) {
