@@ -57,10 +57,12 @@ export async function GET(
       ORDER BY day ASC, "order" ASC, start_time ASC
     `
 
+    console.log('[Confession] Fetched', confessionTimes.length, 'entries for event', eventId)
     return NextResponse.json({ confessionTimes })
   } catch (error) {
     console.error('Failed to fetch confession times:', error)
-    return NextResponse.json({ error: 'Failed to fetch confession times' }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json({ error: `Failed to fetch confession times: ${errorMessage}` }, { status: 500 })
   }
 }
 
@@ -95,13 +97,15 @@ export async function POST(
 
     await ensureConfessionTimesTable()
 
-    // Get max order for the day
+    // Get max order for the day (cast to int to avoid BigInt issues)
     const maxOrderResult: any[] = await prisma.$queryRaw`
-      SELECT COALESCE(MAX("order"), 0) as max_order
+      SELECT COALESCE(MAX("order"), 0)::int as max_order
       FROM poros_confession_times
       WHERE event_id = ${eventId}::uuid AND day = ${day}
     `
-    const nextOrder = (maxOrderResult[0]?.max_order ?? 0) + 1
+    const nextOrder = Number(maxOrderResult[0]?.max_order ?? 0) + 1
+
+    console.log('[Confession] Creating entry:', { day, startTime, eventId, nextOrder })
 
     // Handle null values explicitly for raw SQL
     const dayDateValue = dayDate ? new Date(dayDate) : null
@@ -130,10 +134,18 @@ export async function POST(
                 created_at as "createdAt", updated_at as "updatedAt"
     `
 
+    console.log('[Confession] Created entry:', entries[0])
+
+    if (!entries || entries.length === 0) {
+      console.error('[Confession] INSERT returned no rows')
+      return NextResponse.json({ error: 'Failed to create confession time - no rows returned' }, { status: 500 })
+    }
+
     return NextResponse.json(entries[0], { status: 201 })
   } catch (error) {
     console.error('Failed to create confession time:', error)
-    return NextResponse.json({ error: 'Failed to create confession time' }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json({ error: `Failed to create confession time: ${errorMessage}` }, { status: 500 })
   }
 }
 
