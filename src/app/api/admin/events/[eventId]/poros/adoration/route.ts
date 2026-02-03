@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { hasPermission } from '@/lib/permissions'
-import { prisma } from '@/lib/prisma'
+import { getAdorations, createAdoration } from '@/lib/poros-raw-queries'
 
 // GET - List all adoration time slots for an event
 export async function GET(
@@ -24,10 +24,7 @@ export async function GET(
 
     let adorations: any[] = []
     try {
-      adorations = await prisma.porosAdoration.findMany({
-        where: { eventId },
-        orderBy: [{ day: 'asc' }, { startTime: 'asc' }, { order: 'asc' }]
-      })
+      adorations = await getAdorations(eventId)
     } catch (error) {
       console.error('Adoration table might not exist:', error)
     }
@@ -68,29 +65,14 @@ export async function POST(
       )
     }
 
-    // Get max order for new adoration slot
-    let maxOrderValue = 0
-    try {
-      const maxOrder = await prisma.porosAdoration.aggregate({
-        where: { eventId },
-        _max: { order: true }
-      })
-      maxOrderValue = maxOrder._max.order ?? 0
-    } catch {
-      // Table might not exist
-    }
-
-    const adoration = await prisma.porosAdoration.create({
-      data: {
-        eventId,
-        day,
-        startTime,
-        endTime: endTime || null,
-        location,
-        description: description || null,
-        isActive: isActive ?? true,
-        order: maxOrderValue + 1,
-      }
+    const adoration = await createAdoration({
+      eventId,
+      day,
+      startTime,
+      endTime: endTime || null,
+      location,
+      description: description || null,
+      isActive: isActive ?? true,
     })
 
     return NextResponse.json(adoration, { status: 201 })
