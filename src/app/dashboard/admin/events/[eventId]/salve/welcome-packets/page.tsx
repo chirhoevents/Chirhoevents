@@ -54,6 +54,9 @@ import {
   Upload,
   File,
   ExternalLink,
+  Pencil,
+  Check,
+  X,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { generateMultiplePacketsHTML, type PacketData, type PrintSettings } from '@/lib/welcome-packet-print'
@@ -147,11 +150,15 @@ function SortableInsertItem({
   insert,
   onDelete,
   onToggleActive,
+  onUpdateName,
 }: {
   insert: PacketInsert
   onDelete: (id: string) => void
   onToggleActive: (id: string, isActive: boolean) => void
+  onUpdateName: (id: string, name: string) => void
 }) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [editName, setEditName] = useState(insert.name)
   const {
     attributes,
     listeners,
@@ -165,6 +172,16 @@ function SortableInsertItem({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+  }
+
+  function handleSaveName() {
+    onUpdateName(insert.id, editName)
+    setIsEditing(false)
+  }
+
+  function handleCancelEdit() {
+    setEditName(insert.name)
+    setIsEditing(false)
   }
 
   return (
@@ -184,11 +201,40 @@ function SortableInsertItem({
       </button>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <File className="w-4 h-4 text-navy" />
-          <span className="font-medium truncate">{insert.name}</span>
-        </div>
-        {insert.fileUrl && (
+        {isEditing ? (
+          <div className="flex items-center gap-1">
+            <Input
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              placeholder="Title (leave empty to hide)"
+              className="h-7 text-sm"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSaveName()
+                if (e.key === 'Escape') handleCancelEdit()
+              }}
+              autoFocus
+            />
+            <Button size="sm" variant="ghost" onClick={handleSaveName} className="h-7 w-7 p-0">
+              <Check className="w-3.5 h-3.5 text-green-600" />
+            </Button>
+            <Button size="sm" variant="ghost" onClick={handleCancelEdit} className="h-7 w-7 p-0">
+              <X className="w-3.5 h-3.5 text-red-500" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <File className="w-4 h-4 text-navy" />
+            <span className="font-medium truncate">{insert.name || <span className="text-muted-foreground italic">No title</span>}</span>
+            <button
+              onClick={() => { setEditName(insert.name); setIsEditing(true) }}
+              className="text-muted-foreground hover:text-navy"
+              title="Edit title"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+        {insert.fileUrl && !isEditing && (
           <a
             href={insert.fileUrl}
             target="_blank"
@@ -196,7 +242,7 @@ function SortableInsertItem({
             className="text-xs text-gold hover:underline flex items-center gap-1 mt-1"
           >
             <ExternalLink className="w-3 h-3" />
-            View PDF
+            View file
           </a>
         )}
       </div>
@@ -489,6 +535,32 @@ export default function WelcomePacketsPage() {
     } catch (error) {
       console.error('Toggle error:', error)
       toast.error('Failed to update insert')
+    }
+  }
+
+  async function handleUpdateName(id: string, name: string) {
+    try {
+      const token = await getToken()
+      const response = await fetch(`/api/admin/events/${eventId}/salve/inserts`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ insertId: id, name }),
+      })
+
+      if (response.ok) {
+        setInserts((prev) =>
+          prev.map((i) => (i.id === id ? { ...i, name } : i))
+        )
+        toast.success('Title updated')
+      } else {
+        toast.error('Failed to update title')
+      }
+    } catch (error) {
+      console.error('Update name error:', error)
+      toast.error('Failed to update title')
     }
   }
 
@@ -862,6 +934,7 @@ export default function WelcomePacketsPage() {
                         insert={insert}
                         onDelete={handleDeleteInsert}
                         onToggleActive={handleToggleActive}
+                        onUpdateName={handleUpdateName}
                       />
                     ))}
                   </div>
@@ -871,7 +944,7 @@ export default function WelcomePacketsPage() {
 
             {inserts.length > 0 && (
               <p className="text-xs text-muted-foreground mt-4 text-center">
-                Drag to reorder. Toggle to include/exclude from packets.
+                Drag to reorder. Toggle to include/exclude. Edit title or clear it to hide from print.
               </p>
             )}
           </CardContent>

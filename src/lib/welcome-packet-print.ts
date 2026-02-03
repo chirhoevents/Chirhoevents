@@ -438,11 +438,21 @@ export function generateMultiplePacketsHTML(packets: PacketData[], settings: Pri
     }
     .insert-page {
       page-break-before: always;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
     }
     .insert-image {
       max-width: 100%;
-      height: auto;
-      margin: 20px 0;
+      max-height: 9in;
+      object-fit: contain;
+      margin: 0 auto;
+      display: block;
+    }
+    .insert-page-with-title .insert-image {
+      max-height: 8.5in;
     }
     .insert-title {
       color: #1a365d;
@@ -451,6 +461,9 @@ export function generateMultiplePacketsHTML(packets: PacketData[], settings: Pri
       margin-bottom: 12px;
       padding-bottom: 8px;
       border-bottom: 2px solid #c9a227;
+      width: 100%;
+      text-align: center;
+      flex-shrink: 0;
     }
   </style>
 </head>
@@ -461,12 +474,14 @@ export function generateMultiplePacketsHTML(packets: PacketData[], settings: Pri
     </div>
     ${/* Add inserts after each packet */
       activeInserts.map((insert) =>
-        (insert.imageUrls as string[]).map((imageUrl, imgIndex) => `
-          <div class="insert-page">
-            ${imgIndex === 0 ? `<div class="insert-title">${insert.name}</div>` : ''}
-            <img src="${imageUrl}" alt="${insert.name}" class="insert-image" />
+        (insert.imageUrls as string[]).map((imageUrl, imgIndex) => {
+          const showTitle = imgIndex === 0 && insert.name && insert.name.trim() !== ''
+          return `
+          <div class="insert-page${showTitle ? ' insert-page-with-title' : ''}">
+            ${showTitle ? `<div class="insert-title">${insert.name}</div>` : ''}
+            <img src="${imageUrl}" alt="${insert.name || 'Insert'}" class="insert-image" />
           </div>
-        `).join('')
+        `}).join('')
       ).join('')
     }
   `).join('')}
