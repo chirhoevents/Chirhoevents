@@ -112,11 +112,30 @@ export async function POST(
       )
     }
 
-    // Get room assignments for these participants
+    // Get room assignments for these participants (individual-level)
     const participantIds = group.participants.map((p: any) => p.id)
     const roomAssignments = await prisma.roomAssignment.findMany({
       where: {
         participantId: { in: participantIds },
+      },
+      include: {
+        room: {
+          include: {
+            building: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    })
+
+    // Get group-level room assignments (used by POROS GroupAssignments)
+    const groupRoomAssignments = await prisma.roomAssignment.findMany({
+      where: {
+        groupRegistrationId: groupId,
+        participantId: null, // Group-level assignments don't have participantId
       },
       include: {
         room: {
@@ -254,15 +273,18 @@ export async function POST(
         where: { eventId },
         orderBy: [{ day: 'asc' }, { order: 'asc' }, { startTime: 'asc' }],
       })
-    } catch {
-      // Table might not exist yet
+    } catch (confessionError) {
+      console.warn('[SALVE] Could not fetch confession times (table may not exist yet or Prisma client needs regeneration):', confessionError)
     }
 
-    // Generate housing summary from allocated rooms, or fall back to individual room assignments
+    // Generate housing summary from multiple sources:
+    // 1. allocatedRooms (old system: Room.allocatedToGroupId)
+    // 2. groupRoomAssignments (new system: RoomAssignment with groupRegistrationId, no participantId)
+    // 3. roomAssignments (individual: RoomAssignment with participantId)
     let housingSummary: any[] = []
 
     if (group.allocatedRooms.length > 0) {
-      // Use allocated rooms (group-level room allocation)
+      // Old system: rooms allocated directly to group via Room.allocatedToGroupId
       housingSummary = group.allocatedRooms.map((room: any) => {
         const occupantIds = room.roomAssignments
           .filter((ra: any) => ra.participantId)
@@ -293,8 +315,19 @@ export async function POST(
           }),
         }
       })
+    } else if (groupRoomAssignments.length > 0) {
+      // New system: group-level RoomAssignment records (from POROS GroupAssignments UI)
+      housingSummary = groupRoomAssignments.map((ra: any) => ({
+        building: ra.room.building.name,
+        roomNumber: ra.room.roomNumber,
+        floor: ra.room.floor,
+        capacity: ra.room.capacity,
+        gender: ra.room.gender,
+        housingType: ra.room.housingType,
+        occupants: [], // Group-level assignments don't track individual occupants
+      }))
     } else if (roomAssignments.length > 0) {
-      // Fallback: build housing summary from individual room assignments
+      // Fallback: individual participant room assignments
       const roomMap = new Map<string, { room: any; occupants: any[] }>()
 
       for (const ra of roomAssignments) {
