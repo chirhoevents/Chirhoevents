@@ -447,6 +447,19 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
     // Table might not exist yet
   }
 
+  // Get active adoration times (always fetch for M2K, otherwise check toggle)
+  let adorations: any[] = []
+  try {
+    if (settings?.porosAdorationEnabled || isM2KEvent) {
+      adorations = await prisma.porosAdoration.findMany({
+        where: { eventId, isActive: true },
+        orderBy: [{ day: 'asc' }, { startTime: 'asc' }, { order: 'asc' }]
+      })
+    }
+  } catch {
+    // Table might not exist yet
+  }
+
   // Get reconciliation guide URL
   const reconciliationGuideUrl = settings?.confessionsReconciliationGuideUrl || null
 
@@ -524,6 +537,7 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
           confessions={confessions}
           reconciliationGuideUrl={reconciliationGuideUrl}
           infoItems={infoItems}
+          adorations={adorations}
         />
       )
     }
@@ -546,6 +560,7 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
       confessions={confessions}
       reconciliationGuideUrl={reconciliationGuideUrl}
       infoItems={infoItems}
+      adorations={adorations}
       seatingEnabled={settings?.porosSeatingEnabled ?? false}
       schedulePdfUrl={schedulePdf?.url || null}
     />

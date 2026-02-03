@@ -36,6 +36,7 @@ import {
   FileJson,
   X,
   Info,
+  Sun,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
@@ -396,6 +397,28 @@ export function PorosSettings({ eventId, settings: initialSettings, onUpdate }: 
             <Switch
               checked={settings.porosInfoEnabled ?? false}
               onCheckedChange={(checked) => updateSetting('porosInfoEnabled', checked)}
+              disabled={saving}
+            />
+          </div>
+
+          <Separator />
+
+          {/* Adoration */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-rose-100 rounded-lg">
+                <Sun className="w-5 h-5 text-rose-600" />
+              </div>
+              <div>
+                <Label className="text-base font-medium">Adoration</Label>
+                <p className="text-sm text-muted-foreground">
+                  Adoration time slots and locations
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={settings.porosAdorationEnabled ?? false}
+              onCheckedChange={(checked) => updateSetting('porosAdorationEnabled', checked)}
               disabled={saving}
             />
           </div>

@@ -13,6 +13,7 @@ import { PorosADA } from '@/components/admin/poros/PorosADA'
 import { PorosResources } from '@/components/admin/poros/PorosResources'
 import { PorosConfessions } from '@/components/admin/poros/PorosConfessions'
 import { PorosInfo } from '@/components/admin/poros/PorosInfo'
+import { PorosAdoration } from '@/components/admin/poros/PorosAdoration'
 import { GroupAllocations } from '@/components/admin/poros/GroupAllocations'
 import { PorosImport } from '@/components/admin/poros/PorosImport'
 import {
@@ -28,7 +29,8 @@ import {
   Building2,
   Upload,
   Church,
-  Info
+  Info,
+  Sun
 } from 'lucide-react'
 
 interface PorosPortalClientProps {
@@ -64,6 +66,7 @@ export default function PorosPortalClient({
   const adaEnabled = settings?.porosAdaEnabled ?? false
   const confessionsEnabled = settings?.porosConfessionsEnabled ?? false
   const infoEnabled = settings?.porosInfoEnabled ?? false
+  const adorationEnabled = settings?.porosAdorationEnabled ?? false
 
   return (
     <div className="p-6 max-w-[1600px] mx-auto">
@@ -153,6 +156,13 @@ export default function PorosPortalClient({
             </TabsTrigger>
           )}
 
+          {adorationEnabled && (
+            <TabsTrigger value="adoration" className="flex items-center gap-2">
+              <Sun className="w-4 h-4" />
+              Adoration
+            </TabsTrigger>
+          )}
+
           <TabsTrigger value="resources" className="flex items-center gap-2">
             <FileText className="w-4 h-4" />
             Resources
@@ -222,6 +232,12 @@ export default function PorosPortalClient({
         {infoEnabled && (
           <TabsContent value="info">
             <PorosInfo eventId={eventId} />
+          </TabsContent>
+        )}
+
+        {adorationEnabled && (
+          <TabsContent value="adoration">
+            <PorosAdoration eventId={eventId} />
           </TabsContent>
         )}
 
