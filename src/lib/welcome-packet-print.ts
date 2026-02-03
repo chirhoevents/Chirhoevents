@@ -172,34 +172,52 @@ export function generateWelcomePacketHTML(packet: PacketData, settings: PrintSet
     </div>
   ` : ''
 
-  // Small group section
-  const smallGroupSection = packet.smallGroup && (packet.smallGroup.sgl || packet.smallGroup.religious || packet.smallGroup.meetingRoom) ? `
-    <div style="margin-bottom: 16px; padding: 12px; border-radius: 8px; background: #f3e8ff; border-left: 4px solid #9333ea;">
-      <div style="font-size: 13px; font-weight: 600; color: #6b21a8; margin-bottom: 8px;">Small Group Information</div>
-      <div style="font-size: 11px;">
-        ${packet.smallGroup.sgl ? `<div style="margin: 2px 0;"><strong>Small Group Leader:</strong> ${packet.smallGroup.sgl}</div>` : ''}
-        ${packet.smallGroup.religious ? `<div style="margin: 2px 0;"><strong>Religious:</strong> ${packet.smallGroup.religious}</div>` : ''}
-        ${packet.smallGroup.meetingRoom ? `<div style="margin: 2px 0;"><strong>Meeting Location:</strong> ${packet.smallGroup.meetingRoom}</div>` : ''}
+  // Housing & Small Group combined section (POROS portal style)
+  const maleRooms = packet.housing?.summary?.filter(r => r.gender === 'male') || []
+  const femaleRooms = packet.housing?.summary?.filter(r => r.gender === 'female') || []
+  const otherRooms = packet.housing?.summary?.filter(r => r.gender !== 'male' && r.gender !== 'female') || []
+  const maleRoomNames = maleRooms.map(r => `${r.building}-${r.roomNumber}`).join(', ')
+  const femaleRoomNames = femaleRooms.map(r => `${r.building}-${r.roomNumber}`).join(', ')
+  const otherRoomNames = otherRooms.map(r => `${r.building}-${r.roomNumber}`).join(', ')
+  const maleCount = packet.participants?.list?.filter(p => p.gender === 'male').length || 0
+  const femaleCount = packet.participants?.list?.filter(p => p.gender === 'female').length || 0
+
+  const housingSummarySection = includeHousingAssignments && packet.housing?.summary?.length > 0 ? `
+    <div style="margin-bottom: 16px; padding: 12px; border-radius: 8px; background: #eff6ff; border-left: 4px solid #3b82f6;">
+      <div style="font-size: 13px; font-weight: 600; color: #1e3a5f; margin-bottom: 8px;">Housing</div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        ${maleCount > 0 ? `
+          <div style="padding: 8px; background: #dbeafe; border-radius: 6px;">
+            <div style="font-size: 11px; font-weight: 600; color: #1e40af;">Males (${maleCount})</div>
+            <div style="font-size: 11px; font-weight: 500; color: #1d4ed8; margin-top: 2px;">${maleRoomNames || 'Not assigned'}</div>
+          </div>
+        ` : ''}
+        ${femaleCount > 0 ? `
+          <div style="padding: 8px; background: #fce7f3; border-radius: 6px;">
+            <div style="font-size: 11px; font-weight: 600; color: #9d174d;">Females (${femaleCount})</div>
+            <div style="font-size: 11px; font-weight: 500; color: #be185d; margin-top: 2px;">${femaleRoomNames || 'Not assigned'}</div>
+          </div>
+        ` : ''}
       </div>
+      ${otherRooms.length > 0 ? `
+        <div style="padding: 8px; background: #f1f5f9; border-radius: 6px; margin-top: 8px;">
+          <div style="font-size: 11px; font-weight: 600; color: #475569;">Additional Rooms</div>
+          <div style="font-size: 11px; font-weight: 500; color: #64748b; margin-top: 2px;">${otherRoomNames}</div>
+        </div>
+      ` : ''}
     </div>
   ` : ''
 
-  // Housing summary section
-  const housingSummarySection = includeHousingAssignments && packet.housing?.summary?.length > 0 ? `
-    <div style="margin-bottom: 16px;">
-      <div style="font-size: 13px; font-weight: 600; color: #1a365d; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid #c9a227;">Housing Assignments</div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-        ${packet.housing.summary.map(room => `
-          <div style="padding: 8px; background: #f9f9f9; border-radius: 6px; border: 1px solid #e5e5e5;">
-            <div style="font-size: 12px; font-weight: 600; color: #1a365d;">${room.building} - ${room.roomNumber}</div>
-            <div style="font-size: 10px; color: #666; margin-top: 2px;">${room.gender === 'male' ? 'Male' : room.gender === 'female' ? 'Female' : 'Mixed'} • Capacity: ${room.capacity}</div>
-            ${room.occupants?.length > 0 ? `
-              <div style="margin-top: 6px; font-size: 10px; color: #555;">
-                ${room.occupants.map(o => `<div style="margin: 1px 0;">• ${o.name}${o.bedLetter ? ` (Bed ${o.bedLetter})` : ''}</div>`).join('')}
-              </div>
-            ` : ''}
-          </div>
-        `).join('')}
+  // Small group section (POROS portal style - green card)
+  const smallGroupSection = packet.smallGroup && (packet.smallGroup.sgl || packet.smallGroup.religious || packet.smallGroup.meetingRoom) ? `
+    <div style="margin-bottom: 16px; padding: 12px; border-radius: 8px; background: #f0fdf4; border-left: 4px solid #22c55e;">
+      <div style="font-size: 13px; font-weight: 600; color: #166534; margin-bottom: 4px;">Small Group Location</div>
+      <div style="font-size: 12px; font-weight: 500; color: #15803d; margin-bottom: 6px;">
+        ${packet.smallGroup.meetingRoom || 'Not assigned'}
+      </div>
+      <div style="font-size: 11px; color: #166534;">
+        ${packet.smallGroup.sgl ? `<div style="margin: 2px 0;"><strong>Seminarian SGL:</strong> ${packet.smallGroup.sgl}</div>` : ''}
+        ${packet.smallGroup.religious ? `<div style="margin: 2px 0;"><strong>Religious:</strong> ${packet.smallGroup.religious}</div>` : ''}
       </div>
     </div>
   ` : ''
@@ -425,6 +443,9 @@ export function generateWelcomePacketHTML(packet: PacketData, settings: PrintSet
       <!-- Meal Color -->
       ${mealColorSection}
 
+      <!-- Housing -->
+      ${housingSummarySection}
+
       <!-- Small Group -->
       ${smallGroupSection}
 
@@ -433,9 +454,6 @@ export function generateWelcomePacketHTML(packet: PacketData, settings: PrintSet
 
       <!-- Confession Schedule -->
       ${confessionSection}
-
-      <!-- Housing Summary -->
-      ${housingSummarySection}
 
       <!-- Participant Roster -->
       ${includeRoster ? `
