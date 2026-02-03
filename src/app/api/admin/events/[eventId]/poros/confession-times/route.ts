@@ -3,6 +3,29 @@ import { verifyEventAccess } from '@/lib/api-auth'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 
+// Ensure the confession times table exists (self-healing migration)
+async function ensureConfessionTimesTable() {
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "poros_confession_times" (
+      "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+      "event_id" UUID NOT NULL,
+      "day" VARCHAR(50) NOT NULL,
+      "day_date" DATE,
+      "start_time" VARCHAR(20) NOT NULL,
+      "end_time" VARCHAR(20),
+      "location" VARCHAR(255),
+      "confessor" VARCHAR(255),
+      "order" INTEGER NOT NULL DEFAULT 0,
+      "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "poros_confession_times_pkey" PRIMARY KEY ("id")
+    )
+  `)
+  await prisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "idx_poros_confession_times_event" ON "poros_confession_times"("event_id")
+  `)
+}
+
 // GET - List all confession times for an event
 export async function GET(
   request: NextRequest,
@@ -22,20 +45,17 @@ export async function GET(
       )
     }
 
-    let confessionTimes: any[] = []
-    try {
-      confessionTimes = await prisma.$queryRaw`
-        SELECT id, event_id as "eventId", day, day_date as "dayDate",
-               start_time as "startTime", end_time as "endTime",
-               location, confessor, "order",
-               created_at as "createdAt", updated_at as "updatedAt"
-        FROM poros_confession_times
-        WHERE event_id = ${eventId}::uuid
-        ORDER BY day ASC, "order" ASC, start_time ASC
-      `
-    } catch (error) {
-      console.error('Confession times table might not exist:', error)
-    }
+    await ensureConfessionTimesTable()
+
+    const confessionTimes: any[] = await prisma.$queryRaw`
+      SELECT id, event_id as "eventId", day, day_date as "dayDate",
+             start_time as "startTime", end_time as "endTime",
+             location, confessor, "order",
+             created_at as "createdAt", updated_at as "updatedAt"
+      FROM poros_confession_times
+      WHERE event_id = ${eventId}::uuid
+      ORDER BY day ASC, "order" ASC, start_time ASC
+    `
 
     return NextResponse.json({ confessionTimes })
   } catch (error) {
@@ -72,6 +92,8 @@ export async function POST(
         { status: 400 }
       )
     }
+
+    await ensureConfessionTimesTable()
 
     // Get max order for the day
     const maxOrderResult: any[] = await prisma.$queryRaw`
@@ -116,6 +138,7 @@ export async function DELETE(
       )
     }
 
+    await ensureConfessionTimesTable()
     await prisma.$queryRaw`
       DELETE FROM poros_confession_times WHERE event_id = ${eventId}::uuid
     `
