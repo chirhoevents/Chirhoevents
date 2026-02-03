@@ -258,37 +258,76 @@ export async function POST(
       // Table might not exist yet
     }
 
-    // Generate housing summary
-    const housingSummary = group.allocatedRooms.map((room: any) => {
-      const occupantIds = room.roomAssignments
-        .filter((ra: any) => ra.participantId)
-        .map((ra: any) => ra.participantId)
-      const occupants = group.participants.filter((p: any) =>
-        occupantIds.includes(p.id)
-      )
+    // Generate housing summary from allocated rooms, or fall back to individual room assignments
+    let housingSummary: any[] = []
 
-      return {
+    if (group.allocatedRooms.length > 0) {
+      // Use allocated rooms (group-level room allocation)
+      housingSummary = group.allocatedRooms.map((room: any) => {
+        const occupantIds = room.roomAssignments
+          .filter((ra: any) => ra.participantId)
+          .map((ra: any) => ra.participantId)
+        const occupants = group.participants.filter((p: any) =>
+          occupantIds.includes(p.id)
+        )
+
+        return {
+          building: room.building.name,
+          roomNumber: room.roomNumber,
+          floor: room.floor,
+          capacity: room.capacity,
+          gender: room.gender,
+          housingType: room.housingType,
+          occupants: occupants.map((p: any) => {
+            const assignment = room.roomAssignments.find(
+              (ra: any) => ra.participantId === p.id
+            )
+            return {
+              name: `${p.firstName} ${p.lastName}`,
+              bedNumber: assignment?.bedNumber,
+              bedLetter: assignment?.bedNumber
+                ? String.fromCharCode(64 + assignment.bedNumber)
+                : null,
+              participantType: p.participantType,
+            }
+          }),
+        }
+      })
+    } else if (roomAssignments.length > 0) {
+      // Fallback: build housing summary from individual room assignments
+      const roomMap = new Map<string, { room: any; occupants: any[] }>()
+
+      for (const ra of roomAssignments) {
+        const roomKey = ra.room.id || `${ra.room.building.name}-${ra.room.roomNumber}`
+        if (!roomMap.has(roomKey)) {
+          roomMap.set(roomKey, {
+            room: ra.room,
+            occupants: [],
+          })
+        }
+        const participant = group.participants.find((p: any) => p.id === ra.participantId)
+        if (participant) {
+          roomMap.get(roomKey)!.occupants.push({
+            name: `${participant.firstName} ${participant.lastName}`,
+            bedNumber: ra.bedNumber,
+            bedLetter: ra.bedNumber
+              ? String.fromCharCode(64 + ra.bedNumber)
+              : null,
+            participantType: participant.participantType,
+          })
+        }
+      }
+
+      housingSummary = Array.from(roomMap.values()).map(({ room, occupants }) => ({
         building: room.building.name,
         roomNumber: room.roomNumber,
         floor: room.floor,
         capacity: room.capacity,
         gender: room.gender,
         housingType: room.housingType,
-        occupants: occupants.map((p: any) => {
-          const assignment = room.roomAssignments.find(
-            (ra: any) => ra.participantId === p.id
-          )
-          return {
-            name: `${p.firstName} ${p.lastName}`,
-            bedNumber: assignment?.bedNumber,
-            bedLetter: assignment?.bedNumber
-              ? String.fromCharCode(64 + assignment.bedNumber)
-              : null,
-            participantType: p.participantType,
-          }
-        }),
-      }
-    })
+        occupants,
+      }))
+    }
 
     // Extract SGL and Religious staff
     const sglStaff = staffAssignments
@@ -361,7 +400,7 @@ export async function POST(
         }),
       },
       housing: {
-        totalRooms: group.allocatedRooms.length,
+        totalRooms: housingSummary.length,
         summary: housingSummary,
       },
       inserts: inserts.map((i: any) => ({
@@ -450,6 +489,7 @@ export async function POST(
       // Print settings from welcome packets editor (what to include in the packet)
       packetPrintSettings: event?.settings?.salvePacketSettings || {
         includeSchedule: true,
+        includeConfessionSchedule: true,
         includeMap: true,
         includeRoster: true,
         includeHousingAssignments: true,
