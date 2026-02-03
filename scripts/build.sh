@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Build v2.1 - Force fresh deployment
+# Build v2.2 - Fixed duplicate Prisma field
 echo "=== Build Script Starting ==="
 
 echo "Running pre-migration cleanup and data backup..."
