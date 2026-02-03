@@ -22,6 +22,7 @@ import {
   Grid3X3,
   Users,
   Utensils,
+  Church,
   Globe,
   Trash2,
   Loader2,
@@ -350,6 +351,28 @@ export function PorosSettings({ eventId, settings: initialSettings, onUpdate }: 
             <Switch
               checked={settings.porosMealColorsEnabled ?? false}
               onCheckedChange={(checked) => updateSetting('porosMealColorsEnabled', checked)}
+              disabled={saving}
+            />
+          </div>
+
+          <Separator />
+
+          {/* Confessions */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-amber-100 rounded-lg">
+                <Church className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <Label className="text-base font-medium">Confessions</Label>
+                <p className="text-sm text-muted-foreground">
+                  Confession time slots and locations
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={settings.porosConfessionsEnabled ?? false}
+              onCheckedChange={(checked) => updateSetting('porosConfessionsEnabled', checked)}
               disabled={saving}
             />
           </div>
