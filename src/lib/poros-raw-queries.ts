@@ -85,7 +85,7 @@ export interface PorosAdorationCamel {
 }
 
 // Helper to convert snake_case to camelCase
-function toCamelCase<T extends Record<string, unknown>, R>(obj: T): R {
+function toCamelCase<R>(obj: Record<string, unknown>): R {
   const result: Record<string, unknown> = {};
   for (const key in obj) {
     const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
@@ -111,14 +111,14 @@ export async function getConfessions(eventId: string, activeOnly = false): Promi
       ORDER BY "order" ASC, day ASC, start_time ASC
     `;
   }
-  return rows.map(row => toCamelCase<PorosConfession, PorosConfessionCamel>(row));
+  return rows.map(row => toCamelCase<PorosConfessionCamel>(row as unknown as Record<string, unknown>));
 }
 
 export async function getConfessionById(id: string): Promise<PorosConfessionCamel | null> {
   const rows = await prisma.$queryRaw<PorosConfession[]>`
     SELECT * FROM poros_confessions WHERE id = ${id}::uuid LIMIT 1
   `;
-  return rows.length > 0 ? toCamelCase<PorosConfession, PorosConfessionCamel>(rows[0]) : null;
+  return rows.length > 0 ? toCamelCase<PorosConfessionCamel>(rows[0] as unknown as Record<string, unknown>) : null;
 }
 
 export async function createConfession(data: {
@@ -145,7 +145,7 @@ export async function createConfession(data: {
     )
     RETURNING *
   `;
-  return toCamelCase<PorosConfession, PorosConfessionCamel>(rows[0]);
+  return toCamelCase<PorosConfessionCamel>(rows[0] as unknown as Record<string, unknown>);
 }
 
 export async function updateConfession(id: string, data: {
@@ -170,7 +170,7 @@ export async function updateConfession(id: string, data: {
     WHERE id = ${id}::uuid
     RETURNING *
   `;
-  return toCamelCase<PorosConfession, PorosConfessionCamel>(rows[0]);
+  return toCamelCase<PorosConfessionCamel>(rows[0] as unknown as Record<string, unknown>);
 }
 
 export async function deleteConfession(id: string): Promise<void> {
@@ -194,14 +194,14 @@ export async function getInfoItems(eventId: string, activeOnly = false): Promise
       ORDER BY "order" ASC, title ASC
     `;
   }
-  return rows.map(row => toCamelCase<PorosInfoItem, PorosInfoItemCamel>(row));
+  return rows.map(row => toCamelCase<PorosInfoItemCamel>(row as unknown as Record<string, unknown>));
 }
 
 export async function getInfoItemById(id: string): Promise<PorosInfoItemCamel | null> {
   const rows = await prisma.$queryRaw<PorosInfoItem[]>`
     SELECT * FROM poros_info_items WHERE id = ${id}::uuid LIMIT 1
   `;
-  return rows.length > 0 ? toCamelCase<PorosInfoItem, PorosInfoItemCamel>(rows[0]) : null;
+  return rows.length > 0 ? toCamelCase<PorosInfoItemCamel>(rows[0] as unknown as Record<string, unknown>) : null;
 }
 
 export async function createInfoItem(data: {
@@ -226,7 +226,7 @@ export async function createInfoItem(data: {
     )
     RETURNING *
   `;
-  return toCamelCase<PorosInfoItem, PorosInfoItemCamel>(rows[0]);
+  return toCamelCase<PorosInfoItemCamel>(rows[0] as unknown as Record<string, unknown>);
 }
 
 export async function updateInfoItem(id: string, data: {
@@ -249,7 +249,7 @@ export async function updateInfoItem(id: string, data: {
     WHERE id = ${id}::uuid
     RETURNING *
   `;
-  return toCamelCase<PorosInfoItem, PorosInfoItemCamel>(rows[0]);
+  return toCamelCase<PorosInfoItemCamel>(rows[0] as unknown as Record<string, unknown>);
 }
 
 export async function deleteInfoItem(id: string): Promise<void> {
@@ -273,14 +273,14 @@ export async function getAdorations(eventId: string, activeOnly = false): Promis
       ORDER BY "order" ASC, day ASC, start_time ASC
     `;
   }
-  return rows.map(row => toCamelCase<PorosAdoration, PorosAdorationCamel>(row));
+  return rows.map(row => toCamelCase<PorosAdorationCamel>(row as unknown as Record<string, unknown>));
 }
 
 export async function getAdorationById(id: string): Promise<PorosAdorationCamel | null> {
   const rows = await prisma.$queryRaw<PorosAdoration[]>`
     SELECT * FROM poros_adoration WHERE id = ${id}::uuid LIMIT 1
   `;
-  return rows.length > 0 ? toCamelCase<PorosAdoration, PorosAdorationCamel>(rows[0]) : null;
+  return rows.length > 0 ? toCamelCase<PorosAdorationCamel>(rows[0] as unknown as Record<string, unknown>) : null;
 }
 
 export async function createAdoration(data: {
@@ -307,7 +307,7 @@ export async function createAdoration(data: {
     )
     RETURNING *
   `;
-  return toCamelCase<PorosAdoration, PorosAdorationCamel>(rows[0]);
+  return toCamelCase<PorosAdorationCamel>(rows[0] as unknown as Record<string, unknown>);
 }
 
 export async function updateAdoration(id: string, data: {
@@ -332,7 +332,7 @@ export async function updateAdoration(id: string, data: {
     WHERE id = ${id}::uuid
     RETURNING *
   `;
-  return toCamelCase<PorosAdoration, PorosAdorationCamel>(rows[0]);
+  return toCamelCase<PorosAdorationCamel>(rows[0] as unknown as Record<string, unknown>);
 }
 
 export async function deleteAdoration(id: string): Promise<void> {
