@@ -87,7 +87,7 @@ echo "Executing cleanup SQL..."
 npx prisma db execute --file /tmp/cleanup.sql --schema prisma/schema.prisma || echo "Cleanup SQL completed (some statements may have been skipped)"
 
 echo "Running prisma db push..."
-npx prisma db push
+npx prisma db push --accept-data-loss
 
 # Ensure M2K event always has confessions, adoration, and info enabled
 echo "Ensuring M2K event settings are active..."
