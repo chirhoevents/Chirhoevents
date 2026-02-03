@@ -342,7 +342,6 @@ model EventSettings {
   salvePacketSettings             Json?    @map("salve_packet_settings") @db.JsonB
 
   // Confessions feature
-  porosConfessionsEnabled         Boolean  @default(false) @map("poros_confessions_enabled")
   confessionsReconciliationGuideUrl String? @map("confessions_reconciliation_guide_url") @db.Text
 
   // Info feature

@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 
+# Build v2.1 - Force fresh deployment
 echo "=== Build Script Starting ==="
 
 echo "Running pre-migration cleanup and data backup..."
