@@ -1,13 +1,13 @@
 #!/bin/bash
 set -e
 
-# Build v2.2 - Fixed duplicate Prisma field
+# Build v2.3 - Run table creation AFTER Prisma push
 echo "=== Build Script Starting ==="
 
 echo "Running pre-migration cleanup..."
 
-# Create a temp SQL file for the cleanup
-cat > /tmp/cleanup.sql << 'SQLEOF'
+# Create a temp SQL file for the pre-prisma cleanup
+cat > /tmp/pre-cleanup.sql << 'SQLEOF'
 -- Drop orphaned waitlist constraint if it exists
 ALTER TABLE "waitlist_entries" DROP CONSTRAINT IF EXISTS "waitlist_entries_registration_token_key";
 DROP INDEX IF EXISTS "waitlist_entries_registration_token_key";
@@ -24,12 +24,22 @@ BEGIN
     END IF;
 END $$;
 
--- Ensure event_settings columns exist for confessions/info/adoration
-ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "poros_confessions_enabled" BOOLEAN NOT NULL DEFAULT false;
-ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "confessions_reconciliation_guide_url" TEXT;
-ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "poros_info_enabled" BOOLEAN NOT NULL DEFAULT false;
-ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "poros_adoration_enabled" BOOLEAN NOT NULL DEFAULT false;
+-- Drop the old poros_confession_times table if it exists (we use poros_confessions now)
+DROP TABLE IF EXISTS "poros_confession_times" CASCADE;
+SQLEOF
 
+# Run pre-cleanup SQL
+echo "Executing pre-cleanup SQL..."
+npx prisma db execute --file /tmp/pre-cleanup.sql --schema prisma/schema.prisma || echo "Pre-cleanup SQL completed (some statements may have been skipped)"
+
+echo "Running prisma db push..."
+npx prisma db push --accept-data-loss
+
+# Create confession/adoration/info tables AFTER Prisma push
+# These tables are managed outside of Prisma to prevent data loss during deployments
+echo "Creating confession/adoration/info tables..."
+
+cat > /tmp/create-tables.sql << 'SQLEOF'
 -- Create confession/adoration/info tables if they don't exist
 -- These tables are managed outside of Prisma to prevent data loss during deployments
 CREATE TABLE IF NOT EXISTS "poros_confessions" (
@@ -84,6 +94,12 @@ CREATE INDEX IF NOT EXISTS "idx_poros_info_items_active" ON "poros_info_items"("
 CREATE INDEX IF NOT EXISTS "idx_poros_adoration_event" ON "poros_adoration"("event_id");
 CREATE INDEX IF NOT EXISTS "idx_poros_adoration_active" ON "poros_adoration"("is_active");
 
+-- Ensure event_settings columns exist for confessions/info/adoration
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "poros_confessions_enabled" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "confessions_reconciliation_guide_url" TEXT;
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "poros_info_enabled" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "poros_adoration_enabled" BOOLEAN NOT NULL DEFAULT false;
+
 -- Make sure confessions, adoration, and info are always enabled for Mount 2000 2026
 UPDATE "event_settings"
 SET "poros_confessions_enabled" = true,
@@ -92,12 +108,8 @@ SET "poros_confessions_enabled" = true,
 WHERE "event_id" = 'b9b70d36-ae35-47a0-aeb7-a50df9a598f1';
 SQLEOF
 
-# Run cleanup SQL
-echo "Executing cleanup SQL..."
-npx prisma db execute --file /tmp/cleanup.sql --schema prisma/schema.prisma || echo "Cleanup SQL completed (some statements may have been skipped)"
-
-echo "Running prisma db push..."
-npx prisma db push --accept-data-loss
+echo "Executing table creation SQL..."
+npx prisma db execute --file /tmp/create-tables.sql --schema prisma/schema.prisma
 
 echo "Running next build..."
 npx next build

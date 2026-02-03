@@ -1788,24 +1788,8 @@ model PorosMealTime {
   @@map("poros_meal_times")
 }
 
-// NOTE: PorosConfessionTime model removed - confessions are now managed
-// via raw SQL in poros_confessions table to prevent data loss during deployments.
-model PorosConfessionTime {
-  id        String   @id @default(uuid()) @db.Uuid
-  eventId   String   @map("event_id") @db.Uuid
-  day       String   @db.VarChar(50) // friday, saturday, sunday, or custom day name
-  dayDate   DateTime? @map("day_date") @db.Date
-  startTime String   @map("start_time") @db.VarChar(20)
-  endTime   String?  @map("end_time") @db.VarChar(20)
-  location  String?  @db.VarChar(255)
-  confessor String?  @db.VarChar(255) // priest name (optional)
-  order     Int      @default(0)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  @@index([eventId], name: "idx_poros_confession_times_event")
-  @@map("poros_confession_times")
-}
+// NOTE: Confession/Adoration/Info tables are managed via raw SQL (not Prisma)
+// to prevent data loss during deployments. See scripts/build.sh for table creation.
 
 model MealColorAssignment {
   id                  String   @id @default(uuid()) @db.Uuid
