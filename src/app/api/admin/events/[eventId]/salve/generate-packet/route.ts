@@ -112,11 +112,30 @@ export async function POST(
       )
     }
 
-    // Get room assignments for these participants
+    // Get room assignments for these participants (individual-level)
     const participantIds = group.participants.map((p: any) => p.id)
     const roomAssignments = await prisma.roomAssignment.findMany({
       where: {
         participantId: { in: participantIds },
+      },
+      include: {
+        room: {
+          include: {
+            building: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    })
+
+    // Get group-level room assignments (used by POROS GroupAssignments)
+    const groupRoomAssignments = await prisma.roomAssignment.findMany({
+      where: {
+        groupRegistrationId: groupId,
+        participantId: null, // Group-level assignments don't have participantId
       },
       include: {
         room: {
@@ -247,37 +266,125 @@ export async function POST(
       orderBy: [{ day: 'asc' }, { order: 'asc' }],
     })
 
-    // Generate housing summary
-    const housingSummary = group.allocatedRooms.map((room: any) => {
-      const occupantIds = room.roomAssignments
-        .filter((ra: any) => ra.participantId)
-        .map((ra: any) => ra.participantId)
-      const occupants = group.participants.filter((p: any) =>
-        occupantIds.includes(p.id)
-      )
+    // Get confession times from Poros (using raw SQL since Prisma client may not have this model yet)
+    // Ensure table exists first (self-healing migration)
+    let confessionTimes: any[] = []
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "poros_confession_times" (
+          "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+          "event_id" UUID NOT NULL,
+          "day" VARCHAR(50) NOT NULL,
+          "day_date" DATE,
+          "start_time" VARCHAR(20) NOT NULL,
+          "end_time" VARCHAR(20),
+          "location" VARCHAR(255),
+          "confessor" VARCHAR(255),
+          "order" INTEGER NOT NULL DEFAULT 0,
+          "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT "poros_confession_times_pkey" PRIMARY KEY ("id")
+        )
+      `)
+      await prisma.$executeRawUnsafe(`
+        CREATE INDEX IF NOT EXISTS "idx_poros_confession_times_event" ON "poros_confession_times"("event_id")
+      `)
+      confessionTimes = await prisma.$queryRaw`
+        SELECT id, event_id as "eventId", day, day_date as "dayDate",
+               start_time as "startTime", end_time as "endTime",
+               location, confessor, "order"
+        FROM poros_confession_times
+        WHERE event_id = ${eventId}::uuid
+        ORDER BY day ASC, "order" ASC, start_time ASC
+      `
+    } catch (confessionError) {
+      console.warn('[SALVE] Could not fetch confession times:', confessionError)
+    }
 
-      return {
+    // Generate housing summary from multiple sources:
+    // 1. allocatedRooms (old system: Room.allocatedToGroupId)
+    // 2. groupRoomAssignments (new system: RoomAssignment with groupRegistrationId, no participantId)
+    // 3. roomAssignments (individual: RoomAssignment with participantId)
+    let housingSummary: any[] = []
+
+    if (group.allocatedRooms.length > 0) {
+      // Old system: rooms allocated directly to group via Room.allocatedToGroupId
+      housingSummary = group.allocatedRooms.map((room: any) => {
+        const occupantIds = room.roomAssignments
+          .filter((ra: any) => ra.participantId)
+          .map((ra: any) => ra.participantId)
+        const occupants = group.participants.filter((p: any) =>
+          occupantIds.includes(p.id)
+        )
+
+        return {
+          building: room.building.name,
+          roomNumber: room.roomNumber,
+          floor: room.floor,
+          capacity: room.capacity,
+          gender: room.gender,
+          housingType: room.housingType,
+          occupants: occupants.map((p: any) => {
+            const assignment = room.roomAssignments.find(
+              (ra: any) => ra.participantId === p.id
+            )
+            return {
+              name: `${p.firstName} ${p.lastName}`,
+              bedNumber: assignment?.bedNumber,
+              bedLetter: assignment?.bedNumber
+                ? String.fromCharCode(64 + assignment.bedNumber)
+                : null,
+              participantType: p.participantType,
+            }
+          }),
+        }
+      })
+    } else if (groupRoomAssignments.length > 0) {
+      // New system: group-level RoomAssignment records (from POROS GroupAssignments UI)
+      housingSummary = groupRoomAssignments.map((ra: any) => ({
+        building: ra.room.building.name,
+        roomNumber: ra.room.roomNumber,
+        floor: ra.room.floor,
+        capacity: ra.room.capacity,
+        gender: ra.room.gender,
+        housingType: ra.room.housingType,
+        occupants: [], // Group-level assignments don't track individual occupants
+      }))
+    } else if (roomAssignments.length > 0) {
+      // Fallback: individual participant room assignments
+      const roomMap = new Map<string, { room: any; occupants: any[] }>()
+
+      for (const ra of roomAssignments) {
+        const roomKey = ra.room.id || `${ra.room.building.name}-${ra.room.roomNumber}`
+        if (!roomMap.has(roomKey)) {
+          roomMap.set(roomKey, {
+            room: ra.room,
+            occupants: [],
+          })
+        }
+        const participant = group.participants.find((p: any) => p.id === ra.participantId)
+        if (participant) {
+          roomMap.get(roomKey)!.occupants.push({
+            name: `${participant.firstName} ${participant.lastName}`,
+            bedNumber: ra.bedNumber,
+            bedLetter: ra.bedNumber
+              ? String.fromCharCode(64 + ra.bedNumber)
+              : null,
+            participantType: participant.participantType,
+          })
+        }
+      }
+
+      housingSummary = Array.from(roomMap.values()).map(({ room, occupants }) => ({
         building: room.building.name,
         roomNumber: room.roomNumber,
         floor: room.floor,
         capacity: room.capacity,
         gender: room.gender,
         housingType: room.housingType,
-        occupants: occupants.map((p: any) => {
-          const assignment = room.roomAssignments.find(
-            (ra: any) => ra.participantId === p.id
-          )
-          return {
-            name: `${p.firstName} ${p.lastName}`,
-            bedNumber: assignment?.bedNumber,
-            bedLetter: assignment?.bedNumber
-              ? String.fromCharCode(64 + assignment.bedNumber)
-              : null,
-            participantType: p.participantType,
-          }
-        }),
-      }
-    })
+        occupants,
+      }))
+    }
 
     // Extract SGL and Religious staff
     const sglStaff = staffAssignments
@@ -350,7 +457,7 @@ export async function POST(
         }),
       },
       housing: {
-        totalRooms: group.allocatedRooms.length,
+        totalRooms: housingSummary.length,
         summary: housingSummary,
       },
       inserts: inserts.map((i: any) => ({
@@ -385,6 +492,13 @@ export async function POST(
           meal: mt.meal,
           time: mt.time,
           color: mt.color,
+        })),
+        confessionTimes: confessionTimes.map((ct: any) => ({
+          day: ct.day,
+          startTime: ct.startTime,
+          endTime: ct.endTime,
+          location: ct.location,
+          confessor: ct.confessor,
         })),
       },
       missingResources: {
@@ -432,6 +546,7 @@ export async function POST(
       // Print settings from welcome packets editor (what to include in the packet)
       packetPrintSettings: event?.settings?.salvePacketSettings || {
         includeSchedule: true,
+        includeConfessionSchedule: true,
         includeMap: true,
         includeRoster: true,
         includeHousingAssignments: true,

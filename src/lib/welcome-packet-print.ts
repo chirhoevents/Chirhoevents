@@ -82,6 +82,13 @@ export interface PacketData {
       time: string
       color?: string
     }>
+    confessionTimes?: Array<{
+      day: string
+      startTime: string
+      endTime?: string | null
+      location?: string | null
+      confessor?: string | null
+    }>
   }
   inserts?: Array<{
     name: string
@@ -113,6 +120,7 @@ export interface PacketData {
 
 export interface PrintSettings {
   includeSchedule?: boolean
+  includeConfessionSchedule?: boolean
   includeMap?: boolean
   includeRoster?: boolean
   includeHousingAssignments?: boolean
@@ -164,34 +172,52 @@ export function generateWelcomePacketHTML(packet: PacketData, settings: PrintSet
     </div>
   ` : ''
 
-  // Small group section
-  const smallGroupSection = packet.smallGroup && (packet.smallGroup.sgl || packet.smallGroup.religious || packet.smallGroup.meetingRoom) ? `
-    <div style="margin-bottom: 16px; padding: 12px; border-radius: 8px; background: #f3e8ff; border-left: 4px solid #9333ea;">
-      <div style="font-size: 13px; font-weight: 600; color: #6b21a8; margin-bottom: 8px;">Small Group Information</div>
-      <div style="font-size: 11px;">
-        ${packet.smallGroup.sgl ? `<div style="margin: 2px 0;"><strong>Small Group Leader:</strong> ${packet.smallGroup.sgl}</div>` : ''}
-        ${packet.smallGroup.religious ? `<div style="margin: 2px 0;"><strong>Religious:</strong> ${packet.smallGroup.religious}</div>` : ''}
-        ${packet.smallGroup.meetingRoom ? `<div style="margin: 2px 0;"><strong>Meeting Location:</strong> ${packet.smallGroup.meetingRoom}</div>` : ''}
+  // Housing & Small Group combined section (POROS portal style)
+  const maleRooms = packet.housing?.summary?.filter(r => r.gender === 'male') || []
+  const femaleRooms = packet.housing?.summary?.filter(r => r.gender === 'female') || []
+  const otherRooms = packet.housing?.summary?.filter(r => r.gender !== 'male' && r.gender !== 'female') || []
+  const maleRoomNames = maleRooms.map(r => `${r.building}-${r.roomNumber}`).join(', ')
+  const femaleRoomNames = femaleRooms.map(r => `${r.building}-${r.roomNumber}`).join(', ')
+  const otherRoomNames = otherRooms.map(r => `${r.building}-${r.roomNumber}`).join(', ')
+  const maleCount = packet.participants?.list?.filter(p => p.gender === 'male').length || 0
+  const femaleCount = packet.participants?.list?.filter(p => p.gender === 'female').length || 0
+
+  const housingSummarySection = includeHousingAssignments && packet.housing?.summary?.length > 0 ? `
+    <div style="margin-bottom: 16px; padding: 12px; border-radius: 8px; background: #eff6ff; border-left: 4px solid #3b82f6;">
+      <div style="font-size: 13px; font-weight: 600; color: #1e3a5f; margin-bottom: 8px;">Housing</div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        ${maleCount > 0 ? `
+          <div style="padding: 8px; background: #dbeafe; border-radius: 6px;">
+            <div style="font-size: 11px; font-weight: 600; color: #1e40af;">Males (${maleCount})</div>
+            <div style="font-size: 11px; font-weight: 500; color: #1d4ed8; margin-top: 2px;">${maleRoomNames || 'Not assigned'}</div>
+          </div>
+        ` : ''}
+        ${femaleCount > 0 ? `
+          <div style="padding: 8px; background: #fce7f3; border-radius: 6px;">
+            <div style="font-size: 11px; font-weight: 600; color: #9d174d;">Females (${femaleCount})</div>
+            <div style="font-size: 11px; font-weight: 500; color: #be185d; margin-top: 2px;">${femaleRoomNames || 'Not assigned'}</div>
+          </div>
+        ` : ''}
       </div>
+      ${otherRooms.length > 0 ? `
+        <div style="padding: 8px; background: #f1f5f9; border-radius: 6px; margin-top: 8px;">
+          <div style="font-size: 11px; font-weight: 600; color: #475569;">Additional Rooms</div>
+          <div style="font-size: 11px; font-weight: 500; color: #64748b; margin-top: 2px;">${otherRoomNames}</div>
+        </div>
+      ` : ''}
     </div>
   ` : ''
 
-  // Housing summary section
-  const housingSummarySection = includeHousingAssignments && packet.housing?.summary?.length > 0 ? `
-    <div style="margin-bottom: 16px;">
-      <div style="font-size: 13px; font-weight: 600; color: #1a365d; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid #c9a227;">Housing Assignments</div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-        ${packet.housing.summary.map(room => `
-          <div style="padding: 8px; background: #f9f9f9; border-radius: 6px; border: 1px solid #e5e5e5;">
-            <div style="font-size: 12px; font-weight: 600; color: #1a365d;">${room.building} - ${room.roomNumber}</div>
-            <div style="font-size: 10px; color: #666; margin-top: 2px;">${room.gender === 'male' ? 'Male' : room.gender === 'female' ? 'Female' : 'Mixed'} • Capacity: ${room.capacity}</div>
-            ${room.occupants?.length > 0 ? `
-              <div style="margin-top: 6px; font-size: 10px; color: #555;">
-                ${room.occupants.map(o => `<div style="margin: 1px 0;">• ${o.name}${o.bedLetter ? ` (Bed ${o.bedLetter})` : ''}</div>`).join('')}
-              </div>
-            ` : ''}
-          </div>
-        `).join('')}
+  // Small group section (POROS portal style - green card)
+  const smallGroupSection = packet.smallGroup && (packet.smallGroup.sgl || packet.smallGroup.religious || packet.smallGroup.meetingRoom) ? `
+    <div style="margin-bottom: 16px; padding: 12px; border-radius: 8px; background: #f0fdf4; border-left: 4px solid #22c55e;">
+      <div style="font-size: 13px; font-weight: 600; color: #166534; margin-bottom: 4px;">Small Group Location</div>
+      <div style="font-size: 12px; font-weight: 500; color: #15803d; margin-bottom: 6px;">
+        ${packet.smallGroup.meetingRoom || 'Not assigned'}
+      </div>
+      <div style="font-size: 11px; color: #166534;">
+        ${packet.smallGroup.sgl ? `<div style="margin: 2px 0;"><strong>Seminarian SGL:</strong> ${packet.smallGroup.sgl}</div>` : ''}
+        ${packet.smallGroup.religious ? `<div style="margin: 2px 0;"><strong>Religious:</strong> ${packet.smallGroup.religious}</div>` : ''}
       </div>
     </div>
   ` : ''
@@ -222,6 +248,59 @@ export function generateWelcomePacketHTML(packet: PacketData, settings: PrintSet
       </table>
     </div>
   ` : ''
+
+  // Confession schedule section
+  const confessionSection = settings.includeConfessionSchedule && packet.resources?.confessionTimes && packet.resources.confessionTimes.length > 0 ? (() => {
+    // Group confession times by day
+    const byDay = new Map<string, typeof packet.resources.confessionTimes>()
+    for (const ct of packet.resources!.confessionTimes!) {
+      if (!byDay.has(ct.day)) byDay.set(ct.day, [])
+      byDay.get(ct.day)!.push(ct)
+    }
+
+    const dayOrder = ['friday', 'saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'day1', 'day2', 'day3', 'day4', 'day5']
+    const sortedDays = Array.from(byDay.keys()).sort((a, b) => {
+      const aIdx = dayOrder.indexOf(a.toLowerCase())
+      const bIdx = dayOrder.indexOf(b.toLowerCase())
+      if (aIdx === -1 && bIdx === -1) return a.localeCompare(b)
+      if (aIdx === -1) return 1
+      if (bIdx === -1) return -1
+      return aIdx - bIdx
+    })
+
+    const getDayName = (day: string) => {
+      const names: Record<string, string> = { friday: 'Friday', saturday: 'Saturday', sunday: 'Sunday', monday: 'Monday', tuesday: 'Tuesday', wednesday: 'Wednesday', thursday: 'Thursday', day1: 'Day 1', day2: 'Day 2', day3: 'Day 3' }
+      return names[day.toLowerCase()] || day.charAt(0).toUpperCase() + day.slice(1)
+    }
+
+    return `
+      <div style="margin-bottom: 16px;">
+        <div style="font-size: 13px; font-weight: 600; color: #1a365d; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid #c9a227;">Confession Schedule</div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+          <thead>
+            <tr style="background: #f5f5f5;">
+              <th style="padding: 6px; text-align: left; border-bottom: 1px solid #ddd;">Day</th>
+              <th style="padding: 6px; text-align: left; border-bottom: 1px solid #ddd;">Time</th>
+              <th style="padding: 6px; text-align: left; border-bottom: 1px solid #ddd;">Location</th>
+              <th style="padding: 6px; text-align: left; border-bottom: 1px solid #ddd;">Confessor</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sortedDays.map(day =>
+              byDay.get(day)!.map((ct, i) => `
+                <tr style="${i % 2 === 0 ? 'background: #fafafa;' : ''}">
+                  <td style="padding: 4px 6px; border-bottom: 1px solid #eee;">${getDayName(ct.day)}</td>
+                  <td style="padding: 4px 6px; border-bottom: 1px solid #eee;">${ct.startTime}${ct.endTime ? ` - ${ct.endTime}` : ''}</td>
+                  <td style="padding: 4px 6px; border-bottom: 1px solid #eee;">${ct.location || '-'}</td>
+                  <td style="padding: 4px 6px; border-bottom: 1px solid #eee;">${ct.confessor || '-'}</td>
+                </tr>
+              `).join('')
+            ).join('')}
+          </tbody>
+        </table>
+      </div>
+    `
+  })() : ''
 
   // Invoice section
   const invoiceSection = includeInvoice && packet.invoice ? `
@@ -364,14 +443,17 @@ export function generateWelcomePacketHTML(packet: PacketData, settings: PrintSet
       <!-- Meal Color -->
       ${mealColorSection}
 
+      <!-- Housing -->
+      ${housingSummarySection}
+
       <!-- Small Group -->
       ${smallGroupSection}
 
       <!-- Schedule -->
       ${scheduleSection}
 
-      <!-- Housing Summary -->
-      ${housingSummarySection}
+      <!-- Confession Schedule -->
+      ${confessionSection}
 
       <!-- Participant Roster -->
       ${includeRoster ? `
@@ -438,11 +520,21 @@ export function generateMultiplePacketsHTML(packets: PacketData[], settings: Pri
     }
     .insert-page {
       page-break-before: always;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
     }
     .insert-image {
       max-width: 100%;
-      height: auto;
-      margin: 20px 0;
+      max-height: 9in;
+      object-fit: contain;
+      margin: 0 auto;
+      display: block;
+    }
+    .insert-page-with-title .insert-image {
+      max-height: 8.5in;
     }
     .insert-title {
       color: #1a365d;
@@ -451,6 +543,9 @@ export function generateMultiplePacketsHTML(packets: PacketData[], settings: Pri
       margin-bottom: 12px;
       padding-bottom: 8px;
       border-bottom: 2px solid #c9a227;
+      width: 100%;
+      text-align: center;
+      flex-shrink: 0;
     }
   </style>
 </head>
@@ -461,12 +556,14 @@ export function generateMultiplePacketsHTML(packets: PacketData[], settings: Pri
     </div>
     ${/* Add inserts after each packet */
       activeInserts.map((insert) =>
-        (insert.imageUrls as string[]).map((imageUrl, imgIndex) => `
-          <div class="insert-page">
-            ${imgIndex === 0 ? `<div class="insert-title">${insert.name}</div>` : ''}
-            <img src="${imageUrl}" alt="${insert.name}" class="insert-image" />
+        (insert.imageUrls as string[]).map((imageUrl, imgIndex) => {
+          const showTitle = imgIndex === 0 && insert.name && insert.name.trim() !== ''
+          return `
+          <div class="insert-page${showTitle ? ' insert-page-with-title' : ''}">
+            ${showTitle ? `<div class="insert-title">${insert.name}</div>` : ''}
+            <img src="${imageUrl}" alt="${insert.name || 'Insert'}" class="insert-image" />
           </div>
-        `).join('')
+        `}).join('')
       ).join('')
     }
   `).join('')}

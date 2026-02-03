@@ -6,6 +6,7 @@ import { hasPermission } from '@/lib/permissions'
 
 const DEFAULT_PACKET_SETTINGS = {
   includeSchedule: true,
+  includeConfessionSchedule: true,
   includeMap: true,
   includeRoster: true,
   includeHousingAssignments: true,

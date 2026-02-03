@@ -282,6 +282,7 @@ export default function SalveCheckInPage() {
     const savedSettings = data.packetPrintSettings || {}
     const printSettings = {
       includeSchedule: savedSettings.includeSchedule ?? true,
+      includeConfessionSchedule: savedSettings.includeConfessionSchedule ?? true,
       includeMap: savedSettings.includeMap ?? true,
       includeRoster: savedSettings.includeRoster ?? true,
       includeHousingAssignments: savedSettings.includeHousingAssignments ?? true,
