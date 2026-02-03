@@ -506,6 +506,7 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
           }}
           data={m2kData}
           announcements={announcements}
+          confessions={confessions}
         />
       )
     }
