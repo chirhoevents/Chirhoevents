@@ -420,10 +420,11 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
     // Table might not exist yet
   }
 
-  // Get active confession times
+  // Get active confession times (always fetch for M2K, otherwise check toggle)
+  const isM2KEvent = eventId === M2K_EVENT_ID && event.organizationId === M2K_ORG_ID
   let confessions: any[] = []
   try {
-    if (settings?.porosConfessionsEnabled) {
+    if (settings?.porosConfessionsEnabled || isM2KEvent) {
       confessions = await prisma.porosConfession.findMany({
         where: { eventId, isActive: true },
         orderBy: [{ day: 'asc' }, { startTime: 'asc' }, { order: 'asc' }]
@@ -433,10 +434,10 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
     // Table might not exist yet
   }
 
-  // Get active info items
+  // Get active info items (always fetch for M2K, otherwise check toggle)
   let infoItems: any[] = []
   try {
-    if (settings?.porosInfoEnabled) {
+    if (settings?.porosInfoEnabled || isM2KEvent) {
       infoItems = await prisma.porosInfoItem.findMany({
         where: { eventId, isActive: true },
         orderBy: { order: 'asc' }
@@ -486,8 +487,6 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
   }, {} as Record<string, any[]>)
 
   // Check if this is the M2K event and load custom data
-  const isM2KEvent = eventId === M2K_EVENT_ID && event.organizationId === M2K_ORG_ID
-
   if (isM2KEvent) {
     // First try to load from database (live data)
     let m2kData = await fetchM2KDataFromDatabase(eventId)
