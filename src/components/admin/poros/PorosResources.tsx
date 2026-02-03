@@ -317,7 +317,10 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
         body: JSON.stringify(data),
       })
 
-      if (!response.ok) throw new Error('Failed to save confession time')
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || errorData.message || 'Failed to save confession time')
+      }
 
       toast.success(editingConfession ? 'Confession time updated' : 'Confession time added')
       setConfessionDialogOpen(false)
@@ -325,7 +328,8 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
       setNewConfession({ day: 'saturday', startTime: '', endTime: '', location: '', confessor: '' })
       fetchData()
     } catch (error) {
-      toast.error('Failed to save confession time')
+      console.error('Confession time save error:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to save confession time')
     } finally {
       setSaving(false)
     }
@@ -336,11 +340,15 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
       const response = await fetch(`/api/admin/events/${eventId}/poros/confession-times/${id}`, {
         method: 'DELETE',
       })
-      if (!response.ok) throw new Error('Failed to delete')
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || errorData.message || 'Failed to delete')
+      }
       toast.success('Confession time deleted')
       fetchData()
     } catch (error) {
-      toast.error('Failed to delete confession time')
+      console.error('Confession time delete error:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to delete confession time')
     }
   }
 

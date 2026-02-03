@@ -103,9 +103,27 @@ export async function POST(
     `
     const nextOrder = (maxOrderResult[0]?.max_order ?? 0) + 1
 
+    // Handle null values explicitly for raw SQL
+    const dayDateValue = dayDate ? new Date(dayDate) : null
+    const endTimeValue = endTime || null
+    const locationValue = location || null
+    const confessorValue = confessor || null
+
     const entries: any[] = await prisma.$queryRaw`
       INSERT INTO poros_confession_times (id, event_id, day, day_date, start_time, end_time, location, confessor, "order", created_at, updated_at)
-      VALUES (gen_random_uuid(), ${eventId}::uuid, ${day}, ${dayDate ? new Date(dayDate) : null}::date, ${startTime}, ${endTime || null}, ${location || null}, ${confessor || null}, ${nextOrder}, NOW(), NOW())
+      VALUES (
+        gen_random_uuid(),
+        ${eventId}::uuid,
+        ${day},
+        ${dayDateValue},
+        ${startTime},
+        ${endTimeValue},
+        ${locationValue},
+        ${confessorValue},
+        ${nextOrder},
+        NOW(),
+        NOW()
+      )
       RETURNING id, event_id as "eventId", day, day_date as "dayDate",
                 start_time as "startTime", end_time as "endTime",
                 location, confessor, "order",
