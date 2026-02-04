@@ -89,8 +89,8 @@ async function fetchM2KDataFromDatabase(eventId: string) {
       }),
       prisma.porosScheduleEntry.findMany({
         where: { eventId },
-        select: { day: true, startTime: true, endTime: true, title: true, location: true },
-        orderBy: [{ day: 'asc' }, { startTime: 'asc' }]
+        select: { day: true, startTime: true, endTime: true, title: true, location: true, order: true },
+        orderBy: [{ day: 'asc' }, { order: 'asc' }, { startTime: 'asc' }]
       }),
       prisma.porosResource.findMany({
         where: { eventId, isActive: true },
@@ -405,7 +405,7 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
   try {
     scheduleEntries = await prisma.porosScheduleEntry.findMany({
       where: { eventId },
-      orderBy: [{ day: 'asc' }, { startTime: 'asc' }]
+      orderBy: [{ day: 'asc' }, { order: 'asc' }, { startTime: 'asc' }]
     })
   } catch {
     // Table might not exist yet

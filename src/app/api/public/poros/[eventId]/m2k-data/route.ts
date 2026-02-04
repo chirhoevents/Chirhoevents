@@ -151,8 +151,9 @@ export async function GET(
           endTime: true,
           title: true,
           location: true,
+          order: true,
         },
-        orderBy: [{ day: 'asc' }, { startTime: 'asc' }]
+        orderBy: [{ day: 'asc' }, { order: 'asc' }, { startTime: 'asc' }]
       }),
 
       // Resources

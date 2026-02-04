@@ -653,13 +653,29 @@ export default function M2KPublicView({ event, data, announcements = [], confess
                 if (day === 'saturday') dayDate.setDate(dayDate.getDate() + 1)
                 if (day === 'sunday') dayDate.setDate(dayDate.getDate() + 2)
 
+                // Sort events by time (convert to 24-hour format for proper comparison)
+                const sortedEvents = [...events].sort((a, b) => {
+                  const convertTo24Hour = (time: string) => {
+                    const match = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i)
+                    if (!match) return time
+                    let [, hours, minutes, period] = match
+                    let h = parseInt(hours)
+                    if (period) {
+                      if (period.toUpperCase() === 'PM' && h !== 12) h += 12
+                      if (period.toUpperCase() === 'AM' && h === 12) h = 0
+                    }
+                    return `${h.toString().padStart(2, '0')}:${minutes}`
+                  }
+                  return convertTo24Hour(a.startTime).localeCompare(convertTo24Hour(b.startTime))
+                })
+
                 return (
                   <div key={day}>
                     <h4 className="font-bold text-lg mb-3 text-[#1E3A5F]">
                       {format(dayDate, 'EEEE, MMMM d')}
                     </h4>
                     <div className="space-y-2">
-                      {events.map((evt, idx) => (
+                      {sortedEvents.map((evt, idx) => (
                         <div key={idx} className="flex gap-3 p-3 bg-gray-50 rounded-lg">
                           <div className="text-sm font-semibold text-blue-600 w-24 flex-shrink-0">
                             {evt.startTime}
