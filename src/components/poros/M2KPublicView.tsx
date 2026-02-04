@@ -648,8 +648,13 @@ export default function M2KPublicView({ event, data, announcements = [], confess
               {['friday', 'saturday', 'sunday'].map(day => {
                 const events = data.schedule?.[day as keyof typeof data.schedule] || []
                 if (events.length === 0) return null
-                const startDate = data.conferenceStartDate ? new Date(data.conferenceStartDate) : new Date(event.startDate)
-                const dayDate = new Date(startDate)
+                // Parse date and adjust for timezone to avoid day shift issues
+                const dateStr = data.conferenceStartDate || event.startDate
+                const startDate = new Date(dateStr)
+                // Adjust for timezone offset to get the correct local date
+                const timezoneOffset = startDate.getTimezoneOffset() * 60000
+                const adjustedDate = new Date(startDate.getTime() + timezoneOffset)
+                const dayDate = new Date(adjustedDate)
                 if (day === 'saturday') dayDate.setDate(dayDate.getDate() + 1)
                 if (day === 'sunday') dayDate.setDate(dayDate.getDate() + 2)
 
