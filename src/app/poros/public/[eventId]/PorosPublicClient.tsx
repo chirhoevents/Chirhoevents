@@ -455,7 +455,21 @@ export default function PorosPublicClient({
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       {entries
-                        .sort((a, b) => a.time.localeCompare(b.time))
+                        .sort((a, b) => {
+                          // Convert to 24-hour format for proper sorting
+                          const convertTo24Hour = (time: string) => {
+                            const match = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i)
+                            if (!match) return time
+                            let [, hours, minutes, period] = match
+                            let h = parseInt(hours)
+                            if (period) {
+                              if (period.toUpperCase() === 'PM' && h !== 12) h += 12
+                              if (period.toUpperCase() === 'AM' && h === 12) h = 0
+                            }
+                            return `${h.toString().padStart(2, '0')}:${minutes}`
+                          }
+                          return convertTo24Hour(a.time).localeCompare(convertTo24Hour(b.time))
+                        })
                         .map((entry) => (
                         <div
                           key={entry.id}
