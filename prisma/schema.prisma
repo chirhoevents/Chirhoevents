@@ -1190,7 +1190,7 @@ model WaitlistEntry {
   notes               String?  @db.Text
   status              WaitlistStatus @default(pending)
   notifiedAt          DateTime? @map("notified_at") @db.Timestamptz(6)
-  registrationToken   String?  @unique @map("registration_token") @db.VarChar(64)
+  registrationToken   String?  @map("registration_token") @db.VarChar(64)
   invitationExpires   DateTime? @map("invitation_expires") @db.Timestamptz(6)
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
