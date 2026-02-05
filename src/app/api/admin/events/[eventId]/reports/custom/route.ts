@@ -69,6 +69,9 @@ export async function POST(
       case 'coupons':
         reportData = await executeCouponsReport(eventId, config)
         break
+      case 'group-detail':
+        reportData = await executeGroupDetailReport(eventId, config)
+        break
       // Legacy support
       case 'registration':
         reportData = await executeRegistrationsReport(eventId, config)
@@ -1066,6 +1069,386 @@ async function executeBalancesReport(eventId: string, config: any) {
   }
 
   return filterFields(results, config.fields)
+}
+
+// ============================================
+// GROUP DETAIL REPORT (Groups with Participants, Meal Colors, Housing, Small Groups, Allergies)
+// ============================================
+async function executeGroupDetailReport(eventId: string, config: any) {
+  const where: any = {
+    groupRegistration: { eventId },
+  }
+
+  // Apply participant type filter
+  if (config.filters?.participantType?.length > 0) {
+    where.participantType = { in: config.filters.participantType }
+  }
+  if (config.filters?.gender?.length > 0) {
+    where.gender = { in: config.filters.gender }
+  }
+  if (config.filters?.search) {
+    const search = config.filters.search
+    where.OR = [
+      { firstName: { contains: search, mode: 'insensitive' } },
+      { lastName: { contains: search, mode: 'insensitive' } },
+      { groupRegistration: { groupName: { contains: search, mode: 'insensitive' } } },
+      { groupRegistration: { parishName: { contains: search, mode: 'insensitive' } } },
+    ]
+  }
+
+  // Filter by specific group IDs
+  if (config.filters?.groupIds?.length > 0) {
+    where.groupRegistration = {
+      ...where.groupRegistration,
+      id: { in: config.filters.groupIds },
+    }
+  }
+
+  // Filter by housing type
+  if (config.filters?.housingType?.length > 0) {
+    where.groupRegistration = {
+      ...where.groupRegistration,
+      housingType: { in: config.filters.housingType },
+    }
+  }
+
+  // Filter by registration status
+  if (config.filters?.registrationStatus?.length > 0) {
+    where.groupRegistration = {
+      ...where.groupRegistration,
+      registrationStatus: { in: config.filters.registrationStatus },
+    }
+  }
+
+  const participants = await prisma.participant.findMany({
+    where,
+    include: {
+      groupRegistration: {
+        select: {
+          id: true,
+          accessCode: true,
+          groupName: true,
+          parishName: true,
+          dioceseName: true,
+          groupLeaderName: true,
+          groupLeaderEmail: true,
+          groupLeaderPhone: true,
+          housingType: true,
+          registrationStatus: true,
+          smallGroupRoom: {
+            select: {
+              roomNumber: true,
+              floor: true,
+              building: { select: { name: true } },
+            },
+          },
+        },
+      },
+      liabilityForms: {
+        select: {
+          allergies: true,
+          medications: true,
+          medicalConditions: true,
+          dietaryRestrictions: true,
+          adaAccommodations: true,
+        },
+        take: 1,
+      },
+    },
+    orderBy: [
+      { groupRegistration: { groupName: 'asc' } },
+      { participantType: 'asc' },
+      { lastName: 'asc' },
+    ],
+  })
+
+  // Collect IDs for batch lookups
+  const participantIds = participants.map((p: { id: string }) => p.id)
+  const groupRegIds = [...new Set(participants.map((p: { groupRegistration: { id: string } }) => p.groupRegistration.id))]
+
+  // Batch fetch: room assignments, meal group assignments, small group assignments
+  const [roomAssignments, mealGroupAssignments, smallGroupAssignments, mealGroups, smallGroups] = await Promise.all([
+    // Room assignments for each participant
+    prisma.roomAssignment.findMany({
+      where: { participantId: { in: participantIds } },
+      select: {
+        participantId: true,
+        bedNumber: true,
+        room: {
+          select: {
+            roomNumber: true,
+            floor: true,
+            building: { select: { name: true } },
+          },
+        },
+      },
+    }),
+    // Meal group assignments (linked to group registrations)
+    prisma.mealGroupAssignment.findMany({
+      where: { groupRegistrationId: { in: groupRegIds } },
+      select: {
+        groupRegistrationId: true,
+        mealGroupId: true,
+      },
+    }),
+    // Small group assignments (linked to participants)
+    prisma.smallGroupAssignment.findMany({
+      where: {
+        OR: [
+          { participantId: { in: participantIds } },
+          { groupRegistrationId: { in: groupRegIds } },
+        ],
+      },
+      select: {
+        participantId: true,
+        groupRegistrationId: true,
+        smallGroupId: true,
+      },
+    }),
+    // Meal groups for this event (to get color info)
+    prisma.mealGroup.findMany({
+      where: { eventId },
+      select: {
+        id: true,
+        name: true,
+        color: true,
+        colorHex: true,
+        breakfastTime: true,
+        lunchTime: true,
+        dinnerTime: true,
+      },
+    }),
+    // Small groups for this event (to get name/location info)
+    prisma.smallGroup.findMany({
+      where: { eventId },
+      select: {
+        id: true,
+        name: true,
+        groupNumber: true,
+        meetingPlace: true,
+        meetingTime: true,
+        meetingRoom: {
+          select: {
+            roomNumber: true,
+            building: { select: { name: true } },
+          },
+        },
+      },
+    }),
+  ])
+
+  // Build lookup maps
+  const roomAssignmentMap = new Map(
+    roomAssignments.map((ra: typeof roomAssignments[number]) => [ra.participantId, ra])
+  )
+  const mealGroupMap = new Map(mealGroups.map((mg: typeof mealGroups[number]) => [mg.id, mg]))
+  const smallGroupMap = new Map(smallGroups.map((sg: typeof smallGroups[number]) => [sg.id, sg]))
+
+  // Meal group assignment: groupRegistrationId -> mealGroup
+  const mealAssignmentByGroupReg = new Map<string, typeof mealGroups[number]>()
+  mealGroupAssignments.forEach((mga: typeof mealGroupAssignments[number]) => {
+    if (mga.groupRegistrationId) {
+      const mg = mealGroupMap.get(mga.mealGroupId)
+      if (mg) mealAssignmentByGroupReg.set(mga.groupRegistrationId, mg)
+    }
+  })
+
+  // Small group assignment: participantId -> smallGroup, also groupRegistrationId -> smallGroup
+  const smallGroupByParticipant = new Map<string, typeof smallGroups[number]>()
+  const smallGroupByGroupReg = new Map<string, typeof smallGroups[number]>()
+  smallGroupAssignments.forEach((sga: typeof smallGroupAssignments[number]) => {
+    const sg = smallGroupMap.get(sga.smallGroupId)
+    if (sg) {
+      if (sga.participantId) smallGroupByParticipant.set(sga.participantId, sg)
+      if (sga.groupRegistrationId) smallGroupByGroupReg.set(sga.groupRegistrationId, sg)
+    }
+  })
+
+  // Filter by meal group if specified
+  const mealGroupFilter = config.filters?.mealGroupId
+  // Filter by small group if specified
+  const smallGroupFilter = config.filters?.smallGroupId
+
+  // Transform data
+  let results = participants.map((p: typeof participants[number]) => {
+    const form = p.liabilityForms?.[0] || null
+    const roomAssign = roomAssignmentMap.get(p.id) as any
+    const mealGroup = mealAssignmentByGroupReg.get(p.groupRegistration.id) || null
+    const smallGroup = (smallGroupByParticipant.get(p.id) || smallGroupByGroupReg.get(p.groupRegistration.id) || null) as any
+
+    const participantCategory = (p.participantType === 'youth_u18' || p.participantType === 'youth_o18') ? 'Youth' : 'Chaperone/Adult'
+
+    return {
+      // Participant info
+      firstName: p.firstName,
+      lastName: p.lastName,
+      preferredName: p.preferredName,
+      fullName: `${p.firstName} ${p.lastName}`,
+      age: p.age,
+      gender: p.gender,
+      participantType: p.participantType,
+      participantCategory,
+      tShirtSize: p.tShirtSize,
+      checkedIn: p.checkedIn,
+
+      // Group info
+      groupName: p.groupRegistration.groupName,
+      parishName: p.groupRegistration.parishName,
+      dioceseName: p.groupRegistration.dioceseName,
+      groupLeaderName: p.groupRegistration.groupLeaderName,
+      groupLeaderEmail: p.groupRegistration.groupLeaderEmail,
+      groupLeaderPhone: p.groupRegistration.groupLeaderPhone,
+      housingType: p.groupRegistration.housingType,
+      registrationStatus: p.groupRegistration.registrationStatus,
+      accessCode: p.groupRegistration.accessCode,
+
+      // Meal color/group
+      mealColor: mealGroup?.color || '',
+      mealColorHex: mealGroup?.colorHex || '',
+      mealGroupName: mealGroup?.name || '',
+      mealBreakfastTime: mealGroup?.breakfastTime || '',
+      mealLunchTime: mealGroup?.lunchTime || '',
+      mealDinnerTime: mealGroup?.dinnerTime || '',
+
+      // Small group
+      smallGroupName: smallGroup?.name || '',
+      smallGroupNumber: smallGroup?.groupNumber || '',
+      smallGroupMeetingPlace: smallGroup?.meetingPlace || '',
+      smallGroupMeetingTime: smallGroup?.meetingTime || '',
+      smallGroupMeetingRoom: smallGroup?.meetingRoom
+        ? `${smallGroup.meetingRoom.building?.name || ''} ${smallGroup.meetingRoom.roomNumber}`
+        : '',
+
+      // Housing
+      housingBuilding: roomAssign?.room?.building?.name || '',
+      housingRoom: roomAssign?.room?.roomNumber || '',
+      housingFloor: roomAssign?.room?.floor || '',
+      housingBed: roomAssign?.bedNumber || '',
+      housingFull: roomAssign
+        ? `${roomAssign.room?.building?.name || ''} ${roomAssign.room?.roomNumber || ''}${roomAssign.bedNumber ? ` (Bed ${roomAssign.bedNumber})` : ''}`
+        : '',
+
+      // Small group room (for the group)
+      groupSmallGroupRoom: p.groupRegistration.smallGroupRoom
+        ? `${p.groupRegistration.smallGroupRoom.building?.name || ''} ${p.groupRegistration.smallGroupRoom.roomNumber}`
+        : '',
+
+      // Medical / Dietary
+      allergies: form?.allergies || '',
+      medications: form?.medications || '',
+      medicalConditions: form?.medicalConditions || '',
+      dietaryRestrictions: form?.dietaryRestrictions || '',
+      adaAccommodations: form?.adaAccommodations || '',
+      hasMedicalNeeds: !!(form?.allergies || form?.medications || form?.medicalConditions),
+      hasDietaryRestrictions: !!(form?.dietaryRestrictions),
+
+      // Internal IDs for filtering
+      _groupRegistrationId: p.groupRegistration.id,
+      _mealGroupId: mealGroup?.id || null,
+      _smallGroupId: smallGroup?.id || null,
+    }
+  })
+
+  // Post-fetch filters
+  if (mealGroupFilter) {
+    results = results.filter((r: any) => r._mealGroupId === mealGroupFilter)
+  }
+  if (smallGroupFilter) {
+    results = results.filter((r: any) => r._smallGroupId === smallGroupFilter)
+  }
+  if (config.filters?.hasMedicalNeeds) {
+    results = results.filter((r: any) => r.hasMedicalNeeds)
+  }
+  if (config.filters?.hasDietaryRestrictions) {
+    results = results.filter((r: any) => r.hasDietaryRestrictions)
+  }
+  if (config.filters?.participantCategory?.length > 0) {
+    results = results.filter((r: any) => config.filters.participantCategory.includes(r.participantCategory))
+  }
+
+  // Remove internal ID fields from output
+  results = results.map((r: any) => {
+    const { _groupRegistrationId, _mealGroupId, _smallGroupId, ...rest } = r
+    return rest
+  })
+
+  // Apply grouping
+  if (config.groupBy && config.groupBy !== 'none') {
+    return groupDetailResults(results, config.groupBy)
+  }
+
+  return filterFields(results, config.fields)
+}
+
+function groupDetailResults(data: any[], groupBy: string) {
+  const grouped = new Map<string, any>()
+
+  data.forEach(item => {
+    let groupKey = ''
+    let groupInfo: any = {}
+
+    switch (groupBy) {
+      case 'group':
+        groupKey = item.groupName || 'No Group'
+        groupInfo = {
+          groupName: item.groupName,
+          parishName: item.parishName,
+          dioceseName: item.dioceseName,
+          groupLeaderName: item.groupLeaderName,
+          accessCode: item.accessCode,
+          mealColor: item.mealColor,
+          mealColorHex: item.mealColorHex,
+          mealGroupName: item.mealGroupName,
+        }
+        break
+      case 'mealColor':
+        groupKey = item.mealColor || item.mealGroupName || 'No Meal Color'
+        groupInfo = {
+          mealColor: item.mealColor,
+          mealColorHex: item.mealColorHex,
+          mealGroupName: item.mealGroupName,
+        }
+        break
+      case 'smallGroup':
+        groupKey = item.smallGroupName || 'No Small Group'
+        groupInfo = {
+          smallGroupName: item.smallGroupName,
+          smallGroupNumber: item.smallGroupNumber,
+          smallGroupMeetingPlace: item.smallGroupMeetingPlace,
+          smallGroupMeetingTime: item.smallGroupMeetingTime,
+        }
+        break
+      case 'participantCategory':
+        groupKey = item.participantCategory || 'Unknown'
+        groupInfo = { participantCategory: item.participantCategory }
+        break
+      case 'participantType':
+        groupKey = item.participantType || 'Unknown'
+        groupInfo = { participantType: item.participantType }
+        break
+      case 'housingType':
+        groupKey = item.housingType || 'Unknown'
+        groupInfo = { housingType: item.housingType }
+        break
+      case 'housingBuilding':
+        groupKey = item.housingBuilding || 'No Building'
+        groupInfo = { housingBuilding: item.housingBuilding }
+        break
+      default:
+        groupKey = 'All'
+    }
+
+    if (!grouped.has(groupKey)) {
+      grouped.set(groupKey, {
+        groupKey,
+        ...groupInfo,
+        items: [],
+      })
+    }
+    grouped.get(groupKey).items.push(item)
+  })
+
+  return Array.from(grouped.values())
 }
 
 // ============================================
