@@ -54,7 +54,7 @@ export async function markWaitlistAsRegisteredByToken(
   token: string
 ): Promise<{ success: boolean; entryId?: string; error?: string }> {
   try {
-    const entry = await prisma.waitlistEntry.findUnique({
+    const entry = await prisma.waitlistEntry.findFirst({
       where: { registrationToken: token },
     })
 
@@ -106,7 +106,7 @@ export async function validateWaitlistToken(token: string): Promise<{
   }
 }> {
   try {
-    const entry = await prisma.waitlistEntry.findUnique({
+    const entry = await prisma.waitlistEntry.findFirst({
       where: { registrationToken: token },
     })
 
