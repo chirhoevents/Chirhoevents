@@ -41,6 +41,7 @@ interface CustomReportBuilderProps {
   individualRegistrationEnabled?: boolean
   open: boolean
   onClose: () => void
+  initialDataSource?: string
 }
 
 // Data source definitions with their available fields
@@ -323,6 +324,55 @@ const DATA_SOURCES: Record<string, { label: string; description: string; registr
       { value: 'registrationType', label: 'Registration Type', category: 'Type' },
     ],
   },
+  'group-detail': {
+    label: 'Group Detail / Runner Report',
+    description: 'Comprehensive group report with every participant, meal colors, housing, small groups, locations, and allergies — perfect for runner sheets',
+    registrationType: 'group',
+    fields: [
+      { value: 'fullName', label: 'Full Name', category: 'Participant' },
+      { value: 'firstName', label: 'First Name', category: 'Participant' },
+      { value: 'lastName', label: 'Last Name', category: 'Participant' },
+      { value: 'preferredName', label: 'Preferred Name', category: 'Participant' },
+      { value: 'age', label: 'Age', category: 'Participant' },
+      { value: 'gender', label: 'Gender', category: 'Participant' },
+      { value: 'participantType', label: 'Participant Type', category: 'Participant' },
+      { value: 'participantCategory', label: 'Youth / Chaperone', category: 'Participant' },
+      { value: 'tShirtSize', label: 'T-Shirt Size', category: 'Participant' },
+      { value: 'checkedIn', label: 'Checked In', category: 'Participant' },
+      { value: 'groupName', label: 'Group Name', category: 'Group' },
+      { value: 'parishName', label: 'Parish Name', category: 'Group' },
+      { value: 'dioceseName', label: 'Diocese Name', category: 'Group' },
+      { value: 'groupLeaderName', label: 'Group Leader Name', category: 'Group' },
+      { value: 'groupLeaderEmail', label: 'Group Leader Email', category: 'Group' },
+      { value: 'groupLeaderPhone', label: 'Group Leader Phone', category: 'Group' },
+      { value: 'housingType', label: 'Housing Type', category: 'Group' },
+      { value: 'registrationStatus', label: 'Registration Status', category: 'Group' },
+      { value: 'accessCode', label: 'Registration Code', category: 'Group' },
+      { value: 'mealColor', label: 'Meal Color', category: 'Meal' },
+      { value: 'mealGroupName', label: 'Meal Group Name', category: 'Meal' },
+      { value: 'mealBreakfastTime', label: 'Breakfast Time', category: 'Meal' },
+      { value: 'mealLunchTime', label: 'Lunch Time', category: 'Meal' },
+      { value: 'mealDinnerTime', label: 'Dinner Time', category: 'Meal' },
+      { value: 'smallGroupName', label: 'Small Group Name', category: 'Small Group' },
+      { value: 'smallGroupNumber', label: 'Small Group Number', category: 'Small Group' },
+      { value: 'smallGroupMeetingPlace', label: 'Small Group Meeting Place', category: 'Small Group' },
+      { value: 'smallGroupMeetingTime', label: 'Small Group Meeting Time', category: 'Small Group' },
+      { value: 'smallGroupMeetingRoom', label: 'Small Group Meeting Room', category: 'Small Group' },
+      { value: 'housingBuilding', label: 'Housing Building', category: 'Housing' },
+      { value: 'housingRoom', label: 'Housing Room Number', category: 'Housing' },
+      { value: 'housingFloor', label: 'Housing Floor', category: 'Housing' },
+      { value: 'housingBed', label: 'Bed Number', category: 'Housing' },
+      { value: 'housingFull', label: 'Housing (Full)', category: 'Housing' },
+      { value: 'groupSmallGroupRoom', label: 'Group Small Group Room', category: 'Housing' },
+      { value: 'allergies', label: 'Allergies', category: 'Medical / Dietary' },
+      { value: 'dietaryRestrictions', label: 'Dietary Restrictions', category: 'Medical / Dietary' },
+      { value: 'medications', label: 'Medications', category: 'Medical / Dietary' },
+      { value: 'medicalConditions', label: 'Medical Conditions', category: 'Medical / Dietary' },
+      { value: 'adaAccommodations', label: 'ADA Accommodations', category: 'Medical / Dietary' },
+      { value: 'hasMedicalNeeds', label: 'Has Medical Needs', category: 'Medical / Dietary' },
+      { value: 'hasDietaryRestrictions', label: 'Has Dietary Restrictions', category: 'Medical / Dietary' },
+    ],
+  },
   coupons: {
     label: 'Coupon Usage',
     description: 'Discount code redemptions and usage',
@@ -523,6 +573,35 @@ const FILTER_OPTIONS: Record<string, { value: string; label: string; type: 'sele
       { value: 'staff', label: 'Staff' },
     ]},
   ],
+  'group-detail': [
+    { value: 'search', label: 'Search (name, group, parish)', type: 'text' },
+    { value: 'participantCategory', label: 'Youth / Chaperone', type: 'multiselect', options: [
+      { value: 'Youth', label: 'Youth' },
+      { value: 'Chaperone/Adult', label: 'Chaperone / Adult' },
+    ]},
+    { value: 'participantType', label: 'Participant Type', type: 'multiselect', options: [
+      { value: 'youth_u18', label: 'Youth (Under 18)' },
+      { value: 'youth_o18', label: 'Youth (18+)' },
+      { value: 'chaperone', label: 'Chaperone' },
+      { value: 'priest', label: 'Priest/Clergy' },
+    ]},
+    { value: 'gender', label: 'Gender', type: 'multiselect', options: [
+      { value: 'male', label: 'Male' },
+      { value: 'female', label: 'Female' },
+    ]},
+    { value: 'housingType', label: 'Housing Type', type: 'multiselect', options: [
+      { value: 'on_campus', label: 'On Campus' },
+      { value: 'off_campus', label: 'Off Campus' },
+      { value: 'day_pass', label: 'Day Pass' },
+    ]},
+    { value: 'registrationStatus', label: 'Registration Status', type: 'multiselect', options: [
+      { value: 'pending', label: 'Pending' },
+      { value: 'confirmed', label: 'Confirmed' },
+      { value: 'cancelled', label: 'Cancelled' },
+    ]},
+    { value: 'hasMedicalNeeds', label: 'Has Medical Needs', type: 'boolean' },
+    { value: 'hasDietaryRestrictions', label: 'Has Dietary Restrictions', type: 'boolean' },
+  ],
   coupons: [
     { value: 'registrationType', label: 'Registration Type', type: 'multiselect', options: [
       { value: 'group', label: 'Group' },
@@ -603,6 +682,16 @@ const GROUPING_OPTIONS: Record<string, { value: string; label: string }[]> = {
     { value: 'personType', label: 'By Person Type' },
     { value: 'group', label: 'By Group' },
   ],
+  'group-detail': [
+    { value: 'none', label: 'No Grouping' },
+    { value: 'group', label: 'By Group (Runner Report)' },
+    { value: 'mealColor', label: 'By Meal Color' },
+    { value: 'smallGroup', label: 'By Small Group' },
+    { value: 'participantCategory', label: 'By Youth / Chaperone' },
+    { value: 'participantType', label: 'By Participant Type' },
+    { value: 'housingType', label: 'By Housing Type' },
+    { value: 'housingBuilding', label: 'By Housing Building' },
+  ],
   coupons: [
     { value: 'none', label: 'No Grouping' },
     { value: 'coupon', label: 'By Coupon' },
@@ -618,6 +707,7 @@ export function CustomReportBuilder({
   individualRegistrationEnabled = true,
   open,
   onClose,
+  initialDataSource,
 }: CustomReportBuilderProps) {
   const { getToken } = useAuth()
   const [templates, setTemplates] = useState<ReportTemplate[]>([])
@@ -635,6 +725,8 @@ export function CustomReportBuilder({
   const [executing, setExecuting] = useState(false)
   const [reportData, setReportData] = useState<any>(null)
   const [activeTab, setActiveTab] = useState('fields')
+  const [availableGroups, setAvailableGroups] = useState<{ id: string; groupName: string; parishName: string }[]>([])
+  const [groupFilterSearch, setGroupFilterSearch] = useState('')
 
   // Get current data source config
   const currentSource = DATA_SOURCES[dataSource]
@@ -668,14 +760,16 @@ export function CustomReportBuilder({
   useEffect(() => {
     if (open) {
       loadTemplates()
-      // Set appropriate default data source based on enabled registration types
-      if (groupRegistrationEnabled && !individualRegistrationEnabled) {
+      // Use initialDataSource if provided, otherwise set based on enabled registration types
+      if (initialDataSource && DATA_SOURCES[initialDataSource]) {
+        setDataSource(initialDataSource)
+      } else if (groupRegistrationEnabled && !individualRegistrationEnabled) {
         setDataSource('participants')
       } else if (individualRegistrationEnabled && !groupRegistrationEnabled) {
         setDataSource('individuals')
       }
     }
-  }, [open, groupRegistrationEnabled, individualRegistrationEnabled])
+  }, [open, groupRegistrationEnabled, individualRegistrationEnabled, initialDataSource])
 
   // Clear report data when data source changes
   useEffect(() => {
@@ -684,7 +778,41 @@ export function CustomReportBuilder({
     setFilters({})
     setGroupBy('none')
     setSortBy('')
+    setGroupFilterSearch('')
+    // Load groups when group-detail is selected
+    if (dataSource === 'group-detail') {
+      loadAvailableGroups()
+    }
   }, [dataSource])
+
+  const loadAvailableGroups = async () => {
+    try {
+      const token = await getToken()
+      const headers: Record<string, string> = {}
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      const response = await fetch(`/api/admin/events/${eventId}/reports/custom`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          configuration: {
+            dataSource: 'registrations',
+            fields: ['id', 'groupName', 'parishName'],
+          },
+        }),
+      })
+      if (response.ok) {
+        const data = await response.json()
+        const groups = (Array.isArray(data.data) ? data.data : []).map((g: any) => ({
+          id: g.id,
+          groupName: g.groupName || 'Unnamed Group',
+          parishName: g.parishName || '',
+        }))
+        setAvailableGroups(groups.sort((a: any, b: any) => a.groupName.localeCompare(b.groupName)))
+      }
+    } catch (error) {
+      console.error('Error loading groups for filter:', error)
+    }
+  }
 
   const loadTemplates = async () => {
     if (!organizationId) return
@@ -963,10 +1091,19 @@ export function CustomReportBuilder({
       // Grouped data
       tableHTML = reportData.data.map((group: any) => {
         const items = group.items || group.participants || []
+        // Build group header with meal color badge for group-detail reports
+        let groupHeaderExtra = ''
+        if (dataSource === 'group-detail' && group.mealColorHex && group.mealColor) {
+          groupHeaderExtra = `<span style="display:inline-block;padding:2px 10px;border-radius:12px;background-color:${group.mealColorHex};color:#fff;font-size:12px;font-weight:bold;margin-left:10px;text-shadow:0 1px 1px rgba(0,0,0,0.3);">${group.mealColor}</span>`
+        }
+        if (dataSource === 'group-detail' && group.parishName) {
+          groupHeaderExtra += `<span style="font-weight: normal; color: #888; font-size: 13px; margin-left: 8px;">${group.parishName}</span>`
+        }
         return `
           <div style="margin-bottom: 30px; page-break-inside: avoid;">
             <h3 style="border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 12px;">
               ${group.groupKey || group.groupName || 'Group'}
+              ${groupHeaderExtra}
               <span style="font-weight: normal; color: #666; font-size: 14px; margin-left: 10px;">(${items.length} records)</span>
             </h3>
             <table style="width: 100%; border-collapse: collapse; font-size: 10pt;">
@@ -978,7 +1115,7 @@ export function CustomReportBuilder({
               <tbody>
                 ${items.map((item: any, i: number) => `
                   <tr style="background-color: ${i % 2 === 0 ? '#fff' : '#f9fafb'};">
-                    ${selectedFields.map(field => `<td style="border: 1px solid #333; padding: 6px 8px;">${getNestedValue(item, field)}</td>`).join('')}
+                    ${selectedFields.map(field => `<td style="border: 1px solid #333; padding: 6px 8px;">${getCellHTML(item, field)}</td>`).join('')}
                   </tr>
                 `).join('')}
               </tbody>
@@ -999,7 +1136,7 @@ export function CustomReportBuilder({
           <tbody>
             ${items.map((item: any, i: number) => `
               <tr style="background-color: ${i % 2 === 0 ? '#fff' : '#f9fafb'};">
-                ${selectedFields.map(field => `<td style="border: 1px solid #333; padding: 6px 8px;">${getNestedValue(item, field)}</td>`).join('')}
+                ${selectedFields.map(field => `<td style="border: 1px solid #333; padding: 6px 8px;">${getCellHTML(item, field)}</td>`).join('')}
               </tr>
             `).join('')}
           </tbody>
@@ -1035,6 +1172,15 @@ export function CustomReportBuilder({
     if (value instanceof Date) return value.toLocaleString()
     if (typeof value === 'object') return JSON.stringify(value)
     return String(value)
+  }
+
+  // Get HTML for a cell value, with special rendering for meal colors
+  const getCellHTML = (item: any, field: string): string => {
+    const value = getNestedValue(item, field)
+    if (field === 'mealColor' && item.mealColorHex && value !== '-') {
+      return `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background-color:${item.mealColorHex};margin-right:4px;vertical-align:middle;border:1px solid #999;"></span>${value}`
+    }
+    return value
   }
 
   const toggleField = (field: string) => {
@@ -1303,16 +1449,84 @@ export function CustomReportBuilder({
 
             {/* Filters Tab */}
             <TabsContent value="filters" className="flex-1 overflow-auto mt-4">
-              <div className="grid grid-cols-2 gap-4">
-                {currentFilters.map(filter => (
-                  <div key={filter.value} className="space-y-1">
-                    <Label className="text-sm">{filter.label}</Label>
-                    {renderFilterInput(filter)}
+              <div className="space-y-4">
+                {/* Group filter for group-detail data source */}
+                {dataSource === 'group-detail' && availableGroups.length > 0 && (
+                  <div className="space-y-2 border rounded-lg p-3 bg-gray-50">
+                    <Label className="text-sm font-semibold">Filter by Groups</Label>
+                    <p className="text-xs text-gray-500">Select specific groups to include, or leave empty to include all groups</p>
+                    <Input
+                      type="text"
+                      value={groupFilterSearch}
+                      onChange={(e) => setGroupFilterSearch(e.target.value)}
+                      placeholder="Search groups..."
+                      className="mb-2"
+                    />
+                    <div className="flex gap-2 mb-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => updateFilter('groupIds', availableGroups.map(g => g.id))}
+                      >
+                        Select All
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => updateFilter('groupIds', undefined)}
+                      >
+                        Clear All
+                      </Button>
+                      {filters.groupIds?.length > 0 && (
+                        <span className="text-xs text-gray-500 self-center">
+                          {filters.groupIds.length} of {availableGroups.length} groups selected
+                        </span>
+                      )}
+                    </div>
+                    <ScrollArea className="max-h-48">
+                      <div className="space-y-1">
+                        {availableGroups
+                          .filter(g =>
+                            !groupFilterSearch ||
+                            g.groupName.toLowerCase().includes(groupFilterSearch.toLowerCase()) ||
+                            g.parishName.toLowerCase().includes(groupFilterSearch.toLowerCase())
+                          )
+                          .map(group => (
+                            <label key={group.id} className="flex items-center gap-2 cursor-pointer hover:bg-white p-1.5 rounded text-sm">
+                              <input
+                                type="checkbox"
+                                checked={(filters.groupIds || []).includes(group.id)}
+                                onChange={() => {
+                                  const current = filters.groupIds || []
+                                  const newValue = current.includes(group.id)
+                                    ? current.filter((id: string) => id !== group.id)
+                                    : [...current, group.id]
+                                  updateFilter('groupIds', newValue.length > 0 ? newValue : undefined)
+                                }}
+                                className="rounded"
+                              />
+                              <span className={(filters.groupIds || []).includes(group.id) ? 'font-medium' : ''}>
+                                {group.groupName}
+                                {group.parishName && <span className="text-gray-400 ml-1">({group.parishName})</span>}
+                              </span>
+                            </label>
+                          ))}
+                      </div>
+                    </ScrollArea>
                   </div>
-                ))}
-                {currentFilters.length === 0 && (
-                  <p className="col-span-2 text-center text-gray-500 py-8">No filters available for this data source</p>
                 )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  {currentFilters.map(filter => (
+                    <div key={filter.value} className="space-y-1">
+                      <Label className="text-sm">{filter.label}</Label>
+                      {renderFilterInput(filter)}
+                    </div>
+                  ))}
+                  {currentFilters.length === 0 && dataSource !== 'group-detail' && (
+                    <p className="col-span-2 text-center text-gray-500 py-8">No filters available for this data source</p>
+                  )}
+                </div>
               </div>
             </TabsContent>
 
@@ -1453,7 +1667,17 @@ export function CustomReportBuilder({
                         <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                           {selectedFields.map(fieldValue => (
                             <td key={fieldValue} className="border-b border-gray-200 px-3 py-2">
-                              {getNestedValue(item, fieldValue)}
+                              {fieldValue === 'mealColor' && item.mealColorHex ? (
+                                <span className="flex items-center gap-1.5">
+                                  <span
+                                    className="inline-block w-3 h-3 rounded-full border border-gray-300 flex-shrink-0"
+                                    style={{ backgroundColor: item.mealColorHex }}
+                                  />
+                                  {getNestedValue(item, fieldValue)}
+                                </span>
+                              ) : (
+                                getNestedValue(item, fieldValue)
+                              )}
                             </td>
                           ))}
                         </tr>

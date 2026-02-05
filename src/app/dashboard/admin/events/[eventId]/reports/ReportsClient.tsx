@@ -42,6 +42,7 @@ export default function ReportsClient({
   const [activeModal, setActiveModal] = useState<string | null>(null)
   const [isExporting, setIsExporting] = useState(false)
   const [showCustomBuilder, setShowCustomBuilder] = useState(false)
+  const [showGroupDetailBuilder, setShowGroupDetailBuilder] = useState(false)
 
   const handleExportAll = async () => {
     setIsExporting(true)
@@ -168,6 +169,15 @@ export default function ReportsClient({
           eventId={eventId}
           onViewReport={() => setActiveModal('staff')}
         />
+
+        {groupRegistrationEnabled && (
+          <ReportCard
+            title="Group Detail / Runner Report"
+            reportType="group-detail"
+            eventId={eventId}
+            onViewReport={() => setShowGroupDetailBuilder(true)}
+          />
+        )}
       </div>
 
       {/* Report Modals */}
@@ -252,6 +262,18 @@ export default function ReportsClient({
         organizationId={organizationId}
         groupRegistrationEnabled={groupRegistrationEnabled}
         individualRegistrationEnabled={individualRegistrationEnabled}
+      />
+
+      {/* Group Detail / Runner Report Builder */}
+      <CustomReportBuilder
+        open={showGroupDetailBuilder}
+        onClose={() => setShowGroupDetailBuilder(false)}
+        eventId={eventId}
+        eventName={eventName}
+        organizationId={organizationId}
+        groupRegistrationEnabled={groupRegistrationEnabled}
+        individualRegistrationEnabled={individualRegistrationEnabled}
+        initialDataSource="group-detail"
       />
     </>
   )

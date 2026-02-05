@@ -17,11 +17,12 @@ import {
   Store,
   UserCog,
   Building2,
+  ClipboardList,
 } from 'lucide-react'
 
 interface ReportCardProps {
   title: string
-  reportType: 'financial' | 'registrations' | 'forms' | 'housing' | 'room-allocations' | 'medical' | 'certificates' | 'chaperones' | 'vendors' | 'staff'
+  reportType: 'financial' | 'registrations' | 'forms' | 'housing' | 'room-allocations' | 'medical' | 'certificates' | 'chaperones' | 'vendors' | 'staff' | 'group-detail'
   eventId: string
   onViewReport: () => void
 }
@@ -32,7 +33,7 @@ interface ReportStats {
   stat3?: { label: string; value: string | number }
 }
 
-const ICONS = {
+const ICONS: Record<string, any> = {
   financial: DollarSign,
   registrations: Users,
   forms: FileText,
@@ -43,6 +44,7 @@ const ICONS = {
   chaperones: UserCheck,
   vendors: Store,
   staff: UserCog,
+  'group-detail': ClipboardList,
 }
 
 export default function ReportCard({
@@ -62,6 +64,16 @@ export default function ReportCard({
   }, [eventId, reportType])
 
   const fetchStats = async () => {
+    // group-detail uses the custom report builder directly, no preview endpoint
+    if (reportType === 'group-detail') {
+      setStats({
+        stat1: { label: 'Report Type', value: 'Custom Builder' },
+        stat2: { label: 'Includes', value: 'Meals, Housing, Small Groups' },
+        stat3: { label: 'Features', value: 'Filter by Group, Export' },
+      })
+      setLoading(false)
+      return
+    }
     try {
       setLoading(true)
       const response = await fetch(
@@ -236,36 +248,38 @@ export default function ReportCard({
                 View Full Report
               </Button>
 
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => handleExport('csv')}
-                  disabled={exporting !== null}
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 text-xs"
-                >
-                  {exporting === 'csv' ? (
-                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  ) : (
-                    <Download className="h-3 w-3 mr-1" />
-                  )}
-                  CSV
-                </Button>
-                <Button
-                  onClick={() => handleExport('pdf')}
-                  disabled={exporting !== null}
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 text-xs"
-                >
-                  {exporting === 'pdf' ? (
-                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  ) : (
-                    <Download className="h-3 w-3 mr-1" />
-                  )}
-                  PDF
-                </Button>
-              </div>
+              {reportType !== 'group-detail' && (
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => handleExport('csv')}
+                    disabled={exporting !== null}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-xs"
+                  >
+                    {exporting === 'csv' ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <Download className="h-3 w-3 mr-1" />
+                    )}
+                    CSV
+                  </Button>
+                  <Button
+                    onClick={() => handleExport('pdf')}
+                    disabled={exporting !== null}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-xs"
+                  >
+                    {exporting === 'pdf' ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <Download className="h-3 w-3 mr-1" />
+                    )}
+                    PDF
+                  </Button>
+                </div>
+              )}
             </div>
           </>
         ) : (
