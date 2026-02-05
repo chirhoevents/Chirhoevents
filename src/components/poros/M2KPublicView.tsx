@@ -823,7 +823,20 @@ export default function M2KPublicView({ event, data, announcements = [], confess
                   <div key={day}>
                     <h4 className="font-bold text-lg mb-3 capitalize text-[#1E3A5F]">{day}</h4>
                     <div className="space-y-2">
-                      {confessionsByDay[day].map(confession => (
+                      {[...confessionsByDay[day]].sort((a, b) => {
+                        const convertTo24Hour = (time: string) => {
+                          const match = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i)
+                          if (!match) return time
+                          let [, hours, minutes, period] = match
+                          let h = parseInt(hours)
+                          if (period) {
+                            if (period.toUpperCase() === 'PM' && h !== 12) h += 12
+                            if (period.toUpperCase() === 'AM' && h === 12) h = 0
+                          }
+                          return `${h.toString().padStart(2, '0')}:${minutes}`
+                        }
+                        return convertTo24Hour(a.startTime).localeCompare(convertTo24Hour(b.startTime))
+                      }).map(confession => (
                         <div key={confession.id} className="flex gap-3 p-3 bg-gray-50 rounded-lg">
                           <div className="text-sm font-semibold text-purple-600 w-28 flex-shrink-0">
                             {confession.startTime}
@@ -914,7 +927,20 @@ export default function M2KPublicView({ event, data, announcements = [], confess
                   <div key={day}>
                     <h4 className="font-bold text-lg mb-3 capitalize text-[#1E3A5F]">{day}</h4>
                     <div className="space-y-2">
-                      {adorationsByDay[day].map(adoration => (
+                      {[...adorationsByDay[day]].sort((a, b) => {
+                        const convertTo24Hour = (time: string) => {
+                          const match = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i)
+                          if (!match) return time
+                          let [, hours, minutes, period] = match
+                          let h = parseInt(hours)
+                          if (period) {
+                            if (period.toUpperCase() === 'PM' && h !== 12) h += 12
+                            if (period.toUpperCase() === 'AM' && h === 12) h = 0
+                          }
+                          return `${h.toString().padStart(2, '0')}:${minutes}`
+                        }
+                        return convertTo24Hour(a.startTime).localeCompare(convertTo24Hour(b.startTime))
+                      }).map(adoration => (
                         <div key={adoration.id} className="flex gap-3 p-3 bg-gray-50 rounded-lg">
                           <div className="text-sm font-semibold text-rose-600 w-28 flex-shrink-0">
                             {adoration.startTime}
