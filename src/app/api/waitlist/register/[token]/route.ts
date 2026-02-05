@@ -16,7 +16,7 @@ export async function GET(
     }
 
     // Find waitlist entry by token
-    const entry = await prisma.waitlistEntry.findUnique({
+    const entry = await prisma.waitlistEntry.findFirst({
       where: { registrationToken: token },
       include: {
         event: {
