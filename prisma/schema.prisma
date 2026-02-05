@@ -1190,7 +1190,7 @@ model WaitlistEntry {
   notes               String?  @db.Text
   status              WaitlistStatus @default(pending)
   notifiedAt          DateTime? @map("notified_at") @db.Timestamptz(6)
-  registrationToken   String?  @unique @map("registration_token") @db.VarChar(64)
+  registrationToken   String?  @map("registration_token") @db.VarChar(64)
   invitationExpires   DateTime? @map("invitation_expires") @db.Timestamptz(6)
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -2699,5 +2699,62 @@ model EventQueueSettings {
   event                       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@map("event_queue_settings")
+}
+
+// ===================================
+// POROS SCHEDULE TABLES
+// ===================================
+
+model PorosConfession {
+  id          String    @id @default(uuid()) @db.Uuid
+  eventId     String    @map("event_id") @db.Uuid
+  day         String    @db.VarChar(50)
+  startTime   String    @map("start_time") @db.VarChar(20)
+  endTime     String?   @map("end_time") @db.VarChar(20)
+  location    String    @db.VarChar(255)
+  description String?   @db.Text
+  isActive    Boolean   @default(true) @map("is_active")
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([eventId], name: "idx_poros_confessions_event")
+  @@index([isActive], name: "idx_poros_confessions_active")
+  @@map("poros_confessions")
+}
+
+model PorosAdoration {
+  id          String    @id @default(uuid()) @db.Uuid
+  eventId     String    @map("event_id") @db.Uuid
+  day         String    @db.VarChar(50)
+  startTime   String    @map("start_time") @db.VarChar(20)
+  endTime     String?   @map("end_time") @db.VarChar(20)
+  location    String    @db.VarChar(255)
+  description String?   @db.Text
+  isActive    Boolean   @default(true) @map("is_active")
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([eventId], name: "idx_poros_adoration_event")
+  @@index([isActive], name: "idx_poros_adoration_active")
+  @@map("poros_adoration")
+}
+
+model PorosInfoItem {
+  id          String    @id @default(uuid()) @db.Uuid
+  eventId     String    @map("event_id") @db.Uuid
+  title       String    @db.VarChar(255)
+  content     String    @db.Text
+  type        String    @default("info") @db.VarChar(20)
+  url         String?   @db.Text
+  isActive    Boolean   @default(true) @map("is_active")
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([eventId], name: "idx_poros_info_items_event")
+  @@index([isActive], name: "idx_poros_info_items_active")
+  @@map("poros_info_items")
 }
 

@@ -33,7 +33,9 @@ echo "Executing pre-cleanup SQL..."
 npx prisma db execute --file /tmp/pre-cleanup.sql --schema prisma/schema.prisma || echo "Pre-cleanup SQL completed (some statements may have been skipped)"
 
 echo "Running prisma db push..."
-npx prisma db push --accept-data-loss
+# IMPORTANT: Do NOT use --accept-data-loss as it will drop tables not in the Prisma schema
+# (like poros_confessions, poros_adoration, poros_info_items) and delete all their data
+npx prisma db push --skip-generate
 
 # Create confession/adoration/info tables AFTER Prisma push
 # These tables are managed outside of Prisma to prevent data loss during deployments
