@@ -267,35 +267,15 @@ export async function POST(
     })
 
     // Get confession times from Poros (using raw SQL since Prisma client may not have this model yet)
-    // Ensure table exists first (self-healing migration)
     let confessionTimes: any[] = []
     try {
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "poros_confession_times" (
-          "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-          "event_id" UUID NOT NULL,
-          "day" VARCHAR(50) NOT NULL,
-          "day_date" DATE,
-          "start_time" VARCHAR(20) NOT NULL,
-          "end_time" VARCHAR(20),
-          "location" VARCHAR(255),
-          "confessor" VARCHAR(255),
-          "order" INTEGER NOT NULL DEFAULT 0,
-          "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          CONSTRAINT "poros_confession_times_pkey" PRIMARY KEY ("id")
-        )
-      `)
-      await prisma.$executeRawUnsafe(`
-        CREATE INDEX IF NOT EXISTS "idx_poros_confession_times_event" ON "poros_confession_times"("event_id")
-      `)
       confessionTimes = await prisma.$queryRaw`
-        SELECT id, event_id as "eventId", day, day_date as "dayDate",
+        SELECT id, event_id as "eventId", day,
                start_time as "startTime", end_time as "endTime",
-               location, confessor, "order"
-        FROM poros_confession_times
-        WHERE event_id = ${eventId}::uuid
-        ORDER BY day ASC, "order" ASC, start_time ASC
+               location, description, "order"
+        FROM poros_confessions
+        WHERE event_id = ${eventId}::uuid AND is_active = true
+        ORDER BY "order" ASC, day ASC, start_time ASC
       `
     } catch (confessionError) {
       console.warn('[SALVE] Could not fetch confession times:', confessionError)
@@ -498,7 +478,7 @@ export async function POST(
           startTime: ct.startTime,
           endTime: ct.endTime,
           location: ct.location,
-          confessor: ct.confessor,
+          confessor: ct.description,
         })),
       },
       missingResources: {
