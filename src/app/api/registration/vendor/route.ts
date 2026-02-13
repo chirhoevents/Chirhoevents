@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
       selectedTier,
       additionalNeeds,
       tierPrice,
+      customAnswers,
     } = body
 
     if (!eventId || !businessName || !contactFirstName || !contactLastName ||
@@ -135,6 +136,23 @@ export async function POST(request: NextRequest) {
     } catch (dbError) {
       console.error('Database error creating vendor registration:', dbError)
       throw dbError
+    }
+
+    // Save custom question answers
+    if (customAnswers && Array.isArray(customAnswers) && customAnswers.length > 0) {
+      try {
+        await prisma.customRegistrationAnswer.createMany({
+          data: customAnswers.map((answer: { questionId: string; answerText: string }) => ({
+            questionId: answer.questionId,
+            registrationId: registration.id,
+            registrationType: 'vendor' as const,
+            answerText: answer.answerText,
+          })),
+        })
+      } catch (answerError) {
+        console.error('Error saving custom answers:', answerError)
+        // Don't fail the registration if answers fail to save
+      }
     }
 
     // Send confirmation email

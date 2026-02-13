@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
       isVendorStaff,
       vendorCode,
       price,
+      customAnswers,
     } = body
 
     if (!eventId || !firstName || !lastName || !email || !phone || !role || !tshirtSize) {
@@ -148,6 +149,18 @@ export async function POST(request: NextRequest) {
         qrCode,
       },
     })
+
+    // Save custom question answers
+    if (customAnswers && Array.isArray(customAnswers) && customAnswers.length > 0) {
+      await prisma.customRegistrationAnswer.createMany({
+        data: customAnswers.map((answer: { questionId: string; answerText: string }) => ({
+          questionId: answer.questionId,
+          registrationId: registration.id,
+          registrationType: 'staff' as const,
+          answerText: answer.answerText,
+        })),
+      })
+    }
 
     // If payment required, create Stripe checkout session
     if (totalAmount > 0) {

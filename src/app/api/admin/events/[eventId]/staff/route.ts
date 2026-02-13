@@ -38,7 +38,46 @@ export async function GET(
       orderBy: { createdAt: 'desc' },
     })
 
-    return NextResponse.json({ staff })
+    // Fetch custom question answers for all staff registrations
+    const staffIds = staff.map((s) => s.id)
+    const customAnswers = staffIds.length > 0
+      ? await prisma.customRegistrationAnswer.findMany({
+          where: {
+            registrationId: { in: staffIds },
+            registrationType: 'staff',
+          },
+          include: {
+            question: {
+              select: {
+                id: true,
+                questionText: true,
+                questionType: true,
+                displayOrder: true,
+              },
+            },
+          },
+        })
+      : []
+
+    // Group answers by registration ID
+    const answersByRegistration: Record<string, typeof customAnswers> = {}
+    for (const answer of customAnswers) {
+      if (!answersByRegistration[answer.registrationId]) {
+        answersByRegistration[answer.registrationId] = []
+      }
+      answersByRegistration[answer.registrationId].push(answer)
+    }
+
+    // Attach answers to staff records
+    const staffWithAnswers = staff.map((s) => ({
+      ...s,
+      customAnswers: (answersByRegistration[s.id] || []).map((a) => ({
+        questionText: a.question.questionText,
+        answerText: a.answerText,
+      })),
+    }))
+
+    return NextResponse.json({ staff: staffWithAnswers })
   } catch (error) {
     console.error('Error fetching staff:', error)
     return NextResponse.json(

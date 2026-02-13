@@ -29,6 +29,12 @@ import {
   Printer,
 } from 'lucide-react'
 import { format } from 'date-fns'
+import CustomQuestionsManager from '@/components/admin/CustomQuestionsManager'
+
+interface CustomAnswer {
+  questionText: string
+  answerText: string | null
+}
 
 interface StaffRegistration {
   id: string
@@ -53,6 +59,7 @@ interface StaffRegistration {
   liabilityForm?: {
     status: string
   }
+  customAnswers?: CustomAnswer[]
 }
 
 interface EventData {
@@ -122,23 +129,41 @@ export default function StaffManagementPage() {
   }
 
   const handleExportCSV = () => {
-    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Role', 'Type', 'T-Shirt', 'Dietary', 'Vendor', 'Payment', 'Poros', 'Checked In']
-    const rows = filteredStaff.map((s) => [
-      s.firstName,
-      s.lastName,
-      s.email,
-      s.phone,
-      s.role,
-      s.isVendorStaff ? 'Vendor Staff' : 'General',
-      s.tshirtSize,
-      s.dietaryRestrictions || '',
-      s.vendorRegistration?.businessName || '',
-      s.paymentStatus,
-      s.liabilityForm?.status || 'N/A',
-      s.checkedIn ? 'Yes' : 'No',
-    ])
+    // Collect unique custom question texts for column headers
+    const customQuestionTexts: string[] = []
+    for (const s of filteredStaff) {
+      for (const a of s.customAnswers || []) {
+        if (!customQuestionTexts.includes(a.questionText)) {
+          customQuestionTexts.push(a.questionText)
+        }
+      }
+    }
 
-    const csvContent = [headers, ...rows].map((row) => row.join(',')).join('\n')
+    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Role', 'Type', 'T-Shirt', 'Dietary', 'Vendor', 'Payment', 'Poros', 'Checked In', ...customQuestionTexts]
+    const rows = filteredStaff.map((s) => {
+      const baseRow = [
+        s.firstName,
+        s.lastName,
+        s.email,
+        s.phone,
+        s.role,
+        s.isVendorStaff ? 'Vendor Staff' : 'General',
+        s.tshirtSize,
+        s.dietaryRestrictions || '',
+        s.vendorRegistration?.businessName || '',
+        s.paymentStatus,
+        s.liabilityForm?.status || 'N/A',
+        s.checkedIn ? 'Yes' : 'No',
+      ]
+      // Add custom answers in order
+      const answerValues = customQuestionTexts.map((qt) => {
+        const answer = s.customAnswers?.find((a) => a.questionText === qt)
+        return answer?.answerText || ''
+      })
+      return [...baseRow, ...answerValues]
+    })
+
+    const csvContent = [headers, ...rows].map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n')
     const blob = new Blob([csvContent], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -263,6 +288,9 @@ export default function StaffManagementPage() {
         </CardContent>
       </Card>
 
+      {/* Custom Questions */}
+      <CustomQuestionsManager eventId={eventId} appliesTo="staff" getToken={getToken} />
+
       {/* Filters */}
       <div className="flex gap-4">
         <div className="relative flex-1 max-w-md">
@@ -330,6 +358,16 @@ export default function StaffManagementPage() {
                       <div>
                         <p className="font-medium">{staff.firstName} {staff.lastName}</p>
                         <p className="text-xs text-[#6B7280]">{staff.email}</p>
+                        {staff.customAnswers && staff.customAnswers.length > 0 && (
+                          <div className="mt-1 space-y-0.5">
+                            {staff.customAnswers.map((answer, i) => (
+                              <p key={i} className="text-xs text-[#6B7280]">
+                                <span className="font-medium">{answer.questionText}:</span>{' '}
+                                {answer.answerText || 'N/A'}
+                              </p>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>{staff.role}</TableCell>
