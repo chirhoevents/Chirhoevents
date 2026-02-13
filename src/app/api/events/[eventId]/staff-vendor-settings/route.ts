@@ -31,6 +31,21 @@ export async function GET(
             liabilityFormsRequiredGroup: true,
           },
         },
+        customRegistrationQuestions: {
+          where: {
+            appliesTo: { in: ['staff', 'vendor', 'all'] },
+          },
+          orderBy: { displayOrder: 'asc' },
+          select: {
+            id: true,
+            questionText: true,
+            questionType: true,
+            options: true,
+            required: true,
+            appliesTo: true,
+            displayOrder: true,
+          },
+        },
       },
     })
 
@@ -51,6 +66,15 @@ export async function GET(
       active: boolean
       quantityLimit: string
     }> | null
+
+    // Separate questions by type
+    const allQuestions = event.customRegistrationQuestions || []
+    const staffQuestions = allQuestions.filter(
+      (q) => q.appliesTo === 'staff' || q.appliesTo === 'all'
+    )
+    const vendorQuestions = allQuestions.filter(
+      (q) => q.appliesTo === 'vendor' || q.appliesTo === 'all'
+    )
 
     return NextResponse.json({
       id: event.id,
@@ -75,6 +99,8 @@ export async function GET(
         vendorTiers: vendorTiers || [],
         liabilityFormsRequiredGroup: event.settings?.liabilityFormsRequiredGroup || false,
       },
+      staffQuestions,
+      vendorQuestions,
     })
   } catch (error) {
     console.error('Error fetching staff/vendor settings:', error)

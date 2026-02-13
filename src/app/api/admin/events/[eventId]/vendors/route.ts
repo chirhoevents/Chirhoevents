@@ -33,7 +33,46 @@ export async function GET(
       orderBy: { createdAt: 'desc' },
     })
 
-    return NextResponse.json({ vendors })
+    // Fetch custom question answers for all vendor registrations
+    const vendorIds = vendors.map((v) => v.id)
+    const customAnswers = vendorIds.length > 0
+      ? await prisma.customRegistrationAnswer.findMany({
+          where: {
+            registrationId: { in: vendorIds },
+            registrationType: 'vendor',
+          },
+          include: {
+            question: {
+              select: {
+                id: true,
+                questionText: true,
+                questionType: true,
+                displayOrder: true,
+              },
+            },
+          },
+        })
+      : []
+
+    // Group answers by registration ID
+    const answersByRegistration: Record<string, typeof customAnswers> = {}
+    for (const answer of customAnswers) {
+      if (!answersByRegistration[answer.registrationId]) {
+        answersByRegistration[answer.registrationId] = []
+      }
+      answersByRegistration[answer.registrationId].push(answer)
+    }
+
+    // Attach answers to vendor records
+    const vendorsWithAnswers = vendors.map((v) => ({
+      ...v,
+      customAnswers: (answersByRegistration[v.id] || []).map((a) => ({
+        questionText: a.question.questionText,
+        answerText: a.answerText,
+      })),
+    }))
+
+    return NextResponse.json({ vendors: vendorsWithAnswers })
   } catch (error) {
     console.error('Error fetching vendors:', error)
     return NextResponse.json(

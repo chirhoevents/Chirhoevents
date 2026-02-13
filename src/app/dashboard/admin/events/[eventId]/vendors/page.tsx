@@ -43,6 +43,12 @@ import {
   Trash2,
 } from 'lucide-react'
 import { format } from 'date-fns'
+import CustomQuestionsManager from '@/components/admin/CustomQuestionsManager'
+
+interface CustomAnswer {
+  questionText: string
+  answerText: string | null
+}
 
 interface VendorRegistration {
   id: string
@@ -70,6 +76,7 @@ interface VendorRegistration {
   _count?: {
     boothStaff: number
   }
+  customAnswers?: CustomAnswer[]
 }
 
 interface EventData {
@@ -261,21 +268,39 @@ export default function VendorsManagementPage() {
   }
 
   const handleExportCSV = () => {
-    const headers = ['Business Name', 'Contact', 'Email', 'Phone', 'Tier', 'Status', 'Payment', 'Amount', 'Staff Count', 'Created']
-    const rows = filteredVendors.map((v) => [
-      v.businessName,
-      `${v.contactFirstName} ${v.contactLastName}`,
-      v.email,
-      v.phone,
-      v.selectedTier,
-      v.status,
-      v.paymentStatus,
-      v.amountPaid || 0,
-      v._count?.boothStaff || 0,
-      format(new Date(v.createdAt), 'yyyy-MM-dd'),
-    ])
+    // Collect unique custom question texts for column headers
+    const customQuestionTexts: string[] = []
+    for (const v of filteredVendors) {
+      for (const a of v.customAnswers || []) {
+        if (!customQuestionTexts.includes(a.questionText)) {
+          customQuestionTexts.push(a.questionText)
+        }
+      }
+    }
 
-    const csvContent = [headers, ...rows].map((row) => row.join(',')).join('\n')
+    const headers = ['Business Name', 'Contact', 'Email', 'Phone', 'Tier', 'Status', 'Payment', 'Amount', 'Staff Count', 'Created', ...customQuestionTexts]
+    const rows = filteredVendors.map((v) => {
+      const baseRow = [
+        v.businessName,
+        `${v.contactFirstName} ${v.contactLastName}`,
+        v.email,
+        v.phone,
+        v.selectedTier,
+        v.status,
+        v.paymentStatus,
+        v.amountPaid || 0,
+        v._count?.boothStaff || 0,
+        format(new Date(v.createdAt), 'yyyy-MM-dd'),
+      ]
+      // Add custom answers in order
+      const answerValues = customQuestionTexts.map((qt) => {
+        const answer = v.customAnswers?.find((a) => a.questionText === qt)
+        return answer?.answerText || ''
+      })
+      return [...baseRow, ...answerValues]
+    })
+
+    const csvContent = [headers, ...rows].map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n')
     const blob = new Blob([csvContent], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -387,6 +412,9 @@ export default function VendorsManagementPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Custom Questions */}
+      <CustomQuestionsManager eventId={eventId} appliesTo="vendor" getToken={getToken} />
 
       {/* Filters */}
       <div className="flex gap-4 flex-wrap">
@@ -555,6 +583,18 @@ export default function VendorsManagementPage() {
                 {selectedVendor.additionalNeeds && (
                   <p><span className="text-gray-500">Additional Needs:</span> {selectedVendor.additionalNeeds}</p>
                 )}
+                {selectedVendor.customAnswers && selectedVendor.customAnswers.length > 0 && (
+                  <>
+                    <hr className="my-2" />
+                    <h4 className="font-medium">Custom Question Answers</h4>
+                    {selectedVendor.customAnswers.map((answer, i) => (
+                      <p key={i}>
+                        <span className="text-gray-500">{answer.questionText}:</span>{' '}
+                        {answer.answerText || 'N/A'}
+                      </p>
+                    ))}
+                  </>
+                )}
               </div>
 
               {/* Invoice Builder */}
@@ -677,6 +717,18 @@ export default function VendorsManagementPage() {
                   <p><strong>Additional Needs:</strong> {detailVendor.additionalNeeds}</p>
                 )}
               </div>
+
+              {detailVendor.customAnswers && detailVendor.customAnswers.length > 0 && (
+                <div className="border-t pt-4 space-y-2">
+                  <h4 className="font-medium">Custom Question Answers</h4>
+                  {detailVendor.customAnswers.map((answer, i) => (
+                    <div key={i} className="text-sm">
+                      <p className="text-gray-500">{answer.questionText}</p>
+                      <p className="font-medium">{answer.answerText || 'N/A'}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {detailVendor.status === 'approved' && (
                 <div className="border-t pt-4 space-y-2">

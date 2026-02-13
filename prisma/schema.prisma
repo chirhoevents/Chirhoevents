@@ -1048,6 +1048,9 @@ enum QuestionAppliesTo {
   group
   individual
   both
+  staff
+  vendor
+  all
 }
 
 enum WaitlistStatus {

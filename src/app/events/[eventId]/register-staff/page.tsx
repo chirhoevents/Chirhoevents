@@ -11,6 +11,16 @@ import { Textarea } from '@/components/ui/textarea'
 import { Loader2, ArrowLeft, Users, Building2 } from 'lucide-react'
 import LoadingScreen from '@/components/LoadingScreen'
 
+interface CustomQuestion {
+  id: string
+  questionText: string
+  questionType: 'text' | 'yes_no' | 'multiple_choice' | 'dropdown'
+  options: string[] | null
+  required: boolean
+  appliesTo: string
+  displayOrder: number
+}
+
 interface EventSettings {
   staffRegistrationEnabled: boolean
   staffVolunteerPrice: number
@@ -28,6 +38,7 @@ interface EventData {
   endDate: string
   organizationId: string
   settings: EventSettings
+  staffQuestions: CustomQuestion[]
 }
 
 const TSHIRT_SIZES = [
@@ -66,6 +77,7 @@ export default function StaffRegistrationPage() {
   const [vendorCodeError, setVendorCodeError] = useState<string | null>(null)
   const [vendorCodeValid, setVendorCodeValid] = useState(false)
   const [vendorBusinessName, setVendorBusinessName] = useState<string | null>(null)
+  const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({})
 
   // Load event data
   useEffect(() => {
@@ -153,6 +165,9 @@ export default function StaffRegistrationPage() {
           eventId,
           ...formData,
           price: totalPrice,
+          customAnswers: Object.entries(customAnswers)
+            .filter(([, value]) => value.trim() !== '')
+            .map(([questionId, answerText]) => ({ questionId, answerText })),
         }),
       })
 
@@ -424,6 +439,82 @@ export default function StaffRegistrationPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Custom Questions */}
+          {event.staffQuestions && event.staffQuestions.length > 0 && (
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="text-lg">Additional Questions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {event.staffQuestions.map((question) => (
+                  <div key={question.id}>
+                    <Label htmlFor={`q-${question.id}`}>
+                      {question.questionText}
+                      {question.required && <span className="text-red-500 ml-1">*</span>}
+                    </Label>
+
+                    {question.questionType === 'text' && (
+                      <Textarea
+                        id={`q-${question.id}`}
+                        value={customAnswers[question.id] || ''}
+                        onChange={(e) =>
+                          setCustomAnswers((prev) => ({
+                            ...prev,
+                            [question.id]: e.target.value,
+                          }))
+                        }
+                        required={question.required}
+                        rows={2}
+                      />
+                    )}
+
+                    {question.questionType === 'yes_no' && (
+                      <select
+                        id={`q-${question.id}`}
+                        value={customAnswers[question.id] || ''}
+                        onChange={(e) =>
+                          setCustomAnswers((prev) => ({
+                            ...prev,
+                            [question.id]: e.target.value,
+                          }))
+                        }
+                        className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+                        required={question.required}
+                      >
+                        <option value="">Select...</option>
+                        <option value="Yes">Yes</option>
+                        <option value="No">No</option>
+                      </select>
+                    )}
+
+                    {(question.questionType === 'dropdown' ||
+                      question.questionType === 'multiple_choice') && (
+                      <select
+                        id={`q-${question.id}`}
+                        value={customAnswers[question.id] || ''}
+                        onChange={(e) =>
+                          setCustomAnswers((prev) => ({
+                            ...prev,
+                            [question.id]: e.target.value,
+                          }))
+                        }
+                        className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+                        required={question.required}
+                      >
+                        <option value="">Select...</option>
+                        {question.options?.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Price Summary */}
           <Card className="mb-6">
