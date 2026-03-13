@@ -224,31 +224,8 @@ export default function EventsListClient({
     }
   }
 
-  const handleDuplicateEvent = async (eventId: string, eventName: string) => {
-    if (!confirm(`Duplicate "${eventName}"? A copy will be created as a draft with all dates shifted one year forward.`)) {
-      return
-    }
-
-    try {
-      const token = await getToken()
-      const response = await fetch(`/api/admin/events/${eventId}/duplicate`, {
-        method: 'POST',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        alert(data.error || 'Failed to duplicate event. Please try again.')
-        return
-      }
-
-      const data = await response.json()
-      await fetchEvents()
-      router.push(`/dashboard/admin/events/${data.event.id}/edit`)
-    } catch (error) {
-      console.error('Error duplicating event:', error)
-      alert('Failed to duplicate event. Please try again.')
-    }
+  const handleDuplicateEvent = (eventId: string) => {
+    router.push(`/dashboard/admin/events/${eventId}/duplicate`)
   }
 
   const filterEvents = () => {
@@ -662,7 +639,7 @@ export default function EventsListClient({
                                 </Link>
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onClick={() => handleDuplicateEvent(event.id, event.name)}
+                                onClick={() => handleDuplicateEvent(event.id)}
                               >
                                 <Copy className="h-4 w-4 mr-2" />
                                 Duplicate Event
