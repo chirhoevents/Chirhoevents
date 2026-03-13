@@ -406,9 +406,10 @@ export default function OrganizationDetailPage() {
 
   const handleResetOnboarding = async () => {
     if (!confirm(
-      'Reset onboarding for this organization?\n\n' +
-      'This will unlink the org admin\'s account so you can re-invite them with a corrected email.\n\n' +
-      'After resetting, use "Change Org Admin" to set the new email and send a fresh invite.'
+      'Reset Stripe onboarding for this organization?\n\n' +
+      'This will disconnect their Stripe Connect account so they can go through setup again — ' +
+      'useful when the wrong person (e.g. someone who has left finance) connected the account.\n\n' +
+      'The org admin will need to reconnect Stripe from their Settings → Integrations page.'
     )) return
 
     setActionLoading('reset-onboarding')
@@ -422,13 +423,19 @@ export default function OrganizationDetailPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to reset onboarding')
+        throw new Error(data.error || 'Failed to reset Stripe onboarding')
       }
 
-      alert(`Onboarding reset for ${data.orgAdminEmail}.\n\nUse "Change Org Admin" or "Resend Onboarding Email" to re-invite with the correct email.`)
+      alert('Stripe onboarding reset.\n\nThe org can now reconnect Stripe from their Settings → Integrations page.')
+      // Refresh org data to reflect updated Stripe status
+      setOrganization(prev => prev ? {
+        ...prev,
+        stripeAccountId: null,
+        stripeOnboardingCompleted: false,
+      } : null)
     } catch (error: unknown) {
-      console.error('Failed to reset onboarding:', error)
-      alert(error instanceof Error ? error.message : 'Failed to reset onboarding')
+      console.error('Failed to reset Stripe onboarding:', error)
+      alert(error instanceof Error ? error.message : 'Failed to reset Stripe onboarding')
     } finally {
       setActionLoading(null)
     }
@@ -1239,7 +1246,7 @@ export default function OrganizationDetailPage() {
                 ) : (
                   <RotateCcw className="h-4 w-4 text-orange-400" />
                 )}
-                Reset Onboarding
+                Reset Stripe Onboarding
               </button>
               <button
                 onClick={() => setShowChangeAdminModal(true)}
