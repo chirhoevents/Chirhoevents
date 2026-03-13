@@ -10,7 +10,6 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Check, ChevronLeft, ChevronRight, Loader2, Upload, Trash2, Image as ImageIcon } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Label } from '@/components/ui/label'
 
 interface CreateEventClientProps {
   organizationId: string
