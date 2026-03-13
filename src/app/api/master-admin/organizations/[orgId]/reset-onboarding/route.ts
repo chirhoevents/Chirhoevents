@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 
+// Resets Stripe Connect onboarding for an organization so they can reconnect
+// with a different account (e.g. a different person in finance).
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ orgId: string }> }
@@ -28,9 +30,14 @@ export async function POST(
 
     const { orgId } = await params
 
-    // Get organization
     const organization = await prisma.organization.findUnique({
       where: { id: orgId },
+      select: {
+        id: true,
+        name: true,
+        stripeAccountId: true,
+        stripeOnboardingCompleted: true,
+      },
     })
 
     if (!organization) {
@@ -40,26 +47,19 @@ export async function POST(
       )
     }
 
-    // Find the current org admin
-    const orgAdmin = await prisma.user.findFirst({
-      where: {
-        organizationId: organization.id,
-        role: 'org_admin',
+    const previousStripeAccountId = organization.stripeAccountId
+
+    // Clear all Stripe Connect fields so the org can start fresh
+    await prisma.organization.update({
+      where: { id: orgId },
+      data: {
+        stripeAccountId: null,
+        stripeAccountStatus: 'not_connected',
+        stripeOnboardingCompleted: false,
+        stripeChargesEnabled: false,
+        stripePayoutsEnabled: false,
+        stripeConnectedAt: null,
       },
-      orderBy: { createdAt: 'asc' },
-    })
-
-    if (!orgAdmin) {
-      return NextResponse.json(
-        { error: 'No org admin found for this organization' },
-        { status: 404 }
-      )
-    }
-
-    // Strip the Clerk account link so the admin can be re-invited with a new email
-    await prisma.user.update({
-      where: { id: orgAdmin.id },
-      data: { clerkUserId: null },
     })
 
     // Log activity
@@ -67,24 +67,23 @@ export async function POST(
       data: {
         organizationId: orgId,
         userId: currentUser.id,
-        activityType: 'onboarding_reset',
-        description: `Onboarding reset for org admin ${orgAdmin.email} — account unlinked so a new invite can be sent`,
+        activityType: 'stripe_onboarding_reset',
+        description: `Stripe Connect onboarding reset for ${organization.name}`,
         metadata: {
-          orgAdminId: orgAdmin.id,
-          orgAdminEmail: orgAdmin.email,
+          previousStripeAccountId,
+          wasOnboardingCompleted: organization.stripeOnboardingCompleted,
         },
       },
     })
 
     return NextResponse.json({
       success: true,
-      message: 'Onboarding reset successfully. Use "Change Org Admin" or "Resend Onboarding Email" to re-invite with the correct email.',
-      orgAdminEmail: orgAdmin.email,
+      message: 'Stripe onboarding reset. The organization can now reconnect Stripe from their Settings page.',
     })
   } catch (error) {
-    console.error('Error resetting onboarding:', error)
+    console.error('Error resetting Stripe onboarding:', error)
     return NextResponse.json(
-      { error: 'Failed to reset onboarding' },
+      { error: 'Failed to reset Stripe onboarding' },
       { status: 500 }
     )
   }
