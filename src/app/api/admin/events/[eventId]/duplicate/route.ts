@@ -13,9 +13,10 @@ function shiftDateByOneYear(date: Date | null | undefined): Date | null {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
+    const { eventId } = await params
     const overrideUserId = getClerkUserIdFromHeader(request)
     const user = await getCurrentUser(overrideUserId)
 
@@ -30,7 +31,7 @@ export async function POST(
 
     // Fetch source event core data
     const sourceEvent = await prisma.event.findUnique({
-      where: { id: params.eventId },
+      where: { id: eventId },
       include: {
         settings: true,
         pricing: true,
@@ -89,20 +90,20 @@ export async function POST(
       nameTagTemplate,
     ] = await Promise.all([
       prisma.building.findMany({
-        where: { eventId: params.eventId },
+        where: { eventId: eventId },
         include: { rooms: true },
       }),
-      prisma.smallGroup.findMany({ where: { eventId: params.eventId } }),
-      prisma.mealGroup.findMany({ where: { eventId: params.eventId } }),
-      prisma.seatingSection.findMany({ where: { eventId: params.eventId } }),
-      prisma.porosScheduleEntry.findMany({ where: { eventId: params.eventId } }),
-      prisma.porosMealTime.findMany({ where: { eventId: params.eventId } }),
-      prisma.porosAnnouncement.findMany({ where: { eventId: params.eventId } }),
-      prisma.porosInfoItem.findMany({ where: { eventId: params.eventId } }),
-      prisma.porosConfession.findMany({ where: { eventId: params.eventId } }),
-      prisma.porosAdoration.findMany({ where: { eventId: params.eventId } }),
-      prisma.porosResource.findMany({ where: { eventId: params.eventId } }),
-      prisma.nameTagTemplate.findUnique({ where: { eventId: params.eventId } }),
+      prisma.smallGroup.findMany({ where: { eventId: eventId } }),
+      prisma.mealGroup.findMany({ where: { eventId: eventId } }),
+      prisma.seatingSection.findMany({ where: { eventId: eventId } }),
+      prisma.porosScheduleEntry.findMany({ where: { eventId: eventId } }),
+      prisma.porosMealTime.findMany({ where: { eventId: eventId } }),
+      prisma.porosAnnouncement.findMany({ where: { eventId: eventId } }),
+      prisma.porosInfoItem.findMany({ where: { eventId: eventId } }),
+      prisma.porosConfession.findMany({ where: { eventId: eventId } }),
+      prisma.porosAdoration.findMany({ where: { eventId: eventId } }),
+      prisma.porosResource.findMany({ where: { eventId: eventId } }),
+      prisma.nameTagTemplate.findUnique({ where: { eventId: eventId } }),
     ])
 
     // Build a unique slug for the duplicate

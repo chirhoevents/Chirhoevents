@@ -21,9 +21,10 @@ function shiftDateByOneYear(date: Date | null | undefined): Date | null {
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
+    const { eventId } = await params
     const overrideUserId = getClerkUserIdFromHeader(request)
     const user = await getCurrentUser(overrideUserId)
 
@@ -48,7 +49,7 @@ export async function POST(
 
     // Verify source event belongs to org
     const sourceEvent = await prisma.event.findUnique({
-      where: { id: params.eventId },
+      where: { id: eventId },
       select: { id: true, organizationId: true },
     })
 
@@ -74,7 +75,7 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const sourceId = params.eventId
+    const sourceId = eventId
 
     // Fetch and copy each selected category
     if (copyFlags.copyBuildings) {
