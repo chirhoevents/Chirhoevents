@@ -23,6 +23,7 @@ import {
   TrendingUp,
   ChevronRight,
   Loader2,
+  Copy,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -220,6 +221,33 @@ export default function EventsListClient({
     } catch (error) {
       console.error('Error deleting event:', error)
       alert('Failed to delete event. Please try again.')
+    }
+  }
+
+  const handleDuplicateEvent = async (eventId: string, eventName: string) => {
+    if (!confirm(`Duplicate "${eventName}"? A copy will be created as a draft with all dates shifted one year forward.`)) {
+      return
+    }
+
+    try {
+      const token = await getToken()
+      const response = await fetch(`/api/admin/events/${eventId}/duplicate`, {
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        alert(data.error || 'Failed to duplicate event. Please try again.')
+        return
+      }
+
+      const data = await response.json()
+      await fetchEvents()
+      router.push(`/dashboard/admin/events/${data.event.id}/edit`)
+    } catch (error) {
+      console.error('Error duplicating event:', error)
+      alert('Failed to duplicate event. Please try again.')
     }
   }
 
@@ -632,6 +660,12 @@ export default function EventsListClient({
                                   <Edit className="h-4 w-4 mr-2" />
                                   Edit
                                 </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDuplicateEvent(event.id, event.name)}
+                              >
+                                <Copy className="h-4 w-4 mr-2" />
+                                Duplicate Event
                               </DropdownMenuItem>
                               {event.totalRegistrations === 0 && (
                                 <DropdownMenuItem
