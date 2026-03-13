@@ -28,14 +28,14 @@ export async function POST(
 
     const organizationId = await getEffectiveOrgId(user as any)
 
-    // Fetch the source event with all related data
+    // Fetch source event core data
     const sourceEvent = await prisma.event.findUnique({
       where: { id: params.eventId },
       include: {
         settings: true,
         pricing: true,
         dayPassOptions: true,
-        customQuestions: true,
+        customRegistrationQuestions: true,
       },
     })
 
@@ -43,7 +43,6 @@ export async function POST(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 
-    // Verify the event belongs to the same organization
     if (sourceEvent.organizationId !== organizationId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -74,6 +73,38 @@ export async function POST(
       }
     }
 
+    // Fetch all POROS structural data separately (no back-relations on Event)
+    const [
+      buildings,
+      smallGroups,
+      mealGroups,
+      seatingSections,
+      scheduleEntries,
+      mealTimes,
+      announcements,
+      infoItems,
+      confessions,
+      adorations,
+      resources,
+      nameTagTemplate,
+    ] = await Promise.all([
+      prisma.building.findMany({
+        where: { eventId: params.eventId },
+        include: { rooms: true },
+      }),
+      prisma.smallGroup.findMany({ where: { eventId: params.eventId } }),
+      prisma.mealGroup.findMany({ where: { eventId: params.eventId } }),
+      prisma.seatingSection.findMany({ where: { eventId: params.eventId } }),
+      prisma.porosScheduleEntry.findMany({ where: { eventId: params.eventId } }),
+      prisma.porosMealTime.findMany({ where: { eventId: params.eventId } }),
+      prisma.porosAnnouncement.findMany({ where: { eventId: params.eventId } }),
+      prisma.porosInfoItem.findMany({ where: { eventId: params.eventId } }),
+      prisma.porosConfession.findMany({ where: { eventId: params.eventId } }),
+      prisma.porosAdoration.findMany({ where: { eventId: params.eventId } }),
+      prisma.porosResource.findMany({ where: { eventId: params.eventId } }),
+      prisma.nameTagTemplate.findUnique({ where: { eventId: params.eventId } }),
+    ])
+
     // Build a unique slug for the duplicate
     const baseSlug = sourceEvent.slug.replace(/-copy(-\d+)?$/, '')
     const candidateSlug = `${baseSlug}-copy`
@@ -86,7 +117,6 @@ export async function POST(
       newSlug = `${candidateSlug}-${existingSlugs.length + 1}`
     }
 
-    // Shift all dates by one year
     const newStartDate = shiftDateByOneYear(sourceEvent.startDate)!
     const newEndDate = shiftDateByOneYear(sourceEvent.endDate)!
     const newRegistrationOpenDate = shiftDateByOneYear(sourceEvent.registrationOpenDate)
@@ -95,7 +125,7 @@ export async function POST(
     const s = sourceEvent.settings
     const p = sourceEvent.pricing
 
-    // Create the duplicated event
+    // Create the duplicated event with settings and pricing
     const newEvent = await prisma.event.create({
       data: {
         organizationId,
@@ -108,7 +138,7 @@ export async function POST(
         locationName: sourceEvent.locationName,
         locationAddress: sourceEvent.locationAddress as any,
         capacityTotal: sourceEvent.capacityTotal,
-        capacityRemaining: sourceEvent.capacityTotal, // reset to full
+        capacityRemaining: sourceEvent.capacityTotal,
         registrationOpenDate: newRegistrationOpenDate,
         registrationCloseDate: newRegistrationCloseDate,
         status: 'draft',
@@ -117,7 +147,6 @@ export async function POST(
         waitlistCapacity: sourceEvent.waitlistCapacity,
         createdBy: user.id,
 
-        // Copy settings
         settings: s
           ? {
               create: {
@@ -162,19 +191,19 @@ export async function POST(
                 tripleRoomLabel: s.tripleRoomLabel,
                 quadRoomLabel: s.quadRoomLabel,
                 onCampusCapacity: s.onCampusCapacity,
-                onCampusRemaining: s.onCampusCapacity, // reset
+                onCampusRemaining: s.onCampusCapacity,
                 offCampusCapacity: s.offCampusCapacity,
-                offCampusRemaining: s.offCampusCapacity, // reset
+                offCampusRemaining: s.offCampusCapacity,
                 dayPassCapacity: s.dayPassCapacity,
-                dayPassRemaining: s.dayPassCapacity, // reset
+                dayPassRemaining: s.dayPassCapacity,
                 singleRoomCapacity: s.singleRoomCapacity,
-                singleRoomRemaining: s.singleRoomCapacity, // reset
+                singleRoomRemaining: s.singleRoomCapacity,
                 doubleRoomCapacity: s.doubleRoomCapacity,
-                doubleRoomRemaining: s.doubleRoomCapacity, // reset
+                doubleRoomRemaining: s.doubleRoomCapacity,
                 tripleRoomCapacity: s.tripleRoomCapacity,
-                tripleRoomRemaining: s.tripleRoomCapacity, // reset
+                tripleRoomRemaining: s.tripleRoomCapacity,
                 quadRoomCapacity: s.quadRoomCapacity,
-                quadRoomRemaining: s.quadRoomCapacity, // reset
+                quadRoomRemaining: s.quadRoomCapacity,
                 landingPageShowPrice: s.landingPageShowPrice,
                 landingPageShowSchedule: s.landingPageShowSchedule,
                 landingPageShowFaq: s.landingPageShowFaq,
@@ -241,7 +270,6 @@ export async function POST(
             }
           : undefined,
 
-        // Copy pricing (shift date-based deadlines by one year)
         pricing: p
           ? {
               create: {
@@ -288,7 +316,7 @@ export async function POST(
       },
     })
 
-    // Copy day pass options (shift dates by one year)
+    // ── Day pass options ────────────────────────────────────────────────────
     if (sourceEvent.dayPassOptions.length > 0) {
       await prisma.dayPassOption.createMany({
         data: sourceEvent.dayPassOptions.map((opt) => ({
@@ -297,7 +325,7 @@ export async function POST(
           date: shiftDateByOneYear(opt.date)!,
           name: opt.name,
           capacity: opt.capacity,
-          remaining: opt.capacity, // reset to full
+          remaining: opt.capacity,
           price: opt.price,
           youthPrice: opt.youthPrice,
           chaperonePrice: opt.chaperonePrice,
@@ -306,10 +334,10 @@ export async function POST(
       })
     }
 
-    // Copy custom registration questions
-    if (sourceEvent.customQuestions.length > 0) {
+    // ── Custom registration questions ───────────────────────────────────────
+    if (sourceEvent.customRegistrationQuestions.length > 0) {
       await prisma.customRegistrationQuestion.createMany({
-        data: sourceEvent.customQuestions.map((q) => ({
+        data: sourceEvent.customRegistrationQuestions.map((q) => ({
           eventId: newEvent.id,
           questionText: q.questionText,
           questionType: q.questionType,
@@ -321,7 +349,243 @@ export async function POST(
       })
     }
 
-    // Increment events used counter
+    // ── Buildings & rooms ───────────────────────────────────────────────────
+    // Copies the physical venue layout. Occupancy and group allocations are
+    // cleared — rooms start empty for the new event year.
+    for (const building of buildings) {
+      const newBuilding = await prisma.building.create({
+        data: {
+          eventId: newEvent.id,
+          name: building.name,
+          gender: building.gender,
+          housingType: building.housingType,
+          totalFloors: building.totalFloors,
+          totalRooms: building.totalRooms,
+          totalBeds: building.totalBeds,
+          notes: building.notes,
+          displayOrder: building.displayOrder,
+        },
+      })
+
+      if (building.rooms.length > 0) {
+        await prisma.room.createMany({
+          data: building.rooms.map((room) => ({
+            buildingId: newBuilding.id,
+            roomNumber: room.roomNumber,
+            floor: room.floor,
+            bedCount: room.bedCount,
+            roomType: room.roomType,
+            gender: room.gender,
+            housingType: room.housingType,
+            capacity: room.capacity,
+            currentOccupancy: 0,
+            notes: room.notes,
+            isAvailable: true,
+            isAdaAccessible: room.isAdaAccessible,
+            adaFeatures: room.adaFeatures,
+            roomPurpose: room.roomPurpose,
+            allocatedToGroupId: null,
+          })),
+        })
+      }
+    }
+
+    // ── Small groups ────────────────────────────────────────────────────────
+    // Copies group names, numbers, capacities, and meeting details.
+    // SGL/co-SGL links are cleared (staff roster rebuilt each year).
+    // Meeting room links are cleared (rooms have new IDs). currentSize resets.
+    if (smallGroups.length > 0) {
+      await prisma.smallGroup.createMany({
+        data: smallGroups.map((sg) => ({
+          eventId: newEvent.id,
+          name: sg.name,
+          groupNumber: sg.groupNumber,
+          sglId: null,
+          coSglId: null,
+          meetingRoomId: null,
+          meetingTime: sg.meetingTime,
+          meetingPlace: sg.meetingPlace,
+          capacity: sg.capacity,
+          currentSize: 0,
+          notes: sg.notes,
+        })),
+      })
+    }
+
+    // ── Meal groups ─────────────────────────────────────────────────────────
+    if (mealGroups.length > 0) {
+      await prisma.mealGroup.createMany({
+        data: mealGroups.map((mg) => ({
+          eventId: newEvent.id,
+          name: mg.name,
+          color: mg.color,
+          colorHex: mg.colorHex,
+          accommodationType: mg.accommodationType,
+          breakfastTime: mg.breakfastTime,
+          lunchTime: mg.lunchTime,
+          dinnerTime: mg.dinnerTime,
+          sundayBreakfastTime: mg.sundayBreakfastTime,
+          capacity: mg.capacity,
+          currentSize: 0,
+          displayOrder: mg.displayOrder,
+          isActive: mg.isActive,
+        })),
+      })
+    }
+
+    // ── Seating sections ────────────────────────────────────────────────────
+    if (seatingSections.length > 0) {
+      await prisma.seatingSection.createMany({
+        data: seatingSections.map((sec) => ({
+          eventId: newEvent.id,
+          name: sec.name,
+          sectionCode: sec.sectionCode,
+          color: sec.color,
+          capacity: sec.capacity,
+          currentOccupancy: 0,
+          locationDescription: sec.locationDescription,
+          publicVisible: sec.publicVisible,
+          displayOrder: sec.displayOrder,
+        })),
+      })
+    }
+
+    // ── Schedule entries ────────────────────────────────────────────────────
+    if (scheduleEntries.length > 0) {
+      await prisma.porosScheduleEntry.createMany({
+        data: scheduleEntries.map((entry) => ({
+          eventId: newEvent.id,
+          day: entry.day,
+          dayDate: shiftDateByOneYear(entry.dayDate ?? null),
+          startTime: entry.startTime,
+          endTime: entry.endTime,
+          title: entry.title,
+          location: entry.location,
+          description: entry.description,
+          order: entry.order,
+        })),
+      })
+    }
+
+    // ── Meal times ──────────────────────────────────────────────────────────
+    if (mealTimes.length > 0) {
+      await prisma.porosMealTime.createMany({
+        data: mealTimes.map((mt) => ({
+          eventId: newEvent.id,
+          day: mt.day,
+          dayDate: shiftDateByOneYear(mt.dayDate ?? null),
+          meal: mt.meal,
+          color: mt.color,
+          time: mt.time,
+          order: mt.order,
+        })),
+      })
+    }
+
+    // ── Announcements ───────────────────────────────────────────────────────
+    if (announcements.length > 0) {
+      await prisma.porosAnnouncement.createMany({
+        data: announcements.map((ann) => ({
+          eventId: newEvent.id,
+          title: ann.title,
+          message: ann.message,
+          type: ann.type,
+          startDate: shiftDateByOneYear(ann.startDate ?? null),
+          endDate: shiftDateByOneYear(ann.endDate ?? null),
+          isActive: ann.isActive,
+          order: ann.order,
+        })),
+      })
+    }
+
+    // ── Info items ──────────────────────────────────────────────────────────
+    if (infoItems.length > 0) {
+      await prisma.porosInfoItem.createMany({
+        data: infoItems.map((item) => ({
+          eventId: newEvent.id,
+          title: item.title,
+          content: item.content,
+          type: item.type,
+          url: item.url,
+          isActive: item.isActive,
+          order: item.order,
+        })),
+      })
+    }
+
+    // ── Confessions ─────────────────────────────────────────────────────────
+    if (confessions.length > 0) {
+      await prisma.porosConfession.createMany({
+        data: confessions.map((c) => ({
+          eventId: newEvent.id,
+          day: c.day,
+          startTime: c.startTime,
+          endTime: c.endTime,
+          location: c.location,
+          description: c.description,
+          isActive: c.isActive,
+          order: c.order,
+        })),
+      })
+    }
+
+    // ── Adoration ───────────────────────────────────────────────────────────
+    if (adorations.length > 0) {
+      await prisma.porosAdoration.createMany({
+        data: adorations.map((a) => ({
+          eventId: newEvent.id,
+          day: a.day,
+          startTime: a.startTime,
+          endTime: a.endTime,
+          location: a.location,
+          description: a.description,
+          isActive: a.isActive,
+          order: a.order,
+        })),
+      })
+    }
+
+    // ── Resources ───────────────────────────────────────────────────────────
+    if (resources.length > 0) {
+      await prisma.porosResource.createMany({
+        data: resources.map((r) => ({
+          eventId: newEvent.id,
+          name: r.name,
+          type: r.type,
+          url: r.url,
+          order: r.order,
+          isActive: r.isActive,
+        })),
+      })
+    }
+
+    // ── Name tag template ───────────────────────────────────────────────────
+    if (nameTagTemplate) {
+      await prisma.nameTagTemplate.create({
+        data: {
+          eventId: newEvent.id,
+          templateType: nameTagTemplate.templateType,
+          logoUrl: nameTagTemplate.logoUrl,
+          backgroundUrl: nameTagTemplate.backgroundUrl,
+          primaryColor: nameTagTemplate.primaryColor,
+          accentColor: nameTagTemplate.accentColor,
+          textColor: nameTagTemplate.textColor,
+          tagSize: nameTagTemplate.tagSize,
+          showParish: nameTagTemplate.showParish,
+          showAge: nameTagTemplate.showAge,
+          showGrade: nameTagTemplate.showGrade,
+          showCityState: nameTagTemplate.showCityState,
+          showRole: nameTagTemplate.showRole,
+          showMealColor: nameTagTemplate.showMealColor,
+          showSmallGroup: nameTagTemplate.showSmallGroup,
+          showHousing: nameTagTemplate.showHousing,
+          showQrCode: nameTagTemplate.showQrCode,
+          settingsJson: nameTagTemplate.settingsJson as any,
+        },
+      })
+    }
+
+    // ── Increment events used counter ───────────────────────────────────────
     await prisma.organization.update({
       where: { id: organizationId },
       data: { eventsUsed: { increment: 1 } },
