@@ -34,6 +34,7 @@ import {
   ChevronUp,
   HardDrive,
   RefreshCw,
+  RotateCcw,
 } from 'lucide-react'
 
 interface Organization {
@@ -398,6 +399,36 @@ export default function OrganizationDetailPage() {
     } catch (error: unknown) {
       console.error('Failed to resend onboarding:', error)
       alert(error instanceof Error ? error.message : 'Failed to resend onboarding email')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleResetOnboarding = async () => {
+    if (!confirm(
+      'Reset onboarding for this organization?\n\n' +
+      'This will unlink the org admin\'s account so you can re-invite them with a corrected email.\n\n' +
+      'After resetting, use "Change Org Admin" to set the new email and send a fresh invite.'
+    )) return
+
+    setActionLoading('reset-onboarding')
+    try {
+      const token = await getToken()
+      const response = await fetch(`/api/master-admin/organizations/${params.orgId}/reset-onboarding`, {
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to reset onboarding')
+      }
+
+      alert(`Onboarding reset for ${data.orgAdminEmail}.\n\nUse "Change Org Admin" or "Resend Onboarding Email" to re-invite with the correct email.`)
+    } catch (error: unknown) {
+      console.error('Failed to reset onboarding:', error)
+      alert(error instanceof Error ? error.message : 'Failed to reset onboarding')
     } finally {
       setActionLoading(null)
     }
@@ -1197,6 +1228,18 @@ export default function OrganizationDetailPage() {
                   <Mail className="h-4 w-4 text-gray-400" />
                 )}
                 Resend Onboarding Email
+              </button>
+              <button
+                onClick={handleResetOnboarding}
+                disabled={actionLoading === 'reset-onboarding'}
+                className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-orange-700 hover:bg-orange-50 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {actionLoading === 'reset-onboarding' ? (
+                  <Loader2 className="h-4 w-4 text-orange-400 animate-spin" />
+                ) : (
+                  <RotateCcw className="h-4 w-4 text-orange-400" />
+                )}
+                Reset Onboarding
               </button>
               <button
                 onClick={() => setShowChangeAdminModal(true)}
