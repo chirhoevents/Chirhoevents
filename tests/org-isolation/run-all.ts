@@ -19,6 +19,9 @@ const testFiles = [
   '03-payment-isolation.test.ts',
   '05-group-leader-isolation.test.ts',
   '06-debug-endpoint-vulnerability.test.ts',
+  '07-webhook-payment-isolation.test.ts',
+  '08-public-registration-endpoint.test.ts',
+  '09-refund-and-payment-routing.test.ts',
 ]
 
 // Database-required tests (skip if DATABASE_URL not set)
