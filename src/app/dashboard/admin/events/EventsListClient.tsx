@@ -23,6 +23,7 @@ import {
   TrendingUp,
   ChevronRight,
   Loader2,
+  Copy,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -221,6 +222,10 @@ export default function EventsListClient({
       console.error('Error deleting event:', error)
       alert('Failed to delete event. Please try again.')
     }
+  }
+
+  const handleDuplicateEvent = (eventId: string) => {
+    router.push(`/dashboard/admin/events/${eventId}/duplicate`)
   }
 
   const filterEvents = () => {
@@ -632,6 +637,12 @@ export default function EventsListClient({
                                   <Edit className="h-4 w-4 mr-2" />
                                   Edit
                                 </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDuplicateEvent(event.id)}
+                              >
+                                <Copy className="h-4 w-4 mr-2" />
+                                Duplicate Event
                               </DropdownMenuItem>
                               {event.totalRegistrations === 0 && (
                                 <DropdownMenuItem

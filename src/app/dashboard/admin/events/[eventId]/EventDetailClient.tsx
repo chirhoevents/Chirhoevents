@@ -359,7 +359,7 @@ export default function EventDetailClient({
                 View Public Page
               </Button>
             </Link>
-            <Button variant="outline" size="sm" disabled>
+            <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/admin/events/${event.id}/duplicate`)}>
               <Copy className="h-4 w-4 mr-2" />
               Duplicate
             </Button>
