@@ -750,6 +750,286 @@ export interface InstallmentSummary {
   isFullyPaid: boolean
 }
 
+// ============================================================
+// EDGE-CASE FACTORIES (Phase 6)
+// ============================================================
+
+export type OrgStatus = 'active' | 'suspended' | 'deactivated' | 'pending'
+
+export interface MockEventCapacity {
+  eventId: string
+  organizationId: string
+  capacityTotal: number | null
+  capacityRemaining: number | null
+  onCampusTotal: number | null
+  onCampusRemaining: number | null
+  offCampusTotal: number | null
+  offCampusRemaining: number | null
+  status: string  // 'registration_open' | 'registration_closed' | 'cancelled'
+}
+
+export interface MockRegistrationAttempt {
+  groupName: string
+  groupLeaderEmail: string
+  youthCount: number
+  chaperoneCount: number
+  priestCount: number
+  housingType: string
+  paymentMethod: 'card' | 'check'
+  eventId: string
+  organizationId: string
+}
+
+export interface MockRegistrationResult {
+  success: boolean
+  httpStatus: number
+  error?: string
+  registrationId?: string
+  registrationStatus?: string  // 'incomplete' | 'pending_payment'
+  capacityDecrementedBeforeStripe: boolean
+  stripeSessionCreated: boolean
+  rollbackOccurred: boolean
+}
+
+/**
+ * Build an event with specific capacity settings for edge-case tests.
+ */
+export function makeEventWithCapacity(
+  org: MockOrganization,
+  createdByUser: MockUser,
+  capacity: {
+    total: number
+    remaining: number
+    onCampusTotal?: number
+    onCampusRemaining?: number
+  },
+  overrides: Partial<MockEvent> = {}
+): MockEvent & { capacityTotal: number; capacityRemaining: number } {
+  const event = makeEvent(org, createdByUser, overrides)
+  return {
+    ...event,
+    capacityTotal: capacity.total,
+    capacityRemaining: capacity.remaining,
+  } as MockEvent & { capacityTotal: number; capacityRemaining: number }
+}
+
+/**
+ * Simulates the capacity check logic from registration/group/route.ts lines 119-135.
+ * Returns what the API would return before creating any records.
+ */
+export function simulateCapacityCheck(
+  capacityRemaining: number | null,
+  capacityTotal: number | null,
+  requestedParticipants: number
+): { allowed: boolean; status: number; error?: string; spotsRemaining?: number } {
+  if (capacityTotal === null || capacityRemaining === null) {
+    return { allowed: true, status: 200 } // No capacity limit configured
+  }
+  if (capacityRemaining <= 0) {
+    return { allowed: false, status: 400, error: 'Event is at full capacity.', spotsRemaining: 0 }
+  }
+  if (capacityRemaining < requestedParticipants) {
+    return {
+      allowed: false,
+      status: 400,
+      error: `Not enough spots available. Only ${capacityRemaining} spot${capacityRemaining === 1 ? '' : 's'} remaining.`,
+      spotsRemaining: capacityRemaining,
+    }
+  }
+  return { allowed: true, status: 200, spotsRemaining: capacityRemaining }
+}
+
+/**
+ * Simulates the READ-CHECK-DECREMENT pattern (non-atomic) used in the route.
+ * Demonstrates the TOCTOU race condition.
+ *
+ * In the real code:
+ *   Step 1: event = prisma.event.findUnique()  ← reads capacityRemaining
+ *   Step 2: if (capacityRemaining < totalParticipants) return 400  ← checks
+ *   Step 3: prisma.event.update({ capacityRemaining: { decrement: n } })  ← decrements
+ *
+ * Between steps 1 and 3, another request can read the same capacityRemaining.
+ */
+export function simulateConcurrentCapacityChecks(
+  initialRemaining: number,
+  registrations: Array<{ name: string; participants: number }>
+): Array<{ name: string; participants: number; passedCheck: boolean; error?: string }> {
+  // All registrations READ the same initial capacity (concurrent)
+  const results = registrations.map(reg => {
+    const check = simulateCapacityCheck(initialRemaining, initialRemaining + 100, reg.participants)
+    return {
+      name: reg.name,
+      participants: reg.participants,
+      passedCheck: check.allowed,
+      error: check.error,
+    }
+  })
+  return results
+}
+
+/**
+ * Simulates the actual capacity after sequential decrements.
+ * In the real code, each successful registration decrements via:
+ *   prisma.event.update({ capacityRemaining: Math.max(0, current - n) })
+ */
+export function simulateCapacityAfterRegistrations(
+  initialRemaining: number,
+  successfulRegistrations: number[]
+): number {
+  return successfulRegistrations.reduce(
+    (remaining, n) => Math.max(0, remaining - n),
+    initialRemaining
+  )
+}
+
+/**
+ * Simulates the registration creation flow order from group/route.ts.
+ * Returns a record describing what was created and at what step.
+ */
+export function simulateRegistrationFlow(params: {
+  org: MockOrganization
+  event: MockEvent & { capacityTotal?: number; capacityRemaining?: number }
+  request: MockRegistrationAttempt
+  stripeWillSucceed: boolean
+  stripeWillThrow: boolean
+}): {
+  capacityCheckPassed: boolean
+  registrationCreated: boolean
+  capacityDecrementedStep: number | null  // step number (1-based) when this happened
+  stripeStep: number | null
+  registrationStatus: string | null
+  orphanedOnStripeFailure: boolean
+  finalState: 'complete' | 'incomplete' | 'never_created' | 'error'
+} {
+  const { org, event, request, stripeWillSucceed, stripeWillThrow } = params
+
+  // Step 1: Capacity check (line 119-135)
+  const capacityCheck = simulateCapacityCheck(
+    event.capacityRemaining ?? null,
+    event.capacityTotal ?? null,
+    request.youthCount + request.chaperoneCount + request.priestCount
+  )
+  if (!capacityCheck.allowed) {
+    return {
+      capacityCheckPassed: false,
+      registrationCreated: false,
+      capacityDecrementedStep: null,
+      stripeStep: null,
+      registrationStatus: null,
+      orphanedOnStripeFailure: false,
+      finalState: 'never_created',
+    }
+  }
+
+  // Step 2: Registration record created (line 318) — BEFORE Stripe
+  const registrationStatus = request.paymentMethod === 'check' ? 'pending_payment' : 'incomplete'
+
+  // Step 3: Capacity decremented (line 409) — still BEFORE Stripe
+  const capacityDecrementedStep = 3
+
+  // Step 4: Stripe checkout (line 594 for card)
+  if (request.paymentMethod === 'card') {
+    if (stripeWillThrow) {
+      // Stripe API call throws → registration already exists → orphaned
+      return {
+        capacityCheckPassed: true,
+        registrationCreated: true,
+        capacityDecrementedStep,
+        stripeStep: 4,
+        registrationStatus,  // 'incomplete' — never updated
+        orphanedOnStripeFailure: true,
+        finalState: 'incomplete',  // Stays 'incomplete' forever without admin cleanup
+      }
+    }
+    if (!stripeWillSucceed) {
+      // Checkout session created but payment never completed
+      return {
+        capacityCheckPassed: true,
+        registrationCreated: true,
+        capacityDecrementedStep,
+        stripeStep: 4,
+        registrationStatus,  // 'incomplete'
+        orphanedOnStripeFailure: false,  // Session exists, not orphaned yet
+        finalState: 'incomplete',
+      }
+    }
+  }
+
+  return {
+    capacityCheckPassed: true,
+    registrationCreated: true,
+    capacityDecrementedStep,
+    stripeStep: request.paymentMethod === 'card' ? 4 : null,
+    registrationStatus: request.paymentMethod === 'check' ? 'pending_payment' : 'incomplete',
+    orphanedOnStripeFailure: false,
+    finalState: request.paymentMethod === 'check' ? 'complete' : 'incomplete',
+  }
+}
+
+/**
+ * Simulates link-access-code logic from the route.
+ */
+export function simulateLinkAccessCode(
+  registration: MockGroupRegistration,
+  requestingUserId: string
+): { status: number; success: boolean; error?: string; message?: string } {
+  // Code not found
+  if (!registration) {
+    return { status: 404, success: false, error: 'Invalid access code' }
+  }
+  // Already linked to a DIFFERENT user
+  if (registration.clerkUserId && registration.clerkUserId !== requestingUserId) {
+    return { status: 409, success: false, error: 'This access code is already linked to another account' }
+  }
+  // Already linked to THIS user (idempotent)
+  if (registration.clerkUserId === requestingUserId) {
+    return { status: 200, success: true, message: 'Access code already linked to your account' }
+  }
+  // New link
+  return { status: 200, success: true, message: 'Access code linked successfully' }
+}
+
+/**
+ * Simulates the dashboard findFirst logic (returns first registration by clerkUserId).
+ * Reproduces the single-registration limitation and the whereClause.id=eventId bug.
+ */
+export function simulateDashboardQuery(
+  registrations: MockGroupRegistration[],
+  clerkUserId: string,
+  eventId?: string
+): MockGroupRegistration | null {
+  const matches = registrations.filter(r => r.clerkUserId === clerkUserId)
+  if (matches.length === 0) return null
+
+  if (eventId) {
+    // Buggy: whereClause.id = eventId → filters by registration.id, not registration.eventId
+    const buggyMatch = matches.find(r => r.id === eventId)
+    return buggyMatch ?? null
+  }
+
+  // findFirst → returns first match (by insertion order)
+  return matches[0]
+}
+
+/**
+ * Simulates the CORRECT dashboard query with eventId filter (the fix).
+ */
+export function simulateDashboardQueryFixed(
+  registrations: MockGroupRegistration[],
+  clerkUserId: string,
+  eventId?: string
+): MockGroupRegistration | null {
+  const matches = registrations.filter(r => r.clerkUserId === clerkUserId)
+  if (matches.length === 0) return null
+
+  if (eventId) {
+    // Correct: filter by registration.eventId
+    return matches.find(r => r.eventId === eventId) ?? null
+  }
+
+  return matches[0]
+}
+
 /**
  * Simulates the balance recalculation logic from the webhook handler.
  * Recalculates from all succeeded payments — idempotent.
