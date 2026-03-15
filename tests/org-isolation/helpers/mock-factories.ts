@@ -332,3 +332,124 @@ export function buildGroupLeaderPaymentIntentConfig(
 
   return config
 }
+
+// ============================================================
+// PAYMENT BALANCE FACTORY (mirrors PaymentBalance Prisma model)
+// ============================================================
+
+export interface MockPaymentBalance {
+  id: string
+  organizationId: string
+  eventId: string
+  registrationId: string
+  registrationType: string
+  totalAmountDue: number
+  amountPaid: number
+  amountRemaining: number
+  lateFeesApplied: number
+  lastPaymentDate: Date | null
+  paymentStatus: 'unpaid' | 'partial' | 'paid_full' | 'overpaid' | 'pending_check_payment'
+}
+
+export function makePaymentBalance(
+  org: MockOrganization,
+  event: MockEvent,
+  registration: MockGroupRegistration,
+  overrides: Partial<MockPaymentBalance> = {}
+): MockPaymentBalance {
+  const id = overrides.id ?? testUuid('bal')
+  const totalAmountDue = overrides.totalAmountDue ?? 1500
+  const amountPaid = overrides.amountPaid ?? 0
+  const amountRemaining = overrides.amountRemaining ?? (totalAmountDue - amountPaid)
+
+  let paymentStatus: MockPaymentBalance['paymentStatus'] = 'unpaid'
+  if (amountPaid >= totalAmountDue) paymentStatus = 'paid_full'
+  else if (amountPaid > 0) paymentStatus = 'partial'
+
+  return {
+    id,
+    organizationId: org.id,
+    eventId: event.id,
+    registrationId: registration.id,
+    registrationType: 'group',
+    totalAmountDue,
+    amountPaid,
+    amountRemaining,
+    lateFeesApplied: 0,
+    lastPaymentDate: amountPaid > 0 ? new Date('2025-06-01') : null,
+    paymentStatus,
+    ...overrides,
+  }
+}
+
+// ============================================================
+// WEBHOOK METADATA BUILDER
+// ============================================================
+
+export interface WebhookPaymentIntentMetadata {
+  registrationId: string
+  registrationType: string
+  groupName: string
+  eventId: string
+  organizationId: string
+  platformFeeAmount: string
+  notes?: string
+}
+
+/**
+ * Builds the Stripe payment intent metadata as set by the server at checkout creation.
+ * At webhook time, Stripe returns this metadata unchanged (protected by signature).
+ */
+export function buildWebhookPaymentIntentMetadata(
+  reg: MockGroupRegistration,
+  org: MockOrganization,
+  platformFeeAmount: number = 500
+): WebhookPaymentIntentMetadata {
+  return {
+    registrationId: reg.id,
+    registrationType: 'group',
+    groupName: reg.groupName,
+    eventId: reg.eventId,
+    organizationId: org.id,
+    platformFeeAmount: platformFeeAmount.toString(),
+  }
+}
+
+// ============================================================
+// INSTALLMENT PAYMENT SUMMARY (for partial payment tracking)
+// ============================================================
+
+export interface InstallmentSummary {
+  registrationId: string
+  organizationId: string
+  totalAmountDue: number
+  payments: Array<{ id: string; amount: number; paymentStatus: string; paymentType: string }>
+  amountPaid: number
+  amountRemaining: number
+  isFullyPaid: boolean
+}
+
+/**
+ * Simulates the balance recalculation logic from the webhook handler.
+ * Recalculates from all succeeded payments — idempotent.
+ */
+export function buildInstallmentSummary(
+  org: MockOrganization,
+  reg: MockGroupRegistration,
+  payments: MockPayment[],
+  totalAmountDue: number
+): InstallmentSummary {
+  const succeededPayments = payments.filter(p => p.paymentStatus === 'succeeded')
+  const amountPaid = succeededPayments.reduce((sum, p) => sum + p.amount, 0)
+  const amountRemaining = totalAmountDue - amountPaid
+
+  return {
+    registrationId: reg.id,
+    organizationId: org.id,
+    totalAmountDue,
+    payments,
+    amountPaid,
+    amountRemaining,
+    isFullyPaid: amountRemaining <= 0,
+  }
+}
