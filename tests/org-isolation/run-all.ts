@@ -26,6 +26,7 @@ const testFiles = [
   '11-payment-integrity.test.ts',
   '12-reporting-isolation.test.ts',
   '13-edge-cases.test.ts',
+  '14-security-checklist.test.ts',
 ]
 
 // Database-required tests (skip if DATABASE_URL not set)
