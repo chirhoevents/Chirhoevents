@@ -1262,7 +1262,7 @@ model RegistrationEdit {
   id                  String   @id @default(uuid()) @db.Uuid
   registrationId      String   @map("registration_id") @db.Uuid
   registrationType    RegistrationType @map("registration_type")
-  organizationId      String   @map("organization_id") @db.Uuid  // Fix #11
+  organizationId      String?  @map("organization_id") @db.Uuid  // Fix #11
   editedByUserId      String   @map("edited_by_user_id") @db.Uuid
   editedAt            DateTime @default(now()) @map("edited_at") @db.Timestamptz(6)
   editType            EditType @map("edit_type")
@@ -1275,8 +1275,8 @@ model RegistrationEdit {
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   // Relations
-  editedBy     User         @relation(fields: [editedByUserId], references: [id])
-  organization Organization @relation(fields: [organizationId], references: [id])
+  editedBy     User          @relation(fields: [editedByUserId], references: [id])
+  organization Organization? @relation(fields: [organizationId], references: [id])
 
   @@index([registrationId], name: "idx_reg_edit_registration")
   @@index([editedByUserId], name: "idx_reg_edit_user")
@@ -1289,7 +1289,7 @@ model Refund {
   id                  String   @id @default(uuid()) @db.Uuid
   registrationId      String   @map("registration_id") @db.Uuid
   registrationType    RegistrationType @map("registration_type")
-  organizationId      String   @map("organization_id") @db.Uuid  // Fix #11
+  organizationId      String?  @map("organization_id") @db.Uuid  // Fix #11
   refundAmount        Decimal  @map("refund_amount") @db.Decimal(10, 2)
   refundMethod        RefundMethod @map("refund_method")
   refundReason        RefundReason @map("refund_reason")
@@ -1302,8 +1302,8 @@ model Refund {
   updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   // Relations
-  processedBy  User         @relation(fields: [processedByUserId], references: [id])
-  organization Organization @relation(fields: [organizationId], references: [id])
+  processedBy  User          @relation(fields: [processedByUserId], references: [id])
+  organization Organization? @relation(fields: [organizationId], references: [id])
 
   @@index([registrationId], name: "idx_refund_registration")
   @@index([processedByUserId], name: "idx_refund_user")
