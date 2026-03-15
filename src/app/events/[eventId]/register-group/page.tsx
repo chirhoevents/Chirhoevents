@@ -15,7 +15,10 @@ interface EventPricing {
   youthRegularPrice: number
   chaperoneRegularPrice: number
   priestPrice: number
-  depositAmount: number
+  depositAmount: number | null        // Fixed dollar deposit
+  depositPercentage: number | null    // Percentage-based deposit
+  depositPerPerson: boolean           // Whether fixed deposit is per-person
+  requireFullPayment: boolean         // Full payment required
   onCampusYouthPrice?: number
   offCampusYouthPrice?: number
   dayPassYouthPrice?: number
@@ -245,7 +248,20 @@ export default function GroupRegistrationPage() {
     }
 
     const total = breakdown.reduce((sum, item) => sum + item.subtotal, 0)
-    const deposit = total * (pricing.depositAmount / 100) // 25% deposit
+    const totalParticipants = formData.youthCount + formData.chaperoneCount + formData.priestCount
+
+    // Fix #12: Use actual deposit configuration from backend instead of hardcoded 25%
+    let deposit = 0
+    if (pricing.requireFullPayment) {
+      deposit = total
+    } else if (pricing.depositPercentage != null) {
+      deposit = (total * pricing.depositPercentage) / 100
+    } else if (pricing.depositAmount != null) {
+      deposit = pricing.depositPerPerson
+        ? pricing.depositAmount * totalParticipants
+        : pricing.depositAmount
+    }
+    deposit = Math.min(deposit, total)
     const balance = total - deposit
 
     return { total, deposit, balance, breakdown }
@@ -1240,8 +1256,14 @@ export default function GroupRegistrationPage() {
 
                   <div className="bg-beige p-4 rounded-md text-sm">
                     <p className="text-gray-600">
-                      ✓ Pay 25% deposit now<br />
-                      ✓ Balance due before event<br />
+                      {event?.pricing.requireFullPayment
+                        ? '✓ Full payment due now'
+                        : pricing.deposit > 0
+                          ? `✓ Pay $${pricing.deposit.toFixed(2)} deposit now`
+                          : '✓ No deposit required'}<br />
+                      {!event?.pricing.requireFullPayment && pricing.balance > 0 && (
+                        <>✓ Balance due before event<br /></>
+                      )}
                       ✓ Secure payment via Stripe
                     </p>
                   </div>

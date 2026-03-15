@@ -208,20 +208,12 @@ export async function verifyEventAccess(
 
   // For other admins, check organization match
   if (event.organizationId !== effectiveOrgId) {
-    console.log(`${logPrefix} ❌ Organization mismatch - ACCESS DENIED!`)
+    // Fix #8: Log debug info server-side only — never include org names/IDs in response
+    console.log(`${logPrefix} ❌ Organization mismatch - ACCESS DENIED! userOrgId=${effectiveOrgId} eventOrgId=${event.organizationId}`)
     console.log(`${logPrefix} ═══════════════════════════════════════════════════`)
     return {
       error: NextResponse.json(
-        {
-          error: 'Forbidden - Organization mismatch',
-          details: `This event belongs to "${event.organization?.name || 'another organization'}" but you are a member of "${user.organization?.name || 'a different organization'}".`,
-          debug: {
-            userOrgId: effectiveOrgId,
-            userOrgName: user.organization?.name,
-            eventOrgId: event.organizationId,
-            eventOrgName: event.organization?.name,
-          },
-        },
+        { error: 'You do not have access to this resource.' },
         { status: 403 }
       ),
       user: null,

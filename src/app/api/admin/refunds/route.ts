@@ -163,6 +163,7 @@ export async function POST(request: NextRequest) {
       data: {
         registrationId,
         registrationType,
+        organizationId: registration.organizationId, // Fix #11
         refundAmount,
         refundMethod,
         refundReason,
@@ -194,6 +195,7 @@ export async function POST(request: NextRequest) {
       data: {
         registrationId,
         registrationType,
+        organizationId: registration.organizationId, // Fix #11
         editedByUserId: user.id,
         editType: 'refund_processed',
         changesMade: {

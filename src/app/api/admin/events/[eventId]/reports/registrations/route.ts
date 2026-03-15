@@ -18,7 +18,10 @@ export async function GET(
     if (error) return error
 
     const isPreview = request.nextUrl.searchParams.get('preview') === 'true'
-    const eventFilter = eventId === 'all' ? {} : { eventId }
+    // Fix #7: Always include organizationId filter to prevent cross-org data leakage
+    const eventFilter = eventId === 'all'
+      ? { organizationId: effectiveOrgId! }
+      : { eventId, organizationId: effectiveOrgId! }
 
     // Get registrations
     const groupRegistrations = await prisma.groupRegistration.findMany({

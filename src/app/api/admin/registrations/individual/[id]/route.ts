@@ -217,6 +217,7 @@ export async function PUT(
         data: {
           registrationId,
           registrationType: 'individual',
+          organizationId: existingRegistration.organizationId, // Fix #11
           editedByUserId: user.id,
           editType: priceChanged ? 'payment_updated' : 'info_updated',
           changesMade: changesMade as any,

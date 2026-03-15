@@ -19,19 +19,16 @@ export async function GET(
 
     const isPreview = request.nextUrl.searchParams.get('preview') === 'true'
 
-    // Handle "all" events - filter by organization
-    let eventFilter: { eventId?: string } = {}
-    if (eventId === 'all') {
-      // For "all", we'll filter by org in the query below
-    } else {
-      eventFilter = { eventId }
-    }
+    // Fix #7: Always include organizationId filter to prevent cross-org data leakage
+    const groupRegFilter = eventId === 'all'
+      ? { organizationId: effectiveOrgId! }
+      : { eventId, organizationId: effectiveOrgId! }
 
     // Get liability forms with medical info and participant details
     const forms = await prisma.liabilityForm.findMany({
       where: {
         participant: {
-          groupRegistration: eventFilter,
+          groupRegistration: groupRegFilter,
         },
       },
       include: {

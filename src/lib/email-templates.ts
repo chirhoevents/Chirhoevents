@@ -1773,6 +1773,8 @@ export function generateGroupRegistrationConfirmationEmail({
   organizationName,
   porosLiabilityUrl,
   groupLeaderPortalUrl,
+  groupLeaderEmail,
+  supportEmail,
 }: {
   groupName: string
   groupLeaderName: string
@@ -1791,6 +1793,8 @@ export function generateGroupRegistrationConfirmationEmail({
   organizationName: string
   porosLiabilityUrl: string
   groupLeaderPortalUrl: string
+  groupLeaderEmail?: string
+  supportEmail?: string
 }): string {
   const formatCurrency = (amount: number) => `$${(amount / 100).toFixed(2)}`
 
@@ -1835,6 +1839,7 @@ export function generateGroupRegistrationConfirmationEmail({
         <td>
           <p style="margin: 0; font-size: 14px; color: #666;">Your Group Access Code</p>
           <p style="margin: 8px 0 0 0; font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #1a73e8;">${accessCode}</p>
+          <p style="margin: 12px 0 0 0; font-size: 13px; color: #555;">Use this code to log in to your Group Leader Portal, share liability form links with participants, and check in at the event.</p>
         </td>
       </tr>
     </table>
@@ -1894,8 +1899,8 @@ export function generateGroupRegistrationConfirmationEmail({
               </td>
               <td valign="top">
                 <p style="margin: 0; font-weight: bold;">Complete Liability Forms</p>
-                <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">Each participant must complete their liability form using your access code. They can go to the Poros liability platform.</p>
-                ${emailButton('Go to Poros Liability', porosLiabilityUrl, 'primary')}
+                <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">Each participant must complete their liability form using your access code.</p>
+                ${emailButton('Complete Liability Forms', porosLiabilityUrl, 'primary')}
               </td>
             </tr>
           </table>
@@ -1908,7 +1913,12 @@ export function generateGroupRegistrationConfirmationEmail({
               </td>
               <td valign="top">
                 <p style="margin: 0; font-weight: bold;">Set Up Your Group Leader Dashboard</p>
-                <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">Sign in if you have used Chiro in the past and add your new access code, or sign up using Clerk!</p>
+                <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">
+                  <strong>Step 1:</strong> Go to <a href="${groupLeaderPortalUrl}">${groupLeaderPortalUrl}</a><br/>
+                  <strong>Step 2:</strong> Click &ldquo;Sign In&rdquo; and enter the email you used to register${groupLeaderEmail ? ': <strong>' + groupLeaderEmail + '</strong>' : ''}.<br/>
+                  <strong>Step 3:</strong> You&rsquo;ll receive a sign-in link in your email. Click it to access your group dashboard.<br/>
+                  <strong>Step 4:</strong> From your dashboard you can view your group roster, housing assignments, payment status, and manage participant forms.
+                </p>
                 ${emailButton('Go to Group Leader Portal', groupLeaderPortalUrl, 'secondary')}
               </td>
             </tr>
@@ -1959,6 +1969,12 @@ export function generateGroupRegistrationConfirmationEmail({
     ${registrationInstructions ? `
       <h2>Additional Instructions</h2>
       <p>${registrationInstructions}</p>
+    ` : ''}
+
+    ${supportEmail ? `
+    <p style="font-size: 13px; color: #888; margin-top: 24px;">
+      Having trouble? Contact us at <a href="mailto:${supportEmail}">${supportEmail}</a>
+    </p>
     ` : ''}
 
     <p style="font-size: 14px; color: #666;">

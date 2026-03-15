@@ -857,5 +857,131 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true })
   }
 
+  // Fix #9: Handle checkout session expiry — release capacity and mark registration expired
+  if (event.type === 'checkout.session.expired') {
+    console.log('⏰ Processing checkout.session.expired event')
+    const session = event.data.object as Stripe.Checkout.Session
+
+    // Skip platform invoice sessions
+    if (session.metadata?.type === 'platform_invoice' || session.metadata?.invoiceId) {
+      return NextResponse.json({ received: true })
+    }
+
+    const registrationId = session.metadata?.registrationId
+    if (!registrationId) {
+      console.log('⚠️ checkout.session.expired: no registrationId in metadata, skipping')
+      return NextResponse.json({ received: true })
+    }
+
+    try {
+      const registration = await prisma.groupRegistration.findUnique({
+        where: { id: registrationId },
+        select: {
+          id: true,
+          registrationStatus: true,
+          totalParticipants: true,
+          eventId: true,
+          organizationId: true,
+          housingType: true,
+          ticketType: true,
+          event: { select: { capacityTotal: true, capacityRemaining: true } },
+        },
+      })
+
+      if (!registration) {
+        console.log(`⚠️ checkout.session.expired: registration ${registrationId} not found`)
+        return NextResponse.json({ received: true })
+      }
+
+      // Idempotency: only act on registrations still in incomplete/pending state
+      if (registration.registrationStatus !== 'incomplete' && registration.registrationStatus !== 'pending_payment') {
+        console.log(`ℹ️ checkout.session.expired: registration ${registrationId} already in status ${registration.registrationStatus}, skipping`)
+        return NextResponse.json({ received: true })
+      }
+
+      // Mark registration expired and release capacity atomically
+      await prisma.$transaction(async (tx) => {
+        await tx.groupRegistration.update({
+          where: { id: registrationId },
+          data: { registrationStatus: 'expired' },
+        })
+
+        // Release event capacity if capacity tracking is enabled
+        if (registration.event.capacityTotal !== null) {
+          await tx.$executeRaw`
+            UPDATE events
+            SET capacity_remaining = LEAST(capacity_total, capacity_remaining + ${registration.totalParticipants})
+            WHERE id = ${registration.eventId}::uuid
+          `
+        }
+
+        // Mark the payment record as expired
+        await tx.payment.updateMany({
+          where: {
+            registrationId,
+            registrationType: 'group',
+            paymentStatus: 'pending',
+          },
+          data: { paymentStatus: 'expired' },
+        })
+      })
+
+      console.log(`✅ checkout.session.expired: registration ${registrationId} marked expired, capacity released`)
+    } catch (error) {
+      console.error('❌ Error processing checkout.session.expired:', error)
+    }
+
+    return NextResponse.json({ received: true })
+  }
+
+  // Fix #9: Handle payment intent failure — mark payment failed
+  if (event.type === 'payment_intent.payment_failed') {
+    console.log('❌ Processing payment_intent.payment_failed event')
+    const paymentIntent = event.data.object as Stripe.PaymentIntent
+
+    const registrationId = paymentIntent.metadata?.registrationId
+    if (!registrationId) {
+      console.log('⚠️ payment_intent.payment_failed: no registrationId in metadata, skipping')
+      return NextResponse.json({ received: true })
+    }
+
+    try {
+      // Idempotency: check if already handled
+      const existingPayment = await prisma.payment.findFirst({
+        where: {
+          stripePaymentIntentId: paymentIntent.id,
+          paymentStatus: 'failed',
+        },
+      })
+      if (existingPayment) {
+        console.log(`ℹ️ payment_intent.payment_failed: already marked failed for intent ${paymentIntent.id}`)
+        return NextResponse.json({ received: true })
+      }
+
+      await prisma.payment.updateMany({
+        where: {
+          stripePaymentIntentId: paymentIntent.id,
+          paymentStatus: 'pending',
+        },
+        data: { paymentStatus: 'failed' },
+      })
+
+      // Flag the registration as payment_failed so it's visible to admins
+      await prisma.groupRegistration.updateMany({
+        where: {
+          id: registrationId,
+          registrationStatus: 'incomplete',
+        },
+        data: { registrationStatus: 'payment_failed' },
+      })
+
+      console.log(`✅ payment_intent.payment_failed: payment marked failed for registration ${registrationId}`)
+    } catch (error) {
+      console.error('❌ Error processing payment_intent.payment_failed:', error)
+    }
+
+    return NextResponse.json({ received: true })
+  }
+
   return NextResponse.json({ received: true })
 }
