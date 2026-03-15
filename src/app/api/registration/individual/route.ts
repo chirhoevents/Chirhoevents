@@ -97,6 +97,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Fix #1 (individual): Guard — org must have Stripe onboarding complete before accepting card payments
+    if (!event.organization.stripeAccountId || !event.organization.stripeChargesEnabled) {
+      return NextResponse.json(
+        { error: 'This organization has not completed payment setup. Registration cannot be processed at this time. Please contact the event organizer.' },
+        { status: 400 }
+      )
+    }
+
     // Check capacity before allowing registration
     if (event.capacityTotal !== null && event.capacityRemaining !== null) {
       if (event.capacityRemaining <= 0) {
@@ -624,19 +632,14 @@ export async function POST(request: NextRequest) {
         customer_email: email,
       }
 
-      // If organization has Stripe Connect enabled, use destination charges with platform fee
-      // Platform fee goes to ChiRho Events, rest transfers to connected org account
-      if (event.organization.stripeAccountId) {
-        checkoutConfig.payment_intent_data = {
-          application_fee_amount: platformFeeAmount,
-          transfer_data: {
-            destination: event.organization.stripeAccountId,
-          },
-        }
-        console.log(`[Stripe Connect] Applying platform fee: $${(platformFeeAmount / 100).toFixed(2)} to org ${event.organization.id}`)
-      } else {
-        console.log(`[Stripe Connect] No connected account for org ${event.organization.id} - processing without platform fee`)
+      // Fix #1 (individual): Always use destination charges — guard above ensures stripeAccountId is present
+      checkoutConfig.payment_intent_data = {
+        application_fee_amount: platformFeeAmount,
+        transfer_data: {
+          destination: event.organization.stripeAccountId,
+        },
       }
+      console.log(`[Stripe Connect] Applying platform fee: $${(platformFeeAmount / 100).toFixed(2)} to org ${event.organization.id}`)
 
       const checkoutSession = await stripe.checkout.sessions.create(checkoutConfig)
 

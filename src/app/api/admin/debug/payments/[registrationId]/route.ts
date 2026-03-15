@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils'
 
 // Debug endpoint to see ALL payments for a registration
 // Accepts either registration UUID or access code/confirmation code
@@ -9,9 +9,9 @@ export async function GET(
   { params }: { params: Promise<{ registrationId: string }> }
 ) {
   try {
-    const userId = await getClerkUserIdFromRequest(request)
-
-    if (!userId) {
+    // Fix B: require admin role
+    const user = await getCurrentUser()
+    if (!user || !isAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -19,6 +19,7 @@ export async function GET(
     let registrationId = paramRegistrationId
     let registrationType: 'group' | 'individual' | null = null
     let registrationInfo: any = null
+    let registrationOrgId: string | null = null
 
     // Check if this is a UUID or an access code
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(registrationId)
@@ -27,52 +28,61 @@ export async function GET(
       // Try to find by access code (group) or confirmation code (individual)
       const groupReg = await prisma.groupRegistration.findFirst({
         where: { accessCode: registrationId },
-        select: { id: true, groupName: true, accessCode: true },
+        select: { id: true, groupName: true, accessCode: true, organizationId: true },
       })
 
       if (groupReg) {
         registrationId = groupReg.id
         registrationType = 'group'
+        registrationOrgId = groupReg.organizationId
         registrationInfo = { type: 'group', name: groupReg.groupName, accessCode: groupReg.accessCode }
       } else {
         const indivReg = await prisma.individualRegistration.findFirst({
           where: { confirmationCode: registrationId },
-          select: { id: true, firstName: true, lastName: true, confirmationCode: true },
+          select: { id: true, firstName: true, lastName: true, confirmationCode: true, organizationId: true },
         })
 
         if (indivReg) {
           registrationId = indivReg.id
           registrationType = 'individual'
+          registrationOrgId = indivReg.organizationId
           registrationInfo = { type: 'individual', name: `${indivReg.firstName} ${indivReg.lastName}`, confirmationCode: indivReg.confirmationCode }
         } else {
-          return NextResponse.json({
-            error: 'Registration not found',
-            searchedFor: registrationId,
-            hint: 'Provide either a UUID or a valid access code/confirmation code',
-          }, { status: 404 })
+          return NextResponse.json({ error: 'Registration not found' }, { status: 404 })
         }
       }
     } else {
       // UUID provided, try to find the registration
       const groupReg = await prisma.groupRegistration.findUnique({
         where: { id: registrationId },
-        select: { id: true, groupName: true, accessCode: true },
+        select: { id: true, groupName: true, accessCode: true, organizationId: true },
       })
 
       if (groupReg) {
         registrationType = 'group'
+        registrationOrgId = groupReg.organizationId
         registrationInfo = { type: 'group', name: groupReg.groupName, accessCode: groupReg.accessCode }
       } else {
         const indivReg = await prisma.individualRegistration.findUnique({
           where: { id: registrationId },
-          select: { id: true, firstName: true, lastName: true, confirmationCode: true },
+          select: { id: true, firstName: true, lastName: true, confirmationCode: true, organizationId: true },
         })
 
         if (indivReg) {
           registrationType = 'individual'
+          registrationOrgId = indivReg.organizationId
           registrationInfo = { type: 'individual', name: `${indivReg.firstName} ${indivReg.lastName}`, confirmationCode: indivReg.confirmationCode }
         }
       }
+    }
+
+    if (!registrationOrgId) {
+      return NextResponse.json({ error: 'Registration not found' }, { status: 404 })
+    }
+
+    // Fix B: org-scope check — master_admin bypasses, org admins must own the registration
+    if (!canAccessOrganization(user, registrationOrgId)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     // Get ALL payments for this registration, no filters

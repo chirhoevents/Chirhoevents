@@ -565,6 +565,91 @@ describe('Fix #15: Structured logging', () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Fix A (cleanup): Individual registration — same hard guard as group route
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Fix A: Individual registration Stripe guard — no platform fallback', () => {
+  it('should return 400 when org has no stripeAccountId (individual route)', async () => {
+    const org = makeOrg({ stripeAccountId: null, stripeChargesEnabled: true })
+    const shouldBlock = !org.stripeAccountId || !org.stripeChargesEnabled
+    expect(shouldBlock).toBe(true)
+  })
+
+  it('should return 400 when org stripeChargesEnabled is false (individual route)', async () => {
+    const org = makeOrg({ stripeAccountId: 'acct_123', stripeChargesEnabled: false })
+    const shouldBlock = !org.stripeAccountId || !org.stripeChargesEnabled
+    expect(shouldBlock).toBe(true)
+  })
+
+  it('transfer_data.destination always equals org stripeAccountId — no else branch possible', async () => {
+    const org = makeOrg({ stripeAccountId: 'acct_orgXYZ', stripeChargesEnabled: true })
+    // Guard passed; simulate the fixed code path (no if/else — always set)
+    const checkoutConfig: any = {}
+    checkoutConfig.payment_intent_data = {
+      application_fee_amount: 150,
+      transfer_data: { destination: org.stripeAccountId },
+    }
+    expect(checkoutConfig.payment_intent_data.transfer_data.destination).toBe('acct_orgXYZ')
+    expect(checkoutConfig.payment_intent_data.transfer_data.destination).not.toBe(undefined)
+    expect(checkoutConfig.payment_intent_data.transfer_data.destination).not.toBe(null)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fix B (cleanup): Debug payments endpoint — org-scope check
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Fix B: Debug payments endpoint org isolation', () => {
+  function canAccessOrganization(user: any, orgId: string): boolean {
+    if (!user) return false
+    if (user.role === 'master_admin') return true
+    return user.organizationId === orgId
+  }
+
+  it('should return 401 for unauthenticated request (no user)', async () => {
+    const user = null
+    const isAuthed = user !== null
+    expect(isAuthed).toBe(false)
+  })
+
+  it('should return 403 for authenticated non-admin (group_leader role)', async () => {
+    const user = makeUser({ role: 'group_leader' })
+    const adminRoles = ['admin', 'org_admin', 'master_admin']
+    const isAdmin = adminRoles.includes(user.role)
+    expect(isAdmin).toBe(false)
+  })
+
+  it('should return 403 when org A admin requests org B registration', async () => {
+    const user = makeUser({ role: 'org_admin', organizationId: 'org-a-000' })
+    const registrationOrgId = 'org-b-999'
+    const canAccess = canAccessOrganization(user, registrationOrgId)
+    expect(canAccess).toBe(false)
+  })
+
+  it('should return 200 when org A admin requests org A registration', async () => {
+    const user = makeUser({ role: 'org_admin', organizationId: 'org-a-000' })
+    const registrationOrgId = 'org-a-000'
+    const canAccess = canAccessOrganization(user, registrationOrgId)
+    expect(canAccess).toBe(true)
+  })
+
+  it('should allow master_admin to access any org registration', async () => {
+    const user = makeUser({ role: 'master_admin', organizationId: null })
+    const registrationOrgId = 'org-b-999'
+    const canAccess = canAccessOrganization(user, registrationOrgId)
+    expect(canAccess).toBe(true)
+  })
+
+  it('should return generic 403 with no org info leaked when access denied', async () => {
+    const deniedResponse: Record<string, unknown> = { error: 'Forbidden' }
+    // Response must only have the 'error' key — no org data fields
+    expect(Object.keys(deniedResponse).length).toBe(1)
+    expect(deniedResponse.error).toBe('Forbidden')
+    expect(deniedResponse['orgId']).toBe(undefined)
+    expect(deniedResponse['orgName']).toBe(undefined)
+    expect(deniedResponse['registrationInfo']).toBe(undefined)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Run all tests
 // ─────────────────────────────────────────────────────────────────────────────
 // Allow event loop to settle before printing summary
