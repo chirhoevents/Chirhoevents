@@ -309,6 +309,7 @@ export async function PUT(
         data: {
           registrationId,
           registrationType: 'group',
+          organizationId: existingRegistration.organizationId, // Fix #11
           editedByUserId: user.id,
           editType: difference !== 0 ? 'payment_updated' : 'info_updated',
           changesMade: changesMade as any,

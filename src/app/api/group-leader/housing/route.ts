@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     const groupRegistration = await prisma.groupRegistration.findFirst({
       where: {
         clerkUserId: userId,
-        id: eventId,
+        eventId: eventId, // Fix #6: was incorrectly id: eventId
         housingType: 'on_campus',
       },
       include: {

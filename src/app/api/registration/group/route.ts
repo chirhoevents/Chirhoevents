@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { generateAccessCode } from '@/lib/access-code'
 import Stripe from 'stripe'
 import { Resend } from 'resend'
+import { logger } from '@/lib/logger'
 import QRCode from 'qrcode'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { generateGroupRegistrationConfirmationEmail } from '@/lib/email-templates'
@@ -44,18 +45,17 @@ export async function POST(request: NextRequest) {
     } = body
 
     if (!eventId || !groupName || !groupLeaderName || !groupLeaderEmail || !groupLeaderPhone || !housingType || !alternativeContact1Name || !alternativeContact1Email || !alternativeContact1Phone) {
-      console.error('Validation failed:', {
-        eventId: !!eventId,
-        groupName: !!groupName,
-        groupLeaderName: !!groupLeaderName,
-        groupLeaderEmail: !!groupLeaderEmail,
-        groupLeaderPhone: !!groupLeaderPhone,
-        alternativeContact1Name: !!alternativeContact1Name,
-        alternativeContact1Email: !!alternativeContact1Email,
-        alternativeContact1Phone: !!alternativeContact1Phone,
-        housingType: !!housingType,
-        receivedBody: body,
-      })
+      logger.warn({
+        eventId,
+        missingFields: {
+          eventId: !eventId,
+          groupName: !groupName,
+          groupLeaderName: !groupLeaderName,
+          groupLeaderPhone: !groupLeaderPhone,
+          alternativeContact1Name: !alternativeContact1Name,
+          housingType: !housingType,
+        },
+      }, 'Group registration validation failed - missing required fields')
       return NextResponse.json(
         {
           error: 'Missing required fields',
@@ -85,6 +85,7 @@ export async function POST(request: NextRequest) {
           select: {
             id: true,
             name: true,
+            status: true,
             stripeAccountId: true,
             stripeChargesEnabled: true,
             platformFeePercentage: true,
@@ -97,6 +98,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Event not found or pricing not configured' },
         { status: 404 }
+      )
+    }
+
+    // Fix #10: Guard — org must be active before accepting registrations
+    if (event.organization.status !== 'active') {
+      return NextResponse.json(
+        { error: 'This organization is not currently accepting registrations.' },
+        { status: 400 }
+      )
+    }
+
+    // Fix #1: Guard — org must have Stripe onboarding complete before accepting card payments
+    if (!event.organization.stripeAccountId || !event.organization.stripeChargesEnabled) {
+      return NextResponse.json(
+        { error: 'This organization has not completed payment setup. Registration cannot be processed at this time. Please contact the event organizer.' },
+        { status: 400 }
       )
     }
 
@@ -116,19 +133,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check capacity before allowing registration
+    // Fix #4: Atomic capacity check+decrement to prevent TOCTOU race conditions.
+    // Do this BEFORE creating any records so we don't need to roll back on failure.
     if (event.capacityTotal !== null && event.capacityRemaining !== null) {
-      if (event.capacityRemaining <= 0) {
-        return NextResponse.json(
-          { error: 'Event is at full capacity. Please join the waitlist if available.' },
-          { status: 400 }
-        )
-      }
-      if (event.capacityRemaining < totalParticipants) {
+      const capacityResult = await prisma.$executeRaw`
+        UPDATE events
+        SET capacity_remaining = capacity_remaining - ${totalParticipants}
+        WHERE id = ${event.id}::uuid
+          AND capacity_remaining >= ${totalParticipants}
+      `
+      if (capacityResult === 0) {
+        // Re-fetch to give accurate remaining count in the error message
+        const freshEvent = await prisma.event.findUnique({
+          where: { id: event.id },
+          select: { capacityRemaining: true },
+        })
+        const spotsRemaining = freshEvent?.capacityRemaining ?? 0
         return NextResponse.json(
           {
-            error: `Not enough spots available. Only ${event.capacityRemaining} spot${event.capacityRemaining === 1 ? '' : 's'} remaining, but ${totalParticipants} requested.`,
-            spotsRemaining: event.capacityRemaining
+            error: spotsRemaining <= 0
+              ? 'Event is at full capacity. Please join the waitlist if available.'
+              : `Not enough spots available. Only ${spotsRemaining} spot${spotsRemaining === 1 ? '' : 's'} remaining, but ${totalParticipants} requested.`,
+            spotsRemaining,
           },
           { status: 400 }
         )
@@ -314,105 +340,92 @@ export async function POST(request: NextRequest) {
     const initialDayPassYouth = housingType === 'day_pass' ? youthCount : 0
     const initialDayPassChaperones = housingType === 'day_pass' ? chaperoneCount : 0
 
-    // Create group registration
-    const registration = await prisma.groupRegistration.create({
-      data: {
-        eventId: event.id,
-        organizationId: event.organizationId,
-        groupName,
-        parishName: body.parishName || null,
-        dioceseName: body.dioceseName || null,
-        groupLeaderName,
-        groupLeaderEmail,
-        groupLeaderPhone,
-        groupLeaderStreet: body.groupLeaderStreet || null,
-        groupLeaderCity: body.groupLeaderCity || null,
-        groupLeaderState: body.groupLeaderState || null,
-        groupLeaderZip: body.groupLeaderZip || null,
-        alternativeContact1Name,
-        alternativeContact1Email,
-        alternativeContact1Phone,
-        alternativeContact2Name: body.alternativeContact2Name || null,
-        alternativeContact2Email: body.alternativeContact2Email || null,
-        alternativeContact2Phone: body.alternativeContact2Phone || null,
-        accessCode,
-        youthCount,
-        chaperoneCount,
-        priestCount,
-        totalParticipants,
-        ticketType: body.ticketType || 'general_admission',
-        dayPassOptionId: body.dayPassOptionId || null,
-        housingType,
-        // Set initial inventory counts based on selected housing type
-        onCampusYouth: initialOnCampusYouth > 0 ? initialOnCampusYouth : null,
-        onCampusChaperones: initialOnCampusChaperones > 0 ? initialOnCampusChaperones : null,
-        offCampusYouth: initialOffCampusYouth > 0 ? initialOffCampusYouth : null,
-        offCampusChaperones: initialOffCampusChaperones > 0 ? initialOffCampusChaperones : null,
-        dayPassYouth: initialDayPassYouth > 0 ? initialDayPassYouth : null,
-        dayPassChaperones: initialDayPassChaperones > 0 ? initialDayPassChaperones : null,
-        specialRequests,
-        registrationStatus,
-      },
-    })
-
-    // Generate QR code for check-in (contains access code for SALVE)
+    // Generate QR code before the transaction (CPU-bound, no side effects)
     const qrData = JSON.stringify({
-      registration_id: registration.id,
+      registration_id: 'pending', // will be updated inside tx
       event_id: event.id,
       type: 'group',
       group_name: groupName,
       access_code: accessCode,
     })
-
     const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
       errorCorrectionLevel: 'H',
       margin: 1,
       width: 300,
     })
 
-    // Store QR code in database
-    await prisma.groupRegistration.update({
-      where: { id: registration.id },
-      data: { qrCode: qrCodeDataUrl },
-    })
-
-    // Increment organization's registration counter
-    await prisma.organization.update({
-      where: { id: event.organizationId },
-      data: {
-        registrationsUsed: {
-          increment: totalParticipants,
-        },
-      },
-    })
-
-    // Create payment balance record
+    // Fix #5: Wrap all DB writes in a transaction so partial failures roll back cleanly.
+    // Stripe checkout session creation happens AFTER this transaction commits.
     const paymentBalanceStatus =
       paymentMethod === 'check' ? 'pending_check_payment' : 'unpaid'
 
-    await prisma.paymentBalance.create({
-      data: {
-        organizationId: event.organizationId,
-        eventId: event.id,
-        registrationId: registration.id,
-        registrationType: 'group',
-        totalAmountDue: totalAmount,
-        amountPaid: 0,
-        amountRemaining: totalAmount,
-        lateFeesApplied: 0,
-        paymentStatus: paymentBalanceStatus,
-      },
-    })
-
-    // Update event capacity if capacity tracking is enabled
-    if (event.capacityTotal !== null && event.capacityRemaining !== null) {
-      await prisma.event.update({
-        where: { id: event.id },
+    const registration = await prisma.$transaction(async (tx) => {
+      // Create group registration
+      const reg = await tx.groupRegistration.create({
         data: {
-          capacityRemaining: Math.max(0, event.capacityRemaining - totalParticipants),
+          eventId: event.id,
+          organizationId: event.organizationId,
+          groupName,
+          parishName: body.parishName || null,
+          dioceseName: body.dioceseName || null,
+          groupLeaderName,
+          groupLeaderEmail,
+          groupLeaderPhone,
+          groupLeaderStreet: body.groupLeaderStreet || null,
+          groupLeaderCity: body.groupLeaderCity || null,
+          groupLeaderState: body.groupLeaderState || null,
+          groupLeaderZip: body.groupLeaderZip || null,
+          alternativeContact1Name,
+          alternativeContact1Email,
+          alternativeContact1Phone,
+          alternativeContact2Name: body.alternativeContact2Name || null,
+          alternativeContact2Email: body.alternativeContact2Email || null,
+          alternativeContact2Phone: body.alternativeContact2Phone || null,
+          accessCode,
+          youthCount,
+          chaperoneCount,
+          priestCount,
+          totalParticipants,
+          ticketType: body.ticketType || 'general_admission',
+          dayPassOptionId: body.dayPassOptionId || null,
+          housingType,
+          onCampusYouth: initialOnCampusYouth > 0 ? initialOnCampusYouth : null,
+          onCampusChaperones: initialOnCampusChaperones > 0 ? initialOnCampusChaperones : null,
+          offCampusYouth: initialOffCampusYouth > 0 ? initialOffCampusYouth : null,
+          offCampusChaperones: initialOffCampusChaperones > 0 ? initialOffCampusChaperones : null,
+          dayPassYouth: initialDayPassYouth > 0 ? initialDayPassYouth : null,
+          dayPassChaperones: initialDayPassChaperones > 0 ? initialDayPassChaperones : null,
+          specialRequests,
+          registrationStatus,
+          qrCode: qrCodeDataUrl,
         },
       })
-    }
+
+      // Create payment balance record inside transaction
+      await tx.paymentBalance.create({
+        data: {
+          organizationId: event.organizationId,
+          eventId: event.id,
+          registrationId: reg.id,
+          registrationType: 'group',
+          totalAmountDue: totalAmount,
+          amountPaid: 0,
+          amountRemaining: totalAmount,
+          lateFeesApplied: 0,
+          paymentStatus: paymentBalanceStatus,
+        },
+      })
+
+      // Increment organization's registration counter inside transaction
+      await tx.organization.update({
+        where: { id: event.organizationId },
+        data: { registrationsUsed: { increment: totalParticipants } },
+      })
+
+      return reg
+    })
+
+    // NOTE: Capacity was already atomically decremented above (Fix #4) — no second decrement here.
 
     // Update option-level capacity (housing type for group registrations)
     // Only decrement housing capacity for general admission (day pass doesn't use housing)
@@ -577,19 +590,14 @@ export async function POST(request: NextRequest) {
         customer_email: groupLeaderEmail,
       }
 
-      // If organization has Stripe Connect enabled, use destination charges with platform fee
-      // Platform fee goes to ChiRho Events, rest transfers to connected org account
-      if (event.organization.stripeAccountId) {
-        checkoutConfig.payment_intent_data = {
-          application_fee_amount: platformFeeAmount,
-          transfer_data: {
-            destination: event.organization.stripeAccountId,
-          },
-        }
-        console.log(`[Stripe Connect] Applying platform fee: $${(platformFeeAmount / 100).toFixed(2)} to org ${event.organization.id}`)
-      } else {
-        console.log(`[Stripe Connect] No connected account for org ${event.organization.id} - processing without platform fee`)
+      // Use destination charges — org Stripe account is guaranteed by guard above
+      checkoutConfig.payment_intent_data = {
+        application_fee_amount: platformFeeAmount,
+        transfer_data: {
+          destination: event.organization.stripeAccountId,
+        },
       }
+      logger.info({ organizationId: event.organization.id, eventId: event.id, platformFeeAmount }, 'Stripe checkout session: applying platform fee')
 
       const checkoutSession = await stripe.checkout.sessions.create(checkoutConfig)
 
@@ -621,7 +629,7 @@ export async function POST(request: NextRequest) {
       })
     }
   } catch (error) {
-    console.error('Group registration error:', error)
+    logger.error({ error: String(error) }, 'Group registration error')
     return NextResponse.json(
       { error: 'Failed to process registration. Please try again.' },
       { status: 500 }

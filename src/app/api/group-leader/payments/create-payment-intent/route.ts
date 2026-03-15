@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     // Build where clause - filter by eventId if provided
     const whereClause: any = { clerkUserId: userId }
     if (eventId) {
-      whereClause.id = eventId
+      whereClause.eventId = eventId // Fix #6: was incorrectly whereClause.id
     }
 
     // Find the group registration linked to this Clerk user
@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
             organization: {
               select: {
                 id: true,
+                status: true,
                 stripeAccountId: true,
                 stripeChargesEnabled: true,
                 platformFeePercentage: true,
@@ -64,6 +65,23 @@ export async function POST(req: NextRequest) {
     }
 
     const org = groupRegistration.event.organization
+
+    // Fix #10: Guard — org must be active before accepting payments
+    if (org.status !== 'active') {
+      return NextResponse.json(
+        { error: 'This organization is not currently accepting registrations.' },
+        { status: 400 }
+      )
+    }
+
+    // Fix #1: Guard — org must have Stripe onboarding complete before accepting payments
+    if (!org.stripeAccountId || !org.stripeChargesEnabled) {
+      return NextResponse.json(
+        { error: 'This organization has not completed payment setup. Registration cannot be processed at this time. Please contact the event organizer.' },
+        { status: 400 }
+      )
+    }
+
     const amountInCents = Math.round(amount * 100)
 
     // Calculate platform fee (default 1%)
@@ -89,17 +107,12 @@ export async function POST(req: NextRequest) {
       },
     }
 
-    // If organization has Stripe Connect enabled, use destination charges with platform fee
-    // Platform fee goes to ChiRho Events, rest transfers to connected org account
-    if (org.stripeAccountId) {
-      paymentIntentConfig.application_fee_amount = platformFeeAmount
-      paymentIntentConfig.transfer_data = {
-        destination: org.stripeAccountId,
-      }
-      console.log(`[Stripe Connect] Applying platform fee: $${(platformFeeAmount / 100).toFixed(2)} to org ${org.id}`)
-    } else {
-      console.log(`[Stripe Connect] No connected account for org ${org.id} - processing without platform fee`)
+    // Use destination charges — org Stripe account is guaranteed by guard above
+    paymentIntentConfig.application_fee_amount = platformFeeAmount
+    paymentIntentConfig.transfer_data = {
+      destination: org.stripeAccountId,
     }
+    console.log(`[Stripe Connect] Applying platform fee: $${(platformFeeAmount / 100).toFixed(2)} to org ${org.id}`)
 
     // Create Stripe payment intent
     const paymentIntent = await stripe.paymentIntents.create(paymentIntentConfig)

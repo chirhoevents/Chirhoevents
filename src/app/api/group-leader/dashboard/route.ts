@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     // Build the where clause
     const whereClause: any = { clerkUserId: userId }
     if (eventId) {
-      whereClause.id = eventId
+      whereClause.eventId = eventId // Fix #6: was incorrectly whereClause.id
     }
 
     // Find the group registration linked to this Clerk user
