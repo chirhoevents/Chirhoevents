@@ -91,6 +91,8 @@ model Organization {
   billingNotes            BillingNote[]
   coupons                 Coupon[]
   dayPassOptions          DayPassOption[]
+  registrationEdits       RegistrationEdit[]  // Fix #11
+  refunds                 Refund[]            // Fix #11
   createdByUser           User?    @relation("OrganizationsCreatedByUser", fields: [createdByUserId], references: [id])
 
   @@index([contactEmail], name: "idx_org_email")
