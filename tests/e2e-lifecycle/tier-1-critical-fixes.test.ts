@@ -412,8 +412,8 @@ describe('FIX 1.7 — Support message actually sends email via Resend', () => {
     expect(supportSrc).toContain('${eventName}')
   })
 
-  it('email has replyTo set to the group leader email', () => {
-    expect(supportSrc).toContain('replyTo: leaderEmail')
+  it('email has reply_to set to the group leader email', () => {
+    expect(supportSrc).toContain('reply_to: leaderEmail')
   })
 
   it('returns success: false when email send fails', () => {

@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     const toOrgResult = await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL || 'noreply@chirhoevents.com',
       to: orgEmail,
-      replyTo: leaderEmail,
+      reply_to: leaderEmail,
       subject: `Support message from ${leaderName} — ${eventName}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
