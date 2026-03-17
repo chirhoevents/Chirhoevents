@@ -578,7 +578,7 @@ export async function POST(request: NextRequest) {
           },
         ],
         mode: 'payment',
-        success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/registration/confirmation/${registration.id}?session_id={CHECKOUT_SESSION_ID}`,
+        success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/registration/confirmation/${registration.id}?session_id={CHECKOUT_SESSION_ID}&access_code=${encodeURIComponent(accessCode)}&group_name=${encodeURIComponent(groupName)}&participants=${totalParticipants}&amount_paid=${depositAmount}&housing=${encodeURIComponent(housingType)}`,
         cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/events/${eventId}/register-group/review?cancelled=true`,
         metadata: {
           registrationId: registration.id,
@@ -612,7 +612,7 @@ export async function POST(request: NextRequest) {
           paymentType: 'deposit',
           paymentMethod: 'card',
           paymentStatus: 'pending',
-          stripePaymentIntentId: checkoutSession.id,
+          stripePaymentIntentId: checkoutSession.payment_intent as string,
           platformFeeAmount: platformFeeAmount / 100, // Store in dollars
         },
       })

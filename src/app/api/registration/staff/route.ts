@@ -205,6 +205,8 @@ export async function POST(request: NextRequest) {
         metadata: {
           registrationId: registration.id,
           registrationType: 'staff',
+          organizationId: event.organizationId,
+          eventId: event.id,
         },
       })
 

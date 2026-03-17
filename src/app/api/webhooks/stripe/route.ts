@@ -4,7 +4,7 @@ import Stripe from 'stripe'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import QRCode from 'qrcode'
-import { generateGroupRegistrationConfirmationEmail } from '@/lib/email-templates'
+import { generateGroupRegistrationConfirmationEmail, wrapEmail, emailInfoBox } from '@/lib/email-templates'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -308,11 +308,11 @@ export async function POST(request: NextRequest) {
       if (registrationType === 'individual') {
         console.log('👤 Processing individual registration payment')
 
-        // Update payment status
+        // Update payment status — match by payment intent ID (pi_...) stored at checkout creation
         await prisma.payment.updateMany({
           where: {
             registrationId: registrationId,
-            stripePaymentIntentId: session.id,
+            stripePaymentIntentId: session.payment_intent as string,
           },
           data: {
             paymentStatus: 'succeeded',
@@ -335,17 +335,25 @@ export async function POST(request: NextRequest) {
           },
         })
 
-        // Update payment balance
+        // Update payment balance with the actual amount Stripe collected
+        const actualAmountPaid = session.amount_total! / 100
+        const existingBalance = await prisma.paymentBalance.findFirst({
+          where: { registrationId: registrationId, registrationType: 'individual' },
+          select: { totalAmountDue: true },
+        })
+        const totalAmountDue = existingBalance ? Number(existingBalance.totalAmountDue) : actualAmountPaid
+        const amountRemaining = Math.max(0, totalAmountDue - actualAmountPaid)
+
         await prisma.paymentBalance.updateMany({
           where: {
             registrationId: registrationId,
             registrationType: 'individual',
           },
           data: {
-            amountPaid: registration.event.pricing?.onCampusYouthPrice || 150,
-            amountRemaining: 0,
+            amountPaid: actualAmountPaid,
+            amountRemaining,
             lastPaymentDate: new Date(),
-            paymentStatus: 'paid_full',
+            paymentStatus: amountRemaining <= 0 ? 'paid_full' : 'partial',
           },
         })
 
@@ -461,11 +469,116 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ received: true })
       }
 
+      // Handle STAFF registration
+      if (registrationType === 'staff') {
+        console.log('👔 Processing staff registration payment')
+
+        const actualAmountPaid = session.amount_total! / 100
+        const paymentIntentId = session.payment_intent as string
+
+        // Update staff registration payment status
+        await prisma.staffRegistration.update({
+          where: { id: registrationId },
+          data: { paymentStatus: 'paid' },
+        })
+
+        // Create Payment record with actual collected amount and real payment intent ID
+        await prisma.payment.create({
+          data: {
+            registrationId,
+            registrationType: 'staff',
+            amount: actualAmountPaid,
+            paymentType: 'balance',
+            paymentMethod: 'card',
+            paymentStatus: 'succeeded',
+            stripePaymentIntentId: paymentIntentId,
+            processedAt: new Date(),
+            organizationId: session.metadata?.organizationId || '',
+            eventId: session.metadata?.eventId || '',
+          },
+        })
+
+        // Fetch staff registration for the confirmation email
+        const staffReg = await prisma.staffRegistration.findUnique({
+          where: { id: registrationId },
+          include: {
+            event: {
+              include: {
+                organization: { select: { name: true } },
+              },
+            },
+          },
+        })
+
+        if (staffReg) {
+          try {
+            const emailContent = wrapEmail(`
+              <h1>Staff Registration Confirmed!</h1>
+
+              <p>Hi ${staffReg.firstName},</p>
+
+              <p>Your payment has been received and your staff registration for <strong>${staffReg.event.name}</strong> is confirmed.</p>
+
+              ${emailInfoBox(`
+                <strong>Amount Paid:</strong> $${actualAmountPaid.toFixed(2)}<br>
+                <strong>Registration Status:</strong> Confirmed &amp; Paid
+              `, 'success')}
+
+              <h2>Registration Details</h2>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;padding:20px;margin:16px 0;">
+                <tr><td>
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="padding:10px 0;border-bottom:1px solid #e5e5e5;color:#666;font-size:14px;">Name</td>
+                      <td style="padding:10px 0;border-bottom:1px solid #e5e5e5;text-align:right;font-weight:600;color:#1E3A5F;">${staffReg.firstName} ${staffReg.lastName}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:10px 0;border-bottom:1px solid #e5e5e5;color:#666;font-size:14px;">Role</td>
+                      <td style="padding:10px 0;border-bottom:1px solid #e5e5e5;text-align:right;font-weight:600;color:#1E3A5F;">${staffReg.role}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:10px 0;color:#666;font-size:14px;">Amount Paid</td>
+                      <td style="padding:10px 0;text-align:right;font-weight:600;color:#1E3A5F;">$${actualAmountPaid.toFixed(2)}</td>
+                    </tr>
+                  </table>
+                </td></tr>
+              </table>
+
+              ${staffReg.porosAccessCode ? `
+              <h2>Liability Form Required</h2>
+              ${emailInfoBox('<strong>Action Required:</strong> Please complete your liability form before the event.', 'warning')}
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#e8f4fd;border-radius:8px;padding:20px;text-align:center;margin:24px 0;">
+                <tr><td>
+                  <p style="margin:0;font-size:14px;color:#666;">Your Liability Form Access Code</p>
+                  <p style="margin:8px 0 0 0;font-size:32px;font-weight:bold;letter-spacing:4px;color:#1E3A5F;">${staffReg.porosAccessCode}</p>
+                </td></tr>
+              </table>
+              ` : ''}
+
+              <p>We look forward to seeing you at the event!</p>
+            `, { organizationName: staffReg.event.organization.name, preheader: `Staff registration confirmed for ${staffReg.event.name}` })
+
+            await resend.emails.send({
+              from: process.env.RESEND_FROM_EMAIL || 'noreply@chirhoevents.com',
+              to: staffReg.email,
+              subject: `Staff Registration Confirmed & Paid - ${staffReg.event.name}`,
+              html: emailContent,
+            })
+
+            console.log('✅ Staff registration confirmed, email sent to:', staffReg.email)
+          } catch (emailError) {
+            console.error('⚠️ Failed to send staff confirmation email:', emailError)
+          }
+        }
+
+        return NextResponse.json({ received: true })
+      }
+
       // Handle GROUP registration
       const payment = await prisma.payment.updateMany({
         where: {
           registrationId: registrationId,
-          stripePaymentIntentId: session.id,
+          stripePaymentIntentId: session.payment_intent as string,
         },
         data: {
           paymentStatus: 'succeeded',
@@ -483,7 +596,7 @@ export async function POST(request: NextRequest) {
       const paymentAmount = await prisma.payment.findFirst({
         where: {
           registrationId: registrationId,
-          stripePaymentIntentId: session.id,
+          stripePaymentIntentId: session.payment_intent as string,
         },
         select: { amount: true },
       })

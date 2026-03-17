@@ -30,6 +30,8 @@ export async function GET(
                 id: true,
                 name: true,
                 logoUrl: true,
+                contactEmail: true,
+                contactPhone: true,
               },
             },
           },
@@ -130,6 +132,8 @@ export async function GET(
         registrationStatus: registration.registrationStatus,
         organizationName: registration.event.organization.name,
         organizationLogoUrl: registration.event.organization.logoUrl,
+        organizationContactEmail: registration.event.organization.contactEmail,
+        organizationContactPhone: registration.event.organization.contactPhone,
       })
     } else {
       // Stripped public response — no access code, no email, no financial data
@@ -143,6 +147,8 @@ export async function GET(
         registrationStatus: registration.registrationStatus,
         organizationName: registration.event.organization.name,
         organizationLogoUrl: registration.event.organization.logoUrl,
+        organizationContactEmail: registration.event.organization.contactEmail,
+        organizationContactPhone: registration.event.organization.contactPhone,
       })
     }
   } catch (error) {

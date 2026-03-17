@@ -654,7 +654,7 @@ export async function POST(request: NextRequest) {
           paymentType: 'balance',
           paymentMethod: 'card',
           paymentStatus: 'pending',
-          stripePaymentIntentId: checkoutSession.id,
+          stripePaymentIntentId: checkoutSession.payment_intent as string,
           platformFeeAmount: platformFeeAmount / 100, // Store in dollars
         },
       })
