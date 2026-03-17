@@ -126,7 +126,8 @@ export async function GET(request: NextRequest) {
 
     // Build linked events info with organization branding
     const linkedEvents = groupRegistrations.map((reg: typeof groupRegistrations[0]) => ({
-      id: reg.id,
+      id: reg.eventId,
+      registrationId: reg.id,
       eventId: reg.eventId,
       accessCode: reg.accessCode,
       eventName: reg.event.name,

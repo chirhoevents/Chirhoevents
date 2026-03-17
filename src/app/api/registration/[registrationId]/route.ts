@@ -21,6 +21,7 @@ export async function GET(
         registrationStatus: true,
         eventId: true,
         clerkUserId: true,
+        totalParticipants: true,
         event: {
           select: {
             name: true,
@@ -78,40 +79,22 @@ export async function GET(
     let balanceRemaining = 0
 
     if (isAuthorized) {
-      const payments = await prisma.payment.findMany({
-        where: {
-          registrationId: registrationId,
-          registrationType: 'group',
-          paymentStatus: 'succeeded',
-        },
-        orderBy: { createdAt: 'desc' },
+      // FIX 2.5: Use PaymentBalance which already has the correct totals (including discounts)
+      const paymentBalance = await prisma.paymentBalance.findFirst({
+        where: { registrationId, registrationType: 'group' },
       })
 
-      depositPaid = payments.reduce(
-        (sum: number, payment: { amount: any }) => sum + Number(payment.amount),
-        0
-      )
-
-      const eventPricing = await prisma.eventPricing.findUnique({
-        where: { eventId: registration.eventId },
-      })
-
-      if (eventPricing) {
-        const actualYouthCount = registration.participants.filter(
-          (p: { participantType: string }) => p.participantType !== 'chaperone' && p.participantType !== 'priest'
-        ).length
-        const actualChaperoneCount = registration.participants.filter(
-          (p: { participantType: string }) => p.participantType === 'chaperone'
-        ).length
-        const actualPriestCount = registration.participants.filter(
-          (p: { participantType: string }) => p.participantType === 'priest'
-        ).length
-
-        totalAmount =
-          actualYouthCount * Number(eventPricing.youthRegularPrice) +
-          actualChaperoneCount * Number(eventPricing.chaperoneRegularPrice) +
-          actualPriestCount * Number(eventPricing.priestPrice)
-        balanceRemaining = totalAmount - depositPaid
+      if (paymentBalance) {
+        totalAmount = Number(paymentBalance.totalAmountDue)
+        depositPaid = Number(paymentBalance.amountPaid)
+        balanceRemaining = Number(paymentBalance.amountRemaining)
+      } else {
+        // Fallback: sum succeeded payments
+        const payments = await prisma.payment.findMany({
+          where: { registrationId, registrationType: 'group', paymentStatus: 'succeeded' },
+        })
+        depositPaid = payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0)
+        balanceRemaining = 0
       }
     }
 
@@ -123,7 +106,7 @@ export async function GET(
         accessCode: registration.accessCode,
         qrCode: registration.qrCode,
         groupLeaderEmail: registration.groupLeaderEmail,
-        totalParticipants: registration.participants.length,
+        totalParticipants: registration.totalParticipants || 0,
         eventName: registration.event.name,
         eventId: registration.eventId,
         depositPaid,
@@ -140,7 +123,7 @@ export async function GET(
       return NextResponse.json({
         id: registration.id,
         groupName: registration.groupName,
-        totalParticipants: registration.participants.length,
+        totalParticipants: registration.totalParticipants || 0,
         eventName: registration.event.name,
         eventId: registration.eventId,
         housingType: registration.housingType,

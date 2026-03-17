@@ -5,13 +5,27 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
     const code = searchParams.get('code')
-    const eventId = searchParams.get('eventId')
+    const rawEventId = searchParams.get('eventId')
 
-    if (!code || !eventId) {
+    if (!code || !rawEventId) {
       return NextResponse.json(
         { valid: false, error: 'Missing code or eventId' },
         { status: 400 }
       )
+    }
+
+    // FIX 2.9: Resolve slug to UUID if needed
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawEventId)
+    let eventId = rawEventId
+    if (!isUuid) {
+      const event = await prisma.event.findUnique({
+        where: { slug: rawEventId },
+        select: { id: true },
+      })
+      if (!event) {
+        return NextResponse.json({ valid: false, error: 'Event not found' })
+      }
+      eventId = event.id
     }
 
     const vendorRegistration = await prisma.vendorRegistration.findFirst({

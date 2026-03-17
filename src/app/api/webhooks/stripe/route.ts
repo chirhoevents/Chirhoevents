@@ -466,6 +466,15 @@ export async function POST(request: NextRequest) {
         })
 
         console.log('✅ Individual registration confirmed and email sent to:', registration.email)
+
+        // FIX 2.6: Increment coupon usage after confirmed payment
+        if (session.metadata?.couponId) {
+          await prisma.coupon.update({
+            where: { id: session.metadata.couponId },
+            data: { usageCount: { increment: 1 } },
+          }).catch((err: any) => console.error('⚠️ Failed to increment coupon usage:', err))
+        }
+
         return NextResponse.json({ received: true })
       }
 
@@ -638,6 +647,14 @@ export async function POST(request: NextRequest) {
             },
           })
         }
+      }
+
+      // FIX 2.6: Increment coupon usage after confirmed group payment
+      if (session.metadata?.couponId) {
+        await prisma.coupon.update({
+          where: { id: session.metadata.couponId },
+          data: { usageCount: { increment: 1 } },
+        }).catch((err: any) => console.error('⚠️ Failed to increment coupon usage:', err))
       }
 
       // Fetch registration details for email
