@@ -1,12 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+// FIX 2.11: In-memory rate limiter (5 req/min per IP)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
+const RATE_LIMIT = 5
+const RATE_WINDOW_MS = 60_000
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now()
+  const entry = rateLimitMap.get(ip)
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS })
+    return true
+  }
+  if (entry.count >= RATE_LIMIT) return false
+  entry.count++
+  return true
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     const { eventId } = await params
+
+    // FIX 2.11: Rate limit — 5 requests per minute per IP
+    const ip =
+      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      request.headers.get('x-real-ip') ||
+      'unknown'
+    if (!checkRateLimit(ip)) {
+      return NextResponse.json(
+        { message: 'Too many requests. Please wait a minute and try again.' },
+        { status: 429 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const query = searchParams.get('q')?.trim()
 
@@ -117,11 +147,17 @@ export async function GET(
         }
       }
 
+      // FIX 2.11: Truncate roommate names to first name + last initial only
+      const truncatedRoommates = roommates.map((r: any) => ({
+        firstName: r.firstName,
+        lastName: r.lastName ? r.lastName.charAt(0) + '.' : '',
+      }))
+
       response.housing = {
         buildingName: roomAssignment.room.building.name,
         roomNumber: roomAssignment.room.roomNumber,
         floor: roomAssignment.room.floor,
-        roommates,
+        roommates: truncatedRoommates,
       }
     }
 

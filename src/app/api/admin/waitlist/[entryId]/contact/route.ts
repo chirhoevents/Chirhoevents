@@ -69,6 +69,29 @@ export async function POST(
       )
     }
 
+    // FIX 2.10: Check event capacity before sending invitation
+    const eventCapacity = await prisma.event.findUnique({
+      where: { id: entry.event.id },
+      select: { capacityTotal: true, capacityRemaining: true },
+    })
+
+    if (
+      eventCapacity &&
+      eventCapacity.capacityTotal !== null &&
+      eventCapacity.capacityRemaining !== null
+    ) {
+      const spotsNeeded = entry.partySize || 1
+      if (eventCapacity.capacityRemaining < spotsNeeded) {
+        return NextResponse.json(
+          {
+            error: `Not enough capacity to invite this waitlist entry. Only ${eventCapacity.capacityRemaining} spot(s) remaining, but ${spotsNeeded} needed.`,
+            capacityRemaining: eventCapacity.capacityRemaining,
+          },
+          { status: 409 }
+        )
+      }
+    }
+
     // Generate token and set expiration (48 hours from now)
     const registrationToken = generateRegistrationToken()
     const invitationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000) // 48 hours

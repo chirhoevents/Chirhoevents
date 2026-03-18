@@ -292,12 +292,7 @@ export async function POST(request: NextRequest) {
               code: coupon.code,
               discountAmount,
             }
-
-            // Increment coupon usage count
-            await prisma.coupon.update({
-              where: { id: coupon.id },
-              data: { usageCount: { increment: 1 } },
-            })
+            // NOTE: usageCount is incremented after confirmed payment (webhook for card, here for check)
           }
         }
       }
@@ -542,6 +537,14 @@ export async function POST(request: NextRequest) {
         )
       }
 
+      // For check payments, increment coupon usage now (no Stripe webhook will fire)
+      if (appliedCoupon) {
+        await prisma.coupon.update({
+          where: { id: appliedCoupon.id },
+          data: { usageCount: { increment: 1 } },
+        })
+      }
+
       // Return without Stripe checkout URL
       return NextResponse.json({
         success: true,
@@ -586,6 +589,7 @@ export async function POST(request: NextRequest) {
           groupName,
           accessCode,
           platformFeeAmount: platformFeeAmount.toString(),
+          couponId: appliedCoupon?.id || '',
         },
         customer_email: groupLeaderEmail,
       }
