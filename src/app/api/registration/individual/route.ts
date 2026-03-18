@@ -84,6 +84,9 @@ export async function POST(request: NextRequest) {
             stripeAccountId: true,
             stripeChargesEnabled: true,
             platformFeePercentage: true,
+            contactEmail: true,
+            contactPhone: true,
+            website: true,
           },
         },
         settings: true,
@@ -527,7 +530,17 @@ export async function POST(request: NextRequest) {
                 </div>
               ` : ''}
 
-              <p>Questions? Reply to this email or contact the event organizer.</p>
+              <!-- FIX 3.14: Org contact info block -->
+              <div style="background-color: #E8F4FD; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #1E3A5F;">
+                <h3 style="color: #1E3A5F; margin-top: 0;">Need to Make Changes?</h3>
+                <p style="color: #333; margin-bottom: 8px;">
+                  Individual registrations are managed by <strong>${event.organization.name}</strong>.
+                  Please contact the organizer directly:
+                </p>
+                ${event.organization.contactEmail ? `<p style="margin: 4px 0;">📧 <a href="mailto:${event.organization.contactEmail}" style="color: #1E3A5F;">${event.organization.contactEmail}</a></p>` : ''}
+                ${event.organization.contactPhone ? `<p style="margin: 4px 0;">📞 <a href="tel:${event.organization.contactPhone}" style="color: #1E3A5F;">${event.organization.contactPhone}</a></p>` : ''}
+                ${event.organization.website ? `<p style="margin: 4px 0;">🌐 <a href="${event.organization.website}" style="color: #1E3A5F;">${event.organization.website}</a></p>` : ''}
+              </div>
 
               <p style="color: #666; font-size: 12px; margin-top: 30px;">
                 © 2025 ChiRho Events. All rights reserved.

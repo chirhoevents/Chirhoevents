@@ -455,7 +455,17 @@ export async function POST(request: NextRequest) {
 
                 <p>We can't wait to see you at ${registration.event.name}!</p>
 
-                <p>Questions? Reply to this email or contact the event organizer.</p>
+                <!-- FIX 3.14: Org contact info -->
+                <div style="background-color: #E8F4FD; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #1E3A5F;">
+                  <h3 style="color: #1E3A5F; margin-top: 0;">Need to Make Changes?</h3>
+                  <p style="color: #333; margin-bottom: 8px;">
+                    Individual registrations are managed by <strong>${registration.event.organization.name}</strong>.
+                    Please contact the organizer directly:
+                  </p>
+                  ${registration.event.organization.contactEmail ? `<p style="margin: 4px 0;">📧 <a href="mailto:${registration.event.organization.contactEmail}" style="color: #1E3A5F;">${registration.event.organization.contactEmail}</a></p>` : ''}
+                  ${registration.event.organization.contactPhone ? `<p style="margin: 4px 0;">📞 <a href="tel:${registration.event.organization.contactPhone}" style="color: #1E3A5F;">${registration.event.organization.contactPhone}</a></p>` : ''}
+                  ${registration.event.organization.website ? `<p style="margin: 4px 0;">🌐 <a href="${registration.event.organization.website}" style="color: #1E3A5F;">${registration.event.organization.website}</a></p>` : ''}
+                </div>
 
                 <p style="color: #666; font-size: 12px; margin-top: 30px;">
                   © 2025 ${registration.event.organization.name}. All rights reserved.
