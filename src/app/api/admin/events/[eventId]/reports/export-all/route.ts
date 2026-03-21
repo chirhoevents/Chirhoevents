@@ -20,7 +20,7 @@ export async function POST(
 
     // FIX 4.9: Always scope to the effective org — prevents cross-org data leakage
     const eventFilter = eventId === 'all'
-      ? { organizationId: effectiveOrgId }
+      ? { organizationId: effectiveOrgId ?? undefined }
       : { eventId }
 
     // Fetch all registrations and participants
