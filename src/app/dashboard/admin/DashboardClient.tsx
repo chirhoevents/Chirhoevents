@@ -5,6 +5,13 @@ import { useUser, useAuth } from '@clerk/nextjs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Calendar,
   Users,
   DollarSign,
@@ -57,6 +64,8 @@ interface DashboardData {
   upcomingEvents: UpcomingEvent[]
   recentRegistrations: RecentRegistration[]
   pendingActions: PendingActions
+  availableYears: number[]
+  selectedYear: number | null
 }
 
 interface BillingUsage {
@@ -71,13 +80,17 @@ export default function DashboardClient() {
   const userName = user?.firstName || 'there'
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString())
   const [showExportModal, setShowExportModal] = useState(false)
   const [showBulkEmailModal, setShowBulkEmailModal] = useState(false)
   const [showRegistrationLimitModal, setShowRegistrationLimitModal] = useState(false)
   const [billingUsage, setBillingUsage] = useState<BillingUsage | null>(null)
 
   useEffect(() => {
-    fetchDashboardData()
+    fetchDashboardData(selectedYear)
+  }, [selectedYear])
+
+  useEffect(() => {
     fetchBillingUsage()
   }, [])
 
@@ -118,11 +131,11 @@ export default function DashboardClient() {
     setShowRegistrationLimitModal(false)
   }
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (year: string) => {
     try {
       setLoading(true)
       const token = await getToken()
-      const response = await fetch('/api/admin/dashboard', {
+      const response = await fetch(`/api/admin/dashboard?year=${year}`, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
 
@@ -155,14 +168,38 @@ export default function DashboardClient() {
       ? Math.round((data.stats.formsCompleted / data.stats.formsTotal) * 100)
       : 0
 
+  // Build year options — combine available years with the current year selection
+  const currentYear = new Date().getFullYear()
+  const yearOptions = Array.from(
+    new Set([currentYear, ...(data.availableYears || [])])
+  ).sort((a, b) => b - a)
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-[#1E3A5F] mb-2">Dashboard</h1>
-        <p className="text-[#6B7280]">
-          Welcome back, {userName}! Here&apos;s an overview of your organization.
-        </p>
+      <div className="flex items-start justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[#1E3A5F] mb-2">Dashboard</h1>
+          <p className="text-[#6B7280]">
+            Welcome back, {userName}! Here&apos;s an overview of your organization.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-[#6B7280] whitespace-nowrap">Showing data for:</span>
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-36 border-[#D1D5DB] text-[#1E3A5F]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Time</SelectItem>
+              {yearOptions.map((yr) => (
+                <SelectItem key={yr} value={yr.toString()}>
+                  {yr}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Quick Stats */}
@@ -199,7 +236,9 @@ export default function DashboardClient() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-[#6B7280]">Revenue (Total)</p>
+                <p className="text-sm text-[#6B7280]">
+                  Revenue {selectedYear !== 'all' ? `(${selectedYear})` : '(Total)'}
+                </p>
                 <p className="text-2xl font-bold text-[#1E3A5F]">
                   ${data.stats.revenue.toLocaleString()}
                 </p>
@@ -245,7 +284,11 @@ export default function DashboardClient() {
             {data.upcomingEvents.length === 0 ? (
               <div className="text-center py-12">
                 <Calendar className="h-16 w-16 text-[#9C8466] mx-auto mb-4" />
-                <p className="text-[#6B7280] mb-4">No upcoming events yet</p>
+                <p className="text-[#6B7280] mb-4">
+                  {selectedYear !== 'all'
+                    ? `No upcoming events in ${selectedYear}`
+                    : 'No upcoming events yet'}
+                </p>
                 <Link href="/dashboard/admin/events/new">
                   <Button className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
                     <Plus className="h-4 w-4 mr-2" />
@@ -323,7 +366,11 @@ export default function DashboardClient() {
             {data.recentRegistrations.length === 0 ? (
               <div className="text-center py-12">
                 <Users className="h-16 w-16 text-[#9C8466] mx-auto mb-4" />
-                <p className="text-[#6B7280]">No registrations yet</p>
+                <p className="text-[#6B7280]">
+                  {selectedYear !== 'all'
+                    ? `No registrations for ${selectedYear} events`
+                    : 'No registrations yet'}
+                </p>
               </div>
             ) : (
               <div className="space-y-3">

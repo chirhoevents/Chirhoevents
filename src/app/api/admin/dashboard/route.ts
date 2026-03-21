@@ -40,6 +40,29 @@ export async function GET(request: NextRequest) {
     // Get the effective org ID (handles impersonation)
     const organizationId = await getEffectiveOrgId(user as any)
 
+    // Parse year filter — null means "all time"
+    const { searchParams } = new URL(request.url)
+    const yearParam = searchParams.get('year')
+    const year = yearParam && yearParam !== 'all' ? parseInt(yearParam) : null
+
+    // Build date range filter for the selected year
+    const yearFilter = year
+      ? {
+          gte: new Date(`${year}-01-01`),
+          lte: new Date(`${year}-12-31T23:59:59.999Z`),
+        }
+      : undefined
+
+    // Get all event IDs for the org (scoped to year if provided)
+    const eventsInScope = await prisma.event.findMany({
+      where: {
+        organizationId,
+        ...(yearFilter ? { startDate: yearFilter } : {}),
+      },
+      select: { id: true },
+    })
+    const eventIds = eventsInScope.map((e: { id: string }) => e.id)
+
     // Get active events count
     const now = new Date()
     const activeEventsCount = await prisma.event.count({
@@ -51,29 +74,35 @@ export async function GET(request: NextRequest) {
         endDate: {
           gte: now,
         },
+        ...(yearFilter ? { startDate: yearFilter } : {}),
       },
     })
 
-    // Get total registrations across all events
+    // Get total registrations scoped to events in the selected year
+    const registrationEventFilter = eventIds.length > 0 ? { in: eventIds } : undefined
+
     const groupRegistrationsCount = await prisma.groupRegistration.count({
       where: {
         organizationId,
+        ...(registrationEventFilter ? { eventId: registrationEventFilter } : {}),
       },
     })
 
     const individualRegistrationsCount = await prisma.individualRegistration.count({
       where: {
         organizationId,
+        ...(registrationEventFilter ? { eventId: registrationEventFilter } : {}),
       },
     })
 
     const totalRegistrations = groupRegistrationsCount + individualRegistrationsCount
 
-    // Calculate total revenue
+    // Calculate revenue scoped to events in the selected year
     const payments = await prisma.payment.findMany({
       where: {
         organizationId,
         paymentStatus: 'succeeded',
+        ...(registrationEventFilter ? { eventId: registrationEventFilter } : {}),
       },
       select: {
         amount: true,
@@ -85,10 +114,17 @@ export async function GET(request: NextRequest) {
       0
     )
 
-    // Get forms completion stats
+    // Get forms completion stats scoped to events in the selected year
     const totalParticipants = await prisma.participant.count({
       where: {
         organizationId,
+        ...(registrationEventFilter
+          ? {
+              groupRegistration: {
+                eventId: registrationEventFilter,
+              },
+            }
+          : {}),
       },
     })
 
@@ -96,6 +132,13 @@ export async function GET(request: NextRequest) {
       where: {
         organizationId,
         liabilityFormCompleted: true,
+        ...(registrationEventFilter
+          ? {
+              groupRegistration: {
+                eventId: registrationEventFilter,
+              },
+            }
+          : {}),
       },
     })
 
@@ -103,22 +146,24 @@ export async function GET(request: NextRequest) {
       where: {
         organizationId,
         registrationStatus: 'complete',
+        ...(registrationEventFilter ? { eventId: registrationEventFilter } : {}),
       },
     })
 
     const formsCompleted = completedForms + totalIndividualForms
     const formsTotal = totalParticipants + individualRegistrationsCount
 
-    // Get upcoming events (next 3)
+    // Get upcoming events (next 3) — always scoped to year if selected
+    const upcomingStartDate = yearFilter
+      ? { gte: now > yearFilter.gte ? now : yearFilter.gte, lte: yearFilter.lte }
+      : { gte: now }
     const upcomingEvents = await prisma.event.findMany({
       where: {
         organizationId,
         status: {
           not: 'draft',
         },
-        startDate: {
-          gte: now,
-        },
+        startDate: upcomingStartDate,
       },
       include: {
         _count: {
@@ -134,10 +179,11 @@ export async function GET(request: NextRequest) {
       take: 3,
     })
 
-    // Get recent registrations (last 5)
+    // Get recent registrations (last 5) scoped to events in the selected year
     const recentGroupRegistrations = await prisma.groupRegistration.findMany({
       where: {
         organizationId,
+        ...(registrationEventFilter ? { eventId: registrationEventFilter } : {}),
       },
       include: {
         event: {
@@ -166,10 +212,11 @@ export async function GET(request: NextRequest) {
         organizationId,
         paymentMethod: 'check',
         paymentStatus: 'pending',
+        ...(registrationEventFilter ? { eventId: registrationEventFilter } : {}),
       },
     })
 
-    // Get registrations with overdue balances (simplified - would need late fee deadline logic)
+    // Get registrations with overdue balances
     const overdueBalances = await prisma.paymentBalance.count({
       where: {
         organizationId,
@@ -179,8 +226,19 @@ export async function GET(request: NextRequest) {
         amountRemaining: {
           gt: 0,
         },
+        ...(registrationEventFilter ? { eventId: registrationEventFilter } : {}),
       },
     })
+
+    // Get all years that have events for this org (for the year selector)
+    const allEvents = await prisma.event.findMany({
+      where: { organizationId },
+      select: { startDate: true },
+      orderBy: { startDate: 'asc' },
+    })
+    const availableYears = [
+      ...new Set(allEvents.map((e: { startDate: Date }) => e.startDate.getFullYear())),
+    ].sort((a, b) => b - a) as number[]
 
     return NextResponse.json({
       stats: {
@@ -223,6 +281,8 @@ export async function GET(request: NextRequest) {
         pendingCheckPayments,
         overdueBalances,
       },
+      availableYears,
+      selectedYear: year,
     })
   } catch (error) {
     console.error('Error fetching dashboard stats:', error)
