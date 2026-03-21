@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Mail, Send, Loader2, CheckCircle, AlertCircle, Calendar, Users } from 'lucide-react'
+import { Mail, Send, Loader2, CheckCircle, AlertCircle, Calendar, Users, BellOff } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
 interface Recipient {
@@ -22,6 +22,10 @@ interface WeeklyDigestSettings {
   enabled: boolean
   recipients: string[]
   dayOfWeek: number
+}
+
+interface UpdateEmailSettings {
+  disabled: boolean
 }
 
 const DAYS_OF_WEEK = [
@@ -44,6 +48,9 @@ export default function NotificationsSettingsTab() {
     recipients: [],
     dayOfWeek: 0,
   })
+  const [updateEmailSettings, setUpdateEmailSettings] = useState<UpdateEmailSettings>({
+    disabled: false,
+  })
 
   useEffect(() => {
     fetchSettings()
@@ -57,6 +64,9 @@ export default function NotificationsSettingsTab() {
       const data = await response.json()
       setSettings(data.weeklyDigest)
       setAvailableRecipients(data.availableRecipients)
+      if (data.updateEmails) {
+        setUpdateEmailSettings(data.updateEmails)
+      }
     } catch (error) {
       console.error('Error fetching notification settings:', error)
       toast.error('Failed to load notification settings')
@@ -71,7 +81,7 @@ export default function NotificationsSettingsTab() {
       const response = await fetch('/api/admin/settings/notifications', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ weeklyDigest: settings }),
+        body: JSON.stringify({ weeklyDigest: settings, updateEmails: updateEmailSettings }),
       })
 
       if (!response.ok) throw new Error('Failed to save settings')
@@ -287,6 +297,56 @@ export default function NotificationsSettingsTab() {
                 </ul>
               </div>
             </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Participant Update Emails Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-[#1E3A5F]/10 rounded-lg">
+              <BellOff className="h-5 w-5 text-[#1E3A5F]" />
+            </div>
+            <div>
+              <CardTitle>Participant Update Emails</CardTitle>
+              <CardDescription>
+                Control whether group leaders receive email notifications when participant information is updated by an admin
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-3">
+              <Switch
+                id="update-emails-disabled"
+                checked={updateEmailSettings.disabled}
+                onCheckedChange={(checked) =>
+                  setUpdateEmailSettings({ disabled: checked })
+                }
+              />
+              <div>
+                <Label htmlFor="update-emails-disabled" className="font-medium cursor-pointer">
+                  Disable participant update emails
+                </Label>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  When enabled, group leaders will not receive emails when participant details are edited
+                </p>
+              </div>
+            </div>
+            <Badge
+              variant={updateEmailSettings.disabled ? 'destructive' : 'secondary'}
+              className={updateEmailSettings.disabled ? '' : 'bg-green-100 text-green-800'}
+            >
+              {updateEmailSettings.disabled ? 'Emails Off' : 'Emails On'}
+            </Badge>
+          </div>
+
+          {updateEmailSettings.disabled && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
+              <strong>Note:</strong> Group leaders will not be notified by email when participant information is updated. This is useful when performing bulk updates across many participants.
+            </div>
           )}
         </CardContent>
       </Card>
