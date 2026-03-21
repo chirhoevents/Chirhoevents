@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   Check,
   Bell,
+  Trash2,
 } from 'lucide-react'
 import MasterAdminNotificationsTab from '@/components/master-admin/MasterAdminNotificationsTab'
 
@@ -48,10 +49,33 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [activeTab, setActiveTab] = useState<'platform' | 'notifications'>('platform')
+  const [clearingTestData, setClearingTestData] = useState(false)
+  const [clearResult, setClearResult] = useState<string | null>(null)
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
 
   useEffect(() => {
     fetchSettings()
   }, [])
+
+  const handleClearTestData = async () => {
+    setClearingTestData(true)
+    setClearResult(null)
+    try {
+      const token = await getToken()
+      const response = await fetch('/api/master-admin/test-data/clear', {
+        method: 'DELETE',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to clear test data')
+      setClearResult(data.message)
+    } catch (error) {
+      setClearResult(error instanceof Error ? error.message : 'An error occurred')
+    } finally {
+      setClearingTestData(false)
+      setShowClearConfirm(false)
+    }
+  }
 
   const fetchSettings = async () => {
     try {
@@ -508,6 +532,65 @@ export default function SettingsPage() {
                 </>
               )}
             </button>
+          </div>
+
+          {/* Danger Zone */}
+          <div className="bg-white rounded-lg border border-red-200 p-6">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              <h2 className="text-lg font-semibold text-red-700">Danger Zone</h2>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">
+              These actions are irreversible. Use them only to remove test/demo data before going live.
+            </p>
+
+            <div className="flex items-center justify-between p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div>
+                <p className="font-medium text-gray-900">Clear All Payment Records</p>
+                <p className="text-sm text-gray-500">
+                  Deletes every payment and payment balance record from the database. This will reset all earnings on the dashboard to $0.
+                </p>
+              </div>
+              <button
+                onClick={() => { setShowClearConfirm(true); setClearResult(null) }}
+                disabled={clearingTestData}
+                className="ml-6 flex-shrink-0 flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" />
+                Clear Test Data
+              </button>
+            </div>
+
+            {/* Inline confirmation */}
+            {showClearConfirm && (
+              <div className="mt-4 p-4 bg-red-50 border border-red-300 rounded-lg">
+                <p className="font-medium text-red-800 mb-3">
+                  Are you sure? This will permanently delete ALL payment records and cannot be undone.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleClearTestData}
+                    disabled={clearingTestData}
+                    className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm font-medium"
+                  >
+                    {clearingTestData ? 'Clearing...' : 'Yes, delete all payments'}
+                  </button>
+                  <button
+                    onClick={() => setShowClearConfirm(false)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Result message */}
+            {clearResult && (
+              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-sm text-green-800">{clearResult}</p>
+              </div>
+            )}
           </div>
         </>
       )}
