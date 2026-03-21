@@ -9,6 +9,10 @@ interface WeeklyDigestSettings {
   dayOfWeek: number
 }
 
+interface UpdateEmailSettings {
+  disabled: boolean
+}
+
 interface PaymentAmount {
   amount: number | bigint | { toNumber?: () => number }
 }
@@ -56,9 +60,13 @@ export async function GET(request: NextRequest) {
       recipients: [],
       dayOfWeek: 0, // Sunday
     }
+    const updateEmails: UpdateEmailSettings = customFields?.updateEmails || {
+      disabled: false,
+    }
 
     return NextResponse.json({
       weeklyDigest,
+      updateEmails,
       availableRecipients: organization.users,
     })
   } catch (error) {
@@ -88,7 +96,7 @@ export async function PUT(request: NextRequest) {
     const organizationId = await getEffectiveOrgId(user as any)
     const body = await request.json()
 
-    const { weeklyDigest } = body
+    const { weeklyDigest, updateEmails } = body
 
     if (!weeklyDigest) {
       return NextResponse.json(
@@ -119,6 +127,13 @@ export async function PUT(request: NextRequest) {
       )
     }
 
+    if (updateEmails !== undefined && typeof updateEmails.disabled !== 'boolean') {
+      return NextResponse.json(
+        { error: 'updateEmails.disabled must be a boolean' },
+        { status: 400 }
+      )
+    }
+
     // Get current custom fields
     const organization = await prisma.organization.findUnique({
       where: { id: organizationId },
@@ -139,6 +154,9 @@ export async function PUT(request: NextRequest) {
         recipients: weeklyDigest.recipients,
         dayOfWeek: weeklyDigest.dayOfWeek,
       },
+      updateEmails: {
+        disabled: updateEmails?.disabled ?? (currentCustomFields.updateEmails?.disabled ?? false),
+      },
     }
 
     await prisma.organization.update({
@@ -149,6 +167,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({
       success: true,
       weeklyDigest: updatedCustomFields.weeklyDigest,
+      updateEmails: updatedCustomFields.updateEmails,
     })
   } catch (error) {
     console.error('Error updating notification settings:', error)

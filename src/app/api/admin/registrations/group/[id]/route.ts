@@ -361,8 +361,16 @@ export async function PUT(
       })
     }
 
+    // Check org-level update email setting
+    const orgSettings = await prisma.organization.findUnique({
+      where: { id: existingRegistration.organizationId },
+      select: { customFieldsEnabled: true },
+    })
+    const orgCustomFields = (orgSettings?.customFieldsEnabled as Record<string, any>) || {}
+    const updateEmailsDisabled = orgCustomFields?.updateEmails?.disabled === true
+
     // Send email notification to group leader
-    if (groupLeaderEmail && existingRegistration.event) {
+    if (!updateEmailsDisabled && groupLeaderEmail && existingRegistration.event) {
       try {
         // Build list of changes for email
         const emailChanges: string[] = []
