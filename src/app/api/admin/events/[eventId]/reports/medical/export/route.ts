@@ -57,7 +57,7 @@ export async function POST(
         return new NextResponse(new Uint8Array(pdfBuffer), {
           headers: {
             'Content-Type': 'application/pdf',
-            'Content-Disposition': `attachment; filename="medical_report_${eventName.replace(/\s+/g, '_')}.pdf"`,
+            'Content-Disposition': `attachment; filename="CONFIDENTIAL_medical_report_${eventName.replace(/\s+/g, '_')}.pdf"`,
           },
         })
       } catch (pdfError: any) {
@@ -71,7 +71,7 @@ export async function POST(
     return new NextResponse(csv, {
       headers: {
         'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="medical_report_${eventName.replace(/\s+/g, '_')}.csv"`,
+        'Content-Disposition': `attachment; filename="CONFIDENTIAL_medical_report_${eventName.replace(/\s+/g, '_')}.csv"`,
       },
     })
   } catch (error: any) {

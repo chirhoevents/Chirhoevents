@@ -49,38 +49,24 @@ export async function GET(
       },
     })
 
-    // Get safe environment certificates stats - filter through participant's group registration
-    const totalCertificates = await prisma.safeEnvironmentCertificate.count({
+    // Get safe environment certificates stats - group participants
+    const groupTotalCerts = await prisma.safeEnvironmentCertificate.count({
       where: {
         organizationId: effectiveOrgId!,
-        participant: {
-          groupRegistration: {
-            eventId,
-          },
-        },
+        participant: { groupRegistration: { eventId } },
       },
     })
-
-    const verifiedCertificates = await prisma.safeEnvironmentCertificate.count({
+    const groupVerifiedCerts = await prisma.safeEnvironmentCertificate.count({
       where: {
         organizationId: effectiveOrgId!,
-        participant: {
-          groupRegistration: {
-            eventId,
-          },
-        },
+        participant: { groupRegistration: { eventId } },
         status: 'verified',
       },
     })
-
-    const pendingCertificates = await prisma.safeEnvironmentCertificate.count({
+    const groupPendingCerts = await prisma.safeEnvironmentCertificate.count({
       where: {
         organizationId: effectiveOrgId!,
-        participant: {
-          groupRegistration: {
-            eventId,
-          },
-        },
+        participant: { groupRegistration: { eventId } },
         status: 'pending',
       },
     })
@@ -90,9 +76,9 @@ export async function GET(
       approvedForms,
       pendingForms,
       deniedForms,
-      totalCertificates,
-      verifiedCertificates,
-      pendingCertificates,
+      totalCertificates: groupTotalCerts,
+      verifiedCertificates: groupVerifiedCerts,
+      pendingCertificates: groupPendingCerts,
     })
   } catch (error) {
     console.error('Stats fetch error:', error)
