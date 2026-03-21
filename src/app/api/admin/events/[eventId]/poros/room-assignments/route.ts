@@ -64,23 +64,49 @@ export async function POST(
       }
     }
 
-    // Create assignment
-    const assignment = await prisma.roomAssignment.create({
-      data: {
-        roomId,
-        participantId: participantId || null,
-        individualRegistrationId: individualRegistrationId || null,
-        bedNumber: bedNumber || null,
-        assignedBy: user.id,
-        notes: notes || null,
-      },
-    })
+    // FIX 4.1: Wrap capacity check + create + occupancy update in a transaction
+    // to prevent race conditions from double-booking the same bed
+    let assignment
+    try {
+      assignment = await prisma.$transaction(async (tx) => {
+        // Re-fetch room inside transaction to get current occupancy
+        const freshRoom = await tx.room.findUnique({ where: { id: roomId } })
+        if (!freshRoom) throw new Error('Room not found')
+        if (freshRoom.currentOccupancy >= freshRoom.capacity) {
+          throw new Error('Room is at capacity')
+        }
 
-    // Update room occupancy
-    await prisma.room.update({
-      where: { id: roomId },
-      data: { currentOccupancy: { increment: 1 } },
-    })
+        const created = await tx.roomAssignment.create({
+          data: {
+            roomId,
+            participantId: participantId || null,
+            individualRegistrationId: individualRegistrationId || null,
+            bedNumber: bedNumber || null,
+            assignedBy: user.id,
+            notes: notes || null,
+          },
+        })
+
+        await tx.room.update({
+          where: { id: roomId },
+          data: { currentOccupancy: { increment: 1 } },
+        })
+
+        return created
+      })
+    } catch (txError: any) {
+      // P2002 = unique constraint violation (e.g. duplicate bedNumber in same room)
+      if (txError?.code === 'P2002') {
+        return NextResponse.json(
+          { message: 'That bed is already assigned. Please choose a different bed.' },
+          { status: 409 }
+        )
+      }
+      if (txError?.message === 'Room is at capacity') {
+        return NextResponse.json({ message: 'Room is at capacity' }, { status: 400 })
+      }
+      throw txError
+    }
 
     return NextResponse.json(assignment, { status: 201 })
   } catch (error) {

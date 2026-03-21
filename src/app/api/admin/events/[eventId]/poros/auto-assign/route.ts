@@ -3,6 +3,9 @@ import { verifyEventAccess } from '@/lib/api-auth'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 
+// FIX 4.13: In-memory mutex — only one auto-assign run per event at a time
+const autoAssignRunning = new Set<string>()
+
 interface ParticipantWithGroup {
   id: string
   firstName: string
@@ -48,16 +51,29 @@ export async function POST(
         { status: 403 }
       )
     }
+    // FIX 4.13: Acquire mutex — reject concurrent auto-assign for the same event
+    if (autoAssignRunning.has(eventId)) {
+      return NextResponse.json(
+        { message: 'An auto-assign is already running for this event. Please wait for it to complete.' },
+        { status: 409 }
+      )
+    }
+    autoAssignRunning.add(eventId)
+
+    try {
     const body = await request.json()
 
     const {
       strategy = 'parish_together',
-      respectRoommatePrefs = true,
+      respectRoommatePrefs = false,
       onlyUnassigned = true,
       genderFilter = 'all',
       typeFilter = 'all',
       buildingIds = [],
     } = body
+
+    // FIX 4.12: respectRoommatePrefs is not implemented — log a note and surface it in the response
+    const roommatePrefsIgnored = respectRoommatePrefs === true
 
     let assigned = 0
     let skipped = 0
@@ -225,7 +241,19 @@ export async function POST(
     await assignParticipants(groupedParticipants.female_youth, groupedRooms.female_youth)
     await assignParticipants(groupedParticipants.female_adult, groupedRooms.female_adult)
 
-    return NextResponse.json({ assigned, skipped, errors })
+    return NextResponse.json({
+      assigned,
+      skipped,
+      errors,
+      // FIX 4.12: Surface that roommate preferences require manual assignment
+      ...(roommatePrefsIgnored && {
+        roommatePrefsNote: 'Roommate preferences are not applied automatically. Manual assignment is required to honor roommate requests.',
+      }),
+    })
+    } finally {
+      // FIX 4.13: Release mutex regardless of success/failure
+      autoAssignRunning.delete(eventId)
+    }
   } catch (error) {
     console.error('Failed to auto-assign:', error)
     return NextResponse.json(

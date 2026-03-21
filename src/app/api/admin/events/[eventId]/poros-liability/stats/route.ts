@@ -49,40 +49,38 @@ export async function GET(
       },
     })
 
-    // Get safe environment certificates stats - filter through participant's group registration
-    const totalCertificates = await prisma.safeEnvironmentCertificate.count({
+    // Get safe environment certificates stats - group participants
+    const groupTotalCerts = await prisma.safeEnvironmentCertificate.count({
       where: {
         organizationId: effectiveOrgId!,
-        participant: {
-          groupRegistration: {
-            eventId,
-          },
-        },
+        participant: { groupRegistration: { eventId } },
       },
     })
-
-    const verifiedCertificates = await prisma.safeEnvironmentCertificate.count({
+    const groupVerifiedCerts = await prisma.safeEnvironmentCertificate.count({
       where: {
         organizationId: effectiveOrgId!,
-        participant: {
-          groupRegistration: {
-            eventId,
-          },
-        },
+        participant: { groupRegistration: { eventId } },
         status: 'verified',
       },
     })
-
-    const pendingCertificates = await prisma.safeEnvironmentCertificate.count({
+    const groupPendingCerts = await prisma.safeEnvironmentCertificate.count({
       where: {
         organizationId: effectiveOrgId!,
-        participant: {
-          groupRegistration: {
-            eventId,
-          },
-        },
+        participant: { groupRegistration: { eventId } },
         status: 'pending',
       },
+    })
+
+    // FIX 4.14: Also count individual registrant safe environment certs
+    // (tracked via IndividualRegistration.safeEnvironmentCertStatus)
+    const indivTotalCerts = await prisma.individualRegistration.count({
+      where: { eventId, safeEnvironmentCertStatus: { not: null } },
+    })
+    const indivVerifiedCerts = await prisma.individualRegistration.count({
+      where: { eventId, safeEnvironmentCertStatus: 'verified' },
+    })
+    const indivPendingCerts = await prisma.individualRegistration.count({
+      where: { eventId, safeEnvironmentCertStatus: 'pending' },
     })
 
     return NextResponse.json({
@@ -90,9 +88,9 @@ export async function GET(
       approvedForms,
       pendingForms,
       deniedForms,
-      totalCertificates,
-      verifiedCertificates,
-      pendingCertificates,
+      totalCertificates: groupTotalCerts + indivTotalCerts,
+      verifiedCertificates: groupVerifiedCerts + indivVerifiedCerts,
+      pendingCertificates: groupPendingCerts + indivPendingCerts,
     })
   } catch (error) {
     console.error('Stats fetch error:', error)
