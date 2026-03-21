@@ -171,8 +171,22 @@ export async function POST(request: NextRequest) {
         : Number(event.pricing.individualBasePrice)
     } else if (housingType === 'off_campus' && event.pricing.individualOffCampusPrice) {
       totalAmount = Number(event.pricing.individualOffCampusPrice)
-    } else if (housingType === 'day_pass' && event.pricing.individualDayPassPrice) {
-      totalAmount = Number(event.pricing.individualDayPassPrice)
+    } else if (housingType === 'day_pass') {
+      // FIX 4.8: Use DayPassOption.price when a specific option is selected;
+      // fall back to the legacy flat event.pricing.individualDayPassPrice
+      if (body.dayPassOptionId) {
+        const dayPassOpt = await prisma.dayPassOption.findUnique({
+          where: { id: body.dayPassOptionId },
+          select: { price: true },
+        })
+        if (dayPassOpt) {
+          totalAmount = Number(dayPassOpt.price)
+        } else if (event.pricing.individualDayPassPrice) {
+          totalAmount = Number(event.pricing.individualDayPassPrice)
+        }
+      } else if (event.pricing.individualDayPassPrice) {
+        totalAmount = Number(event.pricing.individualDayPassPrice)
+      }
     } else {
       // Fallback to early bird price if applicable, then individual base price or youth price
       totalAmount = isEarlyBird

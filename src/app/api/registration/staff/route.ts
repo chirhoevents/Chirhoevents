@@ -101,18 +101,28 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // FIX 4.5: Deduplicate — reject if this email is already registered as staff for this event
+    const existingStaff = await prisma.staffRegistration.findFirst({
+      where: { email: email.toLowerCase(), eventId: event.id },
+    })
+    if (existingStaff) {
+      return NextResponse.json(
+        { error: "You're already registered as staff for this event." },
+        { status: 409 }
+      )
+    }
+
     // Calculate price
     const totalAmount = isVendorStaff
       ? Number(event.settings.vendorStaffPrice || 0)
       : Number(event.settings.staffVolunteerPrice || 0)
 
-    // Generate QR code
-    const qrCodeData = `STAFF-${eventId}-${Date.now()}`
-    const qrCode = await QRCode.toDataURL(qrCodeData)
-
+    // FIX 4.4: Use registration UUID for QR code data — create registration first, then generate QR
     // Generate Poros access code if liability forms are enabled
+    // FIX 4.6: Use liabilityFormsRequiredGroup || liabilityFormsRequiredIndividual — if any
+    //   registration type requires liability forms for this event, staff need them too
     let porosAccessCode: string | null = null
-    if (event.settings.liabilityFormsRequiredGroup) {
+    if (event.settings.liabilityFormsRequiredGroup || event.settings.liabilityFormsRequiredIndividual) {
       const eventYear = event.name.match(/\d{4}/)?.[0] || new Date().getFullYear().toString()
       porosAccessCode = generateStaffPorosCode(eventYear)
 
@@ -128,14 +138,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create staff registration
+    // FIX 4.4: Create registration first (without QR code), then generate QR using the UUID
     const registration = await prisma.staffRegistration.create({
       data: {
         eventId: event.id,
         organizationId: event.organizationId,
         firstName,
         lastName,
-        email,
+        email: email.toLowerCase(),
         phone,
         role,
         tshirtSize,
@@ -146,8 +156,16 @@ export async function POST(request: NextRequest) {
         pricePaid: totalAmount,
         paymentStatus: totalAmount > 0 ? 'pending' : 'paid',
         porosAccessCode,
-        qrCode,
+        qrCode: '', // placeholder, updated below
       },
+    })
+
+    // Now generate QR code using the actual registration UUID
+    const qrCodeData = `STAFF-${registration.id}`
+    const qrCode = await QRCode.toDataURL(qrCodeData)
+    await prisma.staffRegistration.update({
+      where: { id: registration.id },
+      data: { qrCode },
     })
 
     // Save custom question answers

@@ -18,7 +18,10 @@ export async function POST(
     )
     if (error) return error
 
-    const eventFilter = eventId === 'all' ? {} : { eventId }
+    // FIX 4.9: Always scope to the effective org — prevents cross-org data leakage
+    const eventFilter = eventId === 'all'
+      ? { organizationId: effectiveOrgId }
+      : { eventId }
 
     // Fetch all registrations and participants
     const groupRegs = await prisma.groupRegistration.findMany({
