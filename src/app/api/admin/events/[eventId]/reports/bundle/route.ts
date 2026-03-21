@@ -240,27 +240,27 @@ export async function GET(
 
     // ---- 5. Medical export (rapha.access required) ----
     if (hasRaphaAccess) {
-      const medParticipants = await prisma.participant.findMany({
-        where: { groupRegistration: { eventId } },
+      const medForms = await prisma.liabilityForm.findMany({
+        where: { eventId },
         select: {
-          firstName: true, lastName: true,
+          participantFirstName: true, participantLastName: true,
           allergies: true, medications: true, medicalConditions: true,
-          dietaryRestrictions: true, adaRequirements: true,
+          dietaryRestrictions: true, adaAccommodations: true,
           groupRegistration: { select: { groupName: true } },
         },
       })
-      const medRows = medParticipants.map((p: any) => ({
-        'Name': `${p.firstName} ${p.lastName}`,
-        'Group': p.groupRegistration?.groupName || '',
-        'Allergies': p.allergies || '',
-        'Medications': p.medications || '',
-        'Medical Conditions': p.medicalConditions || '',
-        'Dietary Restrictions': p.dietaryRestrictions || '',
-        'ADA Requirements': p.adaRequirements || '',
+      const medRows = medForms.map((f: any) => ({
+        'Name': `${f.participantFirstName} ${f.participantLastName}`,
+        'Group': f.groupRegistration?.groupName || '',
+        'Allergies': f.allergies || '',
+        'Medications': f.medications || '',
+        'Medical Conditions': f.medicalConditions || '',
+        'Dietary Restrictions': f.dietaryRestrictions || '',
+        'ADA Accommodations': f.adaAccommodations || '',
       }))
       zipFiles.push({
         name: `CONFIDENTIAL_medical_${eventName}.csv`,
-        content: Buffer.from(generateCSV(medRows, ['Name','Group','Allergies','Medications','Medical Conditions','Dietary Restrictions','ADA Requirements'])),
+        content: Buffer.from(generateCSV(medRows, ['Name','Group','Allergies','Medications','Medical Conditions','Dietary Restrictions','ADA Accommodations'])),
       })
     } else {
       omittedFiles.push('CONFIDENTIAL_medical_*.csv (requires rapha.access permission)')
