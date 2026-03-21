@@ -582,7 +582,7 @@ export default function EmailsPage() {
       {/* Email Preview Modal */}
       {/* Delete Confirmation Dialog */}
       {confirmDeleteEmail && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
+        <div className="fixed inset-0 z-[60] overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen px-4">
             <div
               className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
