@@ -72,3 +72,43 @@ export async function GET(
     )
   }
 }
+
+// Delete a sent email
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ emailId: string }> }
+) {
+  try {
+    const { emailId } = await params
+    const clerkUserId = await getClerkUserId(request)
+
+    if (!clerkUserId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const user = await prisma.user.findFirst({
+      where: { clerkUserId },
+      select: { id: true, role: true },
+    })
+
+    if (!user || user.role !== 'master_admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const email = await prisma.emailLog.findUnique({ where: { id: emailId } })
+
+    if (!email) {
+      return NextResponse.json({ error: 'Email not found' }, { status: 404 })
+    }
+
+    await prisma.emailLog.delete({ where: { id: emailId } })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Delete sent email error:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete email' },
+      { status: 500 }
+    )
+  }
+}
