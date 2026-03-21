@@ -71,26 +71,14 @@ export async function GET(
       },
     })
 
-    // FIX 4.14: Also count individual registrant safe environment certs
-    // (tracked via IndividualRegistration.safeEnvironmentCertStatus)
-    const indivTotalCerts = await prisma.individualRegistration.count({
-      where: { eventId, safeEnvironmentCertStatus: { not: null } },
-    })
-    const indivVerifiedCerts = await prisma.individualRegistration.count({
-      where: { eventId, safeEnvironmentCertStatus: 'verified' },
-    })
-    const indivPendingCerts = await prisma.individualRegistration.count({
-      where: { eventId, safeEnvironmentCertStatus: 'pending' },
-    })
-
     return NextResponse.json({
       totalForms,
       approvedForms,
       pendingForms,
       deniedForms,
-      totalCertificates: groupTotalCerts + indivTotalCerts,
-      verifiedCertificates: groupVerifiedCerts + indivVerifiedCerts,
-      pendingCertificates: groupPendingCerts + indivPendingCerts,
+      totalCertificates: groupTotalCerts,
+      verifiedCertificates: groupVerifiedCerts,
+      pendingCertificates: groupPendingCerts,
     })
   } catch (error) {
     console.error('Stats fetch error:', error)
