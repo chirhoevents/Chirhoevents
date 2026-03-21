@@ -20,6 +20,7 @@ import {
   Reply,
   Loader2,
   PenSquare,
+  Trash2,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -83,6 +84,8 @@ export default function EmailsPage() {
   const [replyMode, setReplyMode] = useState(false)
   const [replyMessage, setReplyMessage] = useState('')
   const [sendingReply, setSendingReply] = useState(false)
+  const [deletingEmailId, setDeletingEmailId] = useState<string | null>(null)
+  const [confirmDeleteEmail, setConfirmDeleteEmail] = useState<ReceivedEmail | SentEmail | null>(null)
 
   useEffect(() => {
     fetchEmails()
@@ -190,6 +193,43 @@ export default function EmailsPage() {
       alert(error instanceof Error ? error.message : 'Failed to send reply')
     } finally {
       setSendingReply(false)
+    }
+  }
+
+  const deleteEmail = async (email: ReceivedEmail | SentEmail) => {
+    const isReceived = 'fromAddress' in email
+    setDeletingEmailId(email.id)
+    try {
+      const token = await getToken()
+      const endpoint = isReceived
+        ? `/api/master-admin/emails/received/${email.id}`
+        : `/api/master-admin/emails/sent/${email.id}`
+      const response = await fetch(endpoint, {
+        method: 'DELETE',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to delete email')
+      }
+
+      // Remove from local state
+      if (isReceived) {
+        setReceivedEmails((prev) => prev.filter((e) => e.id !== email.id))
+        setReceivedCounts((prev) => ({ ...prev, total: prev.total - 1 }))
+      } else {
+        setSentEmails((prev) => prev.filter((e) => e.id !== email.id))
+        setSentCounts((prev) => ({ ...prev, total: prev.total - 1 }))
+      }
+
+      setConfirmDeleteEmail(null)
+      if (selectedEmail?.id === email.id) closeModal()
+    } catch (error) {
+      console.error('Error deleting email:', error)
+      alert(error instanceof Error ? error.message : 'Failed to delete email')
+    } finally {
+      setDeletingEmailId(null)
     }
   }
 
@@ -433,7 +473,7 @@ export default function EmailsPage() {
                       To: {email.toAddresses.join(', ')}
                     </p>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
                     <div className="text-right">
                       <p className="text-sm text-gray-500">{formatDate(email.createdAt)}</p>
                     </div>
@@ -442,6 +482,13 @@ export default function EmailsPage() {
                       className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
                     >
                       <Eye className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setConfirmDeleteEmail(email); }}
+                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete email"
+                    >
+                      <Trash2 className="h-5 w-5" />
                     </button>
                   </div>
                 </div>
@@ -481,7 +528,7 @@ export default function EmailsPage() {
                         </p>
                       )}
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
                       <div className="text-right">
                         <p className="text-sm text-gray-500">{formatDate(email.sentAt)}</p>
                       </div>
@@ -490,6 +537,13 @@ export default function EmailsPage() {
                         className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
                       >
                         <Eye className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setConfirmDeleteEmail(email); }}
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete email"
+                      >
+                        <Trash2 className="h-5 w-5" />
                       </button>
                     </div>
                   </div>
@@ -526,6 +580,67 @@ export default function EmailsPage() {
       )}
 
       {/* Email Preview Modal */}
+      {/* Delete Confirmation Dialog */}
+      {confirmDeleteEmail && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-4">
+            <div
+              className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+              onClick={() => setConfirmDeleteEmail(null)}
+            />
+            <div className="relative bg-white rounded-xl shadow-xl p-6 max-w-md w-full">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-red-100 rounded-full">
+                  <Trash2 className="h-5 w-5 text-red-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Delete Email</h3>
+              </div>
+              <p className="text-gray-600 mb-2">
+                Are you sure you want to delete this email? This action cannot be undone.
+              </p>
+              {'fromAddress' in confirmDeleteEmail && confirmDeleteEmail.inboundTicket && (
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+                  This email has an associated support ticket (#{confirmDeleteEmail.inboundTicket.ticketNumber}). The ticket will remain but will no longer be linked to this email.
+                </p>
+              )}
+              <p className="text-sm text-gray-500 mb-6 truncate">
+                <span className="font-medium">
+                  {'fromAddress' in confirmDeleteEmail
+                    ? confirmDeleteEmail.subject || '(No subject)'
+                    : confirmDeleteEmail.subject}
+                </span>
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setConfirmDeleteEmail(null)}
+                  disabled={deletingEmailId === confirmDeleteEmail.id}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => deleteEmail(confirmDeleteEmail)}
+                  disabled={deletingEmailId === confirmDeleteEmail.id}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+                >
+                  {deletingEmailId === confirmDeleteEmail.id ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4" />
+                      Delete
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {viewModalOpen && selectedEmail && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
@@ -677,7 +792,15 @@ export default function EmailsPage() {
               )}
 
               {/* Modal Footer */}
-              <div className="mt-6 flex justify-end gap-3">
+              <div className="mt-6 flex justify-between gap-3">
+                <button
+                  onClick={() => { setConfirmDeleteEmail(selectedEmail); }}
+                  className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors flex items-center gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </button>
+                <div className="flex gap-3">
                 {'fromAddress' in selectedEmail && !replyMode && (
                   <button
                     onClick={() => setReplyMode(true)}
@@ -723,6 +846,7 @@ export default function EmailsPage() {
                     Close
                   </button>
                 )}
+                </div>
               </div>
             </div>
           </div>
