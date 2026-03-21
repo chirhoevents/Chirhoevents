@@ -22,6 +22,9 @@ interface RegistrationData {
   liabilityFormRequired: boolean
   organizationName: string
   organizationLogoUrl: string | null
+  organizationContactEmail?: string | null
+  organizationContactPhone?: string | null
+  organizationWebsite?: string | null
 }
 
 export default function IndividualConfirmationPage() {
@@ -290,14 +293,58 @@ export default function IndividualConfirmationPage() {
             </CardContent>
           </Card>
 
-          {/* Info Box */}
+          {/* FIX 3.14 — Org Contact Info Box */}
           <Card className="bg-blue-50 border-blue-200">
             <CardContent className="p-6">
-              <h3 className="font-semibold text-blue-900 mb-2">Questions?</h3>
-              <p className="text-blue-800 text-sm">
-                If you have any questions about your registration, please reply to your confirmation email
-                or contact the event organizer. We&apos;re here to help!
+              <h3 className="font-semibold text-blue-900 mb-2">
+                Need to Make Changes or Have Questions?
+              </h3>
+              <p className="text-blue-800 text-sm mb-3">
+                Individual registrations are managed by <strong>{registration.organizationName}</strong>.
+                There is no self-service portal for individual registrants. Please contact the organizer directly:
               </p>
+              <div className="space-y-1 text-sm text-blue-900">
+                {registration.organizationContactEmail && (
+                  <p>
+                    📧{' '}
+                    <a
+                      href={`mailto:${registration.organizationContactEmail}`}
+                      className="underline hover:text-blue-700"
+                    >
+                      {registration.organizationContactEmail}
+                    </a>
+                  </p>
+                )}
+                {registration.organizationContactPhone && (
+                  <p>
+                    📞{' '}
+                    <a
+                      href={`tel:${registration.organizationContactPhone}`}
+                      className="underline hover:text-blue-700"
+                    >
+                      {registration.organizationContactPhone}
+                    </a>
+                  </p>
+                )}
+                {registration.organizationWebsite && (
+                  <p>
+                    🌐{' '}
+                    <a
+                      href={registration.organizationWebsite}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-blue-700"
+                    >
+                      {registration.organizationWebsite}
+                    </a>
+                  </p>
+                )}
+                {!registration.organizationContactEmail && !registration.organizationContactPhone && (
+                  <p className="text-blue-700">
+                    Please reply to your confirmation email to reach the organizer.
+                  </p>
+                )}
+              </div>
             </CardContent>
           </Card>
 

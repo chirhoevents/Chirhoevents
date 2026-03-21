@@ -64,6 +64,7 @@ export async function POST(
         enableWaitlist: true,
         capacityTotal: true,
         capacityRemaining: true,
+        waitlistCapacity: true,
         organization: {
           select: {
             name: true,
@@ -128,13 +129,26 @@ export async function POST(
       )
     }
 
-    // Calculate position (count of pending entries before this one + 1)
+    // FIX 3.15: Enforce waitlistCapacity before allowing new entry
     const pendingCount = await prisma.waitlistEntry.count({
       where: {
         eventId: event.id,
         status: 'pending',
       },
     })
+
+    const waitlistCap = event.waitlistCapacity ?? 0
+    if (waitlistCap > 0 && pendingCount >= waitlistCap) {
+      return NextResponse.json(
+        {
+          error: 'The waitlist for this event is also full. Please check back later or contact the organizer.',
+          waitlistFull: true,
+        },
+        { status: 409 }
+      )
+    }
+
+    // Calculate position (1-based)
     const position = pendingCount + 1
 
     // Check capacity and generate warnings (but still allow joining)

@@ -30,6 +30,7 @@ export async function GET(
                 logoUrl: true,
                 contactEmail: true,
                 contactPhone: true,
+                website: true,
               },
             },
           },
@@ -85,6 +86,7 @@ export async function GET(
         organizationLogoUrl: registration.event.organization.logoUrl,
         organizationContactEmail: registration.event.organization.contactEmail,
         organizationContactPhone: registration.event.organization.contactPhone,
+        organizationWebsite: registration.event.organization.website,
       })
     }
 
@@ -97,6 +99,7 @@ export async function GET(
       organizationLogoUrl: registration.event.organization.logoUrl,
       organizationContactEmail: registration.event.organization.contactEmail,
       organizationContactPhone: registration.event.organization.contactPhone,
+      organizationWebsite: registration.event.organization.website,
       message: `Need help? Contact ${registration.event.organization.name} at ${registration.event.organization.contactEmail || 'the event organizer'}.`,
     })
   } catch (error) {
