@@ -130,7 +130,7 @@ export default function AboutPage() {
               <ul className="space-y-2 text-gray-400">
                 <li><a href="#" className="hover:text-gold transition-colors">Help Center</a></li>
                 <li><a href="#" className="hover:text-gold transition-colors">Tutorials</a></li>
-                <li><a href="mailto:notifications@chirhoevents.com" className="hover:text-gold transition-colors">Email</a></li>
+                <li><a href="mailto:hello@chirhoevents.com" className="hover:text-gold transition-colors">Email</a></li>
               </ul>
             </div>
           </div>
