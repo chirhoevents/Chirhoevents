@@ -73,6 +73,8 @@ interface EventDetailClientProps {
   }
   settings: {
     id?: string
+    groupRegistrationEnabled?: boolean
+    individualRegistrationEnabled?: boolean
     waitlistEnabled?: boolean
     registrationClosedMessage?: string | null
     porosHousingEnabled?: boolean
@@ -1083,6 +1085,8 @@ export default function EventDetailClient({
             onOpenChange={setReminderModalOpen}
             eventId={event.id}
             eventName={event.name}
+            groupRegistrationEnabled={settings?.groupRegistrationEnabled ?? true}
+            individualRegistrationEnabled={settings?.individualRegistrationEnabled ?? true}
           />
         </TabsContent>
 
