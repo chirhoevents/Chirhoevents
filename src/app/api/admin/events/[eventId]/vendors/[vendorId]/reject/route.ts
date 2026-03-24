@@ -92,7 +92,7 @@ export async function POST(
       `, { preheader: `Update on your vendor application for ${vendor.event.name}` })
 
       await resend.emails.send({
-        from: 'ChiRho Events <noreply@chirhoevents.com>',
+        from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
         to: vendor.email,
         subject: `Vendor Application Update - ${vendor.event.name}`,
         html: emailContent,

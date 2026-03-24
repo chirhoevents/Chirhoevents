@@ -65,7 +65,7 @@ export async function POST(
     const roleDescription = getRoleDescription(pendingUser.role as UserRole)
 
     await resend.emails.send({
-      from: 'ChirhoEvents <noreply@chirhoevents.com>',
+      from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
       to: pendingUser.email,
       subject: `Reminder: You've been invited to join ${organization?.name || 'ChirhoEvents'} as ${roleName}`,
       html: `

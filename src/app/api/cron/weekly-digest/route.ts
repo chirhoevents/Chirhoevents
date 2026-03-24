@@ -178,7 +178,7 @@ export async function GET(request: NextRequest) {
 
           try {
             await resend.emails.send({
-              from: 'ChiRho Events <noreply@chirhoevents.com>',
+              from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
               to: recipientEmail,
               subject,
               html: personalizedHtml,

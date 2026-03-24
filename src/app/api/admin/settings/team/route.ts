@@ -189,7 +189,7 @@ export async function POST(request: NextRequest) {
         const roleDescription = getRoleDescription(role as UserRole)
 
         await resend.emails.send({
-          from: 'ChirhoEvents <noreply@chirhoevents.com>',
+          from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
           to: email,
           subject: `You've been invited to join ${organization?.name || 'ChirhoEvents'} as ${roleName}`,
           html: `
@@ -272,7 +272,7 @@ export async function POST(request: NextRequest) {
       const roleDescription = getRoleDescription(role as UserRole)
 
       await resend.emails.send({
-        from: 'ChirhoEvents <noreply@chirhoevents.com>',
+        from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
         to: email,
         subject: `You've been invited to join ${organization?.name || 'ChirhoEvents'} as ${roleName}`,
         html: `

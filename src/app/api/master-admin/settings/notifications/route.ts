@@ -379,7 +379,7 @@ export async function POST() {
     for (const recipientEmail of masterDigest.recipients) {
       try {
         await resend.emails.send({
-          from: 'ChiRho Events <noreply@chirhoevents.com>',
+          from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
           to: recipientEmail,
           subject: `[TEST] ChiRho Events - Master Admin Weekly Digest (${dateRange.start} - ${dateRange.end})`,
           html: htmlContent,
