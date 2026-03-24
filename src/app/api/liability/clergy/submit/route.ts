@@ -201,7 +201,8 @@ export async function POST(request: NextRequest) {
 
     // Send confirmation email to clergy member
     await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+      from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+      reply_to: 'support@chirhoevents.com',
       to: email,
       subject: `✅ Form Completed - ${greeting} ${last_name}`,
       html: `
@@ -252,7 +253,8 @@ export async function POST(request: NextRequest) {
     const formsRemaining = totalParticipants - totalFormsCompleted
 
     await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+      from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+      reply_to: 'support@chirhoevents.com',
       to: groupRegistration.groupLeaderEmail,
       subject: `✅ Form Completed: ${greeting} ${last_name}`,
       html: `

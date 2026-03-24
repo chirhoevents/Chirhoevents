@@ -28,7 +28,7 @@ I've fixed the Vercel error. The changes are pushed to GitHub.
 | `R2_BUCKET_NAME` | Enter: `chirho-events-files` |
 | `R2_PUBLIC_URL` | Enter: `https://chirho-events-files.r2.cloudflarestorage.com` |
 | `RESEND_API_KEY` | Resend API key (starts with `re_`) |
-| `RESEND_FROM_EMAIL` | Enter: `hello@chirhoevents.com` |
+| `RESEND_FROM_EMAIL` | Enter: `notifications@chirhoevents.com` |
 | `NEXT_PUBLIC_APP_URL` | Enter: `https://chirhoevents.com` |
 | `NODE_ENV` | Enter: `production` |
 

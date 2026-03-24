@@ -268,7 +268,8 @@ export async function POST(
       })
 
       await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+        from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+        reply_to: 'support@chirhoevents.com',
         to: email.toLowerCase(),
         subject: `You're on the Waitlist - ${event.name}`,
         html: emailHtml,

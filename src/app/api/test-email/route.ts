@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const fromEmail = process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com'
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'
 
     console.log('[Test Email] Sending test email...')
     console.log('[Test Email] To:', to)

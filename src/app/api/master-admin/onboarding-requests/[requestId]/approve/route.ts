@@ -238,7 +238,8 @@ export async function POST(
 
     try {
       await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL || 'welcome@chirhoevents.com',
+        from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+        reply_to: 'support@chirhoevents.com',
         to: onboardingRequest.contactEmail,
         subject: `Welcome to ChiRho Events - ${organization.name} Account Approved!`,
         html: welcomeEmailHtml,

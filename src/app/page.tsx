@@ -818,7 +818,7 @@ export default function LandingPage() {
                       Submit Inquiry
                     </Button>
                     <p className="text-center text-sm text-gray-600">
-                      Or email us at <a href="mailto:hello@chirhoevents.com" className="text-gold hover:underline">hello@chirhoevents.com</a>
+                      Or email us at <a href="mailto:notifications@chirhoevents.com" className="text-gold hover:underline">notifications@chirhoevents.com</a>
                     </p>
                   </form>
                 )}
@@ -858,7 +858,7 @@ export default function LandingPage() {
               <ul className="space-y-2 text-gray-400">
                 <li><a href="#" className="hover:text-gold transition-colors">Help Center</a></li>
                 <li><a href="#" className="hover:text-gold transition-colors">Tutorials</a></li>
-                <li><a href="mailto:hello@chirhoevents.com" className="hover:text-gold transition-colors">Email</a></li>
+                <li><a href="mailto:notifications@chirhoevents.com" className="hover:text-gold transition-colors">Email</a></li>
               </ul>
             </div>
           </div>

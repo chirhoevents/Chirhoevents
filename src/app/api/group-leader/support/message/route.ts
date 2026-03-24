@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     // Send message to the event organizer
     const toOrgResult = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'noreply@chirhoevents.com',
+      from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
       to: orgEmail,
       reply_to: leaderEmail,
       subject: `Support message from ${leaderName} — ${eventName}`,
@@ -105,7 +105,8 @@ export async function POST(request: NextRequest) {
 
     // Send confirmation to the group leader
     await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'noreply@chirhoevents.com',
+      from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+      reply_to: 'support@chirhoevents.com',
       to: leaderEmail,
       subject: `Your message has been sent — ${eventName}`,
       html: `

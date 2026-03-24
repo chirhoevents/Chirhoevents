@@ -493,7 +493,8 @@ export async function POST(request: NextRequest) {
       // Send confirmation email for check payment
       try {
         await resend.emails.send({
-          from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+          from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+          reply_to: 'support@chirhoevents.com',
           to: groupLeaderEmail,
           subject: emailSubject,
           html: emailHtml,
