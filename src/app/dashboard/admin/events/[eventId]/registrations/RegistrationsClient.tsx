@@ -919,8 +919,8 @@ export default function RegistrationsClient({
         onOpenChange={setReminderModalOpen}
         eventId={eventId}
         eventName={eventName}
-        groupRegistrationEnabled={groupRegistrationEnabled ?? groupRegistrations.length > 0 || individualRegistrations.length === 0}
-        individualRegistrationEnabled={individualRegistrationEnabled ?? individualRegistrations.length > 0 || groupRegistrations.length === 0}
+        groupRegistrationEnabled={groupRegistrationEnabled ?? (groupRegistrations.length > 0 || individualRegistrations.length === 0)}
+        individualRegistrationEnabled={individualRegistrationEnabled ?? (individualRegistrations.length > 0 || groupRegistrations.length === 0)}
       />
     </div>
   )
