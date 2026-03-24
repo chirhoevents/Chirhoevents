@@ -457,7 +457,7 @@ export async function PUT(
           `
 
           await resend.emails.send({
-            from: 'ChiRho Events <noreply@chirhoevents.com>',
+            from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
             to: groupLeaderEmail,
             subject: emailSubject,
             html: emailBody,

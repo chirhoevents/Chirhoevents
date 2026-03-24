@@ -135,7 +135,7 @@ export async function POST(
       `, { preheader: `Your vendor application for ${vendor.event.name} has been approved!` })
 
       await resend.emails.send({
-        from: 'ChiRho Events <noreply@chirhoevents.com>',
+        from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
         to: vendor.email,
         subject: `Vendor Application Approved - ${vendor.event.name}`,
         html: emailContent,
