@@ -223,7 +223,7 @@ specifically built for Catholic events.
 - Message (optional)
 
 **CTA:** "Get Started" button  
-**Alternative:** hello@chirhoevents.com
+**Alternative:** notifications@chirhoevents.com
 
 ---
 

@@ -259,7 +259,7 @@ async function sendAutoReply(emailData: any, ticketNumber: number, autoReplyTemp
     .replace(/#{ticket_number}/g, `#${ticketNumber}`)
 
   try {
-    const fromEmail = process.env.RESEND_FROM_EMAIL || 'support@chirhoevents.com'
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'
 
     await resend.emails.send({
       from: `ChiRho Events Support <${fromEmail}>`,
@@ -297,7 +297,7 @@ async function sendDefaultAutoReply(emailData: any, ticketNumber: number) {
   console.log('[Resend Webhook] Sending default auto-reply...')
 
   try {
-    const fromEmail = process.env.RESEND_FROM_EMAIL || 'support@chirhoevents.com'
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'
 
     await resend.emails.send({
       from: `ChiRho Events Support <${fromEmail}>`,
@@ -337,7 +337,7 @@ async function forwardEmail(emailData: any, ticket: any, forwardTo: string[]) {
   console.log('[Resend Webhook] Forwarding email to:', forwardTo)
 
   try {
-    const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@chirhoevents.com'
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'
     const ticketInfo = ticket ? `[Ticket #${ticket.ticketNumber}] ` : ''
 
     await resend.emails.send({

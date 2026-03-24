@@ -112,7 +112,8 @@ export async function POST(request: NextRequest) {
       `, { organizationName: org.name, preheader: `Housing preferences submitted for ${event.name}` })
 
       await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+        from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+        reply_to: 'support@chirhoevents.com',
         to: groupRegistration.groupLeaderEmail,
         subject: `Housing Preferences Submitted — ${event.name}`,
         html: leaderEmailHtml,
@@ -154,7 +155,8 @@ export async function POST(request: NextRequest) {
         `, { organizationName: org.name, preheader: `Housing submission from ${groupRegistration.groupName}` })
 
         await resend.emails.send({
-          from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+          from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+          reply_to: 'support@chirhoevents.com',
           to: org.contactEmail,
           subject: `[Admin] Housing Submitted — ${groupRegistration.groupName} — ${event.name}`,
           html: adminEmailHtml,

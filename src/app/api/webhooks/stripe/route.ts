@@ -133,7 +133,8 @@ export async function POST(request: NextRequest) {
         // Send payment confirmation email
         try {
           await resend.emails.send({
-            from: process.env.RESEND_FROM_EMAIL || 'billing@chirhoevents.com',
+            from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+            reply_to: 'support@chirhoevents.com',
             to: invoice.organization.contactEmail,
             subject: `Payment Received - Invoice #${invoiceNumber}`,
             html: `
@@ -359,7 +360,8 @@ export async function POST(request: NextRequest) {
 
         // Send confirmation email with QR code
         await resend.emails.send({
-          from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+          from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+          reply_to: 'support@chirhoevents.com',
           to: registration.email,
           subject: `Registration Confirmed - ${registration.event.name}`,
           html: `
@@ -578,7 +580,8 @@ export async function POST(request: NextRequest) {
             `, { organizationName: staffReg.event.organization.name, preheader: `Staff registration confirmed for ${staffReg.event.name}` })
 
             await resend.emails.send({
-              from: process.env.RESEND_FROM_EMAIL || 'noreply@chirhoevents.com',
+              from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+              reply_to: 'support@chirhoevents.com',
               to: staffReg.email,
               subject: `Staff Registration Confirmed & Paid - ${staffReg.event.name}`,
               html: emailContent,
@@ -748,7 +751,8 @@ export async function POST(request: NextRequest) {
 
       // Send confirmation email
       await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+        from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+        reply_to: 'support@chirhoevents.com',
         to: registration.groupLeaderEmail,
         subject: `Payment Confirmed - ${registration.event.name}`,
         html: emailHtml,

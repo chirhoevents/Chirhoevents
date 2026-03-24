@@ -256,7 +256,8 @@ export async function POST(request: NextRequest) {
             })
 
             const { error } = await resend.emails.send({
-              from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+              from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+              reply_to: 'support@chirhoevents.com',
               to: admin.email,
               subject: subject,
               html: htmlContent,
@@ -319,7 +320,8 @@ export async function POST(request: NextRequest) {
 
     // Send email via Resend
     const { data, error } = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+      from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+      reply_to: 'support@chirhoevents.com',
       to: recipientEmail!,
       subject: subject,
       html: htmlContent,

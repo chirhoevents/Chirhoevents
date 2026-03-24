@@ -477,7 +477,8 @@ export async function POST(
 
       try {
         await resend.emails.send({
-          from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+          from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+          reply_to: 'support@chirhoevents.com',
           to: testEmail,
           subject: `[TEST] ${subject}`,
           html: emailHtml,
@@ -592,7 +593,8 @@ export async function POST(
         if (!emailHtml) continue
 
         await resend.emails.send({
-          from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+          from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+          reply_to: 'support@chirhoevents.com',
           to: group.groupLeaderEmail,
           subject,
           html: emailHtml,
@@ -650,7 +652,8 @@ export async function POST(
         if (!emailHtml) continue
 
         await resend.emails.send({
-          from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+          from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+          reply_to: 'support@chirhoevents.com',
           to: individual.email,
           subject,
           html: emailHtml,
