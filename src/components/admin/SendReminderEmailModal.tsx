@@ -485,47 +485,6 @@ export default function SendReminderEmailModal({
     </div>
   )
 
-  const TestEmailSection = () => (
-    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <Eye className="h-4 w-4 text-blue-600" />
-        <Label className="font-medium text-blue-800">Test Email Preview</Label>
-      </div>
-      <p className="text-xs text-blue-600 mb-3">
-        Send a test email to yourself before sending to all recipients.
-      </p>
-      <div className="flex gap-2">
-        <Input
-          type="email"
-          placeholder="Your email address..."
-          value={testEmail}
-          onChange={(e) => setTestEmail(e.target.value)}
-          className="flex-1"
-        />
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleSendTest}
-          disabled={sendingTest || !testEmail || !isValid()}
-          className="border-blue-300 text-blue-700 hover:bg-blue-100"
-        >
-          {sendingTest ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <>
-              <Eye className="h-4 w-4 mr-2" />
-              Send Test
-            </>
-          )}
-        </Button>
-      </div>
-      {testResult && (
-        <p className={`text-xs mt-2 ${testResult.success ? 'text-green-600' : 'text-red-600'}`}>
-          {testResult.message}
-        </p>
-      )}
-    </div>
-  )
 
   // ── Template-specific fields ──────────────────────────────────────────────
 
@@ -1112,7 +1071,45 @@ export default function SendReminderEmailModal({
           /* Template fields */
           <>
             <div className="space-y-6 py-4">
-              <TestEmailSection />
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Eye className="h-4 w-4 text-blue-600" />
+                  <Label className="font-medium text-blue-800">Test Email Preview</Label>
+                </div>
+                <p className="text-xs text-blue-600 mb-3">
+                  Send a test email to yourself before sending to all recipients.
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    type="email"
+                    placeholder="Your email address..."
+                    value={testEmail}
+                    onChange={(e) => setTestEmail(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleSendTest}
+                    disabled={sendingTest || !testEmail || !isValid()}
+                    className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                  >
+                    {sendingTest ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Eye className="h-4 w-4 mr-2" />
+                        Send Test
+                      </>
+                    )}
+                  </Button>
+                </div>
+                {testResult && (
+                  <p className={`text-xs mt-2 ${testResult.success ? 'text-green-600' : 'text-red-600'}`}>
+                    {testResult.message}
+                  </p>
+                )}
+              </div>
               {renderTemplateFields()}
             </div>
 

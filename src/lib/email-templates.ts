@@ -1585,32 +1585,29 @@ export function getMasterAdminTemplatesByCategory(category: MasterAdminEmailTemp
 // ============================================================
 
 /**
- * Single star-style inline link
+ * Single link — primary renders as a blue button, secondary as a plain link
  */
 export function starLink(label: string, url: string, primary = false): string {
   if (primary) {
     return `
       <p style="text-align: center; margin: 24px 0;">
-        <span style="color: #9C8466; margin-right: 6px; font-size: 18px;">&#9733;</span>
-        <a href="${url}" target="_blank" style="color: #2563EB; text-decoration: underline; font-weight: 600; font-size: 18px;">${label}</a>
-        <span style="color: #9C8466; margin-left: 6px; font-size: 18px;">&#9733;</span>
+        <a href="${url}" target="_blank" style="display: inline-block; background-color: #2563EB; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 16px; padding: 12px 28px; border-radius: 6px;">${label}</a>
       </p>
     `
   }
   return `
-    <span style="color: #9C8466; margin-right: 8px;">&#9733;</span>
     <a href="${url}" target="_blank" style="color: #2563EB; text-decoration: underline; font-weight: 500;">${label}</a>
   `
 }
 
 /**
- * Bulleted list of star-style links
+ * List of links rendered as plain styled links (no stars)
  */
 export function starLinkList(links: { label: string; url: string }[]): string {
   if (!links.length) return ''
   return `
     <p style="margin: 12px 0 0 0; line-height: 2;">
-      ${links.map(l => `${starLink(l.label, l.url)}<br>`).join('')}
+      ${links.map(l => `<a href="${l.url}" target="_blank" style="color: #2563EB; text-decoration: underline; font-weight: 500;">${l.label}</a><br>`).join('')}
     </p>
   `
 }
@@ -1913,6 +1910,8 @@ export function generateLateFeeNoticeEmail({
     ` : ''}
 
     <p>We understand that things come up, and we appreciate your attention to this matter. Please reach out if you have any questions — we're happy to help.</p>
+
+    <p>If you have already paid in full, please disregard this notice. Thank you!</p>
 
     ${links && links.length > 0 ? `
     <h2 style="color: #1E3A5F;">Helpful Links</h2>
