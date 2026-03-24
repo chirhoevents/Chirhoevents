@@ -5,14 +5,402 @@ import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import { Resend } from 'resend'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
-import { generateEventReminderEmail } from '@/lib/email-templates'
+import {
+  generateEventReminderEmail,
+  generateSurveyFeedbackEmail,
+  generateRegistrationOpenEmail,
+  generateGeneralUpdateEmail,
+  generatePaymentReminderEmail,
+  generateLateFeeNoticeEmail,
+  generateThankYouEmail,
+} from '@/lib/email-templates'
 import { format } from 'date-fns'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type TemplateType =
+  | 'event_reminder'
+  | 'survey_feedback'
+  | 'registration_open'
+  | 'general_update'
+  | 'payment_reminder'
+  | 'late_fee_notice'
+  | 'thank_you'
+
+interface CustomLink {
+  label: string
+  url: string
+}
+
+// ─── Email subject builders ───────────────────────────────────────────────────
+
+function buildSubject(templateType: TemplateType, eventName: string, body?: any): string {
+  switch (templateType) {
+    case 'event_reminder':
+      return `Event Reminder: ${eventName}`
+    case 'survey_feedback':
+      return `We'd love your feedback on ${eventName}`
+    case 'registration_open':
+      return `Registration is now open for ${eventName}`
+    case 'general_update':
+      return body?.emailSubject || `Update: ${eventName}`
+    case 'payment_reminder':
+      return `Payment Reminder: ${eventName}`
+    case 'late_fee_notice':
+      return `Late Fee Notice: ${eventName}`
+    case 'thank_you':
+      return `Thank you for being part of ${eventName}`
+    default:
+      return eventName
+  }
+}
+
+// ─── Email HTML builders ──────────────────────────────────────────────────────
+
+function buildGroupEmailHtml(
+  templateType: TemplateType,
+  group: any,
+  event: any,
+  body: any,
+  orgName: string,
+  supportEmail: string,
+): string {
+  const links: CustomLink[] = (body.links ?? []).filter(
+    (l: CustomLink) => l.label && l.url,
+  )
+
+  switch (templateType) {
+    case 'event_reminder': {
+      const eventDate = event.startDate
+        ? format(new Date(event.startDate), 'MMMM d, yyyy')
+        : undefined
+      const eventLocation = event.locationName || undefined
+
+      // Build housing info string
+      let housingInfo: string | undefined
+      if (body.includeHousingInfo) {
+        const parts: string[] = []
+        if (group.housingType) {
+          const labels: Record<string, string> = {
+            on_campus: 'On Campus',
+            off_campus: 'Off Campus',
+            day_pass: 'Day Pass',
+          }
+          parts.push(`Housing Type: ${labels[group.housingType] || group.housingType}`)
+        }
+        const onCampus = (group.onCampusYouth || 0) + (group.onCampusChaperones || 0)
+        const offCampus = (group.offCampusYouth || 0) + (group.offCampusChaperones || 0)
+        if (onCampus > 0) parts.push(`On Campus: ${onCampus} participant(s)`)
+        if (offCampus > 0) parts.push(`Off Campus: ${offCampus} participant(s)`)
+        if (body.housingInstructions) parts.push(body.housingInstructions)
+        housingInfo = parts.join('\n') || undefined
+      }
+
+      // Build small group room string
+      let smallGroupRoom: string | undefined
+      if (body.includeGroupAssignments && group.smallGroupRoom) {
+        const room = group.smallGroupRoom
+        const building = room.building?.name ? `${room.building.name} — ` : ''
+        smallGroupRoom = `Meeting Room: ${building}Room ${room.roomNumber}`
+        if (body.groupAssignmentInfo) smallGroupRoom += `\n${body.groupAssignmentInfo}`
+      }
+
+      // Build staff contacts string
+      let staffContacts: string | undefined
+      if (body.includeStaffAssignments && group.groupStaffAssignments?.length > 0) {
+        const typeLabels: Record<string, string> = {
+          sgl: 'Small Group Leader',
+          co_sgl: 'Co-Small Group Leader',
+          seminarian: 'Seminarian',
+          priest: 'Priest',
+          deacon: 'Deacon',
+          religious: 'Religious',
+          counselor: 'Counselor',
+          volunteer: 'Volunteer',
+        }
+        staffContacts = group.groupStaffAssignments
+          .map((a: any) => {
+            const name = `${a.staff.firstName} ${a.staff.lastName}`
+            const role = typeLabels[a.staff.staffType] || a.staff.staffType
+            return a.staff.email ? `${role}: ${name} (${a.staff.email})` : `${role}: ${name}`
+          })
+          .join('\n')
+      }
+
+      // Build payment summary string
+      let paymentSummary: string | undefined
+      if (body.includePaymentInfo) {
+        const total = group.totalCost ?? 0
+        const paid = group.totalPaid ?? 0
+        const balance = group.balance ?? 0
+        const parts = [
+          `Total: $${total.toFixed(2)}`,
+          `Paid: $${paid.toFixed(2)}`,
+        ]
+        if (body.showBalanceDue) {
+          parts.push(
+            balance > 0
+              ? `Balance Due: $${balance.toFixed(2)}`
+              : 'Paid in Full ✓',
+          )
+        }
+        paymentSummary = parts.join('\n')
+      }
+
+      return generateEventReminderEmail({
+        participantName: group.groupLeaderName,
+        eventName: event.name,
+        eventDate,
+        eventLocation,
+        accessCode: group.accessCode,
+        organizationName: orgName,
+        supportEmail,
+        isGroupRegistration: true,
+        customMessage: body.customMessage || undefined,
+        arrivalInstructions: body.arrivalInstructions || undefined,
+        includePortalReminder: body.includePortalReminder ?? true,
+        housingInfo,
+        smallGroupRoom,
+        staffContacts,
+        paymentSummary,
+        links,
+      })
+    }
+
+    case 'survey_feedback':
+      return generateSurveyFeedbackEmail({
+        recipientName: group.groupLeaderName,
+        eventName: event.name,
+        surveyUrl: body.surveyUrl,
+        customMessage: body.customMessage || undefined,
+        organizationName: orgName,
+        supportEmail,
+        isGroupRegistration: true,
+        links,
+      })
+
+    case 'registration_open':
+      return generateRegistrationOpenEmail({
+        recipientName: group.groupLeaderName,
+        eventName: event.name,
+        registrationUrl: body.registrationUrl,
+        eventDate: body.eventDate || undefined,
+        eventLocation: body.eventLocation || undefined,
+        registrationDeadline: body.registrationDeadline || undefined,
+        price: body.price || undefined,
+        customMessage: body.customMessage || undefined,
+        organizationName: orgName,
+        supportEmail,
+        links,
+      })
+
+    case 'general_update':
+      return generateGeneralUpdateEmail({
+        recipientName: group.groupLeaderName,
+        eventName: event.name,
+        messageBody: body.messageBody,
+        organizationName: orgName,
+        supportEmail,
+        links,
+      })
+
+    case 'payment_reminder':
+      return generatePaymentReminderEmail({
+        recipientName: group.groupLeaderName,
+        eventName: event.name,
+        balanceDue: body.balanceDue,
+        paymentDeadline: body.paymentDeadline || undefined,
+        totalAmount: body.totalAmount || undefined,
+        amountPaid: body.amountPaid || undefined,
+        paymentUrl: body.paymentUrl || undefined,
+        customMessage: body.customMessage || undefined,
+        organizationName: orgName,
+        supportEmail,
+        isGroupRegistration: true,
+        links,
+      })
+
+    case 'late_fee_notice':
+      return generateLateFeeNoticeEmail({
+        recipientName: group.groupLeaderName,
+        eventName: event.name,
+        originalAmount: body.originalAmount,
+        lateFeeAmount: body.lateFeeAmount,
+        newTotal: body.newTotal,
+        lateFeeEffectiveDate: body.lateFeeEffectiveDate || undefined,
+        paymentUrl: body.paymentUrl || undefined,
+        customMessage: body.customMessage || undefined,
+        organizationName: orgName,
+        supportEmail,
+        isGroupRegistration: true,
+        links,
+      })
+
+    case 'thank_you':
+      return generateThankYouEmail({
+        recipientName: group.groupLeaderName,
+        eventName: event.name,
+        customMessage: body.customMessage || undefined,
+        organizationName: orgName,
+        supportEmail,
+        isGroupRegistration: true,
+        links,
+      })
+
+    default:
+      return ''
+  }
+}
+
+function buildIndividualEmailHtml(
+  templateType: TemplateType,
+  individual: any,
+  event: any,
+  body: any,
+  orgName: string,
+  supportEmail: string,
+): string {
+  const recipientName = `${individual.firstName} ${individual.lastName}`
+  const links: CustomLink[] = (body.links ?? []).filter(
+    (l: CustomLink) => l.label && l.url,
+  )
+
+  switch (templateType) {
+    case 'event_reminder': {
+      const eventDate = event.startDate
+        ? format(new Date(event.startDate), 'MMMM d, yyyy')
+        : undefined
+      const eventLocation = event.locationName || undefined
+
+      let housingInfo: string | undefined
+      if (body.includeHousingInfo && individual.housingType) {
+        const labels: Record<string, string> = {
+          on_campus: 'On Campus',
+          off_campus: 'Off Campus',
+          day_pass: 'Day Pass',
+          single: 'Single Room',
+          double: 'Double Room',
+          triple: 'Triple Room',
+          quad: 'Quad Room',
+        }
+        const parts = [`Housing: ${labels[individual.housingType] || individual.housingType}`]
+        if (individual.roomType) {
+          parts.push(`Room Type: ${labels[individual.roomType] || individual.roomType}`)
+        }
+        if (body.housingInstructions) parts.push(body.housingInstructions)
+        housingInfo = parts.join('\n')
+      }
+
+      return generateEventReminderEmail({
+        participantName: recipientName,
+        eventName: event.name,
+        eventDate,
+        eventLocation,
+        // Individual registrations may or may not have a confirmation code
+        accessCode: individual.confirmationCode || undefined,
+        organizationName: orgName,
+        supportEmail,
+        isGroupRegistration: false,
+        customMessage: body.customMessage || undefined,
+        arrivalInstructions: body.arrivalInstructions || undefined,
+        includePortalReminder: body.includePortalReminder ?? true,
+        housingInfo,
+        links,
+      })
+    }
+
+    case 'survey_feedback':
+      return generateSurveyFeedbackEmail({
+        recipientName,
+        eventName: event.name,
+        surveyUrl: body.surveyUrl,
+        customMessage: body.customMessage || undefined,
+        organizationName: orgName,
+        supportEmail,
+        isGroupRegistration: false,
+        links,
+      })
+
+    case 'registration_open':
+      return generateRegistrationOpenEmail({
+        recipientName,
+        eventName: event.name,
+        registrationUrl: body.registrationUrl,
+        eventDate: body.eventDate || undefined,
+        eventLocation: body.eventLocation || undefined,
+        registrationDeadline: body.registrationDeadline || undefined,
+        price: body.price || undefined,
+        customMessage: body.customMessage || undefined,
+        organizationName: orgName,
+        supportEmail,
+        links,
+      })
+
+    case 'general_update':
+      return generateGeneralUpdateEmail({
+        recipientName,
+        eventName: event.name,
+        messageBody: body.messageBody,
+        organizationName: orgName,
+        supportEmail,
+        links,
+      })
+
+    case 'payment_reminder':
+      return generatePaymentReminderEmail({
+        recipientName,
+        eventName: event.name,
+        balanceDue: body.balanceDue,
+        paymentDeadline: body.paymentDeadline || undefined,
+        totalAmount: body.totalAmount || undefined,
+        amountPaid: body.amountPaid || undefined,
+        paymentUrl: body.paymentUrl || undefined,
+        customMessage: body.customMessage || undefined,
+        organizationName: orgName,
+        supportEmail,
+        isGroupRegistration: false,
+        links,
+      })
+
+    case 'late_fee_notice':
+      return generateLateFeeNoticeEmail({
+        recipientName,
+        eventName: event.name,
+        originalAmount: body.originalAmount,
+        lateFeeAmount: body.lateFeeAmount,
+        newTotal: body.newTotal,
+        lateFeeEffectiveDate: body.lateFeeEffectiveDate || undefined,
+        paymentUrl: body.paymentUrl || undefined,
+        customMessage: body.customMessage || undefined,
+        organizationName: orgName,
+        supportEmail,
+        isGroupRegistration: false,
+        links,
+      })
+
+    case 'thank_you':
+      return generateThankYouEmail({
+        recipientName,
+        eventName: event.name,
+        customMessage: body.customMessage || undefined,
+        organizationName: orgName,
+        supportEmail,
+        isGroupRegistration: false,
+        links,
+      })
+
+    default:
+      return ''
+  }
+}
+
+// ─── Route handler ────────────────────────────────────────────────────────────
+
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ eventId: string }> }
+  { params }: { params: Promise<{ eventId: string }> },
 ) {
   try {
     const { eventId } = await params
@@ -24,7 +412,7 @@ export async function POST(
     if (!user || !isAdmin(user)) {
       return NextResponse.json(
         { error: 'Unauthorized - Admin access required' },
-        { status: 403 }
+        { status: 403 },
       )
     }
 
@@ -32,16 +420,10 @@ export async function POST(
 
     // Verify event belongs to organization
     const event = await prisma.event.findFirst({
-      where: {
-        id: eventId,
-        organizationId,
-      },
+      where: { id: eventId, organizationId },
       include: {
         organization: {
-          select: {
-            id: true,
-            name: true,
-          },
+          select: { id: true, name: true, contactEmail: true },
         },
       },
     })
@@ -52,100 +434,54 @@ export async function POST(
 
     const body = await request.json()
     const {
+      templateType = 'event_reminder' as TemplateType,
       recipients = 'all', // 'all', 'groups', 'individuals'
-      customMessage = '',
-      arrivalInstructions = '',
-      includePortalReminder = true,
-      includeHousingInfo = false,
-      housingInstructions = '',
-      includeGroupAssignments = false,
-      groupAssignmentInfo = '',
-      includePaymentInfo = false,
-      showBalanceDue = true,
-      includeStaffAssignments = false,
-      customLinks = [] as { label: string; url: string }[],
       testMode = false,
       testEmail = '',
+      // Event reminder specific
+      includeGroupAssignments = false,
+      includeStaffAssignments = false,
+      includePaymentInfo = false,
     } = body
 
-    // Fetch registrations based on recipient type
-    let groupRegistrations: any[] = []
-    let individualRegistrations: any[] = []
+    const orgName = event.organization.name
+    const supportEmail = event.organization.contactEmail || 'support@chirhoevents.com'
+    const subject = buildSubject(templateType, event.name, body)
 
-    // If test mode, we'll send a single test email instead of fetching registrations
+    // ── Test mode: send a single preview email ──────────────────────────────
     if (testMode && testEmail) {
-      // Build the email content using a sample/test context
-      const eventDate = format(new Date(event.startDate), 'MMMM d, yyyy')
-      const eventLocation = event.locationName || 'TBD'
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
-
-      // Build additional info for test email
-      let additionalInfo = ''
-      if (includePortalReminder) {
-        additionalInfo += 'Please check your registration portal to ensure all required forms are complete and payment is up to date.\n\n'
-      }
-      if (customMessage) {
-        additionalInfo += customMessage + '\n\n'
-      }
-      if (arrivalInstructions) {
-        additionalInfo += '**Arrival Information:**\n' + arrivalInstructions + '\n\n'
-      }
-      if (includeHousingInfo) {
-        additionalInfo += '**Housing Information:**\n'
-        additionalInfo += '[Housing type and assignment will be pulled from registration data]\n'
-        if (housingInstructions) {
-          additionalInfo += housingInstructions + '\n'
-        }
-        additionalInfo += '\n'
-      }
-      if (includeGroupAssignments) {
-        additionalInfo += '**Small Group Assignment:**\n'
-        additionalInfo += '[Small group room will be pulled from registration data]\n'
-        if (groupAssignmentInfo) {
-          additionalInfo += groupAssignmentInfo + '\n'
-        }
-        additionalInfo += '\n'
-      }
-      if (includeStaffAssignments) {
-        additionalInfo += '**Staff Contacts:**\n'
-        additionalInfo += '[Assigned seminarian and religious staff will be pulled from registration data]\n'
-        additionalInfo += '\n'
-      }
-      if (includePaymentInfo) {
-        additionalInfo += '**Payment Summary:**\n'
-        additionalInfo += 'Total: $XXX.XX\n'
-        additionalInfo += 'Paid: $XXX.XX\n'
-        if (showBalanceDue) {
-          additionalInfo += 'Balance: $XXX.XX\n'
-        }
-        additionalInfo += '\n'
+      const testGroup = {
+        groupLeaderName: 'Test Recipient',
+        groupName: 'Test Group',
+        accessCode: 'TEST-001',
+        housingType: 'on_campus',
+        onCampusYouth: 10,
+        onCampusChaperones: 2,
+        offCampusYouth: 0,
+        offCampusChaperones: 0,
+        totalCost: 500,
+        totalPaid: 350,
+        balance: 150,
+        groupStaffAssignments: [],
+        smallGroupRoom: null,
       }
 
-      // Add custom links
-      const linksHtml = customLinks.length > 0
-        ? customLinks.map((link: { label: string; url: string }) =>
-            `<a href="${link.url}" style="color: #9C8466; text-decoration: underline;">${link.label}</a>`
-          ).join(' | ')
-        : ''
-
-      const emailHtml = generateEventReminderEmail({
-        participantName: 'Test Recipient',
-        eventName: event.name,
-        eventDate,
-        eventLocation,
-        accessCode: 'TEST-ACCESS-CODE',
-        organizationName: event.organization.name,
-        additionalInfo: additionalInfo + (linksHtml ? `\n\n**Quick Links:**\n${linksHtml}` : ''),
-      })
+      const emailHtml = buildGroupEmailHtml(
+        templateType,
+        testGroup,
+        event,
+        body,
+        orgName,
+        supportEmail,
+      )
 
       try {
         await resend.emails.send({
           from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
           to: testEmail,
-          subject: `[TEST] Event Reminder: ${event.name}`,
+          subject: `[TEST] ${subject}`,
           html: emailHtml,
         })
-
         return NextResponse.json({
           success: true,
           message: `Test email sent to ${testEmail}`,
@@ -153,20 +489,25 @@ export async function POST(
         })
       } catch (error) {
         return NextResponse.json(
-          { error: `Failed to send test email: ${error instanceof Error ? error.message : 'Unknown error'}` },
-          { status: 500 }
+          {
+            error: `Failed to send test email: ${
+              error instanceof Error ? error.message : 'Unknown error'
+            }`,
+          },
+          { status: 500 },
         )
       }
     }
+
+    // ── Fetch registrations ─────────────────────────────────────────────────
+    let groupRegistrations: any[] = []
+    let individualRegistrations: any[] = []
 
     if (recipients === 'all' || recipients === 'groups') {
       groupRegistrations = await prisma.groupRegistration.findMany({
         where: {
           eventId,
-          // Include all active registration statuses
-          registrationStatus: {
-            in: ['pending_forms', 'pending_payment', 'complete'],
-          },
+          registrationStatus: { in: ['pending_forms', 'pending_payment', 'complete'] },
         },
         select: {
           id: true,
@@ -180,59 +521,38 @@ export async function POST(
           onCampusChaperones: true,
           offCampusYouth: true,
           offCampusChaperones: true,
-          smallGroupRoom: includeGroupAssignments ? {
-            select: {
-              roomNumber: true,
-              building: {
+          smallGroupRoom: includeGroupAssignments
+            ? { select: { roomNumber: true, building: { select: { name: true } } } }
+            : false,
+          groupStaffAssignments: includeStaffAssignments
+            ? {
                 select: {
-                  name: true,
-                }
-              },
-            }
-          } : false,
-          // Include staff assignments (seminarians, religious) if enabled
-          groupStaffAssignments: includeStaffAssignments ? {
-            select: {
-              role: true,
-              staff: {
-                select: {
-                  firstName: true,
-                  lastName: true,
-                  staffType: true,
-                  email: true,
-                  phone: true,
-                }
+                  role: true,
+                  staff: {
+                    select: {
+                      firstName: true,
+                      lastName: true,
+                      staffType: true,
+                      email: true,
+                      phone: true,
+                    },
+                  },
+                },
               }
-            }
-          } : false,
+            : false,
         },
       })
 
-      // If payment info is needed, fetch payment balances for each group
-      if (includePaymentInfo) {
+      // Attach payment balances for reminder and payment_reminder templates
+      if (includePaymentInfo || templateType === 'payment_reminder') {
         for (const group of groupRegistrations) {
-          // Get payment balance from PaymentBalance table
-          const paymentBalance = await prisma.paymentBalance.findUnique({
-            where: {
-              registrationId: group.id,
-            },
-            select: {
-              totalAmountDue: true,
-              amountPaid: true,
-              amountRemaining: true,
-            }
+          const balance = await prisma.paymentBalance.findUnique({
+            where: { registrationId: group.id },
+            select: { totalAmountDue: true, amountPaid: true, amountRemaining: true },
           })
-
-          if (paymentBalance) {
-            group.totalCost = Number(paymentBalance.totalAmountDue) || 0
-            group.totalPaid = Number(paymentBalance.amountPaid) || 0
-            group.balance = Number(paymentBalance.amountRemaining) || 0
-          } else {
-            // No payment balance record - set to 0
-            group.totalCost = 0
-            group.totalPaid = 0
-            group.balance = 0
-          }
+          group.totalCost = balance ? Number(balance.totalAmountDue) : 0
+          group.totalPaid = balance ? Number(balance.amountPaid) : 0
+          group.balance = balance ? Number(balance.amountRemaining) : 0
         }
       }
     }
@@ -241,10 +561,7 @@ export async function POST(
       individualRegistrations = await prisma.individualRegistration.findMany({
         where: {
           eventId,
-          // Include all active registration statuses
-          registrationStatus: {
-            in: ['pending_forms', 'pending_payment', 'complete'],
-          },
+          registrationStatus: { in: ['pending_forms', 'pending_payment', 'complete'] },
         },
         select: {
           id: true,
@@ -254,172 +571,30 @@ export async function POST(
           confirmationCode: true,
           housingType: true,
           roomType: true,
-          preferredRoommate: true,
         },
       })
-
-      // Individual registrations don't have the same payment structure
-      // They would need their own payment logic if needed
     }
 
-    const results = {
-      sent: 0,
-      failed: 0,
-      errors: [] as string[],
-    }
+    // ── Send emails ─────────────────────────────────────────────────────────
+    const results = { sent: 0, failed: 0, errors: [] as string[] }
 
-    const eventDate = format(new Date(event.startDate), 'MMMM d, yyyy')
-    const eventLocation = event.locationName || 'TBD'
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
-
-    // Build base additional info (will be customized per recipient for housing/assignments)
-    const buildAdditionalInfo = (registration: any, isGroup: boolean) => {
-      let info = ''
-      if (includePortalReminder) {
-        info += 'Please check your registration portal to ensure all required forms are complete and payment is up to date.\n\n'
-      }
-      if (customMessage) {
-        info += customMessage + '\n\n'
-      }
-      if (arrivalInstructions) {
-        info += '**Arrival Information:**\n' + arrivalInstructions + '\n\n'
-      }
-
-      // Include housing info if enabled
-      if (includeHousingInfo) {
-        const housingType = registration.housingType
-        info += '**Housing Information:**\n'
-        if (housingType) {
-          const housingLabels: Record<string, string> = {
-            on_campus: 'On Campus',
-            off_campus: 'Off Campus',
-            day_pass: 'Day Pass',
-            single: 'Single Room',
-            double: 'Double Room',
-            triple: 'Triple Room',
-            quad: 'Quad Room',
-          }
-          info += `Housing Type: ${housingLabels[housingType] || housingType}\n`
-        }
-
-        // For groups, show breakdown if available
-        if (isGroup) {
-          const onCampus = (registration.onCampusYouth || 0) + (registration.onCampusChaperones || 0)
-          const offCampus = (registration.offCampusYouth || 0) + (registration.offCampusChaperones || 0)
-          if (onCampus > 0) info += `On Campus: ${onCampus} participant(s)\n`
-          if (offCampus > 0) info += `Off Campus: ${offCampus} participant(s)\n`
-        }
-
-        // For individuals, show room type
-        if (!isGroup && registration.roomType) {
-          const roomLabels: Record<string, string> = {
-            single: 'Single Room',
-            double: 'Double Room',
-            triple: 'Triple Room',
-            quad: 'Quad Room',
-          }
-          info += `Room Type: ${roomLabels[registration.roomType] || registration.roomType}\n`
-        }
-
-        if (housingInstructions) {
-          info += housingInstructions + '\n'
-        }
-        info += '\n'
-      }
-
-      // Include small group room assignment if enabled
-      if (includeGroupAssignments) {
-        // For groups, show small group room if assigned
-        if (isGroup && registration.smallGroupRoom) {
-          info += '**Small Group Assignment:**\n'
-          const room = registration.smallGroupRoom
-          const buildingName = room.building?.name || ''
-          info += `Meeting Room: ${buildingName ? `${buildingName} - ` : ''}Room ${room.roomNumber}\n`
-          if (groupAssignmentInfo) {
-            info += groupAssignmentInfo + '\n'
-          }
-          info += '\n'
-        }
-      }
-
-      // Include staff assignments (seminarians, religious) if enabled
-      if (includeStaffAssignments && isGroup && registration.groupStaffAssignments?.length > 0) {
-        info += '**Your Staff Contacts:**\n'
-        for (const assignment of registration.groupStaffAssignments) {
-          const staff = assignment.staff
-          const staffName = `${staff.firstName} ${staff.lastName}`
-          const staffTypeLabels: Record<string, string> = {
-            sgl: 'Small Group Leader',
-            co_sgl: 'Co-Small Group Leader',
-            seminarian: 'Seminarian',
-            priest: 'Priest',
-            deacon: 'Deacon',
-            religious: 'Religious',
-            counselor: 'Counselor',
-            volunteer: 'Volunteer',
-          }
-          const roleLabel = staffTypeLabels[staff.staffType] || staff.staffType
-          info += `${roleLabel}: ${staffName}`
-          if (staff.email) {
-            info += ` (${staff.email})`
-          }
-          info += '\n'
-        }
-        info += '\n'
-      }
-
-      // Include payment info if enabled
-      if (includePaymentInfo && isGroup) {
-        const totalCost = registration.totalCost || 0
-        const totalPaid = registration.totalPaid || 0
-        const balance = registration.balance || 0
-
-        info += '**Payment Summary:**\n'
-        info += `Total: $${totalCost.toFixed(2)}\n`
-        info += `Paid: $${totalPaid.toFixed(2)}\n`
-        if (showBalanceDue) {
-          if (balance > 0) {
-            info += `<strong style="color: #DC2626;">Balance Due: $${balance.toFixed(2)}</strong>\n`
-          } else {
-            info += `<span style="color: #16A34A;">✓ Paid in Full</span>\n`
-          }
-        }
-        info += '\n'
-      }
-
-      // Add custom links
-      if (customLinks.length > 0) {
-        const linksHtml = customLinks
-          .filter((link: { label: string; url: string }) => link.label && link.url)
-          .map((link: { label: string; url: string }) =>
-            `<a href="${link.url}" style="color: #9C8466; text-decoration: underline;">${link.label}</a>`
-          ).join(' | ')
-        if (linksHtml) {
-          info += '**Quick Links:**\n' + linksHtml + '\n'
-        }
-      }
-
-      return info.trim() || undefined
-    }
-
-    // Send to group leaders
+    // Group registrations
     for (const group of groupRegistrations) {
       try {
-        const groupAdditionalInfo = buildAdditionalInfo(group, true)
-        const emailHtml = generateEventReminderEmail({
-          participantName: group.groupLeaderName,
-          eventName: event.name,
-          eventDate,
-          eventLocation,
-          accessCode: group.accessCode,
-          organizationName: event.organization.name,
-          additionalInfo: groupAdditionalInfo,
-        })
+        const emailHtml = buildGroupEmailHtml(
+          templateType,
+          group,
+          event,
+          body,
+          orgName,
+          supportEmail,
+        )
+        if (!emailHtml) continue
 
         await resend.emails.send({
           from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
           to: group.groupLeaderEmail,
-          subject: `Event Reminder: ${event.name}`,
+          subject,
           html: emailHtml,
         })
 
@@ -430,20 +605,20 @@ export async function POST(
           registrationType: 'group',
           recipientEmail: group.groupLeaderEmail,
           recipientName: group.groupLeaderName,
-          emailType: 'event_reminder',
-          subject: `Event Reminder: ${event.name}`,
+          emailType: templateType,
+          subject,
           htmlContent: emailHtml,
-          metadata: {
-            groupName: group.groupName,
-            totalParticipants: group.totalParticipants,
-          },
+          metadata: { groupName: group.groupName, totalParticipants: group.totalParticipants },
         })
 
         results.sent++
       } catch (error) {
         results.failed++
-        results.errors.push(`Failed to send to ${group.groupLeaderEmail}: ${error instanceof Error ? error.message : 'Unknown error'}`)
-
+        results.errors.push(
+          `Failed to send to ${group.groupLeaderEmail}: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`,
+        )
         await logEmailFailure(
           {
             organizationId,
@@ -452,53 +627,56 @@ export async function POST(
             registrationType: 'group',
             recipientEmail: group.groupLeaderEmail,
             recipientName: group.groupLeaderName,
-            emailType: 'event_reminder',
-            subject: `Event Reminder: ${event.name}`,
+            emailType: templateType,
+            subject,
             htmlContent: '',
           },
-          error instanceof Error ? error.message : 'Unknown error'
+          error instanceof Error ? error.message : 'Unknown error',
         )
       }
     }
 
-    // Send to individual registrations
+    // Individual registrations
     for (const individual of individualRegistrations) {
       try {
-        const individualAdditionalInfo = buildAdditionalInfo(individual, false)
-        const emailHtml = generateEventReminderEmail({
-          participantName: `${individual.firstName} ${individual.lastName}`,
-          eventName: event.name,
-          eventDate,
-          eventLocation,
-          accessCode: individual.confirmationCode,
-          organizationName: event.organization.name,
-          additionalInfo: individualAdditionalInfo,
-        })
+        const emailHtml = buildIndividualEmailHtml(
+          templateType,
+          individual,
+          event,
+          body,
+          orgName,
+          supportEmail,
+        )
+        if (!emailHtml) continue
 
         await resend.emails.send({
           from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
           to: individual.email,
-          subject: `Event Reminder: ${event.name}`,
+          subject,
           html: emailHtml,
         })
 
+        const recipientName = `${individual.firstName} ${individual.lastName}`
         await logEmail({
           organizationId,
           eventId,
           registrationId: individual.id,
           registrationType: 'individual',
           recipientEmail: individual.email,
-          recipientName: `${individual.firstName} ${individual.lastName}`,
-          emailType: 'event_reminder',
-          subject: `Event Reminder: ${event.name}`,
+          recipientName,
+          emailType: templateType,
+          subject,
           htmlContent: emailHtml,
         })
 
         results.sent++
       } catch (error) {
         results.failed++
-        results.errors.push(`Failed to send to ${individual.email}: ${error instanceof Error ? error.message : 'Unknown error'}`)
-
+        results.errors.push(
+          `Failed to send to ${individual.email}: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`,
+        )
         await logEmailFailure(
           {
             organizationId,
@@ -507,11 +685,11 @@ export async function POST(
             registrationType: 'individual',
             recipientEmail: individual.email,
             recipientName: `${individual.firstName} ${individual.lastName}`,
-            emailType: 'event_reminder',
-            subject: `Event Reminder: ${event.name}`,
+            emailType: templateType,
+            subject,
             htmlContent: '',
           },
-          error instanceof Error ? error.message : 'Unknown error'
+          error instanceof Error ? error.message : 'Unknown error',
         )
       }
     }
@@ -519,13 +697,10 @@ export async function POST(
     return NextResponse.json({
       success: true,
       results,
-      message: `Sent ${results.sent} reminder emails${results.failed > 0 ? `, ${results.failed} failed` : ''}`,
+      message: `Sent ${results.sent} email(s)${results.failed > 0 ? `, ${results.failed} failed` : ''}`,
     })
   } catch (error) {
-    console.error('Error sending reminder emails:', error)
-    return NextResponse.json(
-      { error: 'Failed to send reminder emails' },
-      { status: 500 }
-    )
+    console.error('Error sending emails:', error)
+    return NextResponse.json({ error: 'Failed to send emails' }, { status: 500 })
   }
 }

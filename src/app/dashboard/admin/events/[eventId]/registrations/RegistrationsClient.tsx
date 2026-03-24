@@ -74,6 +74,8 @@ interface RegistrationsClientProps {
   individualRegistrations: IndividualRegistration[]
   totalRegistrations: number
   totalParticipants: number
+  groupRegistrationEnabled?: boolean
+  individualRegistrationEnabled?: boolean
 }
 
 type RegistrationType = 'all' | 'group' | 'individual'
@@ -87,6 +89,8 @@ export default function RegistrationsClient({
   individualRegistrations,
   totalRegistrations,
   totalParticipants,
+  groupRegistrationEnabled,
+  individualRegistrationEnabled,
 }: RegistrationsClientProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [registrationTypeFilter, setRegistrationTypeFilter] =
@@ -915,6 +919,8 @@ export default function RegistrationsClient({
         onOpenChange={setReminderModalOpen}
         eventId={eventId}
         eventName={eventName}
+        groupRegistrationEnabled={groupRegistrationEnabled ?? (groupRegistrations.length > 0 || individualRegistrations.length === 0)}
+        individualRegistrationEnabled={individualRegistrationEnabled ?? (individualRegistrations.length > 0 || groupRegistrations.length === 0)}
       />
     </div>
   )
