@@ -4,14 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { format } from 'date-fns'
-
-// Helper function to adjust UTC dates for display without timezone shift
-// This ensures dates display as stored (e.g., Feb 6 stays Feb 6 regardless of user timezone)
-function adjustDateForDisplay(dateStr: string): Date {
-  const date = new Date(dateStr)
-  const timezoneOffset = date.getTimezoneOffset() * 60000
-  return new Date(date.getTime() + timezoneOffset)
-}
+import { parseDateOnly } from '@/lib/utils'
 
 interface ScheduleEntry {
   id: string
@@ -204,8 +197,8 @@ export default function PorosPublicClient({
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-white mb-1">{event.name}</h1>
           <p className="text-white/70 text-sm">
-            {format(adjustDateForDisplay(event.startDate), 'MMMM d')}
-            {event.endDate && ` - ${format(adjustDateForDisplay(event.endDate), 'd, yyyy')}`}
+            {format(parseDateOnly(event.startDate), 'MMMM d')}
+            {event.endDate && ` - ${format(parseDateOnly(event.endDate), 'd, yyyy')}`}
           </p>
           {event.locationName && (
             <p className="text-white/50 text-sm mt-1">{event.locationName}</p>
@@ -638,8 +631,8 @@ export default function PorosPublicClient({
               <h4 className="font-semibold text-[#1E3A5F] mb-2">Event Details</h4>
               <p className="text-gray-600">{event.name}</p>
               <p className="text-gray-500 text-sm mt-1">
-                {format(adjustDateForDisplay(event.startDate), 'MMMM d, yyyy')}
-                {event.endDate && ` - ${format(adjustDateForDisplay(event.endDate), 'MMMM d, yyyy')}`}
+                {format(parseDateOnly(event.startDate), 'MMMM d, yyyy')}
+                {event.endDate && ` - ${format(parseDateOnly(event.endDate), 'MMMM d, yyyy')}`}
               </p>
               {event.locationName && (
                 <p className="text-gray-500 text-sm">{event.locationName}</p>

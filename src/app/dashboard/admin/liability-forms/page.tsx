@@ -18,6 +18,7 @@ import {
   Loader2
 } from 'lucide-react'
 import { format } from 'date-fns'
+import { parseDateOnly } from '@/lib/utils'
 
 interface Event {
   id: string
@@ -135,8 +136,8 @@ export default function LiabilityFormsPage() {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Calendar className="w-4 h-4" />
             <span>
-              {format(new Date(event.startDate), 'MMM d, yyyy')}
-              {event.endDate && ` - ${format(new Date(event.endDate), 'MMM d, yyyy')}`}
+              {format(parseDateOnly(event.startDate), 'MMM d, yyyy')}
+              {event.endDate && ` - ${format(parseDateOnly(event.endDate), 'MMM d, yyyy')}`}
             </span>
           </div>
           {event.locationName && (

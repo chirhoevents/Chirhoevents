@@ -44,7 +44,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { cn } from '@/lib/utils'
+import { cn, parseDateOnly } from '@/lib/utils'
 
 interface Event {
   id: string
@@ -309,14 +309,14 @@ export default function EventsListClient({
       id: 'upcoming',
       label: 'Upcoming',
       count: events.filter(
-        (e) => new Date(e.startDate) >= new Date() && e.status !== 'draft'
+        (e) => parseDateOnly(e.startDate) >= new Date() && e.status !== 'draft'
       ).length,
     },
     {
       id: 'past',
       label: 'Past',
       count: events.filter(
-        (e) => new Date(e.endDate) < new Date() && e.status !== 'draft'
+        (e) => parseDateOnly(e.endDate) < new Date() && e.status !== 'draft'
       ).length,
     },
     {
@@ -566,8 +566,8 @@ export default function EventsListClient({
                       </td>
                       <td className="py-4 px-6">
                         <div className="text-sm text-[#6B7280]">
-                          {format(new Date(event.startDate), 'MMM d, yyyy')} -{' '}
-                          {format(new Date(event.endDate), 'MMM d, yyyy')}
+                          {format(parseDateOnly(event.startDate), 'MMM d, yyyy')} -{' '}
+                          {format(parseDateOnly(event.endDate), 'MMM d, yyyy')}
                         </div>
                       </td>
                       <td className="py-4 px-6">

@@ -30,6 +30,7 @@ import {
   ChevronUp,
 } from 'lucide-react'
 import { format } from 'date-fns'
+import { parseDateOnly } from '@/lib/utils'
 import { PublicNav } from '@/components/PublicNav'
 
 interface Event {
@@ -222,8 +223,8 @@ export default function EventsPage() {
 
   const getRegistrationStatus = (event: Event) => {
     const now = new Date()
-    const startDate = new Date(event.startDate)
-    const endDate = new Date(event.endDate)
+    const startDate = parseDateOnly(event.startDate)
+    const endDate = parseDateOnly(event.endDate)
 
     // Event has ended
     if (endDate < now) {
@@ -260,8 +261,8 @@ export default function EventsPage() {
   }
 
   const formatDateRange = (start: string, end: string) => {
-    const startDate = new Date(start)
-    const endDate = new Date(end)
+    const startDate = parseDateOnly(start)
+    const endDate = parseDateOnly(end)
     const isSameMonth = startDate.getMonth() === endDate.getMonth()
     const isSameYear = startDate.getFullYear() === endDate.getFullYear()
 

@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
+import { parseDateOnly } from '@/lib/utils'
 import ExportAllDataModal from '@/components/admin/ExportAllDataModal'
 import DashboardBulkEmailModal from '@/components/admin/DashboardBulkEmailModal'
 import RegistrationLimitModal from '@/components/admin/RegistrationLimitModal'
@@ -309,8 +310,8 @@ export default function DashboardClient() {
                           {event.name}
                         </h3>
                         <p className="text-sm text-[#6B7280] mb-2">
-                          {format(new Date(event.startDate), 'MMM d')} -{' '}
-                          {format(new Date(event.endDate), 'MMM d, yyyy')}
+                          {format(parseDateOnly(event.startDate), 'MMM d')} -{' '}
+                          {format(parseDateOnly(event.endDate), 'MMM d, yyyy')}
                         </p>
                         <p className="text-sm text-[#6B7280]">
                           {event.totalRegistrations} registrations
