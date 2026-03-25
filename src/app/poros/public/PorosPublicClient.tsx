@@ -4,14 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { format } from 'date-fns'
-
-// Helper function to adjust UTC dates for display without timezone shift
-// This ensures dates display as stored (e.g., Feb 6 stays Feb 6 regardless of user timezone)
-function adjustDateForDisplay(dateStr: string): Date {
-  const date = new Date(dateStr)
-  const timezoneOffset = date.getTimezoneOffset() * 60000
-  return new Date(date.getTime() + timezoneOffset)
-}
+import { parseDateOnly } from '@/lib/utils'
 
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -154,7 +147,7 @@ export default function PorosPublicClient({
     // Apply date range filter
     if (startDateFrom || startDateTo) {
       events = events.filter((event) => {
-        const eventStart = new Date(event.startDate)
+        const eventStart = parseDateOnly(event.startDate)
         if (startDateFrom && eventStart < new Date(startDateFrom)) return false
         if (startDateTo && eventStart > new Date(startDateTo)) return false
         return true
@@ -513,8 +506,8 @@ export default function PorosPublicClient({
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-[#1E3A5F] text-lg truncate">{event.name}</h3>
                     <p className="text-gray-500 text-sm mt-1">
-                      {format(adjustDateForDisplay(event.startDate), 'MMM d')}
-                      {event.endDate && ` - ${format(adjustDateForDisplay(event.endDate), 'MMM d, yyyy')}`}
+                      {format(parseDateOnly(event.startDate), 'MMM d')}
+                      {event.endDate && ` - ${format(parseDateOnly(event.endDate), 'MMM d, yyyy')}`}
                     </p>
                     {(event.locationName || event.locationCity) && (
                       <p className="text-gray-400 text-sm truncate flex items-center gap-1">
