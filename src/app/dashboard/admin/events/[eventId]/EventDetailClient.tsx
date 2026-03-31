@@ -49,6 +49,7 @@ import Link from 'next/link'
 import { format } from 'date-fns'
 import { parseDateOnly } from '@/lib/utils'
 import SendReminderEmailModal from '@/components/admin/SendReminderEmailModal'
+import CatalogQuestionPicker from '@/components/admin/CatalogQuestionPicker'
 
 interface EventDetailClientProps {
   event: {
@@ -474,6 +475,9 @@ export default function EventDetailClient({
           )}
           {settings?.vendorRegistrationEnabled && (
             <TabsTrigger value="vendors">Vendors</TabsTrigger>
+          )}
+          {(settings?.groupRegistrationEnabled || settings?.individualRegistrationEnabled) && (
+            <TabsTrigger value="questions">Questions</TabsTrigger>
           )}
           <TabsTrigger value="reports">Reports</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -1246,6 +1250,22 @@ export default function EventDetailClient({
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+        )}
+
+        {/* Registration Questions Tab */}
+        {(settings?.groupRegistrationEnabled || settings?.individualRegistrationEnabled) && (
+          <TabsContent value="questions" className="space-y-6">
+            <CatalogQuestionPicker
+              eventId={event.id}
+              registrationMode={
+                settings?.groupRegistrationEnabled && settings?.individualRegistrationEnabled
+                  ? 'both'
+                  : settings?.groupRegistrationEnabled
+                    ? 'group'
+                    : 'individual'
+              }
+            />
           </TabsContent>
         )}
 
