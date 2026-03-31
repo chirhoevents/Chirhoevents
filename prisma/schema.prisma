@@ -1047,6 +1047,7 @@ enum QuestionType {
   yes_no
   multiple_choice
   dropdown
+  multi_select
 }
 
 enum QuestionAppliesTo {
@@ -1149,7 +1150,9 @@ enum ParticipantSortOrder {
 
 model CustomRegistrationQuestion {
   id            String   @id @default(uuid()) @db.Uuid
-  eventId       String   @map("event_id") @db.Uuid
+  // Nullable: template rows (isTemplate = true) have eventId = null.
+  // Event-specific questions retain their non-null eventId.
+  eventId       String?  @map("event_id") @db.Uuid
   questionText  String   @map("question_text") @db.Text
   questionType  QuestionType @map("question_type")
   options       Json?
@@ -1159,8 +1162,19 @@ model CustomRegistrationQuestion {
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  // Catalog fields
+  // Non-null = this question originates from the catalog (e.g. "language_spoken").
+  // Null = fully custom question created by the organizer from scratch.
+  catalogSlug     String?  @map("catalog_slug")
+  // UI grouping: "parish_info" | "demographics" | "event_experience" |
+  //              "faith_sacraments" | "logistics" | "dietary_accessibility"
+  catalogCategory String?  @map("catalog_category")
+  // true = master catalog template (eventId = null, never shown to registrants).
+  // false = normal event-scoped question.
+  isTemplate      Boolean  @default(false) @map("is_template")
+
   // Relations
-  event   Event                          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event   Event?                         @relation(fields: [eventId], references: [id], onDelete: Cascade)
   answers CustomRegistrationAnswer[]
 
   @@index([eventId], name: "idx_custom_questions_event")
