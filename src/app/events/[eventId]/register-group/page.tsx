@@ -10,6 +10,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useRegistrationQueue } from '@/hooks/useRegistrationQueue'
 import RegistrationTimer from '@/components/RegistrationTimer'
 import LoadingScreen from '@/components/LoadingScreen'
+import CustomQuestionRenderer, {
+  type CustomQuestion,
+  type CustomAnswersMap,
+} from '@/components/registration/CustomQuestionRenderer'
 
 interface EventPricing {
   youthRegularPrice: number
@@ -91,6 +95,8 @@ export default function GroupRegistrationPage() {
   const [event, setEvent] = useState<EventData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
+  const [customQuestions, setCustomQuestions] = useState<CustomQuestion[]>([])
+  const [customAnswers, setCustomAnswers] = useState<CustomAnswersMap>({})
 
   // Coupon verification state
   const [verifyingCoupon, setVerifyingCoupon] = useState(false)
@@ -154,6 +160,21 @@ export default function GroupRegistrationPage() {
       }
     }
     loadEvent()
+  }, [eventId])
+
+  // Load custom questions for group registration (group/both/all only)
+  useEffect(() => {
+    async function loadQuestions() {
+      try {
+        const res = await fetch(`/api/events/${eventId}/registration-questions?type=group`)
+        if (!res.ok) return
+        const data = await res.json()
+        setCustomQuestions(data.questions ?? [])
+      } catch {
+        // Non-fatal: custom questions are supplemental
+      }
+    }
+    loadQuestions()
   }, [eventId])
 
   // Auto-switch housing type if the selected one is sold out
@@ -443,6 +464,12 @@ export default function GroupRegistrationPage() {
       specialRequests: formData.specialRequests,
       couponCode: formData.couponCode,
     })
+
+    // Persist custom answers so the review page can include them
+    sessionStorage.setItem(
+      `chirho_custom_answers_${eventId}`,
+      JSON.stringify(customAnswers)
+    )
 
     router.push(`/events/${eventId}/register-group/review?${params.toString()}`)
   }
@@ -1159,6 +1186,28 @@ export default function GroupRegistrationPage() {
                     )}
                   </CardContent>
                 </Card>
+
+                {/* Additional Questions (catalog / custom) */}
+                {customQuestions.length > 0 && (
+                  <Card className="mb-6">
+                    <CardHeader>
+                      <CardTitle>Additional Questions</CardTitle>
+                      <CardDescription>Please answer the following questions from the event organizer.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-5">
+                      {customQuestions.map((q) => (
+                        <CustomQuestionRenderer
+                          key={q.id}
+                          question={q}
+                          answers={customAnswers}
+                          onChange={(id, val) =>
+                            setCustomAnswers((prev) => ({ ...prev, [id]: val }))
+                          }
+                        />
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* Terms and Privacy Agreement */}
                 <Card className="mb-6">
