@@ -86,6 +86,8 @@ model Organization {
   liabilityForms          LiabilityForm[]
   safeEnvironmentCertificates SafeEnvironmentCertificate[]
   liabilityFormTemplates  LiabilityFormTemplate[]
+  liabilityFormSectionConfigs LiabilityFormSectionConfig[]
+  lettersOfGoodStanding   LetterOfGoodStanding[]
   supportTickets          SupportTicket[]
   invoices                Invoice[]
   billingNotes            BillingNote[]
@@ -129,6 +131,7 @@ model User {
   reportTemplates ReportTemplate[] @relation("ReportTemplatesCreated")
   paymentsProcessed Payment[] @relation("PaymentsProcessed")
   liabilityFormsApproved LiabilityForm[] @relation("LiabilityFormsApproved")
+  lettersVerified        LetterOfGoodStanding[] @relation("VerifiedLetters")
   organizationsCreated Organization[] @relation("OrganizationsCreatedByUser")
   supportTicketsSubmitted SupportTicket[] @relation("TicketsSubmittedByUser")
   supportTicketsAssigned  SupportTicket[] @relation("TicketsAssignedToUser")
@@ -181,6 +184,8 @@ model Event {
   customRegistrationQuestions CustomRegistrationQuestion[]
   liabilityForms            LiabilityForm[]
   liabilityFormTemplates    LiabilityFormTemplate[]
+  liabilityFormSectionConfigs LiabilityFormSectionConfig[]
+  lettersOfGoodStanding     LetterOfGoodStanding[]
   waitlistEntries           WaitlistEntry[]
   vendorRegistrations       VendorRegistration[]
   staffRegistrations        StaffRegistration[]
@@ -351,6 +356,15 @@ model EventSettings {
 
   // Adoration feature
   porosAdorationEnabled           Boolean  @default(false) @map("poros_adoration_enabled")
+
+  // Letter of Good Standing configuration
+  // 'file_upload' | 'instructions_only' | 'both'
+  letterOfGoodStandingMethod      String   @default("both") @map("letter_of_good_standing_method") @db.VarChar(50)
+  letterOfGoodStandingContactName String?  @map("letter_of_good_standing_contact_name") @db.VarChar(255)
+  letterOfGoodStandingContactEmail String? @map("letter_of_good_standing_contact_email") @db.VarChar(255)
+  letterOfGoodStandingInstructions String? @map("letter_of_good_standing_instructions") @db.Text
+  // JSON array of ParticipantType values that require a letter, e.g. ["priest","deacon","seminarian"]
+  letterOfGoodStandingRequiredFor Json     @default("[\"priest\", \"deacon\", \"seminarian\"]") @map("letter_of_good_standing_required_for") @db.JsonB
 
   createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -620,6 +634,7 @@ model Participant {
   organization      Organization      @relation(fields: [organizationId], references: [id])
   liabilityForms    LiabilityForm[]
   safeEnvironmentCertificates SafeEnvironmentCertificate[]
+  lettersOfGoodStanding LetterOfGoodStanding[]
 
   @@index([groupRegistrationId], name: "idx_participant_group")
   @@index([participantType], name: "idx_participant_type")
@@ -764,6 +779,7 @@ model LiabilityForm {
   individualRegistration IndividualRegistration? @relation(fields: [individualRegistrationId], references: [id])
   safeEnvironmentCertificates SafeEnvironmentCertificate[]
   staffRegistrations     StaffRegistration[]
+  lettersOfGoodStanding  LetterOfGoodStanding[]
 
   @@index([organizationId], name: "idx_liability_org")
   @@index([eventId], name: "idx_liability_event")
@@ -839,6 +855,80 @@ model LiabilityFormTemplate {
   @@index([eventId], name: "idx_template_event")
   @@index([active], name: "idx_template_active")
   @@map("liability_form_templates")
+}
+
+// ===================================
+// LIABILITY FORM SECTION CONFIG
+// ===================================
+
+model LiabilityFormSectionConfig {
+  id              String          @id @default(uuid()) @db.Uuid
+  organizationId  String          @map("organization_id") @db.Uuid
+  eventId         String          @map("event_id") @db.Uuid
+  participantType ParticipantType @map("participant_type")
+  // Known values: basic_info, medical, emergency_contacts, insurance,
+  // transportation_consent, photo_video_consent, medical_release,
+  // emergency_treatment, safe_environment_cert,
+  // letter_of_good_standing, clergy_info, housing
+  sectionKey      String          @map("section_key") @db.VarChar(100)
+  enabled         Boolean         @default(true)
+  required        Boolean         @default(true)
+  displayOrder    Int             @default(0) @map("display_order")
+  customLabel     String?         @map("custom_label") @db.VarChar(255)
+  customHelpText  String?         @map("custom_help_text") @db.Text
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  event        Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, participantType, sectionKey], name: "uq_section_config")
+  @@index([eventId], name: "idx_section_config_event")
+  @@index([organizationId], name: "idx_section_config_org")
+  @@map("liability_form_section_configs")
+}
+
+// ===================================
+// LETTER OF GOOD STANDING
+// ===================================
+
+model LetterOfGoodStanding {
+  id                      String          @id @default(uuid()) @db.Uuid
+  organizationId          String          @map("organization_id") @db.Uuid
+  eventId                 String          @map("event_id") @db.Uuid
+  liabilityFormId         String?         @map("liability_form_id") @db.Uuid
+  participantId           String?         @map("participant_id") @db.Uuid
+  participantName         String          @map("participant_name") @db.VarChar(255)
+  participantType         ParticipantType @map("participant_type")
+  // 'file_upload' | 'external_submission' | 'not_required' | 'pending'
+  submissionMethod        String          @default("pending") @map("submission_method") @db.VarChar(50)
+  // File upload fields
+  fileUrl                 String?         @map("file_url") @db.Text
+  originalFilename        String?         @map("original_filename") @db.VarChar(255)
+  fileSizeBytes           BigInt?         @map("file_size_bytes")
+  uploadedAt              DateTime?       @map("uploaded_at") @db.Timestamptz(6)
+  // External submission tracking
+  submittedToContact      String?         @map("submitted_to_contact") @db.VarChar(255)
+  submittedToEmail        String?         @map("submitted_to_email") @db.VarChar(255)
+  externalSubmissionNotes String?         @map("external_submission_notes") @db.Text
+  // Status: 'pending' | 'submitted_externally' | 'uploaded' | 'verified' | 'rejected'
+  status                  String          @default("pending") @db.VarChar(50)
+  verifiedAt              DateTime?       @map("verified_at") @db.Timestamptz(6)
+  verifiedByUserId        String?         @map("verified_by_user_id") @db.Uuid
+  rejectionReason         String?         @map("rejection_reason") @db.Text
+  createdAt               DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization  Organization   @relation(fields: [organizationId], references: [id])
+  event         Event          @relation(fields: [eventId], references: [id])
+  liabilityForm LiabilityForm? @relation(fields: [liabilityFormId], references: [id])
+  participant   Participant?   @relation(fields: [participantId], references: [id])
+  verifiedBy    User?          @relation("VerifiedLetters", fields: [verifiedByUserId], references: [id])
+
+  @@index([eventId], name: "idx_logs_event")
+  @@index([organizationId], name: "idx_logs_org")
+  @@index([status], name: "idx_logs_status")
+  @@map("letters_of_good_standing")
 }
 
 // ===================================
@@ -971,6 +1061,10 @@ enum ParticipantType {
   youth_o18
   chaperone
   priest
+  deacon
+  seminarian
+  religious_sister
+  religious_brother
 }
 
 enum ClergyTitle {
@@ -979,6 +1073,8 @@ enum ClergyTitle {
   mr
   most_reverend
   seminarian
+  sister
+  brother
 }
 
 enum SafeEnvironmentStatus {
@@ -1033,6 +1129,7 @@ enum LiabilityFormType {
   youth_u18
   youth_o18_chaperone
   clergy
+  religious
 }
 
 enum CertificateStatus {
