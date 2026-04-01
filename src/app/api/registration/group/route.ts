@@ -420,6 +420,20 @@ export async function POST(request: NextRequest) {
       return reg
     })
 
+    // Save custom question answers (group-level: appliesTo = 'group' or 'both')
+    const customAnswers: Array<{ questionId: string; answerText: string }> = body.customAnswers ?? []
+    if (customAnswers.length > 0) {
+      await prisma.customRegistrationAnswer.createMany({
+        data: customAnswers.map(({ questionId, answerText }) => ({
+          questionId,
+          registrationId: registration.id,
+          registrationType: 'group' as const,
+          answerText,
+        })),
+        skipDuplicates: true,
+      })
+    }
+
     // NOTE: Capacity was already atomically decremented above (Fix #4) — no second decrement here.
 
     // Update option-level capacity (housing type for group registrations)

@@ -349,6 +349,20 @@ export async function POST(request: NextRequest) {
       data: { qrCode: qrCodeDataUrl },
     })
 
+    // Save custom question answers
+    const customAnswers: Array<{ questionId: string; answerText: string }> = body.customAnswers ?? []
+    if (customAnswers.length > 0) {
+      await prisma.customRegistrationAnswer.createMany({
+        data: customAnswers.map(({ questionId, answerText }) => ({
+          questionId,
+          registrationId: registration.id,
+          registrationType: 'individual' as const,
+          answerText,
+        })),
+        skipDuplicates: true,
+      })
+    }
+
     // Create liability form if required for individuals
     const liabilityFormsRequired = event.settings?.liabilityFormsRequiredIndividual ?? false
     if (liabilityFormsRequired) {
