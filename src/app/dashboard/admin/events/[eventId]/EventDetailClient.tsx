@@ -476,12 +476,8 @@ export default function EventDetailClient({
           {settings?.vendorRegistrationEnabled && (
             <TabsTrigger value="vendors">Vendors</TabsTrigger>
           )}
-          {(settings?.groupRegistrationEnabled || settings?.individualRegistrationEnabled) && (
-            <TabsTrigger value="questions">Questions</TabsTrigger>
-          )}
           <TabsTrigger value="reports">Reports</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-        </TabsList>
+          <TabsTrigger value="settings">Settings</TabsTrigger>        </TabsList>
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
@@ -1253,22 +1249,6 @@ export default function EventDetailClient({
           </TabsContent>
         )}
 
-        {/* Registration Questions Tab */}
-        {(settings?.groupRegistrationEnabled || settings?.individualRegistrationEnabled) && (
-          <TabsContent value="questions" className="space-y-6">
-            <CatalogQuestionPicker
-              eventId={event.id}
-              registrationMode={
-                settings?.groupRegistrationEnabled && settings?.individualRegistrationEnabled
-                  ? 'both'
-                  : settings?.groupRegistrationEnabled
-                    ? 'group'
-                    : 'individual'
-              }
-            />
-          </TabsContent>
-        )}
-
         {/* Reports Tab */}
         <TabsContent value="reports">
           <Card className="bg-white border-[#D1D5DB]">
@@ -1528,6 +1508,20 @@ export default function EventDetailClient({
               </div>
             </CardContent>
           </Card>
+
+          {/* Registration Questions */}
+          {(settings?.groupRegistrationEnabled || settings?.individualRegistrationEnabled) && (
+            <CatalogQuestionPicker
+              eventId={event.id}
+              registrationMode={
+                settings?.groupRegistrationEnabled && settings?.individualRegistrationEnabled
+                  ? 'both'
+                  : settings?.groupRegistrationEnabled
+                    ? 'group'
+                    : 'individual'
+              }
+            />
+          )}
 
           {/* Save Settings Button */}
           <div className="flex justify-end">
