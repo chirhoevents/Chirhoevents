@@ -1143,6 +1143,7 @@ enum QuestionType {
   text
   yes_no
   multiple_choice
+  multi_select
   dropdown
 }
 
