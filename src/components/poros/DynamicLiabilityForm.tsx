@@ -1040,6 +1040,8 @@ export function DynamicLiabilityForm({
  * Returns which consent checkboxes should be shown based on a loaded FormConfig.
  * Call this from a parent that received config via onConfigLoaded.
  */
+export default DynamicLiabilityForm
+
 export function getConsentVisibility(config: FormConfig | null) {
   if (!config) {
     // Default: show all
