@@ -1145,7 +1145,6 @@ enum QuestionType {
   multiple_choice
   multi_select
   dropdown
-  multi_select
 }
 
 enum QuestionAppliesTo {
