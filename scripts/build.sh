@@ -26,93 +26,6 @@ END $$;
 
 -- Drop the old poros_confession_times table if it exists (we use poros_confessions now)
 DROP TABLE IF EXISTS "poros_confession_times" CASCADE;
-
--- ---------------------------------------------------------------
--- Schema drift cleanup: migrate data off removed enum values and
--- drop columns removed from schema.prisma. Each block is idempotent.
--- We do NOT try to recreate the enum types here — prisma db push
--- handles that structural change. We only ensure no rows carry
--- values that would be lost so --accept-data-loss is truly safe.
--- ---------------------------------------------------------------
-
--- Drop letter_of_good_standing columns from event_settings
-ALTER TABLE "event_settings" DROP COLUMN IF EXISTS "letter_of_good_standing_method";
-ALTER TABLE "event_settings" DROP COLUMN IF EXISTS "letter_of_good_standing_required_for";
-
--- ParticipantType: migrate removed values in every dependent table.
--- Using EXCEPTION blocks so an unknown table causes a skip, not a failure.
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_enum e
-    JOIN pg_type t ON t.oid = e.enumtypid
-    WHERE t.typname = 'ParticipantType'
-      AND e.enumlabel IN ('deacon','seminarian','religious_sister','religious_brother')
-  ) THEN
-    -- participants (NOT NULL — map to nearest value)
-    UPDATE "participants"
-      SET "participant_type" = 'priest'
-      WHERE "participant_type"::text IN ('deacon','seminarian');
-    UPDATE "participants"
-      SET "participant_type" = 'chaperone'
-      WHERE "participant_type"::text IN ('religious_sister','religious_brother');
-
-    -- liability_forms (nullable)
-    UPDATE "liability_forms"
-      SET "participant_type" = NULL
-      WHERE "participant_type"::text IN ('deacon','seminarian','religious_sister','religious_brother');
-
-    -- liability_form_section_configs (nullable assumed)
-    BEGIN
-      UPDATE "liability_form_section_configs"
-        SET "participant_type" = NULL
-        WHERE "participant_type"::text IN ('deacon','seminarian','religious_sister','religious_brother');
-    EXCEPTION WHEN OTHERS THEN NULL; END;
-
-    -- letters_of_good_standing (map to priest — clergy context)
-    BEGIN
-      UPDATE "letters_of_good_standing"
-        SET "participant_type" = 'priest'
-        WHERE "participant_type"::text IN ('deacon','seminarian','religious_sister','religious_brother');
-    EXCEPTION WHEN OTHERS THEN NULL; END;
-  END IF;
-END $$;
-
--- ClergyTitle: nullify removed values (column is nullable everywhere)
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_enum e
-    JOIN pg_type t ON t.oid = e.enumtypid
-    WHERE t.typname = 'ClergyTitle'
-      AND e.enumlabel IN ('sister','brother')
-  ) THEN
-    UPDATE "participants"
-      SET "clergy_title" = NULL
-      WHERE "clergy_title"::text IN ('sister','brother');
-    UPDATE "liability_forms"
-      SET "clergy_title" = NULL
-      WHERE "clergy_title"::text IN ('sister','brother');
-  END IF;
-END $$;
-
--- LiabilityFormType: migrate religious → clergy
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_enum e
-    JOIN pg_type t ON t.oid = e.enumtypid
-    WHERE t.typname = 'LiabilityFormType'
-      AND e.enumlabel = 'religious'
-  ) THEN
-    UPDATE "liability_forms"
-      SET "form_type" = 'clergy'
-      WHERE "form_type"::text = 'religious';
-    UPDATE "liability_form_templates"
-      SET "form_type" = 'clergy'
-      WHERE "form_type"::text = 'religious';
-  END IF;
-END $$;
 SQLEOF
 
 # Run pre-cleanup SQL
@@ -120,8 +33,9 @@ echo "Executing pre-cleanup SQL..."
 npx prisma db execute --file /tmp/pre-cleanup.sql --schema prisma/schema.prisma
 
 echo "Running prisma db push..."
-# --accept-data-loss is safe here because the pre-cleanup above already migrated
-# every row that used removed enum values, so no actual data is lost.
+# --accept-data-loss allows the push to proceed if Prisma detects any potential
+# data-loss (e.g. enum drift between DB and schema). Since all our schema changes
+# only ADD enum values / columns (never remove them), this is safe.
 # This flag does NOT drop tables outside the Prisma schema — poros_confessions,
 # poros_adoration, poros_info_items etc. are completely unaffected.
 npx prisma db push --skip-generate --accept-data-loss
