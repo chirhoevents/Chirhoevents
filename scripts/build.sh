@@ -26,6 +26,113 @@ END $$;
 
 -- Drop the old poros_confession_times table if it exists (we use poros_confessions now)
 DROP TABLE IF EXISTS "poros_confession_times" CASCADE;
+
+-- ---------------------------------------------------------------
+-- Schema drift cleanup: remove columns / enum values that were
+-- removed from schema.prisma but still exist in the database.
+-- Each block is idempotent — safe to run on every deploy.
+-- ---------------------------------------------------------------
+
+-- Drop letter_of_good_standing columns from event_settings
+ALTER TABLE "event_settings" DROP COLUMN IF EXISTS "letter_of_good_standing_method";
+ALTER TABLE "event_settings" DROP COLUMN IF EXISTS "letter_of_good_standing_required_for";
+
+-- ParticipantType: remove deacon, seminarian, religious_sister, religious_brother
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_enum e
+    JOIN pg_type t ON t.oid = e.enumtypid
+    WHERE t.typname = 'ParticipantType'
+      AND e.enumlabel IN ('deacon','seminarian','religious_sister','religious_brother')
+  ) THEN
+    -- Migrate data to the closest remaining values
+    UPDATE "participants"
+      SET "participant_type" = 'priest'
+      WHERE "participant_type"::text IN ('deacon','seminarian');
+    UPDATE "participants"
+      SET "participant_type" = 'chaperone'
+      WHERE "participant_type"::text IN ('religious_sister','religious_brother');
+    UPDATE "liability_forms"
+      SET "participant_type" = 'priest'
+      WHERE "participant_type"::text IN ('deacon','seminarian');
+    UPDATE "liability_forms"
+      SET "participant_type" = 'chaperone'
+      WHERE "participant_type"::text IN ('religious_sister','religious_brother');
+
+    -- Detach columns from the old enum, drop and recreate it
+    ALTER TABLE "participants"    ALTER COLUMN "participant_type" TYPE text;
+    ALTER TABLE "liability_forms" ALTER COLUMN "participant_type" TYPE text;
+    DROP TYPE "ParticipantType";
+    CREATE TYPE "ParticipantType" AS ENUM ('youth_u18','youth_o18','chaperone','priest');
+    ALTER TABLE "participants"
+      ALTER COLUMN "participant_type" TYPE "ParticipantType"
+      USING "participant_type"::"ParticipantType";
+    ALTER TABLE "liability_forms"
+      ALTER COLUMN "participant_type" TYPE "ParticipantType"
+      USING "participant_type"::"ParticipantType";
+  END IF;
+END $$;
+
+-- ClergyTitle: remove sister, brother
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_enum e
+    JOIN pg_type t ON t.oid = e.enumtypid
+    WHERE t.typname = 'ClergyTitle'
+      AND e.enumlabel IN ('sister','brother')
+  ) THEN
+    -- Nullable column — set to NULL for removed values
+    UPDATE "participants"
+      SET "clergy_title" = NULL
+      WHERE "clergy_title"::text IN ('sister','brother');
+    UPDATE "liability_forms"
+      SET "clergy_title" = NULL
+      WHERE "clergy_title"::text IN ('sister','brother');
+
+    ALTER TABLE "participants"    ALTER COLUMN "clergy_title" TYPE text;
+    ALTER TABLE "liability_forms" ALTER COLUMN "clergy_title" TYPE text;
+    DROP TYPE "ClergyTitle";
+    CREATE TYPE "ClergyTitle" AS ENUM ('father','deacon','mr','most_reverend','seminarian');
+    ALTER TABLE "participants"
+      ALTER COLUMN "clergy_title" TYPE "ClergyTitle"
+      USING "clergy_title"::"ClergyTitle";
+    ALTER TABLE "liability_forms"
+      ALTER COLUMN "clergy_title" TYPE "ClergyTitle"
+      USING "clergy_title"::"ClergyTitle";
+  END IF;
+END $$;
+
+-- LiabilityFormType: remove religious
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_enum e
+    JOIN pg_type t ON t.oid = e.enumtypid
+    WHERE t.typname = 'LiabilityFormType'
+      AND e.enumlabel = 'religious'
+  ) THEN
+    -- Map religious → clergy (closest remaining value)
+    UPDATE "liability_forms"
+      SET "form_type" = 'clergy'
+      WHERE "form_type"::text = 'religious';
+    UPDATE "liability_form_templates"
+      SET "form_type" = 'clergy'
+      WHERE "form_type"::text = 'religious';
+
+    ALTER TABLE "liability_forms"         ALTER COLUMN "form_type" TYPE text;
+    ALTER TABLE "liability_form_templates" ALTER COLUMN "form_type" TYPE text;
+    DROP TYPE "LiabilityFormType";
+    CREATE TYPE "LiabilityFormType" AS ENUM ('youth_u18','youth_o18_chaperone','clergy');
+    ALTER TABLE "liability_forms"
+      ALTER COLUMN "form_type" TYPE "LiabilityFormType"
+      USING "form_type"::"LiabilityFormType";
+    ALTER TABLE "liability_form_templates"
+      ALTER COLUMN "form_type" TYPE "LiabilityFormType"
+      USING "form_type"::"LiabilityFormType";
+  END IF;
+END $$;
 SQLEOF
 
 # Run pre-cleanup SQL
