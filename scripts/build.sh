@@ -28,89 +28,161 @@ END $$;
 DROP TABLE IF EXISTS "poros_confession_times" CASCADE;
 
 -- ---------------------------------------------------------------
--- Schema drift cleanup: migrate data off removed enum values and
--- drop columns removed from schema.prisma. Each block is idempotent.
--- We do NOT try to recreate the enum types here — prisma db push
--- handles that structural change. We only ensure no rows carry
--- values that would be lost so --accept-data-loss is truly safe.
+-- Schema drift cleanup: fully recreate removed enum values by
+-- dynamically finding ALL dependent columns, converting to text,
+-- migrating data, dropping/recreating the enum, then restoring.
+-- Prisma then sees no diff and skips the enum entirely.
+-- Each block is idempotent — checks pg_enum before acting.
 -- ---------------------------------------------------------------
 
 -- Drop letter_of_good_standing columns from event_settings
 ALTER TABLE "event_settings" DROP COLUMN IF EXISTS "letter_of_good_standing_method";
 ALTER TABLE "event_settings" DROP COLUMN IF EXISTS "letter_of_good_standing_required_for";
 
--- ParticipantType: migrate removed values in every dependent table.
--- Using EXCEPTION blocks so an unknown table causes a skip, not a failure.
+-- ParticipantType: remove deacon, seminarian, religious_sister, religious_brother
 DO $$
+DECLARE r RECORD;
 BEGIN
   IF EXISTS (
-    SELECT 1 FROM pg_enum e
-    JOIN pg_type t ON t.oid = e.enumtypid
+    SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
     WHERE t.typname = 'ParticipantType'
       AND e.enumlabel IN ('deacon','seminarian','religious_sister','religious_brother')
   ) THEN
-    -- participants (NOT NULL — map to nearest value)
-    UPDATE "participants"
-      SET "participant_type" = 'priest'
-      WHERE "participant_type"::text IN ('deacon','seminarian');
-    UPDATE "participants"
-      SET "participant_type" = 'chaperone'
-      WHERE "participant_type"::text IN ('religious_sister','religious_brother');
+    -- Collect ALL dependent columns (including tables not in schema.prisma)
+    DROP TABLE IF EXISTS _pt_cols;
+    CREATE TEMP TABLE _pt_cols AS
+    SELECT c.relname AS tbl, a.attname AS col, a.attnotnull AS notnull
+    FROM pg_attribute a
+    JOIN pg_class c ON c.oid = a.attrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE a.atttypid = (SELECT oid FROM pg_type WHERE typname = 'ParticipantType')
+      AND n.nspname = 'public' AND c.relkind = 'r'
+      AND a.attnum > 0 AND NOT a.attisdropped;
 
-    -- liability_forms (nullable)
-    UPDATE "liability_forms"
-      SET "participant_type" = NULL
-      WHERE "participant_type"::text IN ('deacon','seminarian','religious_sister','religious_brother');
+    -- Step 1: convert every dependent column to text
+    FOR r IN SELECT tbl, col FROM _pt_cols LOOP
+      EXECUTE format('ALTER TABLE %I ALTER COLUMN %I TYPE text', r.tbl, r.col);
+    END LOOP;
 
-    -- liability_form_section_configs (nullable assumed)
+    -- Step 2: migrate invalid values out of every table
+    UPDATE "participants" SET "participant_type" = 'priest'
+      WHERE "participant_type" IN ('deacon','seminarian');
+    UPDATE "participants" SET "participant_type" = 'chaperone'
+      WHERE "participant_type" IN ('religious_sister','religious_brother');
     BEGIN
-      UPDATE "liability_form_section_configs"
-        SET "participant_type" = NULL
-        WHERE "participant_type"::text IN ('deacon','seminarian','religious_sister','religious_brother');
+      UPDATE "liability_forms" SET "participant_type" = NULL
+        WHERE "participant_type" IN ('deacon','seminarian','religious_sister','religious_brother');
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN
+      UPDATE "liability_form_section_configs" SET "participant_type" = NULL
+        WHERE "participant_type" IN ('deacon','seminarian','religious_sister','religious_brother');
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN
+      UPDATE "letters_of_good_standing" SET "participant_type" = 'priest'
+        WHERE "participant_type" IN ('deacon','seminarian','religious_sister','religious_brother');
     EXCEPTION WHEN OTHERS THEN NULL; END;
 
-    -- letters_of_good_standing (map to priest — clergy context)
-    BEGIN
-      UPDATE "letters_of_good_standing"
-        SET "participant_type" = 'priest'
-        WHERE "participant_type"::text IN ('deacon','seminarian','religious_sister','religious_brother');
-    EXCEPTION WHEN OTHERS THEN NULL; END;
+    -- Step 3: drop old enum, create new one
+    DROP TYPE "ParticipantType";
+    CREATE TYPE "ParticipantType" AS ENUM ('youth_u18','youth_o18','chaperone','priest');
+
+    -- Step 4: restore all columns to the new enum type
+    FOR r IN SELECT tbl, col, notnull FROM _pt_cols LOOP
+      IF r.notnull THEN
+        -- Ensure no NULL / invalid text survives in NOT NULL columns
+        EXECUTE format(
+          'UPDATE %I SET %I = ''youth_u18'' WHERE %I IS NULL'
+          ' OR %I NOT IN (''youth_u18'',''youth_o18'',''chaperone'',''priest'')',
+          r.tbl, r.col, r.col, r.col
+        );
+      END IF;
+      EXECUTE format(
+        'ALTER TABLE %I ALTER COLUMN %I TYPE "ParticipantType" USING %I::"ParticipantType"',
+        r.tbl, r.col, r.col
+      );
+    END LOOP;
+    DROP TABLE _pt_cols;
   END IF;
 END $$;
 
--- ClergyTitle: nullify removed values (column is nullable everywhere)
+-- ClergyTitle: remove sister, brother
 DO $$
+DECLARE r RECORD;
 BEGIN
   IF EXISTS (
-    SELECT 1 FROM pg_enum e
-    JOIN pg_type t ON t.oid = e.enumtypid
-    WHERE t.typname = 'ClergyTitle'
-      AND e.enumlabel IN ('sister','brother')
+    SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
+    WHERE t.typname = 'ClergyTitle' AND e.enumlabel IN ('sister','brother')
   ) THEN
-    UPDATE "participants"
-      SET "clergy_title" = NULL
-      WHERE "clergy_title"::text IN ('sister','brother');
-    UPDATE "liability_forms"
-      SET "clergy_title" = NULL
-      WHERE "clergy_title"::text IN ('sister','brother');
+    DROP TABLE IF EXISTS _ct_cols;
+    CREATE TEMP TABLE _ct_cols AS
+    SELECT c.relname AS tbl, a.attname AS col, a.attnotnull AS notnull
+    FROM pg_attribute a
+    JOIN pg_class c ON c.oid = a.attrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE a.atttypid = (SELECT oid FROM pg_type WHERE typname = 'ClergyTitle')
+      AND n.nspname = 'public' AND c.relkind = 'r'
+      AND a.attnum > 0 AND NOT a.attisdropped;
+
+    FOR r IN SELECT tbl, col FROM _ct_cols LOOP
+      EXECUTE format('ALTER TABLE %I ALTER COLUMN %I TYPE text', r.tbl, r.col);
+      EXECUTE format('UPDATE %I SET %I = NULL WHERE %I IN (''sister'',''brother'')',
+                     r.tbl, r.col, r.col);
+    END LOOP;
+
+    DROP TYPE "ClergyTitle";
+    CREATE TYPE "ClergyTitle" AS ENUM ('father','deacon','mr','most_reverend','seminarian');
+
+    FOR r IN SELECT tbl, col FROM _ct_cols LOOP
+      EXECUTE format(
+        'ALTER TABLE %I ALTER COLUMN %I TYPE "ClergyTitle" USING %I::"ClergyTitle"',
+        r.tbl, r.col, r.col
+      );
+    END LOOP;
+    DROP TABLE _ct_cols;
   END IF;
 END $$;
 
--- LiabilityFormType: migrate religious → clergy
+-- LiabilityFormType: remove religious → clergy
 DO $$
+DECLARE r RECORD;
 BEGIN
   IF EXISTS (
-    SELECT 1 FROM pg_enum e
-    JOIN pg_type t ON t.oid = e.enumtypid
-    WHERE t.typname = 'LiabilityFormType'
-      AND e.enumlabel = 'religious'
+    SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
+    WHERE t.typname = 'LiabilityFormType' AND e.enumlabel = 'religious'
   ) THEN
-    UPDATE "liability_forms"
-      SET "form_type" = 'clergy'
-      WHERE "form_type"::text = 'religious';
-    UPDATE "liability_form_templates"
-      SET "form_type" = 'clergy'
-      WHERE "form_type"::text = 'religious';
+    DROP TABLE IF EXISTS _lft_cols;
+    CREATE TEMP TABLE _lft_cols AS
+    SELECT c.relname AS tbl, a.attname AS col, a.attnotnull AS notnull
+    FROM pg_attribute a
+    JOIN pg_class c ON c.oid = a.attrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE a.atttypid = (SELECT oid FROM pg_type WHERE typname = 'LiabilityFormType')
+      AND n.nspname = 'public' AND c.relkind = 'r'
+      AND a.attnum > 0 AND NOT a.attisdropped;
+
+    FOR r IN SELECT tbl, col FROM _lft_cols LOOP
+      EXECUTE format('ALTER TABLE %I ALTER COLUMN %I TYPE text', r.tbl, r.col);
+      EXECUTE format('UPDATE %I SET %I = ''clergy'' WHERE %I = ''religious''',
+                     r.tbl, r.col, r.col);
+    END LOOP;
+
+    DROP TYPE "LiabilityFormType";
+    CREATE TYPE "LiabilityFormType" AS ENUM ('youth_u18','youth_o18_chaperone','clergy');
+
+    FOR r IN SELECT tbl, col, notnull FROM _lft_cols LOOP
+      IF r.notnull THEN
+        EXECUTE format(
+          'UPDATE %I SET %I = ''clergy'''
+          ' WHERE %I IS NULL OR %I NOT IN (''youth_u18'',''youth_o18_chaperone'',''clergy'')',
+          r.tbl, r.col, r.col, r.col
+        );
+      END IF;
+      EXECUTE format(
+        'ALTER TABLE %I ALTER COLUMN %I TYPE "LiabilityFormType" USING %I::"LiabilityFormType"',
+        r.tbl, r.col, r.col
+      );
+    END LOOP;
+    DROP TABLE _lft_cols;
   END IF;
 END $$;
 SQLEOF
