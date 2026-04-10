@@ -44,7 +44,7 @@ interface SectionConfig {
   required: boolean
   displayOrder: number
   customLabel: string | null
-  helpText: string | null
+  customHelpText: string | null
 }
 
 type ConfigMap = Record<string, SectionConfig[]>
@@ -72,7 +72,7 @@ export function SectionConfigTab({ eventId }: SectionConfigTabProps) {
       })
       if (!res.ok) throw new Error('Failed to load section configs')
       const data = await res.json()
-      setConfigs(data)
+      setConfigs(data.configs ?? {})
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load configs')
     } finally {
@@ -93,7 +93,17 @@ export function SectionConfigTab({ eventId }: SectionConfigTabProps) {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ participantType: activeType, sections }),
+        body: JSON.stringify({
+          updates: sections.map(s => ({
+            participant_type: activeType,
+            section_key: s.sectionKey,
+            enabled: s.enabled,
+            required: s.required,
+            display_order: s.displayOrder,
+            custom_label: s.customLabel ?? null,
+            custom_help_text: s.customHelpText ?? null,
+          })),
+        }),
       })
       if (!res.ok) {
         const d = await res.json()
@@ -268,8 +278,8 @@ export function SectionConfigTab({ eventId }: SectionConfigTabProps) {
                       <div>
                         <Label className="text-xs text-gray-500 mb-1 block">Help Text (optional)</Label>
                         <Input
-                          value={section.helpText ?? ''}
-                          onChange={e => updateSection(section.sectionKey, { helpText: e.target.value || null })}
+                          value={section.customHelpText ?? ''}
+                          onChange={e => updateSection(section.sectionKey, { customHelpText: e.target.value || null })}
                           placeholder="Shown below section title"
                           className="h-8 text-sm"
                         />
