@@ -49,7 +49,6 @@ import Link from 'next/link'
 import { format } from 'date-fns'
 import { parseDateOnly } from '@/lib/utils'
 import SendReminderEmailModal from '@/components/admin/SendReminderEmailModal'
-import CatalogQuestionPicker from '@/components/admin/CatalogQuestionPicker'
 
 interface EventDetailClientProps {
   event: {
@@ -1508,20 +1507,6 @@ export default function EventDetailClient({
               </div>
             </CardContent>
           </Card>
-
-          {/* Registration Questions */}
-          {(settings?.groupRegistrationEnabled || settings?.individualRegistrationEnabled) && (
-            <CatalogQuestionPicker
-              eventId={event.id}
-              registrationMode={
-                settings?.groupRegistrationEnabled && settings?.individualRegistrationEnabled
-                  ? 'both'
-                  : settings?.groupRegistrationEnabled
-                    ? 'group'
-                    : 'individual'
-              }
-            />
-          )}
 
           {/* Save Settings Button */}
           <div className="flex justify-end">

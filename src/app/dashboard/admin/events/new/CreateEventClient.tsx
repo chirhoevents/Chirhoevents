@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Check, ChevronLeft, ChevronRight, Loader2, Upload, Trash2, Image as ImageIcon } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
+import CatalogQuestionPicker from '@/components/admin/CatalogQuestionPicker'
 
 interface CreateEventClientProps {
   organizationId: string
@@ -2285,6 +2286,25 @@ export default function CreateEventClient({
                   </div>
                 </div>
               </div>
+
+              {/* Registration Questions — only available after the event has been saved */}
+              {isEditMode && eventId && (formData.groupRegistrationEnabled || formData.individualRegistrationEnabled) && (
+                <CatalogQuestionPicker
+                  eventId={eventId}
+                  registrationMode={
+                    formData.groupRegistrationEnabled && formData.individualRegistrationEnabled
+                      ? 'both'
+                      : formData.groupRegistrationEnabled
+                        ? 'group'
+                        : 'individual'
+                  }
+                />
+              )}
+              {!isEditMode && (formData.groupRegistrationEnabled || formData.individualRegistrationEnabled) && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+                  Registration questions can be configured after the event is created.
+                </div>
+              )}
             </>
           )}
 
