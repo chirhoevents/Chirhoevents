@@ -286,7 +286,7 @@ export function LettersTab({ eventId }: LettersTabProps) {
               <div className="flex gap-4 mt-2">
                 {[
                   { value: 'file_upload', label: 'File Upload Only' },
-                  { value: 'external_submission', label: 'External Submission Only' },
+                  { value: 'instructions_only', label: 'Instructions Only (no upload)' },
                   { value: 'both', label: 'Both Options' },
                 ].map(opt => (
                   <label key={opt.value} className="flex items-center gap-2 text-sm cursor-pointer">
