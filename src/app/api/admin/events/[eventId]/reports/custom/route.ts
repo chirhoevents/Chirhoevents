@@ -200,9 +200,24 @@ async function executeRegistrationsReport(eventId: string, config: any) {
     }
   })
 
+  // Load catalog question answers (group-level)
+  const { questions: cqQuestions, answersByRegistrationId: cqAnswers } =
+    await loadCatalogAnswers(eventId, 'group', regIds)
+  if (cqQuestions.length > 0) {
+    results = results.map((reg: any) => ({ ...reg, ...(cqAnswers.get(reg.id) || {}) }))
+  }
+
   // Apply payment status filter after joining with balances
   if (config.filters?.paymentStatus?.length > 0) {
     results = results.filter((r: { paymentStatus: string }) => config.filters.paymentStatus.includes(r.paymentStatus))
+  }
+
+  // Apply catalog answer filter
+  if (config.filters?.catalogAnswerFilter?.questionId && config.filters.catalogAnswerFilter.value) {
+    const { questionId, value } = config.filters.catalogAnswerFilter
+    const columnKey = `cq_${questionId}`
+    const filterValue = String(value).toLowerCase()
+    results = results.filter((r: any) => (String(r[columnKey] || '')).toLowerCase().includes(filterValue))
   }
 
   // Apply grouping
@@ -298,6 +313,11 @@ async function executeParticipantsReport(eventId: string, config: any) {
     roomAssignments.map((ra: typeof roomAssignments[number]) => [ra.participantId, ra])
   )
 
+  // Load catalog question answers (group-level, shown per participant)
+  const groupRegIds = [...new Set(participants.map((p: { groupRegistration: { id: string } }) => p.groupRegistration.id))]
+  const { questions: cqQuestions, answersByRegistrationId: cqAnswers } =
+    await loadCatalogAnswers(eventId, 'group', groupRegIds)
+
   // Transform data
   let results = participants.map((p: typeof participants[number]) => {
     // Format room assignment data
@@ -309,11 +329,14 @@ async function executeParticipantsReport(eventId: string, config: any) {
       bedNumber: roomAssign.bedNumber || '',
     } : null
 
+    const groupAnswers = cqQuestions.length > 0 ? (cqAnswers.get(p.groupRegistration.id) || {}) : {}
+
     return {
       ...p,
       liabilityForm: p.liabilityForms?.[0] || null,
       roomAssignment,
       liabilityForms: undefined,
+      ...groupAnswers,
     }
   })
 
@@ -333,6 +356,14 @@ async function executeParticipantsReport(eventId: string, config: any) {
     } else {
       results = results.filter((p: { liabilityForm: unknown }) => !p.liabilityForm)
     }
+  }
+
+  // Apply catalog answer filter
+  if (config.filters?.catalogAnswerFilter?.questionId && config.filters.catalogAnswerFilter.value) {
+    const { questionId, value } = config.filters.catalogAnswerFilter
+    const columnKey = `cq_${questionId}`
+    const filterValue = String(value).toLowerCase()
+    results = results.filter((r: any) => (String(r[columnKey] || '')).toLowerCase().includes(filterValue))
   }
 
   // Apply grouping
@@ -401,6 +432,21 @@ async function executeIndividualsReport(eventId: string, config: any) {
       liabilityForms: undefined,
     }
   })
+
+  // Load catalog question answers (individual-level)
+  const { questions: cqQuestions, answersByRegistrationId: cqAnswers } =
+    await loadCatalogAnswers(eventId, 'individual', indIds)
+  if (cqQuestions.length > 0) {
+    results = results.map((ind: any) => ({ ...ind, ...(cqAnswers.get(ind.id) || {}) }))
+  }
+
+  // Apply catalog answer filter
+  if (config.filters?.catalogAnswerFilter?.questionId && config.filters.catalogAnswerFilter.value) {
+    const { questionId, value } = config.filters.catalogAnswerFilter
+    const columnKey = `cq_${questionId}`
+    const filterValue = String(value).toLowerCase()
+    results = results.filter((r: any) => (String(r[columnKey] || '')).toLowerCase().includes(filterValue))
+  }
 
   if (config.groupBy) {
     return groupResults(results, config.groupBy)
@@ -1449,6 +1495,80 @@ function groupDetailResults(data: any[], groupBy: string) {
   })
 
   return Array.from(grouped.values())
+}
+
+// ============================================
+// CATALOG ANSWERS LOADER
+// ============================================
+
+async function loadCatalogAnswers(
+  eventId: string,
+  registrationType: 'group' | 'individual',
+  registrationIds: string[]
+): Promise<{
+  questions: Array<{ id: string; catalogSlug: string | null; questionText: string; questionType: string }>
+  answersByRegistrationId: Map<string, Record<string, string>>
+}> {
+  if (registrationIds.length === 0) {
+    return { questions: [], answersByRegistrationId: new Map() }
+  }
+
+  const appliesToFilter = registrationType === 'group'
+    ? ['group', 'both', 'all']
+    : ['individual', 'both', 'all']
+
+  const questions = await prisma.customRegistrationQuestion.findMany({
+    where: {
+      eventId,
+      isTemplate: false,
+      appliesTo: { in: appliesToFilter as any },
+    },
+    select: {
+      id: true,
+      catalogSlug: true,
+      questionText: true,
+      questionType: true,
+    },
+    orderBy: { displayOrder: 'asc' },
+  })
+
+  if (questions.length === 0) {
+    return { questions, answersByRegistrationId: new Map() }
+  }
+
+  const questionIds = questions.map(q => q.id)
+
+  const answers = await prisma.customRegistrationAnswer.findMany({
+    where: {
+      questionId: { in: questionIds },
+      registrationId: { in: registrationIds },
+      registrationType,
+    },
+    select: {
+      registrationId: true,
+      questionId: true,
+      answerText: true,
+    },
+  })
+
+  const answersByRegistrationId = new Map<string, Record<string, string>>()
+  for (const answer of answers) {
+    if (!answersByRegistrationId.has(answer.registrationId)) {
+      answersByRegistrationId.set(answer.registrationId, {})
+    }
+    const map = answersByRegistrationId.get(answer.registrationId)!
+    const question = questions.find(q => q.id === answer.questionId)
+    let displayValue: string = answer.answerText ?? ''
+    if (question?.questionType === 'multi_select' && displayValue) {
+      try {
+        const arr = JSON.parse(displayValue)
+        if (Array.isArray(arr)) displayValue = arr.join(', ')
+      } catch { /* use raw value */ }
+    }
+    map[`cq_${answer.questionId}`] = displayValue
+  }
+
+  return { questions, answersByRegistrationId }
 }
 
 // ============================================

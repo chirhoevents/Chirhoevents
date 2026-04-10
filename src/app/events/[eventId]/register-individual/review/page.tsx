@@ -93,6 +93,27 @@ export default function IndividualInvoiceReviewPage() {
   const [validatedCoupon, setValidatedCoupon] = useState<CouponData | null>(null)
   const [couponError, setCouponError] = useState<string | null>(null)
 
+  // Read custom answers saved by the form page via sessionStorage
+  const customAnswers: Array<{ questionId: string; answerText: string }> = (() => {
+    if (typeof window === 'undefined') return []
+    try {
+      const raw = sessionStorage.getItem(`chirho_custom_answers_${eventId}`)
+      if (!raw) return []
+      const map: Record<string, string> = JSON.parse(raw)
+      return Object.entries(map)
+        .filter(([, v]) => v && v.trim() !== '')
+        .map(([questionId, answerText]) => ({ questionId, answerText }))
+    } catch {
+      return []
+    }
+  })()
+
+  function clearCustomAnswers() {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem(`chirho_custom_answers_${eventId}`)
+    }
+  }
+
   // Get registration data from URL params
   const registrationData: RegistrationData = {
     firstName: searchParams.get('firstName') || '',
@@ -233,6 +254,7 @@ export default function IndividualInvoiceReviewPage() {
           ...registrationData,
           age: registrationData.age ? parseInt(registrationData.age) : null,
           paymentMethod: 'card',
+          customAnswers,
         }),
       })
 
@@ -243,8 +265,9 @@ export default function IndividualInvoiceReviewPage() {
 
       const result = await response.json()
 
-      // Mark queue session as complete
+      // Mark queue session as complete and clear transient answers
       await markComplete()
+      clearCustomAnswers()
 
       // Redirect to Stripe checkout
       if (result.checkoutUrl) {
@@ -278,6 +301,7 @@ export default function IndividualInvoiceReviewPage() {
           ...registrationData,
           age: registrationData.age ? parseInt(registrationData.age) : null,
           paymentMethod: 'check',
+          customAnswers,
         }),
       })
 
@@ -288,8 +312,9 @@ export default function IndividualInvoiceReviewPage() {
 
       const result = await response.json()
 
-      // Mark queue session as complete
+      // Mark queue session as complete and clear transient answers
       await markComplete()
+      clearCustomAnswers()
 
       router.push(`/registration/confirmation/individual/${result.registrationId}`)
     } catch (err: any) {

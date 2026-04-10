@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -713,6 +713,14 @@ export function CustomReportBuilder({
   const [templates, setTemplates] = useState<ReportTemplate[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState<string>('')
   const [dataSource, setDataSource] = useState<string>('participants')
+  const [catalogQuestions, setCatalogQuestions] = useState<Array<{
+    id: string
+    questionText: string
+    questionType: string
+    appliesTo: string
+    enabled: boolean
+  }>>([])
+
   const [selectedFields, setSelectedFields] = useState<string[]>([])
   const [filters, setFilters] = useState<Record<string, any>>({})
   const [groupBy, setGroupBy] = useState<string>('none')
@@ -748,13 +756,58 @@ export function CustomReportBuilder({
     return ''
   }
 
+  // Catalog question fields for the current data source
+  const catalogFieldsForSource = useMemo((): FieldOption[] => {
+    if (!['registrations', 'participants', 'individuals'].includes(dataSource)) return []
+    const isGroup = dataSource === 'registrations' || dataSource === 'participants'
+    const isIndividual = dataSource === 'individuals'
+    return catalogQuestions
+      .filter(q => {
+        if (isGroup) return ['group', 'both', 'all'].includes(q.appliesTo)
+        if (isIndividual) return ['individual', 'both', 'all'].includes(q.appliesTo)
+        return false
+      })
+      .map(q => ({
+        value: `cq_${q.id}`,
+        label: q.questionText,
+        category: 'Custom Questions',
+      }))
+  }, [catalogQuestions, dataSource])
+
+  // All fields = static + catalog
+  const allFields = useMemo(
+    () => [...(currentSource?.fields || []), ...catalogFieldsForSource],
+    [currentSource, catalogFieldsForSource]
+  )
+
   // Group fields by category
-  const fieldsByCategory = currentSource?.fields.reduce((acc, field) => {
+  const fieldsByCategory = allFields.reduce((acc, field) => {
     const category = field.category || 'Other'
     if (!acc[category]) acc[category] = []
     acc[category].push(field)
     return acc
-  }, {} as Record<string, FieldOption[]>) || {}
+  }, {} as Record<string, FieldOption[]>)
+
+  // Load catalog questions for this event
+  useEffect(() => {
+    if (!open) return
+    const fetchCatalogQuestions = async () => {
+      try {
+        const token = await getToken()
+        const headers: Record<string, string> = {}
+        if (token) headers['Authorization'] = `Bearer ${token}`
+        const response = await fetch(`/api/admin/events/${eventId}/catalog-questions`, { headers })
+        if (response.ok) {
+          const data = await response.json()
+          const enabledQuestions = (data.questions || []).filter((q: any) => q.enabled)
+          setCatalogQuestions(enabledQuestions)
+        }
+      } catch {
+        // Non-critical — catalog questions simply won't show as dynamic columns
+      }
+    }
+    fetchCatalogQuestions()
+  }, [open, eventId])
 
   // Load templates on mount and set default data source
   useEffect(() => {
@@ -1192,7 +1245,7 @@ export function CustomReportBuilder({
   }
 
   const selectAllFields = () => {
-    setSelectedFields(currentSource?.fields.map(f => f.value) || [])
+    setSelectedFields(allFields.map(f => f.value))
   }
 
   const clearAllFields = () => {
@@ -1424,7 +1477,7 @@ export function CustomReportBuilder({
                   <ScrollArea className="flex-1">
                     <div className="p-2 space-y-1">
                       {selectedFields.map((fieldValue, index) => {
-                        const field = currentSource?.fields.find(f => f.value === fieldValue)
+                        const field = allFields.find(f => f.value === fieldValue)
                         return (
                           <div key={fieldValue} className="flex items-center gap-1 bg-gray-50 rounded p-1.5 text-sm">
                             <GripVertical className="h-3 w-3 text-gray-400" />
@@ -1523,10 +1576,66 @@ export function CustomReportBuilder({
                       {renderFilterInput(filter)}
                     </div>
                   ))}
-                  {currentFilters.length === 0 && dataSource !== 'group-detail' && (
+                  {currentFilters.length === 0 && dataSource !== 'group-detail' && catalogFieldsForSource.length === 0 && (
                     <p className="col-span-2 text-center text-gray-500 py-8">No filters available for this data source</p>
                   )}
                 </div>
+
+                {/* Catalog answer filter */}
+                {catalogFieldsForSource.length > 0 && (
+                  <div className="space-y-2 border rounded-lg p-3 bg-gray-50">
+                    <Label className="text-sm font-semibold">Filter by Custom Question Answer</Label>
+                    <p className="text-xs text-gray-500">Show only rows where a catalog question answer contains the specified text</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-gray-500">Question</Label>
+                        <Select
+                          value={filters.catalogAnswerFilter?.questionId || ''}
+                          onValueChange={(v) => updateFilter('catalogAnswerFilter', {
+                            ...filters.catalogAnswerFilter,
+                            questionId: v || undefined,
+                          })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select question..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {catalogFieldsForSource.map(f => (
+                              <SelectItem key={f.value} value={f.value.replace('cq_', '')}>
+                                {f.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-gray-500">Answer contains</Label>
+                        <div className="flex gap-1">
+                          <Input
+                            type="text"
+                            value={filters.catalogAnswerFilter?.value || ''}
+                            onChange={(e) => updateFilter('catalogAnswerFilter', {
+                              ...filters.catalogAnswerFilter,
+                              value: e.target.value || undefined,
+                            })}
+                            placeholder="Enter value..."
+                            disabled={!filters.catalogAnswerFilter?.questionId}
+                          />
+                          {filters.catalogAnswerFilter?.questionId && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => updateFilter('catalogAnswerFilter', undefined)}
+                              title="Clear filter"
+                            >
+                              ×
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </TabsContent>
 
@@ -1559,7 +1668,7 @@ export function CustomReportBuilder({
                       <SelectContent>
                         <SelectItem value="none">Default Order</SelectItem>
                         {selectedFields.map(fieldValue => {
-                          const field = currentSource?.fields.find(f => f.value === fieldValue)
+                          const field = allFields.find(f => f.value === fieldValue)
                           return (
                             <SelectItem key={fieldValue} value={fieldValue}>{field?.label || fieldValue}</SelectItem>
                           )
