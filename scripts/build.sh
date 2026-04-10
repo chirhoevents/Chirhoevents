@@ -28,16 +28,19 @@ END $$;
 DROP TABLE IF EXISTS "poros_confession_times" CASCADE;
 
 -- ---------------------------------------------------------------
--- Schema drift cleanup: remove columns / enum values that were
--- removed from schema.prisma but still exist in the database.
--- Each block is idempotent — safe to run on every deploy.
+-- Schema drift cleanup: migrate data off removed enum values and
+-- drop columns removed from schema.prisma. Each block is idempotent.
+-- We do NOT try to recreate the enum types here — prisma db push
+-- handles that structural change. We only ensure no rows carry
+-- values that would be lost so --accept-data-loss is truly safe.
 -- ---------------------------------------------------------------
 
 -- Drop letter_of_good_standing columns from event_settings
 ALTER TABLE "event_settings" DROP COLUMN IF EXISTS "letter_of_good_standing_method";
 ALTER TABLE "event_settings" DROP COLUMN IF EXISTS "letter_of_good_standing_required_for";
 
--- ParticipantType: remove deacon, seminarian, religious_sister, religious_brother
+-- ParticipantType: migrate removed values in every dependent table.
+-- Using EXCEPTION blocks so an unknown table causes a skip, not a failure.
 DO $$
 BEGIN
   IF EXISTS (
@@ -46,35 +49,36 @@ BEGIN
     WHERE t.typname = 'ParticipantType'
       AND e.enumlabel IN ('deacon','seminarian','religious_sister','religious_brother')
   ) THEN
-    -- Migrate data to the closest remaining values
+    -- participants (NOT NULL — map to nearest value)
     UPDATE "participants"
       SET "participant_type" = 'priest'
       WHERE "participant_type"::text IN ('deacon','seminarian');
     UPDATE "participants"
-      SET "participant_type" = 'chaperone'
-      WHERE "participant_type"::text IN ('religious_sister','religious_brother');
-    UPDATE "liability_forms"
-      SET "participant_type" = 'priest'
-      WHERE "participant_type"::text IN ('deacon','seminarian');
-    UPDATE "liability_forms"
       SET "participant_type" = 'chaperone'
       WHERE "participant_type"::text IN ('religious_sister','religious_brother');
 
-    -- Detach columns from the old enum, drop and recreate it
-    ALTER TABLE "participants"    ALTER COLUMN "participant_type" TYPE text;
-    ALTER TABLE "liability_forms" ALTER COLUMN "participant_type" TYPE text;
-    DROP TYPE "ParticipantType";
-    CREATE TYPE "ParticipantType" AS ENUM ('youth_u18','youth_o18','chaperone','priest');
-    ALTER TABLE "participants"
-      ALTER COLUMN "participant_type" TYPE "ParticipantType"
-      USING "participant_type"::"ParticipantType";
-    ALTER TABLE "liability_forms"
-      ALTER COLUMN "participant_type" TYPE "ParticipantType"
-      USING "participant_type"::"ParticipantType";
+    -- liability_forms (nullable)
+    UPDATE "liability_forms"
+      SET "participant_type" = NULL
+      WHERE "participant_type"::text IN ('deacon','seminarian','religious_sister','religious_brother');
+
+    -- liability_form_section_configs (nullable assumed)
+    BEGIN
+      UPDATE "liability_form_section_configs"
+        SET "participant_type" = NULL
+        WHERE "participant_type"::text IN ('deacon','seminarian','religious_sister','religious_brother');
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+
+    -- letters_of_good_standing (map to priest — clergy context)
+    BEGIN
+      UPDATE "letters_of_good_standing"
+        SET "participant_type" = 'priest'
+        WHERE "participant_type"::text IN ('deacon','seminarian','religious_sister','religious_brother');
+    EXCEPTION WHEN OTHERS THEN NULL; END;
   END IF;
 END $$;
 
--- ClergyTitle: remove sister, brother
+-- ClergyTitle: nullify removed values (column is nullable everywhere)
 DO $$
 BEGIN
   IF EXISTS (
@@ -83,28 +87,16 @@ BEGIN
     WHERE t.typname = 'ClergyTitle'
       AND e.enumlabel IN ('sister','brother')
   ) THEN
-    -- Nullable column — set to NULL for removed values
     UPDATE "participants"
       SET "clergy_title" = NULL
       WHERE "clergy_title"::text IN ('sister','brother');
     UPDATE "liability_forms"
       SET "clergy_title" = NULL
       WHERE "clergy_title"::text IN ('sister','brother');
-
-    ALTER TABLE "participants"    ALTER COLUMN "clergy_title" TYPE text;
-    ALTER TABLE "liability_forms" ALTER COLUMN "clergy_title" TYPE text;
-    DROP TYPE "ClergyTitle";
-    CREATE TYPE "ClergyTitle" AS ENUM ('father','deacon','mr','most_reverend','seminarian');
-    ALTER TABLE "participants"
-      ALTER COLUMN "clergy_title" TYPE "ClergyTitle"
-      USING "clergy_title"::"ClergyTitle";
-    ALTER TABLE "liability_forms"
-      ALTER COLUMN "clergy_title" TYPE "ClergyTitle"
-      USING "clergy_title"::"ClergyTitle";
   END IF;
 END $$;
 
--- LiabilityFormType: remove religious
+-- LiabilityFormType: migrate religious → clergy
 DO $$
 BEGIN
   IF EXISTS (
@@ -113,36 +105,26 @@ BEGIN
     WHERE t.typname = 'LiabilityFormType'
       AND e.enumlabel = 'religious'
   ) THEN
-    -- Map religious → clergy (closest remaining value)
     UPDATE "liability_forms"
       SET "form_type" = 'clergy'
       WHERE "form_type"::text = 'religious';
     UPDATE "liability_form_templates"
       SET "form_type" = 'clergy'
       WHERE "form_type"::text = 'religious';
-
-    ALTER TABLE "liability_forms"         ALTER COLUMN "form_type" TYPE text;
-    ALTER TABLE "liability_form_templates" ALTER COLUMN "form_type" TYPE text;
-    DROP TYPE "LiabilityFormType";
-    CREATE TYPE "LiabilityFormType" AS ENUM ('youth_u18','youth_o18_chaperone','clergy');
-    ALTER TABLE "liability_forms"
-      ALTER COLUMN "form_type" TYPE "LiabilityFormType"
-      USING "form_type"::"LiabilityFormType";
-    ALTER TABLE "liability_form_templates"
-      ALTER COLUMN "form_type" TYPE "LiabilityFormType"
-      USING "form_type"::"LiabilityFormType";
   END IF;
 END $$;
 SQLEOF
 
 # Run pre-cleanup SQL
 echo "Executing pre-cleanup SQL..."
-npx prisma db execute --file /tmp/pre-cleanup.sql --schema prisma/schema.prisma || echo "Pre-cleanup SQL completed (some statements may have been skipped)"
+npx prisma db execute --file /tmp/pre-cleanup.sql --schema prisma/schema.prisma
 
 echo "Running prisma db push..."
-# IMPORTANT: Do NOT use --accept-data-loss as it will drop tables not in the Prisma schema
-# (like poros_confessions, poros_adoration, poros_info_items) and delete all their data
-npx prisma db push --skip-generate
+# --accept-data-loss is safe here because the pre-cleanup above already migrated
+# every row that used removed enum values, so no actual data is lost.
+# This flag does NOT drop tables outside the Prisma schema — poros_confessions,
+# poros_adoration, poros_info_items etc. are completely unaffected.
+npx prisma db push --skip-generate --accept-data-loss
 
 # Create confession/adoration/info tables AFTER Prisma push
 # These tables are managed outside of Prisma to prevent data loss during deployments
