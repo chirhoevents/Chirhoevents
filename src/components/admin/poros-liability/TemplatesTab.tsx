@@ -394,6 +394,16 @@ export function TemplatesTab({ eventId, organizationId }: TemplatesTabProps) {
             )}
           </Card>
 
+          {/* Custom Sections Notice */}
+          <Card className="p-6 bg-amber-50 border-amber-200">
+            <h4 className="font-semibold text-amber-800 mb-2">Custom Sections</h4>
+            <p className="text-sm text-amber-700">
+              Custom sections and questions defined on this template will appear on registrant forms for this form type.
+              Participants will see them after the standard sections. Use the <strong>Section Config</strong> tab to
+              control ordering and visibility per participant type.
+            </p>
+          </Card>
+
           {/* Preview Section */}
           {!editing && (
             <Card className="p-6 bg-blue-50 border-blue-200">

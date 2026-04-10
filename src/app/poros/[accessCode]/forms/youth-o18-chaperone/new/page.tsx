@@ -1,16 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
+import DynamicLiabilityForm, {
+  EMPTY_DYNAMIC_VALUES,
+  getConsentVisibility,
+  type DynamicFormValues,
+  type FormConfig,
+} from '@/components/poros/DynamicLiabilityForm'
 
 export default function YouthO18ChaperoneForm() {
   const params = useParams()
   const router = useRouter()
   const accessCode = params.accessCode as string
 
-  const [formData, setFormData] = useState({
+  // Basic info (section 1) — hardcoded
+  const [basicData, setBasicData] = useState({
     firstName: '',
     lastName: '',
     preferredName: '',
@@ -21,110 +28,130 @@ export default function YouthO18ChaperoneForm() {
     phone: '',
     participantType: '',
     tShirtSize: '',
-    medicalConditions: '',
-    medications: '',
-    allergies: '',
-    dietaryRestrictions: '',
-    adaAccommodations: '',
-    emergencyContact1Name: '',
-    emergencyContact1Phone: '',
-    emergencyContact1Relation: '',
-    emergencyContact2Name: '',
-    emergencyContact2Phone: '',
-    emergencyContact2Relation: '',
-    insuranceProvider: '',
-    insurancePolicyNumber: '',
-    insuranceGroupNumber: '',
-    safeEnvCertOption: '',
-    safeEnvCertProgram: '',
-    safeEnvCertCompletionDate: '',
-    safeEnvCertExpirationDate: '',
+  })
+
+  // Dynamic sections (2+) — controlled by DynamicLiabilityForm
+  const [dynValues, setDynValues] = useState<DynamicFormValues>(EMPTY_DYNAMIC_VALUES)
+  const [formConfig, setFormConfig] = useState<FormConfig | null>(null)
+
+  // Consent / signature (last section)
+  const [consentData, setConsentData] = useState({
     consentMedical: false,
     consentActivity: false,
     consentPhoto: false,
     consentTransportation: false,
+    consentEmergencyTreatment: false,
     signatureFullName: '',
     signatureInitials: '',
     signatureDate: '',
     certifyAccurate: false,
   })
 
-  const [certificateFile, setCertificateFile] = useState<File | null>(null)
+  const [certFile, setCertFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target
-    if (type === 'checkbox') {
-      const checked = (e.target as HTMLInputElement).checked
-      setFormData(prev => ({ ...prev, [name]: checked }))
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }))
+  // Resolve eventId from access code (lazy — only when participantType is first set)
+  const [eventId, setEventId] = useState<string | null>(null)
+
+  async function ensureEventId(): Promise<string | null> {
+    if (eventId) return eventId
+    try {
+      const res = await fetch('/api/poros/resolve-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_code: accessCode }),
+      })
+      if (!res.ok) return null
+      const data = await res.json()
+      setEventId(data.eventId)
+      return data.eventId
+    } catch {
+      return null
     }
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      if (file.type !== 'application/pdf') {
-        setError('Only PDF files are accepted')
-        return
-      }
-      if (file.size > 10 * 1024 * 1024) {
-        setError('File size must be less than 10MB')
-        return
-      }
-      setCertificateFile(file)
-      setError(null)
-    }
+  const handleBasicChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target
+    setBasicData(prev => ({ ...prev, [name]: value }))
+  }
+
+  const handleParticipantTypeChange = async (value: string) => {
+    setBasicData(prev => ({ ...prev, participantType: value }))
+    setFormConfig(null) // Reset so DynamicLiabilityForm refetches config
+    await ensureEventId()
+  }
+
+  const handleDynChange = useCallback((key: string, value: string | boolean) => {
+    setDynValues(prev => ({ ...prev, [key]: value }))
+  }, [])
+
+  const handleConsentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, type, checked, value } = e.target
+    setConsentData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
-    // Validation
-    const age = parseInt(formData.age)
+    const age = parseInt(basicData.age)
     if (age < 18) {
       setError('Age must be 18 or older for this form type')
       return
     }
 
-    if (!formData.participantType) {
+    if (!basicData.participantType) {
       setError('Please select participant type (Youth 18+ or Chaperone)')
       return
     }
 
-    if (formData.participantType === 'chaperone' && !formData.safeEnvCertOption) {
+    if (basicData.participantType === 'chaperone' && !dynValues.safeEnvCertOption) {
       setError('Please select a safe environment certificate option')
       return
     }
 
-    if (formData.safeEnvCertOption === 'upload_now' && !certificateFile) {
+    if (dynValues.safeEnvCertOption === 'upload_now' && !certFile) {
       setError('Please upload your safe environment certificate')
       return
     }
 
-    if (!formData.consentMedical || !formData.consentActivity ||
-        !formData.consentPhoto || !formData.consentTransportation) {
-      setError('All consent checkboxes must be checked')
+    const cv = getConsentVisibility(formConfig)
+    if (cv.showMedicalRelease && !consentData.consentMedical) {
+      setError('Medical treatment consent is required')
+      return
+    }
+    if (!consentData.consentActivity) {
+      setError('Activity participation consent is required')
+      return
+    }
+    if (cv.showPhotoConsent && !consentData.consentPhoto) {
+      setError('Photo & media release consent is required')
+      return
+    }
+    if (cv.showTransportationConsent && !consentData.consentTransportation) {
+      setError('Transportation consent is required')
       return
     }
 
-    if (!formData.certifyAccurate) {
+    if (!consentData.certifyAccurate) {
       setError('You must certify that the information is accurate')
       return
     }
 
-    // Validate initials match name
-    const nameParts = formData.signatureFullName.trim().split(' ')
+    const nameParts = consentData.signatureFullName.trim().split(' ')
     if (nameParts.length < 2) {
       setError('Please enter your full legal name (first and last name)')
       return
     }
     const expectedInitials = (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
-    if (formData.signatureInitials.toUpperCase() !== expectedInitials) {
+    if (consentData.signatureInitials.toUpperCase() !== expectedInitials) {
       setError(`Initials should be ${expectedInitials} based on your name`)
       return
     }
@@ -132,14 +159,14 @@ export default function YouthO18ChaperoneForm() {
     setLoading(true)
 
     try {
-      // Convert file to base64 if present
+      // Convert cert file to base64 if present
       let certificateFileData = null
-      if (certificateFile) {
+      if (certFile) {
         const reader = new FileReader()
         certificateFileData = await new Promise((resolve, reject) => {
           reader.onload = () => resolve(reader.result)
           reader.onerror = reject
-          reader.readAsDataURL(certificateFile)
+          reader.readAsDataURL(certFile)
         })
       }
 
@@ -148,40 +175,40 @@ export default function YouthO18ChaperoneForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           access_code: accessCode,
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          preferred_name: formData.preferredName || null,
-          date_of_birth: formData.dateOfBirth,
-          age: parseInt(formData.age),
-          gender: formData.gender,
-          email: formData.email,
-          phone: formData.phone,
-          participant_type: formData.participantType,
-          t_shirt_size: formData.tShirtSize,
-          medical_conditions: formData.medicalConditions || null,
-          medications: formData.medications || null,
-          allergies: formData.allergies || null,
-          dietary_restrictions: formData.dietaryRestrictions || null,
-          ada_accommodations: formData.adaAccommodations || null,
-          emergency_contact_1_name: formData.emergencyContact1Name,
-          emergency_contact_1_phone: formData.emergencyContact1Phone,
-          emergency_contact_1_relation: formData.emergencyContact1Relation,
-          emergency_contact_2_name: formData.emergencyContact2Name || null,
-          emergency_contact_2_phone: formData.emergencyContact2Phone || null,
-          emergency_contact_2_relation: formData.emergencyContact2Relation || null,
-          insurance_provider: formData.insuranceProvider,
-          insurance_policy_number: formData.insurancePolicyNumber,
-          insurance_group_number: formData.insuranceGroupNumber || null,
+          first_name: basicData.firstName,
+          last_name: basicData.lastName,
+          preferred_name: basicData.preferredName || null,
+          date_of_birth: basicData.dateOfBirth,
+          age: parseInt(basicData.age),
+          gender: basicData.gender,
+          email: basicData.email,
+          phone: basicData.phone,
+          participant_type: basicData.participantType,
+          t_shirt_size: basicData.tShirtSize,
+          medical_conditions: dynValues.medicalConditions || null,
+          medications: dynValues.medications || null,
+          allergies: dynValues.allergies || null,
+          dietary_restrictions: dynValues.dietaryRestrictions || null,
+          ada_accommodations: dynValues.adaAccommodations || null,
+          emergency_contact_1_name: dynValues.emergencyContact1Name,
+          emergency_contact_1_phone: dynValues.emergencyContact1Phone,
+          emergency_contact_1_relation: dynValues.emergencyContact1Relation,
+          emergency_contact_2_name: dynValues.emergencyContact2Name || null,
+          emergency_contact_2_phone: dynValues.emergencyContact2Phone || null,
+          emergency_contact_2_relation: dynValues.emergencyContact2Relation || null,
+          insurance_provider: dynValues.insuranceProvider,
+          insurance_policy_number: dynValues.insurancePolicyNumber,
+          insurance_group_number: dynValues.insuranceGroupNumber || null,
           safe_env_cert_file: certificateFileData,
-          safe_env_cert_filename: certificateFile?.name || null,
-          safe_env_cert_program: formData.safeEnvCertProgram || null,
-          safe_env_cert_completion_date: formData.safeEnvCertCompletionDate || null,
-          safe_env_cert_expiration_date: formData.safeEnvCertExpirationDate || null,
-          safe_env_cert_upload_later: formData.safeEnvCertOption === 'upload_later',
-          signature_full_name: formData.signatureFullName,
-          signature_initials: formData.signatureInitials,
-          signature_date: formData.signatureDate,
-          certify_accurate: formData.certifyAccurate,
+          safe_env_cert_filename: certFile?.name || null,
+          safe_env_cert_program: dynValues.safeEnvCertProgram || null,
+          safe_env_cert_completion_date: dynValues.safeEnvCertCompletionDate || null,
+          safe_env_cert_expiration_date: dynValues.safeEnvCertExpirationDate || null,
+          safe_env_cert_upload_later: dynValues.safeEnvCertOption === 'upload_later',
+          signature_full_name: consentData.signatureFullName,
+          signature_initials: consentData.signatureInitials,
+          signature_date: consentData.signatureDate,
+          certify_accurate: consentData.certifyAccurate,
         }),
       })
 
@@ -223,12 +250,12 @@ export default function YouthO18ChaperoneForm() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h1 className="text-3xl font-bold text-navy mb-4">✅ Thank You!</h1>
+            <h1 className="text-3xl font-bold text-navy mb-4">Thank You!</h1>
             <p className="text-gray-700 mb-6">
               Your liability form has been submitted successfully.
             </p>
             <p className="text-gray-600 mb-8">
-              A confirmation email has been sent to {formData.email}.
+              A confirmation email has been sent to {basicData.email}.
             </p>
             <button
               onClick={() => router.push(`/poros/${accessCode}`)}
@@ -241,6 +268,13 @@ export default function YouthO18ChaperoneForm() {
       </div>
     )
   }
+
+  const cv = getConsentVisibility(formConfig)
+  const sectionNum = formConfig
+    ? formConfig.sections.filter(
+        s => !['basic_info', 'consent_signature'].includes(s.sectionKey) && s.enabled
+      ).length + 2
+    : '—'
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -284,8 +318,8 @@ export default function YouthO18ChaperoneForm() {
                 <input
                   type="text"
                   name="firstName"
-                  value={formData.firstName}
-                  onChange={handleInputChange}
+                  value={basicData.firstName}
+                  onChange={handleBasicChange}
                   required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
                 />
@@ -297,8 +331,8 @@ export default function YouthO18ChaperoneForm() {
                 <input
                   type="text"
                   name="lastName"
-                  value={formData.lastName}
-                  onChange={handleInputChange}
+                  value={basicData.lastName}
+                  onChange={handleBasicChange}
                   required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
                 />
@@ -310,8 +344,8 @@ export default function YouthO18ChaperoneForm() {
                 <input
                   type="text"
                   name="preferredName"
-                  value={formData.preferredName}
-                  onChange={handleInputChange}
+                  value={basicData.preferredName}
+                  onChange={handleBasicChange}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
                 />
               </div>
@@ -322,8 +356,8 @@ export default function YouthO18ChaperoneForm() {
                 <input
                   type="date"
                   name="dateOfBirth"
-                  value={formData.dateOfBirth}
-                  onChange={handleInputChange}
+                  value={basicData.dateOfBirth}
+                  onChange={handleBasicChange}
                   required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
                 />
@@ -335,8 +369,8 @@ export default function YouthO18ChaperoneForm() {
                 <input
                   type="number"
                   name="age"
-                  value={formData.age}
-                  onChange={handleInputChange}
+                  value={basicData.age}
+                  onChange={handleBasicChange}
                   required
                   min="18"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
@@ -348,8 +382,8 @@ export default function YouthO18ChaperoneForm() {
                 </label>
                 <select
                   name="gender"
-                  value={formData.gender}
-                  onChange={handleInputChange}
+                  value={basicData.gender}
+                  onChange={handleBasicChange}
                   required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
                 >
@@ -365,8 +399,8 @@ export default function YouthO18ChaperoneForm() {
                 <input
                   type="email"
                   name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
+                  value={basicData.email}
+                  onChange={handleBasicChange}
                   required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
                 />
@@ -378,8 +412,8 @@ export default function YouthO18ChaperoneForm() {
                 <input
                   type="tel"
                   name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
+                  value={basicData.phone}
+                  onChange={handleBasicChange}
                   required
                   placeholder="(XXX) XXX-XXXX"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
@@ -391,8 +425,8 @@ export default function YouthO18ChaperoneForm() {
                 </label>
                 <select
                   name="tShirtSize"
-                  value={formData.tShirtSize}
-                  onChange={handleInputChange}
+                  value={basicData.tShirtSize}
+                  onChange={handleBasicChange}
                   required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
                 >
@@ -416,8 +450,8 @@ export default function YouthO18ChaperoneForm() {
                     type="radio"
                     name="participantType"
                     value="youth_o18"
-                    checked={formData.participantType === 'youth_o18'}
-                    onChange={handleInputChange}
+                    checked={basicData.participantType === 'youth_o18'}
+                    onChange={() => handleParticipantTypeChange('youth_o18')}
                     required
                     className="mr-2"
                   />
@@ -428,8 +462,8 @@ export default function YouthO18ChaperoneForm() {
                     type="radio"
                     name="participantType"
                     value="chaperone"
-                    checked={formData.participantType === 'chaperone'}
-                    onChange={handleInputChange}
+                    checked={basicData.participantType === 'chaperone'}
+                    onChange={() => handleParticipantTypeChange('chaperone')}
                     required
                     className="mr-2"
                   />
@@ -439,483 +473,188 @@ export default function YouthO18ChaperoneForm() {
             </div>
           </div>
 
-          {/* SECTION 2: Medical Information */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-bold text-navy mb-4 pb-2 border-b-2 border-gold">
-              2. Medical Information
-            </h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Medical Conditions
-                </label>
-                <textarea
-                  name="medicalConditions"
-                  value={formData.medicalConditions}
-                  onChange={handleInputChange}
-                  rows={3}
-                  placeholder="List any medical conditions we should be aware of"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Current Medications
-                </label>
-                <textarea
-                  name="medications"
-                  value={formData.medications}
-                  onChange={handleInputChange}
-                  rows={3}
-                  placeholder="List all medications currently being taken"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  <span className="inline-flex items-center">
-                    Allergies
-                    <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs font-bold rounded">IMPORTANT</span>
-                  </span>
-                </label>
-                <textarea
-                  name="allergies"
-                  value={formData.allergies}
-                  onChange={handleInputChange}
-                  rows={3}
-                  placeholder="List any allergies (food, medication, environmental, etc.)"
-                  className="w-full px-4 py-2 border-2 border-red-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Dietary Restrictions
-                </label>
-                <textarea
-                  name="dietaryRestrictions"
-                  value={formData.dietaryRestrictions}
-                  onChange={handleInputChange}
-                  rows={2}
-                  placeholder="Any dietary restrictions or preferences"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  ADA Accommodations Needed
-                </label>
-                <textarea
-                  name="adaAccommodations"
-                  value={formData.adaAccommodations}
-                  onChange={handleInputChange}
-                  rows={2}
-                  placeholder="Any accessibility accommodations needed"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                />
-              </div>
-            </div>
-          </div>
+          {/* SECTIONS 2+: Dynamic sections rendered by DynamicLiabilityForm */}
+          {basicData.participantType && eventId && (
+            <DynamicLiabilityForm
+              eventId={eventId}
+              participantType={basicData.participantType}
+              sectionOffset={2}
+              values={dynValues}
+              onChange={handleDynChange}
+              certFile={certFile}
+              onCertFileChange={setCertFile}
+              onConfigLoaded={setFormConfig}
+            />
+          )}
 
-          {/* SECTION 3: Emergency Contacts */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-bold text-navy mb-4 pb-2 border-b-2 border-gold">
-              3. Emergency Contacts
-            </h2>
-            <div className="space-y-6">
-              <div>
-                <h3 className="font-semibold text-navy mb-3">Primary Emergency Contact</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="emergencyContact1Name"
-                      value={formData.emergencyContact1Name}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Phone <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      name="emergencyContact1Phone"
-                      value={formData.emergencyContact1Phone}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Relationship <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="emergencyContact1Relation"
-                      value={formData.emergencyContact1Relation}
-                      onChange={handleInputChange}
-                      required
-                      placeholder="e.g., Spouse, Parent"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="font-semibold text-navy mb-3">Secondary Emergency Contact (Optional)</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Name</label>
-                    <input
-                      type="text"
-                      name="emergencyContact2Name"
-                      value={formData.emergencyContact2Name}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Phone</label>
-                    <input
-                      type="tel"
-                      name="emergencyContact2Phone"
-                      value={formData.emergencyContact2Phone}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Relationship</label>
-                    <input
-                      type="text"
-                      name="emergencyContact2Relation"
-                      value={formData.emergencyContact2Relation}
-                      onChange={handleInputChange}
-                      placeholder="e.g., Sibling, Friend"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* SECTION 4: Insurance Information */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-bold text-navy mb-4 pb-2 border-b-2 border-gold">
-              4. Insurance Information
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Insurance Provider <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="insuranceProvider"
-                  value={formData.insuranceProvider}
-                  onChange={handleInputChange}
-                  required
-                  placeholder="e.g., Blue Cross Blue Shield"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Policy Number <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="insurancePolicyNumber"
-                  value={formData.insurancePolicyNumber}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Group Number
-                </label>
-                <input
-                  type="text"
-                  name="insuranceGroupNumber"
-                  value={formData.insuranceGroupNumber}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* SECTION 5: Safe Environment Certificate (Chaperones Only) */}
-          {formData.participantType === 'chaperone' && (
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-bold text-navy mb-4 pb-2 border-b-2 border-gold">
-                5. Safe Environment Certification
-              </h2>
-              <p className="text-gray-700 mb-4">
-                As a chaperone, you must have completed safe environment training (e.g., VIRTUS, Protecting God&apos;s Children)
-              </p>
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="flex items-start">
-                    <input
-                      type="radio"
-                      name="safeEnvCertOption"
-                      value="upload_now"
-                      checked={formData.safeEnvCertOption === 'upload_now'}
-                      onChange={handleInputChange}
-                      required
-                      className="mr-2 mt-1"
-                    />
-                    <span className="font-medium">I&apos;ll upload my certificate now</span>
-                  </label>
-
-                  {formData.safeEnvCertOption === 'upload_now' && (
-                    <div className="ml-6 space-y-4 bg-gray-50 p-4 rounded-lg">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Certificate File (PDF only) <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="file"
-                          accept=".pdf"
-                          onChange={handleFileChange}
-                          className="w-full"
-                        />
-                        {certificateFile && (
-                          <p className="text-sm text-green-600 mt-2">✓ {certificateFile.name}</p>
-                        )}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Program Name <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          name="safeEnvCertProgram"
-                          value={formData.safeEnvCertProgram}
-                          onChange={handleInputChange}
-                          required={formData.safeEnvCertOption === 'upload_now'}
-                          placeholder="e.g., VIRTUS Training"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                        />
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Completion Date <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="date"
-                            name="safeEnvCertCompletionDate"
-                            value={formData.safeEnvCertCompletionDate}
-                            onChange={handleInputChange}
-                            required={formData.safeEnvCertOption === 'upload_now'}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Expiration Date <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="date"
-                            name="safeEnvCertExpirationDate"
-                            value={formData.safeEnvCertExpirationDate}
-                            onChange={handleInputChange}
-                            required={formData.safeEnvCertOption === 'upload_now'}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <label className="flex items-start">
-                    <input
-                      type="radio"
-                      name="safeEnvCertOption"
-                      value="upload_later"
-                      checked={formData.safeEnvCertOption === 'upload_later'}
-                      onChange={handleInputChange}
-                      required
-                      className="mr-2 mt-1"
-                    />
-                    <div>
-                      <span className="font-medium">I&apos;ll upload my certificate later</span>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Please send your certificate via email to your group leader so they can upload it on the Group Leader Portal
-                      </p>
-                    </div>
-                  </label>
-                </div>
-              </div>
+          {/* Prompt to select participant type if not yet chosen */}
+          {!basicData.participantType && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-700 text-sm">
+              Please select your participant type above to continue.
             </div>
           )}
 
-          {/* SECTION 6: E-Signature & Consent */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-bold text-navy mb-4 pb-2 border-b-2 border-gold">
-              {formData.participantType === 'chaperone' ? '6' : '5'}. E-Signature & Consent
-            </h2>
+          {/* LAST SECTION: E-Signature & Consent */}
+          {basicData.participantType && eventId && (
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-bold text-navy mb-4 pb-2 border-b-2 border-gold">
+                {sectionNum}. E-Signature &amp; Consent
+              </h2>
 
-            <div className="space-y-4 mb-6">
-              <label className="flex items-start">
-                <input
-                  type="checkbox"
-                  name="consentMedical"
-                  checked={formData.consentMedical}
-                  onChange={handleInputChange}
-                  required
-                  className="mr-3 mt-1"
-                />
-                <div>
-                  <span className="font-semibold">Medical Treatment Consent</span>
-                  <p className="text-sm text-gray-600">
-                    I authorize event staff to obtain necessary medical treatment in case of emergency
-                  </p>
-                </div>
-              </label>
-
-              <label className="flex items-start">
-                <input
-                  type="checkbox"
-                  name="consentActivity"
-                  checked={formData.consentActivity}
-                  onChange={handleInputChange}
-                  required
-                  className="mr-3 mt-1"
-                />
-                <div>
-                  <span className="font-semibold">Activity Participation & Liability Waiver</span>
-                  <p className="text-sm text-gray-600">
-                    I understand the risks and release the organization from liability
-                  </p>
-                </div>
-              </label>
-
-              <label className="flex items-start">
-                <input
-                  type="checkbox"
-                  name="consentPhoto"
-                  checked={formData.consentPhoto}
-                  onChange={handleInputChange}
-                  required
-                  className="mr-3 mt-1"
-                />
-                <div>
-                  <span className="font-semibold">Photo & Media Release</span>
-                  <p className="text-sm text-gray-600">
-                    I consent to use of photos/videos for promotional purposes
-                  </p>
-                </div>
-              </label>
-
-              <label className="flex items-start">
-                <input
-                  type="checkbox"
-                  name="consentTransportation"
-                  checked={formData.consentTransportation}
-                  onChange={handleInputChange}
-                  required
-                  className="mr-3 mt-1"
-                />
-                <div>
-                  <span className="font-semibold">Transportation Authorization</span>
-                  <p className="text-sm text-gray-600">
-                    I authorize transportation to/from event activities
-                  </p>
-                </div>
-              </label>
-            </div>
-
-            <div className="border-t pt-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Full Legal Name <span className="text-red-500">*</span>
+              <div className="space-y-4 mb-6">
+                {cv.showMedicalRelease && (
+                  <label className="flex items-start">
+                    <input
+                      type="checkbox"
+                      name="consentMedical"
+                      checked={consentData.consentMedical}
+                      onChange={handleConsentChange}
+                      required
+                      className="mr-3 mt-1"
+                    />
+                    <div>
+                      <span className="font-semibold">Medical Treatment Consent</span>
+                      <p className="text-sm text-gray-600">
+                        I authorize event staff to obtain necessary medical treatment in case of emergency
+                      </p>
+                    </div>
                   </label>
+                )}
+
+                <label className="flex items-start">
                   <input
-                    type="text"
-                    name="signatureFullName"
-                    value={formData.signatureFullName}
-                    onChange={handleInputChange}
+                    type="checkbox"
+                    name="consentActivity"
+                    checked={consentData.consentActivity}
+                    onChange={handleConsentChange}
                     required
-                    placeholder="Type your full legal name"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
+                    className="mr-3 mt-1"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Initials <span className="text-red-500">*</span>
+                  <div>
+                    <span className="font-semibold">Activity Participation &amp; Liability Waiver</span>
+                    <p className="text-sm text-gray-600">
+                      I understand the risks and release the organization from liability
+                    </p>
+                  </div>
+                </label>
+
+                {cv.showPhotoConsent && (
+                  <label className="flex items-start">
+                    <input
+                      type="checkbox"
+                      name="consentPhoto"
+                      checked={consentData.consentPhoto}
+                      onChange={handleConsentChange}
+                      required
+                      className="mr-3 mt-1"
+                    />
+                    <div>
+                      <span className="font-semibold">Photo &amp; Media Release</span>
+                      <p className="text-sm text-gray-600">
+                        I consent to use of photos/videos for promotional purposes
+                      </p>
+                    </div>
                   </label>
-                  <input
-                    type="text"
-                    name="signatureInitials"
-                    value={formData.signatureInitials}
-                    onChange={handleInputChange}
-                    required
-                    maxLength={3}
-                    placeholder="e.g., JD"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Date <span className="text-red-500">*</span>
+                )}
+
+                {cv.showTransportationConsent && (
+                  <label className="flex items-start">
+                    <input
+                      type="checkbox"
+                      name="consentTransportation"
+                      checked={consentData.consentTransportation}
+                      onChange={handleConsentChange}
+                      required
+                      className="mr-3 mt-1"
+                    />
+                    <div>
+                      <span className="font-semibold">Transportation Authorization</span>
+                      <p className="text-sm text-gray-600">
+                        I authorize transportation to/from event activities
+                      </p>
+                    </div>
                   </label>
-                  <input
-                    type="date"
-                    name="signatureDate"
-                    value={formData.signatureDate}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                  />
-                </div>
+                )}
               </div>
 
-              <label className="flex items-start mb-6">
-                <input
-                  type="checkbox"
-                  name="certifyAccurate"
-                  checked={formData.certifyAccurate}
-                  onChange={handleInputChange}
-                  required
-                  className="mr-3 mt-1"
-                />
-                <span className="font-semibold">
-                  I certify that all information provided is accurate and complete
-                </span>
-              </label>
+              <div className="border-t pt-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Full Legal Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="signatureFullName"
+                      value={consentData.signatureFullName}
+                      onChange={handleConsentChange}
+                      required
+                      placeholder="Type your full legal name"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Initials <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="signatureInitials"
+                      value={consentData.signatureInitials}
+                      onChange={handleConsentChange}
+                      required
+                      maxLength={3}
+                      placeholder="e.g., JD"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Date <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      name="signatureDate"
+                      value={consentData.signatureDate}
+                      onChange={handleConsentChange}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
+                    />
+                  </div>
+                </div>
 
-              <p className="text-sm text-gray-600 mb-6">
-                By signing, you agree to our{' '}
-                <Link href="/privacy" target="_blank" className="text-gold hover:underline font-medium">
-                  Privacy Policy
-                </Link>{' '}
-                and consent to the collection and use of the information provided as described therein.
-              </p>
+                <label className="flex items-start mb-6">
+                  <input
+                    type="checkbox"
+                    name="certifyAccurate"
+                    checked={consentData.certifyAccurate}
+                    onChange={handleConsentChange}
+                    required
+                    className="mr-3 mt-1"
+                  />
+                  <span className="font-semibold">
+                    I certify that all information provided is accurate and complete
+                  </span>
+                </label>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-navy text-white py-4 rounded-lg font-bold text-lg hover:bg-navy/90 transition-colors disabled:bg-gray-400"
-              >
-                {loading ? 'Submitting...' : 'Sign and Submit Form'}
-              </button>
+                <p className="text-sm text-gray-600 mb-6">
+                  By signing, you agree to our{' '}
+                  <Link href="/privacy" target="_blank" className="text-gold hover:underline font-medium">
+                    Privacy Policy
+                  </Link>{' '}
+                  and consent to the collection and use of the information provided as described therein.
+                </p>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-navy text-white py-4 rounded-lg font-bold text-lg hover:bg-navy/90 transition-colors disabled:bg-gray-400"
+                >
+                  {loading ? 'Submitting...' : 'Sign and Submit Form'}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </form>
       </div>
     </div>

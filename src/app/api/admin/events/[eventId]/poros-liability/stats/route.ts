@@ -71,6 +71,42 @@ export async function GET(
       },
     })
 
+    // ── Letter of Good Standing stats ─────────────────────────────────────────
+    const logsAll = await prisma.letterOfGoodStanding.findMany({
+      where: { eventId },
+      select: { status: true },
+    })
+    const letterOfGoodStandingStats = {
+      total: logsAll.length,
+      pending: logsAll.filter((l) => l.status === 'pending').length,
+      submittedExternally: logsAll.filter((l) => l.status === 'submitted_externally').length,
+      uploaded: logsAll.filter((l) => l.status === 'uploaded').length,
+      verified: logsAll.filter((l) => l.status === 'verified').length,
+      rejected: logsAll.filter((l) => l.status === 'rejected').length,
+    }
+
+    // ── Breakdown by participant type ─────────────────────────────────────────
+    // Counts completed forms grouped by participantType, including approval status.
+    const formsByType = await prisma.liabilityForm.findMany({
+      where: { eventId, completed: true },
+      select: { participantType: true, formStatus: true },
+    })
+
+    type TypeBucket = { total: number; completed: number; pending: number; approved: number }
+    const typeMap: Record<string, TypeBucket> = {}
+    for (const f of formsByType) {
+      const key = f.participantType ?? 'unknown'
+      if (!typeMap[key]) typeMap[key] = { total: 0, completed: 0, pending: 0, approved: 0 }
+      typeMap[key].total++
+      typeMap[key].completed++
+      if (f.formStatus === 'pending') typeMap[key].pending++
+      if (f.formStatus === 'approved') typeMap[key].approved++
+    }
+    const breakdownByParticipantType = Object.entries(typeMap).map(([participantType, counts]) => ({
+      participantType,
+      ...counts,
+    }))
+
     return NextResponse.json({
       totalForms,
       approvedForms,
@@ -79,6 +115,8 @@ export async function GET(
       totalCertificates: groupTotalCerts,
       verifiedCertificates: groupVerifiedCerts,
       pendingCertificates: groupPendingCerts,
+      letterOfGoodStandingStats,
+      breakdownByParticipantType,
     })
   } catch (error) {
     console.error('Stats fetch error:', error)
