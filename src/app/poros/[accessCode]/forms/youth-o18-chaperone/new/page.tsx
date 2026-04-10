@@ -272,7 +272,7 @@ export default function YouthO18ChaperoneForm() {
   const cv = getConsentVisibility(formConfig)
   const sectionNum = formConfig
     ? formConfig.sections.filter(
-        s => !['basic_info', 'consent_signature'].includes(s.key) && s.enabled
+        s => !['basic_info', 'consent_signature'].includes(s.sectionKey) && s.enabled
       ).length + 2
     : '—'
 
