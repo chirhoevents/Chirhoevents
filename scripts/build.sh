@@ -116,6 +116,9 @@ SQLEOF
 echo "Executing table creation SQL..."
 npx prisma db execute --file /tmp/create-tables.sql --schema prisma/schema.prisma
 
+echo "Seeding question catalog..."
+npm run db:seed-catalog
+
 echo "Running next build..."
 npx next build
 
