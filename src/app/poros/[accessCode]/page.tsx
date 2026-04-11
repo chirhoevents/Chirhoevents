@@ -155,8 +155,8 @@ export default function PorosRoleSelection() {
   const handleIndividualContinue = () => {
     if (!portalData || portalData.registrationType !== 'individual') return
 
-    // Convert form type format for URL (youth_u18 -> youth-u18)
-    const formTypeUrl = portalData.autoFormType.replace('_', '-')
+    // Convert form type format for URL (youth_o18_chaperone -> youth-o18-chaperone)
+    const formTypeUrl = portalData.autoFormType.replaceAll('_', '-')
     router.push(`/poros/${accessCode}/forms/${formTypeUrl}/new?individual=true`)
   }
 
