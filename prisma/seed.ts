@@ -107,6 +107,37 @@ async function main() {
 
   console.log('✅ Created event:', krygmaEvent.name)
 
+  // 3c. Create Mount 2000 Youth Retreat 2027 event
+  const youthRetreat2027 = await prisma.event.upsert({
+    where: { slug: 'mount-2000-youth-retreat-2027' },
+    update: {},
+    create: {
+      organizationId: org.id,
+      name: 'Mount 2000 Youth Retreat 2027',
+      slug: 'mount-2000-youth-retreat-2027',
+      description: 'An incredible summer youth retreat at the Mount — faith, fellowship, and fun for Catholic youth from across the country. Join us for a life-changing experience at Mount St. Mary\'s University!',
+      startDate: new Date('2027-07-09'),
+      endDate: new Date('2027-07-12'),
+      timezone: 'America/New_York',
+      locationName: "Mount St. Mary's University",
+      locationAddress: {
+        street: '16300 Old Emmitsburg Road',
+        city: 'Emmitsburg',
+        state: 'MD',
+        zip: '21727',
+        country: 'USA',
+      },
+      capacityTotal: 1000,
+      capacityRemaining: 1000,
+      registrationOpenDate: new Date('2026-01-01T00:00:00Z'),
+      registrationCloseDate: new Date('2027-07-07T23:59:59Z'),
+      status: 'registration_open',
+      createdBy: admin.id,
+    },
+  })
+
+  console.log('✅ Created event:', youthRetreat2027.name)
+
   // 4. Create event settings (GROUP REGISTRATION ONLY)
   await prisma.eventSettings.upsert({
     where: { eventId: event.id },
@@ -173,6 +204,37 @@ async function main() {
 
   console.log('✅ Created Krygma Retreat event settings')
 
+  // 4c. Create Mount 2000 Youth Retreat 2027 event settings (GROUP ONLY)
+  await prisma.eventSettings.upsert({
+    where: { eventId: youthRetreat2027.id },
+    update: {},
+    create: {
+      eventId: youthRetreat2027.id,
+      groupRegistrationEnabled: true,
+      individualRegistrationEnabled: false,
+      liabilityFormsRequiredGroup: true,
+      liabilityFormsRequiredIndividual: true,
+      showDietaryRestrictions: true,
+      dietaryRestrictionsRequired: false,
+      showAdaAccommodations: true,
+      adaAccommodationsRequired: false,
+      porosHousingEnabled: true,
+      porosPriestHousingEnabled: true,
+      porosSeatingEnabled: true,
+      porosMealColorsEnabled: true,
+      porosSmallGroupEnabled: true,
+      porosSglEnabled: true,
+      porosSeminarianEnabled: true,
+      porosReligiousStaffEnabled: true,
+      porosAdaEnabled: true,
+      publicPortalEnabled: true,
+      salveCheckinEnabled: true,
+      raphaMedicalEnabled: true,
+    },
+  })
+
+  console.log('✅ Created Mount 2000 Youth Retreat 2027 event settings')
+
   // 5. Create event pricing
   await prisma.eventPricing.upsert({
     where: { eventId: event.id },
@@ -237,6 +299,38 @@ async function main() {
   })
 
   console.log('✅ Created Krygma Retreat pricing')
+
+  // 5c. Create Mount 2000 Youth Retreat 2027 pricing
+  await prisma.eventPricing.upsert({
+    where: { eventId: youthRetreat2027.id },
+    update: {},
+    create: {
+      eventId: youthRetreat2027.id,
+      youthEarlyBirdPrice: 95.00,
+      youthRegularPrice: 105.00,
+      youthLatePrice: 125.00,
+      chaperoneEarlyBirdPrice: 70.00,
+      chaperoneRegularPrice: 80.00,
+      chaperoneLatePrice: 95.00,
+      priestPrice: 0.00,
+      onCampusYouthPrice: 105.00,
+      offCampusYouthPrice: 80.00,
+      dayPassYouthPrice: 55.00,
+      onCampusChaperonePrice: 80.00,
+      offCampusChaperonePrice: 65.00,
+      dayPassChaperonePrice: 45.00,
+      depositAmount: 25.00,
+      depositPerPerson: true,
+      earlyBirdDeadline: new Date('2027-05-01T23:59:59Z'),
+      regularDeadline: new Date('2027-06-15T23:59:59Z'),
+      fullPaymentDeadline: new Date('2027-07-01T23:59:59Z'),
+      lateFeePercentage: 20.00,
+      lateFeeAutoApply: false,
+      currency: 'USD',
+    },
+  })
+
+  console.log('✅ Created Mount 2000 Youth Retreat 2027 pricing')
   console.log('\n🎉 Seed completed successfully!')
   console.log('\n📋 Your Test Data:')
   console.log('─'.repeat(60))
@@ -272,6 +366,25 @@ async function main() {
   console.log(`  Off-Campus: $100.00`)
   console.log(`  Day-Pass: $75.00`)
   console.log(`\n💰 Full Payment Required (No deposit option)`)
+
+  console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`)
+  console.log(`\n🔹 Event 3: ${youthRetreat2027.name} (Group Registration Only)`)
+  console.log(`Event Slug: ${youthRetreat2027.slug}`)
+  console.log(`Event ID: ${youthRetreat2027.id}`)
+  console.log(`\nRegistration URL:`)
+  console.log(`  Group: https://chirhoevents.com/events/${youthRetreat2027.id}/register-group`)
+  console.log(`\n📅 Dates: July 9-12, 2027`)
+  console.log(`\n📊 Pricing:`)
+  console.log(`  Early Bird Youth: $95.00 (until May 1, 2027)`)
+  console.log(`  Regular Youth: $105.00`)
+  console.log(`  Late Youth: $125.00 (after June 15, 2027)`)
+  console.log(`  Chaperones: $80.00`)
+  console.log(`  Priests: FREE`)
+  console.log(`\n🏠 Housing Type Pricing:`)
+  console.log(`  On-Campus Youth: $105.00 | Chaperones: $80.00`)
+  console.log(`  Off-Campus Youth: $80.00 | Chaperones: $65.00`)
+  console.log(`  Day-Pass Youth: $55.00 | Chaperones: $45.00`)
+  console.log(`\n💰 Deposit Required: $25.00 per person`)
   console.log('─'.repeat(60))
 }
 
