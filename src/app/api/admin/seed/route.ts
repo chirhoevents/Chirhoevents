@@ -138,6 +138,39 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // 4b. Create Mount 2000 Youth Retreat 2027 event
+    const youthRetreat2027 = await prisma.event.upsert({
+      where: { slug: 'mount-2000-youth-retreat-2027' },
+      update: {
+        registrationOpenDate: new Date('2026-01-01T00:00:00Z'),
+        registrationCloseDate: new Date('2027-07-07T23:59:59Z'),
+      },
+      create: {
+        organizationId: org.id,
+        name: 'Mount 2000 Youth Retreat 2027',
+        slug: 'mount-2000-youth-retreat-2027',
+        description:
+          "An incredible summer youth retreat at the Mount — faith, fellowship, and fun for Catholic youth from across the country. Join us for a life-changing experience at Mount St. Mary's University!",
+        startDate: new Date('2027-07-09'),
+        endDate: new Date('2027-07-12'),
+        timezone: 'America/New_York',
+        locationName: "Mount St. Mary's University",
+        locationAddress: {
+          street: '16300 Old Emmitsburg Road',
+          city: 'Emmitsburg',
+          state: 'MD',
+          zip: '21727',
+          country: 'USA',
+        },
+        capacityTotal: 1000,
+        capacityRemaining: 1000,
+        registrationOpenDate: new Date('2026-01-01T00:00:00Z'),
+        registrationCloseDate: new Date('2027-07-07T23:59:59Z'),
+        status: 'registration_open',
+        createdBy: admin.id,
+      },
+    })
+
     // 5. Create Mount 2000 event settings (GROUP ONLY)
     await prisma.eventSettings.upsert({
       where: { eventId: event.id },
@@ -146,6 +179,35 @@ export async function POST(request: NextRequest) {
         eventId: event.id,
         groupRegistrationEnabled: true,
         individualRegistrationEnabled: false, // GROUP ONLY
+        liabilityFormsRequiredGroup: true,
+        liabilityFormsRequiredIndividual: true,
+        showDietaryRestrictions: true,
+        dietaryRestrictionsRequired: false,
+        showAdaAccommodations: true,
+        adaAccommodationsRequired: false,
+        porosHousingEnabled: true,
+        porosPriestHousingEnabled: true,
+        porosSeatingEnabled: true,
+        porosMealColorsEnabled: true,
+        porosSmallGroupEnabled: true,
+        porosSglEnabled: true,
+        porosSeminarianEnabled: true,
+        porosReligiousStaffEnabled: true,
+        porosAdaEnabled: true,
+        publicPortalEnabled: true,
+        salveCheckinEnabled: true,
+        raphaMedicalEnabled: true,
+      },
+    })
+
+    // 5b. Create Mount 2000 Youth Retreat 2027 event settings (GROUP ONLY)
+    await prisma.eventSettings.upsert({
+      where: { eventId: youthRetreat2027.id },
+      update: {},
+      create: {
+        eventId: youthRetreat2027.id,
+        groupRegistrationEnabled: true,
+        individualRegistrationEnabled: false,
         liabilityFormsRequiredGroup: true,
         liabilityFormsRequiredIndividual: true,
         showDietaryRestrictions: true,
@@ -231,6 +293,36 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // 7b. Create Mount 2000 Youth Retreat 2027 pricing
+    await prisma.eventPricing.upsert({
+      where: { eventId: youthRetreat2027.id },
+      update: {},
+      create: {
+        eventId: youthRetreat2027.id,
+        youthEarlyBirdPrice: 95.0,
+        youthRegularPrice: 105.0,
+        youthLatePrice: 125.0,
+        chaperoneEarlyBirdPrice: 70.0,
+        chaperoneRegularPrice: 80.0,
+        chaperoneLatePrice: 95.0,
+        priestPrice: 0.0,
+        onCampusYouthPrice: 105.0,
+        offCampusYouthPrice: 80.0,
+        dayPassYouthPrice: 55.0,
+        onCampusChaperonePrice: 80.0,
+        offCampusChaperonePrice: 65.0,
+        dayPassChaperonePrice: 45.0,
+        depositAmount: 25.0,
+        depositPerPerson: true,
+        earlyBirdDeadline: new Date('2027-05-01T23:59:59Z'),
+        regularDeadline: new Date('2027-06-15T23:59:59Z'),
+        fullPaymentDeadline: new Date('2027-07-01T23:59:59Z'),
+        lateFeePercentage: 20.0,
+        lateFeeAutoApply: false,
+        currency: 'USD',
+      },
+    })
+
     // 8. Create Krygma Retreat pricing (INDIVIDUAL ONLY)
     await prisma.eventPricing.upsert({
       where: { eventId: krygmaEvent.id },
@@ -286,6 +378,13 @@ export async function POST(request: NextRequest) {
             slug: krygmaEvent.slug,
             type: 'INDIVIDUAL REGISTRATION ONLY',
             registrationUrl: `https://chirhoevents.com/events/${krygmaEvent.id}/register-individual`,
+          },
+          {
+            id: youthRetreat2027.id,
+            name: youthRetreat2027.name,
+            slug: youthRetreat2027.slug,
+            type: 'GROUP REGISTRATION ONLY',
+            registrationUrl: `https://chirhoevents.com/events/${youthRetreat2027.id}/register-group`,
           },
         ],
       },
