@@ -145,6 +145,7 @@ export default function NameTagDesignerPage() {
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [uploadingBanner, setUploadingBanner] = useState(false)
   const [scheduleCount, setScheduleCount] = useState<number | null>(null)
+  const [scheduleEntries, setScheduleEntries] = useState<any[]>([])
   const logoInputRef = useRef<HTMLInputElement>(null)
   const bannerInputRef = useRef<HTMLInputElement>(null)
 
@@ -191,12 +192,15 @@ export default function NameTagDesignerPage() {
         }
       }
 
-      // Load schedule count (requires poros.access; silently skip if forbidden)
+      // Load schedule entries (requires poros.access; silently skip if forbidden)
       if (scheduleRes.ok) {
         const scheduleData = await scheduleRes.json()
-        setScheduleCount((scheduleData.schedule || []).length)
+        const entries = scheduleData.schedule || []
+        setScheduleCount(entries.length)
+        setScheduleEntries(entries)
       } else {
         setScheduleCount(0)
+        setScheduleEntries([])
       }
     } catch (error) {
       console.error('Failed to fetch data:', error)
@@ -395,7 +399,7 @@ export default function NameTagDesignerPage() {
         },
         body: JSON.stringify({
           groupId: firstGroupId,
-          templateId: null,
+          templateOverride: template,
         }),
       })
 
@@ -433,7 +437,7 @@ export default function NameTagDesignerPage() {
             'Content-Type': 'application/json',
             ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ groupId, templateId: null }),
+          body: JSON.stringify({ groupId, templateOverride: template }),
         })
 
         if (response.ok) {
@@ -442,6 +446,9 @@ export default function NameTagDesignerPage() {
           if (data.schedule?.length) lastSchedule = data.schedule
         }
       }
+
+      // Also use the locally-loaded schedule as fallback (no need for a second API round-trip)
+      if (!lastSchedule.length && scheduleEntries.length) lastSchedule = scheduleEntries
 
       toast.success(`Generated ${allNameTags.length} name tags. Opening print dialog...`)
       openBadgePrintWindow(allNameTags, template, eventName, lastSchedule)
@@ -472,7 +479,7 @@ export default function NameTagDesignerPage() {
             'Content-Type': 'application/json',
             ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ groupId, templateId: null }),
+          body: JSON.stringify({ groupId, templateOverride: template }),
         })
 
         if (response.ok) {
@@ -481,6 +488,8 @@ export default function NameTagDesignerPage() {
           if (data.schedule?.length) lastSchedule = data.schedule
         }
       }
+
+      if (!lastSchedule.length && scheduleEntries.length) lastSchedule = scheduleEntries
 
       toast.success(`Exporting ${allNameTags.length} badges for pre-print roll...`)
       openBadgePrintWindow(allNameTags, template, eventName, lastSchedule, { cropMarks: true })
@@ -576,12 +585,12 @@ export default function NameTagDesignerPage() {
                   <Select value={template.size} onValueChange={(value) => updateTemplate('size', value)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="small">Small (2.5&quot; × 1.5&quot;)</SelectItem>
+                      <SelectItem value="thermal_4x12">Thermal Roll (4&quot; × 12&quot; fanfold)</SelectItem>
+                      <SelectItem value="badge_4x6">Badge (4&quot; × 6&quot;, 1 per page)</SelectItem>
                       <SelectItem value="standard">Standard (3.5&quot; × 2.25&quot;)</SelectItem>
                       <SelectItem value="large">Large (4&quot; × 3&quot;)</SelectItem>
-                      <SelectItem value="badge_4x6">Badge (4&quot; × 6&quot;, 1 per page)</SelectItem>
+                      <SelectItem value="small">Small (2.5&quot; × 1.5&quot;)</SelectItem>
                       <SelectItem value="business_card">Business Card (3.5&quot; × 2&quot;, 10 per page)</SelectItem>
-                      <SelectItem value="thermal_4x12">Thermal Roll (4&quot; × 12&quot; fanfold)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -884,27 +893,36 @@ export default function NameTagDesignerPage() {
                     </div>
                     {/* Back panel */}
                     <div style={{ width: 160, height: 200, background: '#f8f8f8', border: '1px solid #ccc', borderRadius: '0 0 6px 6px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                      {template.showBackPanel ? (
-                        <div style={{ transform: 'rotate(180deg)', padding: '8px', flex: 1, fontSize: 8, color: '#333' }}>
-                          {scheduleCount === null ? (
-                            <div style={{ textAlign: 'center', color: '#aaa', marginTop: '30%' }}>Loading schedule...</div>
-                          ) : scheduleCount === 0 ? (
-                            <div style={{ textAlign: 'center', color: '#aaa', marginTop: '20%', lineHeight: 1.6 }}>
-                              No schedule entries yet.<br />
-                              <span style={{ fontSize: 7 }}>Add entries in the Poros module.</span>
-                            </div>
-                          ) : (
-                            <>
-                              <div style={{ fontWeight: 700, fontSize: 9, borderBottom: '1px solid #ccc', marginBottom: 4, paddingBottom: 2, color: template.thermalMode ? '#000' : pAccent }}>Day 1</div>
-                              <div style={{ marginBottom: 3, display: 'flex', gap: 4 }}><span style={{ minWidth: 50, color: '#666' }}>9:00 AM</span><span>Opening Mass</span></div>
-                              <div style={{ marginBottom: 3, display: 'flex', gap: 4 }}><span style={{ minWidth: 50, color: '#666' }}>10:30 AM</span><span>Keynote Talk</span></div>
-                              <div style={{ fontWeight: 700, fontSize: 9, borderBottom: '1px solid #ccc', marginBottom: 4, paddingBottom: 2, marginTop: 6, color: template.thermalMode ? '#000' : pAccent }}>Day 2</div>
-                              <div style={{ marginBottom: 3, display: 'flex', gap: 4 }}><span style={{ minWidth: 50, color: '#666' }}>8:00 AM</span><span>Morning Prayer</span></div>
-                              <div style={{ color: '#888', fontSize: 7, marginTop: 4 }}>+{scheduleCount - 3 > 0 ? scheduleCount - 3 : ''} more entries</div>
-                            </>
-                          )}
-                        </div>
-                      ) : (
+                      {template.showBackPanel ? (() => {
+                        if (scheduleCount === null) {
+                          return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: 8 }}>Loading…</div>
+                        }
+                        if (scheduleCount === 0) {
+                          return <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: 8, textAlign: 'center', padding: 8, lineHeight: 1.6 }}>No schedule entries yet.<br /><span style={{ fontSize: 7 }}>Add entries in Poros.</span></div>
+                        }
+                        // Build real schedule preview grouped by day, rotated 180° like the real back panel
+                        const dayMap = new Map<string, typeof scheduleEntries>()
+                        for (const e of scheduleEntries) {
+                          if (!dayMap.has(e.day)) dayMap.set(e.day, [])
+                          dayMap.get(e.day)!.push(e)
+                        }
+                        const dayColor = template.thermalMode ? '#000' : '#555'
+                        return (
+                          <div style={{ transform: 'rotate(180deg)', padding: '6px 7px', overflowY: 'auto', maxHeight: 200, width: '100%', boxSizing: 'border-box' }}>
+                            {Array.from(dayMap.entries()).map(([day, entries]) => (
+                              <div key={day} style={{ marginBottom: 5 }}>
+                                <div style={{ fontWeight: 700, fontSize: 7, textTransform: 'uppercase', borderBottom: `1px solid ${dayColor}`, marginBottom: 2, paddingBottom: 1, color: dayColor }}>{day}</div>
+                                {entries.map((e: any, i: number) => (
+                                  <div key={i} style={{ display: 'flex', gap: 3, marginBottom: 1, lineHeight: 1.3, alignItems: 'baseline' }}>
+                                    <span style={{ fontSize: 6, color: '#666', minWidth: 38, flexShrink: 0, whiteSpace: 'nowrap' }}>{e.endTime ? `${e.startTime}–${e.endTime}` : e.startTime}</span>
+                                    <span style={{ fontSize: 7, flex: 1, wordBreak: 'break-word' }}>{e.title}{e.location ? ` · ${e.location}` : ''}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      })() : (
                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 9, textAlign: 'center', padding: 8 }}>
                           Back panel disabled
                         </div>

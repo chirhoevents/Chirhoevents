@@ -90,19 +90,22 @@ export async function POST(
       registrationId,          // single individual/staff registration ID
       registrationType = 'group', // 'group' | 'individual' | 'staff'
       templateId,
+      templateOverride,        // current UI template state (takes priority over DB)
     } = body
 
     // -----------------------------------------------------------------------
-    // Load template
+    // Load template — UI override > DB template by id > DB template by event > default
     // -----------------------------------------------------------------------
     let template = null
-    if (templateId) {
-      template = await prisma.nameTagTemplate.findFirst({ where: { id: templateId, eventId } })
+    if (!templateOverride) {
+      if (templateId) {
+        template = await prisma.nameTagTemplate.findFirst({ where: { id: templateId, eventId } })
+      }
+      if (!template) {
+        template = await prisma.nameTagTemplate.findUnique({ where: { eventId } })
+      }
     }
-    if (!template) {
-      template = await prisma.nameTagTemplate.findUnique({ where: { eventId } })
-    }
-    const templateConfig: any = template?.settingsJson || template || DEFAULT_TEMPLATE
+    const templateConfig: any = templateOverride || template?.settingsJson || template || DEFAULT_TEMPLATE
 
     // -----------------------------------------------------------------------
     // Dispatch by registration type
