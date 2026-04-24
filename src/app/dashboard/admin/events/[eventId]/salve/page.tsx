@@ -42,6 +42,7 @@ import {
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { generateMultiplePacketsHTML, type PacketData } from '@/lib/welcome-packet-print'
+import { openBadgePrintWindow } from '@/lib/badge-renderer'
 
 // Dynamic import for QR scanner to avoid SSR issues
 const QRScanner = dynamic(
@@ -123,6 +124,11 @@ export default function SalveCheckInPage() {
   const [checkedInCount, setCheckedInCount] = useState(0)
   const [notCheckedInParticipants, setNotCheckedInParticipants] = useState<ParticipantData[]>([])
   const [printingPacket, setPrintingPacket] = useState(false)
+  const [printingNameTags, setPrintingNameTags] = useState(false)
+  // Captured at check-in time so the success-modal buttons know what to print
+  const [lastCheckedInParticipantIds, setLastCheckedInParticipantIds] = useState<string[]>([])
+  const [lastCheckedInGroupId, setLastCheckedInGroupId] = useState<string | null>(null)
+  const [lastCheckedInRegistrationType, setLastCheckedInRegistrationType] = useState<'group' | 'individual'>('group')
 
   useEffect(() => {
     fetchEventInfo()
@@ -241,6 +247,41 @@ export default function SalveCheckInPage() {
       toast.error(error instanceof Error ? error.message : 'Failed to print welcome packet')
     } finally {
       setPrintingPacket(false)
+    }
+  }
+
+  async function handlePrintNameTags() {
+    if (lastCheckedInParticipantIds.length === 0) {
+      toast.error('No checked-in participants to print badges for')
+      return
+    }
+
+    setPrintingNameTags(true)
+    try {
+      const isIndividual = lastCheckedInRegistrationType === 'individual'
+      const response = await fetch(`/api/admin/events/${eventId}/salve/generate-name-tags`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          participantIds: isIndividual ? undefined : lastCheckedInParticipantIds,
+          groupId: isIndividual ? undefined : (lastCheckedInGroupId ?? undefined),
+          registrationId: isIndividual ? (lastCheckedInParticipantIds[0] ?? undefined) : undefined,
+          registrationType: lastCheckedInRegistrationType,
+        }),
+      })
+
+      if (!response.ok) {
+        const err = await response.json()
+        throw new Error(err.message || 'Failed to generate name tags')
+      }
+
+      const data = await response.json()
+      openBadgePrintWindow(data.nameTags, data.template, eventName, data.schedule ?? [])
+      toast.success('Name tags opened for printing')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to print name tags')
+    } finally {
+      setPrintingNameTags(false)
     }
   }
 
@@ -485,6 +526,12 @@ export default function SalveCheckInPage() {
         const error = await response.json()
         throw new Error(error.message || 'Failed to check in')
       }
+
+      // Capture context for the success-modal print buttons
+      const checkedInIds = Array.from(selectedParticipants)
+      setLastCheckedInParticipantIds(checkedInIds)
+      setLastCheckedInGroupId(groupData.id)
+      setLastCheckedInRegistrationType(isIndividual ? 'individual' : 'group')
 
       // Show success modal
       setCheckedInCount(selectedParticipants.size)
@@ -987,8 +1034,17 @@ export default function SalveCheckInPage() {
                   )}
                   Print Welcome Packet
                 </Button>
-                <Button variant="outline" className="h-auto py-3">
-                  <Printer className="w-4 h-4 mr-2" />
+                <Button
+                  variant="outline"
+                  className="h-auto py-3"
+                  onClick={handlePrintNameTags}
+                  disabled={printingNameTags}
+                >
+                  {printingNameTags ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Printer className="w-4 h-4 mr-2" />
+                  )}
                   Print Name Tags ({checkedInCount})
                 </Button>
               </div>
