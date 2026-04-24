@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, CSSProperties } from 'react'
 import { useParams } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
@@ -40,6 +40,7 @@ import {
   Download,
   Upload,
   X,
+  ExternalLink,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { openBadgePrintWindow } from '@/lib/badge-renderer'
@@ -143,6 +144,7 @@ export default function NameTagDesignerPage() {
   const [templateSavedAt, setTemplateSavedAt] = useState<string | null>(null)
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [uploadingBanner, setUploadingBanner] = useState(false)
+  const [scheduleCount, setScheduleCount] = useState<number | null>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
   const bannerInputRef = useRef<HTMLInputElement>(null)
 
@@ -156,10 +158,11 @@ export default function NameTagDesignerPage() {
       const token = await getToken()
       const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
 
-      const [eventRes, groupsRes, templateRes] = await Promise.all([
+      const [eventRes, groupsRes, templateRes, scheduleRes] = await Promise.all([
         fetch(`/api/admin/events/${eventId}`, { headers }),
         fetch(`/api/admin/events/${eventId}/groups`, { headers }),
         fetch(`/api/admin/events/${eventId}/salve/name-tag-template`, { headers }),
+        fetch(`/api/admin/events/${eventId}/poros/schedule`, { headers }),
       ])
 
       if (eventRes.ok) {
@@ -186,6 +189,14 @@ export default function NameTagDesignerPage() {
         if (templateData.savedAt) {
           setTemplateSavedAt(templateData.savedAt)
         }
+      }
+
+      // Load schedule count (requires poros.access; silently skip if forbidden)
+      if (scheduleRes.ok) {
+        const scheduleData = await scheduleRes.json()
+        setScheduleCount((scheduleData.schedule || []).length)
+      } else {
+        setScheduleCount(0)
       }
     } catch (error) {
       console.error('Failed to fetch data:', error)
@@ -543,413 +554,253 @@ export default function NameTagDesignerPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Template Settings */}
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2">
               <Settings className="w-5 h-5" />
               Template Settings
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Size */}
-            <div className="space-y-2">
-              <Label>Tag Size</Label>
-              <Select
-                value={template.size}
-                onValueChange={(value) => updateTemplate('size', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="small">Small (2.5&quot; × 1.5&quot;)</SelectItem>
-                  <SelectItem value="standard">Standard (3.5&quot; × 2.25&quot;)</SelectItem>
-                  <SelectItem value="large">Large (4&quot; × 3&quot;)</SelectItem>
-                  <SelectItem value="badge_4x6">Badge (4&quot; × 6&quot;)</SelectItem>
-                  <SelectItem value="business_card">Business Card (3.5&quot; × 2&quot;)</SelectItem>
-                  <SelectItem value="thermal_4x12">Thermal Roll (4&quot; × 12&quot; fanfold)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <CardContent className="p-0">
+            <Tabs defaultValue="layout" className="w-full">
+              <TabsList className="w-full rounded-none border-b grid grid-cols-3">
+                <TabsTrigger value="layout">Layout</TabsTrigger>
+                <TabsTrigger value="fields">Fields</TabsTrigger>
+                <TabsTrigger value="style">Style</TabsTrigger>
+              </TabsList>
 
-            {/* Font Size */}
-            <div className="space-y-2">
-              <Label>Font Size</Label>
-              <Select
-                value={template.fontSize}
-                onValueChange={(value) => updateTemplate('fontSize', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="small">Small</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="large">Large</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Font Family */}
-            <div className="space-y-2">
-              <Label>Font Family</Label>
-              <Select
-                value={template.fontFamily}
-                onValueChange={(value) => updateTemplate('fontFamily', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sans-serif">Sans-serif (Arial)</SelectItem>
-                  <SelectItem value="serif">Serif (Georgia)</SelectItem>
-                  <SelectItem value="monospace">Monospace (Courier)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Conference Header */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="showConferenceHeader"
-                  checked={template.showConferenceHeader}
-                  onCheckedChange={(checked) => updateTemplate('showConferenceHeader', checked)}
-                />
-                <Label htmlFor="showConferenceHeader" className="font-normal">Show Conference Header</Label>
-              </div>
-              {template.showConferenceHeader && (
-                <Input
-                  placeholder="Enter conference name (e.g., SALVE 2025)"
-                  value={template.conferenceHeaderText}
-                  onChange={(e) => updateTemplate('conferenceHeaderText', e.target.value)}
-                />
-              )}
-            </div>
-
-            {/* Logo */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="showLogo"
-                  checked={template.showLogo}
-                  onCheckedChange={(checked) => updateTemplate('showLogo', checked)}
-                />
-                <Label htmlFor="showLogo" className="font-normal">Show Logo</Label>
-              </div>
-              {template.showLogo && (
+              {/* ─── LAYOUT TAB ─── */}
+              <TabsContent value="layout" className="p-4 space-y-5">
+                {/* Size */}
                 <div className="space-y-2">
-                  {/* Hidden file input */}
-                  <input
-                    ref={logoInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
-                    onChange={handleLogoUpload}
-                    className="hidden"
-                  />
-
-                  {template.logoUrl ? (
-                    <div className="p-3 border rounded-lg bg-gray-50">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-muted-foreground">Current Logo</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleDeleteLogo}
-                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                      <img
-                        src={template.logoUrl}
-                        alt="Logo preview"
-                        className="max-h-16 mx-auto"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none'
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => logoInputRef.current?.click()}
-                      disabled={uploadingLogo}
-                    >
-                      {uploadingLogo ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Upload className="w-4 h-4 mr-2" />
-                      )}
-                      {uploadingLogo ? 'Uploading...' : 'Upload Logo'}
-                    </Button>
-                  )}
-
-                  {template.logoUrl && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => logoInputRef.current?.click()}
-                      disabled={uploadingLogo}
-                    >
-                      {uploadingLogo ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Upload className="w-4 h-4 mr-2" />
-                      )}
-                      Replace Logo
-                    </Button>
-                  )}
+                  <Label>Badge Size</Label>
+                  <Select value={template.size} onValueChange={(value) => updateTemplate('size', value)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="small">Small (2.5&quot; × 1.5&quot;)</SelectItem>
+                      <SelectItem value="standard">Standard (3.5&quot; × 2.25&quot;)</SelectItem>
+                      <SelectItem value="large">Large (4&quot; × 3&quot;)</SelectItem>
+                      <SelectItem value="badge_4x6">Badge (4&quot; × 6&quot;, 1 per page)</SelectItem>
+                      <SelectItem value="business_card">Business Card (3.5&quot; × 2&quot;, 10 per page)</SelectItem>
+                      <SelectItem value="thermal_4x12">Thermal Roll (4&quot; × 12&quot; fanfold)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
-            </div>
 
-            {/* Header Banner - Only show for badge_4x6 / thermal_4x12 */}
-            {(template.size === 'badge_4x6' || template.size === 'thermal_4x12') && (
-              <div className="space-y-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="showHeaderBanner"
-                    checked={template.showHeaderBanner}
-                    onCheckedChange={(checked) => updateTemplate('showHeaderBanner', checked)}
-                  />
-                  <Label htmlFor="showHeaderBanner" className="font-normal">
-                    Use Custom Header Banner (Top 2.5&quot;)
-                  </Label>
+                {/* Font Size */}
+                <div className="space-y-2">
+                  <Label>Font Size</Label>
+                  <Select value={template.fontSize} onValueChange={(value) => updateTemplate('fontSize', value)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="small">Small</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="large">Large</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Upload a custom graphic for the top portion of the 4x6 badge. The name and info will display in the bottom half.
-                </p>
-                {template.showHeaderBanner && (
-                  <div className="space-y-2">
-                    {/* Hidden file input */}
-                    <input
-                      ref={bannerInputRef}
-                      type="file"
-                      accept="image/png,image/jpeg,image/gif,image/webp"
-                      onChange={handleBannerUpload}
-                      className="hidden"
+
+                {/* Font Family */}
+                <div className="space-y-2">
+                  <Label>Font Family</Label>
+                  <Select value={template.fontFamily} onValueChange={(value) => updateTemplate('fontFamily', value)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sans-serif">Sans-serif (Arial)</SelectItem>
+                      <SelectItem value="serif">Serif (Georgia)</SelectItem>
+                      <SelectItem value="monospace">Monospace (Courier)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Conference Header */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="showConferenceHeader" checked={template.showConferenceHeader} onCheckedChange={(checked) => updateTemplate('showConferenceHeader', checked)} />
+                    <Label htmlFor="showConferenceHeader" className="font-normal">Conference header bar</Label>
+                  </div>
+                  {template.showConferenceHeader && (
+                    <Input
+                      placeholder={eventName || 'e.g., SALVE 2025'}
+                      value={template.conferenceHeaderText}
+                      onChange={(e) => updateTemplate('conferenceHeaderText', e.target.value)}
                     />
+                  )}
+                </div>
 
-                    {template.headerBannerUrl ? (
-                      <div className="p-3 border rounded-lg bg-white">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm text-muted-foreground">Current Banner</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleDeleteBanner}
-                            className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <X className="w-4 h-4" />
+                {/* Header Banner — 4x6 / thermal only */}
+                {(template.size === 'badge_4x6' || template.size === 'thermal_4x12') && (
+                  <div className="space-y-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-center gap-2">
+                      <Checkbox id="showHeaderBanner" checked={template.showHeaderBanner} onCheckedChange={(checked) => updateTemplate('showHeaderBanner', checked)} />
+                      <Label htmlFor="showHeaderBanner" className="font-normal">Custom header image (top 2.5&quot;)</Label>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Replaces the gradient header with your own graphic.</p>
+                    {template.showHeaderBanner && (
+                      <div className="space-y-2">
+                        <input ref={bannerInputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={handleBannerUpload} className="hidden" />
+                        {template.headerBannerUrl ? (
+                          <div className="p-2 border rounded bg-white">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-xs text-muted-foreground">Current banner</span>
+                              <Button variant="ghost" size="sm" onClick={handleDeleteBanner} className="h-6 w-6 p-0 text-red-500 hover:bg-red-50"><X className="w-3 h-3" /></Button>
+                            </div>
+                            <img src={template.headerBannerUrl} alt="Banner" className="max-h-20 mx-auto rounded" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                            <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => bannerInputRef.current?.click()} disabled={uploadingBanner}>
+                              {uploadingBanner ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Upload className="w-3 h-3 mr-1" />} Replace
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button variant="outline" className="w-full bg-white" onClick={() => bannerInputRef.current?.click()} disabled={uploadingBanner}>
+                            {uploadingBanner ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+                            {uploadingBanner ? 'Uploading…' : 'Upload banner image'}
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Back Panel — thermal only */}
+                {template.size === 'thermal_4x12' && (
+                  <div className="space-y-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+                    <div className="flex items-center justify-between">
+                      <Label className="font-medium text-indigo-800">Back Panel (Schedule)</Label>
+                      <Link href={`/dashboard/admin/events/${eventId}/poros`} className="text-xs text-indigo-600 hover:underline flex items-center gap-1" target="_blank">
+                        Manage schedule <ExternalLink className="w-3 h-3" />
+                      </Link>
+                    </div>
+                    <div className="text-xs rounded bg-white border border-indigo-100 px-2 py-1.5">
+                      {scheduleCount === null ? (
+                        <span className="text-muted-foreground">Checking schedule…</span>
+                      ) : scheduleCount === 0 ? (
+                        <span className="text-amber-600">⚠ No schedule entries yet — add them in the Poros module.</span>
+                      ) : (
+                        <span className="text-green-700">✓ {scheduleCount} schedule {scheduleCount === 1 ? 'entry' : 'entries'} ready</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox id="showBackPanel" checked={template.showBackPanel} onCheckedChange={(checked) => updateTemplate('showBackPanel', checked)} />
+                      <Label htmlFor="showBackPanel" className="font-normal">Print back panel (event schedule)</Label>
+                    </div>
+                    {template.showBackPanel && (
+                      <div className="space-y-1">
+                        <Label className="text-xs">Color mode</Label>
+                        <Select value={template.backPanelColorMode} onValueChange={(value) => updateTemplate('backPanelColorMode', value)}>
+                          <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="color">Color (accent color headers)</SelectItem>
+                            <SelectItem value="bw">Black &amp; White (thermal-safe)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* ─── FIELDS TAB ─── */}
+              <TabsContent value="fields" className="p-4 space-y-3">
+                <p className="text-xs text-muted-foreground mb-1">Choose what information prints on each badge.</p>
+
+                {[
+                  { id: 'showName', label: 'Name' },
+                  { id: 'showGroup', label: 'Group / Parish name' },
+                  { id: 'showDiocese', label: 'Diocese' },
+                  { id: 'showParticipantType', label: 'Participant type badge (Youth / Chaperone / Clergy)' },
+                  { id: 'showHousing', label: 'Housing assignment' },
+                  { id: 'showMealColor', label: 'Meal color indicator' },
+                  { id: 'showQrCode', label: 'QR code' },
+                ].map(({ id, label }) => (
+                  <div key={id} className="flex items-start gap-2">
+                    <Checkbox
+                      id={id}
+                      checked={template[id as keyof NameTagTemplate] as boolean}
+                      onCheckedChange={(checked) => updateTemplate(id as keyof NameTagTemplate, checked)}
+                      className="mt-0.5"
+                    />
+                    <Label htmlFor={id} className="font-normal leading-snug">{label}</Label>
+                  </div>
+                ))}
+
+                {template.showMealColor && template.thermalMode && (
+                  <p className="text-xs text-muted-foreground bg-gray-50 rounded p-2 mt-1">
+                    Thermal mode is on — meal color prints as text (e.g., &ldquo;Meal: Blue&rdquo;) instead of a color bar.
+                  </p>
+                )}
+              </TabsContent>
+
+              {/* ─── STYLE TAB ─── */}
+              <TabsContent value="style" className="p-4 space-y-5">
+                {/* Logo */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="showLogo" checked={template.showLogo} onCheckedChange={(checked) => updateTemplate('showLogo', checked)} />
+                    <Label htmlFor="showLogo" className="font-normal">Show logo</Label>
+                  </div>
+                  {template.showLogo && (
+                    <div className="space-y-2">
+                      <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" onChange={handleLogoUpload} className="hidden" />
+                      {template.logoUrl ? (
+                        <div className="p-3 border rounded-lg bg-gray-50">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm text-muted-foreground">Current logo</span>
+                            <Button variant="ghost" size="sm" onClick={handleDeleteLogo} className="h-6 w-6 p-0 text-red-500 hover:bg-red-50"><X className="w-4 h-4" /></Button>
+                          </div>
+                          <img src={template.logoUrl} alt="Logo" className="max-h-16 mx-auto" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                          <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo}>
+                            {uploadingLogo ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Upload className="w-3 h-3 mr-1" />} Replace
                           </Button>
                         </div>
-                        <img
-                          src={template.headerBannerUrl}
-                          alt="Banner preview"
-                          className="max-h-24 mx-auto rounded"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none'
-                          }}
-                        />
-                      </div>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        className="w-full bg-white"
-                        onClick={() => bannerInputRef.current?.click()}
-                        disabled={uploadingBanner}
-                      >
-                        {uploadingBanner ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Upload className="w-4 h-4 mr-2" />
-                        )}
-                        {uploadingBanner ? 'Uploading...' : 'Upload Header Banner (4" × 2.5")'}
-                      </Button>
-                    )}
+                      ) : (
+                        <Button variant="outline" className="w-full" onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo}>
+                          {uploadingLogo ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+                          {uploadingLogo ? 'Uploading…' : 'Upload logo'}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
 
-                    {template.headerBannerUrl && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full bg-white"
-                        onClick={() => bannerInputRef.current?.click()}
-                        disabled={uploadingBanner}
-                      >
-                        {uploadingBanner ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Upload className="w-4 h-4 mr-2" />
-                        )}
-                        Replace Banner
-                      </Button>
+                <div className="border-t" />
+
+                {/* Colors */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label>Colors</Label>
+                    {template.thermalMode && (
+                      <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">Disabled in B&amp;W mode</span>
                     )}
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* Display Options */}
-            <div className="space-y-3">
-              <Label>Display Options</Label>
-
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="showName"
-                  checked={template.showName}
-                  onCheckedChange={(checked) => updateTemplate('showName', checked)}
-                />
-                <Label htmlFor="showName" className="font-normal">Show Name</Label>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="showGroup"
-                  checked={template.showGroup}
-                  onCheckedChange={(checked) => updateTemplate('showGroup', checked)}
-                />
-                <Label htmlFor="showGroup" className="font-normal">Show Group Name</Label>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="showDiocese"
-                  checked={template.showDiocese}
-                  onCheckedChange={(checked) => updateTemplate('showDiocese', checked)}
-                />
-                <Label htmlFor="showDiocese" className="font-normal">Show Diocese</Label>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="showParticipantType"
-                  checked={template.showParticipantType}
-                  onCheckedChange={(checked) => updateTemplate('showParticipantType', checked)}
-                />
-                <Label htmlFor="showParticipantType" className="font-normal">Show Participant Type</Label>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="showHousing"
-                  checked={template.showHousing}
-                  onCheckedChange={(checked) => updateTemplate('showHousing', checked)}
-                />
-                <Label htmlFor="showHousing" className="font-normal">Show Housing Assignment</Label>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="showMealColor"
-                  checked={template.showMealColor}
-                  onCheckedChange={(checked) => updateTemplate('showMealColor', checked)}
-                />
-                <Label htmlFor="showMealColor" className="font-normal">Show Meal Color Bar</Label>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="showQrCode"
-                  checked={template.showQrCode}
-                  onCheckedChange={(checked) => updateTemplate('showQrCode', checked)}
-                />
-                <Label htmlFor="showQrCode" className="font-normal">Show QR Code</Label>
-              </div>
-            </div>
-
-            {/* Thermal Printer Mode */}
-            <div className="space-y-3 p-3 bg-gray-50 rounded-lg border">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="thermalMode"
-                  checked={template.thermalMode}
-                  onCheckedChange={(checked) => updateTemplate('thermalMode', checked)}
-                />
-                <Label htmlFor="thermalMode" className="font-medium">Thermal Printer Mode</Label>
-              </div>
-              {template.thermalMode && (
-                <p className="text-xs text-muted-foreground">
-                  Forces black &amp; white output. All color fills are removed and meal colors display as text labels. Logo images are still printed.
-                </p>
-              )}
-            </div>
-
-            {/* Back panel (thermal_4x12 only) */}
-            {template.size === 'thermal_4x12' && (
-              <div className="space-y-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
-                <Label className="font-medium text-indigo-800">Back Panel (Schedule)</Label>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="showBackPanel"
-                    checked={template.showBackPanel}
-                    onCheckedChange={(checked) => updateTemplate('showBackPanel', checked)}
-                  />
-                  <Label htmlFor="showBackPanel" className="font-normal">Print back panel (event schedule)</Label>
-                </div>
-                {template.showBackPanel && (
-                  <div className="space-y-2">
-                    <Label className="text-xs">Back panel color mode</Label>
-                    <Select
-                      value={template.backPanelColorMode}
-                      onValueChange={(value) => updateTemplate('backPanelColorMode', value)}
-                    >
-                      <SelectTrigger className="bg-white">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="color">Color (day headers use accent color)</SelectItem>
-                        <SelectItem value="bw">Black &amp; White (thermal compatible)</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className={`grid grid-cols-3 gap-3 ${template.thermalMode ? 'opacity-40 pointer-events-none' : ''}`}>
+                    <div>
+                      <Label className="text-xs mb-1 block">Background</Label>
+                      <Input type="color" value={template.backgroundColor} onChange={(e) => updateTemplate('backgroundColor', e.target.value)} className="h-10 p-1 w-full" disabled={template.thermalMode} />
+                    </div>
+                    <div>
+                      <Label className="text-xs mb-1 block">Text</Label>
+                      <Input type="color" value={template.textColor} onChange={(e) => updateTemplate('textColor', e.target.value)} className="h-10 p-1 w-full" disabled={template.thermalMode} />
+                    </div>
+                    <div>
+                      <Label className="text-xs mb-1 block">Accent</Label>
+                      <Input type="color" value={template.accentColor} onChange={(e) => updateTemplate('accentColor', e.target.value)} className="h-10 p-1 w-full" disabled={template.thermalMode} />
+                    </div>
                   </div>
-                )}
-              </div>
-            )}
+                </div>
 
-            {/* Colors */}
-            <div className="space-y-3">
-              <Label>Colors</Label>
-              {template.thermalMode && (
-                <p className="text-xs text-amber-600 bg-amber-50 rounded p-2">
-                  Color pickers are disabled in Thermal Printer Mode.
-                </p>
-              )}
+                <div className="border-t" />
 
-              <div className={`grid grid-cols-3 gap-2 ${template.thermalMode ? 'opacity-40 pointer-events-none' : ''}`}>
-                <div>
-                  <Label className="text-xs">Background</Label>
-                  <Input
-                    type="color"
-                    value={template.backgroundColor}
-                    onChange={(e) => updateTemplate('backgroundColor', e.target.value)}
-                    className="h-10 p-1"
-                    disabled={template.thermalMode}
-                  />
+                {/* Thermal Printer Mode */}
+                <div className="space-y-2 p-3 bg-gray-50 rounded-lg border">
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="thermalMode" checked={template.thermalMode} onCheckedChange={(checked) => updateTemplate('thermalMode', checked)} />
+                    <Label htmlFor="thermalMode" className="font-medium">Thermal printer mode (B&amp;W)</Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Forces white background and black text. Color fills become outlines. Meal colors print as text labels. Logo images still print.
+                  </p>
                 </div>
-                <div>
-                  <Label className="text-xs">Text</Label>
-                  <Input
-                    type="color"
-                    value={template.textColor}
-                    onChange={(e) => updateTemplate('textColor', e.target.value)}
-                    className="h-10 p-1"
-                    disabled={template.thermalMode}
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Accent</Label>
-                  <Input
-                    type="color"
-                    value={template.accentColor}
-                    onChange={(e) => updateTemplate('accentColor', e.target.value)}
-                    className="h-10 p-1"
-                    disabled={template.thermalMode}
-                  />
-                </div>
-              </div>
-            </div>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
 
@@ -959,248 +810,197 @@ export default function NameTagDesignerPage() {
             <CardTitle className="flex items-center gap-2">
               <Eye className="w-5 h-5" />
               Live Preview
+              {template.thermalMode && (
+                <span className="text-xs font-normal bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">B&amp;W</span>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex justify-center">
-              {template.size === 'thermal_4x12' ? (
-                /* Thermal 4×12 Preview — two stacked panels */
-                <div className="flex flex-col items-center gap-1">
-                  <div
-                    className="border-2 border-dashed rounded-t-lg flex flex-col relative overflow-hidden"
-                    style={{ backgroundColor: template.backgroundColor, color: template.textColor, width: '160px', height: '200px' }}
-                  >
-                    <div className="w-full flex flex-col items-center justify-center" style={{ height: '100px', flexShrink: 0, background: `linear-gradient(135deg, ${template.accentColor} 0%, ${template.textColor} 100%)`, color: 'white' }}>
-                      <div className="text-xs font-bold text-center px-1">{template.conferenceHeaderText || eventName || 'CONFERENCE'}</div>
-                    </div>
-                    <div className="flex-1 flex flex-col items-center justify-center text-center p-2">
-                      {template.showName && <div className="font-bold text-base leading-tight">John Doe</div>}
-                      {template.showGroup && <div className="text-[9px] opacity-70 mt-0.5">St. Mary&apos;s Parish</div>}
-                    </div>
-                    {template.showMealColor && <div className="absolute bottom-0 left-0 right-0 h-1.5" style={{ backgroundColor: '#3498db' }} />}
-                  </div>
-                  <div className="text-[8px] text-muted-foreground text-center border-t border-dashed border-gray-300 w-40 py-0.5">FOLD</div>
-                  <div
-                    className="border-2 border-dashed rounded-b-lg flex flex-col items-center justify-center"
-                    style={{ width: '160px', height: '200px', background: '#f8f8f8', border: '1px dashed #ccc' }}
-                  >
-                    <span className="text-[9px] text-gray-400 text-center px-2">Schedule back panel{template.showBackPanel ? '' : ' (disabled)'}</span>
+            {(() => {
+              // Mirror badge-renderer.ts effectiveColors()
+              const pBg = template.thermalMode ? '#FFFFFF' : template.backgroundColor
+              const pText = template.thermalMode ? '#000000' : template.textColor
+              const pAccent = template.thermalMode ? '#444444' : template.accentColor
+
+              const typeBadgeStyle: CSSProperties = template.thermalMode
+                ? { border: '1px solid #000', color: '#000', background: 'none', fontSize: '8px', padding: '1px 6px', borderRadius: '3px', marginTop: '4px', display: 'inline-block' }
+                : { backgroundColor: pAccent, color: 'white', fontSize: '8px', padding: '1px 6px', borderRadius: '3px', marginTop: '4px', display: 'inline-block' }
+
+              const headerStyle: CSSProperties = template.thermalMode
+                ? { background: '#e0e0e0', color: '#000' }
+                : { background: `linear-gradient(135deg, ${pAccent} 0%, ${pText} 100%)`, color: 'white' }
+
+              const MealSection = ({ compact = false }: { compact?: boolean }) => {
+                if (!template.showMealColor) return null
+                if (template.thermalMode) {
+                  return <div style={{ borderTop: '1px solid #ccc', textAlign: 'center', fontSize: compact ? '7px' : '9px', padding: '2px 0', color: '#000' }}>Meal: Blue</div>
+                }
+                return <div style={{ height: compact ? '4px' : '6px', background: '#3498db', flexShrink: 0 }} />
+              }
+
+              const QRBox = ({ size }: { size: number }) => (
+                <div style={{ width: size, height: size, background: '#fff', border: '1px solid #ccc', borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  {/* Mini QR grid approximation */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '1px', width: size - 6, height: size - 6 }}>
+                    {Array.from({ length: 25 }).map((_, i) => (
+                      <div key={i} style={{ background: [0,1,5,6,4,9,15,20,21,24,23,19,14,12,7,18,16,2,22,11].includes(i) ? (template.thermalMode ? '#000' : '#1E3A5F') : 'transparent' }} />
+                    ))}
                   </div>
                 </div>
-              ) : template.size === 'business_card' ? (
-                /* Business Card Preview */
-                <div
-                  className="border-2 border-dashed rounded-lg p-3 flex flex-col items-center justify-center relative overflow-hidden"
-                  style={{ backgroundColor: template.backgroundColor, color: template.textColor, width: '210px', height: '120px' }}
-                >
-                  {template.showName && <div className="font-bold text-sm leading-tight">John Doe</div>}
-                  {template.showGroup && <div className="text-[10px] opacity-70 mt-1">St. Mary&apos;s Parish</div>}
-                  {template.showParticipantType && (
-                    <span className="text-white text-[8px] px-1.5 py-0.5 rounded mt-1 font-medium" style={{ backgroundColor: template.accentColor }}>Youth</span>
-                  )}
-                  {template.showQrCode && (
-                    <div className="bg-white border rounded flex items-center justify-center mt-1" style={{ width: '22px', height: '22px' }}>
-                      <span className="text-[5px] text-gray-400">QR</span>
-                    </div>
-                  )}
-                </div>
-              ) : template.size === 'badge_4x6' ? (
-                /* 4x6 Badge Preview */
-                <div
-                  className="border-2 border-dashed rounded-lg flex flex-col relative overflow-hidden"
-                  style={{
-                    backgroundColor: template.backgroundColor,
-                    color: template.textColor,
-                    width: '200px',
-                    height: '300px',
-                  }}
-                >
-                  {/* Header Banner or Fallback */}
-                  {template.showHeaderBanner && template.headerBannerUrl ? (
-                    <div className="w-full" style={{ height: '125px', flexShrink: 0 }}>
-                      <img
-                        src={template.headerBannerUrl}
-                        alt="Banner"
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none'
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <div
-                      className="w-full flex flex-col items-center justify-center"
-                      style={{
-                        height: '125px',
-                        flexShrink: 0,
-                        background: `linear-gradient(135deg, ${template.accentColor} 0%, ${template.textColor} 100%)`,
-                      }}
-                    >
-                      {template.showLogo && template.logoUrl && (
-                        <img
-                          src={template.logoUrl}
-                          alt="Logo"
-                          className="max-h-10 mb-1"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none'
-                          }}
-                        />
+              )
+
+              if (template.size === 'thermal_4x12') {
+                return (
+                  <div className="flex flex-col items-center">
+                    {/* Front panel */}
+                    <div style={{ width: 160, height: 200, background: pBg, color: pText, border: '1px solid #ccc', borderRadius: '6px 6px 0 0', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                      {template.showHeaderBanner && template.headerBannerUrl ? (
+                        <img src={template.headerBannerUrl} style={{ width: '100%', height: 90, objectFit: 'cover', flexShrink: 0 }} alt="" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                      ) : (
+                        <div style={{ ...headerStyle, height: 90, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                          {template.showLogo && template.logoUrl && (
+                            <img src={template.logoUrl} style={{ maxHeight: 30, maxWidth: '80%' }} alt="" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                          )}
+                          {template.showConferenceHeader && (
+                            <div style={{ fontSize: '11px', fontWeight: 700, textAlign: 'center', padding: '0 8px' }}>{template.conferenceHeaderText || eventName || 'CONFERENCE'}</div>
+                          )}
+                        </div>
                       )}
-                      {template.showConferenceHeader && (
-                        <div className="text-white text-sm font-bold text-center px-2">
-                          {template.conferenceHeaderText || eventName || 'CONFERENCE'}
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6px', textAlign: 'center' }}>
+                        {template.showName && <div style={{ fontWeight: 700, fontSize: 14, lineHeight: 1.2 }}>John Doe</div>}
+                        {template.showGroup && <div style={{ fontSize: 9, opacity: 0.7, marginTop: 2 }}>St. Mary&apos;s Parish</div>}
+                        {template.showDiocese && <div style={{ fontSize: 8, opacity: 0.6 }}>Diocese of Sample</div>}
+                        {template.showParticipantType && <span style={typeBadgeStyle}>Youth</span>}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '4px 6px' }}>
+                        {template.showHousing && <div style={{ fontSize: 7, opacity: 0.7, flex: 1 }}><strong>Housing:</strong><br />Bldg A 101</div>}
+                        {template.showQrCode && <QRBox size={28} />}
+                      </div>
+                      <MealSection compact />
+                    </div>
+                    {/* Fold indicator */}
+                    <div style={{ width: 160, borderTop: '1px dashed #aaa', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px 0', background: '#f9f9f9' }}>
+                      <span style={{ fontSize: 7, color: '#aaa', letterSpacing: 2 }}>✂ FOLD HERE ✂</span>
+                    </div>
+                    {/* Back panel */}
+                    <div style={{ width: 160, height: 200, background: '#f8f8f8', border: '1px solid #ccc', borderRadius: '0 0 6px 6px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                      {template.showBackPanel ? (
+                        <div style={{ transform: 'rotate(180deg)', padding: '8px', flex: 1, fontSize: 8, color: '#333' }}>
+                          {scheduleCount === null ? (
+                            <div style={{ textAlign: 'center', color: '#aaa', marginTop: '30%' }}>Loading schedule...</div>
+                          ) : scheduleCount === 0 ? (
+                            <div style={{ textAlign: 'center', color: '#aaa', marginTop: '20%', lineHeight: 1.6 }}>
+                              No schedule entries yet.<br />
+                              <span style={{ fontSize: 7 }}>Add entries in the Poros module.</span>
+                            </div>
+                          ) : (
+                            <>
+                              <div style={{ fontWeight: 700, fontSize: 9, borderBottom: '1px solid #ccc', marginBottom: 4, paddingBottom: 2, color: template.thermalMode ? '#000' : pAccent }}>Day 1</div>
+                              <div style={{ marginBottom: 3, display: 'flex', gap: 4 }}><span style={{ minWidth: 50, color: '#666' }}>9:00 AM</span><span>Opening Mass</span></div>
+                              <div style={{ marginBottom: 3, display: 'flex', gap: 4 }}><span style={{ minWidth: 50, color: '#666' }}>10:30 AM</span><span>Keynote Talk</span></div>
+                              <div style={{ fontWeight: 700, fontSize: 9, borderBottom: '1px solid #ccc', marginBottom: 4, paddingBottom: 2, marginTop: 6, color: template.thermalMode ? '#000' : pAccent }}>Day 2</div>
+                              <div style={{ marginBottom: 3, display: 'flex', gap: 4 }}><span style={{ minWidth: 50, color: '#666' }}>8:00 AM</span><span>Morning Prayer</span></div>
+                              <div style={{ color: '#888', fontSize: 7, marginTop: 4 }}>+{scheduleCount - 3 > 0 ? scheduleCount - 3 : ''} more entries</div>
+                            </>
+                          )}
+                        </div>
+                      ) : (
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 9, textAlign: 'center', padding: 8 }}>
+                          Back panel disabled
                         </div>
                       )}
                     </div>
-                  )}
-
-                  {/* Content Area */}
-                  <div className="flex-1 flex flex-col items-center justify-center text-center p-3">
-                    {template.showName && (
-                      <>
-                        <div className="font-bold text-xl leading-tight">John</div>
-                        <div className="font-bold text-lg leading-tight mb-2">Doe</div>
-                      </>
-                    )}
-                    {template.showGroup && (
-                      <div className="text-xs opacity-70">St. Mary&apos;s Parish</div>
-                    )}
-                    {template.showDiocese && (
-                      <div className="text-[10px] opacity-60">Diocese of Sample</div>
-                    )}
-                    {template.showParticipantType && (
-                      <span
-                        className="text-white text-[10px] px-2 py-0.5 rounded mt-2 font-medium"
-                        style={{ backgroundColor: template.accentColor }}
-                      >
-                        Youth
-                      </span>
-                    )}
+                    <p className="text-xs text-muted-foreground mt-2 text-center">Thermal Roll: 4&quot; × 12&quot; fanfold</p>
                   </div>
+                )
+              }
 
-                  {/* Bottom Row */}
-                  <div className="flex justify-between items-end p-2 pt-0">
-                    {template.showHousing ? (
-                      <div className="text-[8px] opacity-70 leading-tight">
-                        <strong className="block">Housing:</strong>
-                        Building A 101
-                      </div>
-                    ) : <div />}
-                    {template.showQrCode && (
-                      <div
-                        className="bg-white border rounded flex items-center justify-center flex-shrink-0"
-                        style={{ width: '35px', height: '35px' }}
-                      >
-                        <span className="text-[6px] text-gray-400">QR</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {template.showMealColor && (
-                    <div
-                      className="absolute bottom-0 left-0 right-0 h-2"
-                      style={{ backgroundColor: '#3498db' }}
-                    />
-                  )}
-                </div>
-              ) : (
-                /* Standard Badge Preview */
-                <div
-                  className="border-2 border-dashed rounded-lg p-4 flex flex-col relative overflow-hidden"
-                  style={{
-                    backgroundColor: template.backgroundColor,
-                    color: template.textColor,
-                    width: template.size === 'small' ? '180px' : template.size === 'large' ? '280px' : '240px',
-                    minHeight: template.size === 'small' ? '108px' : template.size === 'large' ? '186px' : '162px',
-                  }}
-                >
-                  {/* Conference Header */}
-                  {template.showConferenceHeader && (
-                    <div
-                      className="text-center py-1 text-xs font-semibold text-white -mx-4 -mt-4 mb-2"
-                      style={{ backgroundColor: template.accentColor }}
-                    >
-                      {template.conferenceHeaderText || eventName || 'CONFERENCE'}
+              if (template.size === 'business_card') {
+                return (
+                  <div className="flex flex-col items-center gap-3">
+                    <div style={{ width: 210, height: 120, background: pBg, color: pText, border: '1px solid #ccc', borderRadius: 4, padding: '8px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+                      {template.showLogo && template.logoUrl && (
+                        <img src={template.logoUrl} style={{ maxHeight: 20, maxWidth: '70%', marginBottom: 3 }} alt="" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                      )}
+                      {template.showName && <div style={{ fontWeight: 700, fontSize: 14, lineHeight: 1.2 }}>John Doe</div>}
+                      {template.showGroup && <div style={{ fontSize: 9, opacity: 0.7, marginTop: 2 }}>St. Mary&apos;s Parish</div>}
+                      {template.showParticipantType && <span style={typeBadgeStyle}>Youth</span>}
+                      {template.showQrCode && <QRBox size={22} />}
                     </div>
-                  )}
+                    <p className="text-xs text-muted-foreground">Business Card: 3.5&quot; × 2&quot; — 10 per Letter page</p>
+                  </div>
+                )
+              }
 
-                  {/* Logo */}
-                  {template.showLogo && template.logoUrl && (
-                    <div className="flex justify-center py-2">
-                      <img
-                        src={template.logoUrl}
-                        alt="Logo"
-                        className="max-h-8"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none'
-                        }}
-                      />
+              if (template.size === 'badge_4x6') {
+                return (
+                  <div className="flex flex-col items-center gap-3">
+                    <div style={{ width: 200, height: 300, background: pBg, color: pText, border: '1px solid #ccc', borderRadius: 6, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                      {template.showHeaderBanner && template.headerBannerUrl ? (
+                        <img src={template.headerBannerUrl} style={{ width: '100%', height: 125, objectFit: 'cover', flexShrink: 0 }} alt="" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                      ) : (
+                        <div style={{ ...headerStyle, height: 125, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                          {template.showLogo && template.logoUrl && (
+                            <img src={template.logoUrl} style={{ maxHeight: 40, maxWidth: '80%' }} alt="" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                          )}
+                          {template.showConferenceHeader && (
+                            <div style={{ fontSize: 13, fontWeight: 700, textAlign: 'center', padding: '0 12px' }}>{template.conferenceHeaderText || eventName || 'CONFERENCE'}</div>
+                          )}
+                        </div>
+                      )}
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px', textAlign: 'center' }}>
+                        {template.showName && <><div style={{ fontWeight: 700, fontSize: 20, lineHeight: 1.1 }}>John</div><div style={{ fontWeight: 700, fontSize: 17, lineHeight: 1.1, marginBottom: 6 }}>Doe</div></>}
+                        {template.showGroup && <div style={{ fontSize: 11, opacity: 0.7 }}>St. Mary&apos;s Parish</div>}
+                        {template.showDiocese && <div style={{ fontSize: 9, opacity: 0.6 }}>Diocese of Sample</div>}
+                        {template.showParticipantType && <span style={{ ...typeBadgeStyle, fontSize: '10px', marginTop: 6, padding: '3px 10px' }}>Youth</span>}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '6px 10px' }}>
+                        {template.showHousing ? <div style={{ fontSize: 8, opacity: 0.7, lineHeight: 1.4, flex: 1 }}><strong>Housing:</strong><br />Building A 101</div> : <div />}
+                        {template.showQrCode && <QRBox size={35} />}
+                      </div>
+                      <MealSection />
                     </div>
-                  )}
-
-                  {/* Main Content - Name Centered */}
-                  <div className="flex-1 flex flex-col items-center justify-center p-3 text-center">
-                    {template.showName && (
-                      <div
-                        className="font-bold"
-                        style={{
-                          fontSize: template.fontSize === 'small' ? '14px' : template.fontSize === 'large' ? '18px' : '16px',
-                        }}
-                      >
-                        John Doe
-                      </div>
-                    )}
-                    {template.showGroup && (
-                      <div className="text-sm opacity-70 mt-1">St. Mary&apos;s Parish</div>
-                    )}
-                    {template.showDiocese && (
-                      <div className="text-xs opacity-60">Diocese of Sample</div>
-                    )}
-                    {template.showParticipantType && (
-                      <span
-                        className="text-white text-xs px-2 py-0.5 rounded mt-2"
-                        style={{ backgroundColor: template.accentColor }}
-                      >
-                        Youth
-                      </span>
-                    )}
+                    <p className="text-xs text-muted-foreground">Badge: 4&quot; × 6&quot; — 1 per page</p>
                   </div>
+                )
+              }
 
-                  {/* Bottom row: Housing on left, QR on right */}
-                  <div className="mt-auto pt-2 flex justify-between items-end">
-                    {template.showHousing ? (
-                      <div className="text-[10px] opacity-70">
-                        <strong>Housing:</strong> Building A 101
-                      </div>
-                    ) : <div />}
-                    {template.showQrCode && (
-                      <div
-                        className="bg-white border rounded flex items-center justify-center flex-shrink-0"
-                        style={{ width: '30px', height: '30px' }}
-                      >
-                        <span className="text-[6px] text-gray-400 text-center">QR</span>
+              // small / standard / large
+              const w = template.size === 'small' ? 180 : template.size === 'large' ? 280 : 240
+              const h = template.size === 'small' ? 108 : template.size === 'large' ? 186 : 162
+              const namePx = template.fontSize === 'small' ? 12 : template.fontSize === 'large' ? 18 : 15
+              const detailPx = template.fontSize === 'small' ? 8 : template.fontSize === 'large' ? 12 : 10
+              const sizeLabel = template.size === 'small' ? 'Small: 2.5" × 1.5"' : template.size === 'large' ? 'Large: 4" × 3"' : 'Standard: 3.5" × 2.25"'
+
+              return (
+                <div className="flex flex-col items-center gap-3">
+                  <div style={{ width: w, height: h, background: pBg, color: pText, border: '1px solid #ccc', borderRadius: 6, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                    {template.showConferenceHeader && (
+                      <div style={{ background: template.thermalMode ? '#e0e0e0' : pAccent, color: template.thermalMode ? '#000' : 'white', textAlign: 'center', fontSize: 8, fontWeight: 600, padding: '3px 0', flexShrink: 0 }}>
+                        {template.conferenceHeaderText || eventName || 'CONFERENCE'}
                       </div>
                     )}
+                    {template.showLogo && template.logoUrl && (
+                      <div style={{ textAlign: 'center', padding: '3px 0', flexShrink: 0 }}>
+                        <img src={template.logoUrl} style={{ maxHeight: 22, maxWidth: '80%' }} alt="" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                      </div>
+                    )}
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6px', textAlign: 'center' }}>
+                      {template.showName && <div style={{ fontWeight: 700, fontSize: namePx, lineHeight: 1.2 }}>John Doe</div>}
+                      {template.showGroup && <div style={{ fontSize: detailPx, opacity: 0.7, marginTop: 2 }}>St. Mary&apos;s Parish</div>}
+                      {template.showDiocese && <div style={{ fontSize: detailPx - 1, opacity: 0.6 }}>Diocese of Sample</div>}
+                      {template.showParticipantType && <span style={typeBadgeStyle}>Youth</span>}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '3px 6px', flexShrink: 0 }}>
+                      {template.showHousing ? <div style={{ fontSize: 7, opacity: 0.7, flex: 1 }}><strong>Housing:</strong> Bldg A 101</div> : <div />}
+                      {template.showQrCode && <QRBox size={22} />}
+                    </div>
+                    <MealSection compact />
                   </div>
-
-                  {template.showMealColor && (
-                    <div
-                      className="absolute bottom-0 left-0 right-0 h-2 rounded-b-lg"
-                      style={{ backgroundColor: '#3498db' }}
-                    />
-                  )}
+                  <p className="text-xs text-muted-foreground">{sizeLabel}</p>
                 </div>
-              )}
-            </div>
-
-            <div className="text-center mt-4 text-sm text-muted-foreground">
-              {template.size === 'small' && 'Small: 2.5" × 1.5"'}
-              {template.size === 'standard' && 'Standard: 3.5" × 2.25"'}
-              {template.size === 'large' && 'Large: 4" × 3"'}
-              {template.size === 'badge_4x6' && 'Badge: 4" × 6" (1 per page)'}
-              {template.size === 'business_card' && 'Business Card: 3.5" × 2" (10 per page)'}
-              {template.size === 'thermal_4x12' && 'Thermal Roll: 4" × 12" fanfold (1 per page)'}
-            </div>
+              )
+            })()}
           </CardContent>
         </Card>
 
