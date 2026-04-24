@@ -40,6 +40,7 @@ import {
   Download,
   Upload,
   X,
+  ExternalLink,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { openBadgePrintWindow } from '@/lib/badge-renderer'
