@@ -81,6 +81,14 @@ function participantLabel(tag: NameTagData): string {
   return 'Youth'
 }
 
+// Scale font size down when text is long so it always fits within its container.
+// optimalChars = character count that should get maxPx; longer names shrink linearly to minPx.
+function fitFontSize(text: string, maxPx: number, minPx: number, optimalChars: number): string {
+  const len = text.length
+  if (len <= optimalChars) return `${maxPx}px`
+  return `${Math.max(minPx, Math.floor(maxPx * optimalChars / len))}px`
+}
+
 function escapeHtml(s: string | null | undefined): string {
   if (!s) return ''
   return s
@@ -144,10 +152,10 @@ function renderStandardBadge(tag: NameTagData, t: BadgeTemplate, header: string)
           <img src="${t.logoUrl}" style="max-height:30px;max-width:100%;" alt="" />
         </div>
       ` : ''}
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
-        ${t.showName ? `<div style="font-size:${f.name};font-weight:bold;color:${text};">${escapeHtml(tag.firstName)} ${escapeHtml(tag.lastName)}</div>` : ''}
-        ${t.showGroup ? `<div style="font-size:${f.details};color:#666;margin-top:4px;">${escapeHtml(tag.groupName)}</div>` : ''}
-        ${t.showDiocese && tag.diocese ? `<div style="font-size:10px;color:#888;">${escapeHtml(tag.diocese)}</div>` : ''}
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-width:0;overflow:hidden;">
+        ${t.showName ? `<div style="font-size:${fitFontSize(`${tag.firstName} ${tag.lastName}`, parseInt(f.name), 10, 16)};font-weight:bold;color:${text};word-break:break-word;max-width:100%;">${escapeHtml(tag.firstName)} ${escapeHtml(tag.lastName)}</div>` : ''}
+        ${t.showGroup ? `<div style="font-size:${fitFontSize(tag.groupName, parseInt(f.details), 8, 20)};color:#666;margin-top:3px;word-break:break-word;max-width:100%;">${escapeHtml(tag.groupName)}</div>` : ''}
+        ${t.showDiocese && tag.diocese ? `<div style="font-size:9px;color:#888;word-break:break-word;max-width:100%;">${escapeHtml(tag.diocese)}</div>` : ''}
         ${t.showParticipantType ? `<div style="${labelStyle}">${participantLabel(tag)}</div>` : ''}
       </div>
       <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:auto;padding-top:8px;">
@@ -208,11 +216,11 @@ function render4x6Badge(tag: NameTagData, t: BadgeTemplate, header: string): str
       <div style="flex:1;display:flex;flex-direction:column;padding:16px 20px;text-align:center;">
         <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;">
           ${t.showName ? `
-            <div style="font-size:48px;font-weight:bold;line-height:1.1;margin-bottom:4px;">${escapeHtml(tag.firstName)}</div>
-            <div style="font-size:40px;font-weight:bold;line-height:1.1;margin-bottom:12px;">${escapeHtml(tag.lastName)}</div>
+            <div style="font-size:${fitFontSize(tag.firstName, 48, 22, 8)};font-weight:bold;line-height:1.1;margin-bottom:4px;word-break:break-word;max-width:100%;">${escapeHtml(tag.firstName)}</div>
+            <div style="font-size:${fitFontSize(tag.lastName, 40, 20, 9)};font-weight:bold;line-height:1.1;margin-bottom:12px;word-break:break-word;max-width:100%;">${escapeHtml(tag.lastName)}</div>
           ` : ''}
-          ${t.showGroup ? `<div style="font-size:20px;color:#555;margin-bottom:4px;">${escapeHtml(tag.groupName)}</div>` : ''}
-          ${t.showDiocese && tag.diocese ? `<div style="font-size:16px;color:#777;margin-bottom:8px;">${escapeHtml(tag.diocese)}</div>` : ''}
+          ${t.showGroup ? `<div style="font-size:${fitFontSize(tag.groupName, 20, 12, 22)};color:#555;margin-bottom:4px;word-break:break-word;max-width:100%;">${escapeHtml(tag.groupName)}</div>` : ''}
+          ${t.showDiocese && tag.diocese ? `<div style="font-size:${fitFontSize(tag.diocese, 16, 10, 24)};color:#777;margin-bottom:8px;word-break:break-word;max-width:100%;">${escapeHtml(tag.diocese)}</div>` : ''}
           ${t.showParticipantType ? `<div style="${labelStyle}">${participantLabel(tag)}</div>` : ''}
         </div>
       </div>
@@ -269,11 +277,13 @@ function renderBusinessCard(tag: NameTagData, t: BadgeTemplate): string {
 // ---------------------------------------------------------------------------
 
 function renderScheduleBack(schedule: ScheduleEntry[], t: BadgeTemplate): string {
-  const { text, accent } = effectiveColors(t)
+  const { text } = effectiveColors(t)
   const useColor = !t.thermalMode && t.backPanelColorMode !== 'bw'
-  const headerColor = useColor ? accent : '#333333'
+  const headerColor = useColor ? '#555555' : '#000000'
+  const timeColor = useColor ? '#666666' : '#333333'
+  const locColor = useColor ? '#888888' : '#555555'
 
-  // Group entries by day
+  // Group entries by day preserving insertion order
   const days = new Map<string, ScheduleEntry[]>()
   for (const entry of schedule) {
     if (!days.has(entry.day)) days.set(entry.day, [])
@@ -283,29 +293,26 @@ function renderScheduleBack(schedule: ScheduleEntry[], t: BadgeTemplate): string
   const dayBlocks = Array.from(days.entries()).map(([day, entries]) => {
     const rows = entries.map((e) => {
       const timeRange = e.endTime ? `${e.startTime}–${e.endTime}` : e.startTime
-      const loc = e.location ? ` <span style="color:#888;font-size:9px;">(${escapeHtml(e.location)})</span>` : ''
-      return `<div style="display:flex;gap:6px;margin-bottom:3px;align-items:baseline;">
-        <span style="font-size:9px;white-space:nowrap;min-width:80px;color:#555;">${escapeHtml(timeRange)}</span>
-        <span style="font-size:10px;flex:1;">${escapeHtml(e.title)}${loc}</span>
+      const loc = e.location ? `<span style="color:${locColor};"> · ${escapeHtml(e.location)}</span>` : ''
+      return `<div style="display:flex;gap:4px;margin-bottom:2px;align-items:baseline;line-height:1.3;">
+        <span style="font-size:7px;white-space:nowrap;min-width:52px;color:${timeColor};flex-shrink:0;">${escapeHtml(timeRange)}</span>
+        <span style="font-size:8px;flex:1;word-break:break-word;">${escapeHtml(e.title)}${loc}</span>
       </div>`
     }).join('')
 
-    return `<div style="margin-bottom:10px;">
-      <div style="
-        font-size:11px;font-weight:700;text-transform:uppercase;
-        border-bottom:1px solid ${headerColor};margin-bottom:4px;padding-bottom:2px;
-        color:${headerColor};
-      ">${escapeHtml(day)}</div>
+    return `<div style="margin-bottom:7px;">
+      <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid ${headerColor};margin-bottom:3px;padding-bottom:1px;color:${headerColor};">${escapeHtml(day)}</div>
       ${rows}
     </div>`
   }).join('')
 
+  // No overflow:hidden — let full schedule render; the @page size constrains the print area
   return `<div style="
-    width:4in;height:6in;background:#fff;color:${text};
-    padding:16px 18px;box-sizing:border-box;overflow:hidden;
+    width:4in;background:#fff;color:${text};
+    padding:10px 12px 8px;box-sizing:border-box;
     font-family:Arial,Helvetica,sans-serif;
   ">
-    ${dayBlocks || '<div style="color:#aaa;text-align:center;margin-top:2in;font-size:12px;">No schedule available</div>'}
+    ${dayBlocks || `<div style="color:#aaa;text-align:center;padding-top:40%;font-size:10px;">No schedule available</div>`}
   </div>`
 }
 
