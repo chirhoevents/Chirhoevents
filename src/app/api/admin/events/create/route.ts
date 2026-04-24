@@ -267,7 +267,7 @@ export async function POST(request: NextRequest) {
                 ? parseFloat(data.depositPercentage)
                 : null,
             requireFullPayment: data.depositType === 'full',
-            depositPerPerson: true,
+            depositPerPerson: data.depositType === 'fixed',
             earlyBirdDeadline: data.earlyBirdDeadline
               ? new Date(data.earlyBirdDeadline)
               : null,

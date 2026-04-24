@@ -648,7 +648,7 @@ export async function PUT(
                   ? parseFloat(data.depositPercentage)
                   : null,
               requireFullPayment: data.depositType === 'full',
-              depositPerPerson: true,
+              depositPerPerson: data.depositType === 'fixed',
               earlyBirdDeadline: data.earlyBirdDeadline
                 ? new Date(data.earlyBirdDeadline)
                 : null,
@@ -738,6 +738,7 @@ export async function PUT(
                   ? parseFloat(data.depositPercentage)
                   : null,
               requireFullPayment: data.depositType === 'full',
+              depositPerPerson: data.depositType === 'fixed',
               earlyBirdDeadline: data.earlyBirdDeadline
                 ? new Date(data.earlyBirdDeadline)
                 : null,
