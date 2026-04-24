@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Check, ChevronLeft, ChevronRight, Loader2, Upload, Trash2, Image as ImageIcon } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
-import CatalogQuestionPicker from '@/components/admin/CatalogQuestionPicker'
+import CatalogQuestionPicker, { type CatalogQuestionPickerHandle } from '@/components/admin/CatalogQuestionPicker'
 
 interface CreateEventClientProps {
   organizationId: string
@@ -247,6 +247,7 @@ export default function CreateEventClient({
   const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null)
   const [uploadingBackground, setUploadingBackground] = useState(false)
   const backgroundInputRef = useRef<HTMLInputElement>(null)
+  const catalogPickerRef = useRef<CatalogQuestionPickerHandle>(null)
 
   // POROS copy options — only relevant when sourceEventId is provided (duplicate flow)
   const [porosCopyOptions, setPorosCopyOptions] = useState<PorosCopyOptions>({
@@ -456,7 +457,11 @@ export default function CreateEventClient({
     })
   }
 
-  const handleNext = () => {
+  const handleNext = async () => {
+    // Auto-save catalog questions before leaving step 3 so toggles aren't lost.
+    if (currentStep === 3 && catalogPickerRef.current?.isDirty) {
+      await catalogPickerRef.current.save()
+    }
     if (currentStep < 7) {
       setCurrentStep(currentStep + 1)
     }
@@ -2290,6 +2295,7 @@ export default function CreateEventClient({
               {/* Registration Questions — only available after the event has been saved */}
               {isEditMode && eventId && (formData.groupRegistrationEnabled || formData.individualRegistrationEnabled) && (
                 <CatalogQuestionPicker
+                  ref={catalogPickerRef}
                   eventId={eventId}
                   registrationMode={
                     formData.groupRegistrationEnabled && formData.individualRegistrationEnabled

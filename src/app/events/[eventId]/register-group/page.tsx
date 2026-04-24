@@ -16,13 +16,19 @@ import CustomQuestionRenderer, {
 } from '@/components/registration/CustomQuestionRenderer'
 
 interface EventPricing {
+  youthEarlyBirdPrice?: number | null
   youthRegularPrice: number
+  youthLatePrice?: number | null
+  chaperoneEarlyBirdPrice?: number | null
   chaperoneRegularPrice: number
+  chaperoneLatePrice?: number | null
   priestPrice: number
-  depositAmount: number | null        // Fixed dollar deposit
-  depositPercentage: number | null    // Percentage-based deposit
-  depositPerPerson: boolean           // Whether fixed deposit is per-person
-  requireFullPayment: boolean         // Full payment required
+  earlyBirdDeadline?: string | null
+  regularDeadline?: string | null
+  depositAmount: number | null
+  depositPercentage: number | null
+  depositPerPerson: boolean
+  requireFullPayment: boolean
   onCampusYouthPrice?: number
   offCampusYouthPrice?: number
   dayPassYouthPrice?: number
@@ -210,8 +216,23 @@ export default function GroupRegistrationPage() {
     const { pricing } = event
     const breakdown: { label: string; count: number; price: number; subtotal: number }[] = []
 
-    let youthPrice = pricing.youthRegularPrice
-    let chaperonePrice = pricing.chaperoneRegularPrice
+    // Determine pricing tier based on current date vs deadlines
+    const now = new Date()
+    const earlyBirdDeadline = pricing.earlyBirdDeadline ? new Date(pricing.earlyBirdDeadline) : null
+    const regularDeadline = pricing.regularDeadline ? new Date(pricing.regularDeadline) : null
+    const isEarlyBird = earlyBirdDeadline !== null && now <= earlyBirdDeadline
+    const isLate = regularDeadline !== null && now > regularDeadline
+
+    let youthPrice = isEarlyBird && pricing.youthEarlyBirdPrice
+      ? pricing.youthEarlyBirdPrice
+      : isLate && pricing.youthLatePrice
+      ? pricing.youthLatePrice
+      : pricing.youthRegularPrice
+    let chaperonePrice = isEarlyBird && pricing.chaperoneEarlyBirdPrice
+      ? pricing.chaperoneEarlyBirdPrice
+      : isLate && pricing.chaperoneLatePrice
+      ? pricing.chaperoneLatePrice
+      : pricing.chaperoneRegularPrice
 
     // Day pass ticket type - use day pass option prices or legacy day pass prices
     if (formData.ticketType === 'day_pass') {

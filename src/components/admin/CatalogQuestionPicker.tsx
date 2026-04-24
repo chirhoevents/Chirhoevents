@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
@@ -43,6 +43,11 @@ interface Props {
   eventId: string
   /** Controls which questions are shown based on the event's registration mode. */
   registrationMode: 'group' | 'individual' | 'both'
+}
+
+export interface CatalogQuestionPickerHandle {
+  isDirty: boolean
+  save: () => Promise<void>
 }
 
 // ---------------------------------------------------------------------------
@@ -103,7 +108,8 @@ function isQuestionVisible(q: CatalogQuestion, mode: Props['registrationMode']):
 // Component
 // ---------------------------------------------------------------------------
 
-export default function CatalogQuestionPicker({ eventId, registrationMode }: Props) {
+const CatalogQuestionPicker = forwardRef<CatalogQuestionPickerHandle, Props>(
+  function CatalogQuestionPicker({ eventId, registrationMode }, ref) {
   const { getToken } = useAuth()
 
   const [questions, setQuestions] = useState<CatalogQuestion[]>([])
@@ -217,6 +223,13 @@ export default function CatalogQuestionPicker({ eventId, registrationMode }: Pro
       setSaving(false)
     }
   }
+
+  // Expose isDirty and save() to parent so CreateEventClient can auto-save
+  // catalog questions when navigating away from step 3.
+  useImperativeHandle(ref, () => ({
+    get isDirty() { return isDirty },
+    save: async () => { if (isDirty) await handleSave() },
+  }))
 
   // ── Derived ──────────────────────────────────────────────────────────────
 
@@ -414,4 +427,6 @@ export default function CatalogQuestionPicker({ eventId, registrationMode }: Pro
       )}
     </div>
   )
-}
+})
+
+export default CatalogQuestionPicker
