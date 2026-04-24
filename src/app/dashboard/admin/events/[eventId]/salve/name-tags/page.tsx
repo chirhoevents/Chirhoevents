@@ -42,22 +42,22 @@ import {
   X,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
+import { openBadgePrintWindow } from '@/lib/badge-renderer'
 
 interface NameTagTemplate {
-  size: 'standard' | 'large' | 'small' | 'badge_4x6'
+  size: 'standard' | 'large' | 'small' | 'badge_4x6' | 'business_card' | 'thermal_4x12'
   showName: boolean
   showGroup: boolean
   showParticipantType: boolean
   showHousing: boolean
   showDiocese: boolean
   showMealColor: boolean
-  showSmallGroup: boolean
   showQrCode: boolean
   showConferenceHeader: boolean
   conferenceHeaderText: string
   showLogo: boolean
   logoUrl: string
-  // 4x6 Header Banner (top 2.5 inches)
+  // 4x6 / 4x12 header banner (top 2.5 inches)
   showHeaderBanner: boolean
   headerBannerUrl: string
   backgroundColor: string
@@ -65,6 +65,10 @@ interface NameTagTemplate {
   accentColor: string
   fontFamily: string
   fontSize: 'small' | 'medium' | 'large'
+  // Thermal & schedule options
+  thermalMode: boolean
+  showBackPanel: boolean
+  backPanelColorMode: 'color' | 'bw'
 }
 
 interface GroupData {
@@ -104,7 +108,6 @@ const DEFAULT_TEMPLATE: NameTagTemplate = {
   showHousing: true,
   showDiocese: false,
   showMealColor: false,
-  showSmallGroup: false,
   showQrCode: true,
   showConferenceHeader: true,
   conferenceHeaderText: '',
@@ -117,6 +120,9 @@ const DEFAULT_TEMPLATE: NameTagTemplate = {
   accentColor: '#9C8466',
   fontFamily: 'sans-serif',
   fontSize: 'medium',
+  thermalMode: false,
+  showBackPanel: true,
+  backPanelColorMode: 'color',
 }
 
 export default function NameTagDesignerPage() {
@@ -406,8 +412,8 @@ export default function NameTagDesignerPage() {
     setGenerating(true)
     try {
       const token = await getToken()
-      // Generate name tags for all selected groups
-      const allNameTags = []
+      const allNameTags: any[] = []
+      let lastSchedule: any[] = []
 
       for (const groupId of Array.from(selectedGroups)) {
         const response = await fetch(`/api/admin/events/${eventId}/salve/generate-name-tags`, {
@@ -416,29 +422,18 @@ export default function NameTagDesignerPage() {
             'Content-Type': 'application/json',
             ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({
-            groupId,
-            templateId: null,
-          }),
+          body: JSON.stringify({ groupId, templateId: null }),
         })
 
         if (response.ok) {
           const data = await response.json()
           allNameTags.push(...data.nameTags)
+          if (data.schedule?.length) lastSchedule = data.schedule
         }
       }
 
-      // Open print dialog with generated name tags
-      // In production, this would generate a PDF
       toast.success(`Generated ${allNameTags.length} name tags. Opening print dialog...`)
-
-      // Create a printable window
-      const printWindow = window.open('', '_blank')
-      if (printWindow) {
-        printWindow.document.write(generatePrintableHTML(allNameTags, template))
-        printWindow.document.close()
-        printWindow.print()
-      }
+      openBadgePrintWindow(allNameTags, template, eventName, lastSchedule)
     } catch (error) {
       console.error('Generate error:', error)
       toast.error('Failed to generate name tags')
@@ -447,395 +442,43 @@ export default function NameTagDesignerPage() {
     }
   }
 
-  function generatePrintableHTML(nameTags: any[], template: NameTagTemplate): string {
-    const sizeStyles = {
-      small: { width: '2.5in', height: '1.5in' },
-      standard: { width: '3.5in', height: '2.25in' },
-      large: { width: '4in', height: '3in' },
-      badge_4x6: { width: '4in', height: '6in' },
+  async function handleExportPrePrintRoll() {
+    if (selectedGroups.size === 0) {
+      toast.error('Please select at least one group')
+      return
     }
 
-    const fontSizes: Record<string, { name: string; details: string; housing?: string }> = {
-      small: { name: '16px', details: '10px' },
-      medium: { name: '20px', details: '12px' },
-      large: { name: '24px', details: '14px' },
+    setGenerating(true)
+    try {
+      const token = await getToken()
+      const allNameTags: any[] = []
+      let lastSchedule: any[] = []
+
+      for (const groupId of Array.from(selectedGroups)) {
+        const response = await fetch(`/api/admin/events/${eventId}/salve/generate-name-tags`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ groupId, templateId: null }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          allNameTags.push(...data.nameTags)
+          if (data.schedule?.length) lastSchedule = data.schedule
+        }
+      }
+
+      toast.success(`Exporting ${allNameTags.length} badges for pre-print roll...`)
+      openBadgePrintWindow(allNameTags, template, eventName, lastSchedule, { cropMarks: true })
+    } catch (error) {
+      console.error('Export error:', error)
+      toast.error('Failed to export badges')
+    } finally {
+      setGenerating(false)
     }
-
-    // Special font sizes for 4x6 badge - much larger for visibility
-    const badge4x6Fonts = {
-      firstName: '48px',
-      lastName: '40px',
-      details: '20px',
-      housing: '16px',
-      badge: '16px'
-    }
-
-    const size = sizeStyles[template.size]
-    const fonts = fontSizes[template.fontSize]
-    const is4x6Badge = template.size === 'badge_4x6'
-    const has4x6Banner = is4x6Badge && template.showHeaderBanner && template.headerBannerUrl
-
-    // For 4x6 badges, force QR code display if it's not explicitly disabled
-    const showQr = is4x6Badge || template.showQrCode
-
-    // Conference header text
-    const conferenceHeader = template.conferenceHeaderText || eventName || ''
-
-    // Generate 4x6 badge with banner layout
-    if (is4x6Badge) {
-      return `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Name Tags - 4x6 Badges</title>
-          <style>
-            @page {
-              size: 4in 6in;
-              margin: 0;
-            }
-            * {
-              box-sizing: border-box;
-            }
-            body {
-              margin: 0;
-              padding: 0;
-              font-family: ${template.fontFamily === 'sans-serif' ? 'Arial, Helvetica, sans-serif' : template.fontFamily};
-            }
-            .badge {
-              width: 4in;
-              height: 6in;
-              background-color: ${template.backgroundColor};
-              color: ${template.textColor};
-              page-break-after: always;
-              position: relative;
-              overflow: hidden;
-              display: flex;
-              flex-direction: column;
-            }
-            .badge:last-child {
-              page-break-after: auto;
-            }
-            .header-banner {
-              width: 4in;
-              height: 2.5in;
-              background-size: cover;
-              background-position: center;
-              background-repeat: no-repeat;
-              flex-shrink: 0;
-            }
-            .header-banner img {
-              width: 100%;
-              height: 100%;
-              object-fit: cover;
-            }
-            .content-area {
-              flex: 1;
-              display: flex;
-              flex-direction: column;
-              padding: 16px 20px;
-              text-align: center;
-            }
-            .name-section {
-              flex: 1;
-              display: flex;
-              flex-direction: column;
-              justify-content: center;
-              align-items: center;
-            }
-            .first-name {
-              font-size: ${badge4x6Fonts.firstName};
-              font-weight: bold;
-              line-height: 1.1;
-              margin-bottom: 4px;
-            }
-            .last-name {
-              font-size: ${badge4x6Fonts.lastName};
-              font-weight: bold;
-              line-height: 1.1;
-              margin-bottom: 12px;
-            }
-            .group-name {
-              font-size: ${badge4x6Fonts.details};
-              color: #555;
-              margin-bottom: 4px;
-            }
-            .diocese {
-              font-size: 16px;
-              color: #777;
-              margin-bottom: 8px;
-            }
-            .participant-badge {
-              display: inline-block;
-              background-color: ${template.accentColor};
-              color: white;
-              padding: 8px 20px;
-              border-radius: 6px;
-              font-size: ${badge4x6Fonts.badge};
-              font-weight: 600;
-              margin-top: 8px;
-            }
-            .bottom-row {
-              display: flex;
-              justify-content: space-between;
-              align-items: flex-end;
-              padding: 12px 20px 16px;
-              flex-shrink: 0;
-            }
-            .housing-info {
-              font-size: ${badge4x6Fonts.housing};
-              text-align: left;
-              flex: 1;
-              line-height: 1.3;
-            }
-            .housing-info strong {
-              display: block;
-              margin-bottom: 2px;
-            }
-            .qr-code {
-              width: 70px;
-              height: 70px;
-              flex-shrink: 0;
-              margin-left: 12px;
-            }
-            .meal-bar {
-              position: absolute;
-              bottom: 0;
-              left: 0;
-              right: 0;
-              height: 12px;
-            }
-            /* Fallback header without banner */
-            .fallback-header {
-              height: 2.5in;
-              display: flex;
-              flex-direction: column;
-              justify-content: center;
-              align-items: center;
-              background: linear-gradient(135deg, ${template.accentColor} 0%, ${template.textColor} 100%);
-              color: white;
-            }
-            .fallback-header .event-name {
-              font-size: 28px;
-              font-weight: bold;
-              text-align: center;
-              padding: 0 20px;
-            }
-            .fallback-header .logo {
-              max-height: 80px;
-              max-width: 80%;
-              margin-bottom: 12px;
-            }
-          </style>
-        </head>
-        <body>
-          ${nameTags.map((tag) => `
-            <div class="badge">
-              ${has4x6Banner ? `
-                <div class="header-banner">
-                  <img src="${template.headerBannerUrl}" alt="" />
-                </div>
-              ` : `
-                <div class="fallback-header">
-                  ${template.showLogo && template.logoUrl ? `
-                    <img src="${template.logoUrl}" class="logo" alt="" />
-                  ` : ''}
-                  ${template.showConferenceHeader && conferenceHeader ? `
-                    <div class="event-name">${conferenceHeader}</div>
-                  ` : ''}
-                </div>
-              `}
-
-              <div class="content-area">
-                <div class="name-section">
-                  ${template.showName ? `
-                    <div class="first-name">${tag.firstName}</div>
-                    <div class="last-name">${tag.lastName}</div>
-                  ` : ''}
-                  ${template.showGroup ? `<div class="group-name">${tag.groupName}</div>` : ''}
-                  ${template.showDiocese && tag.diocese ? `<div class="diocese">${tag.diocese}</div>` : ''}
-                  ${template.showParticipantType ? `
-                    <div class="participant-badge">
-                      ${tag.isClergy ? 'Clergy' : tag.isChaperone ? 'Chaperone' : 'Youth'}
-                    </div>
-                  ` : ''}
-                </div>
-              </div>
-
-              <div class="bottom-row">
-                ${template.showHousing && tag.housing ? `
-                  <div class="housing-info">
-                    <strong>Housing:</strong>
-                    ${tag.housing.fullLocation}
-                  </div>
-                ` : '<div></div>'}
-                ${showQr && tag.qrCode ? `
-                  <img class="qr-code" src="${tag.qrCode}" alt="QR" />
-                ` : ''}
-              </div>
-
-              ${template.showMealColor && tag.mealColor ? `
-                <div class="meal-bar" style="background-color: ${tag.mealColor.hex}"></div>
-              ` : ''}
-            </div>
-          `).join('')}
-        </body>
-        </html>
-      `
-    }
-
-    // Standard layout for non-4x6 badges
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Name Tags</title>
-        <style>
-          @page {
-            size: letter;
-            margin: 0.5in;
-          }
-          body {
-            margin: 0;
-            padding: 0;
-            font-family: ${template.fontFamily === 'sans-serif' ? 'Arial, Helvetica, sans-serif' : template.fontFamily};
-          }
-          .name-tags-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.25in;
-          }
-          .name-tag {
-            width: ${size.width};
-            height: ${size.height};
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            padding: 12px;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            background-color: ${template.backgroundColor};
-            color: ${template.textColor};
-            page-break-inside: avoid;
-            position: relative;
-            overflow: hidden;
-          }
-          .conference-header {
-            text-align: center;
-            font-size: 10px;
-            font-weight: 600;
-            padding: 4px;
-            background-color: ${template.accentColor};
-            color: white;
-            margin: -12px -12px 8px -12px;
-            border-radius: 7px 7px 0 0;
-          }
-          .logo-section {
-            text-align: center;
-            padding: 4px 0;
-          }
-          .logo-section img {
-            max-height: 30px;
-            max-width: 100%;
-          }
-          .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-          }
-          .name {
-            font-size: ${fonts.name};
-            font-weight: bold;
-            color: ${template.textColor};
-          }
-          .group-name {
-            font-size: ${fonts.details};
-            color: #666;
-            margin-top: 4px;
-          }
-          .diocese {
-            font-size: 10px;
-            color: #888;
-          }
-          .badge-label {
-            display: inline-block;
-            background-color: ${template.accentColor};
-            color: white;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 10px;
-            margin-top: 4px;
-          }
-          .bottom-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            margin-top: auto;
-            padding-top: 8px;
-          }
-          .housing {
-            font-size: 10px;
-            text-align: left;
-            flex: 1;
-          }
-          .qr-code {
-            width: 40px;
-            height: 40px;
-            flex-shrink: 0;
-          }
-          .meal-color-bar {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 8px;
-            border-radius: 0 0 7px 7px;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="name-tags-container">
-          ${nameTags.map((tag) => `
-            <div class="name-tag">
-              ${template.showConferenceHeader && conferenceHeader ? `
-                <div class="conference-header">${conferenceHeader}</div>
-              ` : ''}
-              ${template.showLogo && template.logoUrl ? `
-                <div class="logo-section">
-                  <img src="${template.logoUrl}" alt="Logo" />
-                </div>
-              ` : ''}
-              <div class="main-content">
-                ${template.showName ? `<div class="name">${tag.firstName} ${tag.lastName}</div>` : ''}
-                ${template.showGroup ? `<div class="group-name">${tag.groupName}</div>` : ''}
-                ${template.showDiocese && tag.diocese ? `<div class="diocese">${tag.diocese}</div>` : ''}
-                ${template.showParticipantType ? `
-                  <div class="badge-label">
-                    ${tag.isClergy ? 'Clergy' : tag.isChaperone ? 'Chaperone' : 'Youth'}
-                  </div>
-                ` : ''}
-              </div>
-              <div class="bottom-row">
-                ${template.showHousing && tag.housing ? `
-                  <div class="housing">
-                    <strong>Housing:</strong> ${tag.housing.fullLocation}
-                  </div>
-                ` : '<div></div>'}
-                ${template.showQrCode && tag.qrCode ? `
-                  <img class="qr-code" src="${tag.qrCode}" alt="QR" />
-                ` : ''}
-              </div>
-              ${template.showMealColor && tag.mealColor ? `
-                <div class="meal-color-bar" style="background-color: ${tag.mealColor.hex}"></div>
-              ` : ''}
-            </div>
-          `).join('')}
-        </div>
-      </body>
-      </html>
-    `
   }
 
   const selectedCount = selectedGroups.size
@@ -918,10 +561,12 @@ export default function NameTagDesignerPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="small">Small (2.5&quot; x 1.5&quot;)</SelectItem>
-                  <SelectItem value="standard">Standard (3.5&quot; x 2.25&quot;)</SelectItem>
-                  <SelectItem value="large">Large (4&quot; x 3&quot;)</SelectItem>
-                  <SelectItem value="badge_4x6">Badge (4&quot; x 6&quot;) - With QR Code</SelectItem>
+                  <SelectItem value="small">Small (2.5&quot; × 1.5&quot;)</SelectItem>
+                  <SelectItem value="standard">Standard (3.5&quot; × 2.25&quot;)</SelectItem>
+                  <SelectItem value="large">Large (4&quot; × 3&quot;)</SelectItem>
+                  <SelectItem value="badge_4x6">Badge (4&quot; × 6&quot;)</SelectItem>
+                  <SelectItem value="business_card">Business Card (3.5&quot; × 2&quot;)</SelectItem>
+                  <SelectItem value="thermal_4x12">Thermal Roll (4&quot; × 12&quot; fanfold)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -940,6 +585,24 @@ export default function NameTagDesignerPage() {
                   <SelectItem value="small">Small</SelectItem>
                   <SelectItem value="medium">Medium</SelectItem>
                   <SelectItem value="large">Large</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Font Family */}
+            <div className="space-y-2">
+              <Label>Font Family</Label>
+              <Select
+                value={template.fontFamily}
+                onValueChange={(value) => updateTemplate('fontFamily', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sans-serif">Sans-serif (Arial)</SelectItem>
+                  <SelectItem value="serif">Serif (Georgia)</SelectItem>
+                  <SelectItem value="monospace">Monospace (Courier)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1042,8 +705,8 @@ export default function NameTagDesignerPage() {
               )}
             </div>
 
-            {/* 4x6 Header Banner - Only show for badge_4x6 size */}
-            {template.size === 'badge_4x6' && (
+            {/* Header Banner - Only show for badge_4x6 / thermal_4x12 */}
+            {(template.size === 'badge_4x6' || template.size === 'thermal_4x12') && (
               <div className="space-y-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
                 <div className="flex items-center gap-2">
                   <Checkbox
@@ -1196,11 +859,65 @@ export default function NameTagDesignerPage() {
               </div>
             </div>
 
+            {/* Thermal Printer Mode */}
+            <div className="space-y-3 p-3 bg-gray-50 rounded-lg border">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="thermalMode"
+                  checked={template.thermalMode}
+                  onCheckedChange={(checked) => updateTemplate('thermalMode', checked)}
+                />
+                <Label htmlFor="thermalMode" className="font-medium">Thermal Printer Mode</Label>
+              </div>
+              {template.thermalMode && (
+                <p className="text-xs text-muted-foreground">
+                  Forces black &amp; white output. All color fills are removed and meal colors display as text labels. Logo images are still printed.
+                </p>
+              )}
+            </div>
+
+            {/* Back panel (thermal_4x12 only) */}
+            {template.size === 'thermal_4x12' && (
+              <div className="space-y-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+                <Label className="font-medium text-indigo-800">Back Panel (Schedule)</Label>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="showBackPanel"
+                    checked={template.showBackPanel}
+                    onCheckedChange={(checked) => updateTemplate('showBackPanel', checked)}
+                  />
+                  <Label htmlFor="showBackPanel" className="font-normal">Print back panel (event schedule)</Label>
+                </div>
+                {template.showBackPanel && (
+                  <div className="space-y-2">
+                    <Label className="text-xs">Back panel color mode</Label>
+                    <Select
+                      value={template.backPanelColorMode}
+                      onValueChange={(value) => updateTemplate('backPanelColorMode', value)}
+                    >
+                      <SelectTrigger className="bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="color">Color (day headers use accent color)</SelectItem>
+                        <SelectItem value="bw">Black &amp; White (thermal compatible)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Colors */}
             <div className="space-y-3">
               <Label>Colors</Label>
+              {template.thermalMode && (
+                <p className="text-xs text-amber-600 bg-amber-50 rounded p-2">
+                  Color pickers are disabled in Thermal Printer Mode.
+                </p>
+              )}
 
-              <div className="grid grid-cols-3 gap-2">
+              <div className={`grid grid-cols-3 gap-2 ${template.thermalMode ? 'opacity-40 pointer-events-none' : ''}`}>
                 <div>
                   <Label className="text-xs">Background</Label>
                   <Input
@@ -1208,6 +925,7 @@ export default function NameTagDesignerPage() {
                     value={template.backgroundColor}
                     onChange={(e) => updateTemplate('backgroundColor', e.target.value)}
                     className="h-10 p-1"
+                    disabled={template.thermalMode}
                   />
                 </div>
                 <div>
@@ -1217,6 +935,7 @@ export default function NameTagDesignerPage() {
                     value={template.textColor}
                     onChange={(e) => updateTemplate('textColor', e.target.value)}
                     className="h-10 p-1"
+                    disabled={template.thermalMode}
                   />
                 </div>
                 <div>
@@ -1226,6 +945,7 @@ export default function NameTagDesignerPage() {
                     value={template.accentColor}
                     onChange={(e) => updateTemplate('accentColor', e.target.value)}
                     className="h-10 p-1"
+                    disabled={template.thermalMode}
                   />
                 </div>
               </div>
@@ -1243,7 +963,48 @@ export default function NameTagDesignerPage() {
           </CardHeader>
           <CardContent>
             <div className="flex justify-center">
-              {template.size === 'badge_4x6' ? (
+              {template.size === 'thermal_4x12' ? (
+                /* Thermal 4×12 Preview — two stacked panels */
+                <div className="flex flex-col items-center gap-1">
+                  <div
+                    className="border-2 border-dashed rounded-t-lg flex flex-col relative overflow-hidden"
+                    style={{ backgroundColor: template.backgroundColor, color: template.textColor, width: '160px', height: '200px' }}
+                  >
+                    <div className="w-full flex flex-col items-center justify-center" style={{ height: '100px', flexShrink: 0, background: `linear-gradient(135deg, ${template.accentColor} 0%, ${template.textColor} 100%)`, color: 'white' }}>
+                      <div className="text-xs font-bold text-center px-1">{template.conferenceHeaderText || eventName || 'CONFERENCE'}</div>
+                    </div>
+                    <div className="flex-1 flex flex-col items-center justify-center text-center p-2">
+                      {template.showName && <div className="font-bold text-base leading-tight">John Doe</div>}
+                      {template.showGroup && <div className="text-[9px] opacity-70 mt-0.5">St. Mary&apos;s Parish</div>}
+                    </div>
+                    {template.showMealColor && <div className="absolute bottom-0 left-0 right-0 h-1.5" style={{ backgroundColor: '#3498db' }} />}
+                  </div>
+                  <div className="text-[8px] text-muted-foreground text-center border-t border-dashed border-gray-300 w-40 py-0.5">FOLD</div>
+                  <div
+                    className="border-2 border-dashed rounded-b-lg flex flex-col items-center justify-center"
+                    style={{ width: '160px', height: '200px', background: '#f8f8f8', border: '1px dashed #ccc' }}
+                  >
+                    <span className="text-[9px] text-gray-400 text-center px-2">Schedule back panel{template.showBackPanel ? '' : ' (disabled)'}</span>
+                  </div>
+                </div>
+              ) : template.size === 'business_card' ? (
+                /* Business Card Preview */
+                <div
+                  className="border-2 border-dashed rounded-lg p-3 flex flex-col items-center justify-center relative overflow-hidden"
+                  style={{ backgroundColor: template.backgroundColor, color: template.textColor, width: '210px', height: '120px' }}
+                >
+                  {template.showName && <div className="font-bold text-sm leading-tight">John Doe</div>}
+                  {template.showGroup && <div className="text-[10px] opacity-70 mt-1">St. Mary&apos;s Parish</div>}
+                  {template.showParticipantType && (
+                    <span className="text-white text-[8px] px-1.5 py-0.5 rounded mt-1 font-medium" style={{ backgroundColor: template.accentColor }}>Youth</span>
+                  )}
+                  {template.showQrCode && (
+                    <div className="bg-white border rounded flex items-center justify-center mt-1" style={{ width: '22px', height: '22px' }}>
+                      <span className="text-[5px] text-gray-400">QR</span>
+                    </div>
+                  )}
+                </div>
+              ) : template.size === 'badge_4x6' ? (
                 /* 4x6 Badge Preview */
                 <div
                   className="border-2 border-dashed rounded-lg flex flex-col relative overflow-hidden"
@@ -1350,7 +1111,7 @@ export default function NameTagDesignerPage() {
                     backgroundColor: template.backgroundColor,
                     color: template.textColor,
                     width: template.size === 'small' ? '180px' : template.size === 'large' ? '280px' : '240px',
-                    minHeight: template.size === 'small' ? '108px' : template.size === 'large' ? '216px' : '162px',
+                    minHeight: template.size === 'small' ? '108px' : template.size === 'large' ? '186px' : '162px',
                   }}
                 >
                   {/* Conference Header */}
@@ -1437,6 +1198,8 @@ export default function NameTagDesignerPage() {
               {template.size === 'standard' && 'Standard: 3.5" × 2.25"'}
               {template.size === 'large' && 'Large: 4" × 3"'}
               {template.size === 'badge_4x6' && 'Badge: 4" × 6" (1 per page)'}
+              {template.size === 'business_card' && 'Business Card: 3.5" × 2" (10 per page)'}
+              {template.size === 'thermal_4x12' && 'Thermal Roll: 4" × 12" fanfold (1 per page)'}
             </div>
           </CardContent>
         </Card>
@@ -1520,6 +1283,22 @@ export default function NameTagDesignerPage() {
                   )}
                   Generate & Print ({totalParticipants})
                 </Button>
+
+                {template.size === 'thermal_4x12' && (
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    onClick={handleExportPrePrintRoll}
+                    disabled={generating || selectedCount === 0}
+                  >
+                    {generating ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Download className="w-4 h-4 mr-2" />
+                    )}
+                    Export for Pre-Print Roll
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>
