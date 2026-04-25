@@ -39,6 +39,7 @@ import {
 import { toast } from '@/lib/toast'
 import { generateMultiplePacketsHTML, type PacketData, type PrintSettings } from '@/lib/welcome-packet-print'
 import { openBadgePrintWindow } from '@/lib/badge-renderer'
+import { ReprintBadgeModal } from '@/components/salve/ReprintBadgeModal'
 
 // Dynamic import for QR scanner to avoid SSR issues
 const QRScanner = dynamic(
@@ -112,6 +113,9 @@ export default function SalveDedicatedPortal() {
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [error, setError] = useState('')
+
+  // Reprint modal
+  const [isReprintModalOpen, setIsReprintModalOpen] = useState(false)
 
   // Success modal
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false)
@@ -691,6 +695,15 @@ export default function SalveDedicatedPortal() {
                 <span className="hidden sm:inline">Edit Name Tags</span>
               </Button>
             </Link>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-white hover:bg-white/10"
+              onClick={() => setIsReprintModalOpen(true)}
+            >
+              <Printer className="w-4 h-4 mr-1" />
+              <span className="hidden sm:inline">Reprint Badge</span>
+            </Button>
             {isAdmin && (
               <Link href="/dashboard/admin/salve">
                 <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
@@ -1068,6 +1081,18 @@ export default function SalveDedicatedPortal() {
           </div>
         )}
       </main>
+
+      {/* Reprint / Walk-Up Modal */}
+      <ReprintBadgeModal
+        open={isReprintModalOpen}
+        onClose={() => setIsReprintModalOpen(false)}
+        eventId={eventId}
+        eventName={eventName}
+        getAuthHeaders={async () => {
+          const token = await getToken()
+          return token ? { Authorization: `Bearer ${token}` } : {}
+        }}
+      />
 
       {/* Success Modal */}
       <Dialog open={isSuccessModalOpen} onOpenChange={setIsSuccessModalOpen}>
