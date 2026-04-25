@@ -43,6 +43,7 @@ import {
 import { toast } from '@/lib/toast'
 import { generateMultiplePacketsHTML, type PacketData } from '@/lib/welcome-packet-print'
 import { openBadgePrintWindow } from '@/lib/badge-renderer'
+import { ReprintBadgeModal } from '@/components/salve/ReprintBadgeModal'
 
 // Dynamic import for QR scanner to avoid SSR issues
 const QRScanner = dynamic(
@@ -108,6 +109,9 @@ export default function SalveCheckInPage() {
   const [checkingIn, setCheckingIn] = useState(false)
   const [eventName, setEventName] = useState('')
   const [stats, setStats] = useState({ totalExpected: 0, checkedIn: 0, issues: 0 })
+
+  // Reprint modal
+  const [isReprintModalOpen, setIsReprintModalOpen] = useState(false)
 
   // Roster view modal
   const [isRosterModalOpen, setIsRosterModalOpen] = useState(false)
@@ -600,6 +604,15 @@ export default function SalveCheckInPage() {
               variant="outline"
               size="sm"
               className="w-full md:w-auto"
+              onClick={() => setIsReprintModalOpen(true)}
+            >
+              <Printer className="w-4 h-4 mr-2" />
+              Reprint Badge
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full md:w-auto"
               onClick={() => setIsAllParticipantsOpen(true)}
             >
               <Users className="w-4 h-4 mr-2" />
@@ -1063,6 +1076,14 @@ export default function SalveCheckInPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Reprint / Walk-Up Modal */}
+      <ReprintBadgeModal
+        open={isReprintModalOpen}
+        onClose={() => setIsReprintModalOpen(false)}
+        eventId={eventId}
+        eventName={eventName}
+      />
 
       {/* All Participants Modal */}
       <Dialog open={isAllParticipantsOpen} onOpenChange={setIsAllParticipantsOpen}>

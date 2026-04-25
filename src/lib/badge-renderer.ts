@@ -51,6 +51,8 @@ export interface NameTagData {
     hex: string
   } | null
   qrCode?: string | null
+  walkUp?: boolean
+  customNote?: string | null
 }
 
 export interface ScheduleEntry {
@@ -157,6 +159,7 @@ function renderStandardBadge(tag: NameTagData, t: BadgeTemplate, header: string)
         ${t.showGroup ? `<div style="font-size:${fitFontSize(tag.groupName, parseInt(f.details), 8, 20)};color:#666;margin-top:3px;word-break:break-word;max-width:100%;">${escapeHtml(tag.groupName)}</div>` : ''}
         ${t.showDiocese && tag.diocese ? `<div style="font-size:9px;color:#888;word-break:break-word;max-width:100%;">${escapeHtml(tag.diocese)}</div>` : ''}
         ${t.showParticipantType ? `<div style="${labelStyle}">${participantLabel(tag)}</div>` : ''}
+        ${tag.customNote ? `<div style="font-size:8px;font-style:italic;color:#888;margin-top:3px;">${escapeHtml(tag.customNote)}</div>` : ''}
       </div>
       <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:auto;padding-top:8px;">
         ${t.showHousing && tag.housing ? `
@@ -168,6 +171,7 @@ function renderStandardBadge(tag: NameTagData, t: BadgeTemplate, header: string)
           <img src="${tag.qrCode}" style="width:40px;height:40px;flex-shrink:0;" alt="" />
         ` : ''}
       </div>
+      ${tag.walkUp ? `<div style="position:absolute;top:5px;right:5px;font-size:6px;background:#f59e0b;color:white;padding:1px 5px;border-radius:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;opacity:0.9;">Walk-Up</div>` : ''}
       ${mealSection}
     </div>`
 }
@@ -222,6 +226,7 @@ function render4x6Badge(tag: NameTagData, t: BadgeTemplate, header: string): str
           ${t.showGroup ? `<div style="font-size:${fitFontSize(tag.groupName, 20, 12, 22)};color:#555;margin-bottom:4px;word-break:break-word;max-width:100%;">${escapeHtml(tag.groupName)}</div>` : ''}
           ${t.showDiocese && tag.diocese ? `<div style="font-size:${fitFontSize(tag.diocese, 16, 10, 24)};color:#777;margin-bottom:8px;word-break:break-word;max-width:100%;">${escapeHtml(tag.diocese)}</div>` : ''}
           ${t.showParticipantType ? `<div style="${labelStyle}">${participantLabel(tag)}</div>` : ''}
+          ${tag.customNote ? `<div style="font-size:12px;font-style:italic;color:#888;margin-top:4px;">${escapeHtml(tag.customNote)}</div>` : ''}
         </div>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:flex-end;padding:12px 20px 16px;flex-shrink:0;">
@@ -235,6 +240,7 @@ function render4x6Badge(tag: NameTagData, t: BadgeTemplate, header: string): str
           <img src="${tag.qrCode}" style="width:70px;height:70px;flex-shrink:0;margin-left:12px;" alt="" />
         ` : ''}
       </div>
+      ${tag.walkUp ? `<div style="position:absolute;top:8px;right:8px;font-size:9px;background:#f59e0b;color:white;padding:2px 8px;border-radius:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;opacity:0.9;">Walk-Up</div>` : ''}
       ${mealSection}
     </div>`
 }
@@ -266,9 +272,11 @@ function renderBusinessCard(tag: NameTagData, t: BadgeTemplate): string {
           ${t.thermalMode ? 'border:1px solid #000;' : `background-color:${accent};color:white;`}
         ">${participantLabel(tag)}</div>
       ` : ''}
+      ${tag.customNote ? `<div style="font-size:7px;font-style:italic;color:#888;margin-top:2px;">${escapeHtml(tag.customNote)}</div>` : ''}
       ${t.showQrCode && tag.qrCode ? `
         <img src="${tag.qrCode}" style="width:36px;height:36px;margin-top:6px;" alt="" />
       ` : ''}
+      ${tag.walkUp ? `<div style="position:absolute;top:3px;right:3px;font-size:5px;background:#f59e0b;color:white;padding:1px 4px;border-radius:6px;font-weight:700;text-transform:uppercase;">Walk-Up</div>` : ''}
     </div>`
 }
 
