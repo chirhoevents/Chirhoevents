@@ -1090,7 +1090,9 @@ export default function SalveDedicatedPortal() {
         eventName={eventName}
         getAuthHeaders={async () => {
           const token = await getToken()
-          return token ? { Authorization: `Bearer ${token}` } : {}
+          const headers: Record<string, string> = {}
+          if (token) headers['Authorization'] = `Bearer ${token}`
+          return headers
         }}
       />
 
