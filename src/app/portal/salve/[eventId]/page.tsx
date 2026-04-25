@@ -92,7 +92,7 @@ interface ParticipantData {
   smallGroup?: string | null
 }
 
-type CheckInStatus = 'idle' | 'scanning' | 'loading' | 'found' | 'not_found' | 'error'
+type CheckInStatus = 'idle' | 'scanning' | 'loading' | 'found' | 'multiple' | 'not_found' | 'error'
 
 export default function SalveDedicatedPortal() {
   const params = useParams()
@@ -103,6 +103,7 @@ export default function SalveDedicatedPortal() {
   const [status, setStatus] = useState<CheckInStatus>('idle')
   const [searchQuery, setSearchQuery] = useState('')
   const [groupData, setGroupData] = useState<GroupData | null>(null)
+  const [multipleResults, setMultipleResults] = useState<GroupData[]>([])
   const [selectedParticipants, setSelectedParticipants] = useState<Set<string>>(new Set())
   const [participantNotes, setParticipantNotes] = useState<Record<string, string>>({})
   const [checkingIn, setCheckingIn] = useState(false)
@@ -248,8 +249,9 @@ export default function SalveDedicatedPortal() {
           } else if (data.results.length === 1) {
             group = data.results[0]
           } else {
-            group = data.results[0]
-            toast.info(`Found ${data.results.length} matching groups. Showing first result.`)
+            setMultipleResults(data.results)
+            setStatus('multiple')
+            return
           }
         } else if (data.id) {
           group = data
@@ -416,8 +418,18 @@ export default function SalveDedicatedPortal() {
     setStatus('idle')
     setSearchQuery('')
     setGroupData(null)
+    setMultipleResults([])
     setSelectedParticipants(new Set())
     setParticipantNotes({})
+  }
+
+  function selectGroup(group: GroupData) {
+    setGroupData(group)
+    setStatus('found')
+    setMultipleResults([])
+    setSelectedParticipants(new Set(
+      group.participants.filter((p: ParticipantData) => !p.checkedIn).map((p: ParticipantData) => p.id)
+    ))
   }
 
   async function handleUndoCheckIn() {
@@ -834,6 +846,46 @@ export default function SalveDedicatedPortal() {
               <div className="text-center py-12">
                 <Loader2 className="w-12 h-12 animate-spin mx-auto text-emerald-600" />
                 <p className="text-muted-foreground mt-4">Looking up registration...</p>
+              </div>
+            )}
+
+            {status === 'multiple' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold">Multiple Results Found</h2>
+                    <p className="text-sm text-muted-foreground">
+                      {multipleResults.length} matches for &quot;{searchQuery}&quot; — select the correct one
+                    </p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={resetSearch}>
+                    <X className="w-4 h-4 mr-1" />
+                    New Search
+                  </Button>
+                </div>
+                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                  {multipleResults.map((g) => {
+                    const alreadyIn = g.participants.filter((p: ParticipantData) => p.checkedIn).length
+                    return (
+                      <div
+                        key={g.id}
+                        className="flex items-center justify-between p-4 border rounded-lg bg-white hover:border-emerald-400 cursor-pointer"
+                        onClick={() => selectGroup(g)}
+                      >
+                        <div className="flex-1">
+                          <p className="font-semibold">{g.groupName}</p>
+                          {g.parishName && <p className="text-sm text-muted-foreground">{g.parishName}</p>}
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {g.totalParticipants} participants · {alreadyIn} checked in
+                          </p>
+                        </div>
+                        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 ml-3">
+                          Select
+                        </Button>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             )}
 

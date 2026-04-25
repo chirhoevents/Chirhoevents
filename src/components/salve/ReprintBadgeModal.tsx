@@ -106,12 +106,13 @@ export function ReprintBadgeModal({
   const [participantType, setParticipantType] = useState('youth')
   const [customNote, setCustomNote] = useState('')
   const [mealColor, setMealColor] = useState('')
-  const [showWalkUpIndicator, setShowWalkUpIndicator] = useState(true)
+  const [showWalkUpIndicator, setShowWalkUpIndicator] = useState(false)
   const [walkUpPrinting, setWalkUpPrinting] = useState(false)
 
   // Shared
   const [sizeOverride, setSizeOverride] = useState('')
   const [savedTemplate, setSavedTemplate] = useState<BadgeTemplate | null>(null)
+  const [cachedSchedule, setCachedSchedule] = useState<any[]>([])
   const templateFetched = useRef(false)
 
   const authHeaders = useCallback(async () => {
@@ -145,6 +146,7 @@ export function ReprintBadgeModal({
       templateFetched.current = false
       setSavedTemplate(null)
       setSizeOverride('')
+      setCachedSchedule([])
     }
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -201,7 +203,9 @@ export function ReprintBadgeModal({
       }
 
       const data = await res.json()
-      openBadgePrintWindow(data.nameTags || [], effectiveTemplate, eventName, data.schedule ?? [])
+      const schedule = data.schedule ?? []
+      if (schedule.length) setCachedSchedule(schedule)
+      openBadgePrintWindow(data.nameTags || [], effectiveTemplate, eventName, schedule)
       toast.success('Badge sent to printer')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to print badge')
@@ -243,7 +247,22 @@ export function ReprintBadgeModal({
         customNote: customNote.trim() || null,
       }
 
-      openBadgePrintWindow([tagData], effectiveTemplate, eventName, [])
+      // For thermal 4×12, we need the schedule for the back panel.
+      // Use the cached schedule from a prior reprint, or fetch it now.
+      let schedule = cachedSchedule
+      if (!schedule.length && effectiveTemplate.size === 'thermal_4x12') {
+        try {
+          const headers = await authHeaders()
+          const res = await fetch(`/api/admin/events/${eventId}/salve/schedule`, { headers })
+          if (res.ok) {
+            const data = await res.json()
+            schedule = data.schedule || []
+            if (schedule.length) setCachedSchedule(schedule)
+          }
+        } catch {}
+      }
+
+      openBadgePrintWindow([tagData], effectiveTemplate, eventName, schedule)
       toast.success('Walk-up badge sent to printer')
     } catch {
       toast.error('Failed to print walk-up badge')
