@@ -209,7 +209,9 @@ function render4x6Badge(tag: NameTagData, t: BadgeTemplate, header: string): str
     if (t.thermalMode) {
       return `<div style="text-align:center;font-size:14px;font-weight:600;padding:4px 0;border-top:1px solid #ccc;margin-top:4px;">Meal: ${escapeHtml(tag.mealColor.name)}</div>`
     }
-    return `<div style="position:absolute;bottom:0;left:0;right:0;height:12px;background-color:${tag.mealColor.hex};"></div>`
+    return `<div style="position:absolute;bottom:0;left:0;right:0;height:18px;background-color:${tag.mealColor.hex};display:flex;align-items:center;justify-content:center;">
+      <span style="font-size:10px;font-weight:700;color:white;text-shadow:0 1px 2px rgba(0,0,0,0.4);letter-spacing:0.06em;text-transform:uppercase;">${escapeHtml(tag.mealColor.name)}</span>
+    </div>`
   })()
 
   return `
@@ -333,7 +335,10 @@ function renderThermal4x12Badge(
   schedule: ScheduleEntry[]
 ): string {
   const { bg } = effectiveColors(t)
-  const frontPanel = render4x6Badge(tag, t, header)
+  // Always show meal color on thermal 4×12 when the group has one assigned —
+  // the template toggle is for design preview; the operational badge should always include it.
+  const frontTemplate = tag.mealColor ? { ...t, showMealColor: true } : t
+  const frontPanel = render4x6Badge(tag, frontTemplate, header)
     .replace(/page-break-after:\s*always;/, '')
 
   const backContent = t.showBackPanel !== false
