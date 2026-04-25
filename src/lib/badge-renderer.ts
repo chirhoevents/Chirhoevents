@@ -80,6 +80,8 @@ function fontFamilyCSS(fontFamily: string): string {
 function participantLabel(tag: NameTagData): string {
   if (tag.isClergy) return 'Clergy'
   if (tag.isChaperone) return 'Chaperone'
+  if (tag.participantType === 'staff') return 'Staff'
+  if (tag.participantType === 'individual') return 'Individual'
   return 'Youth'
 }
 
