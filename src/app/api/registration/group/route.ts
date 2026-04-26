@@ -575,6 +575,25 @@ export async function POST(request: NextRequest) {
       // Credit card payment - create Stripe checkout session
       const depositAmountCents = Math.round(depositAmount * 100)
 
+      // If nothing is due now (free event or no deposit required), skip Stripe
+      if (depositAmountCents === 0) {
+        await prisma.groupRegistration.update({
+          where: { id: registration.id },
+          data: { registrationStatus: totalAmount === 0 ? 'confirmed' : 'incomplete' },
+        })
+
+        return NextResponse.json({
+          success: true,
+          registrationId: registration.id,
+          accessCode: registration.accessCode,
+          checkoutUrl: null,
+          totalAmount,
+          depositAmount: 0,
+          balanceRemaining,
+          paymentMethod: 'card',
+        })
+      }
+
       // Calculate platform fee (default 1%)
       const platformFeePercentage = Number(event.organization.platformFeePercentage) || 1
       const platformFeeAmount = Math.round(depositAmountCents * (platformFeePercentage / 100))

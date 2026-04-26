@@ -644,6 +644,24 @@ export async function POST(request: NextRequest) {
       // Credit card payment - create Stripe checkout session
       const totalAmountCents = Math.round(totalAmount * 100)
 
+      // If nothing is due (free event), skip Stripe and confirm directly
+      if (totalAmountCents === 0) {
+        await prisma.individualRegistration.update({
+          where: { id: registration.id },
+          data: { registrationStatus: 'confirmed' },
+        })
+
+        return NextResponse.json({
+          success: true,
+          registrationId: registration.id,
+          confirmationCode,
+          qrCode: qrCodeDataUrl,
+          checkoutUrl: null,
+          totalAmount: 0,
+          paymentMethod: 'card',
+        })
+      }
+
       // Calculate platform fee (default 1%)
       const platformFeePercentage = Number(event.organization.platformFeePercentage) || 1
       const platformFeeAmount = Math.round(totalAmountCents * (platformFeePercentage / 100))

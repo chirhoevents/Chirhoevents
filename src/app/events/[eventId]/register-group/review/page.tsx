@@ -352,12 +352,11 @@ export default function InvoiceReviewPage() {
         }),
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Registration failed')
-      }
-
       const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Registration failed')
+      }
 
       // Mark queue session as complete and clear transient answers
       await markComplete()
@@ -399,12 +398,11 @@ export default function InvoiceReviewPage() {
         }),
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Registration failed')
-      }
-
       const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Registration failed')
+      }
 
       // Mark queue session as complete and clear transient answers
       await markComplete()
@@ -580,6 +578,11 @@ export default function InvoiceReviewPage() {
                     <>
                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                       Processing...
+                    </>
+                  ) : pricing.deposit === 0 ? (
+                    <>
+                      <CheckCircle className="mr-2 h-5 w-5" />
+                      Complete Registration (No Payment Due Now)
                     </>
                   ) : (
                     <>

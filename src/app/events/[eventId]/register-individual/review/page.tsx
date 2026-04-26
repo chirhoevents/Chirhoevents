@@ -258,12 +258,11 @@ export default function IndividualInvoiceReviewPage() {
         }),
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Registration failed')
-      }
-
       const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Registration failed')
+      }
 
       // Mark queue session as complete and clear transient answers
       await markComplete()
@@ -305,12 +304,11 @@ export default function IndividualInvoiceReviewPage() {
         }),
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Registration failed')
-      }
-
       const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Registration failed')
+      }
 
       // Mark queue session as complete and clear transient answers
       await markComplete()
