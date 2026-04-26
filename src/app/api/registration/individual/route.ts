@@ -648,7 +648,7 @@ export async function POST(request: NextRequest) {
       if (totalAmountCents === 0) {
         await prisma.individualRegistration.update({
           where: { id: registration.id },
-          data: { registrationStatus: 'confirmed' },
+          data: { registrationStatus: 'complete' },
         })
 
         return NextResponse.json({

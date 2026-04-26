@@ -579,7 +579,7 @@ export async function POST(request: NextRequest) {
       if (depositAmountCents === 0) {
         await prisma.groupRegistration.update({
           where: { id: registration.id },
-          data: { registrationStatus: totalAmount === 0 ? 'confirmed' : 'incomplete' },
+          data: { registrationStatus: totalAmount === 0 ? 'complete' : 'pending_payment' },
         })
 
         return NextResponse.json({
