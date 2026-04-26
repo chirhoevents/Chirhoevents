@@ -221,93 +221,105 @@ export default function InvoiceReviewPage() {
     const isEarlyBird = earlyBirdDeadline !== null && now <= earlyBirdDeadline
     const isLate = regularDeadline !== null && now > regularDeadline
 
-    // Determine youth price - housing-specific pricing overrides tier pricing
-    let youthPrice = isEarlyBird
+    // Effective prices — what will actually be charged (housing overrides tier pricing)
+    let effectiveYouthPrice = isEarlyBird
       ? Number(event.pricing.youthEarlyBirdPrice || event.pricing.youthRegularPrice)
       : isLate
       ? Number(event.pricing.youthLatePrice || event.pricing.youthRegularPrice)
       : Number(event.pricing.youthRegularPrice)
     if (registrationData.housingType === 'on_campus' && event.pricing.onCampusYouthPrice) {
-      youthPrice = Number(event.pricing.onCampusYouthPrice)
+      effectiveYouthPrice = Number(event.pricing.onCampusYouthPrice)
     } else if (registrationData.housingType === 'off_campus' && event.pricing.offCampusYouthPrice) {
-      youthPrice = Number(event.pricing.offCampusYouthPrice)
+      effectiveYouthPrice = Number(event.pricing.offCampusYouthPrice)
     } else if (registrationData.housingType === 'day_pass' && event.pricing.dayPassYouthPrice) {
-      youthPrice = Number(event.pricing.dayPassYouthPrice)
+      effectiveYouthPrice = Number(event.pricing.dayPassYouthPrice)
     }
 
-    // Determine chaperone price - housing-specific pricing overrides tier pricing
-    let chaperonePrice = isEarlyBird
+    let effectiveChaperonePrice = isEarlyBird
       ? Number(event.pricing.chaperoneEarlyBirdPrice || event.pricing.chaperoneRegularPrice)
       : isLate
       ? Number(event.pricing.chaperoneLatePrice || event.pricing.chaperoneRegularPrice)
       : Number(event.pricing.chaperoneRegularPrice)
     if (registrationData.housingType === 'on_campus' && event.pricing.onCampusChaperonePrice) {
-      chaperonePrice = Number(event.pricing.onCampusChaperonePrice)
+      effectiveChaperonePrice = Number(event.pricing.onCampusChaperonePrice)
     } else if (registrationData.housingType === 'off_campus' && event.pricing.offCampusChaperonePrice) {
-      chaperonePrice = Number(event.pricing.offCampusChaperonePrice)
+      effectiveChaperonePrice = Number(event.pricing.offCampusChaperonePrice)
     } else if (registrationData.housingType === 'day_pass' && event.pricing.dayPassChaperonePrice) {
-      chaperonePrice = Number(event.pricing.dayPassChaperonePrice)
+      effectiveChaperonePrice = Number(event.pricing.dayPassChaperonePrice)
     }
+
+    const effectivePriestPrice = Number(event.pricing.priestPrice)
+
+    // When early bird is active (and no housing override), display regular prices in the
+    // breakdown so the invoice reads: Subtotal − Early Bird Discount = Total Due.
+    // Housing-specific overrides have no early bird component, so show effective prices directly.
+    const hasHousingOverride =
+      (registrationData.housingType === 'on_campus' && !!event.pricing.onCampusYouthPrice) ||
+      (registrationData.housingType === 'off_campus' && !!event.pricing.offCampusYouthPrice) ||
+      (registrationData.housingType === 'day_pass' && !!event.pricing.dayPassYouthPrice)
+
+    const showEarlyBirdDeduction = isEarlyBird && !hasHousingOverride
+
+    const displayYouthPrice = showEarlyBirdDeduction
+      ? Number(event.pricing.youthRegularPrice)
+      : effectiveYouthPrice
+    const displayChaperonePrice = showEarlyBirdDeduction
+      ? Number(event.pricing.chaperoneRegularPrice)
+      : effectiveChaperonePrice
 
     const breakdown: { label: string; count: number; price: number; subtotal: number }[] = []
 
-    // Youth
     if (registrationData.youthCount > 0) {
       breakdown.push({
         label: 'Youth',
         count: registrationData.youthCount,
-        price: youthPrice,
-        subtotal: registrationData.youthCount * youthPrice,
+        price: displayYouthPrice,
+        subtotal: registrationData.youthCount * displayYouthPrice,
       })
     }
 
-    // Chaperones
     if (registrationData.chaperoneCount > 0) {
       breakdown.push({
         label: 'Chaperones',
         count: registrationData.chaperoneCount,
-        price: chaperonePrice,
-        subtotal: registrationData.chaperoneCount * chaperonePrice,
+        price: displayChaperonePrice,
+        subtotal: registrationData.chaperoneCount * displayChaperonePrice,
       })
     }
 
-    // Priests
     if (registrationData.priestCount > 0) {
       breakdown.push({
         label: 'Priests',
         count: registrationData.priestCount,
-        price: Number(event.pricing.priestPrice),
-        subtotal: registrationData.priestCount * Number(event.pricing.priestPrice),
+        price: effectivePriestPrice,
+        subtotal: registrationData.priestCount * effectivePriestPrice,
       })
     }
 
+    // subtotal = sum of displayed (regular) prices; effective total = what is actually charged
     const subtotal = breakdown.reduce((sum, item) => sum + item.subtotal, 0)
+    const effectiveTotal =
+      registrationData.youthCount * effectiveYouthPrice +
+      registrationData.chaperoneCount * effectiveChaperonePrice +
+      registrationData.priestCount * effectivePriestPrice
 
-    // Calculate early bird discount
-    const regularSubtotal = breakdown.reduce((sum, item) => {
-      const regularPrice = item.label.includes('Youth')
-        ? Number(event.pricing.youthRegularPrice)
-        : item.label.includes('Chaperone')
-        ? Number(event.pricing.chaperoneRegularPrice)
-        : Number(event.pricing.priestPrice)
-      return sum + (item.count * regularPrice)
-    }, 0)
+    // earlyBirdDiscount = difference between displayed subtotal and effective total
+    const earlyBirdDiscount = showEarlyBirdDeduction ? subtotal - effectiveTotal : 0
 
-    const earlyBirdDiscount = isEarlyBird ? regularSubtotal - subtotal : 0
-
-    // Calculate coupon discount
+    // Coupon applied to the effective total (post early-bird amount)
     let couponDiscount = 0
     if (validatedCoupon) {
       if (validatedCoupon.discountType === 'percentage') {
-        couponDiscount = (subtotal * validatedCoupon.discountValue) / 100
+        couponDiscount = (effectiveTotal * validatedCoupon.discountValue) / 100
       } else {
-        couponDiscount = Math.min(validatedCoupon.discountValue, subtotal)
+        couponDiscount = Math.min(validatedCoupon.discountValue, effectiveTotal)
       }
     }
 
-    const total = Math.max(0, subtotal - couponDiscount)
+    // total = subtotal − earlyBirdDiscount − couponDiscount = effectiveTotal − couponDiscount
+    const total = Math.max(0, effectiveTotal - couponDiscount)
 
-    // Calculate deposit based on settings (on discounted total)
+    // Deposit calculated on final total
     let deposit = 0
     if (event.pricing.requireFullPayment) {
       deposit = total
@@ -316,10 +328,8 @@ export default function InvoiceReviewPage() {
     } else if (event.pricing.depositAmount != null) {
       const baseDepositAmount = Number(event.pricing.depositAmount)
       const totalParticipants = registrationData.youthCount + registrationData.chaperoneCount + registrationData.priestCount
-      // Access depositPerPerson field (may not be in generated types yet)
       const depositPerPerson = (event.pricing as any).depositPerPerson ?? true
       deposit = depositPerPerson ? baseDepositAmount * totalParticipants : baseDepositAmount
-      // Don't charge more deposit than total
       deposit = Math.min(deposit, total)
     }
 
