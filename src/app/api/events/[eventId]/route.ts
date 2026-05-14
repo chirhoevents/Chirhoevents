@@ -39,6 +39,13 @@ export async function GET(
     `
     const depositPerPerson = depositPerPersonResult[0]?.deposit_per_person ?? true
 
+    const startDateStr = event.startDate instanceof Date
+      ? event.startDate.toISOString().split('T')[0]
+      : String(event.startDate).split('T')[0]
+    const endDateStr = event.endDate instanceof Date
+      ? event.endDate.toISOString().split('T')[0]
+      : String(event.endDate).split('T')[0]
+
     return NextResponse.json({
       id: event.id,
       name: event.name,
@@ -46,6 +53,7 @@ export async function GET(
       description: event.description,
       startDate: event.startDate,
       endDate: event.endDate,
+      isOneDayEvent: startDateStr === endDateStr,
       locationName: event.locationName,
       capacityRemaining: event.capacityRemaining,
       registrationOpenDate: event.registrationOpenDate,

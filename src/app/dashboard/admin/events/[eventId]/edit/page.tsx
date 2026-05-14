@@ -224,6 +224,9 @@ export default function EditEventPage() {
         description: event.description || '',
         startDate: event.startDate ? event.startDate.split('T')[0] : '',
         endDate: event.endDate ? event.endDate.split('T')[0] : '',
+        isOneDayEvent: event.startDate && event.endDate
+          ? event.startDate.split('T')[0] === event.endDate.split('T')[0]
+          : false,
         locationName: event.locationName || '',
         locationAddress: typeof event.locationAddress === 'string'
           ? event.locationAddress

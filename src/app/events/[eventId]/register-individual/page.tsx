@@ -59,6 +59,7 @@ interface EventData {
   name: string
   startDate: string
   endDate: string
+  isOneDayEvent?: boolean
   pricing: EventPricing
   settings?: EventSettings
   dayPassOptions?: DayPassOption[]
@@ -746,8 +747,8 @@ export default function IndividualRegistrationPage() {
                       </div>
                     )}
 
-                    {/* Housing Options - Only for General Admission */}
-                    {formData.ticketType === 'general_admission' && event?.settings?.porosHousingEnabled && (
+                    {/* Housing Options - Only for General Admission on multi-day events */}
+                    {formData.ticketType === 'general_admission' && event?.settings?.porosHousingEnabled && !event?.isOneDayEvent && (
                       <div className="border-t pt-4 mt-4">
                         <label className="block text-sm font-medium text-navy mb-3">
                           Housing Preference

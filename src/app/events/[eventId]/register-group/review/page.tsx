@@ -149,7 +149,7 @@ export default function InvoiceReviewPage() {
     priestCount: parseInt(searchParams.get('priestCount') || '0'),
     ticketType: searchParams.get('ticketType') || 'general_admission',
     dayPassOptionId: searchParams.get('dayPassOptionId') || '',
-    housingType: searchParams.get('housingType') || 'on_campus',
+    housingType: searchParams.get('housingType') || '',
     specialRequests: searchParams.get('specialRequests') || '',
     couponCode: searchParams.get('couponCode') || '',
   }

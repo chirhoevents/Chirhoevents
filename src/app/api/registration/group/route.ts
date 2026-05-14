@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       couponCode = '',
     } = body
 
-    if (!eventId || !groupName || !groupLeaderName || !groupLeaderEmail || !groupLeaderPhone || !housingType || !alternativeContact1Name || !alternativeContact1Email || !alternativeContact1Phone) {
+    if (!eventId || !groupName || !groupLeaderName || !groupLeaderEmail || !groupLeaderPhone || !alternativeContact1Name || !alternativeContact1Email || !alternativeContact1Phone) {
       logger.warn({
         eventId,
         missingFields: {
@@ -53,7 +53,6 @@ export async function POST(request: NextRequest) {
           groupLeaderName: !groupLeaderName,
           groupLeaderPhone: !groupLeaderPhone,
           alternativeContact1Name: !alternativeContact1Name,
-          housingType: !housingType,
         },
       }, 'Group registration validation failed - missing required fields')
       return NextResponse.json(
@@ -68,7 +67,6 @@ export async function POST(request: NextRequest) {
             alternativeContact1Name: !alternativeContact1Name ? 'missing' : 'ok',
             alternativeContact1Email: !alternativeContact1Email ? 'missing' : 'ok',
             alternativeContact1Phone: !alternativeContact1Phone ? 'missing' : 'ok',
-            housingType: !housingType ? 'missing' : 'ok',
           }
         },
         { status: 400 }
@@ -162,21 +160,24 @@ export async function POST(request: NextRequest) {
     }
 
     // Check option-level capacity (housing type for group registrations)
-    const optionCapacityCheck = checkOptionCapacity(
-      event.settings,
-      housingType as HousingType,
-      null, // Groups don't have room type selection
-      totalParticipants
-    )
-
-    if (!optionCapacityCheck.hasCapacity) {
-      return NextResponse.json(
-        {
-          error: optionCapacityCheck.error,
-          housingRemaining: optionCapacityCheck.housingRemaining,
-        },
-        { status: 400 }
+    // housingType is empty for one-day events — skip the check entirely
+    if (housingType) {
+      const optionCapacityCheck = checkOptionCapacity(
+        event.settings,
+        housingType as HousingType,
+        null, // Groups don't have room type selection
+        totalParticipants
       )
+
+      if (!optionCapacityCheck.hasCapacity) {
+        return NextResponse.json(
+          {
+            error: optionCapacityCheck.error,
+            housingRemaining: optionCapacityCheck.housingRemaining,
+          },
+          { status: 400 }
+        )
+      }
     }
 
     // Check day pass option capacity (if applicable)

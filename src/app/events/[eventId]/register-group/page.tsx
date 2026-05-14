@@ -69,6 +69,7 @@ interface EventData {
   name: string
   startDate: string
   endDate: string
+  isOneDayEvent?: boolean
   pricing: EventPricing
   settings?: EventSettings
   dayPassOptions?: DayPassOption[]
@@ -481,7 +482,7 @@ export default function GroupRegistrationPage() {
       priestCount: formData.priestCount.toString(),
       ticketType: formData.ticketType,
       dayPassOptionId: formData.dayPassOptionId,
-      housingType: formData.housingType,
+      housingType: event?.isOneDayEvent ? '' : formData.housingType,
       specialRequests: formData.specialRequests,
       couponCode: formData.couponCode,
     })
@@ -1074,8 +1075,8 @@ export default function GroupRegistrationPage() {
                       </div>
                     )}
 
-                    {/* Housing Options - Only for General Admission */}
-                    {formData.ticketType === 'general_admission' && (
+                    {/* Housing Options - Only for General Admission on multi-day events */}
+                    {formData.ticketType === 'general_admission' && !event?.isOneDayEvent && (
                       <div className="border-t pt-4">
                         <label className="block text-sm font-medium text-navy mb-2">
                           Housing Type *

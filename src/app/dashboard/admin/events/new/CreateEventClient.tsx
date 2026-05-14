@@ -42,6 +42,7 @@ interface EventFormData {
   name: string
   slug: string
   description: string
+  isOneDayEvent: boolean
   startDate: string
   endDate: string
   locationName: string
@@ -271,6 +272,7 @@ export default function CreateEventClient({
     name: '',
     slug: '',
     description: '',
+    isOneDayEvent: false,
     startDate: '',
     endDate: '',
     locationName: '',
@@ -972,37 +974,73 @@ export default function CreateEventClient({
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="isOneDayEvent"
+                    checked={formData.isOneDayEvent}
+                    onChange={(e) => {
+                      const oneDay = e.target.checked
+                      updateFormData({
+                        isOneDayEvent: oneDay,
+                        endDate: oneDay ? formData.startDate : formData.endDate,
+                      })
+                    }}
+                    className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                  />
+                  <Label htmlFor="isOneDayEvent" className="mb-0 font-medium">
+                    One-Day Event
+                  </Label>
+                </div>
+
+                {formData.isOneDayEvent ? (
                   <div>
                     <Label htmlFor="startDate">
-                      Start Date <span className="text-red-500">*</span>
+                      Event Date <span className="text-red-500">*</span>
                     </Label>
                     <Input
                       id="startDate"
                       type="date"
                       value={formData.startDate}
                       onChange={(e) =>
-                        updateFormData({ startDate: e.target.value })
+                        updateFormData({ startDate: e.target.value, endDate: e.target.value })
                       }
                       className="mt-1"
                     />
                   </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="startDate">
+                        Start Date <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="startDate"
+                        type="date"
+                        value={formData.startDate}
+                        onChange={(e) =>
+                          updateFormData({ startDate: e.target.value })
+                        }
+                        className="mt-1"
+                      />
+                    </div>
 
-                  <div>
-                    <Label htmlFor="endDate">
-                      End Date <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="endDate"
-                      type="date"
-                      value={formData.endDate}
-                      onChange={(e) =>
-                        updateFormData({ endDate: e.target.value })
-                      }
-                      className="mt-1"
-                    />
+                    <div>
+                      <Label htmlFor="endDate">
+                        End Date <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="endDate"
+                        type="date"
+                        value={formData.endDate}
+                        onChange={(e) =>
+                          updateFormData({ endDate: e.target.value })
+                        }
+                        className="mt-1"
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div>
                   <Label htmlFor="locationName">
@@ -3990,8 +4028,10 @@ export default function CreateEventClient({
                     {formData.name || 'Untitled Event'}
                   </p>
                   <p className="text-sm text-gray-600">
-                    {formData.startDate && formData.endDate
-                      ? `${formData.startDate} to ${formData.endDate}`
+                    {formData.startDate
+                      ? formData.isOneDayEvent
+                        ? formData.startDate
+                        : `${formData.startDate} to ${formData.endDate}`
                       : 'Dates not set'}
                   </p>
                   <p className="text-sm text-gray-600">
