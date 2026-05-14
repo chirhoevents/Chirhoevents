@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils'
+import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { isAdminRole } from '@/lib/permissions'
+import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 // Debug endpoint to see ALL payments for a registration
 // Accepts either registration UUID or access code/confirmation code
@@ -9,11 +11,23 @@ export async function GET(
   { params }: { params: Promise<{ registrationId: string }> }
 ) {
   try {
-    // Fix B: require admin role
-    const user = await getCurrentUser()
-    if (!user || !isAdmin(user)) {
+    const userId = await getClerkUserIdFromRequest(request)
+
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Verify the user is an admin
+    const user = await prisma.user.findFirst({
+      where: { clerkUserId: userId },
+      include: { organization: true },
+    })
+
+    if (!user || !isAdminRole(user.role as any)) {
+      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 })
+    }
+
+    const effectiveOrgId = await getEffectiveOrgId(user as any)
 
     const { registrationId: paramRegistrationId } = await params
     let registrationId = paramRegistrationId
@@ -48,7 +62,11 @@ export async function GET(
           registrationOrgId = indivReg.organizationId
           registrationInfo = { type: 'individual', name: `${indivReg.firstName} ${indivReg.lastName}`, confirmationCode: indivReg.confirmationCode }
         } else {
-          return NextResponse.json({ error: 'Registration not found' }, { status: 404 })
+          return NextResponse.json({
+            error: 'Registration not found',
+            searchedFor: registrationId,
+            hint: 'Provide either a UUID or a valid access code/confirmation code',
+          }, { status: 404 })
         }
       }
     } else {
@@ -76,13 +94,16 @@ export async function GET(
       }
     }
 
-    if (!registrationOrgId) {
-      return NextResponse.json({ error: 'Registration not found' }, { status: 404 })
-    }
-
-    // Fix B: org-scope check — master_admin bypasses, org admins must own the registration
-    if (!canAccessOrganization(user, registrationOrgId)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    // Verify the admin can access this registration's organization
+    if (registrationOrgId) {
+      const isMasterAdmin = user.role === 'master_admin'
+      const orgMatches = registrationOrgId === effectiveOrgId
+      if (!isMasterAdmin && !orgMatches) {
+        return NextResponse.json(
+          { error: 'Forbidden - This registration belongs to a different organization' },
+          { status: 403 }
+        )
+      }
     }
 
     // Get ALL payments for this registration, no filters

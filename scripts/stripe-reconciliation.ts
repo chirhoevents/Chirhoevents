@@ -1,452 +1,728 @@
 /**
- * Stripe Reconciliation Script
+ * Stripe Reconciliation Script — Phase 4.2
+ *
+ * Compares payment records in the ChiRho Events database against what
+ * Stripe reports for an org's connected account. Flags discrepancies.
  *
  * Usage:
- *   npx tsx scripts/stripe-reconciliation.ts --dry-run          # Mock data demo
- *   npx tsx scripts/stripe-reconciliation.ts --orgId <uuid>     # Single org
- *   npx tsx scripts/stripe-reconciliation.ts --all              # All orgs
+ *   # Reconcile a specific org:
+ *   DATABASE_URL="postgresql://..." STRIPE_SECRET_KEY="sk_..." npx tsx scripts/stripe-reconciliation.ts --orgId <org-uuid>
  *
- * Exit code 0 = no discrepancies, exit code 1 = discrepancies found.
+ *   # Reconcile all orgs with a connected Stripe account:
+ *   DATABASE_URL="postgresql://..." STRIPE_SECRET_KEY="sk_..." npx tsx scripts/stripe-reconciliation.ts --all
+ *
+ *   # Dry run with mock data (no real credentials needed):
+ *   npx tsx scripts/stripe-reconciliation.ts --dry-run
+ *
+ * Output:
+ *   For each org: lists matched payments, flags discrepancies.
+ *   Exit code 0 if clean, 1 if discrepancies found.
  */
 
-import Stripe from 'stripe'
-import { PrismaClient } from '@prisma/client'
+// Stripe and Prisma are loaded dynamically in live mode only (not needed for --dry-run)
+import type Stripe from 'stripe'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type DiscrepancyType =
-  | 'MISSING_IN_STRIPE'    // DB says succeeded, Stripe has no matching charge
-  | 'MISSING_IN_DB'        // Stripe has a charge, DB has no payment record
-  | 'STATUS_MISMATCH'      // Stripe status ≠ DB status
-  | 'AMOUNT_MISMATCH'      // Dollar amounts differ by > $0.01
-  | 'WRONG_STRIPE_ACCOUNT' // Payment metadata says Org A but landed on Org B account
-  | 'DOUBLE_COUNTED'       // Same Stripe payment intent ID in multiple DB records
-
-interface Discrepancy {
-  type: DiscrepancyType
-  paymentId?: string
-  stripeIntentId?: string
-  expectedAmount?: number
-  actualAmount?: number
-  detail: string
-}
-
-interface OrgResult {
-  orgId: string
-  orgName: string
-  stripeAccountId: string
-  totalDbPayments: number
-  totalStripeCharges: number
-  discrepancies: Discrepancy[]
-}
-
-// ─── DB payment shape ─────────────────────────────────────────────────────────
+// ============================================================
+// TYPES
+// ============================================================
 
 interface DbPayment {
   id: string
   organizationId: string
-  stripePaymentIntentId: string | null
-  amount: number        // in dollars
+  eventId: string
+  registrationId: string
+  registrationType: string
+  amount: number           // stored in dollars
+  paymentType: string
+  paymentMethod: string
   paymentStatus: string
+  stripePaymentIntentId: string | null
+  platformFeeAmount: number | null
+  createdAt: Date
+  processedAt: Date | null
 }
 
-// ─── Dry-run mock data ────────────────────────────────────────────────────────
+interface StripePaymentRecord {
+  id: string                   // PaymentIntent ID (pi_...)
+  amount: number               // in cents
+  amountReceived: number       // in cents
+  status: string               // succeeded | requires_payment_method | canceled | etc.
+  applicationFeeAmount: number | null  // in cents
+  transferData: { destination: string } | null
+  metadata: Record<string, string>
+  created: number              // unix timestamp
+}
 
-function buildMockData(): Array<{
-  org: { id: string; name: string; stripeAccountId: string }
-  dbPayments: DbPayment[]
-  stripeCharges: Array<{ id: string; payment_intent: string | null; amount: number; status: string; metadata: Record<string, string> }>
-}> {
+interface DiscrepancyReport {
+  orgId: string
+  orgName: string
+  stripeAccountId: string | null
+  totalDbPayments: number
+  totalStripePayments: number
+  matched: number
+  discrepancies: Discrepancy[]
+  summary: ReconciliationSummary
+}
+
+interface Discrepancy {
+  type: DiscrepancyType
+  severity: 'critical' | 'warning' | 'info'
+  dbPaymentId?: string
+  stripePaymentIntentId?: string
+  description: string
+  dbAmount?: number
+  stripeAmount?: number
+  expectedOrgAccount?: string
+  actualOrgAccount?: string
+}
+
+type DiscrepancyType =
+  | 'MISSING_IN_STRIPE'         // DB has record but Stripe doesn't
+  | 'MISSING_IN_DB'             // Stripe has payment but DB doesn't
+  | 'AMOUNT_MISMATCH'           // Amount differs between DB and Stripe
+  | 'WRONG_STRIPE_ACCOUNT'      // Payment landed on wrong connected account
+  | 'STATUS_MISMATCH'           // DB says succeeded but Stripe says otherwise
+  | 'MISSING_METADATA'          // Stripe payment lacks registrationId metadata
+  | 'ORPHANED_PAYMENT'          // Stripe payment metadata references unknown registration
+  | 'DOUBLE_COUNTED'            // Same Stripe intent ID appears in multiple DB records
+
+interface ReconciliationSummary {
+  totalDbAmountDollars: number
+  totalStripeAmountDollars: number
+  amountDeltaDollars: number
+  criticalCount: number
+  warningCount: number
+  infoCount: number
+  isClean: boolean
+}
+
+// ============================================================
+// MOCK DATA (for --dry-run mode)
+// ============================================================
+
+function buildMockDbPayments(orgId: string): DbPayment[] {
   return [
     {
-      org: { id: 'org-aaa-111', name: 'St. Michael Parish', stripeAccountId: 'acct_mock_orgA' },
-      dbPayments: [
-        // Normal: both sides agree
-        { id: 'pay-001', organizationId: 'org-aaa-111', stripePaymentIntentId: 'pi_normal_001', amount: 150.00, paymentStatus: 'succeeded' },
-        // MISSING_IN_STRIPE: DB says succeeded, Stripe has nothing
-        { id: 'pay-002', organizationId: 'org-aaa-111', stripePaymentIntentId: 'pi_ghost_002', amount: 75.00, paymentStatus: 'succeeded' },
-        // STATUS_MISMATCH: Stripe says succeeded, DB says pending
-        { id: 'pay-003', organizationId: 'org-aaa-111', stripePaymentIntentId: 'pi_mismatch_003', amount: 200.00, paymentStatus: 'pending' },
-        // DOUBLE_COUNTED: same intent ID in two DB rows
-        { id: 'pay-004a', organizationId: 'org-aaa-111', stripePaymentIntentId: 'pi_double_004', amount: 50.00, paymentStatus: 'succeeded' },
-        { id: 'pay-004b', organizationId: 'org-aaa-111', stripePaymentIntentId: 'pi_double_004', amount: 50.00, paymentStatus: 'succeeded' },
-      ],
-      stripeCharges: [
-        { id: 'ch_normal_001', payment_intent: 'pi_normal_001', amount: 15000, status: 'succeeded', metadata: { organizationId: 'org-aaa-111' } },
-        // MISSING_IN_DB: Stripe has a charge, DB has nothing
-        { id: 'ch_orphan_999', payment_intent: 'pi_orphan_999', amount: 9900, status: 'succeeded', metadata: { organizationId: 'org-aaa-111' } },
-        { id: 'ch_mismatch_003', payment_intent: 'pi_mismatch_003', amount: 20000, status: 'succeeded', metadata: { organizationId: 'org-aaa-111' } },
-        { id: 'ch_double_004', payment_intent: 'pi_double_004', amount: 5000, status: 'succeeded', metadata: { organizationId: 'org-aaa-111' } },
-      ],
+      id: 'db-pay-001',
+      organizationId: orgId,
+      eventId: 'event-uuid-aaa',
+      registrationId: 'reg-uuid-111',
+      registrationType: 'group',
+      amount: 750.00,
+      paymentType: 'deposit',
+      paymentMethod: 'card',
+      paymentStatus: 'succeeded',
+      stripePaymentIntentId: 'pi_mock_001_succeeded',
+      platformFeeAmount: 7.50,
+      createdAt: new Date('2025-06-01T10:00:00Z'),
+      processedAt: new Date('2025-06-01T10:01:30Z'),
     },
     {
-      org: { id: 'org-bbb-222', name: 'Holy Cross Youth Group', stripeAccountId: 'acct_mock_orgB' },
-      dbPayments: [
-        // AMOUNT_MISMATCH: DB says $100, Stripe has $105
-        { id: 'pay-010', organizationId: 'org-bbb-222', stripePaymentIntentId: 'pi_amount_010', amount: 100.00, paymentStatus: 'succeeded' },
-        // WRONG_STRIPE_ACCOUNT: metadata says orgA but landed on orgB's account
-        { id: 'pay-011', organizationId: 'org-bbb-222', stripePaymentIntentId: 'pi_wrong_011', amount: 60.00, paymentStatus: 'succeeded' },
-        // Normal
-        { id: 'pay-012', organizationId: 'org-bbb-222', stripePaymentIntentId: 'pi_ok_012', amount: 250.00, paymentStatus: 'succeeded' },
-      ],
-      stripeCharges: [
-        { id: 'ch_amount_010', payment_intent: 'pi_amount_010', amount: 10500, status: 'succeeded', metadata: { organizationId: 'org-bbb-222' } },
-        // metadata says wrong org (orgA), but this is on orgB's account
-        { id: 'ch_wrong_011', payment_intent: 'pi_wrong_011', amount: 6000, status: 'succeeded', metadata: { organizationId: 'org-aaa-111' } },
-        { id: 'ch_ok_012', payment_intent: 'pi_ok_012', amount: 25000, status: 'succeeded', metadata: { organizationId: 'org-bbb-222' } },
-      ],
+      id: 'db-pay-002',
+      organizationId: orgId,
+      eventId: 'event-uuid-aaa',
+      registrationId: 'reg-uuid-222',
+      registrationType: 'group',
+      amount: 1200.00,
+      paymentType: 'deposit',
+      paymentMethod: 'card',
+      paymentStatus: 'succeeded',
+      stripePaymentIntentId: 'pi_mock_002_succeeded',
+      platformFeeAmount: 12.00,
+      createdAt: new Date('2025-06-02T14:00:00Z'),
+      processedAt: new Date('2025-06-02T14:02:00Z'),
+    },
+    {
+      id: 'db-pay-003',
+      organizationId: orgId,
+      eventId: 'event-uuid-aaa',
+      registrationId: 'reg-uuid-333',
+      registrationType: 'group',
+      amount: 500.00,
+      paymentType: 'balance',
+      paymentMethod: 'card',
+      paymentStatus: 'succeeded',
+      stripePaymentIntentId: 'pi_mock_003_amount_wrong', // Will have amount mismatch
+      platformFeeAmount: 5.00,
+      createdAt: new Date('2025-06-03T09:00:00Z'),
+      processedAt: new Date('2025-06-03T09:00:45Z'),
+    },
+    {
+      id: 'db-pay-004',
+      organizationId: orgId,
+      eventId: 'event-uuid-aaa',
+      registrationId: 'reg-uuid-444',
+      registrationType: 'group',
+      amount: 300.00,
+      paymentType: 'deposit',
+      paymentMethod: 'card',
+      paymentStatus: 'succeeded',
+      stripePaymentIntentId: 'pi_mock_004_missing_in_stripe', // Missing from Stripe
+      platformFeeAmount: 3.00,
+      createdAt: new Date('2025-06-04T11:00:00Z'),
+      processedAt: new Date('2025-06-04T11:01:00Z'),
+    },
+    {
+      id: 'db-pay-005',
+      organizationId: orgId,
+      eventId: 'event-uuid-aaa',
+      registrationId: 'reg-uuid-555',
+      registrationType: 'group',
+      amount: 900.00,
+      paymentType: 'balance',
+      paymentMethod: 'card',
+      paymentStatus: 'pending', // Never confirmed — webhook may have failed
+      stripePaymentIntentId: 'pi_mock_005_succeeded_in_stripe', // Stripe says succeeded
+      platformFeeAmount: 9.00,
+      createdAt: new Date('2025-06-05T16:00:00Z'),
+      processedAt: null,
     },
   ]
 }
 
-// ─── Core reconciliation logic ────────────────────────────────────────────────
+function buildMockStripePayments(orgStripeAccountId: string): StripePaymentRecord[] {
+  return [
+    {
+      id: 'pi_mock_001_succeeded',
+      amount: 75000,       // $750.00 — matches DB
+      amountReceived: 75000,
+      status: 'succeeded',
+      applicationFeeAmount: 750, // $7.50
+      transferData: { destination: orgStripeAccountId },
+      metadata: { registrationId: 'reg-uuid-111', registrationType: 'group', organizationId: 'org-mock' },
+      created: Math.floor(new Date('2025-06-01T10:01:00Z').getTime() / 1000),
+    },
+    {
+      id: 'pi_mock_002_succeeded',
+      amount: 120000,      // $1200.00 — matches DB
+      amountReceived: 120000,
+      status: 'succeeded',
+      applicationFeeAmount: 1200, // $12.00
+      transferData: { destination: orgStripeAccountId },
+      metadata: { registrationId: 'reg-uuid-222', registrationType: 'group', organizationId: 'org-mock' },
+      created: Math.floor(new Date('2025-06-02T14:01:00Z').getTime() / 1000),
+    },
+    {
+      id: 'pi_mock_003_amount_wrong',
+      amount: 45000,       // $450.00 — DB says $500 → AMOUNT MISMATCH
+      amountReceived: 45000,
+      status: 'succeeded',
+      applicationFeeAmount: 450,
+      transferData: { destination: orgStripeAccountId },
+      metadata: { registrationId: 'reg-uuid-333', registrationType: 'group', organizationId: 'org-mock' },
+      created: Math.floor(new Date('2025-06-03T09:00:30Z').getTime() / 1000),
+    },
+    {
+      id: 'pi_mock_005_succeeded_in_stripe',
+      amount: 90000,       // $900.00 — DB says pending but Stripe succeeded → STATUS MISMATCH
+      amountReceived: 90000,
+      status: 'succeeded',
+      applicationFeeAmount: 900,
+      transferData: { destination: orgStripeAccountId },
+      metadata: { registrationId: 'reg-uuid-555', registrationType: 'group', organizationId: 'org-mock' },
+      created: Math.floor(new Date('2025-06-05T16:00:30Z').getTime() / 1000),
+    },
+    {
+      id: 'pi_mock_006_missing_in_db', // Stripe has this — DB doesn't → MISSING IN DB
+      amount: 60000,       // $600.00
+      amountReceived: 60000,
+      status: 'succeeded',
+      applicationFeeAmount: 600,
+      transferData: { destination: orgStripeAccountId },
+      metadata: { registrationId: 'reg-uuid-666', registrationType: 'group', organizationId: 'org-mock' },
+      created: Math.floor(new Date('2025-06-06T08:00:00Z').getTime() / 1000),
+    },
+    {
+      id: 'pi_mock_007_wrong_account', // Payment routed to wrong account
+      amount: 200000,      // $2000.00
+      amountReceived: 200000,
+      status: 'succeeded',
+      applicationFeeAmount: null,
+      transferData: { destination: 'acct_WRONG_OTHER_ORG' }, // ← wrong!
+      metadata: { registrationId: 'reg-uuid-777', registrationType: 'group', organizationId: 'org-mock' },
+      created: Math.floor(new Date('2025-06-07T12:00:00Z').getTime() / 1000),
+    },
+  ]
+}
 
-function reconcile(
+// ============================================================
+// CORE RECONCILIATION LOGIC
+// ============================================================
+
+function reconcilePayments(
   orgId: string,
   orgName: string,
-  stripeAccountId: string,
+  orgStripeAccountId: string,
   dbPayments: DbPayment[],
-  stripeCharges: Array<{ id: string; payment_intent: string | null; amount: number; status: string; metadata: Record<string, string> }>
-): OrgResult {
+  stripePayments: StripePaymentRecord[]
+): DiscrepancyReport {
   const discrepancies: Discrepancy[] = []
 
-  // Index DB payments by Stripe intent ID
-  const dbByIntent = new Map<string, DbPayment[]>()
-  for (const p of dbPayments) {
-    if (!p.stripePaymentIntentId) continue
-    const arr = dbByIntent.get(p.stripePaymentIntentId) ?? []
-    arr.push(p)
-    dbByIntent.set(p.stripePaymentIntentId, arr)
+  // Build lookup maps
+  const stripeById = new Map<string, StripePaymentRecord>()
+  for (const sp of stripePayments) {
+    stripeById.set(sp.id, sp)
   }
 
-  // Index Stripe charges by intent ID
-  const stripeByIntent = new Map<string, typeof stripeCharges[0]>()
-  for (const c of stripeCharges) {
-    if (c.payment_intent) stripeByIntent.set(c.payment_intent, c)
-  }
-
-  // Check for DOUBLE_COUNTED
-  for (const [intentId, rows] of dbByIntent.entries()) {
-    if (rows.length > 1) {
-      discrepancies.push({
-        type: 'DOUBLE_COUNTED',
-        stripeIntentId: intentId,
-        detail: `Intent ${intentId} appears in ${rows.length} DB payment records: ${rows.map(r => r.id).join(', ')}`,
-      })
+  const dbByStripeId = new Map<string, DbPayment[]>()
+  for (const dp of dbPayments) {
+    if (dp.stripePaymentIntentId) {
+      const existing = dbByStripeId.get(dp.stripePaymentIntentId) ?? []
+      existing.push(dp)
+      dbByStripeId.set(dp.stripePaymentIntentId, existing)
     }
   }
 
-  // Check DB payments against Stripe
-  const succeededDbPayments = dbPayments.filter(p => p.paymentStatus === 'succeeded' && p.stripePaymentIntentId)
-  for (const dbPay of succeededDbPayments) {
-    const intentId = dbPay.stripePaymentIntentId!
-    const stripeCharge = stripeByIntent.get(intentId)
+  // --- Check 1: DB-side payments that should appear in Stripe ---
+  const succeededDbPayments = dbPayments.filter(p => p.paymentStatus === 'succeeded')
+  let matched = 0
 
-    if (!stripeCharge) {
+  for (const dp of succeededDbPayments) {
+    if (!dp.stripePaymentIntentId) continue
+
+    const sp = stripeById.get(dp.stripePaymentIntentId)
+
+    if (!sp) {
       discrepancies.push({
         type: 'MISSING_IN_STRIPE',
-        paymentId: dbPay.id,
-        stripeIntentId: intentId,
-        expectedAmount: dbPay.amount,
-        detail: `DB payment ${dbPay.id} (${fmt(dbPay.amount)}) is succeeded but no Stripe charge found for intent ${intentId}`,
+        severity: 'critical',
+        dbPaymentId: dp.id,
+        stripePaymentIntentId: dp.stripePaymentIntentId,
+        description: `DB payment ${dp.id} (${dp.stripePaymentIntentId}) marked succeeded but not found in Stripe. Possible webhook failure or data corruption.`,
+        dbAmount: dp.amount,
       })
       continue
     }
 
-    // AMOUNT_MISMATCH (Stripe stores cents)
-    const stripeAmountDollars = stripeCharge.amount / 100
-    if (Math.abs(stripeAmountDollars - dbPay.amount) > 0.01) {
+    // Amount check: DB stores dollars, Stripe stores cents
+    const stripeAmountDollars = sp.amount / 100
+    const delta = Math.abs(stripeAmountDollars - dp.amount)
+    if (delta > 0.01) {  // Allow $0.01 rounding tolerance
       discrepancies.push({
         type: 'AMOUNT_MISMATCH',
-        paymentId: dbPay.id,
-        stripeIntentId: intentId,
-        expectedAmount: dbPay.amount,
-        actualAmount: stripeAmountDollars,
-        detail: `Amount mismatch for intent ${intentId}: DB=${fmt(dbPay.amount)} Stripe=${fmt(stripeAmountDollars)}`,
+        severity: 'critical',
+        dbPaymentId: dp.id,
+        stripePaymentIntentId: dp.stripePaymentIntentId,
+        description: `Amount mismatch for ${dp.stripePaymentIntentId}: DB=$${dp.amount.toFixed(2)}, Stripe=$${stripeAmountDollars.toFixed(2)} (delta=$${delta.toFixed(2)})`,
+        dbAmount: dp.amount,
+        stripeAmount: stripeAmountDollars,
       })
     }
 
-    // STATUS_MISMATCH
-    if (stripeCharge.status === 'succeeded' && dbPay.paymentStatus !== 'succeeded') {
-      discrepancies.push({
-        type: 'STATUS_MISMATCH',
-        paymentId: dbPay.id,
-        stripeIntentId: intentId,
-        detail: `Status mismatch for intent ${intentId}: DB=${dbPay.paymentStatus} Stripe=${stripeCharge.status}`,
-      })
-    }
-
-    // WRONG_STRIPE_ACCOUNT: charge is on this org's account but metadata says a different org
-    const metaOrgId = stripeCharge.metadata?.organizationId
-    if (metaOrgId && metaOrgId !== orgId) {
+    // Stripe account routing check
+    if (sp.transferData?.destination && sp.transferData.destination !== orgStripeAccountId) {
       discrepancies.push({
         type: 'WRONG_STRIPE_ACCOUNT',
-        paymentId: dbPay.id,
-        stripeIntentId: intentId,
-        detail: `Intent ${intentId} landed on account ${stripeAccountId} (org ${orgId}) but metadata.organizationId=${metaOrgId}`,
+        severity: 'critical',
+        dbPaymentId: dp.id,
+        stripePaymentIntentId: dp.stripePaymentIntentId,
+        description: `Payment ${dp.stripePaymentIntentId} routed to wrong Stripe account. Expected: ${orgStripeAccountId}, Got: ${sp.transferData.destination}`,
+        expectedOrgAccount: orgStripeAccountId,
+        actualOrgAccount: sp.transferData.destination,
       })
     }
+
+    // No transfer_data but org has a connected account = payment stayed on platform
+    if (!sp.transferData && orgStripeAccountId) {
+      discrepancies.push({
+        type: 'WRONG_STRIPE_ACCOUNT',
+        severity: 'critical',
+        dbPaymentId: dp.id,
+        stripePaymentIntentId: dp.stripePaymentIntentId,
+        description: `Payment ${dp.stripePaymentIntentId} has no transfer_data — funds stayed on ChiRho platform account instead of routing to ${orgStripeAccountId}. Org was NOT credited.`,
+        expectedOrgAccount: orgStripeAccountId,
+        actualOrgAccount: 'platform (no transfer)',
+      })
+    }
+
+    matched++
   }
 
-  // Check DB pending/non-succeeded payments for STATUS_MISMATCH (Stripe succeeded, DB not)
-  const nonSucceededDbWithIntent = dbPayments.filter(
-    p => p.paymentStatus !== 'succeeded' && p.stripePaymentIntentId
+  // --- Check 2: DB payments pending but Stripe says succeeded (webhook failure) ---
+  const pendingDbPayments = dbPayments.filter(p =>
+    p.paymentStatus === 'pending' && p.stripePaymentIntentId
   )
-  for (const dbPay of nonSucceededDbWithIntent) {
-    const stripeCharge = stripeByIntent.get(dbPay.stripePaymentIntentId!)
-    if (stripeCharge?.status === 'succeeded') {
+  for (const dp of pendingDbPayments) {
+    const sp = stripeById.get(dp.stripePaymentIntentId!)
+    if (sp && sp.status === 'succeeded') {
       discrepancies.push({
         type: 'STATUS_MISMATCH',
-        paymentId: dbPay.id,
-        stripeIntentId: dbPay.stripePaymentIntentId!,
-        detail: `Status mismatch for intent ${dbPay.stripePaymentIntentId}: DB=${dbPay.paymentStatus} Stripe=${stripeCharge.status}`,
+        severity: 'critical',
+        dbPaymentId: dp.id,
+        stripePaymentIntentId: dp.stripePaymentIntentId!,
+        description: `Payment ${dp.stripePaymentIntentId} shows "pending" in DB but "succeeded" in Stripe. Webhook likely failed to process. Balance NOT updated — registration may be incorrectly blocked.`,
+        dbAmount: dp.amount,
+        stripeAmount: sp.amount / 100,
       })
     }
   }
 
-  // Check Stripe charges against DB (MISSING_IN_DB)
-  const allDbIntentIds = new Set(dbPayments.map(p => p.stripePaymentIntentId).filter(Boolean))
-  for (const charge of stripeCharges) {
-    if (charge.status !== 'succeeded') continue
-    if (charge.payment_intent && !allDbIntentIds.has(charge.payment_intent)) {
+  // --- Check 3: Stripe payments not in DB ---
+  for (const sp of stripePayments) {
+    if (sp.status !== 'succeeded') continue
+
+    const dbRecords = dbByStripeId.get(sp.id)
+    if (!dbRecords || dbRecords.length === 0) {
       discrepancies.push({
         type: 'MISSING_IN_DB',
-        stripeIntentId: charge.payment_intent,
-        actualAmount: charge.amount / 100,
-        detail: `Stripe charge ${charge.id} (${fmt(charge.amount / 100)}) on account ${stripeAccountId} has no DB payment record`,
+        severity: 'warning',
+        stripePaymentIntentId: sp.id,
+        description: `Stripe payment ${sp.id} ($${(sp.amount / 100).toFixed(2)}) has no corresponding DB record. Webhook may have created it without a prior DB record, or DB record was deleted.`,
+        stripeAmount: sp.amount / 100,
       })
     }
   }
+
+  // --- Check 4: Double-counted intent IDs in DB ---
+  for (const [intentId, records] of dbByStripeId.entries()) {
+    if (records.length > 1) {
+      discrepancies.push({
+        type: 'DOUBLE_COUNTED',
+        severity: 'critical',
+        stripePaymentIntentId: intentId,
+        description: `Stripe payment intent ${intentId} appears in ${records.length} DB payment records (IDs: ${records.map(r => r.id).join(', ')}). This would cause double-counting in balance calculations.`,
+      })
+    }
+  }
+
+  // --- Check 5: Stripe payments missing metadata ---
+  for (const sp of stripePayments) {
+    if (!sp.metadata?.registrationId) {
+      discrepancies.push({
+        type: 'MISSING_METADATA',
+        severity: 'warning',
+        stripePaymentIntentId: sp.id,
+        description: `Stripe payment ${sp.id} lacks registrationId metadata. Cannot link to a registration. May be a manual or external charge.`,
+      })
+    }
+  }
+
+  // --- Check 6: Stripe payments with wrong destination account ---
+  // Catches payments that Stripe has on record with this org's metadata
+  // but were routed to the wrong connected account.
+  for (const sp of stripePayments) {
+    if (sp.status !== 'succeeded') continue
+    if (!sp.metadata?.registrationId) continue
+
+    if (sp.transferData?.destination && sp.transferData.destination !== orgStripeAccountId) {
+      discrepancies.push({
+        type: 'WRONG_STRIPE_ACCOUNT',
+        severity: 'critical',
+        stripePaymentIntentId: sp.id,
+        description: `Stripe payment ${sp.id} carries this org's metadata (registrationId: ${sp.metadata.registrationId}) but was routed to ${sp.transferData.destination} instead of ${orgStripeAccountId}. Org was NOT credited.`,
+        expectedOrgAccount: orgStripeAccountId,
+        actualOrgAccount: sp.transferData.destination,
+        stripeAmount: sp.amount / 100,
+      })
+    }
+
+    if (!sp.transferData && orgStripeAccountId) {
+      discrepancies.push({
+        type: 'WRONG_STRIPE_ACCOUNT',
+        severity: 'critical',
+        stripePaymentIntentId: sp.id,
+        description: `Stripe payment ${sp.id} has no transfer_data — $${(sp.amount / 100).toFixed(2)} stayed on the ChiRho platform account. Expected destination: ${orgStripeAccountId}.`,
+        expectedOrgAccount: orgStripeAccountId,
+        actualOrgAccount: 'platform (no transfer)',
+        stripeAmount: sp.amount / 100,
+      })
+    }
+  }
+
+  // --- Summary ---
+  const dbTotal = succeededDbPayments.reduce((s, p) => s + p.amount, 0)
+  const stripeTotal = stripePayments
+    .filter(p => p.status === 'succeeded')
+    .reduce((s, p) => s + p.amount / 100, 0)
+
+  const criticalCount = discrepancies.filter(d => d.severity === 'critical').length
+  const warningCount = discrepancies.filter(d => d.severity === 'warning').length
+  const infoCount = discrepancies.filter(d => d.severity === 'info').length
 
   return {
     orgId,
     orgName,
-    stripeAccountId,
+    stripeAccountId: orgStripeAccountId,
     totalDbPayments: dbPayments.length,
-    totalStripeCharges: stripeCharges.length,
+    totalStripePayments: stripePayments.length,
+    matched,
     discrepancies,
+    summary: {
+      totalDbAmountDollars: dbTotal,
+      totalStripeAmountDollars: stripeTotal,
+      amountDeltaDollars: Math.abs(stripeTotal - dbTotal),
+      criticalCount,
+      warningCount,
+      infoCount,
+      isClean: discrepancies.length === 0,
+    },
   }
 }
 
-// ─── Output helpers ───────────────────────────────────────────────────────────
+// ============================================================
+// STRIPE DATA FETCHING
+// ============================================================
 
-function fmt(dollars: number): string {
-  return `$${dollars.toFixed(2)}`
-}
+/**
+ * Fetches all succeeded payment intents for an org's connected account.
+ * Uses Stripe pagination to retrieve all records.
+ */
+async function fetchStripePayments(
+  stripe: any,
+  stripeAccountId: string,
+  createdAfter?: Date
+): Promise<StripePaymentRecord[]> {
+  const results: StripePaymentRecord[] = []
+  let hasMore = true
+  let startingAfter: string | undefined
 
-function printOrgResult(result: OrgResult): void {
-  const status = result.discrepancies.length === 0 ? '✅ CLEAN' : `❌ ${result.discrepancies.length} DISCREPANCY(IES)`
-  console.log(`\n┌─ ${result.orgName}`)
-  console.log(`│  ID:              ${result.orgId}`)
-  console.log(`│  Stripe account:  ${result.stripeAccountId}`)
-  console.log(`│  DB payments:     ${result.totalDbPayments}`)
-  console.log(`│  Stripe charges:  ${result.totalStripeCharges}`)
-  console.log(`│  Status:          ${status}`)
+  const params: Stripe.PaymentIntentListParams = {
+    limit: 100,
+  }
+  if (createdAfter) {
+    params.created = { gte: Math.floor(createdAfter.getTime() / 1000) }
+  }
 
-  if (result.discrepancies.length > 0) {
-    console.log('│')
-    const byType = new Map<DiscrepancyType, Discrepancy[]>()
-    for (const d of result.discrepancies) {
-      const arr = byType.get(d.type) ?? []
-      arr.push(d)
-      byType.set(d.type, arr)
+  while (hasMore) {
+    if (startingAfter) {
+      params.starting_after = startingAfter
     }
-    for (const [type, items] of byType.entries()) {
-      console.log(`│  [${type}] × ${items.length}`)
-      for (const item of items) {
-        console.log(`│    • ${item.detail}`)
-        if (item.expectedAmount !== undefined) console.log(`│      Expected: ${fmt(item.expectedAmount)}`)
-        if (item.actualAmount !== undefined)   console.log(`│      Actual:   ${fmt(item.actualAmount)}`)
-      }
+
+    // For connected accounts, list via the platform key (destination charges appear
+    // on the platform; we filter by transfer_data.destination client-side).
+    // For direct charges on the connected account, use stripeAccount header.
+    const page = await stripe.paymentIntents.list(params)
+
+    for (const pi of page.data) {
+      // Filter to only this org's payments
+      const dest = (pi as any).transfer_data?.destination
+      if (dest && dest !== stripeAccountId) continue
+
+      results.push({
+        id: pi.id,
+        amount: pi.amount,
+        amountReceived: pi.amount_received,
+        status: pi.status,
+        applicationFeeAmount: (pi as any).application_fee_amount ?? null,
+        transferData: (pi as any).transfer_data ?? null,
+        metadata: pi.metadata as Record<string, string>,
+        created: pi.created,
+      })
+    }
+
+    hasMore = page.has_more
+    if (page.data.length > 0) {
+      startingAfter = page.data[page.data.length - 1].id
+    } else {
+      hasMore = false
     }
   }
 
-  console.log('└' + '─'.repeat(60))
+  return results
 }
 
-function printSummaryTable(results: OrgResult[]): void {
-  console.log('\n' + '═'.repeat(80))
-  console.log('RECONCILIATION SUMMARY')
-  console.log('═'.repeat(80))
-  console.log(
-    'Org Name'.padEnd(30) +
-    'DB Pay'.padStart(8) +
-    'Stripe'.padStart(8) +
-    'Issues'.padStart(8)
-  )
-  console.log('─'.repeat(80))
-  for (const r of results) {
-    const name = r.orgName.length > 28 ? r.orgName.slice(0, 27) + '…' : r.orgName
-    const mark = r.discrepancies.length > 0 ? ' ❌' : ' ✅'
-    console.log(
-      name.padEnd(30) +
-      String(r.totalDbPayments).padStart(8) +
-      String(r.totalStripeCharges).padStart(8) +
-      String(r.discrepancies.length).padStart(8) +
-      mark
-    )
-  }
-  console.log('─'.repeat(80))
-  const totalDiscrepancies = results.reduce((s, r) => s + r.discrepancies.length, 0)
-  const totalOrgs = results.length
-  const cleanOrgs = results.filter(r => r.discrepancies.length === 0).length
-  console.log(`\nTotal orgs:          ${totalOrgs}`)
-  console.log(`Clean orgs:          ${cleanOrgs}`)
-  console.log(`Orgs with issues:    ${totalOrgs - cleanOrgs}`)
-  console.log(`Total discrepancies: ${totalDiscrepancies}`)
-  console.log('═'.repeat(80))
-}
+// ============================================================
+// DB DATA FETCHING
+// ============================================================
 
-// ─── Live: fetch DB payments for one org ─────────────────────────────────────
-
-async function fetchDbPayments(prisma: PrismaClient, orgId: string): Promise<DbPayment[]> {
-  const rows = await prisma.payment.findMany({
+async function fetchDbPayments(prisma: any, orgId: string): Promise<DbPayment[]> {
+  const records = await (prisma as any).payment.findMany({
     where: {
       organizationId: orgId,
       paymentMethod: 'card',
+      stripePaymentIntentId: { not: null },
     },
-    select: {
-      id: true,
-      organizationId: true,
-      stripePaymentIntentId: true,
-      amount: true,
-      paymentStatus: true,
-    },
+    orderBy: { createdAt: 'asc' },
   })
-  return rows.map(r => ({
+
+  return records.map((r: any) => ({
     id: r.id,
     organizationId: r.organizationId,
-    stripePaymentIntentId: r.stripePaymentIntentId,
+    eventId: r.eventId,
+    registrationId: r.registrationId,
+    registrationType: r.registrationType,
     amount: Number(r.amount),
+    paymentType: r.paymentType,
+    paymentMethod: r.paymentMethod,
     paymentStatus: r.paymentStatus,
+    stripePaymentIntentId: r.stripePaymentIntentId,
+    platformFeeAmount: r.platformFeeAmount ? Number(r.platformFeeAmount) : null,
+    createdAt: r.createdAt,
+    processedAt: r.processedAt ?? null,
   }))
 }
 
-// ─── Live: fetch Stripe charges for one connected account ─────────────────────
+// ============================================================
+// REPORT PRINTING
+// ============================================================
 
-async function fetchStripeCharges(
-  stripe: Stripe,
-  stripeAccountId: string
-): Promise<Array<{ id: string; payment_intent: string | null; amount: number; status: string; metadata: Record<string, string> }>> {
-  const charges: Array<{ id: string; payment_intent: string | null; amount: number; status: string; metadata: Record<string, string> }> = []
-  let startingAfter: string | undefined
+function printReport(report: DiscrepancyReport): void {
+  const sep = '='.repeat(72)
+  const sub = '-'.repeat(72)
 
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const page = await stripe.charges.list(
-      { limit: 100, ...(startingAfter ? { starting_after: startingAfter } : {}) },
-      { stripeAccount: stripeAccountId }
-    )
-    for (const c of page.data) {
-      charges.push({
-        id: c.id,
-        payment_intent: typeof c.payment_intent === 'string' ? c.payment_intent : (c.payment_intent?.id ?? null),
-        amount: c.amount,
-        status: c.status,
-        metadata: (c.metadata as Record<string, string>) ?? {},
-      })
+  console.log(`\n${sep}`)
+  console.log(`RECONCILIATION REPORT`)
+  console.log(`Org:              ${report.orgName} (${report.orgId})`)
+  console.log(`Stripe Account:   ${report.stripeAccountId ?? 'NONE'}`)
+  console.log(`DB payments:      ${report.totalDbPayments}`)
+  console.log(`Stripe payments:  ${report.totalStripePayments}`)
+  console.log(`Matched:          ${report.matched}`)
+  console.log(sep)
+
+  const s = report.summary
+  console.log(`DB total (succeeded):     $${s.totalDbAmountDollars.toFixed(2)}`)
+  console.log(`Stripe total (succeeded): $${s.totalStripeAmountDollars.toFixed(2)}`)
+  console.log(`Delta:                    $${s.amountDeltaDollars.toFixed(2)}`)
+  console.log(sub)
+
+  if (report.discrepancies.length === 0) {
+    console.log('✅ CLEAN — No discrepancies found.')
+  } else {
+    console.log(`⚠️  ${report.discrepancies.length} discrepancy/ies found:`)
+    console.log(`   Critical: ${s.criticalCount}  |  Warning: ${s.warningCount}  |  Info: ${s.infoCount}`)
+    console.log(sub)
+
+    for (const d of report.discrepancies) {
+      const icon = d.severity === 'critical' ? '🔴' : d.severity === 'warning' ? '🟡' : 'ℹ️'
+      console.log(`\n${icon} [${d.type}] (${d.severity.toUpperCase()})`)
+      console.log(`   ${d.description}`)
+      if (d.dbAmount !== undefined) console.log(`   DB amount:     $${d.dbAmount.toFixed(2)}`)
+      if (d.stripeAmount !== undefined) console.log(`   Stripe amount: $${d.stripeAmount.toFixed(2)}`)
+      if (d.dbPaymentId) console.log(`   DB payment ID: ${d.dbPaymentId}`)
+      if (d.stripePaymentIntentId) console.log(`   Stripe PI:     ${d.stripePaymentIntentId}`)
     }
-    if (!page.has_more) break
-    startingAfter = page.data[page.data.length - 1].id
   }
 
-  return charges
+  console.log(`\n${sep}\n`)
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+// ============================================================
+// MAIN ENTRY POINT
+// ============================================================
 
-async function main(): Promise<void> {
+async function runReconciliation() {
   const args = process.argv.slice(2)
   const isDryRun = args.includes('--dry-run')
   const isAll = args.includes('--all')
-  const orgIdIndex = args.indexOf('--orgId')
-  const singleOrgId = orgIdIndex >= 0 ? args[orgIdIndex + 1] : null
+  const orgIdArg = args.find((_, i) => args[i - 1] === '--orgId')
 
-  if (!isDryRun && !isAll && !singleOrgId) {
-    console.error('Usage: npx tsx scripts/stripe-reconciliation.ts --dry-run | --orgId <uuid> | --all')
+  if (!isDryRun && !process.env.DATABASE_URL) {
+    console.error('ERROR: DATABASE_URL environment variable is required.')
+    console.error('Use --dry-run for a demonstration without real credentials.')
     process.exit(1)
   }
 
-  // ── DRY RUN ──────────────────────────────────────────────────────────────────
+  if (!isDryRun && !process.env.STRIPE_SECRET_KEY) {
+    console.error('ERROR: STRIPE_SECRET_KEY environment variable is required.')
+    console.error('Use --dry-run for a demonstration without real credentials.')
+    process.exit(1)
+  }
+
+  console.log('='.repeat(72))
+  console.log('ChiRho Events — Stripe Reconciliation Tool (Phase 4.2)')
+  console.log(`Mode: ${isDryRun ? 'DRY RUN (mock data)' : 'LIVE'}`)
+  console.log(`Date: ${new Date().toISOString()}`)
+  console.log('='.repeat(72))
+
+  // ── DRY RUN MODE ──────────────────────────────────────────────────────────
   if (isDryRun) {
-    console.log('🔍 DRY-RUN MODE — using synthetic mock data (no DB, no Stripe API calls)\n')
-    const mockData = buildMockData()
-    const results: OrgResult[] = []
+    const mockOrgId = 'org-mock-uuid-1234'
+    const mockOrgName = 'Holy Spirit Youth Ministry (MOCK)'
+    const mockStripeAccountId = 'acct_mock_hsym_001'
 
-    for (const { org, dbPayments, stripeCharges } of mockData) {
-      const result = reconcile(org.id, org.name, org.stripeAccountId, dbPayments, stripeCharges)
-      results.push(result)
-      printOrgResult(result)
-    }
+    const dbPayments = buildMockDbPayments(mockOrgId)
+    const stripePayments = buildMockStripePayments(mockStripeAccountId)
 
-    printSummaryTable(results)
+    console.log(`\n[DRY RUN] Reconciling mock org: ${mockOrgName}`)
+    console.log(`[DRY RUN] DB payments: ${dbPayments.length}, Stripe payments: ${stripePayments.length}`)
 
-    const totalDiscrepancies = results.reduce((s, r) => s + r.discrepancies.length, 0)
-    if (totalDiscrepancies > 0) {
-      console.log(`\n⚠️  ${totalDiscrepancies} discrepancy(ies) detected in mock data.`)
-      console.log('   (Expected — dry-run mock data intentionally includes all discrepancy types.)')
-      // Dry-run always exits 0 (it's a demo)
-      process.exit(0)
-    }
-    process.exit(0)
+    const report = reconcilePayments(
+      mockOrgId,
+      mockOrgName,
+      mockStripeAccountId,
+      dbPayments,
+      stripePayments
+    )
+    printReport(report)
+
+    console.log('[DRY RUN] Expected discrepancies in mock data:')
+    console.log('  1. MISSING_IN_STRIPE: pi_mock_004_missing_in_stripe')
+    console.log('  2. AMOUNT_MISMATCH:   pi_mock_003_amount_wrong ($500 DB vs $450 Stripe)')
+    console.log('  3. STATUS_MISMATCH:   pi_mock_005_succeeded_in_stripe (pending in DB, succeeded in Stripe)')
+    console.log('  4. MISSING_IN_DB:     pi_mock_006_missing_in_db')
+    console.log('  5. WRONG_STRIPE_ACCOUNT: pi_mock_007_wrong_account')
+    console.log('')
+
+    const exitCode = report.summary.isClean ? 0 : 1
+    process.exit(exitCode)
   }
 
-  // ── LIVE MODES ────────────────────────────────────────────────────────────────
-  const stripeSecretKey = process.env.STRIPE_SECRET_KEY
-  if (!stripeSecretKey) {
-    console.error('STRIPE_SECRET_KEY environment variable is required for live mode.')
-    process.exit(1)
-  }
-
-  const stripe = new Stripe(stripeSecretKey, { apiVersion: '2024-06-20' })
+  // ── LIVE MODE ─────────────────────────────────────────────────────────────
+  const { default: Stripe } = await import('stripe')
+  const { PrismaClient } = await import('@prisma/client')
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: '2024-06-20',
+  })
   const prisma = new PrismaClient()
 
+  let orgsToReconcile: Array<{ id: string; name: string; stripeAccountId: string | null }>
+
   try {
-    let orgs: Array<{ id: string; name: string; stripeAccountId: string }>
-
-    if (singleOrgId) {
-      const org = await prisma.organization.findUnique({
-        where: { id: singleOrgId },
+    if (orgIdArg) {
+      const org = await (prisma as any).organization.findUnique({
+        where: { id: orgIdArg },
         select: { id: true, name: true, stripeAccountId: true },
       })
-      if (!org) { console.error(`Organization ${singleOrgId} not found.`); process.exit(1) }
-      if (!org.stripeAccountId) { console.error(`Organization ${org.name} has no stripeAccountId.`); process.exit(1) }
-      orgs = [{ id: org.id, name: org.name, stripeAccountId: org.stripeAccountId }]
+      if (!org) {
+        console.error(`ERROR: Organization ${orgIdArg} not found.`)
+        process.exit(1)
+      }
+      orgsToReconcile = [org]
+    } else if (isAll) {
+      orgsToReconcile = await (prisma as any).organization.findMany({
+        where: { stripeAccountId: { not: null }, status: 'active' },
+        select: { id: true, name: true, stripeAccountId: true },
+      })
     } else {
-      // --all: every org with an active stripeAccountId
-      const rows = await prisma.organization.findMany({
-        where: { stripeAccountId: { not: null }, stripeChargesEnabled: true },
-        select: { id: true, name: true, stripeAccountId: true },
-      })
-      orgs = rows
-        .filter(r => r.stripeAccountId != null)
-        .map(r => ({ id: r.id, name: r.name, stripeAccountId: r.stripeAccountId! }))
+      console.error('ERROR: Specify --orgId <uuid> or --all.')
+      console.error('       Use --dry-run for a mock demonstration.')
+      process.exit(1)
     }
 
-    console.log(`\nReconciling ${orgs.length} org(s)...\n`)
-    const results: OrgResult[] = []
+    let globalClean = true
 
-    for (const org of orgs) {
-      console.log(`  Fetching data for: ${org.name} (${org.stripeAccountId})`)
-      const [dbPayments, stripeCharges] = await Promise.all([
+    for (const org of orgsToReconcile) {
+      console.log(`\nReconciling: ${org.name} (${org.id})`)
+
+      if (!org.stripeAccountId) {
+        console.log(`  SKIP — no Stripe account configured.`)
+        continue
+      }
+
+      const [dbPayments, stripePayments] = await Promise.all([
         fetchDbPayments(prisma, org.id),
-        fetchStripeCharges(stripe, org.stripeAccountId),
+        fetchStripePayments(stripe, org.stripeAccountId),
       ])
-      const result = reconcile(org.id, org.name, org.stripeAccountId, dbPayments, stripeCharges)
-      results.push(result)
-      printOrgResult(result)
+
+      const report = reconcilePayments(
+        org.id,
+        org.name,
+        org.stripeAccountId,
+        dbPayments,
+        stripePayments
+      )
+      printReport(report)
+
+      if (!report.summary.isClean) globalClean = false
     }
 
-    printSummaryTable(results)
-
-    const totalDiscrepancies = results.reduce((s, r) => s + r.discrepancies.length, 0)
-    process.exit(totalDiscrepancies > 0 ? 1 : 0)
+    process.exit(globalClean ? 0 : 1)
   } finally {
     await prisma.$disconnect()
   }
 }
 
-main().catch(err => {
-  console.error('Fatal error:', err)
+runReconciliation().catch(err => {
+  console.error('Reconciliation failed:', err)
   process.exit(1)
 })

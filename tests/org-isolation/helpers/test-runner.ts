@@ -1,123 +1,153 @@
 /**
- * Simple test runner for org-isolation tests.
- * Uses no external test framework — runs with tsx directly.
+ * Minimal test runner (no external dependencies).
+ * Uses Node.js assert module for assertions.
  */
 
-export interface TestResult {
+import assert from 'assert'
+
+interface TestResult {
   name: string
   passed: boolean
   error?: string
   duration: number
 }
 
-export interface TestSuite {
-  name: string
-  results: TestResult[]
+interface SuiteResult {
+  suiteName: string
+  total: number
   passed: number
   failed: number
-  duration: number
+  results: TestResult[]
 }
 
-let currentSuite: TestSuite | null = null
-const allSuites: TestSuite[] = []
+let currentSuite: SuiteResult | null = null
+const allSuites: SuiteResult[] = []
 
-export function describe(name: string, fn: () => void | Promise<void>): void {
-  currentSuite = { name, results: [], passed: 0, failed: 0, duration: 0 }
+export function describe(suiteName: string, fn: () => void | Promise<void>): void {
+  currentSuite = {
+    suiteName,
+    total: 0,
+    passed: 0,
+    failed: 0,
+    results: [],
+  }
   allSuites.push(currentSuite)
-  const start = Date.now()
-  Promise.resolve(fn()).then(() => {
-    if (currentSuite) currentSuite.duration = Date.now() - start
-  })
+  // fn() is called synchronously — async tests need to be tracked differently
+  fn()
 }
 
-export async function it(name: string, fn: () => void | Promise<void>): Promise<void> {
+export async function it(testName: string, fn: () => void | Promise<void>): Promise<void> {
+  if (!currentSuite) throw new Error('it() called outside describe()')
   const suite = currentSuite
-  if (!suite) throw new Error('it() called outside describe()')
+  suite.total++
+
   const start = Date.now()
   try {
     await fn()
     const duration = Date.now() - start
-    suite.results.push({ name, passed: true, duration })
     suite.passed++
-    process.stdout.write(`  ✅ ${name}\n`)
-  } catch (err: any) {
+    suite.results.push({ name: testName, passed: true, duration })
+    process.stdout.write(`  ✓ ${testName}\n`)
+  } catch (err: unknown) {
     const duration = Date.now() - start
-    const error = err?.message || String(err)
-    suite.results.push({ name, passed: false, error, duration })
     suite.failed++
-    process.stdout.write(`  ❌ ${name}\n     ${error}\n`)
+    const errorMsg = err instanceof Error ? err.message : String(err)
+    suite.results.push({ name: testName, passed: false, error: errorMsg, duration })
+    process.stdout.write(`  ✗ ${testName}\n    → ${errorMsg}\n`)
   }
 }
 
-export function expect(actual: any) {
+export function expect(value: unknown) {
   return {
-    toBe: (expected: any) => {
-      if (actual !== expected) {
-        throw new Error(`Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`)
-      }
+    toBe(expected: unknown) {
+      assert.strictEqual(value, expected, `Expected ${JSON.stringify(value)} to be ${JSON.stringify(expected)}`)
     },
-    toEqual: (expected: any) => {
-      if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-        throw new Error(`Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`)
-      }
+    toEqual(expected: unknown) {
+      assert.deepStrictEqual(value, expected)
     },
-    toBeTruthy: () => {
-      if (!actual) throw new Error(`Expected truthy, got ${JSON.stringify(actual)}`)
+    toBeTruthy() {
+      assert.ok(value, `Expected ${JSON.stringify(value)} to be truthy`)
     },
-    toBeFalsy: () => {
-      if (actual) throw new Error(`Expected falsy, got ${JSON.stringify(actual)}`)
+    toBeFalsy() {
+      assert.ok(!value, `Expected ${JSON.stringify(value)} to be falsy`)
     },
-    toBeNull: () => {
-      if (actual !== null) throw new Error(`Expected null, got ${JSON.stringify(actual)}`)
+    toBeNull() {
+      assert.strictEqual(value, null, `Expected value to be null, got ${JSON.stringify(value)}`)
+    },
+    toBeUndefined() {
+      assert.strictEqual(value, undefined, `Expected value to be undefined, got ${JSON.stringify(value)}`)
     },
     not: {
-      toBe: (expected: any) => {
-        if (actual === expected) throw new Error(`Expected not ${JSON.stringify(expected)}, got same`)
+      toBe(expected: unknown) {
+        assert.notStrictEqual(value, expected, `Expected ${JSON.stringify(value)} NOT to be ${JSON.stringify(expected)}`)
       },
-      toContain: (expected: any) => {
-        if (typeof actual === 'string' && actual.includes(expected)) {
-          throw new Error(`Expected string not to contain "${expected}", but it did: ${actual}`)
-        }
-        if (Array.isArray(actual) && actual.includes(expected)) {
-          throw new Error(`Expected array not to contain ${JSON.stringify(expected)}`)
+      toBeNull() {
+        assert.notStrictEqual(value, null, `Expected value NOT to be null`)
+      },
+      toBeUndefined() {
+        assert.notStrictEqual(value, undefined, `Expected value NOT to be undefined`)
+      },
+      toContain(substr: unknown) {
+        if (typeof value === 'string' && typeof substr === 'string') {
+          assert.ok(!value.includes(substr), `Expected "${value}" NOT to contain "${substr}"`)
+        } else if (Array.isArray(value)) {
+          assert.ok(!value.includes(substr), `Expected array NOT to contain ${JSON.stringify(substr)}`)
+        } else {
+          throw new Error(`not.toContain() called on non-string/non-array: ${typeof value}`)
         }
       },
     },
-    toContain: (expected: any) => {
-      if (typeof actual === 'string' && !actual.includes(expected)) {
-        throw new Error(`Expected string to contain "${expected}", got: ${actual}`)
-      }
-      if (Array.isArray(actual) && !actual.includes(expected)) {
-        throw new Error(`Expected array to contain ${JSON.stringify(expected)}`)
+    toContain(substr: unknown) {
+      if (typeof value === 'string' && typeof substr === 'string') {
+        assert.ok(value.includes(substr), `Expected "${value}" to contain "${substr}"`)
+      } else if (Array.isArray(value)) {
+        assert.ok(value.includes(substr), `Expected array to contain ${JSON.stringify(substr)}`)
+      } else {
+        throw new Error(`toContain() called on non-string/non-array: ${typeof value}`)
       }
     },
-    toBeGreaterThan: (n: number) => {
-      if (actual <= n) throw new Error(`Expected ${actual} > ${n}`)
+    toThrow() {
+      if (typeof value !== 'function') throw new Error('toThrow() requires a function')
+      assert.throws(value as () => void)
     },
-    toBeLessThan: (n: number) => {
-      if (actual >= n) throw new Error(`Expected ${actual} < ${n}`)
+    toBeGreaterThan(n: number) {
+      assert.ok((value as number) > n, `Expected ${value} to be greater than ${n}`)
+    },
+    toBeLessThanOrEqual(n: number) {
+      assert.ok((value as number) <= n, `Expected ${value} to be <= ${n}`)
+    },
+    toBeInstanceOf(cls: unknown) {
+      assert.ok(value instanceof (cls as new (...args: unknown[]) => unknown), `Expected value to be instance of ${(cls as { name?: string }).name}`)
     },
   }
 }
 
 export function printSummary(): void {
+  console.log('\n' + '='.repeat(60))
+  console.log('TEST SUMMARY')
+  console.log('='.repeat(60))
+
   let totalPassed = 0
   let totalFailed = 0
 
-  console.log('\n' + '═'.repeat(60))
-  console.log('TEST SUMMARY')
-  console.log('═'.repeat(60))
-
   for (const suite of allSuites) {
-    const status = suite.failed === 0 ? '✅' : '❌'
-    console.log(`\n${status} ${suite.name} (${suite.passed}/${suite.passed + suite.failed})`)
+    const icon = suite.failed === 0 ? '✓' : '✗'
+    console.log(`\n${icon} ${suite.suiteName}: ${suite.passed}/${suite.total} passed`)
+    for (const r of suite.results) {
+      if (!r.passed) {
+        console.log(`    ✗ ${r.name}`)
+        console.log(`      Error: ${r.error}`)
+      }
+    }
     totalPassed += suite.passed
     totalFailed += suite.failed
   }
 
-  console.log('\n' + '─'.repeat(60))
-  console.log(`Total: ${totalPassed + totalFailed} tests | ✅ ${totalPassed} passed | ❌ ${totalFailed} failed`)
-  console.log('═'.repeat(60) + '\n')
+  console.log('\n' + '='.repeat(60))
+  console.log(`Total: ${totalPassed} passed, ${totalFailed} failed, ${totalPassed + totalFailed} total`)
+  console.log('='.repeat(60))
 
-  if (totalFailed > 0) process.exit(1)
+  if (totalFailed > 0) {
+    process.exit(1)
+  }
 }
