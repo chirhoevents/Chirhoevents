@@ -15,6 +15,10 @@ interface FormData {
   description: string
   startDate: string
   endDate: string
+  isOneDayEvent: boolean
+  enableEarlyBird: boolean
+  enableLateRegistration: boolean
+  enableLateFees: boolean
   locationName: string
   locationAddress: string
   timezone: string
