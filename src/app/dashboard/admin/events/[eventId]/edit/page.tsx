@@ -15,6 +15,10 @@ interface FormData {
   description: string
   startDate: string
   endDate: string
+  isOneDayEvent: boolean
+  enableEarlyBird: boolean
+  enableLateRegistration: boolean
+  enableLateFees: boolean
   locationName: string
   locationAddress: string
   timezone: string
@@ -224,6 +228,9 @@ export default function EditEventPage() {
         description: event.description || '',
         startDate: event.startDate ? event.startDate.split('T')[0] : '',
         endDate: event.endDate ? event.endDate.split('T')[0] : '',
+        isOneDayEvent: event.startDate && event.endDate
+          ? event.startDate.split('T')[0] === event.endDate.split('T')[0]
+          : false,
         locationName: event.locationName || '',
         locationAddress: typeof event.locationAddress === 'string'
           ? event.locationAddress
@@ -240,15 +247,18 @@ export default function EditEventPage() {
         registrationCloseDate: event.registrationCloseDate
           ? new Date(event.registrationCloseDate).toISOString().slice(0, 16)
           : '',
+        enableEarlyBird: !!event.pricing?.earlyBirdDeadline,
         earlyBirdDeadline: event.pricing?.earlyBirdDeadline
           ? new Date(event.pricing.earlyBirdDeadline).toISOString().slice(0, 16)
           : '',
+        enableLateRegistration: !!event.pricing?.regularDeadline,
         regularDeadline: event.pricing?.regularDeadline
           ? new Date(event.pricing.regularDeadline).toISOString().slice(0, 16)
           : '',
         fullPaymentDeadline: event.pricing?.fullPaymentDeadline
           ? new Date(event.pricing.fullPaymentDeadline).toISOString().slice(0, 16)
           : '',
+        enableLateFees: !!(event.pricing?.lateFeePercentage),
         lateFeePercentage: event.pricing?.lateFeePercentage?.toString() || '20',
         lateFeeAutoApply: event.pricing?.lateFeeAutoApply || false,
         allowLoginWhenClosed: event.settings?.allowLoginWhenClosed ?? true,

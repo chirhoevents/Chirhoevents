@@ -42,6 +42,7 @@ interface EventFormData {
   name: string
   slug: string
   description: string
+  isOneDayEvent: boolean
   startDate: string
   endDate: string
   locationName: string
@@ -52,9 +53,12 @@ interface EventFormData {
   // Step 2: Registration Settings
   registrationOpenDate: string
   registrationCloseDate: string
+  enableEarlyBird: boolean
   earlyBirdDeadline: string
+  enableLateRegistration: boolean
   regularDeadline: string
   fullPaymentDeadline: string
+  enableLateFees: boolean
   lateFeePercentage: string
   lateFeeAutoApply: boolean
   allowLoginWhenClosed: boolean
@@ -271,6 +275,7 @@ export default function CreateEventClient({
     name: '',
     slug: '',
     description: '',
+    isOneDayEvent: false,
     startDate: '',
     endDate: '',
     locationName: '',
@@ -281,9 +286,12 @@ export default function CreateEventClient({
     // Step 2
     registrationOpenDate: '',
     registrationCloseDate: '',
+    enableEarlyBird: false,
     earlyBirdDeadline: '',
+    enableLateRegistration: false,
     regularDeadline: '',
     fullPaymentDeadline: '',
+    enableLateFees: false,
     lateFeePercentage: '20',
     lateFeeAutoApply: false,
     allowLoginWhenClosed: true,
@@ -972,37 +980,73 @@ export default function CreateEventClient({
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="isOneDayEvent"
+                    checked={formData.isOneDayEvent}
+                    onChange={(e) => {
+                      const oneDay = e.target.checked
+                      updateFormData({
+                        isOneDayEvent: oneDay,
+                        endDate: oneDay ? formData.startDate : formData.endDate,
+                      })
+                    }}
+                    className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                  />
+                  <Label htmlFor="isOneDayEvent" className="mb-0 font-medium">
+                    One-Day Event
+                  </Label>
+                </div>
+
+                {formData.isOneDayEvent ? (
                   <div>
                     <Label htmlFor="startDate">
-                      Start Date <span className="text-red-500">*</span>
+                      Event Date <span className="text-red-500">*</span>
                     </Label>
                     <Input
                       id="startDate"
                       type="date"
                       value={formData.startDate}
                       onChange={(e) =>
-                        updateFormData({ startDate: e.target.value })
+                        updateFormData({ startDate: e.target.value, endDate: e.target.value })
                       }
                       className="mt-1"
                     />
                   </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="startDate">
+                        Start Date <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="startDate"
+                        type="date"
+                        value={formData.startDate}
+                        onChange={(e) =>
+                          updateFormData({ startDate: e.target.value })
+                        }
+                        className="mt-1"
+                      />
+                    </div>
 
-                  <div>
-                    <Label htmlFor="endDate">
-                      End Date <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="endDate"
-                      type="date"
-                      value={formData.endDate}
-                      onChange={(e) =>
-                        updateFormData({ endDate: e.target.value })
-                      }
-                      className="mt-1"
-                    />
+                    <div>
+                      <Label htmlFor="endDate">
+                        End Date <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="endDate"
+                        type="date"
+                        value={formData.endDate}
+                        onChange={(e) =>
+                          updateFormData({ endDate: e.target.value })
+                        }
+                        className="mt-1"
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div>
                   <Label htmlFor="locationName">
@@ -1120,118 +1164,156 @@ export default function CreateEventClient({
                   </div>
                 </div>
 
+                {/* Early Bird Pricing */}
                 <div className="bg-blue-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-blue-900 mb-2">
-                    Pricing Deadlines (Optional)
-                  </h3>
-                  <p className="text-sm text-blue-800 mb-3">
-                    Set deadlines for early bird pricing and late fees
+                  <div className="flex items-center space-x-2 mb-2">
+                    <input
+                      type="checkbox"
+                      id="enableEarlyBird"
+                      checked={formData.enableEarlyBird}
+                      onChange={(e) =>
+                        updateFormData({
+                          enableEarlyBird: e.target.checked,
+                          earlyBirdDeadline: e.target.checked ? formData.earlyBirdDeadline : '',
+                          youthEarlyBirdPrice: e.target.checked ? formData.youthEarlyBirdPrice : '',
+                          chaperoneEarlyBirdPrice: e.target.checked ? formData.chaperoneEarlyBirdPrice : '',
+                          individualEarlyBirdPrice: e.target.checked ? formData.individualEarlyBirdPrice : '',
+                        })
+                      }
+                      className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                    />
+                    <Label htmlFor="enableEarlyBird" className="mb-0 font-semibold text-blue-900">
+                      Enable Early Bird Pricing
+                    </Label>
+                  </div>
+                  <p className="text-sm text-blue-800 mb-3 ml-6">
+                    Offer a discounted price to registrants who sign up before a set deadline
                   </p>
-
-                  <div className="space-y-3">
-                    <div>
-                      <Label htmlFor="earlyBirdDeadline">
-                        Early Bird Deadline
-                      </Label>
+                  {formData.enableEarlyBird && (
+                    <div className="ml-6">
+                      <Label htmlFor="earlyBirdDeadline">Early Bird Deadline</Label>
                       <Input
                         id="earlyBirdDeadline"
                         type="datetime-local"
                         value={formData.earlyBirdDeadline}
-                        onChange={(e) =>
-                          updateFormData({
-                            earlyBirdDeadline: e.target.value,
-                          })
-                        }
+                        onChange={(e) => updateFormData({ earlyBirdDeadline: e.target.value })}
                         className="mt-1"
                       />
                       <p className="text-sm text-gray-500 mt-1">
-                        Register before this date for discounted pricing
+                        Register before this date for the early bird price
                       </p>
                     </div>
+                  )}
+                </div>
 
-                    <div>
-                      <Label htmlFor="regularDeadline">Regular Deadline</Label>
+                {/* Late Registration Pricing */}
+                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <input
+                      type="checkbox"
+                      id="enableLateRegistration"
+                      checked={formData.enableLateRegistration}
+                      onChange={(e) =>
+                        updateFormData({
+                          enableLateRegistration: e.target.checked,
+                          regularDeadline: e.target.checked ? formData.regularDeadline : '',
+                          youthLatePrice: e.target.checked ? formData.youthLatePrice : '',
+                          chaperoneLatePrice: e.target.checked ? formData.chaperoneLatePrice : '',
+                          individualLatePrice: e.target.checked ? formData.individualLatePrice : '',
+                        })
+                      }
+                      className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                    />
+                    <Label htmlFor="enableLateRegistration" className="mb-0 font-semibold text-yellow-900">
+                      Enable Late Registration Pricing
+                    </Label>
+                  </div>
+                  <p className="text-sm text-yellow-800 mb-3 ml-6">
+                    Charge a higher price to registrants who sign up after a set deadline
+                  </p>
+                  {formData.enableLateRegistration && (
+                    <div className="ml-6">
+                      <Label htmlFor="regularDeadline">Regular Deadline (Late Pricing Kicks In After)</Label>
                       <Input
                         id="regularDeadline"
                         type="datetime-local"
                         value={formData.regularDeadline}
-                        onChange={(e) =>
-                          updateFormData({ regularDeadline: e.target.value })
-                        }
+                        onChange={(e) => updateFormData({ regularDeadline: e.target.value })}
                         className="mt-1"
                       />
                       <p className="text-sm text-gray-500 mt-1">
-                        After this date, late fees may apply
+                        After this date, registrants will be charged the late price
                       </p>
                     </div>
+                  )}
+                </div>
 
-                    <div>
-                      <Label htmlFor="fullPaymentDeadline">
-                        Full Payment Deadline
-                      </Label>
-                      <Input
-                        id="fullPaymentDeadline"
-                        type="datetime-local"
-                        value={formData.fullPaymentDeadline}
-                        onChange={(e) =>
-                          updateFormData({
-                            fullPaymentDeadline: e.target.value,
-                          })
-                        }
-                        className="mt-1"
-                      />
-                      <p className="text-sm text-gray-500 mt-1">
-                        Final date for all balances to be paid
-                      </p>
-                    </div>
-                  </div>
+                {/* Full Payment Deadline */}
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <h3 className="font-semibold text-gray-900 mb-2">Full Payment Deadline (Optional)</h3>
+                  <p className="text-sm text-gray-600 mb-3">Final date for all balances to be paid</p>
+                  <Input
+                    id="fullPaymentDeadline"
+                    type="datetime-local"
+                    value={formData.fullPaymentDeadline}
+                    onChange={(e) => updateFormData({ fullPaymentDeadline: e.target.value })}
+                  />
                 </div>
 
                 {/* Late Fee Settings - Only for Group Registration */}
                 {formData.groupRegistrationEnabled && (
                   <div className="bg-orange-50 p-4 rounded-lg border-2 border-orange-200">
-                    <h3 className="font-semibold text-orange-900 mb-2">
-                      💰 Late Fee Settings (Group Registration Only)
-                    </h3>
-                    <p className="text-sm text-orange-800 mb-3">
-                      Late fees apply to groups that select &quot;pay later&quot; deposit options
-                    </p>
-
-                    <div className="space-y-3">
-                      <div>
-                        <Label htmlFor="lateFeePercentage">
-                          Late Fee Percentage (%)
-                        </Label>
-                        <Input
-                          id="lateFeePercentage"
-                          type="number"
-                          value={formData.lateFeePercentage}
-                          onChange={(e) =>
-                            updateFormData({ lateFeePercentage: e.target.value })
-                          }
-                          placeholder="20"
-                          className="mt-1"
-                        />
-                        <p className="text-sm text-gray-500 mt-1">
-                          Percentage to add for late registrations/payments
-                        </p>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id="lateFeeAutoApply"
-                          checked={formData.lateFeeAutoApply}
-                          onChange={(e) =>
-                            updateFormData({ lateFeeAutoApply: e.target.checked })
-                          }
-                          className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
-                        />
-                        <Label htmlFor="lateFeeAutoApply" className="mb-0">
-                          Automatically apply late fees after deadline
-                        </Label>
-                      </div>
+                    <div className="flex items-center space-x-2 mb-2">
+                      <input
+                        type="checkbox"
+                        id="enableLateFees"
+                        checked={formData.enableLateFees}
+                        onChange={(e) =>
+                          updateFormData({
+                            enableLateFees: e.target.checked,
+                            lateFeePercentage: e.target.checked ? formData.lateFeePercentage || '20' : '',
+                            lateFeeAutoApply: e.target.checked ? formData.lateFeeAutoApply : false,
+                          })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="enableLateFees" className="mb-0 font-semibold text-orange-900">
+                        💰 Enable Late Fees (Group Registration Only)
+                      </Label>
                     </div>
+                    <p className="text-sm text-orange-800 mb-3 ml-6">
+                      Add a percentage surcharge for groups that register or pay late
+                    </p>
+                    {formData.enableLateFees && (
+                      <div className="ml-6 space-y-3">
+                        <div>
+                          <Label htmlFor="lateFeePercentage">Late Fee Percentage (%)</Label>
+                          <Input
+                            id="lateFeePercentage"
+                            type="number"
+                            value={formData.lateFeePercentage}
+                            onChange={(e) => updateFormData({ lateFeePercentage: e.target.value })}
+                            placeholder="20"
+                            className="mt-1"
+                          />
+                          <p className="text-sm text-gray-500 mt-1">
+                            Percentage added on top of the base price for late registrations/payments
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id="lateFeeAutoApply"
+                            checked={formData.lateFeeAutoApply}
+                            onChange={(e) => updateFormData({ lateFeeAutoApply: e.target.checked })}
+                            className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                          />
+                          <Label htmlFor="lateFeeAutoApply" className="mb-0">
+                            Automatically apply late fees after deadline
+                          </Label>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -2347,24 +2429,41 @@ export default function CreateEventClient({
                         Base prices for participants staying on-campus (includes housing, meals, materials)
                       </p>
 
+                      {/* Active pricing tiers indicator */}
+                      {(formData.enableEarlyBird || formData.enableLateRegistration) && (
+                        <p className="text-xs text-blue-700 bg-blue-100 rounded px-2 py-1 mb-3">
+                          Showing columns for:{' '}
+                          {[
+                            formData.enableEarlyBird && 'Early Bird',
+                            'Regular',
+                            formData.enableLateRegistration && 'Late',
+                          ].filter(Boolean).join(' · ')}
+                        </p>
+                      )}
+
                       {/* Youth Pricing */}
                       <div className="mb-4">
                         <h4 className="font-medium text-blue-900 mb-2">Youth Pricing</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div>
-                            <Label htmlFor="youthEarlyBirdPrice">Early Bird</Label>
-                            <div className="relative mt-1">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
-                              <Input
-                                id="youthEarlyBirdPrice"
-                                type="number"
-                                value={formData.youthEarlyBirdPrice}
-                                onChange={(e) => updateFormData({ youthEarlyBirdPrice: e.target.value })}
-                                placeholder="90"
-                                className="pl-7"
-                              />
+                        <div className={`grid grid-cols-1 gap-4 ${
+                          formData.enableEarlyBird && formData.enableLateRegistration ? 'md:grid-cols-3' :
+                          formData.enableEarlyBird || formData.enableLateRegistration ? 'md:grid-cols-2' : 'md:grid-cols-1 max-w-xs'
+                        }`}>
+                          {formData.enableEarlyBird && (
+                            <div>
+                              <Label htmlFor="youthEarlyBirdPrice">Early Bird</Label>
+                              <div className="relative mt-1">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                                <Input
+                                  id="youthEarlyBirdPrice"
+                                  type="number"
+                                  value={formData.youthEarlyBirdPrice}
+                                  onChange={(e) => updateFormData({ youthEarlyBirdPrice: e.target.value })}
+                                  placeholder="90"
+                                  className="pl-7"
+                                />
+                              </div>
                             </div>
-                          </div>
+                          )}
                           <div>
                             <Label htmlFor="youthRegularPrice">Regular <span className="text-red-500">*</span></Label>
                             <div className="relative mt-1">
@@ -2379,41 +2478,48 @@ export default function CreateEventClient({
                               />
                             </div>
                           </div>
-                          <div>
-                            <Label htmlFor="youthLatePrice">Late</Label>
-                            <div className="relative mt-1">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
-                              <Input
-                                id="youthLatePrice"
-                                type="number"
-                                value={formData.youthLatePrice}
-                                onChange={(e) => updateFormData({ youthLatePrice: e.target.value })}
-                                placeholder="120"
-                                className="pl-7"
-                              />
+                          {formData.enableLateRegistration && (
+                            <div>
+                              <Label htmlFor="youthLatePrice">Late</Label>
+                              <div className="relative mt-1">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                                <Input
+                                  id="youthLatePrice"
+                                  type="number"
+                                  value={formData.youthLatePrice}
+                                  onChange={(e) => updateFormData({ youthLatePrice: e.target.value })}
+                                  placeholder="120"
+                                  className="pl-7"
+                                />
+                              </div>
                             </div>
-                          </div>
+                          )}
                         </div>
                       </div>
 
                       {/* Chaperone Pricing */}
                       <div className="mb-4">
                         <h4 className="font-medium text-blue-900 mb-2">Chaperone Pricing (Ages 21+)</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div>
-                            <Label htmlFor="chaperoneEarlyBirdPrice">Early Bird</Label>
-                            <div className="relative mt-1">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
-                              <Input
-                                id="chaperoneEarlyBirdPrice"
-                                type="number"
-                                value={formData.chaperoneEarlyBirdPrice}
-                                onChange={(e) => updateFormData({ chaperoneEarlyBirdPrice: e.target.value })}
-                                placeholder="65"
-                                className="pl-7"
-                              />
+                        <div className={`grid grid-cols-1 gap-4 ${
+                          formData.enableEarlyBird && formData.enableLateRegistration ? 'md:grid-cols-3' :
+                          formData.enableEarlyBird || formData.enableLateRegistration ? 'md:grid-cols-2' : 'md:grid-cols-1 max-w-xs'
+                        }`}>
+                          {formData.enableEarlyBird && (
+                            <div>
+                              <Label htmlFor="chaperoneEarlyBirdPrice">Early Bird</Label>
+                              <div className="relative mt-1">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                                <Input
+                                  id="chaperoneEarlyBirdPrice"
+                                  type="number"
+                                  value={formData.chaperoneEarlyBirdPrice}
+                                  onChange={(e) => updateFormData({ chaperoneEarlyBirdPrice: e.target.value })}
+                                  placeholder="65"
+                                  className="pl-7"
+                                />
+                              </div>
                             </div>
-                          </div>
+                          )}
                           <div>
                             <Label htmlFor="chaperoneRegularPrice">Regular <span className="text-red-500">*</span></Label>
                             <div className="relative mt-1">
@@ -2428,20 +2534,22 @@ export default function CreateEventClient({
                               />
                             </div>
                           </div>
-                          <div>
-                            <Label htmlFor="chaperoneLatePrice">Late</Label>
-                            <div className="relative mt-1">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
-                              <Input
-                                id="chaperoneLatePrice"
-                                type="number"
-                                value={formData.chaperoneLatePrice}
-                                onChange={(e) => updateFormData({ chaperoneLatePrice: e.target.value })}
-                                placeholder="90"
-                                className="pl-7"
-                              />
+                          {formData.enableLateRegistration && (
+                            <div>
+                              <Label htmlFor="chaperoneLatePrice">Late</Label>
+                              <div className="relative mt-1">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                                <Input
+                                  id="chaperoneLatePrice"
+                                  type="number"
+                                  value={formData.chaperoneLatePrice}
+                                  onChange={(e) => updateFormData({ chaperoneLatePrice: e.target.value })}
+                                  placeholder="90"
+                                  className="pl-7"
+                                />
+                              </div>
                             </div>
-                          </div>
+                          )}
                         </div>
                       </div>
 
@@ -3990,8 +4098,10 @@ export default function CreateEventClient({
                     {formData.name || 'Untitled Event'}
                   </p>
                   <p className="text-sm text-gray-600">
-                    {formData.startDate && formData.endDate
-                      ? `${formData.startDate} to ${formData.endDate}`
+                    {formData.startDate
+                      ? formData.isOneDayEvent
+                        ? formData.startDate
+                        : `${formData.startDate} to ${formData.endDate}`
                       : 'Dates not set'}
                   </p>
                   <p className="text-sm text-gray-600">
