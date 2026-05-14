@@ -83,6 +83,12 @@ const VALID_SETTINGS_FIELDS = [
   'tripleRoomRemaining',
   'quadRoomCapacity',
   'quadRoomRemaining',
+  // Letter of Good Standing settings
+  'letterOfGoodStandingMethod',
+  'letterOfGoodStandingContactName',
+  'letterOfGoodStandingContactEmail',
+  'letterOfGoodStandingInstructions',
+  'letterOfGoodStandingRequiredFor',
 ]
 
 export async function PATCH(

@@ -117,7 +117,7 @@ export async function POST(
     `, { organizationName: 'ChiRho Events' })
 
     // Send the reply
-    const fromEmail = process.env.RESEND_FROM_EMAIL || 'support@chirhoevents.com'
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'
 
     const result = await resend.emails.send({
       from: `ChiRho Events Support <${fromEmail}>`,

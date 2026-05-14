@@ -38,6 +38,8 @@ import {
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { generateMultiplePacketsHTML, type PacketData, type PrintSettings } from '@/lib/welcome-packet-print'
+import { openBadgePrintWindow } from '@/lib/badge-renderer'
+import { ReprintBadgeModal } from '@/components/salve/ReprintBadgeModal'
 
 // Dynamic import for QR scanner to avoid SSR issues
 const QRScanner = dynamic(
@@ -90,7 +92,7 @@ interface ParticipantData {
   smallGroup?: string | null
 }
 
-type CheckInStatus = 'idle' | 'scanning' | 'loading' | 'found' | 'not_found' | 'error'
+type CheckInStatus = 'idle' | 'scanning' | 'loading' | 'found' | 'multiple' | 'not_found' | 'error'
 
 export default function SalveDedicatedPortal() {
   const params = useParams()
@@ -101,6 +103,7 @@ export default function SalveDedicatedPortal() {
   const [status, setStatus] = useState<CheckInStatus>('idle')
   const [searchQuery, setSearchQuery] = useState('')
   const [groupData, setGroupData] = useState<GroupData | null>(null)
+  const [multipleResults, setMultipleResults] = useState<GroupData[]>([])
   const [selectedParticipants, setSelectedParticipants] = useState<Set<string>>(new Set())
   const [participantNotes, setParticipantNotes] = useState<Record<string, string>>({})
   const [checkingIn, setCheckingIn] = useState(false)
@@ -111,6 +114,9 @@ export default function SalveDedicatedPortal() {
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [error, setError] = useState('')
+
+  // Reprint modal
+  const [isReprintModalOpen, setIsReprintModalOpen] = useState(false)
 
   // Success modal
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false)
@@ -243,8 +249,9 @@ export default function SalveDedicatedPortal() {
           } else if (data.results.length === 1) {
             group = data.results[0]
           } else {
-            group = data.results[0]
-            toast.info(`Found ${data.results.length} matching groups. Showing first result.`)
+            setMultipleResults(data.results)
+            setStatus('multiple')
+            return
           }
         } else if (data.id) {
           group = data
@@ -411,8 +418,18 @@ export default function SalveDedicatedPortal() {
     setStatus('idle')
     setSearchQuery('')
     setGroupData(null)
+    setMultipleResults([])
     setSelectedParticipants(new Set())
     setParticipantNotes({})
+  }
+
+  function selectGroup(group: GroupData) {
+    setGroupData(group)
+    setStatus('found')
+    setMultipleResults([])
+    setSelectedParticipants(new Set(
+      group.participants.filter((p: ParticipantData) => !p.checkedIn).map((p: ParticipantData) => p.id)
+    ))
   }
 
   async function handleUndoCheckIn() {
@@ -498,6 +515,8 @@ export default function SalveDedicatedPortal() {
         body: JSON.stringify({
           participantIds: isIndividual ? undefined : checkedInParticipantIds,
           groupId: isIndividual ? undefined : groupData.id,
+          registrationId: isIndividual ? (checkedInParticipantIds[0] ?? undefined) : undefined,
+          registrationType: isIndividual ? 'individual' : 'group',
         }),
       })
 
@@ -508,420 +527,7 @@ export default function SalveDedicatedPortal() {
 
       const data = await response.json()
 
-      // Open name tags in a new window for printing
-      const printWindow = window.open('', '_blank')
-      if (printWindow) {
-        const template = data.template || {}
-        const nameTags = data.nameTags || []
-
-        // Template settings with defaults
-        const size = template.size || 'standard'
-        const backgroundColor = template.backgroundColor || '#FFFFFF'
-        const textColor = template.textColor || '#1E3A5F'
-        const accentColor = template.accentColor || '#9C8466'
-        const fontFamily = template.fontFamily || 'sans-serif'
-        const fontSize = template.fontSize || 'medium'
-        const showName = template.showName !== false
-        const showGroup = template.showGroup !== false
-        const showParticipantType = template.showParticipantType !== false
-        const showHousing = template.showHousing !== false
-        const showQrCode = template.showQrCode !== false
-        const showDiocese = template.showDiocese === true
-        const showConferenceHeader = template.showConferenceHeader === true
-        const conferenceHeaderText = template.conferenceHeaderText || eventName || ''
-        const showLogo = template.showLogo === true
-        const logoUrl = template.logoUrl || ''
-        const showHeaderBanner = template.showHeaderBanner === true
-        const headerBannerUrl = template.headerBannerUrl || ''
-
-        const is4x6 = size === 'badge_4x6'
-        const has4x6Banner = is4x6 && showHeaderBanner && headerBannerUrl
-        const fontFamilyCSS = fontFamily === 'sans-serif' ? 'Arial, Helvetica, sans-serif' : fontFamily
-
-        // Special font sizes for 4x6 badge - much larger for visibility
-        const badge4x6Fonts = {
-          firstName: '48px',
-          lastName: '40px',
-          details: '20px',
-          housing: '16px',
-          badge: '16px'
-        }
-
-        // Standard font sizes
-        const standardFonts: Record<string, { name: string; details: string }> = {
-          small: { name: '16px', details: '10px' },
-          medium: { name: '20px', details: '12px' },
-          large: { name: '24px', details: '14px' },
-        }
-        const fonts = standardFonts[fontSize] || standardFonts.medium
-
-        // Generate 4x6 badge HTML (matches pre-print design)
-        if (is4x6) {
-          printWindow.document.write(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <title>Name Tags - ${groupData.groupName}</title>
-              <style>
-                @page {
-                  size: 4in 6in;
-                  margin: 0;
-                }
-                * {
-                  box-sizing: border-box;
-                }
-                body {
-                  margin: 0;
-                  padding: 0;
-                  font-family: ${fontFamilyCSS};
-                }
-                .badge {
-                  width: 4in;
-                  height: 6in;
-                  background-color: ${backgroundColor};
-                  color: ${textColor};
-                  page-break-after: always;
-                  position: relative;
-                  overflow: hidden;
-                  display: flex;
-                  flex-direction: column;
-                }
-                .badge:last-child {
-                  page-break-after: auto;
-                }
-                .header-banner {
-                  width: 4in;
-                  height: 2.5in;
-                  background-size: cover;
-                  background-position: center;
-                  background-repeat: no-repeat;
-                  flex-shrink: 0;
-                }
-                .header-banner img {
-                  width: 100%;
-                  height: 100%;
-                  object-fit: cover;
-                }
-                .content-area {
-                  flex: 1;
-                  display: flex;
-                  flex-direction: column;
-                  padding: 16px 20px;
-                  text-align: center;
-                }
-                .name-section {
-                  flex: 1;
-                  display: flex;
-                  flex-direction: column;
-                  justify-content: center;
-                  align-items: center;
-                }
-                .first-name {
-                  font-size: ${badge4x6Fonts.firstName};
-                  font-weight: bold;
-                  line-height: 1.1;
-                  margin-bottom: 4px;
-                }
-                .last-name {
-                  font-size: ${badge4x6Fonts.lastName};
-                  font-weight: bold;
-                  line-height: 1.1;
-                  margin-bottom: 12px;
-                }
-                .group-name {
-                  font-size: ${badge4x6Fonts.details};
-                  color: #555;
-                  margin-bottom: 4px;
-                }
-                .diocese {
-                  font-size: 16px;
-                  color: #777;
-                  margin-bottom: 8px;
-                }
-                .participant-badge {
-                  display: inline-block;
-                  background-color: ${accentColor};
-                  color: white;
-                  padding: 8px 20px;
-                  border-radius: 6px;
-                  font-size: ${badge4x6Fonts.badge};
-                  font-weight: 600;
-                  margin-top: 8px;
-                }
-                .bottom-row {
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: flex-end;
-                  padding: 12px 20px 16px;
-                  flex-shrink: 0;
-                }
-                .housing-info {
-                  font-size: ${badge4x6Fonts.housing};
-                  text-align: left;
-                  flex: 1;
-                  line-height: 1.3;
-                }
-                .housing-info strong {
-                  display: block;
-                  margin-bottom: 2px;
-                }
-                .qr-code {
-                  width: 70px;
-                  height: 70px;
-                  flex-shrink: 0;
-                  margin-left: 12px;
-                }
-                .meal-bar {
-                  position: absolute;
-                  bottom: 0;
-                  left: 0;
-                  right: 0;
-                  height: 12px;
-                }
-                /* Fallback header without banner */
-                .fallback-header {
-                  height: 2.5in;
-                  display: flex;
-                  flex-direction: column;
-                  justify-content: center;
-                  align-items: center;
-                  background: linear-gradient(135deg, ${accentColor} 0%, ${textColor} 100%);
-                  color: white;
-                }
-                .fallback-header .event-name {
-                  font-size: 28px;
-                  font-weight: bold;
-                  text-align: center;
-                  padding: 0 20px;
-                }
-                .fallback-header .logo {
-                  max-height: 80px;
-                  max-width: 80%;
-                  margin-bottom: 12px;
-                }
-              </style>
-            </head>
-            <body>
-              ${nameTags.map((tag: any) => `
-                <div class="badge">
-                  ${has4x6Banner ? `
-                    <div class="header-banner">
-                      <img src="${headerBannerUrl}" alt="" />
-                    </div>
-                  ` : `
-                    <div class="fallback-header">
-                      ${showLogo && logoUrl ? `
-                        <img src="${logoUrl}" class="logo" alt="" />
-                      ` : ''}
-                      ${showConferenceHeader && conferenceHeaderText ? `
-                        <div class="event-name">${conferenceHeaderText}</div>
-                      ` : ''}
-                    </div>
-                  `}
-
-                  <div class="content-area">
-                    <div class="name-section">
-                      ${showName ? `
-                        <div class="first-name">${tag.firstName}</div>
-                        <div class="last-name">${tag.lastName}</div>
-                      ` : ''}
-                      ${showGroup ? `<div class="group-name">${tag.groupName}</div>` : ''}
-                      ${showDiocese && tag.diocese ? `<div class="diocese">${tag.diocese}</div>` : ''}
-                      ${showParticipantType ? `
-                        <div class="participant-badge">
-                          ${tag.isClergy ? 'Clergy' : tag.isChaperone ? 'Chaperone' : 'Youth'}
-                        </div>
-                      ` : ''}
-                    </div>
-                  </div>
-
-                  <div class="bottom-row">
-                    ${showHousing && tag.housing ? `
-                      <div class="housing-info">
-                        <strong>Housing:</strong>
-                        ${tag.housing.fullLocation}
-                      </div>
-                    ` : '<div></div>'}
-                    ${showQrCode && tag.qrCode ? `
-                      <img class="qr-code" src="${tag.qrCode}" alt="QR" />
-                    ` : ''}
-                  </div>
-
-                  ${tag.mealColor ? `
-                    <div class="meal-bar" style="background-color: ${tag.mealColor.hex || tag.mealColor}"></div>
-                  ` : ''}
-                </div>
-              `).join('')}
-            </body>
-            </html>
-          `)
-        } else {
-          // Standard layout for non-4x6 badges
-          const sizeStyles: Record<string, { width: string; height: string }> = {
-            small: { width: '2.5in', height: '1.5in' },
-            standard: { width: '3.5in', height: '2.25in' },
-            large: { width: '4in', height: '3in' },
-          }
-          const sizeConfig = sizeStyles[size] || sizeStyles.standard
-
-          printWindow.document.write(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <title>Name Tags - ${groupData.groupName}</title>
-              <style>
-                @page {
-                  size: letter;
-                  margin: 0.5in;
-                }
-                body {
-                  margin: 0;
-                  padding: 0;
-                  font-family: ${fontFamilyCSS};
-                }
-                .name-tags-container {
-                  display: flex;
-                  flex-wrap: wrap;
-                  gap: 0.25in;
-                }
-                .name-tag {
-                  width: ${sizeConfig.width};
-                  height: ${sizeConfig.height};
-                  border: 1px solid #ccc;
-                  border-radius: 8px;
-                  padding: 12px;
-                  box-sizing: border-box;
-                  display: flex;
-                  flex-direction: column;
-                  background-color: ${backgroundColor};
-                  color: ${textColor};
-                  page-break-inside: avoid;
-                  position: relative;
-                  overflow: hidden;
-                }
-                .conference-header {
-                  text-align: center;
-                  font-size: 10px;
-                  font-weight: 600;
-                  padding: 4px;
-                  background-color: ${accentColor};
-                  color: white;
-                  margin: -12px -12px 8px -12px;
-                  border-radius: 7px 7px 0 0;
-                }
-                .logo-section {
-                  text-align: center;
-                  padding: 4px 0;
-                }
-                .logo-section img {
-                  max-height: 30px;
-                  max-width: 100%;
-                }
-                .main-content {
-                  flex: 1;
-                  display: flex;
-                  flex-direction: column;
-                  align-items: center;
-                  justify-content: center;
-                  text-align: center;
-                }
-                .name {
-                  font-size: ${fonts.name};
-                  font-weight: bold;
-                  color: ${textColor};
-                }
-                .group-name {
-                  font-size: ${fonts.details};
-                  color: #666;
-                  margin-top: 4px;
-                }
-                .diocese {
-                  font-size: 10px;
-                  color: #888;
-                }
-                .badge-label {
-                  display: inline-block;
-                  background-color: ${accentColor};
-                  color: white;
-                  padding: 2px 8px;
-                  border-radius: 4px;
-                  font-size: 10px;
-                  margin-top: 4px;
-                }
-                .bottom-row {
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: flex-end;
-                  margin-top: auto;
-                  padding-top: 8px;
-                }
-                .housing {
-                  font-size: 10px;
-                  text-align: left;
-                  flex: 1;
-                }
-                .qr-code {
-                  width: 40px;
-                  height: 40px;
-                  flex-shrink: 0;
-                }
-                .meal-color-bar {
-                  position: absolute;
-                  bottom: 0;
-                  left: 0;
-                  right: 0;
-                  height: 8px;
-                  border-radius: 0 0 7px 7px;
-                }
-              </style>
-            </head>
-            <body>
-              <div class="name-tags-container">
-                ${nameTags.map((tag: any) => `
-                  <div class="name-tag">
-                    ${showConferenceHeader && conferenceHeaderText ? `
-                      <div class="conference-header">${conferenceHeaderText}</div>
-                    ` : ''}
-                    ${showLogo && logoUrl ? `
-                      <div class="logo-section">
-                        <img src="${logoUrl}" alt="Logo" />
-                      </div>
-                    ` : ''}
-                    <div class="main-content">
-                      ${showName ? `<div class="name">${tag.firstName} ${tag.lastName}</div>` : ''}
-                      ${showGroup ? `<div class="group-name">${tag.groupName}</div>` : ''}
-                      ${showDiocese && tag.diocese ? `<div class="diocese">${tag.diocese}</div>` : ''}
-                      ${showParticipantType ? `
-                        <div class="badge-label">
-                          ${tag.isClergy ? 'Clergy' : tag.isChaperone ? 'Chaperone' : 'Youth'}
-                        </div>
-                      ` : ''}
-                    </div>
-                    <div class="bottom-row">
-                      ${showHousing && tag.housing ? `
-                        <div class="housing">
-                          <strong>Housing:</strong> ${tag.housing.fullLocation}
-                        </div>
-                      ` : '<div></div>'}
-                      ${showQrCode && tag.qrCode ? `
-                        <img class="qr-code" src="${tag.qrCode}" alt="QR" />
-                      ` : ''}
-                    </div>
-                    ${tag.mealColor ? `
-                      <div class="meal-color-bar" style="background-color: ${tag.mealColor.hex || tag.mealColor}"></div>
-                    ` : ''}
-                  </div>
-                `).join('')}
-              </div>
-            </body>
-            </html>
-          `)
-        }
-
-        printWindow.document.close()
-        printWindow.focus()
-        setTimeout(() => printWindow.print(), 500)
-      }
+      openBadgePrintWindow(data.nameTags || [], data.template || {}, eventName, data.schedule ?? [])
 
       toast.success('Name tags ready for printing')
     } catch (err) {
@@ -1101,6 +707,15 @@ export default function SalveDedicatedPortal() {
                 <span className="hidden sm:inline">Edit Name Tags</span>
               </Button>
             </Link>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-white hover:bg-white/10"
+              onClick={() => setIsReprintModalOpen(true)}
+            >
+              <Printer className="w-4 h-4 mr-1" />
+              <span className="hidden sm:inline">Reprint Badge</span>
+            </Button>
             {isAdmin && (
               <Link href="/dashboard/admin/salve">
                 <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
@@ -1231,6 +846,46 @@ export default function SalveDedicatedPortal() {
               <div className="text-center py-12">
                 <Loader2 className="w-12 h-12 animate-spin mx-auto text-emerald-600" />
                 <p className="text-muted-foreground mt-4">Looking up registration...</p>
+              </div>
+            )}
+
+            {status === 'multiple' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold">Multiple Results Found</h2>
+                    <p className="text-sm text-muted-foreground">
+                      {multipleResults.length} matches for &quot;{searchQuery}&quot; — select the correct one
+                    </p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={resetSearch}>
+                    <X className="w-4 h-4 mr-1" />
+                    New Search
+                  </Button>
+                </div>
+                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                  {multipleResults.map((g) => {
+                    const alreadyIn = g.participants.filter((p: ParticipantData) => p.checkedIn).length
+                    return (
+                      <div
+                        key={g.id}
+                        className="flex items-center justify-between p-4 border rounded-lg bg-white hover:border-emerald-400 cursor-pointer"
+                        onClick={() => selectGroup(g)}
+                      >
+                        <div className="flex-1">
+                          <p className="font-semibold">{g.groupName}</p>
+                          {g.parishName && <p className="text-sm text-muted-foreground">{g.parishName}</p>}
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {g.totalParticipants} participants · {alreadyIn} checked in
+                          </p>
+                        </div>
+                        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 ml-3">
+                          Select
+                        </Button>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             )}
 
@@ -1478,6 +1133,20 @@ export default function SalveDedicatedPortal() {
           </div>
         )}
       </main>
+
+      {/* Reprint / Walk-Up Modal */}
+      <ReprintBadgeModal
+        open={isReprintModalOpen}
+        onClose={() => setIsReprintModalOpen(false)}
+        eventId={eventId}
+        eventName={eventName}
+        getAuthHeaders={async () => {
+          const token = await getToken()
+          const headers: Record<string, string> = {}
+          if (token) headers['Authorization'] = `Bearer ${token}`
+          return headers
+        }}
+      />
 
       {/* Success Modal */}
       <Dialog open={isSuccessModalOpen} onOpenChange={setIsSuccessModalOpen}>

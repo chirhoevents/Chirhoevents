@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { isAdminRole } from '@/lib/permissions'
 
 export async function GET(
   request: NextRequest,
@@ -9,13 +11,28 @@ export async function GET(
     const { registrationId } = await params
     const registration = await prisma.groupRegistration.findUnique({
       where: { id: registrationId },
-      include: {
+      select: {
+        id: true,
+        groupName: true,
+        accessCode: true,
+        qrCode: true,
+        groupLeaderEmail: true,
+        housingType: true,
+        registrationStatus: true,
+        eventId: true,
+        clerkUserId: true,
+        totalParticipants: true,
         event: {
-          include: {
+          select: {
+            name: true,
+            organizationId: true,
             organization: {
               select: {
+                id: true,
                 name: true,
                 logoUrl: true,
+                contactEmail: true,
+                contactPhone: true,
               },
             },
           },
@@ -36,67 +53,87 @@ export async function GET(
       )
     }
 
-    // Fetch payments separately (polymorphic relationship)
-    const payments = await prisma.payment.findMany({
-      where: {
-        registrationId: registrationId,
-        registrationType: 'group',
-        paymentStatus: 'succeeded',
-      },
-      orderBy: { createdAt: 'desc' },
-    })
+    // Fix #3: Determine if the caller is authenticated and authorized
+    const clerkUserId = await getClerkUserIdFromRequest(request)
+    let isAuthorized = false
 
-    // Calculate totals
-    const depositPaid = payments.reduce(
-      (sum: number, payment: { amount: any }) => sum + Number(payment.amount),
-      0
-    )
+    if (clerkUserId) {
+      const user = await prisma.user.findFirst({
+        where: { clerkUserId },
+        select: { id: true, role: true, organizationId: true },
+      })
 
-    const eventPricing = await prisma.eventPricing.findUnique({
-      where: { eventId: registration.eventId },
-    })
+      if (user) {
+        const isAdmin = isAdminRole(user.role as any)
+        const isMasterAdmin = user.role === 'master_admin'
+        const isOrgAdmin = isAdmin && user.organizationId === registration.event.organizationId
+        const isOwner = registration.clerkUserId === clerkUserId
 
-    if (!eventPricing) {
-      return NextResponse.json(
-        { error: 'Event pricing not found' },
-        { status: 404 }
-      )
+        isAuthorized = isMasterAdmin || isOrgAdmin || isOwner
+      }
     }
 
-    // Count actual participants (not just stored counts which might be outdated)
-    const actualYouthCount = registration.participants.filter(
-      (p: { participantType: string }) => p.participantType !== 'chaperone' && p.participantType !== 'priest'
-    ).length
-    const actualChaperoneCount = registration.participants.filter(
-      (p: { participantType: string }) => p.participantType === 'chaperone'
-    ).length
-    const actualPriestCount = registration.participants.filter(
-      (p: { participantType: string }) => p.participantType === 'priest'
-    ).length
+    // Fetch payments — only needed for authenticated full response
+    let depositPaid = 0
+    let totalAmount = 0
+    let balanceRemaining = 0
 
-    const totalAmount =
-      actualYouthCount * Number(eventPricing.youthRegularPrice) +
-      actualChaperoneCount * Number(eventPricing.chaperoneRegularPrice) +
-      actualPriestCount * Number(eventPricing.priestPrice)
+    if (isAuthorized) {
+      // FIX 2.5: Use PaymentBalance which already has the correct totals (including discounts)
+      const paymentBalance = await prisma.paymentBalance.findFirst({
+        where: { registrationId, registrationType: 'group' },
+      })
 
-    const balanceRemaining = totalAmount - depositPaid
+      if (paymentBalance) {
+        totalAmount = Number(paymentBalance.totalAmountDue)
+        depositPaid = Number(paymentBalance.amountPaid)
+        balanceRemaining = Number(paymentBalance.amountRemaining)
+      } else {
+        // Fallback: sum succeeded payments
+        const payments = await prisma.payment.findMany({
+          where: { registrationId, registrationType: 'group', paymentStatus: 'succeeded' },
+        })
+        depositPaid = payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0)
+        balanceRemaining = 0
+      }
+    }
 
-    return NextResponse.json({
-      id: registration.id,
-      groupName: registration.groupName,
-      accessCode: registration.accessCode,
-      qrCode: registration.qrCode,
-      groupLeaderEmail: registration.groupLeaderEmail,
-      totalParticipants: registration.participants.length, // Use actual count
-      eventName: registration.event.name,
-      eventId: registration.eventId,
-      depositPaid,
-      totalAmount,
-      balanceRemaining,
-      registrationStatus: registration.registrationStatus,
-      organizationName: registration.event.organization.name,
-      organizationLogoUrl: registration.event.organization.logoUrl,
-    })
+    if (isAuthorized) {
+      // Full response for authenticated + authorized callers
+      return NextResponse.json({
+        id: registration.id,
+        groupName: registration.groupName,
+        accessCode: registration.accessCode,
+        qrCode: registration.qrCode,
+        groupLeaderEmail: registration.groupLeaderEmail,
+        totalParticipants: registration.totalParticipants || 0,
+        eventName: registration.event.name,
+        eventId: registration.eventId,
+        depositPaid,
+        totalAmount,
+        balanceRemaining,
+        registrationStatus: registration.registrationStatus,
+        organizationName: registration.event.organization.name,
+        organizationLogoUrl: registration.event.organization.logoUrl,
+        organizationContactEmail: registration.event.organization.contactEmail,
+        organizationContactPhone: registration.event.organization.contactPhone,
+      })
+    } else {
+      // Stripped public response — no access code, no email, no financial data
+      return NextResponse.json({
+        id: registration.id,
+        groupName: registration.groupName,
+        totalParticipants: registration.totalParticipants || 0,
+        eventName: registration.event.name,
+        eventId: registration.eventId,
+        housingType: registration.housingType,
+        registrationStatus: registration.registrationStatus,
+        organizationName: registration.event.organization.name,
+        organizationLogoUrl: registration.event.organization.logoUrl,
+        organizationContactEmail: registration.event.organization.contactEmail,
+        organizationContactPhone: registration.event.organization.contactPhone,
+      })
+    }
   } catch (error) {
     console.error('Error fetching registration:', error)
     return NextResponse.json(

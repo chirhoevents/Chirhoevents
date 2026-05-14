@@ -144,8 +144,16 @@ export async function PUT(
       })
     }
 
-    // Send email notification if requested
-    if (sendEmail && existingParticipant.groupRegistration) {
+    // Check org-level update email setting
+    const orgSettings = await prisma.organization.findUnique({
+      where: { id: existingParticipant.organizationId },
+      select: { customFieldsEnabled: true },
+    })
+    const orgCustomFields = (orgSettings?.customFieldsEnabled as Record<string, any>) || {}
+    const updateEmailsDisabled = orgCustomFields?.updateEmails?.disabled === true
+
+    // Send email notification if requested and not disabled at org level
+    if (sendEmail && !updateEmailsDisabled && existingParticipant.groupRegistration) {
       const groupRegistration = existingParticipant.groupRegistration
       const event = groupRegistration.event
 
@@ -238,7 +246,7 @@ export async function PUT(
           `
 
           await resend.emails.send({
-            from: 'ChiRho Events <noreply@chirhoevents.com>',
+            from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
             to: groupRegistration.groupLeaderEmail,
             subject: emailSubject,
             html: emailBody,

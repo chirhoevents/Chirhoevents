@@ -275,13 +275,7 @@ export async function GET(
 
         return NextResponse.json({
           lookupType: 'individual',
-          individual: {
-            id: registration.id,
-            firstName: registration.firstName,
-            lastName: registration.lastName,
-            email: registration.email,
-            checkedIn: false, // Individual check-in not implemented yet
-          },
+          ...formatIndividualRegistrationAsGroup(registration),
         })
       }
 

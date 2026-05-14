@@ -1,3 +1,5 @@
 export { LiabilityFormsTab } from './LiabilityFormsTab'
 export { SafeEnvironmentTab } from './SafeEnvironmentTab'
 export { TemplatesTab } from './TemplatesTab'
+export { SectionConfigTab } from './SectionConfigTab'
+export { LettersTab } from './LettersTab'

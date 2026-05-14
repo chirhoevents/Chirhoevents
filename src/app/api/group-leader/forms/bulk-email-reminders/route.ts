@@ -87,7 +87,8 @@ export async function POST(req: NextRequest) {
         const parentFormUrl = `${process.env.NEXT_PUBLIC_APP_URL}/poros/parent/${liabilityForm.parentToken}`
 
         return resend.emails.send({
-          from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+          from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+          reply_to: 'support@chirhoevents.com',
           to: participant.parentEmail,
           subject: `Reminder: Liability Form Required for ${participant.firstName}`,
           html: `

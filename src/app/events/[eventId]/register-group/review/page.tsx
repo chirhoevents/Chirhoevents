@@ -105,6 +105,27 @@ export default function InvoiceReviewPage() {
   const [validatedCoupon, setValidatedCoupon] = useState<CouponData | null>(null)
   const [couponError, setCouponError] = useState<string | null>(null)
 
+  // Read custom answers saved by the form page via sessionStorage
+  const customAnswers: Array<{ questionId: string; answerText: string }> = (() => {
+    if (typeof window === 'undefined') return []
+    try {
+      const raw = sessionStorage.getItem(`chirho_custom_answers_${eventId}`)
+      if (!raw) return []
+      const map: Record<string, string> = JSON.parse(raw)
+      return Object.entries(map)
+        .filter(([, v]) => v && v.trim() !== '')
+        .map(([questionId, answerText]) => ({ questionId, answerText }))
+    } catch {
+      return []
+    }
+  })()
+
+  function clearCustomAnswers() {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem(`chirho_custom_answers_${eventId}`)
+    }
+  }
+
   // Get registration data from URL params
   const registrationData: RegistrationData = {
     groupName: searchParams.get('groupName') || '',
@@ -196,12 +217,15 @@ export default function InvoiceReviewPage() {
 
     const now = new Date()
     const earlyBirdDeadline = event.pricing.earlyBirdDeadline ? new Date(event.pricing.earlyBirdDeadline) : null
-    const isEarlyBird = earlyBirdDeadline && now <= earlyBirdDeadline
+    const regularDeadline = event.pricing.regularDeadline ? new Date(event.pricing.regularDeadline) : null
+    const isEarlyBird = earlyBirdDeadline !== null && now <= earlyBirdDeadline
+    const isLate = regularDeadline !== null && now > regularDeadline
 
-    // Determine youth price - housing-specific pricing overrides early bird
-    // Use fallback to regular price if early bird price is not set
+    // Determine youth price - housing-specific pricing overrides tier pricing
     let youthPrice = isEarlyBird
       ? Number(event.pricing.youthEarlyBirdPrice || event.pricing.youthRegularPrice)
+      : isLate
+      ? Number(event.pricing.youthLatePrice || event.pricing.youthRegularPrice)
       : Number(event.pricing.youthRegularPrice)
     if (registrationData.housingType === 'on_campus' && event.pricing.onCampusYouthPrice) {
       youthPrice = Number(event.pricing.onCampusYouthPrice)
@@ -211,10 +235,11 @@ export default function InvoiceReviewPage() {
       youthPrice = Number(event.pricing.dayPassYouthPrice)
     }
 
-    // Determine chaperone price - housing-specific pricing overrides early bird
-    // Use fallback to regular price if early bird price is not set
+    // Determine chaperone price - housing-specific pricing overrides tier pricing
     let chaperonePrice = isEarlyBird
       ? Number(event.pricing.chaperoneEarlyBirdPrice || event.pricing.chaperoneRegularPrice)
+      : isLate
+      ? Number(event.pricing.chaperoneLatePrice || event.pricing.chaperoneRegularPrice)
       : Number(event.pricing.chaperoneRegularPrice)
     if (registrationData.housingType === 'on_campus' && event.pricing.onCampusChaperonePrice) {
       chaperonePrice = Number(event.pricing.onCampusChaperonePrice)
@@ -323,6 +348,7 @@ export default function InvoiceReviewPage() {
           ...registrationData,
           totalParticipants,
           paymentMethod: 'card',
+          customAnswers,
         }),
       })
 
@@ -333,8 +359,9 @@ export default function InvoiceReviewPage() {
 
       const result = await response.json()
 
-      // Mark queue session as complete
+      // Mark queue session as complete and clear transient answers
       await markComplete()
+      clearCustomAnswers()
 
       // Redirect to Stripe checkout
       if (result.checkoutUrl) {
@@ -368,6 +395,7 @@ export default function InvoiceReviewPage() {
           ...registrationData,
           totalParticipants,
           paymentMethod: 'check',
+          customAnswers,
         }),
       })
 
@@ -378,8 +406,9 @@ export default function InvoiceReviewPage() {
 
       const result = await response.json()
 
-      // Mark queue session as complete
+      // Mark queue session as complete and clear transient answers
       await markComplete()
+      clearCustomAnswers()
 
       router.push(`/registration/confirmation/${result.registrationId}`)
     } catch (err: any) {

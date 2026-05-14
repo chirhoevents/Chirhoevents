@@ -42,6 +42,8 @@ import {
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { generateMultiplePacketsHTML, type PacketData } from '@/lib/welcome-packet-print'
+import { openBadgePrintWindow } from '@/lib/badge-renderer'
+import { ReprintBadgeModal } from '@/components/salve/ReprintBadgeModal'
 
 // Dynamic import for QR scanner to avoid SSR issues
 const QRScanner = dynamic(
@@ -93,7 +95,7 @@ interface ParticipantData {
   smallGroup?: string | null
 }
 
-type CheckInStatus = 'idle' | 'scanning' | 'loading' | 'found' | 'not_found' | 'error'
+type CheckInStatus = 'idle' | 'scanning' | 'loading' | 'found' | 'multiple' | 'not_found' | 'error'
 
 export default function SalveCheckInPage() {
   const params = useParams()
@@ -102,11 +104,15 @@ export default function SalveCheckInPage() {
   const [status, setStatus] = useState<CheckInStatus>('idle')
   const [searchQuery, setSearchQuery] = useState('')
   const [groupData, setGroupData] = useState<GroupData | null>(null)
+  const [multipleResults, setMultipleResults] = useState<GroupData[]>([])
   const [selectedParticipants, setSelectedParticipants] = useState<Set<string>>(new Set())
   const [participantNotes, setParticipantNotes] = useState<Record<string, string>>({})
   const [checkingIn, setCheckingIn] = useState(false)
   const [eventName, setEventName] = useState('')
   const [stats, setStats] = useState({ totalExpected: 0, checkedIn: 0, issues: 0 })
+
+  // Reprint modal
+  const [isReprintModalOpen, setIsReprintModalOpen] = useState(false)
 
   // Roster view modal
   const [isRosterModalOpen, setIsRosterModalOpen] = useState(false)
@@ -123,6 +129,11 @@ export default function SalveCheckInPage() {
   const [checkedInCount, setCheckedInCount] = useState(0)
   const [notCheckedInParticipants, setNotCheckedInParticipants] = useState<ParticipantData[]>([])
   const [printingPacket, setPrintingPacket] = useState(false)
+  const [printingNameTags, setPrintingNameTags] = useState(false)
+  // Captured at check-in time so the success-modal buttons know what to print
+  const [lastCheckedInParticipantIds, setLastCheckedInParticipantIds] = useState<string[]>([])
+  const [lastCheckedInGroupId, setLastCheckedInGroupId] = useState<string | null>(null)
+  const [lastCheckedInRegistrationType, setLastCheckedInRegistrationType] = useState<'group' | 'individual'>('group')
 
   useEffect(() => {
     fetchEventInfo()
@@ -244,6 +255,41 @@ export default function SalveCheckInPage() {
     }
   }
 
+  async function handlePrintNameTags() {
+    if (lastCheckedInParticipantIds.length === 0) {
+      toast.error('No checked-in participants to print badges for')
+      return
+    }
+
+    setPrintingNameTags(true)
+    try {
+      const isIndividual = lastCheckedInRegistrationType === 'individual'
+      const response = await fetch(`/api/admin/events/${eventId}/salve/generate-name-tags`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          participantIds: isIndividual ? undefined : lastCheckedInParticipantIds,
+          groupId: isIndividual ? undefined : (lastCheckedInGroupId ?? undefined),
+          registrationId: isIndividual ? (lastCheckedInParticipantIds[0] ?? undefined) : undefined,
+          registrationType: lastCheckedInRegistrationType,
+        }),
+      })
+
+      if (!response.ok) {
+        const err = await response.json()
+        throw new Error(err.message || 'Failed to generate name tags')
+      }
+
+      const data = await response.json()
+      openBadgePrintWindow(data.nameTags, data.template, eventName, data.schedule ?? [])
+      toast.success('Name tags opened for printing')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to print name tags')
+    } finally {
+      setPrintingNameTags(false)
+    }
+  }
+
   function generatePrintablePacketHTML(data: any) {
     // Convert to the shared PacketData format (matching pre-print exactly)
     const packetData: PacketData = {
@@ -332,10 +378,9 @@ export default function SalveCheckInPage() {
             // Single result - use it directly
             group = data.results[0]
           } else {
-            // Multiple results - use the first one for now
-            // TODO: Could show a selection modal
-            group = data.results[0]
-            toast.info(`Found ${data.results.length} matching groups. Showing first result.`)
+            setMultipleResults(data.results)
+            setStatus('multiple')
+            return
           }
         } else if (data.id) {
           // Direct group response (access code or groupId lookup)
@@ -486,6 +531,12 @@ export default function SalveCheckInPage() {
         throw new Error(error.message || 'Failed to check in')
       }
 
+      // Capture context for the success-modal print buttons
+      const checkedInIds = Array.from(selectedParticipants)
+      setLastCheckedInParticipantIds(checkedInIds)
+      setLastCheckedInGroupId(groupData.id)
+      setLastCheckedInRegistrationType(isIndividual ? 'individual' : 'group')
+
       // Show success modal
       setCheckedInCount(selectedParticipants.size)
       setNotCheckedInParticipants(
@@ -506,8 +557,18 @@ export default function SalveCheckInPage() {
     setStatus('idle')
     setSearchQuery('')
     setGroupData(null)
+    setMultipleResults([])
     setSelectedParticipants(new Set())
     setParticipantNotes({})
+  }
+
+  function selectGroup(group: GroupData) {
+    setGroupData(group)
+    setStatus('found')
+    setMultipleResults([])
+    setSelectedParticipants(new Set(
+      group.participants.filter((p: ParticipantData) => !p.checkedIn).map((p: ParticipantData) => p.id)
+    ))
   }
 
   const totalExpected = stats?.totalExpected || 0
@@ -549,6 +610,15 @@ export default function SalveCheckInPage() {
                 Edit Name Tags
               </Button>
             </Link>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full md:w-auto"
+              onClick={() => setIsReprintModalOpen(true)}
+            >
+              <Printer className="w-4 h-4 mr-2" />
+              Reprint Badge
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -692,6 +762,44 @@ export default function SalveCheckInPage() {
             <div className="text-center py-12">
               <Loader2 className="w-12 h-12 animate-spin mx-auto text-navy" />
               <p className="text-muted-foreground mt-4">Looking up registration...</p>
+            </div>
+          )}
+
+          {status === 'multiple' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold">Multiple Results Found</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {multipleResults.length} matches for &quot;{searchQuery}&quot; — select the correct one
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={resetSearch}>
+                  <X className="w-4 h-4 mr-1" />
+                  New Search
+                </Button>
+              </div>
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {multipleResults.map((g) => {
+                  const alreadyIn = g.participants.filter((p: ParticipantData) => p.checkedIn).length
+                  return (
+                    <div
+                      key={g.id}
+                      className="flex items-center justify-between p-4 border rounded-lg bg-white hover:border-navy/50 cursor-pointer"
+                      onClick={() => selectGroup(g)}
+                    >
+                      <div className="flex-1">
+                        <p className="font-semibold">{g.groupName}</p>
+                        {g.parishName && <p className="text-sm text-muted-foreground">{g.parishName}</p>}
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {g.totalParticipants} participants · {alreadyIn} checked in
+                        </p>
+                      </div>
+                      <Button size="sm" className="ml-3">Select</Button>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
 
@@ -987,8 +1095,17 @@ export default function SalveCheckInPage() {
                   )}
                   Print Welcome Packet
                 </Button>
-                <Button variant="outline" className="h-auto py-3">
-                  <Printer className="w-4 h-4 mr-2" />
+                <Button
+                  variant="outline"
+                  className="h-auto py-3"
+                  onClick={handlePrintNameTags}
+                  disabled={printingNameTags}
+                >
+                  {printingNameTags ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Printer className="w-4 h-4 mr-2" />
+                  )}
                   Print Name Tags ({checkedInCount})
                 </Button>
               </div>
@@ -1007,6 +1124,14 @@ export default function SalveCheckInPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Reprint / Walk-Up Modal */}
+      <ReprintBadgeModal
+        open={isReprintModalOpen}
+        onClose={() => setIsReprintModalOpen(false)}
+        eventId={eventId}
+        eventName={eventName}
+      />
 
       {/* All Participants Modal */}
       <Dialog open={isAllParticipantsOpen} onOpenChange={setIsAllParticipantsOpen}>

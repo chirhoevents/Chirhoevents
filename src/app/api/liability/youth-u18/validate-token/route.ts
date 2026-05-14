@@ -41,15 +41,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Return youth info for display
+    // Return youth info and event context for dynamic form config
     return NextResponse.json({
       success: true,
+      eventId: liabilityForm.eventId,
+      participantType: liabilityForm.participantType ?? 'youth_u18',
       youth_info: {
         firstName: liabilityForm.participantFirstName,
         lastName: liabilityForm.participantLastName,
         age: liabilityForm.participantAge,
         gender: liabilityForm.participantGender,
-        tShirtSize: 'M', // TODO: Add tShirtSize to liabilityForm model
+        tShirtSize: liabilityForm.tShirtSize ?? 'M',
       },
     })
   } catch (error) {

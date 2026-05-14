@@ -117,6 +117,43 @@ export async function GET(
           'Content-Disposition': `attachment; filename="safe-env-certs-${eventId}.csv"`,
         },
       })
+    } else if (exportType === 'letters') {
+      // Export Letters of Good Standing
+      const letters = await prisma.letterOfGoodStanding.findMany({
+        where: { eventId },
+        include: {
+          verifiedBy: { select: { firstName: true, lastName: true } },
+        },
+        orderBy: [{ participantType: 'asc' }, { createdAt: 'asc' }],
+      })
+
+      let csv =
+        'Participant Name,Participant Type,Submission Method,Status,File Name,Uploaded Date,Submitted To Contact,Submitted To Email,External Notes,Verified By,Verified Date,Rejection Reason,Submitted Date\n'
+
+      for (const l of letters) {
+        csv +=
+          `${escapeCSV(l.participantName)},` +
+          `${escapeCSV(l.participantType)},` +
+          `${escapeCSV(l.submissionMethod)},` +
+          `${escapeCSV(l.status)},` +
+          `${escapeCSV(l.originalFilename)},` +
+          `${l.uploadedAt ? l.uploadedAt.toISOString().split('T')[0] : ''},` +
+          `${escapeCSV(l.submittedToContact)},` +
+          `${escapeCSV(l.submittedToEmail)},` +
+          `${escapeCSV(l.externalSubmissionNotes)},` +
+          `${l.verifiedBy ? `${l.verifiedBy.firstName} ${l.verifiedBy.lastName}` : ''},` +
+          `${l.verifiedAt ? l.verifiedAt.toISOString().split('T')[0] : ''},` +
+          `${escapeCSV(l.rejectionReason)},` +
+          `${l.createdAt.toISOString().split('T')[0]}\n`
+      }
+
+      const safeName = event!.name.replace(/[^a-zA-Z0-9]/g, '-')
+      return new NextResponse(csv, {
+        headers: {
+          'Content-Type': 'text/csv',
+          'Content-Disposition': `attachment; filename="letters-of-good-standing-${safeName}.csv"`,
+        },
+      })
     } else {
       // Export ALL data
       const forms = await prisma.liabilityForm.findMany({
@@ -146,10 +183,10 @@ export async function GET(
       })
 
       let csv =
-        'Group,Parish,Access Code,First Name,Last Name,Age,Gender,DOB,Email,Phone,Allergies,Medications,Medical Conditions,Dietary Restrictions,Emergency Contact,Emergency Phone,Shirt Size,Form Status,Approved By,Approved Date,Submitted Date\n'
+        'Group,Parish,Access Code,Participant Type,First Name,Last Name,Age,Gender,DOB,Email,Phone,Allergies,Medications,Medical Conditions,Dietary Restrictions,Emergency Contact,Emergency Phone,Shirt Size,Form Status,Approved By,Approved Date,Submitted Date\n'
 
       for (const f of forms) {
-        csv += `${escapeCSV(f.groupRegistration?.groupName)},${escapeCSV(f.groupRegistration?.parishName)},${escapeCSV(f.groupRegistration?.accessCode)},${escapeCSV(f.participantFirstName)},${escapeCSV(f.participantLastName)},${f.participantAge || ''},${escapeCSV(f.participantGender)},,${escapeCSV(f.participantEmail)},${escapeCSV(f.participantPhone)},${escapeCSV(f.allergies)},${escapeCSV(f.medications)},${escapeCSV(f.medicalConditions)},${escapeCSV(f.dietaryRestrictions)},${escapeCSV(f.emergencyContact1Name)},${escapeCSV(f.emergencyContact1Phone)},${escapeCSV(f.tShirtSize)},${escapeCSV(f.formStatus)},${f.approvedBy ? `${f.approvedBy.firstName} ${f.approvedBy.lastName}` : ''},${f.approvedAt ? f.approvedAt.toISOString().split('T')[0] : ''},${f.completedAt ? f.completedAt.toISOString().split('T')[0] : ''}\n`
+        csv += `${escapeCSV(f.groupRegistration?.groupName)},${escapeCSV(f.groupRegistration?.parishName)},${escapeCSV(f.groupRegistration?.accessCode)},${escapeCSV(f.participantType)},${escapeCSV(f.participantFirstName)},${escapeCSV(f.participantLastName)},${f.participantAge || ''},${escapeCSV(f.participantGender)},,${escapeCSV(f.participantEmail)},${escapeCSV(f.participantPhone)},${escapeCSV(f.allergies)},${escapeCSV(f.medications)},${escapeCSV(f.medicalConditions)},${escapeCSV(f.dietaryRestrictions)},${escapeCSV(f.emergencyContact1Name)},${escapeCSV(f.emergencyContact1Phone)},${escapeCSV(f.tShirtSize)},${escapeCSV(f.formStatus)},${f.approvedBy ? `${f.approvedBy.firstName} ${f.approvedBy.lastName}` : ''},${f.approvedAt ? f.approvedAt.toISOString().split('T')[0] : ''},${f.completedAt ? f.completedAt.toISOString().split('T')[0] : ''}\n`
       }
 
       const safeName = event!.name.replace(/[^a-zA-Z0-9]/g, '-')

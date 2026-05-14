@@ -50,13 +50,11 @@ const DEFAULT_TEMPLATE = {
   showHousing: true,
   showDiocese: false,
   showMealColor: false,
-  showSmallGroup: false,
   showQrCode: true,
   showConferenceHeader: true,
   conferenceHeaderText: '',
   showLogo: false,
   logoUrl: '',
-  // 4x6 Header Banner (top 2.5 inches)
   showHeaderBanner: false,
   headerBannerUrl: '',
   backgroundColor: '#FFFFFF',
@@ -64,6 +62,9 @@ const DEFAULT_TEMPLATE = {
   accentColor: '#9C8466',
   fontFamily: 'sans-serif',
   fontSize: 'medium',
+  thermalMode: false,
+  showBackPanel: true,
+  backPanelColorMode: 'color',
 }
 
 // GET - Load name tag template settings
@@ -143,7 +144,7 @@ export async function PUT(
         // Also save some fields to the regular columns for backwards compatibility
         logoUrl: template.logoUrl || null,
         backgroundUrl: template.headerBannerUrl || null, // Use headerBannerUrl for backgroundUrl column
-        primaryColor: template.textColor || '#1E3A5F',
+        primaryColor: template.backgroundColor || '#FFFFFF',
         accentColor: template.accentColor || '#9C8466',
         textColor: template.textColor || '#000000',
         showRole: template.showParticipantType ?? true,
@@ -156,7 +157,7 @@ export async function PUT(
         settingsJson: template,
         logoUrl: template.logoUrl || null,
         backgroundUrl: template.headerBannerUrl || null, // Use headerBannerUrl for backgroundUrl column
-        primaryColor: template.textColor || '#1E3A5F',
+        primaryColor: template.backgroundColor || '#FFFFFF',
         accentColor: template.accentColor || '#9C8466',
         textColor: template.textColor || '#000000',
         showRole: template.showParticipantType ?? true,

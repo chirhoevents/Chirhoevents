@@ -648,7 +648,7 @@ export async function PUT(
                   ? parseFloat(data.depositPercentage)
                   : null,
               requireFullPayment: data.depositType === 'full',
-              depositPerPerson: true,
+              depositPerPerson: data.depositType === 'fixed',
               earlyBirdDeadline: data.earlyBirdDeadline
                 ? new Date(data.earlyBirdDeadline)
                 : null,
@@ -738,6 +738,7 @@ export async function PUT(
                   ? parseFloat(data.depositPercentage)
                   : null,
               requireFullPayment: data.depositType === 'full',
+              depositPerPerson: data.depositType === 'fixed',
               earlyBirdDeadline: data.earlyBirdDeadline
                 ? new Date(data.earlyBirdDeadline)
                 : null,
@@ -820,7 +821,14 @@ export async function PUT(
     }
 
     return NextResponse.json({ event })
-  } catch (error) {
+  } catch (error: any) {
+    // FIX 4.7: Catch slug unique constraint violation
+    if (error?.code === 'P2002' && error?.meta?.target?.includes?.('slug')) {
+      return NextResponse.json(
+        { error: 'This URL path is already in use. Please choose a different one.', slugConflict: true },
+        { status: 409 }
+      )
+    }
     console.error('Error updating event:', error)
     return NextResponse.json(
       { error: 'Internal server error' },

@@ -35,24 +35,29 @@ export async function GET(
 
     console.log('[SALVE Stats] ✅ Access verified for event:', event?.name)
 
-    // Get total participants for this event
-    const totalParticipants = await prisma.participant.count({
-      where: {
-        groupRegistration: {
-          eventId,
-        },
-      },
+    // Get total group participants for this event
+    const groupParticipantTotal = await prisma.participant.count({
+      where: { groupRegistration: { eventId } },
     })
 
-    // Get checked in participants
-    const checkedIn = await prisma.participant.count({
-      where: {
-        groupRegistration: {
-          eventId,
-        },
-        checkedIn: true,
-      },
+    // Get total individual registrations for this event (FIX 2.7)
+    const individualTotal = await prisma.individualRegistration.count({
+      where: { eventId },
     })
+
+    const totalParticipants = groupParticipantTotal + individualTotal
+
+    // Get checked in group participants
+    const groupCheckedIn = await prisma.participant.count({
+      where: { groupRegistration: { eventId }, checkedIn: true },
+    })
+
+    // Get checked in individual registrations (FIX 2.7)
+    const individualCheckedIn = await prisma.individualRegistration.count({
+      where: { eventId, checkedIn: true },
+    })
+
+    const checkedIn = groupCheckedIn + individualCheckedIn
 
     // Get total groups
     const totalGroups = await prisma.groupRegistration.count({

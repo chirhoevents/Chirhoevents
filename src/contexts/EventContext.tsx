@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 
 interface LinkedEvent {
   id: string
+  registrationId: string
   eventId: string
   accessCode: string
   eventName: string

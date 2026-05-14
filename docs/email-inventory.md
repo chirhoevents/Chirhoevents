@@ -48,7 +48,7 @@ This document catalogs all email sending functionality in the ChiRho Events plat
 
 ```
 RESEND_API_KEY=re_xxxxxxxxxxxxx     # Resend API key
-RESEND_FROM_EMAIL=hello@chirhoevents.com  # Default from email
+RESEND_FROM_EMAIL=notifications@chirhoevents.com  # Default from email
 ```
 
 ### Resend Package

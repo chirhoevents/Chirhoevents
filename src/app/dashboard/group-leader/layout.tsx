@@ -222,7 +222,7 @@ function GroupLeaderLayoutContent({
 
           // Select the newly added event
           if (data.registration) {
-            setSelectedEventId(data.registration.id)
+            setSelectedEventId(data.registration.eventId)
           }
         }
 

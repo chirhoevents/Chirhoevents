@@ -193,13 +193,41 @@ export async function PUT(
       dayPassChaperones,
     } = body
 
-    // Calculate the difference
-    const difference = newTotal - oldTotal
-
     // Calculate individual counts
     const finalYouthCount = youthCount !== undefined ? youthCount : existingRegistration.youthCount
     const finalChaperoneCount = chaperoneCount !== undefined ? chaperoneCount : existingRegistration.chaperoneCount
     const finalPriestCount = priestCount !== undefined ? priestCount : existingRegistration.priestCount
+
+    // FIX 2.3: Compute new total server-side from event pricing (ignore client-supplied oldTotal/newTotal)
+    const eventPricing = await prisma.eventPricing.findUnique({
+      where: { eventId: existingRegistration.eventId },
+    })
+    let serverNewTotal: number | null = null
+    if (eventPricing) {
+      serverNewTotal =
+        finalYouthCount * Number(eventPricing.youthRegularPrice) +
+        finalChaperoneCount * Number(eventPricing.chaperoneRegularPrice) +
+        finalPriestCount * Number(eventPricing.priestPrice)
+    }
+
+    // Use server-computed total for payment balance update; fall back to client-supplied newTotal
+    const computedNewTotal = serverNewTotal ?? newTotal
+    const currentTotal = paymentBalance ? Number(paymentBalance.totalAmountDue) : (oldTotal ?? 0)
+    const difference = computedNewTotal - currentTotal
+
+    // FIX 2.2: Update event-level capacity when totalParticipants changes
+    const oldTotalParticipants = existingRegistration.totalParticipants ?? 0
+    const newTotalParticipants = totalParticipants !== undefined ? totalParticipants : oldTotalParticipants
+    const totalParticipantDiff = newTotalParticipants - oldTotalParticipants
+    if (totalParticipantDiff !== 0) {
+      // positive diff = using more spots (decrement remaining), negative = freeing spots (increment remaining)
+      await prisma.$executeRaw`
+        UPDATE events
+        SET capacity_remaining = GREATEST(0, capacity_remaining - ${totalParticipantDiff})
+        WHERE id = ${existingRegistration.eventId}::uuid
+          AND capacity_remaining IS NOT NULL
+      `
+    }
 
     // Handle housing count changes and capacity adjustment (inventory-style)
     const oldOnCampusTotal = ((existingRegistration as any).onCampusYouth ?? 0) + ((existingRegistration as any).onCampusChaperones ?? 0)
@@ -309,32 +337,40 @@ export async function PUT(
         data: {
           registrationId,
           registrationType: 'group',
+          organizationId: existingRegistration.organizationId, // Fix #11
           editedByUserId: user.id,
           editType: difference !== 0 ? 'payment_updated' : 'info_updated',
           changesMade: changesMade as any,
-          oldTotal: oldTotal || null,
-          newTotal: newTotal || null,
+          oldTotal: currentTotal || null,
+          newTotal: computedNewTotal || null,
           difference: difference || null,
           adminNotes: adminNotes || null,
         },
       })
     }
 
-    // Update payment balance if total changed
+    // Update payment balance if total changed (FIX 2.3: use server-computed total)
     if (difference !== 0 && paymentBalance) {
+      const newAmountRemaining = Math.max(0, Number(paymentBalance.amountRemaining) + difference)
       await prisma.paymentBalance.update({
         where: { id: paymentBalance.id },
         data: {
-          totalAmountDue: newTotal,
-          amountRemaining: {
-            increment: difference,
-          },
+          totalAmountDue: computedNewTotal,
+          amountRemaining: newAmountRemaining,
         },
       })
     }
 
+    // Check org-level update email setting
+    const orgSettings = await prisma.organization.findUnique({
+      where: { id: existingRegistration.organizationId },
+      select: { customFieldsEnabled: true },
+    })
+    const orgCustomFields = (orgSettings?.customFieldsEnabled as Record<string, any>) || {}
+    const updateEmailsDisabled = orgCustomFields?.updateEmails?.disabled === true
+
     // Send email notification to group leader
-    if (groupLeaderEmail && existingRegistration.event) {
+    if (!updateEmailsDisabled && groupLeaderEmail && existingRegistration.event) {
       try {
         // Build list of changes for email
         const emailChanges: string[] = []
@@ -361,8 +397,8 @@ export async function PUT(
         if (dayPassDiff !== 0) {
           emailChanges.push(`Day Pass Total: ${oldDayPassTotal} → ${newDayPassTotal}`)
         }
-        if (oldTotal !== newTotal) {
-          emailChanges.push(`Total Amount Due: $${oldTotal.toFixed(2)} → $${newTotal.toFixed(2)}`)
+        if (difference !== 0) {
+          emailChanges.push(`Total Amount Due: $${currentTotal.toFixed(2)} → $${computedNewTotal.toFixed(2)}`)
         }
 
         if (emailChanges.length > 0) {
@@ -421,7 +457,7 @@ export async function PUT(
           `
 
           await resend.emails.send({
-            from: 'ChiRho Events <noreply@chirhoevents.com>',
+            from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
             to: groupLeaderEmail,
             subject: emailSubject,
             html: emailBody,

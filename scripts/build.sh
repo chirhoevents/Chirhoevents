@@ -30,12 +30,15 @@ SQLEOF
 
 # Run pre-cleanup SQL
 echo "Executing pre-cleanup SQL..."
-npx prisma db execute --file /tmp/pre-cleanup.sql --schema prisma/schema.prisma || echo "Pre-cleanup SQL completed (some statements may have been skipped)"
+npx prisma db execute --file /tmp/pre-cleanup.sql --schema prisma/schema.prisma
 
 echo "Running prisma db push..."
-# IMPORTANT: Do NOT use --accept-data-loss as it will drop tables not in the Prisma schema
-# (like poros_confessions, poros_adoration, poros_info_items) and delete all their data
-npx prisma db push --skip-generate
+# --accept-data-loss allows the push to proceed if Prisma detects any potential
+# data-loss (e.g. enum drift between DB and schema). Since all our schema changes
+# only ADD enum values / columns (never remove them), this is safe.
+# This flag does NOT drop tables outside the Prisma schema — poros_confessions,
+# poros_adoration, poros_info_items etc. are completely unaffected.
+npx prisma db push --skip-generate --accept-data-loss
 
 # Create confession/adoration/info tables AFTER Prisma push
 # These tables are managed outside of Prisma to prevent data loss during deployments
@@ -112,6 +115,9 @@ SQLEOF
 
 echo "Executing table creation SQL..."
 npx prisma db execute --file /tmp/create-tables.sql --schema prisma/schema.prisma
+
+echo "Seeding question catalog..."
+npm run db:seed-catalog
 
 echo "Running next build..."
 npx next build

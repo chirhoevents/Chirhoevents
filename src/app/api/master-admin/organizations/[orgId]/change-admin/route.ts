@@ -147,7 +147,7 @@ export async function POST(
         })
 
         await resend.emails.send({
-          from: 'ChiRho Events <noreply@chirhoevents.com>',
+          from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
           to: email,
           subject: `Welcome to ChiRho Events - ${organization.name}`,
           html: emailHtml,

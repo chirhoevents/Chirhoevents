@@ -1,16 +1,66 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
+import {
+  DynamicLiabilityForm,
+  EMPTY_DYNAMIC_VALUES,
+  getConsentVisibility,
+  type DynamicFormValues,
+  type FormConfig,
+} from '@/components/poros/DynamicLiabilityForm'
+
+// Maps the selected clergy/religious title to the participant_type that drives
+// section config lookups. This ensures sisters/brothers get a different section
+// layout from priests without requiring a separate form page.
+function titleToParticipantType(title: string): string {
+  switch (title) {
+    case 'father':
+    case 'most_reverend':
+      return 'priest'
+    case 'deacon':
+      return 'deacon'
+    case 'seminarian':
+    case 'mr':
+      return 'seminarian'
+    case 'sister':
+      return 'religious_sister'
+    case 'brother':
+      return 'religious_brother'
+    default:
+      return 'priest'
+  }
+}
+
+// Returns a friendly success greeting based on title
+function successGreeting(title: string): string {
+  switch (title) {
+    case 'father':
+    case 'most_reverend':
+      return 'Thank You, Father!'
+    case 'deacon':
+      return 'Thank You, Deacon!'
+    case 'seminarian':
+    case 'mr':
+      return 'Thank You!'
+    case 'sister':
+      return 'Thank You, Sister!'
+    case 'brother':
+      return 'Thank You, Brother!'
+    default:
+      return 'Thank You!'
+  }
+}
 
 export default function ClergyForm() {
   const params = useParams()
   const router = useRouter()
   const accessCode = params.accessCode as string
 
-  const [formData, setFormData] = useState({
+  // ── Basic info (section 1, always shown) ────────────────────────────────────
+  const [basicData, setBasicData] = useState({
     clergyTitle: '',
     firstName: '',
     lastName: '',
@@ -20,24 +70,13 @@ export default function ClergyForm() {
     email: '',
     phone: '',
     tShirtSize: '',
-    dioceseOfIncardination: '',
-    currentAssignment: '',
-    facultyInformation: '',
-    needsHousing: false,
-    medicalConditions: '',
-    medications: '',
-    allergies: '',
-    dietaryRestrictions: '',
-    adaAccommodations: '',
-    emergencyContact1Name: '',
-    emergencyContact1Phone: '',
-    emergencyContact1Relation: '',
-    emergencyContact2Name: '',
-    emergencyContact2Phone: '',
-    emergencyContact2Relation: '',
-    insuranceProvider: '',
-    insurancePolicyNumber: '',
-    insuranceGroupNumber: '',
+  })
+
+  // ── Dynamic section values (sections 2-N rendered by DynamicLiabilityForm) ──
+  const [dynValues, setDynValues] = useState<DynamicFormValues>(EMPTY_DYNAMIC_VALUES)
+
+  // ── Consent section (rendered here, visibility driven by config) ────────────
+  const [consentData, setConsentData] = useState({
     consentMedical: false,
     consentActivity: false,
     consentPhoto: false,
@@ -48,100 +87,173 @@ export default function ClergyForm() {
     certifyAccurate: false,
   })
 
+  // ── Files ────────────────────────────────────────────────────────────────────
+  const [certFile, setCertFile] = useState<File | null>(null)
+  const [logsFile, setLogsFile] = useState<File | null>(null)
+
+  // ── Config state ─────────────────────────────────────────────────────────────
+  const [formConfig, setFormConfig] = useState<FormConfig | null>(null)
+
+  // ── UI state ─────────────────────────────────────────────────────────────────
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target
-    if (type === 'checkbox') {
-      const checked = (e.target as HTMLInputElement).checked
-      setFormData(prev => ({ ...prev, [name]: checked }))
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }))
+  const participantType = titleToParticipantType(basicData.clergyTitle)
+
+  // We need the eventId to pass to DynamicLiabilityForm. Resolve it once by
+  // looking up the access code. For simplicity we store it after first load.
+  const [eventId, setEventId] = useState<string | null>(null)
+
+  const handleConfigLoaded = useCallback((cfg: FormConfig) => {
+    setFormConfig(cfg)
+    setEventId(cfg.eventId)
+  }, [])
+
+  // Resolve eventId from access code the first time the title is set
+  const [eventIdResolved, setEventIdResolved] = useState(false)
+  const ensureEventId = useCallback(async () => {
+    if (eventIdResolved || eventId) return
+    try {
+      const res = await fetch('/api/poros/resolve-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_code: accessCode }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setEventId(data.eventId)
+      }
+    } catch {
+      // If this fails, DynamicLiabilityForm handles it gracefully
+    } finally {
+      setEventIdResolved(true)
     }
+  }, [accessCode, eventId, eventIdResolved])
+
+  const handleTitleChange = (title: string) => {
+    setBasicData((prev) => ({ ...prev, clergyTitle: title }))
+    // Reset config so it refetches for the new participant type
+    setFormConfig(null)
+    ensureEventId()
   }
+
+  const dynonChange = (key: string, val: string | boolean) =>
+    setDynValues((prev) => ({ ...prev, [key]: val }))
+
+  const consentChange = (key: string, val: string | boolean) =>
+    setConsentData((prev) => ({ ...prev, [key]: val }))
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
-    // Validation
-    const age = parseInt(formData.age)
-    if (age < 18) {
+    // ── Validation ────────────────────────────────────────────────────────────
+    const age = parseInt(basicData.age)
+    if (isNaN(age) || age < 18) {
       setError('Age must be 18 or older')
       return
     }
 
-    if (!formData.consentMedical || !formData.consentActivity ||
-        !formData.consentPhoto || !formData.consentTransportation) {
-      setError('All consent checkboxes must be checked')
+    if (!basicData.clergyTitle) {
+      setError('Please select a title')
       return
     }
 
-    if (!formData.certifyAccurate) {
+    const consent = getConsentVisibility(formConfig)
+    const missingConsent =
+      (consent.showMedicalRelease && !consentData.consentMedical) ||
+      !consentData.consentActivity ||
+      (consent.showPhotoConsent && !consentData.consentPhoto) ||
+      (consent.showTransportationConsent && !consentData.consentTransportation)
+
+    if (missingConsent) {
+      setError('All required consent checkboxes must be checked')
+      return
+    }
+    if (!consentData.certifyAccurate) {
       setError('You must certify that the information is accurate')
       return
     }
 
-    // Validate initials match name
-    const nameParts = formData.signatureFullName.trim().split(' ')
+    const nameParts = consentData.signatureFullName.trim().split(' ')
     if (nameParts.length < 2) {
-      setError('Please enter your full legal name (first and last name)')
+      setError('Please enter your full legal name (first and last)')
       return
     }
-    const expectedInitials = (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
-    if (formData.signatureInitials.toUpperCase() !== expectedInitials) {
-      setError(`Initials should be ${expectedInitials} based on your name`)
+    const expected = (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
+    if (consentData.signatureInitials.toUpperCase() !== expected) {
+      setError(`Initials should be ${expected} based on your name`)
       return
     }
 
     setLoading(true)
 
     try {
+      // ── Submit main form ────────────────────────────────────────────────────
       const response = await fetch('/api/liability/clergy/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           access_code: accessCode,
-          clergy_title: formData.clergyTitle,
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          preferred_name: formData.preferredName || null,
-          date_of_birth: formData.dateOfBirth,
-          age: parseInt(formData.age),
-          email: formData.email,
-          phone: formData.phone,
-          t_shirt_size: formData.tShirtSize,
-          diocese_of_incardination: formData.dioceseOfIncardination,
-          current_assignment: formData.currentAssignment || null,
-          faculty_information: formData.facultyInformation || null,
-          needs_housing: formData.needsHousing,
-          medical_conditions: formData.medicalConditions || null,
-          medications: formData.medications || null,
-          allergies: formData.allergies || null,
-          dietary_restrictions: formData.dietaryRestrictions || null,
-          ada_accommodations: formData.adaAccommodations || null,
-          emergency_contact_1_name: formData.emergencyContact1Name,
-          emergency_contact_1_phone: formData.emergencyContact1Phone,
-          emergency_contact_1_relation: formData.emergencyContact1Relation,
-          emergency_contact_2_name: formData.emergencyContact2Name || null,
-          emergency_contact_2_phone: formData.emergencyContact2Phone || null,
-          emergency_contact_2_relation: formData.emergencyContact2Relation || null,
-          insurance_provider: formData.insuranceProvider,
-          insurance_policy_number: formData.insurancePolicyNumber,
-          insurance_group_number: formData.insuranceGroupNumber || null,
-          signature_full_name: formData.signatureFullName,
-          signature_initials: formData.signatureInitials,
-          signature_date: formData.signatureDate,
-          certify_accurate: formData.certifyAccurate,
+          clergy_title: basicData.clergyTitle,
+          participant_type: participantType,
+          first_name: basicData.firstName,
+          last_name: basicData.lastName,
+          preferred_name: basicData.preferredName || null,
+          date_of_birth: basicData.dateOfBirth,
+          age,
+          email: basicData.email,
+          phone: basicData.phone,
+          t_shirt_size: basicData.tShirtSize,
+          diocese_of_incardination: dynValues.dioceseOfIncardination || null,
+          current_assignment: dynValues.currentAssignment || null,
+          faculty_information: dynValues.facultyInformation || null,
+          needs_housing: dynValues.needsHousing,
+          medical_conditions: dynValues.medicalConditions || null,
+          medications: dynValues.medications || null,
+          allergies: dynValues.allergies || null,
+          dietary_restrictions: dynValues.dietaryRestrictions || null,
+          ada_accommodations: dynValues.adaAccommodations || null,
+          emergency_contact_1_name: dynValues.emergencyContact1Name,
+          emergency_contact_1_phone: dynValues.emergencyContact1Phone,
+          emergency_contact_1_relation: dynValues.emergencyContact1Relation,
+          emergency_contact_2_name: dynValues.emergencyContact2Name || null,
+          emergency_contact_2_phone: dynValues.emergencyContact2Phone || null,
+          emergency_contact_2_relation: dynValues.emergencyContact2Relation || null,
+          insurance_provider: dynValues.insuranceProvider,
+          insurance_policy_number: dynValues.insurancePolicyNumber,
+          insurance_group_number: dynValues.insuranceGroupNumber || null,
+          signature_full_name: consentData.signatureFullName,
+          signature_initials: consentData.signatureInitials,
+          signature_date: consentData.signatureDate,
+          certify_accurate: consentData.certifyAccurate,
+          consent_medical: consentData.consentMedical,
+          consent_activity: consentData.consentActivity,
+          consent_photo: consentData.consentPhoto,
+          consent_transportation: consentData.consentTransportation,
         }),
       })
 
       const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to submit form')
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to submit form')
+      const liabilityFormId: string | undefined = data.liabilityFormId
+
+      // ── Submit letter of good standing (if collected) ───────────────────────
+      if (dynValues.logsMethod && (logsFile || dynValues.logsMethod === 'external_submission')) {
+        const logsForm = new FormData()
+        logsForm.set('access_code', accessCode)
+        logsForm.set('submission_method', dynValues.logsMethod)
+        logsForm.set('participant_type', participantType)
+        if (liabilityFormId) logsForm.set('liability_form_id', liabilityFormId)
+        if (logsFile) logsForm.set('file', logsFile)
+        if (dynValues.logsExternalNotes) logsForm.set('external_notes', dynValues.logsExternalNotes)
+
+        await fetch('/api/poros/letters-of-good-standing', {
+          method: 'POST',
+          body: logsForm,
+        }).catch(() => {}) // Non-fatal — admin can chase this up
       }
 
       setSubmitted(true)
@@ -152,23 +264,21 @@ export default function ClergyForm() {
     }
   }
 
+  const consent = getConsentVisibility(formConfig)
+  const titleLabel =
+    basicData.clergyTitle === 'sister' || basicData.clergyTitle === 'brother'
+      ? 'Clergy / Religious Information'
+      : 'Clergy Information'
+
+  // ── Success screen ──────────────────────────────────────────────────────────
   if (submitted) {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="bg-navy py-6 shadow-md">
-          <div className="container mx-auto px-4">
-            <div className="flex justify-center">
-              <Image
-                src="/Poros logo.png"
-                alt="Poros - ChiRho Events"
-                width={350}
-                height={105}
-                className="h-16 md:h-20 w-auto"
-              />
-            </div>
+          <div className="container mx-auto px-4 flex justify-center">
+            <Image src="/Poros logo.png" alt="Poros" width={350} height={105} className="h-16 md:h-20 w-auto" />
           </div>
         </div>
-
         <div className="container mx-auto px-4 py-12 max-w-2xl">
           <div className="bg-white rounded-lg shadow-md p-8 text-center">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -176,13 +286,15 @@ export default function ClergyForm() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h1 className="text-3xl font-bold text-navy mb-4">✅ Thank You, Father!</h1>
-            <p className="text-gray-700 mb-6">
-              Your liability form has been submitted successfully.
-            </p>
-            <p className="text-gray-600 mb-8">
-              A confirmation email has been sent to {formData.email}.
-            </p>
+            <h1 className="text-3xl font-bold text-navy mb-4">
+              ✅ {successGreeting(basicData.clergyTitle)}
+            </h1>
+            <p className="text-gray-700 mb-6">Your liability form has been submitted successfully.</p>
+            {basicData.email && (
+              <p className="text-gray-600 mb-8">
+                A confirmation has been sent to <strong>{basicData.email}</strong>.
+              </p>
+            )}
             <button
               onClick={() => router.push(`/poros/${accessCode}`)}
               className="bg-navy text-white px-8 py-3 rounded-lg font-semibold hover:bg-navy/90 transition-colors"
@@ -195,36 +307,29 @@ export default function ClergyForm() {
     )
   }
 
+  // ── Form ────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-navy py-6 shadow-md">
-        <div className="container mx-auto px-4">
-          <div className="flex justify-center">
-            <Image
-              src="/Poros logo.png"
-              alt="Poros - ChiRho Events"
-              width={350}
-              height={105}
-              className="h-16 md:h-20 w-auto"
-            />
-          </div>
+        <div className="container mx-auto px-4 flex justify-center">
+          <Image src="/Poros logo.png" alt="Poros" width={350} height={105} className="h-16 md:h-20 w-auto" />
         </div>
       </div>
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="bg-white rounded-lg shadow-md p-8 mb-6">
-          <h1 className="text-3xl font-bold text-navy mb-2">Clergy Liability Form</h1>
-          <p className="text-gray-600">For Priests, Deacons, and Bishops</p>
+          <h1 className="text-3xl font-bold text-navy mb-2">Clergy &amp; Religious Liability Form</h1>
+          <p className="text-gray-600">For Priests, Deacons, Seminarians, Sisters, and Brothers</p>
         </div>
 
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded">
             <p className="text-red-700">{error}</p>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* SECTION 1: Basic Information */}
+          {/* ── SECTION 1: Basic Information ─────────────────────────────────── */}
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-xl font-bold text-navy mb-4 pb-2 border-b-2 border-gold">
               1. Basic Information
@@ -232,128 +337,117 @@ export default function ClergyForm() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Clergy Title <span className="text-red-500">*</span>
+                  Title <span className="text-red-500">*</span>
                 </label>
                 <select
-                  name="clergyTitle"
-                  value={formData.clergyTitle}
-                  onChange={handleInputChange}
+                  value={basicData.clergyTitle}
+                  onChange={(e) => handleTitleChange(e.target.value)}
                   required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
                 >
-                  <option value="">Select...</option>
+                  <option value="">Select…</option>
                   <option value="father">Father</option>
+                  <option value="most_reverend">Most Reverend (Bishop)</option>
                   <option value="deacon">Deacon</option>
-                  <option value="mr">Mr.</option>
-                  <option value="most_reverend">Most Reverend</option>
                   <option value="seminarian">Seminarian</option>
+                  <option value="sister">Sister</option>
+                  <option value="brother">Brother</option>
+                  <option value="mr">Mr.</option>
                 </select>
               </div>
+
+              {(['firstName', 'lastName'] as const).map((field) => (
+                <div key={field}>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    {field === 'firstName' ? 'First Name' : 'Last Name'}{' '}
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={basicData[field]}
+                    onChange={(e) => setBasicData((p) => ({ ...p, [field]: e.target.value }))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
+                  />
+                </div>
+              ))}
+
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  First Name <span className="text-red-500">*</span>
-                </label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Preferred Name</label>
                 <input
                   type="text"
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Last Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="lastName"
-                  value={formData.lastName}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Preferred Name
-                </label>
-                <input
-                  type="text"
-                  name="preferredName"
-                  value={formData.preferredName}
-                  onChange={handleInputChange}
+                  value={basicData.preferredName}
+                  onChange={(e) => setBasicData((p) => ({ ...p, preferredName: e.target.value }))}
                   placeholder="e.g., Father John"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
                 />
               </div>
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Date of Birth <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
-                  name="dateOfBirth"
-                  value={formData.dateOfBirth}
-                  onChange={handleInputChange}
                   required
+                  value={basicData.dateOfBirth}
+                  onChange={(e) => setBasicData((p) => ({ ...p, dateOfBirth: e.target.value }))}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
                 />
               </div>
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Age <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
-                  name="age"
-                  value={formData.age}
-                  onChange={handleInputChange}
                   required
                   min="18"
+                  value={basicData.age}
+                  onChange={(e) => setBasicData((p) => ({ ...p, age: e.target.value }))}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
                 />
               </div>
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Email <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
                   required
+                  value={basicData.email}
+                  onChange={(e) => setBasicData((p) => ({ ...p, email: e.target.value }))}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
                 />
               </div>
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Phone <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
                   required
                   placeholder="(XXX) XXX-XXXX"
+                  value={basicData.phone}
+                  onChange={(e) => setBasicData((p) => ({ ...p, phone: e.target.value }))}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
                 />
               </div>
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   T-Shirt Size <span className="text-red-500">*</span>
                 </label>
                 <select
-                  name="tShirtSize"
-                  value={formData.tShirtSize}
-                  onChange={handleInputChange}
                   required
+                  value={basicData.tShirtSize}
+                  onChange={(e) => setBasicData((p) => ({ ...p, tShirtSize: e.target.value }))}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
                 >
-                  <option value="">Select...</option>
+                  <option value="">Select…</option>
                   <option value="S">Small</option>
                   <option value="M">Medium</option>
                   <option value="L">Large</option>
@@ -364,441 +458,181 @@ export default function ClergyForm() {
             </div>
           </div>
 
-          {/* SECTION 2: Clergy Information */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-bold text-navy mb-4 pb-2 border-b-2 border-gold">
-              2. Clergy Information
-            </h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Diocese of Incardination <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="dioceseOfIncardination"
-                  value={formData.dioceseOfIncardination}
-                  onChange={handleInputChange}
-                  required
-                  placeholder="e.g., Diocese of Oklahoma City"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Current Assignment
-                </label>
-                <input
-                  type="text"
-                  name="currentAssignment"
-                  value={formData.currentAssignment}
-                  onChange={handleInputChange}
-                  placeholder="e.g., Pastor, St. Mary's Parish"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Faculty Information
-                </label>
-                <textarea
-                  name="facultyInformation"
-                  value={formData.facultyInformation}
-                  onChange={handleInputChange}
-                  rows={3}
-                  placeholder="Do you have faculties to hear confessions in this state/diocese? Example: 'Yes, faculties granted by Diocese of Oklahoma City'"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                />
-              </div>
-              <div className="pt-4 border-t border-gray-200">
-                <label className="flex items-start cursor-pointer">
+          {/* ── Dynamic sections (2 onward) driven by per-event config ────────── */}
+          {basicData.clergyTitle && eventId ? (
+            <DynamicLiabilityForm
+              eventId={eventId}
+              participantType={participantType}
+              sectionOffset={2}
+              values={dynValues}
+              onChange={dynonChange}
+              certFile={certFile}
+              onCertFileChange={setCertFile}
+              logsFile={logsFile}
+              onLogsFileChange={setLogsFile}
+              onConfigLoaded={handleConfigLoaded}
+            />
+          ) : basicData.clergyTitle && !eventId ? (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
+              Loading form configuration…
+            </div>
+          ) : null}
+
+          {/* ── Consent & Signature (always last) ─────────────────────────────── */}
+          {basicData.clergyTitle && (
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-bold text-navy mb-4 pb-2 border-b-2 border-gold">
+                E-Signature &amp; Consent
+              </h2>
+
+              <div className="space-y-4 mb-6">
+                {consent.showMedicalRelease && (
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      required
+                      checked={consentData.consentMedical}
+                      onChange={(e) => consentChange('consentMedical', e.target.checked)}
+                      className="mt-1 h-5 w-5"
+                    />
+                    <div>
+                      <span className="font-semibold">Medical Treatment Consent</span>
+                      <p className="text-sm text-gray-600">
+                        I authorize event staff to obtain necessary medical treatment in case of emergency.
+                      </p>
+                    </div>
+                  </label>
+                )}
+
+                <label className="flex items-start gap-3 cursor-pointer">
                   <input
                     type="checkbox"
-                    name="needsHousing"
-                    checked={formData.needsHousing}
-                    onChange={handleInputChange}
-                    className="mr-3 mt-1 h-5 w-5 rounded border-gray-300 text-navy focus:ring-navy"
+                    required
+                    checked={consentData.consentActivity}
+                    onChange={(e) => consentChange('consentActivity', e.target.checked)}
+                    className="mt-1 h-5 w-5"
                   />
                   <div>
-                    <span className="font-semibold text-gray-700">Do you need housing?</span>
+                    <span className="font-semibold">Activity Participation &amp; Liability Waiver</span>
                     <p className="text-sm text-gray-600">
-                      Check this box if you require housing accommodations for this event
+                      I understand the risks and release the organization from liability.
                     </p>
                   </div>
                 </label>
-              </div>
-            </div>
-          </div>
 
-          {/* SECTION 3: Medical Information */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-bold text-navy mb-4 pb-2 border-b-2 border-gold">
-              3. Medical Information
-            </h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Medical Conditions
-                </label>
-                <textarea
-                  name="medicalConditions"
-                  value={formData.medicalConditions}
-                  onChange={handleInputChange}
-                  rows={3}
-                  placeholder="List any medical conditions we should be aware of"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                />
+                {consent.showPhotoConsent && (
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      required
+                      checked={consentData.consentPhoto}
+                      onChange={(e) => consentChange('consentPhoto', e.target.checked)}
+                      className="mt-1 h-5 w-5"
+                    />
+                    <div>
+                      <span className="font-semibold">Photo &amp; Media Release</span>
+                      <p className="text-sm text-gray-600">
+                        I consent to use of photos/videos for promotional purposes.
+                      </p>
+                    </div>
+                  </label>
+                )}
+
+                {consent.showTransportationConsent && (
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      required
+                      checked={consentData.consentTransportation}
+                      onChange={(e) => consentChange('consentTransportation', e.target.checked)}
+                      className="mt-1 h-5 w-5"
+                    />
+                    <div>
+                      <span className="font-semibold">Transportation Authorization</span>
+                      <p className="text-sm text-gray-600">
+                        I authorize transportation to/from event activities.
+                      </p>
+                    </div>
+                  </label>
+                )}
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Current Medications
-                </label>
-                <textarea
-                  name="medications"
-                  value={formData.medications}
-                  onChange={handleInputChange}
-                  rows={3}
-                  placeholder="List all medications currently being taken"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  <span className="inline-flex items-center">
-                    Allergies
-                    <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs font-bold rounded">IMPORTANT</span>
+
+              <div className="border-t pt-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Full Legal Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Type your full legal name"
+                      value={consentData.signatureFullName}
+                      onChange={(e) => consentChange('signatureFullName', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Initials <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      maxLength={3}
+                      placeholder="e.g., JD"
+                      value={consentData.signatureInitials}
+                      onChange={(e) =>
+                        consentChange('signatureInitials', e.target.value.toUpperCase())
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Date <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={consentData.signatureDate}
+                      onChange={(e) => consentChange('signatureDate', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                <label className="flex items-start gap-3 mb-6 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    required
+                    checked={consentData.certifyAccurate}
+                    onChange={(e) => consentChange('certifyAccurate', e.target.checked)}
+                    className="mt-1 h-5 w-5"
+                  />
+                  <span className="font-semibold">
+                    I certify that all information provided is accurate and complete
                   </span>
                 </label>
-                <textarea
-                  name="allergies"
-                  value={formData.allergies}
-                  onChange={handleInputChange}
-                  rows={3}
-                  placeholder="List any allergies (food, medication, environmental, etc.)"
-                  className="w-full px-4 py-2 border-2 border-red-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Dietary Restrictions
-                </label>
-                <textarea
-                  name="dietaryRestrictions"
-                  value={formData.dietaryRestrictions}
-                  onChange={handleInputChange}
-                  rows={2}
-                  placeholder="Any dietary restrictions or preferences"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  ADA Accommodations Needed
-                </label>
-                <textarea
-                  name="adaAccommodations"
-                  value={formData.adaAccommodations}
-                  onChange={handleInputChange}
-                  rows={2}
-                  placeholder="Any accessibility accommodations needed"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                />
+
+                <p className="text-sm text-gray-600 mb-6">
+                  By signing, you agree to our{' '}
+                  <Link href="/privacy" target="_blank" className="text-gold hover:underline font-medium">
+                    Privacy Policy
+                  </Link>{' '}
+                  and consent to collection and use of the information provided.
+                </p>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-navy text-white py-4 rounded-lg font-bold text-lg hover:bg-navy/90 transition-colors disabled:bg-gray-400"
+                >
+                  {loading ? 'Submitting…' : 'Sign and Submit Form'}
+                </button>
               </div>
             </div>
-          </div>
-
-          {/* SECTION 4: Emergency Contacts */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-bold text-navy mb-4 pb-2 border-b-2 border-gold">
-              4. Emergency Contacts
-            </h2>
-            <div className="space-y-6">
-              <div>
-                <h3 className="font-semibold text-navy mb-3">Primary Emergency Contact</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="emergencyContact1Name"
-                      value={formData.emergencyContact1Name}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Phone <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      name="emergencyContact1Phone"
-                      value={formData.emergencyContact1Phone}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Relationship <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="emergencyContact1Relation"
-                      value={formData.emergencyContact1Relation}
-                      onChange={handleInputChange}
-                      required
-                      placeholder="e.g., Family, Colleague"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="font-semibold text-navy mb-3">Secondary Emergency Contact (Optional)</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Name</label>
-                    <input
-                      type="text"
-                      name="emergencyContact2Name"
-                      value={formData.emergencyContact2Name}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Phone</label>
-                    <input
-                      type="tel"
-                      name="emergencyContact2Phone"
-                      value={formData.emergencyContact2Phone}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Relationship</label>
-                    <input
-                      type="text"
-                      name="emergencyContact2Relation"
-                      value={formData.emergencyContact2Relation}
-                      onChange={handleInputChange}
-                      placeholder="e.g., Diocese Office"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* SECTION 5: Insurance Information */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-bold text-navy mb-4 pb-2 border-b-2 border-gold">
-              5. Insurance Information
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Insurance Provider <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="insuranceProvider"
-                  value={formData.insuranceProvider}
-                  onChange={handleInputChange}
-                  required
-                  placeholder="e.g., Blue Cross Blue Shield"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Policy Number <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="insurancePolicyNumber"
-                  value={formData.insurancePolicyNumber}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Group Number
-                </label>
-                <input
-                  type="text"
-                  name="insuranceGroupNumber"
-                  value={formData.insuranceGroupNumber}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* SECTION 6: E-Signature & Consent */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-bold text-navy mb-4 pb-2 border-b-2 border-gold">
-              6. E-Signature & Consent
-            </h2>
-
-            <div className="space-y-4 mb-6">
-              <label className="flex items-start">
-                <input
-                  type="checkbox"
-                  name="consentMedical"
-                  checked={formData.consentMedical}
-                  onChange={handleInputChange}
-                  required
-                  className="mr-3 mt-1"
-                />
-                <div>
-                  <span className="font-semibold">Medical Treatment Consent</span>
-                  <p className="text-sm text-gray-600">
-                    I authorize event staff to obtain necessary medical treatment in case of emergency
-                  </p>
-                </div>
-              </label>
-
-              <label className="flex items-start">
-                <input
-                  type="checkbox"
-                  name="consentActivity"
-                  checked={formData.consentActivity}
-                  onChange={handleInputChange}
-                  required
-                  className="mr-3 mt-1"
-                />
-                <div>
-                  <span className="font-semibold">Activity Participation & Liability Waiver</span>
-                  <p className="text-sm text-gray-600">
-                    I understand the risks and release the organization from liability
-                  </p>
-                </div>
-              </label>
-
-              <label className="flex items-start">
-                <input
-                  type="checkbox"
-                  name="consentPhoto"
-                  checked={formData.consentPhoto}
-                  onChange={handleInputChange}
-                  required
-                  className="mr-3 mt-1"
-                />
-                <div>
-                  <span className="font-semibold">Photo & Media Release</span>
-                  <p className="text-sm text-gray-600">
-                    I consent to use of photos/videos for promotional purposes
-                  </p>
-                </div>
-              </label>
-
-              <label className="flex items-start">
-                <input
-                  type="checkbox"
-                  name="consentTransportation"
-                  checked={formData.consentTransportation}
-                  onChange={handleInputChange}
-                  required
-                  className="mr-3 mt-1"
-                />
-                <div>
-                  <span className="font-semibold">Transportation Authorization</span>
-                  <p className="text-sm text-gray-600">
-                    I authorize transportation to/from event activities
-                  </p>
-                </div>
-              </label>
-            </div>
-
-            <div className="border-t pt-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Full Legal Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="signatureFullName"
-                    value={formData.signatureFullName}
-                    onChange={handleInputChange}
-                    required
-                    placeholder="Type your full legal name"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Initials <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="signatureInitials"
-                    value={formData.signatureInitials}
-                    onChange={handleInputChange}
-                    required
-                    maxLength={3}
-                    placeholder="e.g., JD"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Date <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    name="signatureDate"
-                    value={formData.signatureDate}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              <label className="flex items-start mb-6">
-                <input
-                  type="checkbox"
-                  name="certifyAccurate"
-                  checked={formData.certifyAccurate}
-                  onChange={handleInputChange}
-                  required
-                  className="mr-3 mt-1"
-                />
-                <span className="font-semibold">
-                  I certify that all information provided is accurate and complete
-                </span>
-              </label>
-
-              <p className="text-sm text-gray-600 mb-6">
-                By signing, you agree to our{' '}
-                <Link href="/privacy" target="_blank" className="text-gold hover:underline font-medium">
-                  Privacy Policy
-                </Link>{' '}
-                and consent to the collection and use of the information provided as described therein.
-              </p>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-navy text-white py-4 rounded-lg font-bold text-lg hover:bg-navy/90 transition-colors disabled:bg-gray-400"
-              >
-                {loading ? 'Submitting...' : 'Sign and Submit Form'}
-              </button>
-            </div>
-          </div>
+          )}
         </form>
       </div>
     </div>

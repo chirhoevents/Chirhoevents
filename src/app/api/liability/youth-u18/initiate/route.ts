@@ -157,7 +157,8 @@ export async function POST(request: NextRequest) {
     const parentLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/poros/parent/${parentToken}`
 
     await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+      from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+      reply_to: 'support@chirhoevents.com',
       to: parent_email,
       subject: `Complete Liability Form for ${first_name} ${last_name} - ${eventName}`,
       html: `

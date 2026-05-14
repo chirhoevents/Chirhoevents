@@ -84,6 +84,9 @@ export async function POST(request: NextRequest) {
             stripeAccountId: true,
             stripeChargesEnabled: true,
             platformFeePercentage: true,
+            contactEmail: true,
+            contactPhone: true,
+            website: true,
           },
         },
         settings: true,
@@ -94,6 +97,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Event not found or pricing not configured' },
         { status: 404 }
+      )
+    }
+
+    // Fix #1 (individual): Guard — org must have Stripe onboarding complete before accepting card payments
+    if (!event.organization.stripeAccountId || !event.organization.stripeChargesEnabled) {
+      return NextResponse.json(
+        { error: 'This organization has not completed payment setup. Registration cannot be processed at this time. Please contact the event organizer.' },
+        { status: 400 }
       )
     }
 
@@ -160,8 +171,22 @@ export async function POST(request: NextRequest) {
         : Number(event.pricing.individualBasePrice)
     } else if (housingType === 'off_campus' && event.pricing.individualOffCampusPrice) {
       totalAmount = Number(event.pricing.individualOffCampusPrice)
-    } else if (housingType === 'day_pass' && event.pricing.individualDayPassPrice) {
-      totalAmount = Number(event.pricing.individualDayPassPrice)
+    } else if (housingType === 'day_pass') {
+      // FIX 4.8: Use DayPassOption.price when a specific option is selected;
+      // fall back to the legacy flat event.pricing.individualDayPassPrice
+      if (body.dayPassOptionId) {
+        const dayPassOpt = await prisma.dayPassOption.findUnique({
+          where: { id: body.dayPassOptionId },
+          select: { price: true },
+        })
+        if (dayPassOpt) {
+          totalAmount = Number(dayPassOpt.price)
+        } else if (event.pricing.individualDayPassPrice) {
+          totalAmount = Number(event.pricing.individualDayPassPrice)
+        }
+      } else if (event.pricing.individualDayPassPrice) {
+        totalAmount = Number(event.pricing.individualDayPassPrice)
+      }
     } else {
       // Fallback to early bird price if applicable, then individual base price or youth price
       totalAmount = isEarlyBird
@@ -235,12 +260,7 @@ export async function POST(request: NextRequest) {
             code: coupon.code,
             discountAmount,
           }
-
-          // Increment coupon usage count
-          await prisma.coupon.update({
-            where: { id: coupon.id },
-            data: { usageCount: { increment: 1 } },
-          })
+          // NOTE: usageCount is incremented after confirmed payment (webhook for card, here for check)
         }
       }
     }
@@ -328,6 +348,20 @@ export async function POST(request: NextRequest) {
       where: { id: registration.id },
       data: { qrCode: qrCodeDataUrl },
     })
+
+    // Save custom question answers
+    const customAnswers: Array<{ questionId: string; answerText: string }> = body.customAnswers ?? []
+    if (customAnswers.length > 0) {
+      await prisma.customRegistrationAnswer.createMany({
+        data: customAnswers.map(({ questionId, answerText }) => ({
+          questionId,
+          registrationId: registration.id,
+          registrationType: 'individual' as const,
+          answerText,
+        })),
+        skipDuplicates: true,
+      })
+    }
 
     // Create liability form if required for individuals
     const liabilityFormsRequired = event.settings?.liabilityFormsRequiredIndividual ?? false
@@ -524,7 +558,17 @@ export async function POST(request: NextRequest) {
                 </div>
               ` : ''}
 
-              <p>Questions? Reply to this email or contact the event organizer.</p>
+              <!-- FIX 3.14: Org contact info block -->
+              <div style="background-color: #E8F4FD; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #1E3A5F;">
+                <h3 style="color: #1E3A5F; margin-top: 0;">Need to Make Changes?</h3>
+                <p style="color: #333; margin-bottom: 8px;">
+                  Individual registrations are managed by <strong>${event.organization.name}</strong>.
+                  Please contact the organizer directly:
+                </p>
+                ${event.organization.contactEmail ? `<p style="margin: 4px 0;">📧 <a href="mailto:${event.organization.contactEmail}" style="color: #1E3A5F;">${event.organization.contactEmail}</a></p>` : ''}
+                ${event.organization.contactPhone ? `<p style="margin: 4px 0;">📞 <a href="tel:${event.organization.contactPhone}" style="color: #1E3A5F;">${event.organization.contactPhone}</a></p>` : ''}
+                ${event.organization.website ? `<p style="margin: 4px 0;">🌐 <a href="${event.organization.website}" style="color: #1E3A5F;">${event.organization.website}</a></p>` : ''}
+              </div>
 
               <p style="color: #666; font-size: 12px; margin-top: 30px;">
                 © 2025 ChiRho Events. All rights reserved.
@@ -536,7 +580,8 @@ export async function POST(request: NextRequest) {
       // Send confirmation email for check payment
       try {
         await resend.emails.send({
-          from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+          from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+          reply_to: 'support@chirhoevents.com',
           to: email,
           subject: emailSubject,
           html: emailHtml,
@@ -575,6 +620,14 @@ export async function POST(request: NextRequest) {
           },
           emailError instanceof Error ? emailError.message : 'Unknown error'
         )
+      }
+
+      // For check payments, increment coupon usage now (no Stripe webhook will fire)
+      if (appliedCoupon) {
+        await prisma.coupon.update({
+          where: { id: appliedCoupon.id },
+          data: { usageCount: { increment: 1 } },
+        })
       }
 
       // Return without Stripe checkout URL
@@ -620,23 +673,19 @@ export async function POST(request: NextRequest) {
           registrationType: 'individual',
           participantName: `${firstName} ${lastName}`,
           platformFeeAmount: platformFeeAmount.toString(),
+          couponId: appliedCoupon?.id || '',
         },
         customer_email: email,
       }
 
-      // If organization has Stripe Connect enabled, use destination charges with platform fee
-      // Platform fee goes to ChiRho Events, rest transfers to connected org account
-      if (event.organization.stripeAccountId) {
-        checkoutConfig.payment_intent_data = {
-          application_fee_amount: platformFeeAmount,
-          transfer_data: {
-            destination: event.organization.stripeAccountId,
-          },
-        }
-        console.log(`[Stripe Connect] Applying platform fee: $${(platformFeeAmount / 100).toFixed(2)} to org ${event.organization.id}`)
-      } else {
-        console.log(`[Stripe Connect] No connected account for org ${event.organization.id} - processing without platform fee`)
+      // Fix #1 (individual): Always use destination charges — guard above ensures stripeAccountId is present
+      checkoutConfig.payment_intent_data = {
+        application_fee_amount: platformFeeAmount,
+        transfer_data: {
+          destination: event.organization.stripeAccountId,
+        },
       }
+      console.log(`[Stripe Connect] Applying platform fee: $${(platformFeeAmount / 100).toFixed(2)} to org ${event.organization.id}`)
 
       const checkoutSession = await stripe.checkout.sessions.create(checkoutConfig)
 
@@ -651,7 +700,7 @@ export async function POST(request: NextRequest) {
           paymentType: 'balance',
           paymentMethod: 'card',
           paymentStatus: 'pending',
-          stripePaymentIntentId: checkoutSession.id,
+          stripePaymentIntentId: checkoutSession.payment_intent as string,
           platformFeeAmount: platformFeeAmount / 100, // Store in dollars
         },
       })

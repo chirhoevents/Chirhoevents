@@ -15,12 +15,16 @@ import {
   Settings,
   ArrowLeft,
   Loader2,
-  User
+  User,
+  ScrollText,
+  Sliders
 } from 'lucide-react'
 import { LiabilityFormsTab } from '@/components/admin/poros-liability/LiabilityFormsTab'
 import { IndividualFormsTab } from '@/components/admin/poros-liability/IndividualFormsTab'
 import { SafeEnvironmentTab } from '@/components/admin/poros-liability/SafeEnvironmentTab'
 import { TemplatesTab } from '@/components/admin/poros-liability/TemplatesTab'
+import { SectionConfigTab } from '@/components/admin/poros-liability/SectionConfigTab'
+import { LettersTab } from '@/components/admin/poros-liability/LettersTab'
 
 interface PorosLiabilityClientProps {
   eventId: string
@@ -36,6 +40,14 @@ interface Stats {
   totalCertificates: number
   verifiedCertificates: number
   pendingCertificates: number
+  letterOfGoodStandingStats?: {
+    total: number
+    pending: number
+    submittedExternally: number
+    uploaded: number
+    verified: number
+    rejected: number
+  }
 }
 
 export default function PorosLiabilityClient({
@@ -68,7 +80,7 @@ export default function PorosLiabilityClient({
     }
   }
 
-  async function handleExport(type: 'all' | 'medical' | 'certificates') {
+  async function handleExport(type: 'all' | 'medical' | 'certificates' | 'letters') {
     window.open(`/api/admin/events/${eventId}/poros-liability/export?type=${type}`, '_blank')
   }
 
@@ -130,9 +142,15 @@ export default function PorosLiabilityClient({
                 </button>
                 <button
                   onClick={() => handleExport('certificates')}
-                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 last:rounded-b-lg"
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50"
                 >
                   Export Certificates
+                </button>
+                <button
+                  onClick={() => handleExport('letters')}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 last:rounded-b-lg"
+                >
+                  Export Letters of Good Standing
                 </button>
               </div>
             </div>
@@ -189,6 +207,23 @@ export default function PorosLiabilityClient({
             </div>
           </div>
         </Card>
+
+        <Card className="p-6 bg-white border-[#D1D5DB]">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
+              <ScrollText className="w-6 h-6 text-indigo-600" />
+            </div>
+            <div>
+              <div className="text-sm text-gray-600">Letters of Good Standing</div>
+              <div className="text-2xl font-bold text-indigo-600">
+                {stats?.letterOfGoodStandingStats?.verified || 0}
+                <span className="text-sm font-normal text-gray-500 ml-1">
+                  / {stats?.letterOfGoodStandingStats?.total || 0}
+                </span>
+              </div>
+            </div>
+          </div>
+        </Card>
       </div>
 
       {/* Main Tabs */}
@@ -210,6 +245,14 @@ export default function PorosLiabilityClient({
             <Settings className="w-4 h-4" />
             Waiver Templates
           </TabsTrigger>
+          <TabsTrigger value="section-config" className="flex items-center gap-2">
+            <Sliders className="w-4 h-4" />
+            Section Config
+          </TabsTrigger>
+          <TabsTrigger value="letters" className="flex items-center gap-2">
+            <ScrollText className="w-4 h-4" />
+            Letters of Good Standing
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="forms">
@@ -226,6 +269,14 @@ export default function PorosLiabilityClient({
 
         <TabsContent value="templates">
           <TemplatesTab eventId={eventId} organizationId={organizationId} />
+        </TabsContent>
+
+        <TabsContent value="section-config">
+          <SectionConfigTab eventId={eventId} />
+        </TabsContent>
+
+        <TabsContent value="letters">
+          <LettersTab eventId={eventId} />
         </TabsContent>
       </Tabs>
     </div>

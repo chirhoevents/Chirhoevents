@@ -9,6 +9,10 @@ import { Loader2, AlertCircle } from 'lucide-react'
 import { useRegistrationQueue } from '@/hooks/useRegistrationQueue'
 import LoadingScreen from '@/components/LoadingScreen'
 import RegistrationTimer from '@/components/RegistrationTimer'
+import CustomQuestionRenderer, {
+  type CustomQuestion,
+  type CustomAnswersMap,
+} from '@/components/registration/CustomQuestionRenderer'
 
 interface EventPricing {
   youthRegularPrice: number
@@ -125,6 +129,9 @@ export default function IndividualRegistrationPage() {
     couponCode: '',
   })
 
+  const [customQuestions, setCustomQuestions] = useState<CustomQuestion[]>([])
+  const [customAnswers, setCustomAnswers] = useState<CustomAnswersMap>({})
+
   // Load event data
   useEffect(() => {
     async function loadEvent() {
@@ -140,6 +147,21 @@ export default function IndividualRegistrationPage() {
       }
     }
     loadEvent()
+  }, [eventId])
+
+  // Load custom questions for individual registration
+  useEffect(() => {
+    async function loadQuestions() {
+      try {
+        const res = await fetch(`/api/events/${eventId}/registration-questions?type=individual`)
+        if (!res.ok) return
+        const data = await res.json()
+        setCustomQuestions(data.questions ?? [])
+      } catch {
+        // Non-fatal: custom questions are supplemental
+      }
+    }
+    loadQuestions()
   }, [eventId])
 
   // Calculate pricing based on ticket type and housing
@@ -267,6 +289,12 @@ export default function IndividualRegistrationPage() {
       emergencyContact2Relation: formData.emergencyContact2Relation,
       couponCode: formData.couponCode,
     })
+
+    // Persist custom answers in sessionStorage so the review page can include them
+    sessionStorage.setItem(
+      `chirho_custom_answers_${eventId}`,
+      JSON.stringify(customAnswers)
+    )
 
     router.push(`/events/${eventId}/register-individual/review?${params.toString()}`)
   }
@@ -999,6 +1027,28 @@ export default function IndividualRegistrationPage() {
                           </div>
                         )}
                       </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Additional Questions (catalog / custom) */}
+                {customQuestions.length > 0 && (
+                  <Card className="mb-6">
+                    <CardHeader>
+                      <CardTitle>Additional Questions</CardTitle>
+                      <CardDescription>Please answer the following questions from the event organizer.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-5">
+                      {customQuestions.map((q) => (
+                        <CustomQuestionRenderer
+                          key={q.id}
+                          question={q}
+                          answers={customAnswers}
+                          onChange={(id, val) =>
+                            setCustomAnswers((prev) => ({ ...prev, [id]: val }))
+                          }
+                        />
+                      ))}
                     </CardContent>
                   </Card>
                 )}

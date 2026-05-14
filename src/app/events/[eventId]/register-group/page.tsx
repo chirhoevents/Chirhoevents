@@ -10,12 +10,25 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useRegistrationQueue } from '@/hooks/useRegistrationQueue'
 import RegistrationTimer from '@/components/RegistrationTimer'
 import LoadingScreen from '@/components/LoadingScreen'
+import CustomQuestionRenderer, {
+  type CustomQuestion,
+  type CustomAnswersMap,
+} from '@/components/registration/CustomQuestionRenderer'
 
 interface EventPricing {
+  youthEarlyBirdPrice?: number | null
   youthRegularPrice: number
+  youthLatePrice?: number | null
+  chaperoneEarlyBirdPrice?: number | null
   chaperoneRegularPrice: number
+  chaperoneLatePrice?: number | null
   priestPrice: number
-  depositAmount: number
+  earlyBirdDeadline?: string | null
+  regularDeadline?: string | null
+  depositAmount: number | null
+  depositPercentage: number | null
+  depositPerPerson: boolean
+  requireFullPayment: boolean
   onCampusYouthPrice?: number
   offCampusYouthPrice?: number
   dayPassYouthPrice?: number
@@ -88,6 +101,8 @@ export default function GroupRegistrationPage() {
   const [event, setEvent] = useState<EventData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
+  const [customQuestions, setCustomQuestions] = useState<CustomQuestion[]>([])
+  const [customAnswers, setCustomAnswers] = useState<CustomAnswersMap>({})
 
   // Coupon verification state
   const [verifyingCoupon, setVerifyingCoupon] = useState(false)
@@ -153,6 +168,21 @@ export default function GroupRegistrationPage() {
     loadEvent()
   }, [eventId])
 
+  // Load custom questions for group registration (group/both/all only)
+  useEffect(() => {
+    async function loadQuestions() {
+      try {
+        const res = await fetch(`/api/events/${eventId}/registration-questions?type=group`)
+        if (!res.ok) return
+        const data = await res.json()
+        setCustomQuestions(data.questions ?? [])
+      } catch {
+        // Non-fatal: custom questions are supplemental
+      }
+    }
+    loadQuestions()
+  }, [eventId])
+
   // Auto-switch housing type if the selected one is sold out
   useEffect(() => {
     if (!event?.settings || formData.ticketType !== 'general_admission') return
@@ -186,8 +216,23 @@ export default function GroupRegistrationPage() {
     const { pricing } = event
     const breakdown: { label: string; count: number; price: number; subtotal: number }[] = []
 
-    let youthPrice = pricing.youthRegularPrice
-    let chaperonePrice = pricing.chaperoneRegularPrice
+    // Determine pricing tier based on current date vs deadlines
+    const now = new Date()
+    const earlyBirdDeadline = pricing.earlyBirdDeadline ? new Date(pricing.earlyBirdDeadline) : null
+    const regularDeadline = pricing.regularDeadline ? new Date(pricing.regularDeadline) : null
+    const isEarlyBird = earlyBirdDeadline !== null && now <= earlyBirdDeadline
+    const isLate = regularDeadline !== null && now > regularDeadline
+
+    let youthPrice = isEarlyBird && pricing.youthEarlyBirdPrice
+      ? pricing.youthEarlyBirdPrice
+      : isLate && pricing.youthLatePrice
+      ? pricing.youthLatePrice
+      : pricing.youthRegularPrice
+    let chaperonePrice = isEarlyBird && pricing.chaperoneEarlyBirdPrice
+      ? pricing.chaperoneEarlyBirdPrice
+      : isLate && pricing.chaperoneLatePrice
+      ? pricing.chaperoneLatePrice
+      : pricing.chaperoneRegularPrice
 
     // Day pass ticket type - use day pass option prices or legacy day pass prices
     if (formData.ticketType === 'day_pass') {
@@ -245,7 +290,20 @@ export default function GroupRegistrationPage() {
     }
 
     const total = breakdown.reduce((sum, item) => sum + item.subtotal, 0)
-    const deposit = total * (pricing.depositAmount / 100) // 25% deposit
+    const totalParticipants = formData.youthCount + formData.chaperoneCount + formData.priestCount
+
+    // Fix #12: Use actual deposit configuration from backend instead of hardcoded 25%
+    let deposit = 0
+    if (pricing.requireFullPayment) {
+      deposit = total
+    } else if (pricing.depositPercentage != null) {
+      deposit = (total * pricing.depositPercentage) / 100
+    } else if (pricing.depositAmount != null) {
+      deposit = pricing.depositPerPerson
+        ? pricing.depositAmount * totalParticipants
+        : pricing.depositAmount
+    }
+    deposit = Math.min(deposit, total)
     const balance = total - deposit
 
     return { total, deposit, balance, breakdown }
@@ -427,6 +485,12 @@ export default function GroupRegistrationPage() {
       specialRequests: formData.specialRequests,
       couponCode: formData.couponCode,
     })
+
+    // Persist custom answers so the review page can include them
+    sessionStorage.setItem(
+      `chirho_custom_answers_${eventId}`,
+      JSON.stringify(customAnswers)
+    )
 
     router.push(`/events/${eventId}/register-group/review?${params.toString()}`)
   }
@@ -1144,6 +1208,28 @@ export default function GroupRegistrationPage() {
                   </CardContent>
                 </Card>
 
+                {/* Additional Questions (catalog / custom) */}
+                {customQuestions.length > 0 && (
+                  <Card className="mb-6">
+                    <CardHeader>
+                      <CardTitle>Additional Questions</CardTitle>
+                      <CardDescription>Please answer the following questions from the event organizer.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-5">
+                      {customQuestions.map((q) => (
+                        <CustomQuestionRenderer
+                          key={q.id}
+                          question={q}
+                          answers={customAnswers}
+                          onChange={(id, val) =>
+                            setCustomAnswers((prev) => ({ ...prev, [id]: val }))
+                          }
+                        />
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Terms and Privacy Agreement */}
                 <Card className="mb-6">
                   <CardContent className="pt-6">
@@ -1240,8 +1326,14 @@ export default function GroupRegistrationPage() {
 
                   <div className="bg-beige p-4 rounded-md text-sm">
                     <p className="text-gray-600">
-                      ✓ Pay 25% deposit now<br />
-                      ✓ Balance due before event<br />
+                      {event?.pricing.requireFullPayment
+                        ? '✓ Full payment due now'
+                        : pricing.deposit > 0
+                          ? `✓ Pay $${pricing.deposit.toFixed(2)} deposit now`
+                          : '✓ No deposit required'}<br />
+                      {!event?.pricing.requireFullPayment && pricing.balance > 0 && (
+                        <>✓ Balance due before event<br /></>
+                      )}
                       ✓ Secure payment via Stripe
                     </p>
                   </div>

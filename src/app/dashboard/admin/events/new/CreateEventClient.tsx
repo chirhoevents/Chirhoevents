@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Check, ChevronLeft, ChevronRight, Loader2, Upload, Trash2, Image as ImageIcon } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
+import CatalogQuestionPicker, { type CatalogQuestionPickerHandle } from '@/components/admin/CatalogQuestionPicker'
 
 interface CreateEventClientProps {
   organizationId: string
@@ -16,6 +18,23 @@ interface CreateEventClientProps {
   initialData?: Partial<EventFormData>
   isEditMode?: boolean
   hasRegistrations?: boolean
+  /** When set, shows the POROS copy section in step 7 and copies data after creation */
+  sourceEventId?: string
+}
+
+interface PorosCopyOptions {
+  copyBuildings: boolean
+  copySmallGroups: boolean
+  copyMealGroups: boolean
+  copySeatingSections: boolean
+  copySchedule: boolean
+  copyMealTimes: boolean
+  copyConfessions: boolean
+  copyAdoration: boolean
+  copyInfoItems: boolean
+  copyResources: boolean
+  copyAnnouncements: boolean
+  copyNameTagTemplate: boolean
 }
 
 interface EventFormData {
@@ -218,6 +237,7 @@ export default function CreateEventClient({
   initialData,
   isEditMode = false,
   hasRegistrations = false,
+  sourceEventId,
 }: CreateEventClientProps) {
   const router = useRouter()
   const { getToken } = useAuth()
@@ -227,6 +247,23 @@ export default function CreateEventClient({
   const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null)
   const [uploadingBackground, setUploadingBackground] = useState(false)
   const backgroundInputRef = useRef<HTMLInputElement>(null)
+  const catalogPickerRef = useRef<CatalogQuestionPickerHandle>(null)
+
+  // POROS copy options — only relevant when sourceEventId is provided (duplicate flow)
+  const [porosCopyOptions, setPorosCopyOptions] = useState<PorosCopyOptions>({
+    copyBuildings: true,
+    copySmallGroups: true,
+    copyMealGroups: true,
+    copySeatingSections: true,
+    copySchedule: true,
+    copyMealTimes: true,
+    copyConfessions: true,
+    copyAdoration: true,
+    copyInfoItems: true,
+    copyResources: true,
+    copyAnnouncements: false,
+    copyNameTagTemplate: true,
+  })
 
   // Use initialData if provided (edit mode), otherwise use defaults
   const defaultFormData: EventFormData = {
@@ -420,7 +457,11 @@ export default function CreateEventClient({
     })
   }
 
-  const handleNext = () => {
+  const handleNext = async () => {
+    // Auto-save catalog questions before leaving step 3 so toggles aren't lost.
+    if (currentStep === 3 && catalogPickerRef.current?.isDirty) {
+      await catalogPickerRef.current.save()
+    }
     if (currentStep < 7) {
       setCurrentStep(currentStep + 1)
     }
@@ -537,6 +578,23 @@ export default function CreateEventClient({
     }
   }
 
+  // After event creation, copy POROS data from sourceEventId if provided
+  const copyPorosData = async (newEventId: string, token: string | null) => {
+    if (!sourceEventId) return
+    try {
+      await fetch(`/api/admin/events/${sourceEventId}/copy-poros`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ targetEventId: newEventId, ...porosCopyOptions }),
+      })
+    } catch (err) {
+      console.error('Failed to copy POROS data, but event was created:', err)
+    }
+  }
+
   const handleSaveDraft = async () => {
     console.log('[SaveDraft] Starting save...', { isEditMode, eventId, organizationId })
     console.log('[SaveDraft] Key fields being sent:', {
@@ -599,6 +657,9 @@ export default function CreateEventClient({
           console.error('Failed to upload background, but event was saved:', err)
         }
       }
+
+      // Copy POROS structural data from source event if duplicating
+      await copyPorosData(event.id, token)
 
       // Redirect to event detail page
       router.push(`/dashboard/admin/events/${event.id}`)
@@ -672,6 +733,9 @@ export default function CreateEventClient({
           console.error('Failed to upload background, but event was saved:', err)
         }
       }
+
+      // Copy POROS structural data from source event if duplicating
+      await copyPorosData(event.id, token)
 
       // Redirect to event detail page
       router.push(`/dashboard/admin/events/${event.id}`)
@@ -2227,6 +2291,26 @@ export default function CreateEventClient({
                   </div>
                 </div>
               </div>
+
+              {/* Registration Questions — only available after the event has been saved */}
+              {isEditMode && eventId && (formData.groupRegistrationEnabled || formData.individualRegistrationEnabled) && (
+                <CatalogQuestionPicker
+                  ref={catalogPickerRef}
+                  eventId={eventId}
+                  registrationMode={
+                    formData.groupRegistrationEnabled && formData.individualRegistrationEnabled
+                      ? 'both'
+                      : formData.groupRegistrationEnabled
+                        ? 'group'
+                        : 'individual'
+                  }
+                />
+              )}
+              {!isEditMode && (formData.groupRegistrationEnabled || formData.individualRegistrationEnabled) && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+                  Registration questions can be configured after the event is created.
+                </div>
+              )}
             </>
           )}
 
@@ -3939,6 +4023,51 @@ export default function CreateEventClient({
                   </p>
                 </div>
               </div>
+
+              {/* POROS copy options — only shown in duplicate flow */}
+              {sourceEventId && (
+                <div className="mt-6 border rounded-lg p-4 space-y-4 bg-blue-50 border-blue-200">
+                  <div>
+                    <h4 className="font-semibold text-[#1E3A5F]">Copy from source event</h4>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Select which POROS data to carry over from the original event.
+                      All dates will be shifted one year forward.
+                    </p>
+                  </div>
+
+                  {([
+                    { key: 'copyBuildings', label: 'Buildings & Rooms', hint: 'Full venue layout — occupancy reset to 0' },
+                    { key: 'copySmallGroups', label: 'Small Groups', hint: 'Names, numbers, capacities — SGL links cleared' },
+                    { key: 'copyMealGroups', label: 'Meal Groups & Colors', hint: 'Color-coded meal group structure' },
+                    { key: 'copySeatingSections', label: 'Seating Sections', hint: 'Auditorium/venue seating layout' },
+                    { key: 'copySchedule', label: 'Event Schedule', hint: 'Session titles and locations (dates +1 year)' },
+                    { key: 'copyMealTimes', label: 'Meal Times', hint: 'Breakfast, lunch, dinner slots (dates +1 year)' },
+                    { key: 'copyConfessions', label: 'Confession Schedule' },
+                    { key: 'copyAdoration', label: 'Adoration Schedule' },
+                    { key: 'copyInfoItems', label: 'Info Items', hint: 'Public portal info cards' },
+                    { key: 'copyResources', label: 'Resources', hint: 'Links, maps, PDFs' },
+                    { key: 'copyAnnouncements', label: 'Announcements', hint: 'Usually left unchecked for a new event' },
+                    { key: 'copyNameTagTemplate', label: 'Name Tag Template', hint: 'SALVE tag design settings' },
+                  ] as Array<{ key: keyof PorosCopyOptions; label: string; hint?: string }>).map(({ key, label, hint }) => (
+                    <div key={key} className="flex items-start gap-3">
+                      <Checkbox
+                        id={`poros-${key}`}
+                        checked={porosCopyOptions[key]}
+                        onCheckedChange={() =>
+                          setPorosCopyOptions((prev) => ({ ...prev, [key]: !prev[key] }))
+                        }
+                        className="mt-0.5"
+                      />
+                      <div>
+                        <Label htmlFor={`poros-${key}`} className="text-sm font-medium cursor-pointer">
+                          {label}
+                        </Label>
+                        {hint && <p className="text-xs text-gray-500">{hint}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </CardContent>

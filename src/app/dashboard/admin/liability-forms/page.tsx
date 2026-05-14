@@ -15,9 +15,11 @@ import {
   CheckCircle,
   Clock,
   XCircle,
-  Loader2
+  Loader2,
+  ScrollText
 } from 'lucide-react'
 import { format } from 'date-fns'
+import { parseDateOnly } from '@/lib/utils'
 
 interface Event {
   id: string
@@ -41,6 +43,11 @@ interface EventStats {
   totalCertificates: number
   verifiedCertificates: number
   pendingCertificates: number
+  letterOfGoodStandingStats?: {
+    total: number
+    verified: number
+    pending: number
+  }
 }
 
 export default function LiabilityFormsPage() {
@@ -135,8 +142,8 @@ export default function LiabilityFormsPage() {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Calendar className="w-4 h-4" />
             <span>
-              {format(new Date(event.startDate), 'MMM d, yyyy')}
-              {event.endDate && ` - ${format(new Date(event.endDate), 'MMM d, yyyy')}`}
+              {format(parseDateOnly(event.startDate), 'MMM d, yyyy')}
+              {event.endDate && ` - ${format(parseDateOnly(event.endDate), 'MMM d, yyyy')}`}
             </span>
           </div>
           {event.locationName && (
@@ -169,6 +176,14 @@ export default function LiabilityFormsPage() {
                 <Shield className="w-3.5 h-3.5 text-purple-600" />
                 <span>{stats.totalCertificates} certs</span>
               </div>
+              {stats.letterOfGoodStandingStats && stats.letterOfGoodStandingStats.total > 0 && (
+                <div className="flex items-center gap-1.5 text-xs col-span-2">
+                  <ScrollText className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>
+                    {stats.letterOfGoodStandingStats.verified}/{stats.letterOfGoodStandingStats.total} letters verified
+                  </span>
+                </div>
+              )}
             </div>
           )}
 

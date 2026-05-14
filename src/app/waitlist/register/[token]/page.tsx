@@ -18,6 +18,7 @@ import {
   PartyPopper,
 } from 'lucide-react'
 import { format } from 'date-fns'
+import { parseDateOnly } from '@/lib/utils'
 import LoadingScreen from '@/components/LoadingScreen'
 
 interface WaitlistData {
@@ -199,8 +200,8 @@ export default function WaitlistRegisterPage() {
               <div className="flex items-center gap-2 text-[#6B7280]">
                 <Calendar className="h-4 w-4" />
                 <span className="text-sm">
-                  {event?.startDate && format(new Date(event.startDate), 'MMM d')} -{' '}
-                  {event?.endDate && format(new Date(event.endDate), 'MMM d, yyyy')}
+                  {event?.startDate && format(parseDateOnly(event.startDate), 'MMM d')} -{' '}
+                  {event?.endDate && format(parseDateOnly(event.endDate), 'MMM d, yyyy')}
                 </span>
               </div>
               {event?.locationName && (

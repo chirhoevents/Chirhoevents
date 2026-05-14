@@ -21,9 +21,11 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
 export function wrapEmail(content: string, options?: {
   preheader?: string
   organizationName?: string
+  supportEmail?: string
 }): string {
   const orgName = options?.organizationName || 'ChiRho Events'
   const preheader = options?.preheader || ''
+  const supportEmail = options?.supportEmail || 'support@chirhoevents.com'
 
   return `
 <!DOCTYPE html>
@@ -101,7 +103,7 @@ export function wrapEmail(content: string, options?: {
                       <strong>${orgName}</strong>
                     </p>
                     <p style="margin: 0 0 8px 0;">
-                      Questions? Email <a href="mailto:support@chirhoevents.com" style="color: #9C8466;">support@chirhoevents.com</a>
+                      Questions? Email <a href="mailto:${supportEmail}" style="color: #9C8466;">${supportEmail}</a>
                     </p>
                     <p style="margin: 0; color: #999999; font-size: 12px;">
                       © ${new Date().getFullYear()} ChiRho Events. All rights reserved.
@@ -1577,8 +1579,400 @@ export function getMasterAdminTemplatesByCategory(category: MasterAdminEmailTemp
   return masterAdminEmailTemplates.filter(t => t.category === category)
 }
 
+// ============================================================
+// STAR-LINK HELPERS
+// All links in ChiRho emails use the star-style inline pattern.
+// ============================================================
+
+/**
+ * Single link — primary renders as a blue button, secondary as a plain link
+ */
+export function starLink(label: string, url: string, primary = false): string {
+  if (primary) {
+    return `
+      <p style="text-align: center; margin: 24px 0;">
+        <a href="${url}" target="_blank" style="display: inline-block; background-color: #2563EB; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 16px; padding: 12px 28px; border-radius: 6px;">${label}</a>
+      </p>
+    `
+  }
+  return `
+    <a href="${url}" target="_blank" style="color: #2563EB; text-decoration: underline; font-weight: 500;">${label}</a>
+  `
+}
+
+/**
+ * List of links rendered as plain styled links (no stars)
+ */
+export function starLinkList(links: { label: string; url: string }[]): string {
+  if (!links.length) return ''
+  return `
+    <p style="margin: 12px 0 0 0; line-height: 2;">
+      ${links.map(l => `<a href="${l.url}" target="_blank" style="color: #2563EB; text-decoration: underline; font-weight: 500;">${l.label}</a><br>`).join('')}
+    </p>
+  `
+}
+
+// ============================================================
+// NEW EVENT EMAIL TEMPLATE GENERATORS
+// ============================================================
+
+/**
+ * Survey / Feedback Request email
+ */
+export function generateSurveyFeedbackEmail({
+  recipientName,
+  eventName,
+  surveyUrl,
+  customMessage,
+  organizationName,
+  supportEmail,
+  links,
+  isGroupRegistration,
+}: {
+  recipientName: string
+  eventName: string
+  surveyUrl: string
+  customMessage?: string
+  organizationName: string
+  supportEmail?: string
+  links?: { label: string; url: string }[]
+  isGroupRegistration?: boolean
+}): string {
+  return wrapEmail(`
+    <h1 style="color: #1E3A5F; margin-top: 0;">Share Your Feedback</h1>
+
+    <p>Dear ${recipientName},</p>
+
+    <p>${isGroupRegistration
+      ? `Thank you for bringing your group to <strong>${eventName}</strong>! We hope it was a meaningful experience for everyone.`
+      : `Thank you for attending <strong>${eventName}</strong>! We hope it was a meaningful experience.`
+    }</p>
+
+    <p>Your feedback helps us grow and serve you better. We'd love to hear what you thought!</p>
+
+    ${starLink('Take the Survey', surveyUrl, true)}
+
+    ${customMessage ? `
+    <h2 style="color: #1E3A5F;">A Note from Us</h2>
+    <p>${customMessage}</p>
+    ` : ''}
+
+    ${links && links.length > 0 ? `
+    <h2 style="color: #1E3A5F;">Additional Links</h2>
+    ${starLinkList(links)}
+    ` : ''}
+
+    <p>Thank you for taking a few minutes to share your thoughts. It means a lot to us.</p>
+
+    <p style="font-size: 14px; color: #666;">— ${organizationName}</p>
+  `, { organizationName, supportEmail, preheader: `We'd love your feedback on ${eventName}` })
+}
+
+/**
+ * Registration Open announcement email
+ */
+export function generateRegistrationOpenEmail({
+  recipientName,
+  eventName,
+  registrationUrl,
+  eventDate,
+  eventLocation,
+  registrationDeadline,
+  price,
+  customMessage,
+  organizationName,
+  supportEmail,
+  links,
+}: {
+  recipientName: string
+  eventName: string
+  registrationUrl: string
+  eventDate?: string
+  eventLocation?: string
+  registrationDeadline?: string
+  price?: string
+  customMessage?: string
+  organizationName: string
+  supportEmail?: string
+  links?: { label: string; url: string }[]
+}): string {
+  const hasDetails = eventDate || eventLocation || registrationDeadline || price
+
+  return wrapEmail(`
+    <h1 style="color: #1E3A5F; margin-top: 0;">Registration Is Now Open!</h1>
+
+    <p>Dear ${recipientName},</p>
+
+    <p>We're excited to announce that registration for <strong>${eventName}</strong> is now open!</p>
+
+    ${hasDetails ? `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0; background: #f9f9f9; border-radius: 8px; overflow: hidden;">
+      <tr>
+        <td style="padding: 20px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            ${eventDate ? emailDetailRow('Event Date', eventDate) : ''}
+            ${eventLocation ? emailDetailRow('Location', eventLocation) : ''}
+            ${registrationDeadline ? emailDetailRow('Registration Deadline', registrationDeadline) : ''}
+            ${price ? emailDetailRow('Price', price) : ''}
+          </table>
+        </td>
+      </tr>
+    </table>
+    ` : ''}
+
+    ${starLink('Register Now', registrationUrl, true)}
+
+    ${customMessage ? `
+    <h2 style="color: #1E3A5F;">More Details</h2>
+    <p>${customMessage}</p>
+    ` : ''}
+
+    ${links && links.length > 0 ? `
+    <h2 style="color: #1E3A5F;">Additional Links</h2>
+    ${starLinkList(links)}
+    ` : ''}
+
+    <p>Don't wait — spots are limited. We hope to see you there!</p>
+
+    <p style="font-size: 14px; color: #666;">— ${organizationName}</p>
+  `, { organizationName, supportEmail, preheader: `Registration is now open for ${eventName}` })
+}
+
+/**
+ * General Update / Announcement email — freeform with custom subject + body
+ */
+export function generateGeneralUpdateEmail({
+  recipientName,
+  eventName,
+  messageBody,
+  organizationName,
+  supportEmail,
+  links,
+}: {
+  recipientName: string
+  eventName: string
+  messageBody: string
+  organizationName: string
+  supportEmail?: string
+  links?: { label: string; url: string }[]
+}): string {
+  // Use first ~90 chars of the body as the preheader
+  const preheader = messageBody.replace(/<[^>]+>/g, '').slice(0, 90)
+
+  return wrapEmail(`
+    <p>Dear ${recipientName},</p>
+
+    <div style="margin: 16px 0; line-height: 1.7;">
+      ${messageBody}
+    </div>
+
+    ${links && links.length > 0 ? `
+    <h2 style="color: #1E3A5F;">Links</h2>
+    ${starLinkList(links)}
+    ` : ''}
+
+    <p style="font-size: 14px; color: #666;">— ${organizationName}</p>
+  `, { organizationName, supportEmail, preheader })
+}
+
+/**
+ * Payment Reminder email
+ */
+export function generatePaymentReminderEmail({
+  recipientName,
+  eventName,
+  balanceDue,
+  paymentDeadline,
+  totalAmount,
+  amountPaid,
+  paymentUrl,
+  customMessage,
+  organizationName,
+  supportEmail,
+  isGroupRegistration,
+  links,
+}: {
+  recipientName: string
+  eventName: string
+  balanceDue: string
+  paymentDeadline?: string
+  totalAmount?: string
+  amountPaid?: string
+  paymentUrl?: string
+  customMessage?: string
+  organizationName: string
+  supportEmail?: string
+  isGroupRegistration?: boolean
+  links?: { label: string; url: string }[]
+}): string {
+  return wrapEmail(`
+    <h1 style="color: #1E3A5F; margin-top: 0;">Payment Reminder</h1>
+
+    <p>Dear ${recipientName},</p>
+
+    <p>${isGroupRegistration
+      ? `This is a friendly reminder that your group has an outstanding balance for <strong>${eventName}</strong>.`
+      : `This is a friendly reminder that you have an outstanding balance for <strong>${eventName}</strong>.`
+    }</p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0; background: #FFF7ED; border-radius: 8px; border: 1px solid #FED7AA; overflow: hidden;">
+      <tr>
+        <td style="padding: 20px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            ${totalAmount ? emailDetailRow('Total Amount', totalAmount) : ''}
+            ${amountPaid ? emailDetailRow('Amount Paid', amountPaid) : ''}
+            <tr>
+              <td style="padding: 10px 0; border-bottom: 1px solid #FED7AA; color: #666666; font-size: 14px;"><strong>Balance Due</strong></td>
+              <td style="padding: 10px 0; border-bottom: 1px solid #FED7AA; text-align: right; font-weight: 700; color: #DC2626; font-size: 16px;">${balanceDue}</td>
+            </tr>
+            ${paymentDeadline ? emailDetailRow('Due By', paymentDeadline) : ''}
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    ${paymentUrl ? starLink('Make a Payment', paymentUrl, true) : ''}
+
+    ${customMessage ? `
+    <p>${customMessage}</p>
+    ` : ''}
+
+    ${links && links.length > 0 ? `
+    <h2 style="color: #1E3A5F;">Helpful Links</h2>
+    ${starLinkList(links)}
+    ` : ''}
+
+    <p>If you have already submitted your payment, please disregard this notice. Thank you!</p>
+
+    <p style="font-size: 14px; color: #666;">— ${organizationName}</p>
+  `, { organizationName, supportEmail, preheader: `Payment reminder for ${eventName}` })
+}
+
+/**
+ * Late Fee Notice email — firm but polite
+ */
+export function generateLateFeeNoticeEmail({
+  recipientName,
+  eventName,
+  originalAmount,
+  lateFeeAmount,
+  newTotal,
+  lateFeeEffectiveDate,
+  paymentUrl,
+  customMessage,
+  organizationName,
+  supportEmail,
+  isGroupRegistration,
+  links,
+}: {
+  recipientName: string
+  eventName: string
+  originalAmount: string
+  lateFeeAmount: string
+  newTotal: string
+  lateFeeEffectiveDate?: string
+  paymentUrl?: string
+  customMessage?: string
+  organizationName: string
+  supportEmail?: string
+  isGroupRegistration?: boolean
+  links?: { label: string; url: string }[]
+}): string {
+  return wrapEmail(`
+    <h1 style="color: #1E3A5F; margin-top: 0;">Late Fee Notice</h1>
+
+    <p>Dear ${recipientName},</p>
+
+    <p>${isGroupRegistration
+      ? `We're writing to let you know that a late fee has been applied to your group's registration for <strong>${eventName}</strong>.`
+      : `We're writing to let you know that a late fee has been applied to your registration for <strong>${eventName}</strong>.`
+    }${lateFeeEffectiveDate ? ` This fee took effect on ${lateFeeEffectiveDate}.` : ''}</p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0; background: #f9f9f9; border-radius: 8px; overflow: hidden;">
+      <tr>
+        <td style="padding: 20px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            ${emailDetailRow('Original Amount', originalAmount)}
+            ${emailDetailRow('Late Fee', `<span style="color: #DC2626;">${lateFeeAmount}</span>`)}
+            <tr>
+              <td style="padding: 10px 0; border-bottom: 1px solid #e5e5e5; color: #666666; font-size: 14px;"><strong>New Total</strong></td>
+              <td style="padding: 10px 0; border-bottom: 1px solid #e5e5e5; text-align: right; font-weight: 700; color: #1E3A5F; font-size: 16px;">${newTotal}</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    ${paymentUrl ? starLink('Submit Payment', paymentUrl, true) : ''}
+
+    ${customMessage ? `
+    <p>${customMessage}</p>
+    ` : ''}
+
+    <p>We understand that things come up, and we appreciate your attention to this matter. Please reach out if you have any questions — we're happy to help.</p>
+
+    <p>If you have already paid in full, please disregard this notice. Thank you!</p>
+
+    ${links && links.length > 0 ? `
+    <h2 style="color: #1E3A5F;">Helpful Links</h2>
+    ${starLinkList(links)}
+    ` : ''}
+
+    <p style="font-size: 14px; color: #666;">— ${organizationName}</p>
+  `, { organizationName, supportEmail, preheader: `Late fee notice for ${eventName}` })
+}
+
+/**
+ * Thank You / Post-Event email
+ */
+export function generateThankYouEmail({
+  recipientName,
+  eventName,
+  customMessage,
+  organizationName,
+  supportEmail,
+  isGroupRegistration,
+  links,
+}: {
+  recipientName: string
+  eventName: string
+  customMessage?: string
+  organizationName: string
+  supportEmail?: string
+  isGroupRegistration?: boolean
+  links?: { label: string; url: string }[]
+}): string {
+  return wrapEmail(`
+    <h1 style="color: #1E3A5F; margin-top: 0;">Thank You!</h1>
+
+    <p>Dear ${recipientName},</p>
+
+    <p>${isGroupRegistration
+      ? `Thank you for bringing your group to <strong>${eventName}</strong>! It was a joy to have you with us, and we hope it was a truly meaningful experience for your group.`
+      : `Thank you for being part of <strong>${eventName}</strong>! It was a joy to have you with us, and we hope it was a truly meaningful experience.`
+    }</p>
+
+    ${customMessage ? `
+    <p>${customMessage}</p>
+    ` : ''}
+
+    ${links && links.length > 0 ? `
+    <h2 style="color: #1E3A5F;">Stay Connected</h2>
+    ${starLinkList(links)}
+    ` : ''}
+
+    <p>${isGroupRegistration
+      ? 'We look forward to welcoming your group again. God bless!'
+      : 'We look forward to seeing you again. God bless!'
+    }</p>
+
+    <p style="font-size: 14px; color: #666;">— ${organizationName}</p>
+  `, { organizationName, supportEmail, preheader: `Thank you for being part of ${eventName}` })
+}
+
 /**
  * Generate event reminder email
+ * All event detail fields are optional — omitted fields render no empty rows.
  */
 export function generateEventReminderEmail({
   participantName,
@@ -1588,57 +1982,123 @@ export function generateEventReminderEmail({
   checkInTime,
   accessCode,
   organizationName,
+  supportEmail,
+  isGroupRegistration,
+  customMessage,
+  arrivalInstructions,
+  includePortalReminder,
+  housingInfo,
+  smallGroupRoom,
+  staffContacts,
+  paymentSummary,
+  links,
+  // Legacy: raw HTML additional info block (kept for backward compat)
   additionalInfo,
 }: {
   participantName: string
   eventName: string
-  eventDate: string
-  eventLocation: string
+  eventDate?: string
+  eventLocation?: string
   checkInTime?: string
   accessCode?: string
   organizationName: string
+  supportEmail?: string
+  isGroupRegistration?: boolean
+  customMessage?: string
+  arrivalInstructions?: string
+  includePortalReminder?: boolean
+  housingInfo?: string
+  smallGroupRoom?: string
+  staffContacts?: string
+  paymentSummary?: string
+  links?: { label: string; url: string }[]
   additionalInfo?: string
 }): string {
+  const hasEventDetails = eventDate || eventLocation || checkInTime || accessCode
+
+  const preheaderDate = eventDate ? ` on ${eventDate}` : ''
+
   return wrapEmail(`
-    <h1>Event Reminder</h1>
+    <h1 style="color: #1E3A5F; margin-top: 0;">Event Reminder</h1>
 
     <p>Dear ${participantName},</p>
 
-    <p>This is a reminder that <strong>${eventName}</strong> is coming up soon!</p>
+    <p>This is a friendly reminder that <strong>${eventName}</strong> is coming up soon!</p>
 
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0; background: #f9f9f9; border-radius: 8px; padding: 20px;">
+    ${hasEventDetails ? `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0; background: #f9f9f9; border-radius: 8px; overflow: hidden;">
       <tr>
-        <td>
+        <td style="padding: 20px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-            ${emailDetailRow('Event', eventName)}
-            ${emailDetailRow('Date', eventDate)}
-            ${emailDetailRow('Location', eventLocation)}
+            ${eventDate ? emailDetailRow('Date', eventDate) : ''}
+            ${eventLocation ? emailDetailRow('Location', eventLocation) : ''}
             ${checkInTime ? emailDetailRow('Check-In Time', checkInTime) : ''}
-            ${accessCode ? emailDetailRow('Access Code', accessCode) : ''}
+            ${accessCode ? emailDetailRow('Access Code', `<span style="font-family: monospace; font-weight: bold; font-size: 17px; letter-spacing: 1px;">${accessCode}</span>`) : ''}
           </table>
         </td>
       </tr>
     </table>
-
-    ${additionalInfo ? `
-      <h2>Important Information</h2>
-      <p>${additionalInfo}</p>
     ` : ''}
 
-    <h2>Checklist Before You Arrive</h2>
+    ${includePortalReminder ? `
+    <p>${isGroupRegistration
+      ? 'Please log in to your group portal to ensure all required forms are completed and payment is up to date.'
+      : 'Please log in to your portal to ensure all required forms are completed and payment is up to date.'
+    }</p>
+    ` : ''}
+
+    ${customMessage ? `
+    <h2 style="color: #1E3A5F;">Important Information</h2>
+    <p>${customMessage}</p>
+    ` : ''}
+
+    ${arrivalInstructions ? `
+    <h2 style="color: #1E3A5F;">Arrival Information</h2>
+    <p style="white-space: pre-line;">${arrivalInstructions}</p>
+    ` : ''}
+
+    ${housingInfo ? `
+    <h2 style="color: #1E3A5F;">Housing Information</h2>
+    <p style="white-space: pre-line;">${housingInfo}</p>
+    ` : ''}
+
+    ${smallGroupRoom ? `
+    <h2 style="color: #1E3A5F;">Small Group Assignment</h2>
+    <p>${smallGroupRoom}</p>
+    ` : ''}
+
+    ${staffContacts ? `
+    <h2 style="color: #1E3A5F;">Your Staff Contacts</h2>
+    <p style="white-space: pre-line;">${staffContacts}</p>
+    ` : ''}
+
+    ${paymentSummary ? `
+    <h2 style="color: #1E3A5F;">Payment Summary</h2>
+    <p style="white-space: pre-line;">${paymentSummary}</p>
+    ` : ''}
+
+    ${additionalInfo ? `
+    <h2 style="color: #1E3A5F;">Important Information</h2>
+    <p style="white-space: pre-line;">${additionalInfo}</p>
+    ` : ''}
+
+    <h2 style="color: #1E3A5F;">Checklist Before You Arrive</h2>
     <ul>
-      <li>Ensure all liability forms are completed</li>
-      <li>Have your access code ready for check-in</li>
+      <li>Ensure all required forms are completed</li>
+      ${accessCode ? '<li>Have your access code ready for check-in</li>' : ''}
       <li>Review the event schedule and packing list</li>
       <li>Bring any required medications or documents</li>
     </ul>
 
+    ${links && links.length > 0 ? `
+    <h2 style="color: #1E3A5F;">Quick Links</h2>
+    ${starLinkList(links)}
+    ` : ''}
+
     <p>We look forward to seeing you!</p>
 
-    <p style="font-size: 14px; color: #666;">
-      — ${organizationName}
-    </p>
-  `, { organizationName, preheader: `${eventName} is coming up on ${eventDate}` })
+    <p style="font-size: 14px; color: #666;">— ${organizationName}</p>
+  `, { organizationName, supportEmail, preheader: `${eventName} is coming up${preheaderDate}` })
 }
 
 /**
@@ -1773,6 +2233,8 @@ export function generateGroupRegistrationConfirmationEmail({
   organizationName,
   porosLiabilityUrl,
   groupLeaderPortalUrl,
+  groupLeaderEmail,
+  supportEmail,
 }: {
   groupName: string
   groupLeaderName: string
@@ -1791,6 +2253,8 @@ export function generateGroupRegistrationConfirmationEmail({
   organizationName: string
   porosLiabilityUrl: string
   groupLeaderPortalUrl: string
+  groupLeaderEmail?: string
+  supportEmail?: string
 }): string {
   const formatCurrency = (amount: number) => `$${(amount / 100).toFixed(2)}`
 
@@ -1835,6 +2299,7 @@ export function generateGroupRegistrationConfirmationEmail({
         <td>
           <p style="margin: 0; font-size: 14px; color: #666;">Your Group Access Code</p>
           <p style="margin: 8px 0 0 0; font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #1a73e8;">${accessCode}</p>
+          <p style="margin: 12px 0 0 0; font-size: 13px; color: #555;">Use this code to log in to your Group Leader Portal, share liability form links with participants, and check in at the event.</p>
         </td>
       </tr>
     </table>
@@ -1894,8 +2359,8 @@ export function generateGroupRegistrationConfirmationEmail({
               </td>
               <td valign="top">
                 <p style="margin: 0; font-weight: bold;">Complete Liability Forms</p>
-                <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">Each participant must complete their liability form using your access code. They can go to the Poros liability platform.</p>
-                ${emailButton('Go to Poros Liability', porosLiabilityUrl, 'primary')}
+                <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">Each participant must complete their liability form using your access code.</p>
+                ${emailButton('Complete Liability Forms', porosLiabilityUrl, 'primary')}
               </td>
             </tr>
           </table>
@@ -1908,7 +2373,12 @@ export function generateGroupRegistrationConfirmationEmail({
               </td>
               <td valign="top">
                 <p style="margin: 0; font-weight: bold;">Set Up Your Group Leader Dashboard</p>
-                <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">Sign in if you have used Chiro in the past and add your new access code, or sign up using Clerk!</p>
+                <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">
+                  <strong>Step 1:</strong> Go to <a href="${groupLeaderPortalUrl}">${groupLeaderPortalUrl}</a><br/>
+                  <strong>Step 2:</strong> Click &ldquo;Sign In&rdquo; and enter the email you used to register${groupLeaderEmail ? ': <strong>' + groupLeaderEmail + '</strong>' : ''}.<br/>
+                  <strong>Step 3:</strong> You&rsquo;ll receive a sign-in link in your email. Click it to access your group dashboard.<br/>
+                  <strong>Step 4:</strong> From your dashboard you can view your group roster, housing assignments, payment status, and manage participant forms.
+                </p>
                 ${emailButton('Go to Group Leader Portal', groupLeaderPortalUrl, 'secondary')}
               </td>
             </tr>
@@ -1959,6 +2429,12 @@ export function generateGroupRegistrationConfirmationEmail({
     ${registrationInstructions ? `
       <h2>Additional Instructions</h2>
       <p>${registrationInstructions}</p>
+    ` : ''}
+
+    ${supportEmail ? `
+    <p style="font-size: 13px; color: #888; margin-top: 24px;">
+      Having trouble? Contact us at <a href="mailto:${supportEmail}">${supportEmail}</a>
+    </p>
     ` : ''}
 
     <p style="font-size: 14px; color: #666;">

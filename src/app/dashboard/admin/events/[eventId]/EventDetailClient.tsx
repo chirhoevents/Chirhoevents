@@ -47,6 +47,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
+import { parseDateOnly } from '@/lib/utils'
 import SendReminderEmailModal from '@/components/admin/SendReminderEmailModal'
 
 interface EventDetailClientProps {
@@ -73,6 +74,8 @@ interface EventDetailClientProps {
   }
   settings: {
     id?: string
+    groupRegistrationEnabled?: boolean
+    individualRegistrationEnabled?: boolean
     waitlistEnabled?: boolean
     registrationClosedMessage?: string | null
     porosHousingEnabled?: boolean
@@ -335,8 +338,8 @@ export default function EventDetailClient({
             <div className="flex items-center gap-4 text-sm text-[#6B7280]">
               <div className="flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
-                {format(new Date(event.startDate), 'MMM d')} -{' '}
-                {format(new Date(event.endDate), 'MMM d, yyyy')}
+                {format(parseDateOnly(event.startDate), 'MMM d')} -{' '}
+                {format(parseDateOnly(event.endDate), 'MMM d, yyyy')}
               </div>
               {event.locationName && (
                 <div className="flex items-center gap-1">
@@ -359,7 +362,7 @@ export default function EventDetailClient({
                 View Public Page
               </Button>
             </Link>
-            <Button variant="outline" size="sm" disabled>
+            <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/admin/events/${event.id}/duplicate`)}>
               <Copy className="h-4 w-4 mr-2" />
               Duplicate
             </Button>
@@ -473,8 +476,7 @@ export default function EventDetailClient({
             <TabsTrigger value="vendors">Vendors</TabsTrigger>
           )}
           <TabsTrigger value="reports">Reports</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-        </TabsList>
+          <TabsTrigger value="settings">Settings</TabsTrigger>        </TabsList>
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
@@ -500,8 +502,8 @@ export default function EventDetailClient({
                 <div>
                   <p className="text-sm font-medium text-[#1E3A5F]">Dates</p>
                   <p className="text-sm text-[#6B7280] mt-1">
-                    {format(new Date(event.startDate), 'MMMM d, yyyy')} -{' '}
-                    {format(new Date(event.endDate), 'MMMM d, yyyy')}
+                    {format(parseDateOnly(event.startDate), 'MMMM d, yyyy')} -{' '}
+                    {format(parseDateOnly(event.endDate), 'MMMM d, yyyy')}
                   </p>
                 </div>
                 <div>
@@ -1083,6 +1085,8 @@ export default function EventDetailClient({
             onOpenChange={setReminderModalOpen}
             eventId={event.id}
             eventName={event.name}
+            groupRegistrationEnabled={settings?.groupRegistrationEnabled ?? true}
+            individualRegistrationEnabled={settings?.individualRegistrationEnabled ?? true}
           />
         </TabsContent>
 

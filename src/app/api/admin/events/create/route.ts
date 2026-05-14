@@ -267,7 +267,7 @@ export async function POST(request: NextRequest) {
                 ? parseFloat(data.depositPercentage)
                 : null,
             requireFullPayment: data.depositType === 'full',
-            depositPerPerson: true,
+            depositPerPerson: data.depositType === 'fixed',
             earlyBirdDeadline: data.earlyBirdDeadline
               ? new Date(data.earlyBirdDeadline)
               : null,
@@ -326,7 +326,14 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ event })
-  } catch (error) {
+  } catch (error: any) {
+    // FIX 4.7: Catch slug unique constraint violation and return a clear error
+    if (error?.code === 'P2002' && error?.meta?.target?.includes?.('slug')) {
+      return NextResponse.json(
+        { error: 'This URL path is already in use. Please choose a different one.', slugConflict: true },
+        { status: 409 }
+      )
+    }
     console.error('Error creating event:', error)
     return NextResponse.json(
       { error: 'Internal server error' },

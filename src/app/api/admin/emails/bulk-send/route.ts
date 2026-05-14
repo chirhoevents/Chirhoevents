@@ -220,7 +220,8 @@ export async function POST(request: NextRequest) {
 
       try {
         await resend.emails.send({
-          from: process.env.RESEND_FROM_EMAIL || 'hello@chirhoevents.com',
+          from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+          reply_to: 'support@chirhoevents.com',
           to: registration.groupLeaderEmail,
           subject: subject,
           html: htmlContent,
@@ -274,13 +275,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // FIX 4.2: total should count unique email recipients actually attempted,
+    // not all registrations (which includes skipped duplicates)
     return NextResponse.json({
       success: true,
       results: {
         sent: results.sent,
         failed: results.failed,
         skipped: results.skipped,
-        total: groupRegistrations.length,
+        total: results.sent + results.failed, // unique recipients attempted
       },
       errors: results.errors.slice(0, 10), // Limit error list
     })

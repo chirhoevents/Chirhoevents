@@ -250,7 +250,7 @@ export async function POST(request: NextRequest) {
       `, { organizationName: event.organization?.name || 'ChiRho Events', preheader: `Vendor application received for ${event.name}` })
 
       await resend.emails.send({
-        from: 'ChiRho Events <noreply@chirhoevents.com>',
+        from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
         to: email,
         subject: `Vendor Application Received - ${event.name}`,
         html: emailContent,

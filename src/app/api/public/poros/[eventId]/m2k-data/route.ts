@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { verifyPorosAccess } from '@/lib/api-auth'
 
-// M2K specific event IDs
-const M2K_EVENT_ID = 'b9b70d36-ae35-47a0-aeb7-a50df9a598f1'
-
-// Public API to get M2K data from database (no auth required)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
@@ -12,10 +9,9 @@ export async function GET(
   try {
     const { eventId } = await params
 
-    // Verify this is the M2K event
-    if (eventId !== M2K_EVENT_ID) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 })
-    }
+    // Require poros.access permission for the requested event (org-scoped)
+    const { error } = await verifyPorosAccess(request, eventId)
+    if (error) return error
 
     // Fetch all data from database in parallel
     const [
