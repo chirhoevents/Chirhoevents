@@ -20,6 +20,7 @@
  */
 
 // Stripe and Prisma are loaded dynamically in live mode only (not needed for --dry-run)
+import type Stripe from 'stripe'
 
 // ============================================================
 // TYPES
