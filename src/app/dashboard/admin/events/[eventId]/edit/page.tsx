@@ -243,15 +243,18 @@ export default function EditEventPage() {
         registrationCloseDate: event.registrationCloseDate
           ? new Date(event.registrationCloseDate).toISOString().slice(0, 16)
           : '',
+        enableEarlyBird: !!event.pricing?.earlyBirdDeadline,
         earlyBirdDeadline: event.pricing?.earlyBirdDeadline
           ? new Date(event.pricing.earlyBirdDeadline).toISOString().slice(0, 16)
           : '',
+        enableLateRegistration: !!event.pricing?.regularDeadline,
         regularDeadline: event.pricing?.regularDeadline
           ? new Date(event.pricing.regularDeadline).toISOString().slice(0, 16)
           : '',
         fullPaymentDeadline: event.pricing?.fullPaymentDeadline
           ? new Date(event.pricing.fullPaymentDeadline).toISOString().slice(0, 16)
           : '',
+        enableLateFees: !!(event.pricing?.lateFeePercentage),
         lateFeePercentage: event.pricing?.lateFeePercentage?.toString() || '20',
         lateFeeAutoApply: event.pricing?.lateFeeAutoApply || false,
         allowLoginWhenClosed: event.settings?.allowLoginWhenClosed ?? true,
