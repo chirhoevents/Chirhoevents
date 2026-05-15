@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
       where: { id: organizationId },
       select: {
         stripeAccountId: true,
+        contactEmail: true,
       },
     })
 
@@ -118,6 +119,7 @@ export async function GET(request: NextRequest) {
         stripe: {
           ...stripeConnection,
           stats: paymentStats,
+          contactEmail: organization.contactEmail,
         },
         googleSheets: {
           connected: false,
