@@ -37,6 +37,7 @@ const docSections = [
       { id: "staff-volunteer", title: "Staff & Volunteer Registration" },
       { id: "liability-individual", title: "Liability Forms for Individuals" },
       { id: "landing-page", title: "Customizing Your Landing Page" },
+      { id: "poros-enable", title: "Enabling Poros for an Event" },
       { id: "poros-portal", title: "Using Poros Portal for Housing" },
       { id: "poros-public", title: "Public Poros Portal" },
       { id: "poros-liability-wording", title: "Setting Up Liability Form Wording" },
@@ -615,6 +616,89 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           <p className="text-sm">
             <strong>💡 Pro Tip:</strong> Set up automatic payment reminders 2 weeks before your
             event to ensure all balances are collected in time.
+          </p>
+        </div>
+      </div>
+    )
+  },
+  "poros-enable": {
+    title: "Enabling Poros for an Event",
+    content: (
+      <div className="space-y-4">
+        <p>
+          <strong>Poros</strong> (Greek: &quot;Gateway&quot;) is ChiRho&apos;s event coordination portal. It is much
+          more than a housing tool — it is where you manage nametag generation, staff assignments,
+          seating, small groups, meal colors, confessions scheduling, adoration, the public portal,
+          and more. Most events will use Poros even if they have no on-campus housing.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">How to Enable Poros on an Event</h3>
+        <ol className="list-decimal list-inside space-y-4 text-gray-600">
+          <li>
+            <strong>Open the event&apos;s edit page</strong>
+            <p className="ml-6 mt-1">Go to <strong>Admin Dashboard → Events → [Your Event] → Edit</strong>.</p>
+          </li>
+          <li>
+            <strong>Navigate to Step 3: Features &amp; Modules</strong>
+            <p className="ml-6 mt-1">Scroll to the <strong>Poros Portal</strong> section.</p>
+          </li>
+          <li>
+            <strong>Check &quot;Enable Poros Portal&quot;</strong>
+            <p className="ml-6 mt-1">This master toggle activates the Poros portal for this event. It will now appear under <strong>Admin → Poros</strong> in the sidebar.</p>
+          </li>
+          <li>
+            <strong>Optionally enable Housing</strong>
+            <p className="ml-6 mt-1">If your event includes on-site accommodations, also check <strong>Enable Housing Management</strong>. Then choose whether to allow On-Campus and/or Off-Campus housing and set capacity limits.</p>
+          </li>
+          <li>
+            <strong>Save the event</strong>
+            <p className="ml-6 mt-1">Click <strong>Save</strong> at the bottom of the form. Your event is now ready in Poros.</p>
+          </li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">What Poros Includes (Beyond Housing)</h3>
+        <p>Once Poros is enabled, open it from <strong>Admin → Poros → [Your Event]</strong>. Inside the Poros portal you can toggle individual features on or off from the <strong>Settings</strong> tab:</p>
+        <div className="space-y-3 mt-4">
+          <div className="border-l-4 border-gold pl-4">
+            <h4 className="font-semibold text-navy">Nametag Generation</h4>
+            <p className="text-sm text-gray-600 mt-1">Print or export nametags/badges for all participants. Always available when Poros is enabled — no sub-toggle required.</p>
+          </div>
+          <div className="border-l-4 border-gold pl-4">
+            <h4 className="font-semibold text-navy">Staff Management</h4>
+            <p className="text-sm text-gray-600 mt-1">View and manage all staff and volunteer registrations. This is available any time Poros is enabled, regardless of housing settings.</p>
+          </div>
+          <div className="border-l-4 border-gold pl-4">
+            <h4 className="font-semibold text-navy">Housing</h4>
+            <p className="text-sm text-gray-600 mt-1">Assign participants to rooms and beds. Enable with the <strong>Housing Management</strong> sub-toggle on the edit event page, or from Poros Settings.</p>
+          </div>
+          <div className="border-l-4 border-gold pl-4">
+            <h4 className="font-semibold text-navy">Seating Assignments</h4>
+            <p className="text-sm text-gray-600 mt-1">Assign groups or individuals to seating sections. Toggle on from Poros Settings.</p>
+          </div>
+          <div className="border-l-4 border-gold pl-4">
+            <h4 className="font-semibold text-navy">Small Groups</h4>
+            <p className="text-sm text-gray-600 mt-1">Organize participants into small faith-sharing groups. Toggle on from Poros Settings.</p>
+          </div>
+          <div className="border-l-4 border-gold pl-4">
+            <h4 className="font-semibold text-navy">Meal Colors</h4>
+            <p className="text-sm text-gray-600 mt-1">Assign color-coded meal groups for dining hall flow. Toggle on from Poros Settings.</p>
+          </div>
+          <div className="border-l-4 border-gold pl-4">
+            <h4 className="font-semibold text-navy">Confessions &amp; Adoration</h4>
+            <p className="text-sm text-gray-600 mt-1">Coordinate confession schedules and adoration chapel assignments. Toggle on from Poros Settings.</p>
+          </div>
+          <div className="border-l-4 border-gold pl-4">
+            <h4 className="font-semibold text-navy">Public Poros Portal</h4>
+            <p className="text-sm text-gray-600 mt-1">A read-only portal that participants can access to see their housing, small group, seating, and schedule info. Toggle on from Poros Settings.</p>
+          </div>
+        </div>
+
+        <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mt-6">
+          <p className="text-sm">
+            <strong>Important:</strong> You must run the <code>add_poros_enabled.sql</code> migration
+            on your database if you created events before this feature was added. The migration
+            auto-enables Poros for any event that already had housing, seating, or the public portal
+            turned on.
           </p>
         </div>
       </div>

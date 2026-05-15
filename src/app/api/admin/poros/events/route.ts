@@ -30,9 +30,16 @@ export async function GET() {
       },
     })
 
-    // Show all active events in Poros — housing is just one of many Poros features
-    // (nametags, seating, small groups, meal colors, etc. all live in Poros)
-    const events = allEvents
+    // Show events where Poros is enabled (master toggle), falling back to any poros
+    // feature being on for backwards-compatibility with events created before the
+    // master toggle existed
+    const events = allEvents.filter(event =>
+      event.settings?.porosEnabled ||
+      event.settings?.porosHousingEnabled ||
+      event.settings?.porosPublicPortalEnabled ||
+      event.settings?.porosSeatingEnabled ||
+      event.settings?.porosSmallGroupEnabled
+    )
 
     // Get housing stats for each event
     type EventRecord = typeof events[number]
