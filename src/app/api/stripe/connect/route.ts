@@ -22,6 +22,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const body = await request.json().catch(() => ({}))
+    const customEmail: string | undefined = body.stripeEmail?.trim() || undefined
+
     const organization = await prisma.organization.findUnique({
       where: { id: user.organizationId },
     })
@@ -65,7 +68,7 @@ export async function POST(request: NextRequest) {
     // Create a new Stripe Connect account
     const account = await stripe.accounts.create({
       type: 'standard',
-      email: organization.contactEmail || user.email,
+      email: customEmail || organization.contactEmail || user.email,
       business_profile: {
         name: organization.name,
       },

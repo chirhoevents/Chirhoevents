@@ -5,6 +5,8 @@ import { useAuth } from '@clerk/nextjs'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Loader2,
   CheckCircle,
@@ -35,6 +37,7 @@ interface StripeIntegration {
   payoutsEnabled: boolean
   detailsSubmitted: boolean
   mode: 'test' | 'live'
+  contactEmail: string | null
   stats: {
     totalVolume: number
     totalPayments: number
@@ -98,6 +101,7 @@ export default function IntegrationsSettingsTab() {
   const [error, setError] = useState<string | null>(null)
   const [showSetupHelp, setShowSetupHelp] = useState(false)
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({})
+  const [stripeEmail, setStripeEmail] = useState('')
 
   useEffect(() => {
     fetchIntegrations()
@@ -113,6 +117,9 @@ export default function IntegrationsSettingsTab() {
       if (!response.ok) throw new Error('Failed to fetch integrations')
       const data = await response.json()
       setIntegrations(data.integrations)
+      if (!stripeEmail && data.integrations?.stripe?.contactEmail) {
+        setStripeEmail(data.integrations.stripe.contactEmail)
+      }
     } catch (err) {
       console.error('Error fetching integrations:', err)
       setError('Failed to load integrations')
@@ -127,7 +134,11 @@ export default function IntegrationsSettingsTab() {
       const token = await getToken()
       const response = await fetch('/api/stripe/connect', {
         method: 'POST',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ stripeEmail: stripeEmail.trim() || undefined }),
       })
       if (!response.ok) throw new Error('Failed to initiate Stripe connection')
       const data = await response.json()
@@ -489,10 +500,26 @@ export default function IntegrationsSettingsTab() {
               </div>
             </>
           ) : (
-            <div className="text-center py-6">
-              <p className="text-gray-600 mb-4">
+            <div className="py-4 space-y-5">
+              <p className="text-gray-600">
                 Connect your Stripe account to accept online payments for event registrations.
               </p>
+              <div className="space-y-2 max-w-sm">
+                <Label htmlFor="stripe-email" className="text-sm font-medium text-[#1E3A5F]">
+                  Stripe Account Email
+                </Label>
+                <Input
+                  id="stripe-email"
+                  type="email"
+                  placeholder="your@email.com"
+                  value={stripeEmail}
+                  onChange={(e) => setStripeEmail(e.target.value)}
+                  className="border-gray-300"
+                />
+                <p className="text-xs text-gray-500">
+                  This email will be used to create or log into your Stripe account. Change it if you want the Stripe account registered under a different address.
+                </p>
+              </div>
               <Button
                 onClick={handleConnectStripe}
                 disabled={isConnecting}
