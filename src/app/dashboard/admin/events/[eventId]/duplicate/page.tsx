@@ -61,6 +61,8 @@ export default function DuplicateEventPage() {
           description: event.description ?? '',
           startDate: shiftDateStr(event.startDate),
           endDate: shiftDateStr(event.endDate),
+          startTime: event.startTime ?? '',
+          endTime: event.endTime ?? '',
           locationName: event.locationName ?? '',
           locationAddress:
             typeof event.locationAddress === 'object' && event.locationAddress
@@ -188,6 +190,7 @@ export default function DuplicateEventPage() {
           countdownLocation: s?.countdownLocation ?? 'hero',
           countdownBeforeOpen: s?.countdownBeforeOpen ?? true,
           countdownBeforeClose: s?.countdownBeforeClose ?? true,
+          showEventCountdown: s?.showEventCountdown ?? false,
           enableWaitlist: event.enableWaitlist ?? false,
           waitlistCapacity: String(event.waitlistCapacity ?? ''),
           faqContent: s?.faqContent ?? '',

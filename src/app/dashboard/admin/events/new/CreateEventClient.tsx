@@ -45,6 +45,8 @@ interface EventFormData {
   isOneDayEvent: boolean
   startDate: string
   endDate: string
+  startTime: string
+  endTime: string
   locationName: string
   locationAddress: string
   timezone: string
@@ -168,6 +170,7 @@ interface EventFormData {
   countdownLocation: 'hero' | 'sticky' | 'registration'
   countdownBeforeOpen: boolean
   countdownBeforeClose: boolean
+  showEventCountdown: boolean
   enableWaitlist: boolean
   waitlistCapacity: string
 
@@ -280,6 +283,8 @@ export default function CreateEventClient({
     isOneDayEvent: false,
     startDate: '',
     endDate: '',
+    startTime: '',
+    endTime: '',
     locationName: '',
     locationAddress: '',
     timezone: 'America/New_York',
@@ -402,6 +407,7 @@ export default function CreateEventClient({
     countdownLocation: 'hero',
     countdownBeforeOpen: true,
     countdownBeforeClose: true,
+    showEventCountdown: false,
     enableWaitlist: false,
     waitlistCapacity: '',
 
@@ -1051,6 +1057,31 @@ export default function CreateEventClient({
                     </div>
                   </div>
                 )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="startTime">Start Time</Label>
+                    <Input
+                      id="startTime"
+                      type="time"
+                      value={formData.startTime}
+                      onChange={(e) => updateFormData({ startTime: e.target.value })}
+                      className="mt-1"
+                    />
+                    <p className="text-sm text-gray-500 mt-1">When the event begins</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="endTime">End Time</Label>
+                    <Input
+                      id="endTime"
+                      type="time"
+                      value={formData.endTime}
+                      onChange={(e) => updateFormData({ endTime: e.target.value })}
+                      className="mt-1"
+                    />
+                    <p className="text-sm text-gray-500 mt-1">When the event ends</p>
+                  </div>
+                </div>
 
                 <div>
                   <Label htmlFor="locationName">
@@ -3775,6 +3806,23 @@ export default function CreateEventClient({
                       />
                       <Label htmlFor="countdownBeforeClose" className="mb-0">
                         Show countdown before registration closes
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="showEventCountdown"
+                        checked={formData.showEventCountdown}
+                        onChange={(e) =>
+                          updateFormData({
+                            showEventCountdown: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                      />
+                      <Label htmlFor="showEventCountdown" className="mb-0">
+                        Show &ldquo;Event Starts In&rdquo; countdown (after registration opens or closes)
                       </Label>
                     </div>
                   </div>

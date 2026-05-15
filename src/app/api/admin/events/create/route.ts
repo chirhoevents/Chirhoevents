@@ -83,6 +83,8 @@ export async function POST(request: NextRequest) {
         description: data.description || null,
         startDate: data.startDate ? new Date(data.startDate) : new Date(),
         endDate: data.endDate ? new Date(data.endDate) : new Date(),
+        startTime: data.startTime || null,
+        endTime: data.endTime || null,
         timezone: data.timezone || 'America/New_York',
         locationName: data.locationName || null,
         locationAddress: data.locationAddress || null,
@@ -178,6 +180,7 @@ export async function POST(request: NextRequest) {
             countdownLocation: data.countdownLocation || 'hero',
             countdownBeforeOpen: data.countdownBeforeOpen !== false,
             countdownBeforeClose: data.countdownBeforeClose !== false,
+            showEventCountdown: data.showEventCountdown || false,
             // Landing page content
             faqContent: data.faqContent || null,
             scheduleContent: data.scheduleContent || null,

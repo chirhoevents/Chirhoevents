@@ -25,6 +25,7 @@ interface EventLandingClientProps {
   } | null
   spotsMessage: string | null
   earlyBirdMessage: string | null
+  eventStartTarget: Date | null
 }
 
 export default function EventLandingClient({
@@ -35,6 +36,7 @@ export default function EventLandingClient({
   pricing,
   spotsMessage,
   earlyBirdMessage,
+  eventStartTarget,
 }: EventLandingClientProps) {
   const [isWaitlistModalOpen, setIsWaitlistModalOpen] = useState(false)
 
@@ -77,11 +79,11 @@ export default function EventLandingClient({
             </p>
           )}
 
-        {/* Countdown in Registration Section */}
+        {/* Registration countdown in Registration Section */}
         {status.showCountdown &&
           status.countdownTarget &&
           settings.countdownLocation === 'registration' && (
-            <div className="w-full mb-6">
+            <div className="w-full mb-4">
               <CountdownTimer
                 targetDate={status.countdownTarget}
                 label={
@@ -89,6 +91,19 @@ export default function EventLandingClient({
                     ? 'Registration Opens In'
                     : 'Registration Closes In'
                 }
+                size="md"
+              />
+            </div>
+          )}
+
+        {/* Event Starts In countdown in Registration Section */}
+        {eventStartTarget &&
+          status.status !== 'not_yet_open' &&
+          settings.countdownLocation === 'registration' && (
+            <div className="w-full mb-6">
+              <CountdownTimer
+                targetDate={eventStartTarget}
+                label="Event Starts In"
                 size="md"
               />
             </div>

@@ -111,6 +111,8 @@ interface FormData {
   depositType: 'fixed' | 'percentage' | 'full' | 'none'
   depositPercentage: string
   depositAmount: string
+  startTime: string
+  endTime: string
   contactName: string
   contactEmail: string
   contactPhone: string
@@ -131,6 +133,7 @@ interface FormData {
   countdownLocation: 'hero' | 'sticky' | 'registration'
   countdownBeforeOpen: boolean
   countdownBeforeClose: boolean
+  showEventCountdown: boolean
   enableWaitlist: boolean
   waitlistCapacity: string
   // Landing page content
@@ -230,6 +233,8 @@ export default function EditEventPage() {
         description: event.description || '',
         startDate: event.startDate ? event.startDate.split('T')[0] : '',
         endDate: event.endDate ? event.endDate.split('T')[0] : '',
+        startTime: event.startTime || '',
+        endTime: event.endTime || '',
         isOneDayEvent: event.startDate && event.endDate
           ? event.startDate.split('T')[0] === event.endDate.split('T')[0]
           : false,
@@ -386,6 +391,7 @@ export default function EditEventPage() {
         countdownLocation: (event.settings?.countdownLocation || 'hero') as 'hero' | 'sticky' | 'registration',
         countdownBeforeOpen: event.settings?.countdownBeforeOpen ?? true,
         countdownBeforeClose: event.settings?.countdownBeforeClose ?? true,
+        showEventCountdown: event.settings?.showEventCountdown ?? false,
         enableWaitlist: event.enableWaitlist || false,
         waitlistCapacity: event.waitlistCapacity?.toString() || '',
 
