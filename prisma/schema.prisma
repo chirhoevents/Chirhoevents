@@ -159,6 +159,8 @@ model Event {
   description            String?  @db.Text
   startDate              DateTime @map("start_date") @db.Date
   endDate                DateTime @map("end_date") @db.Date
+  startTime              String?  @map("start_time") @db.VarChar(5)
+  endTime                String?  @map("end_time") @db.VarChar(5)
   timezone               String   @db.VarChar(50)
   locationName           String?  @map("location_name") @db.VarChar(255)
   locationAddress        Json?    @map("location_address")
@@ -294,6 +296,9 @@ model EventSettings {
   contactName                     String?  @map("contact_name") @db.VarChar(255)
   contactEmail                    String?  @map("contact_email") @db.VarChar(255)
   contactPhone                    String?  @map("contact_phone") @db.VarChar(20)
+
+  // Event start countdown
+  showEventCountdown              Boolean  @default(false) @map("show_event_countdown")
 
   // Confirmation email content options
   showFaqInEmail                  Boolean  @default(false) @map("show_faq_in_email")

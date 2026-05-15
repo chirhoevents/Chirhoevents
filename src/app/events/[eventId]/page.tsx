@@ -157,6 +157,19 @@ export default async function EventLandingPage({ params }: EventPageProps) {
     return `${monthName(s.m, true)} ${s.d}, ${s.y} - ${monthName(e.m, true)} ${e.d}, ${e.y}`
   }
 
+  // Build event start datetime target for "Event Starts In" countdown
+  const eventStartTarget = (() => {
+    const [y, m, d] = event.startDate.toISOString().split('T')[0].split('-').map(Number)
+    const date = new Date(y, m - 1, d)
+    if (event.startTime) {
+      const [h, min] = event.startTime.split(':').map(Number)
+      date.setHours(h, min, 0, 0)
+    }
+    return date
+  })()
+  const showEventCountdown =
+    (event.settings?.showEventCountdown ?? false) && eventStartTarget > new Date()
+
   // Hero background styles
   const heroStyle: React.CSSProperties = event.settings?.backgroundImageUrl
     ? {
@@ -222,11 +235,11 @@ export default async function EventLandingPage({ params }: EventPageProps) {
             )}
           </div>
 
-          {/* Countdown in Hero (if enabled) */}
+          {/* Registration countdown in Hero (if enabled) */}
           {status.showCountdown &&
             status.countdownTarget &&
             event.settings?.countdownLocation === 'hero' && (
-              <div className="bg-white/10 backdrop-blur-sm p-4 sm:p-6 md:p-8 rounded-2xl">
+              <div className="bg-white/10 backdrop-blur-sm p-4 sm:p-6 md:p-8 rounded-2xl mb-4">
                 <CountdownTimer
                   targetDate={status.countdownTarget}
                   label={
@@ -234,6 +247,19 @@ export default async function EventLandingPage({ params }: EventPageProps) {
                       ? 'Registration Opens In'
                       : 'Registration Closes In'
                   }
+                  size="lg"
+                />
+              </div>
+            )}
+
+          {/* Event Starts In countdown (shown when registration is open or closed) */}
+          {showEventCountdown &&
+            status.status !== 'not_yet_open' &&
+            event.settings?.countdownLocation === 'hero' && (
+              <div className="bg-white/10 backdrop-blur-sm p-4 sm:p-6 md:p-8 rounded-2xl">
+                <CountdownTimer
+                  targetDate={eventStartTarget}
+                  label="Event Starts In"
                   size="lg"
                 />
               </div>
@@ -259,6 +285,7 @@ export default async function EventLandingPage({ params }: EventPageProps) {
                 countdownLocation: event.settings?.countdownLocation ?? 'hero',
                 landingPageShowPrice: event.settings?.landingPageShowPrice ?? true,
               }}
+              eventStartTarget={showEventCountdown ? eventStartTarget : null}
               pricing={
                 event.pricing
                   ? {
