@@ -42,19 +42,19 @@ export default function EventLandingClient({
     <>
       <div className="flex flex-col items-center text-center">
         {/* Status Icon */}
-        <div className="mb-4">
+        <div className="mb-3">
           {status.allowRegistration ? (
-            <CheckCircle className="h-16 w-16 text-green-600" />
+            <CheckCircle className="h-12 w-12 md:h-16 md:w-16 text-green-600" />
           ) : status.allowWaitlist ? (
-            <Clock className="h-16 w-16 text-[#9C8466]" />
+            <Clock className="h-12 w-12 md:h-16 md:w-16 text-[#9C8466]" />
           ) : (
-            <AlertCircle className="h-16 w-16 text-gray-400" />
+            <AlertCircle className="h-12 w-12 md:h-16 md:w-16 text-gray-400" />
           )}
         </div>
 
         {/* Status Message */}
         <h2
-          className={`text-2xl md:text-3xl font-bold mb-2 ${
+          className={`text-xl sm:text-2xl md:text-3xl font-bold mb-2 ${
             status.urgentStyle ? 'text-orange-600' : 'text-[#1E3A5F]'
           }`}
         >
@@ -106,7 +106,7 @@ export default function EventLandingClient({
                       status.urgentStyle
                         ? 'bg-orange-600 hover:bg-orange-700'
                         : 'bg-[#1E3A5F] hover:bg-[#2A4A6F]'
-                    } text-white px-8 py-6 text-lg`}
+                    } text-white px-6 py-4 sm:px-8 sm:py-6 text-base sm:text-lg`}
                   >
                     Register as Group
                   </Button>
@@ -120,7 +120,7 @@ export default function EventLandingClient({
                       status.urgentStyle
                         ? 'bg-orange-600 hover:bg-orange-700'
                         : 'bg-[#1E3A5F] hover:bg-[#2A4A6F]'
-                    } text-white px-8 py-6 text-lg`}
+                    } text-white px-6 py-4 sm:px-8 sm:py-6 text-base sm:text-lg`}
                   >
                     Register as Individual
                   </Button>
@@ -134,7 +134,7 @@ export default function EventLandingClient({
               size="lg"
               variant="outline"
               onClick={() => setIsWaitlistModalOpen(true)}
-              className="w-full sm:w-auto border-2 border-[#9C8466] text-[#9C8466] hover:bg-[#9C8466] hover:text-white px-8 py-6 text-lg"
+              className="w-full sm:w-auto border-2 border-[#9C8466] text-[#9C8466] hover:bg-[#9C8466] hover:text-white px-6 py-4 sm:px-8 sm:py-6 text-base sm:text-lg"
             >
               Join Waitlist
             </Button>
@@ -144,7 +144,7 @@ export default function EventLandingClient({
             <Button
               size="lg"
               disabled
-              className="w-full sm:w-auto px-8 py-6 text-lg"
+              className="w-full sm:w-auto px-6 py-4 sm:px-8 sm:py-6 text-base sm:text-lg"
             >
               {status.status === 'not_yet_open'
                 ? 'Registration Not Yet Open'
