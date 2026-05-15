@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { useEvent } from '@/contexts/EventContext'
 import {
   FileText,
   Download,
@@ -32,6 +33,7 @@ interface ParticipantForm {
 }
 
 export default function LiabilityFormsPage() {
+  const { selectedEventId } = useEvent()
   const [forms, setForms] = useState<ParticipantForm[]>([])
   const [filteredForms, setFilteredForms] = useState<ParticipantForm[]>([])
   const [loading, setLoading] = useState(true)
@@ -41,7 +43,8 @@ export default function LiabilityFormsPage() {
 
   useEffect(() => {
     fetchForms()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedEventId])
 
   useEffect(() => {
     filterForms()
@@ -49,8 +52,13 @@ export default function LiabilityFormsPage() {
   }, [forms, activeFilter])
 
   const fetchForms = async () => {
+    if (!selectedEventId) {
+      setLoading(false)
+      return
+    }
+    setLoading(true)
     try {
-      const response = await fetch('/api/group-leader/forms')
+      const response = await fetch(`/api/group-leader/forms?eventId=${selectedEventId}`)
       if (response.ok) {
         const data = await response.json()
         setForms(data.forms)

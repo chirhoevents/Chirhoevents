@@ -54,9 +54,14 @@ const docSections = [
     icon: ClipboardCheck,
     items: [
       { id: "register-group", title: "How to Register a Group" },
+      { id: "link-access-code", title: "Linking Your Access Code" },
+      { id: "portal-overview", title: "Navigating the Leader Portal" },
       { id: "payments", title: "Making Payments" },
       { id: "liability-forms", title: "Completing Liability Forms" },
       { id: "manage-participants", title: "Managing Your Participants" },
+      { id: "portal-housing", title: "Housing Assignments" },
+      { id: "portal-certificates", title: "Managing Certificates" },
+      { id: "portal-settings", title: "Portal Settings & Linked Events" },
       { id: "safe-environment", title: "Safe Environment Requirements" },
       { id: "checkin-process", title: "Check-In Process" },
     ]
@@ -237,6 +242,168 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
             <p className="ml-6 mt-1">Once everything is configured, publish to make registration available.</p>
           </li>
         </ol>
+      </div>
+    )
+  },
+  "link-access-code": {
+    title: "Linking Your Access Code",
+    content: (
+      <div className="space-y-4">
+        <p>
+          After registering your group, you&apos;ll receive a unique access code. You need to link
+          this code to your ChiRho account to access the Group Leader Portal and manage your group.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">What Is an Access Code?</h3>
+        <p>
+          Your access code is a unique identifier (format: <code className="bg-gray-100 px-1 rounded">ABC-XYZ-123</code>) that connects
+          your group registration to your account. It&apos;s included in your registration confirmation email.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">How to Link Your Code</h3>
+        <ol className="list-decimal list-inside space-y-4 text-gray-600">
+          <li>
+            <strong>Sign in to your account</strong>
+            <p className="ml-6 mt-1">Go to <strong>chirhoevents.com/group-leader-login</strong> and sign in (or create a new account).</p>
+          </li>
+          <li>
+            <strong>Navigate to Link Access Code</strong>
+            <p className="ml-6 mt-1">After signing in, you&apos;ll be prompted to link your access code. You can also go to <strong>Dashboard &rarr; Link Access Code</strong>.</p>
+          </li>
+          <li>
+            <strong>Enter your access code</strong>
+            <p className="ml-6 mt-1">Type in the code from your confirmation email (e.g., <code className="bg-gray-100 px-1 rounded">ABC-XYZ-123</code>). The code is not case-sensitive.</p>
+          </li>
+          <li>
+            <strong>Confirm linking</strong>
+            <p className="ml-6 mt-1">Click &quot;Link Code&quot;. Your group registration will now be associated with your account.</p>
+          </li>
+          <li>
+            <strong>Access the portal</strong>
+            <p className="ml-6 mt-1">You&apos;ll be redirected to your Group Leader Dashboard where you can manage your group.</p>
+          </li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Linking Multiple Events</h3>
+        <p>
+          If you lead groups for multiple events, you can link additional access codes without creating a new account:
+        </p>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Sign in to your existing account</li>
+          <li>In the sidebar, click <strong>&quot;Add New Code&quot;</strong></li>
+          <li>Enter the new access code and click &quot;Link Code&quot;</li>
+          <li>Switch between events using the event dropdown in the sidebar</li>
+        </ol>
+
+        <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mt-4">
+          <p className="text-sm">
+            <strong>Note:</strong> Each access code can only be linked to one account. If you need
+            to transfer a code to a different account, contact the event organizer.
+          </p>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Can&apos;t Find Your Access Code?</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600">
+          <li>Check your registration confirmation email (search &quot;ChiRho&quot; or &quot;access code&quot;)</li>
+          <li>Check your spam/junk folder</li>
+          <li>Contact the event organizer and provide your group name</li>
+        </ul>
+      </div>
+    )
+  },
+  "portal-overview": {
+    title: "Navigating the Leader Portal",
+    content: (
+      <div className="space-y-4">
+        <p>
+          The Group Leader Portal is your command center for managing everything related to your group&apos;s
+          participation in an event. Once you&apos;ve linked your access code, you&apos;ll have access to a full
+          dashboard with all the tools you need.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Accessing the Portal</h3>
+        <p>
+          Sign in at <strong>chirhoevents.com/group-leader-login</strong> or from the main navigation.
+          After signing in with a linked access code, you&apos;ll land on your dashboard automatically.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Sidebar Navigation</h3>
+        <p>The sidebar on the left contains all portal sections:</p>
+        <div className="space-y-3 mt-4">
+          <div className="border-l-4 border-gold pl-4">
+            <h4 className="font-semibold text-navy">Dashboard</h4>
+            <p className="text-sm text-gray-600 mt-1">
+              An at-a-glance overview of your group. Shows your event name, group name, access code,
+              total participant count, payment status, liability form progress, and safe environment certificates.
+            </p>
+          </div>
+          <div className="border-l-4 border-gold pl-4">
+            <h4 className="font-semibold text-navy">Payments</h4>
+            <p className="text-sm text-gray-600 mt-1">
+              View your full payment balance, make payments online via Stripe, download payment invoices,
+              and see your complete transaction history.
+            </p>
+          </div>
+          <div className="border-l-4 border-gold pl-4">
+            <h4 className="font-semibold text-navy">Liability Forms</h4>
+            <p className="text-sm text-gray-600 mt-1">
+              Track form completion for every participant in your group. Resend form emails, download
+              individual PDFs, and send bulk reminders to everyone who hasn&apos;t completed their form.
+            </p>
+          </div>
+          <div className="border-l-4 border-gold pl-4">
+            <h4 className="font-semibold text-navy">Participants</h4>
+            <p className="text-sm text-gray-600 mt-1">
+              View detailed information on all your participants. Filter by type (youth, chaperone, priest),
+              search by name, and view medical and emergency contact details.
+            </p>
+          </div>
+          <div className="border-l-4 border-gold pl-4">
+            <h4 className="font-semibold text-navy">Certificates</h4>
+            <p className="text-sm text-gray-600 mt-1">
+              Upload and track Safe Environment certificates for your chaperones. See which certificates
+              have been verified by the event organizer.
+            </p>
+          </div>
+          <div className="border-l-4 border-gold pl-4">
+            <h4 className="font-semibold text-navy">Housing</h4>
+            <p className="text-sm text-gray-600 mt-1">
+              Assign your participants to rooms and beds. Use auto-assign for quick setup or manually
+              assign individuals to specific rooms.
+            </p>
+          </div>
+          <div className="border-l-4 border-gold pl-4">
+            <h4 className="font-semibold text-navy">Settings</h4>
+            <p className="text-sm text-gray-600 mt-1">
+              Manage your account profile, notification preferences, and linked access codes. Also
+              includes a Help & Resources section with quick links.
+            </p>
+          </div>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Switching Between Events</h3>
+        <p>
+          If you manage groups for multiple events, use the event dropdown at the top of the sidebar
+          to switch between them. All portal data updates to reflect the selected event.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Dashboard Overview Cards</h3>
+        <p>Your main dashboard shows six summary cards:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Registration Overview</strong> — Event info, group name, access code, participant count, and an &quot;Edit Registration&quot; button</li>
+          <li><strong>Payment Status</strong> — Total amount, amount paid, balance remaining, progress bar, and due date</li>
+          <li><strong>Liability Forms</strong> — Completed vs. pending forms with a progress bar</li>
+          <li><strong>Participants</strong> — Total participant count with a link to the full roster</li>
+          <li><strong>Certificates</strong> — Uploaded, verified, and pending certificate counts</li>
+          <li><strong>Quick Actions</strong> — Copy access code, contact organizers, download a summary</li>
+        </ul>
+
+        <div className="bg-beige p-4 rounded-lg mt-6">
+          <p className="text-sm">
+            <strong>Tip:</strong> Bookmark <strong>chirhoevents.com/dashboard/group-leader</strong> for
+            quick access to your portal any time.
+          </p>
+        </div>
       </div>
     )
   },
@@ -1108,6 +1275,192 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
             <strong>💡 Pro Tip:</strong> Send regular reminders to your group about completing
             their forms. Set a deadline at least one week before the event to allow time for
             any issues.
+          </p>
+        </div>
+      </div>
+    )
+  },
+  "portal-housing": {
+    title: "Housing Assignments",
+    content: (
+      <div className="space-y-4">
+        <p>
+          The Housing section of the Group Leader Portal lets you assign your participants to rooms
+          and beds at the event venue—directly from your account without waiting for the organizer.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Accessing Housing</h3>
+        <p>
+          Click <strong>Housing</strong> in the sidebar of your Group Leader Portal. You&apos;ll see a
+          list of available buildings and rooms, along with your unassigned participants.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Assigning Participants Manually</h3>
+        <ol className="list-decimal list-inside space-y-4 text-gray-600">
+          <li>
+            <strong>Browse available rooms</strong>
+            <p className="ml-6 mt-1">Rooms are grouped by building. Each room shows its capacity, current occupancy, and available beds.</p>
+          </li>
+          <li>
+            <strong>Select a room</strong>
+            <p className="ml-6 mt-1">Click on a room to expand it and see individual beds (labeled A, B, C, etc.).</p>
+          </li>
+          <li>
+            <strong>Assign a participant</strong>
+            <p className="ml-6 mt-1">Click an empty bed slot and select the participant you want to assign from the dropdown.</p>
+          </li>
+          <li>
+            <strong>Repeat for all participants</strong>
+            <p className="ml-6 mt-1">Continue assigning until all your participants have a room and bed assignment.</p>
+          </li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Auto-Assign</h3>
+        <p>
+          Don&apos;t want to assign rooms manually? Use the <strong>Auto-Assign</strong> button to let
+          the system place your participants into available rooms automatically. The system respects
+          gender separation and room capacity limits.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Submitting Your Assignments</h3>
+        <p>
+          Once you&apos;re satisfied with your assignments, click <strong>Submit Housing</strong>. This
+          finalizes your selections and notifies the event organizer.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">When Housing Is Locked</h3>
+        <p>
+          After the housing deadline, the organizer may lock housing to prevent further changes.
+          If you need to make a change after housing is locked:
+        </p>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Click <strong>Request Unlock</strong> in the Housing section</li>
+          <li>Describe why you need to make changes</li>
+          <li>The organizer will review and unlock if appropriate</li>
+        </ol>
+
+        <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mt-4">
+          <p className="text-sm">
+            <strong>Important:</strong> Housing assignments must be completed before the deadline
+            set by the event organizer. Check your event&apos;s details for the specific date.
+          </p>
+        </div>
+      </div>
+    )
+  },
+  "portal-certificates": {
+    title: "Managing Certificates",
+    content: (
+      <div className="space-y-4">
+        <p>
+          All adult chaperones attending Catholic youth events are typically required to have a current
+          Safe Environment certificate. The Certificates section of the portal lets you upload and
+          track these for your entire group.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Accessing Certificates</h3>
+        <p>
+          Click <strong>Certificates</strong> in the sidebar. You&apos;ll see a list of all chaperones
+          (and any other adults) in your group who require a certificate.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Certificate Statuses</h3>
+        <div className="space-y-3 mt-4">
+          <div className="border-l-4 border-gray-300 pl-4">
+            <h4 className="font-semibold text-navy">Pending</h4>
+            <p className="text-sm text-gray-600 mt-1">No certificate has been uploaded yet for this person.</p>
+          </div>
+          <div className="border-l-4 border-yellow-400 pl-4">
+            <h4 className="font-semibold text-navy">Uploaded</h4>
+            <p className="text-sm text-gray-600 mt-1">A certificate has been uploaded and is waiting for review by the event organizer.</p>
+          </div>
+          <div className="border-l-4 border-green-500 pl-4">
+            <h4 className="font-semibold text-navy">Verified</h4>
+            <p className="text-sm text-gray-600 mt-1">The certificate has been reviewed and approved by the event organizer.</p>
+          </div>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Uploading a Certificate</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600">
+          <li>Find the chaperone in the certificates list</li>
+          <li>Click <strong>Upload Certificate</strong> next to their name</li>
+          <li>Select the certificate file (PDF or image formats accepted)</li>
+          <li>The status will change to &quot;Uploaded&quot; while the organizer reviews it</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Dashboard Summary</h3>
+        <p>
+          Your main dashboard shows a certificate summary card with counts of uploaded, verified,
+          and pending certificates so you can quickly see what still needs attention.
+        </p>
+
+        <div className="bg-beige p-4 rounded-lg mt-6">
+          <p className="text-sm">
+            <strong>Tip:</strong> Upload certificates as early as possible. If a certificate is
+            rejected (e.g., expired or wrong program), you&apos;ll have time to upload a valid one
+            before the event.
+          </p>
+        </div>
+      </div>
+    )
+  },
+  "portal-settings": {
+    title: "Portal Settings & Linked Events",
+    content: (
+      <div className="space-y-4">
+        <p>
+          The Settings page in the Group Leader Portal lets you manage your personal profile,
+          notification preferences, and linked event registrations.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Profile Tab</h3>
+        <p>Update your personal information shown to the event organizer:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Full name and contact phone number</li>
+          <li>Profile photo</li>
+          <li>Group name, parish, and diocese</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Notification Preferences</h3>
+        <p>Choose which emails you want to receive. You can toggle notifications for:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Registration updates</strong> — Confirmations and edits</li>
+          <li><strong>Payment reminders</strong> — Received, due, and overdue alerts</li>
+          <li><strong>Form notifications</strong> — When forms are completed, edited, or still pending</li>
+          <li><strong>Event announcements</strong> — Schedule changes and updates from the organizer</li>
+          <li><strong>Participant alerts</strong> — When a new participant is added to your group</li>
+          <li><strong>Weekly updates</strong> — A weekly digest of your group&apos;s status</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Linked Events</h3>
+        <p>
+          The Settings page shows all events currently linked to your account. For each linked event you can:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>See the event name, dates, and your access code</li>
+          <li>Copy your access code to share with participants</li>
+          <li>Unlink an event if you no longer need to manage it</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Adding a New Event (in Settings)</h3>
+        <p>You can also link additional access codes directly from the Settings page:</p>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Scroll to the <strong>Linked Events</strong> section in Settings</li>
+          <li>Click <strong>Link Another Event</strong></li>
+          <li>Enter the new access code</li>
+          <li>Click Link — the event is now accessible from your sidebar</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Help & Resources</h3>
+        <p>
+          The Settings page includes a Help tab with quick-access links to documentation,
+          video tutorials, and a contact form to reach the event organizer or ChiRho support.
+        </p>
+
+        <div className="bg-beige p-4 rounded-lg mt-6">
+          <p className="text-sm">
+            <strong>Tip:</strong> Keep your phone number up to date. Event organizers may need
+            to reach you quickly in the days leading up to the event.
           </p>
         </div>
       </div>

@@ -13,9 +13,12 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    const { searchParams } = new URL(request.url)
+    const eventId = searchParams.get('eventId')
+
     // Find the group registration linked to this Clerk user
     const groupRegistration = await prisma.groupRegistration.findFirst({
-      where: { clerkUserId: userId },
+      where: { clerkUserId: userId, ...(eventId ? { eventId } : {}) },
       include: {
         participants: {
           include: {
