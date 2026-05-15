@@ -30,8 +30,9 @@ export async function GET() {
       },
     })
 
-    // Filter for events with Poros Housing enabled
-    const events = allEvents.filter(event => event.settings?.porosHousingEnabled === true)
+    // Show all active events in Poros — housing is just one of many Poros features
+    // (nametags, seating, small groups, meal colors, etc. all live in Poros)
+    const events = allEvents
 
     // Get housing stats for each event
     type EventRecord = typeof events[number]
@@ -77,7 +78,7 @@ export async function GET() {
           endDate: event.endDate?.toISOString() || null,
           status: event.status,
           locationName: event.locationName,
-          porosHousingEnabled: true,
+          porosHousingEnabled: event.settings?.porosHousingEnabled ?? false,
           stats: {
             totalParticipants: participantCount + individualCount,
             totalRegistrations: event._count.groupRegistrations + event._count.individualRegistrations,
