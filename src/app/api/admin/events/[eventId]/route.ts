@@ -433,6 +433,7 @@ export async function PUT(
               includedContent: data.includedContent || null,
               bringContent: data.bringContent || null,
               contactInfo: data.contactInfo || null,
+              contactName: data.contactName || null,
               contactEmail: data.contactEmail || null,
               contactPhone: data.contactPhone || null,
               // Email options
@@ -542,6 +543,7 @@ export async function PUT(
               includedContent: data.includedContent || null,
               bringContent: data.bringContent || null,
               contactInfo: data.contactInfo || null,
+              contactName: data.contactName || null,
               contactEmail: data.contactEmail || null,
               contactPhone: data.contactPhone || null,
               // Email options

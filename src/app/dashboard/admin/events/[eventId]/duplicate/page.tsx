@@ -166,6 +166,7 @@ export default function DuplicateEventPage() {
           addOn4Price: decimalToStr(s?.addOn4Price),
 
           // ── Contact & instructions ────────────────────────────────────────
+          contactName: s?.contactName ?? '',
           contactEmail: s?.contactEmail ?? '',
           contactPhone: s?.contactPhone ?? '',
           registrationInstructions: s?.registrationInstructions ?? '',

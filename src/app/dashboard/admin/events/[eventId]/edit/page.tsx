@@ -111,6 +111,7 @@ interface FormData {
   depositType: 'fixed' | 'percentage' | 'full' | 'none'
   depositPercentage: string
   depositAmount: string
+  contactName: string
   contactEmail: string
   contactPhone: string
   registrationInstructions: string
@@ -363,6 +364,7 @@ export default function EditEventPage() {
         depositAmount: event.pricing?.depositAmount?.toString() || '500',
 
         // Step 5: Contact & Instructions
+        contactName: event.settings?.contactName || '',
         contactEmail: event.settings?.contactEmail || '',
         contactPhone: event.settings?.contactPhone || '',
         registrationInstructions: event.settings?.registrationInstructions || '',
