@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Loader2, CreditCard, FileText, ArrowLeft, CheckCircle } from 'lucide-react'
+import { Loader2, CreditCard, FileText, ArrowLeft, CheckCircle, AlertTriangle } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { useRegistrationQueue } from '@/hooks/useRegistrationQueue'
 import RegistrationTimer from '@/components/RegistrationTimer'
 import LoadingScreen from '@/components/LoadingScreen'
@@ -98,6 +99,7 @@ export default function InvoiceReviewPage() {
   const [submitting, setSubmitting] = useState(false)
   const [event, setEvent] = useState<EventData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [errorModalOpen, setErrorModalOpen] = useState(false)
   const [showCheckModal, setShowCheckModal] = useState(false)
   const [checkAcknowledged, setCheckAcknowledged] = useState(false)
 
@@ -354,7 +356,7 @@ export default function InvoiceReviewPage() {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.message || 'Registration failed')
+        throw new Error(errorData.error || errorData.message || 'Registration failed')
       }
 
       const result = await response.json()
@@ -371,6 +373,7 @@ export default function InvoiceReviewPage() {
       }
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.')
+      setErrorModalOpen(true)
     } finally {
       setSubmitting(false)
     }
@@ -401,7 +404,7 @@ export default function InvoiceReviewPage() {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.message || 'Registration failed')
+        throw new Error(errorData.error || errorData.message || 'Registration failed')
       }
 
       const result = await response.json()
@@ -413,6 +416,7 @@ export default function InvoiceReviewPage() {
       router.push(`/registration/confirmation/${result.registrationId}`)
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.')
+      setErrorModalOpen(true)
     } finally {
       setSubmitting(false)
     }
@@ -559,12 +563,6 @@ export default function InvoiceReviewPage() {
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Edit Registration Details
               </Button>
-
-              {error && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-md mb-6">
-                  <p className="text-red-600">{error}</p>
-                </div>
-              )}
 
               {/* Payment Options */}
               <div className="space-y-4">
@@ -741,6 +739,29 @@ export default function InvoiceReviewPage() {
           </Card>
         </div>
       )}
+
+      {/* Error Modal */}
+      <Dialog open={errorModalOpen} onOpenChange={setErrorModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" />
+              Registration Could Not Be Processed
+            </DialogTitle>
+            <DialogDescription className="pt-2 text-gray-700">
+              {error}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              onClick={() => setErrorModalOpen(false)}
+              className="w-full bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
+            >
+              OK
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

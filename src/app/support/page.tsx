@@ -127,6 +127,45 @@ const faqCategories = [
       },
     ]
   },
+  {
+    id: "poros-liability",
+    title: "Liability Forms (Poros)",
+    icon: FileText,
+    questions: [
+      {
+        q: "What is Poros and who uses it?",
+        a: "Poros is ChiRho's liability form platform. Every registered participant — youth, chaperones, and clergy — must complete a liability form through Poros before the event. Group leaders coordinate this for their group, and admins track completion from their dashboard."
+      },
+      {
+        q: "How does a group leader share Poros with their participants?",
+        a: "After registering, the group leader receives a unique access code in their confirmation email and in their Group Leader Portal. They share two things with every participant: (1) the access code, and (2) the link chirhoevents.com/poros. Each person uses that code to access the forms."
+      },
+      {
+        q: "What do participants do on the Poros platform?",
+        a: "1. Go to chirhoevents.com/poros. 2. Enter the group access code provided by your group leader. 3. Confirm your group name and event. 4. Select your role — Youth Under 18, Youth 18+ or Chaperone, or Clergy/Religious. 5. Complete and submit your liability form. Youth under 18 will enter a parent's email; the parent receives a separate link to sign on the minor's behalf."
+      },
+      {
+        q: "What are the three liability form types?",
+        a: "Youth Under 18 (ages 12–17): The participant starts the form and enters a parent or guardian email. The parent receives a secure link to review, complete medical details, and sign the form digitally. Youth 18+ or Chaperone: The participant completes and signs the form entirely on their own. Clergy & Religious (Priest, Deacon, Seminarian, Sister, Brother): A specialized form with clergy-specific fields. This option only appears if the group registration included a priest count."
+      },
+      {
+        q: "What if a parent doesn't receive the email for a minor's form?",
+        a: "Ask the youth to re-enter Poros with the same access code and resubmit with the correct parent email. Also check spam/junk folders. If still missing, contact the event organizer — admins can resend the parent link from their Liability Forms dashboard."
+      },
+      {
+        q: "How do admins enable liability forms for their event?",
+        a: "Liability forms are automatically active for all group registrations — no extra setup is needed. For individual registrations, go to Event Settings and enable 'Individual Registration', then check the 'Youth Event (Participants Under 18)' box. Admins can view all submitted forms under Admin Dashboard → Liability Forms."
+      },
+      {
+        q: "Where can admins track who has and hasn't submitted their form?",
+        a: "Go to Admin Dashboard → Liability Forms, or open the specific event and click the 'Poros / Liability' tab. You'll see each participant's name, form type, and completion status. Incomplete forms are highlighted so you can follow up with the group leader."
+      },
+      {
+        q: "How do I set up the wording on each Poros liability form page?",
+        a: "Go to Admin Dashboard → Events → [Your Event] → Poros / Liability. There are two tabs that control all wording:\n\n1. WAIVER TEMPLATES — Controls the legal consent text participants read and agree to. Select the form type (Youth U18, Youth 18+/Chaperone, Clergy, or Religious), then edit any of the five text fields: General Waiver & Release (shown at the top of the consent section), Medical Release Authorization, Photo & Video Consent, Transportation Consent, and Emergency Treatment Authorization. Click 'Fill Defaults' to start from pre-written text, then customize as needed. Use 'Preview Form' to see exactly how it will look before saving.\n\n2. SECTION CONFIG — Controls the section headings and help text shown throughout the form. Select the participant type, then for each section you can: change the label (e.g. rename 'Medical Information' to something specific to your org), add Help Text that appears below the section heading, toggle sections on or off, mark sections as required or optional, and reorder sections with the up/down arrows.\n\nChanges in both tabs take effect immediately for anyone opening a form with your event's access code."
+      },
+    ]
+  },
 ]
 
 const helpCards = [
