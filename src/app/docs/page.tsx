@@ -39,6 +39,7 @@ const docSections = [
       { id: "landing-page", title: "Customizing Your Landing Page" },
       { id: "poros-portal", title: "Using Poros Portal for Housing" },
       { id: "poros-public", title: "Public Poros Portal" },
+      { id: "poros-liability-wording", title: "Setting Up Liability Form Wording" },
       { id: "salve-checkin", title: "Using SALVE for Check-In" },
       { id: "rapha-medical", title: "Using Rapha for Medical Info" },
       { id: "reports", title: "Generating Reports" },
@@ -2388,6 +2389,87 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
             participants can quickly look up their assignments without asking staff.
           </p>
         </div>
+      </div>
+    )
+  },
+
+  "poros-liability-wording": {
+    title: "Setting Up Liability Form Wording",
+    content: (
+      <div className="space-y-4">
+        <p>
+          Every piece of text participants see on their liability forms — section headings, help text,
+          consent statements, and legal waivers — can be customized per event and per form type.
+          There are two tabs that control all of this, both found in the same place.
+        </p>
+
+        <div className="bg-beige border border-gold/30 rounded-lg p-4">
+          <p className="font-semibold text-navy">Where to find it:</p>
+          <p className="text-gray-600 mt-1">
+            Admin Dashboard → Events → [Your Event] → <strong>Poros / Liability</strong>
+          </p>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Tab 1 — Waiver Templates</h3>
+        <p>
+          This tab controls the <strong>legal consent text</strong> that participants read and agree to
+          at the bottom of each form — the actual wording of the waivers.
+        </p>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Select the <strong>form type</strong> at the top: Youth U18, Youth 18+/Chaperone, Clergy, or Religious</li>
+          <li>Edit any of the five text fields:
+            <ul className="list-disc list-inside ml-6 mt-2 space-y-1">
+              <li><strong>General Waiver & Release</strong> — displayed at the top of the consent section</li>
+              <li><strong>Medical Release Authorization</strong> — shown next to the medical consent checkbox</li>
+              <li><strong>Photo & Video Consent</strong> — shown next to the photo consent checkbox</li>
+              <li><strong>Transportation Consent</strong> — shown next to the transportation checkbox</li>
+              <li><strong>Emergency Treatment Authorization</strong> — shown next to that checkbox</li>
+            </ul>
+          </li>
+          <li>Click <strong>Fill Defaults</strong> to load pre-written starter text you can edit from</li>
+          <li>Use <strong>Preview Form</strong> to see exactly how it will look before saving</li>
+          <li>Repeat for each form type — each type has its own independent template</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Tab 2 — Section Config</h3>
+        <p>
+          This tab controls the <strong>section headings, help text, and layout</strong> of each part of
+          the form — what shows, what's required, and what it says.
+        </p>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Select the <strong>participant type</strong> (Youth U18, Chaperone, Priest, Deacon, etc.)</li>
+          <li>For each section you can:
+            <ul className="list-disc list-inside ml-6 mt-2 space-y-1">
+              <li><strong>Custom Label</strong> — rename the section heading (e.g. change "Medical Information" to your preferred wording)</li>
+              <li><strong>Custom Help Text</strong> — add a note shown below the heading to guide participants</li>
+              <li><strong>Enable / Disable</strong> — hide sections your event doesn't need</li>
+              <li><strong>Required / Optional</strong> — control whether participants must fill it out</li>
+              <li><strong>Reorder</strong> — use the up/down arrows to change section order</li>
+            </ul>
+          </li>
+          <li>Save — changes go live immediately for anyone opening a form with your event's access code</li>
+        </ol>
+
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+          <p className="font-semibold text-blue-900">Tip</p>
+          <p className="text-blue-800 text-sm mt-1">
+            Templates are per form type, but Section Config is per participant type — so you can have
+            different section layouts for priests vs. chaperones even though they share the same waiver template.
+          </p>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Available Sections</h3>
+        <ul className="list-disc list-inside space-y-1 text-gray-600">
+          <li>Basic Information</li>
+          <li>Medical Information</li>
+          <li>Emergency Contacts</li>
+          <li>Insurance Information</li>
+          <li>Clergy Information (clergy forms only)</li>
+          <li>Housing Preferences</li>
+          <li>Safe Environment Certificate</li>
+          <li>Letter of Good Standing</li>
+          <li>Consent & Signature</li>
+        </ul>
       </div>
     )
   },
