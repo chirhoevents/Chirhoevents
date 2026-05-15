@@ -2434,20 +2434,20 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
         <h3 className="text-xl font-semibold text-navy mt-6">Tab 2 — Section Config</h3>
         <p>
           This tab controls the <strong>section headings, help text, and layout</strong> of each part of
-          the form — what shows, what's required, and what it says.
+          the form — what shows, what&apos;s required, and what it says.
         </p>
         <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
           <li>Select the <strong>participant type</strong> (Youth U18, Chaperone, Priest, Deacon, etc.)</li>
           <li>For each section you can:
             <ul className="list-disc list-inside ml-6 mt-2 space-y-1">
-              <li><strong>Custom Label</strong> — rename the section heading (e.g. change "Medical Information" to your preferred wording)</li>
+              <li><strong>Custom Label</strong> — rename the section heading (e.g. change &quot;Medical Information&quot; to your preferred wording)</li>
               <li><strong>Custom Help Text</strong> — add a note shown below the heading to guide participants</li>
-              <li><strong>Enable / Disable</strong> — hide sections your event doesn't need</li>
+              <li><strong>Enable / Disable</strong> — hide sections your event doesn&apos;t need</li>
               <li><strong>Required / Optional</strong> — control whether participants must fill it out</li>
               <li><strong>Reorder</strong> — use the up/down arrows to change section order</li>
             </ul>
           </li>
-          <li>Save — changes go live immediately for anyone opening a form with your event's access code</li>
+          <li>Save — changes go live immediately for anyone opening a form with your event&apos;s access code</li>
         </ol>
 
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
