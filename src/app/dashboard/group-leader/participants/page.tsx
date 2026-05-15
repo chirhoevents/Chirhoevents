@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useEvent } from '@/contexts/EventContext'
 import {
   Users,
   Search,
@@ -55,6 +56,7 @@ interface Participant {
 }
 
 export default function ParticipantsPage() {
+  const { selectedEventId } = useEvent()
   const [participants, setParticipants] = useState<Participant[]>([])
   const [filteredParticipants, setFilteredParticipants] = useState<Participant[]>([])
   const [loading, setLoading] = useState(true)
@@ -64,7 +66,8 @@ export default function ParticipantsPage() {
 
   useEffect(() => {
     fetchParticipants()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedEventId])
 
   useEffect(() => {
     filterParticipants()
@@ -72,8 +75,13 @@ export default function ParticipantsPage() {
   }, [participants, searchTerm, selectedType])
 
   const fetchParticipants = async () => {
+    if (!selectedEventId) {
+      setLoading(false)
+      return
+    }
+    setLoading(true)
     try {
-      const response = await fetch('/api/group-leader/participants')
+      const response = await fetch(`/api/group-leader/participants?eventId=${selectedEventId}`)
       if (response.ok) {
         const data = await response.json()
         setParticipants(data.participants)

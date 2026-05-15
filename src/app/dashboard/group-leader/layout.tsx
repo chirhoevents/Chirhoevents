@@ -205,9 +205,13 @@ function GroupLeaderLayoutContent({
     setAddCodeError('')
 
     try {
+      const token = await getToken()
       const response = await fetch('/api/group-leader/settings/link-code', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ accessCode: newAccessCode.trim() }),
       })
 
@@ -215,7 +219,9 @@ function GroupLeaderLayoutContent({
 
       if (response.ok) {
         // Refresh the linked events using context
-        const settingsResponse = await fetch('/api/group-leader/settings')
+        const settingsResponse = await fetch('/api/group-leader/settings', {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        })
         if (settingsResponse.ok) {
           const settingsData = await settingsResponse.json()
           setLinkedEvents(settingsData.linkedEvents || [])
