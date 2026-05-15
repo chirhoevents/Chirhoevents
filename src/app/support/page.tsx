@@ -1,10 +1,11 @@
 'use client'
 
+import { useState } from 'react'
 import { PublicNav } from "@/components/PublicNav"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
-import { Building2, Users, FileText, Mail, HelpCircle, CreditCard, Calendar, Settings } from "lucide-react"
+import { Building2, Users, FileText, Mail, HelpCircle, CreditCard, Calendar, Settings, Search, X } from "lucide-react"
 import Link from "next/link"
 
 const faqCategories = [
@@ -205,6 +206,23 @@ const helpCards = [
 ]
 
 export default function SupportPage() {
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const query = searchQuery.trim().toLowerCase()
+
+  const filteredCategories = faqCategories
+    .map((category) => ({
+      ...category,
+      questions: category.questions.filter(
+        (faq) =>
+          faq.q.toLowerCase().includes(query) ||
+          faq.a.toLowerCase().includes(query)
+      ),
+    }))
+    .filter((category) => category.questions.length > 0)
+
+  const totalResults = filteredCategories.reduce((sum, c) => sum + c.questions.length, 0)
+
   return (
     <div className="min-h-screen bg-gray-50">
       <PublicNav currentPage="/support" />
@@ -214,40 +232,77 @@ export default function SupportPage() {
         <div className="container mx-auto px-4">
           <h1 className="text-3xl md:text-4xl font-bold">Support & Help</h1>
           <p className="text-gray-300 mt-2">Get answers to your questions</p>
+
+          {/* Search Bar */}
+          <div className="mt-6 max-w-xl relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search for answers..."
+              className="w-full pl-12 pr-10 py-3 rounded-lg text-gray-900 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-gold text-sm"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
       <div className="container mx-auto px-4 py-12">
         {/* FAQ Section */}
         <section className="mb-16">
-          <h2 className="text-2xl font-bold text-navy mb-8">Frequently Asked Questions</h2>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {faqCategories.map((category) => (
-              <Card key={category.id} className="overflow-hidden">
-                <div className="bg-beige px-6 py-4 border-b">
-                  <h3 className="flex items-center text-lg font-semibold text-navy">
-                    <category.icon className="h-5 w-5 mr-2 text-gold" />
-                    {category.title}
-                  </h3>
-                </div>
-                <CardContent className="p-0">
-                  <Accordion type="single" collapsible>
-                    {category.questions.map((faq, index) => (
-                      <AccordionItem key={index} value={`${category.id}-${index}`} className="border-b last:border-b-0">
-                        <AccordionTrigger className="px-6 py-4 text-left text-sm font-medium text-navy hover:no-underline">
-                          {faq.q}
-                        </AccordionTrigger>
-                        <AccordionContent className="px-6 pb-4 text-sm text-gray-600">
-                          {faq.a}
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-2xl font-bold text-navy">Frequently Asked Questions</h2>
+            {query && (
+              <p className="text-sm text-gray-500">
+                {totalResults === 0
+                  ? 'No results found'
+                  : `${totalResults} result${totalResults === 1 ? '' : 's'} for "${searchQuery}"`}
+              </p>
+            )}
           </div>
+
+          {query && totalResults === 0 ? (
+            <div className="text-center py-16">
+              <HelpCircle className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500 text-lg mb-2">No results found for &ldquo;{searchQuery}&rdquo;</p>
+              <p className="text-gray-400 text-sm">Try different keywords or <button onClick={() => setSearchQuery('')} className="text-gold hover:underline">clear the search</button> to browse all topics.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {filteredCategories.map((category) => (
+                <Card key={category.id} className="overflow-hidden">
+                  <div className="bg-beige px-6 py-4 border-b">
+                    <h3 className="flex items-center text-lg font-semibold text-navy">
+                      <category.icon className="h-5 w-5 mr-2 text-gold" />
+                      {category.title}
+                    </h3>
+                  </div>
+                  <CardContent className="p-0">
+                    <Accordion type="single" collapsible>
+                      {category.questions.map((faq, index) => (
+                        <AccordionItem key={index} value={`${category.id}-${index}`} className="border-b last:border-b-0">
+                          <AccordionTrigger className="px-6 py-4 text-left text-sm font-medium text-navy hover:no-underline">
+                            {faq.q}
+                          </AccordionTrigger>
+                          <AccordionContent className="px-6 pb-4 text-sm text-gray-600 whitespace-pre-line">
+                            {faq.a}
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Need More Help Section */}
