@@ -65,22 +65,22 @@ export default function CountdownTimer({
   // Size classes
   const sizeClasses = {
     sm: {
-      number: 'text-3xl md:text-4xl',
+      number: 'text-2xl sm:text-3xl md:text-4xl',
       label: 'text-xs',
       container: 'gap-2 md:gap-4',
-      unit: 'min-w-[60px] md:min-w-[80px]',
+      unit: 'min-w-[50px] sm:min-w-[60px] md:min-w-[80px]',
     },
     md: {
-      number: 'text-4xl md:text-5xl',
-      label: 'text-sm',
-      container: 'gap-3 md:gap-6',
-      unit: 'min-w-[80px] md:min-w-[100px]',
+      number: 'text-3xl sm:text-4xl md:text-5xl',
+      label: 'text-xs sm:text-sm',
+      container: 'gap-2 sm:gap-3 md:gap-6',
+      unit: 'min-w-[60px] sm:min-w-[75px] md:min-w-[100px]',
     },
     lg: {
-      number: 'text-5xl md:text-6xl lg:text-7xl',
-      label: 'text-sm md:text-base',
-      container: 'gap-4 md:gap-8',
-      unit: 'min-w-[100px] md:min-w-[120px]',
+      number: 'text-3xl sm:text-5xl md:text-6xl lg:text-7xl',
+      label: 'text-xs sm:text-sm md:text-base',
+      container: 'gap-2 sm:gap-4 md:gap-8',
+      unit: 'min-w-[60px] sm:min-w-[90px] md:min-w-[120px]',
     },
   }
 
@@ -103,8 +103,8 @@ export default function CountdownTimer({
     <div className={`w-full ${className}`}>
       {label && (
         <h3
-          className={`text-center font-semibold mb-4 text-white ${
-            size === 'lg' ? 'text-xl md:text-2xl' : size === 'md' ? 'text-lg md:text-xl' : 'text-base'
+          className={`text-center font-semibold mb-3 text-white ${
+            size === 'lg' ? 'text-base sm:text-xl md:text-2xl' : size === 'md' ? 'text-sm sm:text-lg md:text-xl' : 'text-sm'
           }`}
         >
           {label}

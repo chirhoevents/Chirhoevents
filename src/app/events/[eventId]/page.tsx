@@ -173,50 +173,50 @@ export default async function EventLandingPage({ params }: EventPageProps) {
   return (
     <div className="min-h-screen bg-[#F5F1E8]">
       {/* Hero Section */}
-      <section className="text-white py-16 md:py-24" style={heroStyle}>
+      <section className="text-white py-10 md:py-16 lg:py-24" style={heroStyle}>
         <div className="container mx-auto px-4 max-w-6xl">
-          <div className="text-center mb-8">
-            <div className="inline-block bg-white/10 px-4 py-2 rounded-full mb-4">
+          <div className="text-center mb-6 md:mb-8">
+            <div className="inline-block bg-white/10 px-3 py-1.5 rounded-full mb-3">
               <span className="text-sm font-medium">
                 {event.organization.name}
               </span>
             </div>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 md:mb-4">
               {event.name}
             </h1>
             {event.description && (
-              <p className="text-lg md:text-xl text-white/90 max-w-3xl mx-auto">
+              <p className="text-base md:text-xl text-white/90 max-w-3xl mx-auto">
                 {event.description}
               </p>
             )}
           </div>
 
           {/* Event Details */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="flex items-center justify-center md:justify-start gap-3 bg-white/10 p-4 rounded-lg">
-              <Calendar className="h-6 w-6 text-[#9C8466]" />
-              <div>
-                <div className="text-sm text-white/70">Date</div>
-                <div className="font-semibold">{formatDateRange(event.startDate, event.endDate)}</div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6 mb-6 md:mb-8">
+            <div className="flex items-center gap-2 md:gap-3 bg-white/10 p-3 md:p-4 rounded-lg">
+              <Calendar className="h-5 w-5 md:h-6 md:w-6 text-[#9C8466] shrink-0" />
+              <div className="min-w-0">
+                <div className="text-xs text-white/70">Date</div>
+                <div className="font-semibold text-sm md:text-base leading-tight">{formatDateRange(event.startDate, event.endDate)}</div>
               </div>
             </div>
 
             {event.locationName && (
-              <div className="flex items-center justify-center md:justify-start gap-3 bg-white/10 p-4 rounded-lg">
-                <MapPin className="h-6 w-6 text-[#9C8466]" />
-                <div>
-                  <div className="text-sm text-white/70">Location</div>
-                  <div className="font-semibold">{event.locationName}</div>
+              <div className="flex items-center gap-2 md:gap-3 bg-white/10 p-3 md:p-4 rounded-lg">
+                <MapPin className="h-5 w-5 md:h-6 md:w-6 text-[#9C8466] shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-xs text-white/70">Location</div>
+                  <div className="font-semibold text-sm md:text-base leading-tight">{event.locationName}</div>
                 </div>
               </div>
             )}
 
             {event.capacityTotal && (event.settings?.showCapacity !== false) && (
-              <div className="flex items-center justify-center md:justify-start gap-3 bg-white/10 p-4 rounded-lg">
-                <Users className="h-6 w-6 text-[#9C8466]" />
-                <div>
-                  <div className="text-sm text-white/70">Capacity</div>
-                  <div className="font-semibold">{event.capacityTotal} attendees</div>
+              <div className="flex items-center gap-2 md:gap-3 bg-white/10 p-3 md:p-4 rounded-lg col-span-2 md:col-span-1">
+                <Users className="h-5 w-5 md:h-6 md:w-6 text-[#9C8466] shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-xs text-white/70">Capacity</div>
+                  <div className="font-semibold text-sm md:text-base">{event.capacityTotal} attendees</div>
                 </div>
               </div>
             )}
@@ -226,7 +226,7 @@ export default async function EventLandingPage({ params }: EventPageProps) {
           {status.showCountdown &&
             status.countdownTarget &&
             event.settings?.countdownLocation === 'hero' && (
-              <div className="bg-white/10 backdrop-blur-sm p-8 rounded-2xl">
+              <div className="bg-white/10 backdrop-blur-sm p-4 sm:p-6 md:p-8 rounded-2xl">
                 <CountdownTimer
                   targetDate={status.countdownTarget}
                   label={
@@ -242,10 +242,10 @@ export default async function EventLandingPage({ params }: EventPageProps) {
       </section>
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-12 max-w-6xl">
+      <div className="container mx-auto px-4 py-6 md:py-12 max-w-6xl">
         {/* Registration Section */}
-        <Card className="mb-8 border-2 border-[#1E3A5F] bg-white">
-          <CardContent className="p-8">
+        <Card className="mb-6 md:mb-8 border-2 border-[#1E3A5F] bg-white">
+          <CardContent className="p-4 sm:p-6 md:p-8">
             <EventLandingClient
               eventId={event.id}
               eventName={event.name}
@@ -280,7 +280,7 @@ export default async function EventLandingPage({ params }: EventPageProps) {
         </Card>
 
         {/* Content Sections */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
           {/* Schedule */}
           {event.settings?.landingPageShowSchedule && event.settings?.scheduleContent && (
             <Card className="bg-white border-[#D1D5DB]">
