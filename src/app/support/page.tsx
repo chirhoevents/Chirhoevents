@@ -160,6 +160,10 @@ const faqCategories = [
         q: "Where can admins track who has and hasn't submitted their form?",
         a: "Go to Admin Dashboard → Liability Forms, or open the specific event and click the 'Poros / Liability' tab. You'll see each participant's name, form type, and completion status. Incomplete forms are highlighted so you can follow up with the group leader."
       },
+      {
+        q: "How do I set up the wording on each Poros liability form page?",
+        a: "Go to Admin Dashboard → Events → [Your Event] → Poros / Liability. There are two tabs that control all wording:\n\n1. WAIVER TEMPLATES — Controls the legal consent text participants read and agree to. Select the form type (Youth U18, Youth 18+/Chaperone, Clergy, or Religious), then edit any of the five text fields: General Waiver & Release (shown at the top of the consent section), Medical Release Authorization, Photo & Video Consent, Transportation Consent, and Emergency Treatment Authorization. Click 'Fill Defaults' to start from pre-written text, then customize as needed. Use 'Preview Form' to see exactly how it will look before saving.\n\n2. SECTION CONFIG — Controls the section headings and help text shown throughout the form. Select the participant type, then for each section you can: change the label (e.g. rename 'Medical Information' to something specific to your org), add Help Text that appears below the section heading, toggle sections on or off, mark sections as required or optional, and reorder sections with the up/down arrows.\n\nChanges in both tabs take effect immediately for anyone opening a form with your event's access code."
+      },
     ]
   },
 ]
