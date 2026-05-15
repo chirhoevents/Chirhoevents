@@ -34,14 +34,14 @@ export async function generateMetadata({
     }
   }
 
-  const formattedDates = `${event.startDate.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  })} - ${event.endDate.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })}`
+  const [sy, sm, sd] = event.startDate.toISOString().split('T')[0].split('-').map(Number)
+  const [ey, em, ed] = event.endDate.toISOString().split('T')[0].split('-').map(Number)
+  const shortMonth = (m: number) => new Date(2000, m - 1, 1).toLocaleDateString('en-US', { month: 'short' })
+  const formattedDates = sy === ey && sm === em
+    ? `${shortMonth(sm)} ${sd} - ${ed}, ${sy}`
+    : sy === ey
+      ? `${shortMonth(sm)} ${sd} - ${shortMonth(em)} ${ed}, ${sy}`
+      : `${shortMonth(sm)} ${sd}, ${sy} - ${shortMonth(em)} ${ed}, ${ey}`
 
   const description = event.description
     ? `${event.description.slice(0, 150)}${event.description.length > 150 ? '...' : ''}`
@@ -119,38 +119,42 @@ export default async function EventLandingPage({ params }: EventPageProps) {
     event.settings?.availabilityThreshold ?? 20
   )
 
-  // Format dates
+  // Format dates — extract parts from ISO string to avoid UTC timezone offset
+  const parseDateParts = (date: Date) => {
+    const [y, m, d] = date.toISOString().split('T')[0].split('-').map(Number)
+    return { y, m, d }
+  }
+
+  const monthName = (m: number, short = false) =>
+    new Date(2000, m - 1, 1).toLocaleDateString('en-US', { month: short ? 'short' : 'long' })
+
   const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    }).format(date)
+    const { y, m, d } = parseDateParts(date)
+    const weekday = new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'long' })
+    return `${weekday}, ${monthName(m)} ${d}, ${y}`
   }
 
   const formatDateRange = (start: Date, end: Date) => {
-    const isSameMonth = start.getMonth() === end.getMonth()
-    const isSameYear = start.getFullYear() === end.getFullYear()
+    const s = parseDateParts(start)
+    const e = parseDateParts(end)
 
-    if (isSameMonth && isSameYear) {
-      return `${start.toLocaleDateString('en-US', {
-        month: 'long',
-        day: 'numeric',
-      })} - ${end.toLocaleDateString('en-US', {
-        day: 'numeric',
-        year: 'numeric',
-      })}`
+    const startISO = start.toISOString().split('T')[0]
+    const endISO = end.toISOString().split('T')[0]
+
+    if (startISO === endISO) {
+      // Single day
+      return `${monthName(s.m)} ${s.d}, ${s.y}`
     }
-
-    return `${start.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    })} - ${end.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    })}`
+    if (s.m === e.m && s.y === e.y) {
+      // Same month and year: "October 24 - 26, 2026"
+      return `${monthName(s.m)} ${s.d} - ${e.d}, ${s.y}`
+    }
+    if (s.y === e.y) {
+      // Different months, same year: "Feb 5 - Mar 7, 2027"
+      return `${monthName(s.m, true)} ${s.d} - ${monthName(e.m, true)} ${e.d}, ${s.y}`
+    }
+    // Different years: "Dec 30, 2026 - Jan 2, 2027"
+    return `${monthName(s.m, true)} ${s.d}, ${s.y} - ${monthName(e.m, true)} ${e.d}, ${e.y}`
   }
 
   // Hero background styles
