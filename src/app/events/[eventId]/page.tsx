@@ -341,6 +341,20 @@ export default async function EventLandingPage({ params }: EventPageProps) {
                 <div className="text-[#6B7280] whitespace-pre-line">
                   {event.settings.contactInfo}
                 </div>
+              ) : event.settings?.contactEmail ? (
+                <>
+                  <p className="text-[#6B7280] mb-2">
+                    Contact {event.settings.contactName || event.organization.name} for more information:
+                  </p>
+                  <p className="text-[#1E3A5F] font-medium">
+                    {event.settings.contactEmail}
+                  </p>
+                  {event.settings.contactPhone && (
+                    <p className="text-[#1E3A5F] font-medium">
+                      {event.settings.contactPhone}
+                    </p>
+                  )}
+                </>
               ) : (
                 <>
                   <p className="text-[#6B7280] mb-2">

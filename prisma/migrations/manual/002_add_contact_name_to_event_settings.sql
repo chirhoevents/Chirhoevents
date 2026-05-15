@@ -1,0 +1,1 @@
+ALTER TABLE event_settings ADD COLUMN IF NOT EXISTS contact_name VARCHAR(255);

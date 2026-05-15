@@ -146,6 +146,7 @@ interface EventFormData {
   addOn4Price: string
 
   // Step 5: Contact & Instructions
+  contactName: string
   contactEmail: string
   contactPhone: string
   registrationInstructions: string
@@ -379,6 +380,7 @@ export default function CreateEventClient({
     addOn4Price: '',
 
     // Step 5
+    contactName: '',
     contactEmail: '',
     contactPhone: '',
     registrationInstructions: '',
@@ -3243,6 +3245,23 @@ export default function CreateEventClient({
                     Contact Information
                   </h3>
                   <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="contactName">Contact Name</Label>
+                      <Input
+                        id="contactName"
+                        type="text"
+                        value={formData.contactName}
+                        onChange={(e) =>
+                          updateFormData({ contactName: e.target.value })
+                        }
+                        placeholder="Registration Team"
+                        className="mt-1"
+                      />
+                      <p className="text-sm text-gray-500 mt-1">
+                        Name to display for registration inquiries (e.g. a specific person or team)
+                      </p>
+                    </div>
+
                     <div>
                       <Label htmlFor="contactEmail">
                         Contact Email <span className="text-red-500">*</span>
