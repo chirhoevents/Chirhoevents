@@ -354,7 +354,7 @@ export default function InvoiceReviewPage() {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.message || 'Registration failed')
+        throw new Error(errorData.error || errorData.message || 'Registration failed')
       }
 
       const result = await response.json()
@@ -401,7 +401,7 @@ export default function InvoiceReviewPage() {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.message || 'Registration failed')
+        throw new Error(errorData.error || errorData.message || 'Registration failed')
       }
 
       const result = await response.json()
