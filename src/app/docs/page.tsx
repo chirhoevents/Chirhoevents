@@ -2970,34 +2970,36 @@ export default function DocsPage() {
                 </CardContent>
               </Card>
             ) : (
-            <Card>
-              <CardContent className="p-8">
-                <h2 className="text-2xl font-bold text-navy mb-6">{currentDoc.title}</h2>
-                <div className="prose prose-gray max-w-none text-gray-600">
-                  {currentDoc.content}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Help Section */}
-            <Card className="mt-8 bg-beige border-gold/30">
-              <CardContent className="p-6">
-                <div className="flex items-start gap-4">
-                  <HelpCircle className="h-6 w-6 text-gold flex-shrink-0 mt-1" />
-                  <div>
-                    <h3 className="font-semibold text-navy">Need more help?</h3>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Can&apos;t find what you&apos;re looking for? Visit our{" "}
-                      <a href="/support" className="text-gold hover:underline">Support page</a>{" "}
-                      or email us at{" "}
-                      <a href="mailto:support@chirhoevents.com" className="text-gold hover:underline">
-                        support@chirhoevents.com
-                      </a>
-                    </p>
+            <>
+              <Card>
+                <CardContent className="p-8">
+                  <h2 className="text-2xl font-bold text-navy mb-6">{currentDoc.title}</h2>
+                  <div className="prose prose-gray max-w-none text-gray-600">
+                    {currentDoc.content}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+
+              {/* Help Section */}
+              <Card className="mt-8 bg-beige border-gold/30">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <HelpCircle className="h-6 w-6 text-gold flex-shrink-0 mt-1" />
+                    <div>
+                      <h3 className="font-semibold text-navy">Need more help?</h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Can&apos;t find what you&apos;re looking for? Visit our{" "}
+                        <a href="/support" className="text-gold hover:underline">Support page</a>{" "}
+                        or email us at{" "}
+                        <a href="mailto:support@chirhoevents.com" className="text-gold hover:underline">
+                          support@chirhoevents.com
+                        </a>
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
             )}
           </main>
         </div>
