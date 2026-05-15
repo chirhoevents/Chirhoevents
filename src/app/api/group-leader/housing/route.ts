@@ -67,6 +67,19 @@ export async function GET(request: NextRequest) {
     })
 
     if (!groupRegistration) {
+      // Check if the registration exists at all for this event/user (could be off-campus)
+      const anyRegistration = await prisma.groupRegistration.findFirst({
+        where: { clerkUserId: userId, eventId: eventId },
+        select: { housingType: true },
+      })
+
+      if (anyRegistration) {
+        return NextResponse.json(
+          { message: 'off_campus', housingType: anyRegistration.housingType },
+          { status: 404 }
+        )
+      }
+
       return NextResponse.json(
         { message: 'No on-campus group registration found' },
         { status: 404 }

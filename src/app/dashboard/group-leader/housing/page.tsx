@@ -102,6 +102,7 @@ export default function HousingPage() {
   const { selectedEventId } = useEvent()
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<HousingData | null>(null)
+  const [isOffCampus, setIsOffCampus] = useState(false)
   const [activeTab, setActiveTab] = useState<HousingCategory>('male_u18')
 
   // Assignment modal state
@@ -147,11 +148,12 @@ export default function HousingPage() {
         }
       } else {
         const error = await response.json()
-        toast.error(error.message || 'Failed to load housing data')
+        if (error.message === 'off_campus') {
+          setIsOffCampus(true)
+        }
       }
     } catch (error) {
       console.error('Failed to fetch housing data:', error)
-      toast.error('Failed to load housing data')
     } finally {
       setLoading(false)
     }
@@ -351,11 +353,23 @@ export default function HousingPage() {
           <CardContent className="pt-6">
             <div className="text-center py-12 text-muted-foreground">
               <Home className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium">No Housing Available</p>
-              <p className="text-sm mt-2">
-                The event organizers have not yet allocated rooms for your group.
-                Please check back later or contact the organizers.
-              </p>
+              {isOffCampus ? (
+                <>
+                  <p className="text-lg font-medium">Off-Campus Registration</p>
+                  <p className="text-sm mt-2">
+                    Your group is registered as off-campus, so housing assignments do not apply.
+                    You&apos;ll be responsible for your own accommodations.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-lg font-medium">No Housing Available Yet</p>
+                  <p className="text-sm mt-2">
+                    The event organizers have not yet allocated rooms for your group.
+                    Please check back later or contact the organizers.
+                  </p>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
