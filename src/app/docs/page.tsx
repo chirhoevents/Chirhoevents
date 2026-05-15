@@ -2772,7 +2772,22 @@ export default function DocsPage() {
   const [activeSection, setActiveSection] = useState("overview")
   const [searchQuery, setSearchQuery] = useState("")
 
+  const query = searchQuery.trim().toLowerCase()
+
+  const searchResults = query
+    ? docSections.flatMap((section) =>
+        section.items
+          .filter((item) => item.title.toLowerCase().includes(query) || section.title.toLowerCase().includes(query))
+          .map((item) => ({ ...item, sectionTitle: section.title }))
+      )
+    : []
+
   const currentDoc = docContent[activeSection] || docContent["overview"]
+
+  const handleResultClick = (id: string) => {
+    setActiveSection(id)
+    setSearchQuery("")
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -2793,8 +2808,16 @@ export default function DocsPage() {
                 placeholder="Search documentation..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-white text-gray-900"
+                className="pl-10 pr-10 bg-white text-gray-900"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -2834,6 +2857,37 @@ export default function DocsPage() {
 
           {/* Main Content */}
           <main className="flex-1 min-w-0">
+            {query ? (
+              <Card>
+                <CardContent className="p-8">
+                  <h2 className="text-xl font-bold text-navy mb-1">
+                    {searchResults.length === 0
+                      ? `No results for "${searchQuery}"`
+                      : `${searchResults.length} result${searchResults.length === 1 ? '' : 's'} for "${searchQuery}"`}
+                  </h2>
+                  {searchResults.length === 0 ? (
+                    <div className="mt-8 text-center py-8">
+                      <HelpCircle className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                      <p className="text-gray-500">Try different keywords, or <button onClick={() => setSearchQuery("")} className="text-gold hover:underline">clear the search</button> to browse all topics.</p>
+                    </div>
+                  ) : (
+                    <ul className="mt-6 divide-y divide-gray-100">
+                      {searchResults.map((result) => (
+                        <li key={result.id}>
+                          <button
+                            onClick={() => handleResultClick(result.id)}
+                            className="w-full text-left py-4 px-2 hover:bg-gray-50 rounded-lg transition-colors group"
+                          >
+                            <p className="text-xs text-gold uppercase tracking-wide mb-1">{result.sectionTitle}</p>
+                            <p className="font-medium text-navy group-hover:underline">{result.title}</p>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
             <Card>
               <CardContent className="p-8">
                 <h2 className="text-2xl font-bold text-navy mb-6">{currentDoc.title}</h2>
@@ -2862,6 +2916,7 @@ export default function DocsPage() {
                 </div>
               </CardContent>
             </Card>
+            )}
           </main>
         </div>
       </div>
