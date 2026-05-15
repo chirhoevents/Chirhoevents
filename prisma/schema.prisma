@@ -213,6 +213,7 @@ model EventSettings {
   dietaryRestrictionsRequired     Boolean  @default(false) @map("dietary_restrictions_required")
   showAdaAccommodations           Boolean  @default(true) @map("show_ada_accommodations")
   adaAccommodationsRequired       Boolean  @default(false) @map("ada_accommodations_required")
+  porosEnabled                    Boolean  @default(false) @map("poros_enabled")
   porosHousingEnabled             Boolean  @default(false) @map("poros_housing_enabled")
   porosPriestHousingEnabled       Boolean  @default(false) @map("poros_priest_housing_enabled")
   porosSeatingEnabled             Boolean  @default(false) @map("poros_seating_enabled")

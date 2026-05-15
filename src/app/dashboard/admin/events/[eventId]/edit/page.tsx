@@ -34,6 +34,7 @@ interface FormData {
   groupRegistrationEnabled: boolean
   individualRegistrationEnabled: boolean
   liabilityFormsRequiredIndividual: boolean
+  porosEnabled: boolean
   porosHousingEnabled: boolean
   tshirtsEnabled: boolean
   individualMealsEnabled: boolean
@@ -267,6 +268,7 @@ export default function EditEventPage() {
         groupRegistrationEnabled: event.settings?.groupRegistrationEnabled ?? true,
         individualRegistrationEnabled: event.settings?.individualRegistrationEnabled ?? false,
         liabilityFormsRequiredIndividual: event.settings?.liabilityFormsRequiredIndividual ?? false,
+        porosEnabled: event.settings?.porosEnabled || event.settings?.porosHousingEnabled || event.settings?.porosPublicPortalEnabled || false,
         porosHousingEnabled: event.settings?.porosHousingEnabled || false,
         tshirtsEnabled: event.settings?.tshirtsEnabled || false,
         individualMealsEnabled: event.settings?.individualMealsEnabled || false,

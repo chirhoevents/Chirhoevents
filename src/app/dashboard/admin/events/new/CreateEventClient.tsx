@@ -97,6 +97,7 @@ interface EventFormData {
   groupRegistrationEnabled: boolean
   individualRegistrationEnabled: boolean
   liabilityFormsRequiredIndividual: boolean
+  porosEnabled: boolean
   porosHousingEnabled: boolean
   tshirtsEnabled: boolean
   individualMealsEnabled: boolean
@@ -330,6 +331,7 @@ export default function CreateEventClient({
     groupRegistrationEnabled: true,
     individualRegistrationEnabled: false,
     liabilityFormsRequiredIndividual: false,
+    porosEnabled: false,
     porosHousingEnabled: false,
     tshirtsEnabled: false,
     individualMealsEnabled: false,
@@ -1354,94 +1356,119 @@ export default function CreateEventClient({
                     🏠 Housing & Logistics
                   </h3>
                   <div className="space-y-4">
+                    {/* Master Poros toggle */}
                     <div className="flex items-center space-x-2">
                       <input
                         type="checkbox"
-                        id="porosHousingEnabled"
-                        checked={formData.porosHousingEnabled}
+                        id="porosEnabled"
+                        checked={formData.porosEnabled}
                         onChange={(e) =>
-                          updateFormData({
-                            porosHousingEnabled: e.target.checked,
-                          })
+                          updateFormData({ porosEnabled: e.target.checked })
                         }
                         className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
                       />
-                      <Label htmlFor="porosHousingEnabled" className="mb-0 font-medium">
-                        Enable Poros Portal (Housing Management System)
+                      <Label htmlFor="porosEnabled" className="mb-0 font-medium">
+                        Enable Poros Portal
                       </Label>
                     </div>
+                    <p className="text-xs text-gray-500 ml-6">
+                      Poros gives you nametag generation, staff management, seating, small groups, meal colors, housing, and more. Individual features can be toggled on/off inside the Poros portal after the event is created.
+                    </p>
 
-                    {/* Conditional housing options - only show if Poros is enabled */}
-                    {formData.porosHousingEnabled && (
-                      <div className="ml-6 pl-4 border-l-2 border-green-300 space-y-3">
-                        <p className="text-sm text-green-800 font-medium">
-                          Housing Options (set capacity limits for each type):
-                        </p>
+                    {/* Poros sub-options — only show when Poros is enabled */}
+                    {formData.porosEnabled && (
+                      <div className="ml-6 pl-4 border-l-2 border-blue-300 space-y-4">
 
+                        {/* Housing sub-toggle */}
                         <div className="space-y-2">
                           <div className="flex items-center space-x-2">
                             <input
                               type="checkbox"
-                              id="allowOnCampus"
-                              checked={formData.allowOnCampus}
+                              id="porosHousingEnabled"
+                              checked={formData.porosHousingEnabled}
                               onChange={(e) =>
-                                updateFormData({ allowOnCampus: e.target.checked })
+                                updateFormData({ porosHousingEnabled: e.target.checked })
                               }
                               className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
                             />
-                            <Label htmlFor="allowOnCampus" className="mb-0">
-                              Allow On-Campus Housing
+                            <Label htmlFor="porosHousingEnabled" className="mb-0 font-medium">
+                              Enable Housing Management
                             </Label>
                           </div>
-                          {formData.allowOnCampus && (
-                            <div className="ml-6 flex items-center gap-2">
-                              <Label htmlFor="onCampusCapacity" className="text-sm text-gray-600 mb-0 whitespace-nowrap">
-                                Capacity limit:
-                              </Label>
-                              <Input
-                                id="onCampusCapacity"
-                                type="number"
-                                min="0"
-                                placeholder="Unlimited"
-                                value={formData.onCampusCapacity}
-                                onChange={(e) => updateFormData({ onCampusCapacity: e.target.value })}
-                                className="w-28 h-8 text-sm"
-                              />
-                              <span className="text-xs text-gray-500">spots</span>
-                            </div>
-                          )}
-                        </div>
 
-                        <div className="space-y-2">
-                          <div className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              id="allowOffCampus"
-                              checked={formData.allowOffCampus}
-                              onChange={(e) =>
-                                updateFormData({ allowOffCampus: e.target.checked })
-                              }
-                              className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
-                            />
-                            <Label htmlFor="allowOffCampus" className="mb-0">
-                              Allow Off-Campus Housing (staying elsewhere)
-                            </Label>
-                          </div>
-                          {formData.allowOffCampus && (
-                            <div className="ml-6 flex items-center gap-2">
-                              <Label htmlFor="offCampusCapacity" className="text-sm text-gray-600 mb-0 whitespace-nowrap">
-                                Capacity limit:
-                              </Label>
-                              <Input
-                                id="offCampusCapacity"
-                                type="number"
-                                min="0"
-                                placeholder="Unlimited"
-                                value={formData.offCampusCapacity}
-                                onChange={(e) => updateFormData({ offCampusCapacity: e.target.value })}
-                                className="w-28 h-8 text-sm"
-                              />
-                              <span className="text-xs text-gray-500">spots</span>
+                          {formData.porosHousingEnabled && (
+                            <div className="ml-6 pl-4 border-l-2 border-green-300 space-y-3">
+                              <p className="text-sm text-green-800 font-medium">
+                                Housing Options (set capacity limits for each type):
+                              </p>
+
+                              <div className="space-y-2">
+                                <div className="flex items-center space-x-2">
+                                  <input
+                                    type="checkbox"
+                                    id="allowOnCampus"
+                                    checked={formData.allowOnCampus}
+                                    onChange={(e) =>
+                                      updateFormData({ allowOnCampus: e.target.checked })
+                                    }
+                                    className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                                  />
+                                  <Label htmlFor="allowOnCampus" className="mb-0">
+                                    Allow On-Campus Housing
+                                  </Label>
+                                </div>
+                                {formData.allowOnCampus && (
+                                  <div className="ml-6 flex items-center gap-2">
+                                    <Label htmlFor="onCampusCapacity" className="text-sm text-gray-600 mb-0 whitespace-nowrap">
+                                      Capacity limit:
+                                    </Label>
+                                    <Input
+                                      id="onCampusCapacity"
+                                      type="number"
+                                      min="0"
+                                      placeholder="Unlimited"
+                                      value={formData.onCampusCapacity}
+                                      onChange={(e) => updateFormData({ onCampusCapacity: e.target.value })}
+                                      className="w-28 h-8 text-sm"
+                                    />
+                                    <span className="text-xs text-gray-500">spots</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="space-y-2">
+                                <div className="flex items-center space-x-2">
+                                  <input
+                                    type="checkbox"
+                                    id="allowOffCampus"
+                                    checked={formData.allowOffCampus}
+                                    onChange={(e) =>
+                                      updateFormData({ allowOffCampus: e.target.checked })
+                                    }
+                                    className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                                  />
+                                  <Label htmlFor="allowOffCampus" className="mb-0">
+                                    Allow Off-Campus Housing (staying elsewhere)
+                                  </Label>
+                                </div>
+                                {formData.allowOffCampus && (
+                                  <div className="ml-6 flex items-center gap-2">
+                                    <Label htmlFor="offCampusCapacity" className="text-sm text-gray-600 mb-0 whitespace-nowrap">
+                                      Capacity limit:
+                                    </Label>
+                                    <Input
+                                      id="offCampusCapacity"
+                                      type="number"
+                                      min="0"
+                                      placeholder="Unlimited"
+                                      value={formData.offCampusCapacity}
+                                      onChange={(e) => updateFormData({ offCampusCapacity: e.target.value })}
+                                      className="w-28 h-8 text-sm"
+                                    />
+                                    <span className="text-xs text-gray-500">spots</span>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )}
                         </div>
