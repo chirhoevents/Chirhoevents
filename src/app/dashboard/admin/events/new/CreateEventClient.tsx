@@ -503,9 +503,9 @@ export default function CreateEventClient({
       return
     }
 
-    // Validate file size (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('File size must be less than 5MB')
+    // Validate file size (4MB — server limit)
+    if (file.size > 4 * 1024 * 1024) {
+      alert('File size must be less than 4MB. Try compressing the image first.')
       return
     }
 
@@ -530,8 +530,13 @@ export default function CreateEventClient({
     })
 
     if (!response.ok) {
-      const data = await response.json()
-      throw new Error(data.error || 'Failed to upload background image')
+      if (response.status === 413) {
+        throw new Error('Image is too large. Please use an image under 4MB.')
+      }
+      const text = await response.text()
+      let message = 'Failed to upload background image'
+      try { message = JSON.parse(text).error || message } catch { /* plain text body */ }
+      throw new Error(message)
     }
 
     const data = await response.json()
