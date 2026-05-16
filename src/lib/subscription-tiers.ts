@@ -78,7 +78,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
     monthlyPrice: 89,
     annualPrice: 900,
     eventsPerYear: 10,
-    maxPeoplePerYear: 3000,
+    maxPeoplePerYear: 2000,
     storageGb: 25,
     features: {
       poros: true,
@@ -98,8 +98,8 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
     description: 'For large conferences and multi-event organizations',
     monthlyPrice: 120,
     annualPrice: 1200,
-    eventsPerYear: 25,
-    maxPeoplePerYear: 8000,
+    eventsPerYear: 20,
+    maxPeoplePerYear: 4000,
     storageGb: 100,
     features: {
       poros: true,
@@ -116,10 +116,10 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
     key: 'basilica',
     name: 'Basilica',
     description: 'Custom enterprise solution for large organizations',
-    monthlyPrice: 2000, // Starting annual price shown as monthly equivalent (~$167/mo)
-    annualPrice: 2000, // Starting at $2,000/year - custom pricing
+    monthlyPrice: 15000, // Starting annual price shown as monthly equivalent
+    annualPrice: 15000, // Starting at $15,000/year - custom pricing
     eventsPerYear: null, // Unlimited
-    maxPeoplePerYear: 15000, // 15,000+ (customizable)
+    maxPeoplePerYear: 10000, // 10,000+ (customizable)
     storageGb: 500,
     features: {
       poros: true,
@@ -287,7 +287,7 @@ export function getSuggestedTierByEvents(eventsPerYear: number): SubscriptionTie
   if (eventsPerYear <= 3) return 'starter';
   if (eventsPerYear <= 5) return 'parish';
   if (eventsPerYear <= 10) return 'cathedral';
-  if (eventsPerYear <= 25) return 'shrine';
+  if (eventsPerYear <= 20) return 'shrine';
   return 'basilica';
 }
 

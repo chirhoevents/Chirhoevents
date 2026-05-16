@@ -169,19 +169,19 @@ specifically built for Catholic events.
 
 **Cathedral: $89/mo or $900/year** ⭐ POPULAR
 - 10 events/year
-- 3,000 people max
+- 2,000 people max
 - 25GB storage
 - **Includes POROS, SALVE, RAPHA**
 
 **Shrine: $120/mo or $1,200/year**
-- 25 events/year
-- 8,000 people max
+- 20 events/year
+- 4,000 people max
 - 100GB storage
 - **Includes POROS, SALVE, RAPHA**
 
-**Basilica: Custom Pricing (starting at $2,000/year)**
+**Basilica: Custom Pricing (starting at $15,000/year)**
 - Unlimited events
-- 15,000+ people
+- 10,000+ people
 - 500GB storage
 - **All features included**
 - Dedicated account manager
