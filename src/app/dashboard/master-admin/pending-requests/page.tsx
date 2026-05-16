@@ -50,9 +50,9 @@ const tierLabels: Record<string, string> = {
 }
 
 const tierPricing: Record<string, { monthly: number; annual: number }> = {
-  starter: { monthly: 25, annual: 250 },
+  starter: { monthly: 29, annual: 290 },
   parish: { monthly: 45, annual: 450 },
-  cathedral: { monthly: 89, annual: 890 },
+  cathedral: { monthly: 89, annual: 900 },
   shrine: { monthly: 120, annual: 1200 },
   basilica: { monthly: 200, annual: 2000 },
   // Legacy tier names for backward compatibility

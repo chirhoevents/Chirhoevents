@@ -54,11 +54,11 @@ function getModulesEnabled(modulesEnabled: unknown): { poros: boolean; salve: bo
 
 // Standard tier pricing
 const tierPricing: Record<string, { monthly: number; annual: number; eventsLimit: number; registrationsLimit: number; storageLimit: number }> = {
-  starter: { monthly: 25, annual: 250, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
+  starter: { monthly: 29, annual: 290, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
   parish: { monthly: 45, annual: 450, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
-  shrine: { monthly: 89, annual: 890, eventsLimit: 10, registrationsLimit: 3000, storageLimit: 25 },
-  cathedral: { monthly: 120, annual: 1200, eventsLimit: 25, registrationsLimit: 8000, storageLimit: 100 },
-  basilica: { monthly: 200, annual: 2000, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
+  cathedral: { monthly: 89, annual: 900, eventsLimit: 10, registrationsLimit: 2000, storageLimit: 25 },
+  shrine: { monthly: 120, annual: 1200, eventsLimit: 20, registrationsLimit: 4000, storageLimit: 100 },
+  basilica: { monthly: 200, annual: 15000, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
   test: { monthly: 0, annual: 0, eventsLimit: 3, registrationsLimit: 100, storageLimit: 1 },
 }
 

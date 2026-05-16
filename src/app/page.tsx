@@ -133,7 +133,7 @@ export default function LandingPage() {
                   <tr className="bg-gold-50 border-2 border-gold">
                     <td className="py-4 px-6 font-bold text-navy">ChiRho ✅</td>
                     <td className="py-4 px-6">3.9%*</td>
-                    <td className="py-4 px-6">$29-$99</td>
+                    <td className="py-4 px-6">$29-$120</td>
                     <td className="py-4 px-6 font-bold text-gold-700">$3,900 + monthly</td>
                   </tr>
                   <tr className="border-b">
@@ -369,7 +369,7 @@ export default function LandingPage() {
               <CardHeader>
                 <CardTitle className="text-2xl">Starter</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$25</span>
+                  <span className="text-4xl font-bold text-navy">$29</span>
                   <span className="text-gray-600">/mo</span>
                 </div>
               </CardHeader>
@@ -435,7 +435,7 @@ export default function LandingPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-gray-600">• 10 events/year</p>
-                <p className="text-sm text-gray-600">• 3,000 people max</p>
+                <p className="text-sm text-gray-600">• 2,000 people max</p>
                 <p className="text-sm text-gray-600">• 25GB storage</p>
                 <p className="text-sm font-semibold text-green-700">• Includes POROS, SALVE, RAPHA</p>
                 <div className="mt-4 text-xs text-gray-600">
@@ -463,8 +463,8 @@ export default function LandingPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <p className="text-sm text-gray-600">• 25 events/year</p>
-                <p className="text-sm text-gray-600">• 8,000 people max</p>
+                <p className="text-sm text-gray-600">• 20 events/year</p>
+                <p className="text-sm text-gray-600">• 4,000 people max</p>
                 <p className="text-sm text-gray-600">• 100GB storage</p>
                 <p className="text-sm font-semibold text-green-700">• Includes POROS, SALVE, RAPHA</p>
                 <div className="mt-4 text-xs text-gray-600">
@@ -487,12 +487,12 @@ export default function LandingPage() {
                 <CardTitle className="text-2xl">Basilica</CardTitle>
                 <div className="mt-4">
                   <span className="text-2xl font-bold text-navy">Custom Pricing</span>
-                  <p className="text-sm text-gray-600 mt-1">Starting at $2,000/year</p>
+                  <p className="text-sm text-gray-600 mt-1">Starting at $15,000/year</p>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-gray-600">• Unlimited events</p>
-                <p className="text-sm text-gray-600">• 15,000+ people</p>
+                <p className="text-sm text-gray-600">• 10,000+ people</p>
                 <p className="text-sm text-gray-600">• 500GB storage</p>
                 <p className="text-sm font-semibold text-green-700">• All features included</p>
                 <p className="text-sm text-gray-600">• Dedicated account manager</p>

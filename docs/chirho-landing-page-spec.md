@@ -77,7 +77,7 @@ Gothic Catholic cathedral (black & white with dark overlay)
 
 | Platform | Fee | Monthly | Total (1K people) |
 |----------|-----|---------|-------------------|
-| **ChiRho** | 3.9%* | $25-$120 | **$3,900 + monthly** ✅ |
+| **ChiRho** | 3.9%* | $29-$120 | **$3,900 + monthly** ✅ |
 | Eventbrite | 4.30% | $0 | $4,300 |
 | Cvent | 6.20%+ | $500+ | $6,200+ |
 
@@ -155,7 +155,7 @@ specifically built for Catholic events.
 
 ### **5 Tiers:**
 
-**Starter: $25/mo** (Monthly only)
+**Starter: $29/mo** (Monthly only)
 - 3 events/year
 - 500 people max
 - 5GB storage
@@ -169,19 +169,19 @@ specifically built for Catholic events.
 
 **Cathedral: $89/mo or $900/year** ⭐ POPULAR
 - 10 events/year
-- 3,000 people max
+- 2,000 people max
 - 25GB storage
 - **Includes POROS, SALVE, RAPHA**
 
 **Shrine: $120/mo or $1,200/year**
-- 25 events/year
-- 8,000 people max
+- 20 events/year
+- 4,000 people max
 - 100GB storage
 - **Includes POROS, SALVE, RAPHA**
 
-**Basilica: Custom Pricing (starting at $2,000/year)**
+**Basilica: Custom Pricing (starting at $15,000/year)**
 - Unlimited events
-- 15,000+ people
+- 10,000+ people
 - 500GB storage
 - **All features included**
 - Dedicated account manager
