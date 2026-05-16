@@ -35,7 +35,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
     key: 'starter',
     name: 'Starter',
     description: 'Perfect for small parishes or organizations just getting started',
-    monthlyPrice: 25,
+    monthlyPrice: 29,
     annualPrice: null, // Monthly only
     eventsPerYear: 3,
     maxPeoplePerYear: 500,

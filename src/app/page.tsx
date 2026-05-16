@@ -133,7 +133,7 @@ export default function LandingPage() {
                   <tr className="bg-gold-50 border-2 border-gold">
                     <td className="py-4 px-6 font-bold text-navy">ChiRho ✅</td>
                     <td className="py-4 px-6">3.9%*</td>
-                    <td className="py-4 px-6">$29-$99</td>
+                    <td className="py-4 px-6">$29-$120</td>
                     <td className="py-4 px-6 font-bold text-gold-700">$3,900 + monthly</td>
                   </tr>
                   <tr className="border-b">
@@ -369,7 +369,7 @@ export default function LandingPage() {
               <CardHeader>
                 <CardTitle className="text-2xl">Starter</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$25</span>
+                  <span className="text-4xl font-bold text-navy">$29</span>
                   <span className="text-gray-600">/mo</span>
                 </div>
               </CardHeader>
