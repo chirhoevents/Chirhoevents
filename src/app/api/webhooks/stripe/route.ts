@@ -989,36 +989,68 @@ export async function POST(request: NextRequest) {
 
   if (event.type === 'invoice.payment_succeeded') {
     console.log('💵 Processing invoice.payment_succeeded event')
-    const invoice = event.data.object as Stripe.Invoice
+    const stripeInvoice = event.data.object as Stripe.Invoice
 
     // Only handle subscription invoices
-    if (!invoice.subscription) {
+    if (!stripeInvoice.subscription) {
       return NextResponse.json({ received: true })
     }
 
     try {
       const org = await prisma.organization.findFirst({
-        where: { stripeSubscriptionId: invoice.subscription as string },
+        where: { stripeSubscriptionId: stripeInvoice.subscription as string },
       })
 
       if (org) {
+        const periodEnd = stripeInvoice.lines.data[0]?.period?.end
+          ? new Date(stripeInvoice.lines.data[0].period.end * 1000)
+          : new Date()
+
         // Update subscription renewal date
         await prisma.organization.update({
           where: { id: org.id },
           data: {
             subscriptionStatus: 'active',
-            subscriptionRenewsAt: invoice.lines.data[0]?.period?.end
-              ? new Date(invoice.lines.data[0].period.end * 1000)
-              : undefined,
+            subscriptionRenewsAt: periodEnd,
           },
         })
+
+        // Create a local invoice record so it shows up in the billing panel
+        // Skip if this is a $0 trial invoice
+        if (stripeInvoice.amount_paid > 0) {
+          const lastInvoice = await prisma.invoice.findFirst({
+            orderBy: { invoiceNumber: 'desc' },
+            select: { invoiceNumber: true },
+          })
+          const nextInvoiceNumber = (lastInvoice?.invoiceNumber || 1000) + 1
+          const isFirstPayment = stripeInvoice.billing_reason === 'subscription_create'
+
+          await prisma.invoice.create({
+            data: {
+              organizationId: org.id,
+              invoiceNumber: nextInvoiceNumber,
+              invoiceType: 'subscription',
+              amount: stripeInvoice.amount_paid / 100,
+              description: isFirstPayment ? 'First subscription payment (via Stripe)' : 'Monthly subscription renewal (via Stripe)',
+              status: 'paid',
+              paidAt: stripeInvoice.status_transitions?.paid_at
+                ? new Date(stripeInvoice.status_transitions.paid_at * 1000)
+                : new Date(),
+              dueDate: periodEnd,
+              stripePaymentIntentId: typeof stripeInvoice.payment_intent === 'string'
+                ? stripeInvoice.payment_intent
+                : null,
+            },
+          })
+          console.log('✅ Local invoice record created for subscription payment')
+        }
 
         // Log platform activity
         await prisma.platformActivityLog.create({
           data: {
             organizationId: org.id,
             activityType: 'subscription_payment',
-            description: `Subscription payment of $${(invoice.amount_paid / 100).toFixed(2)} succeeded`,
+            description: `Subscription payment of $${(stripeInvoice.amount_paid / 100).toFixed(2)} succeeded`,
           },
         })
 
