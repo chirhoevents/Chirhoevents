@@ -285,6 +285,9 @@ export default function BillingDashboard() {
     errors: string[]
   } | null>(null)
   const [generateInvoicesDryRun, setGenerateInvoicesDryRun] = useState(true)
+  const [showInvoiceDetailsModal, setShowInvoiceDetailsModal] = useState(false)
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null)
+  const [showPaymentDetailsModal, setShowPaymentDetailsModal] = useState(false)
 
   // Form states
   const [markPaidForm, setMarkPaidForm] = useState({
@@ -744,7 +747,7 @@ export default function BillingDashboard() {
   const handleSendInvoiceEmail = async (invoice: Invoice, customEmail?: string) => {
     try {
       const token = await getToken()
-      const res = await fetch(`/api/admin/invoices/${invoice.id}/send-email`, {
+      const res = await fetch(`/api/master-admin/invoices/${invoice.id}/send-email`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1296,6 +1299,7 @@ export default function BillingDashboard() {
                               </>
                             )}
                             <button
+                              onClick={() => { setSelectedInvoice(invoice); setShowInvoiceDetailsModal(true) }}
                               className="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg"
                               title="View Details"
                             >
@@ -1417,6 +1421,7 @@ export default function BillingDashboard() {
                         </td>
                         <td className="px-6 py-4">
                           <button
+                            onClick={() => { setSelectedPayment(payment); setShowPaymentDetailsModal(true) }}
                             className="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg"
                             title="View Details"
                           >
@@ -1895,27 +1900,49 @@ export default function BillingDashboard() {
                 </div>
               </div>
 
-              {/* Recent Payments */}
+              {/* Recent Subscription Invoices (from Stripe recurring billing) */}
               <div>
-                <h4 className="font-medium text-gray-900 mb-3">Recent Payments</h4>
+                <h4 className="font-medium text-gray-900 mb-3">Subscription Payment History</h4>
                 <div className="space-y-2">
-                  {selectedSubscription.recentPayments.slice(0, 3).map((payment) => (
-                    <div key={payment.id} className="flex justify-between items-center py-2 border-b border-gray-100">
+                  {selectedSubscription.recentInvoices.filter(inv => inv.invoiceType === 'subscription').slice(0, 5).map((inv) => (
+                    <div key={inv.id} className="flex justify-between items-center py-2 border-b border-gray-100">
                       <div>
                         <span className="text-sm text-gray-600">
-                          {format(new Date(payment.createdAt), 'MMM d, yyyy')}
+                          #{inv.invoiceNumber} — {inv.paidAt ? format(new Date(inv.paidAt), 'MMM d, yyyy') : format(new Date(inv.dueDate), 'MMM d, yyyy')}
                         </span>
-                        <span className="mx-2 text-gray-400">•</span>
-                        <span className="text-sm text-gray-600">{payment.paymentMethod}</span>
                       </div>
-                      <span className="font-medium text-green-600">{formatCurrency(payment.amount)}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-green-600">{formatCurrency(Number(inv.amount))}</span>
+                        <Badge className={getStatusBadge(inv.status)}>{inv.status}</Badge>
+                      </div>
                     </div>
                   ))}
-                  {selectedSubscription.recentPayments.length === 0 && (
-                    <p className="text-sm text-gray-500">No payments recorded</p>
+                  {selectedSubscription.recentInvoices.filter(inv => inv.invoiceType === 'subscription').length === 0 && (
+                    <p className="text-sm text-gray-500">No subscription payments yet — they&apos;ll appear here after the first Stripe charge.</p>
                   )}
                 </div>
               </div>
+
+              {/* Manually Recorded Payments */}
+              {selectedSubscription.recentPayments.length > 0 && (
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-3">Manually Recorded Payments</h4>
+                  <div className="space-y-2">
+                    {selectedSubscription.recentPayments.slice(0, 3).map((payment) => (
+                      <div key={payment.id} className="flex justify-between items-center py-2 border-b border-gray-100">
+                        <div>
+                          <span className="text-sm text-gray-600">
+                            {format(new Date(payment.createdAt), 'MMM d, yyyy')}
+                          </span>
+                          <span className="mx-2 text-gray-400">•</span>
+                          <span className="text-sm text-gray-600">{payment.paymentMethod}</span>
+                        </div>
+                        <span className="font-medium text-green-600">{formatCurrency(payment.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Notes */}
               {selectedSubscription.notes && (
@@ -2515,6 +2542,149 @@ export default function BillingDashboard() {
               <Pause className="h-4 w-4 mr-1" />
               Pause Subscription
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Invoice Details Modal */}
+      <Dialog open={showInvoiceDetailsModal} onOpenChange={setShowInvoiceDetailsModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Invoice #{selectedInvoice?.invoiceNumber}</DialogTitle>
+          </DialogHeader>
+          {selectedInvoice && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-500">Organization</p>
+                  <p className="font-medium">{selectedInvoice.organization?.name || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Type</p>
+                  <Badge className="bg-gray-100 text-gray-800 mt-1">{selectedInvoice.invoiceType.replace('_', ' ')}</Badge>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Amount</p>
+                  <p className="text-2xl font-bold text-gray-900">{formatCurrency(Number(selectedInvoice.amount))}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Status</p>
+                  <Badge className={`${getStatusBadge(selectedInvoice.status)} mt-1`}>{selectedInvoice.status}</Badge>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Due Date</p>
+                  <p className="font-medium">{format(new Date(selectedInvoice.dueDate), 'MMM d, yyyy')}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Paid On</p>
+                  <p className="font-medium">{selectedInvoice.paidAt ? format(new Date(selectedInvoice.paidAt), 'MMM d, yyyy') : '—'}</p>
+                </div>
+              </div>
+              {selectedInvoice.description && (
+                <div>
+                  <p className="text-sm text-gray-500">Description</p>
+                  <p className="text-gray-700 bg-gray-50 rounded-lg p-3 text-sm mt-1">{selectedInvoice.description}</p>
+                </div>
+              )}
+              {selectedInvoice.paymentLink && selectedInvoice.status !== 'paid' && (
+                <div className="bg-blue-50 p-3 rounded-lg flex items-center justify-between">
+                  <span className="text-sm text-blue-700">Payment link available</span>
+                  <button
+                    onClick={() => window.open(selectedInvoice.paymentLink!, '_blank')}
+                    className="text-sm text-blue-600 underline flex items-center gap-1"
+                  >
+                    Open <ExternalLink className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowInvoiceDetailsModal(false)}>Close</Button>
+            {selectedInvoice && selectedInvoice.status !== 'paid' && selectedInvoice.status !== 'cancelled' && (
+              <Button
+                onClick={() => { setShowInvoiceDetailsModal(false); setShowMarkPaidModal(true) }}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                <CheckCircle className="h-4 w-4 mr-1" /> Mark as Paid
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Details Modal */}
+      <Dialog open={showPaymentDetailsModal} onOpenChange={setShowPaymentDetailsModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Payment Details</DialogTitle>
+          </DialogHeader>
+          {selectedPayment && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-500">Organization</p>
+                  <p className="font-medium">{selectedPayment.organizationName}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Date</p>
+                  <p className="font-medium">{format(new Date(selectedPayment.createdAt), 'MMM d, yyyy')}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Amount</p>
+                  <p className="text-2xl font-bold text-green-600">{formatCurrency(selectedPayment.amount)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Status</p>
+                  <Badge className={`${getStatusBadge(selectedPayment.paymentStatus)} mt-1`}>{selectedPayment.paymentStatus}</Badge>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Type</p>
+                  <Badge className="bg-gray-100 text-gray-800 mt-1">{selectedPayment.paymentType}</Badge>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Method</p>
+                  <p className="font-medium capitalize">
+                    {selectedPayment.paymentMethod}
+                    {selectedPayment.checkNumber && ` — Check #${selectedPayment.checkNumber}`}
+                    {selectedPayment.cardLast4 && ` — ****${selectedPayment.cardLast4} (${selectedPayment.cardBrand})`}
+                  </p>
+                </div>
+                {selectedPayment.authorizationCode && (
+                  <div>
+                    <p className="text-sm text-gray-500">Auth Code</p>
+                    <p className="font-mono text-sm">{selectedPayment.authorizationCode}</p>
+                  </div>
+                )}
+                {selectedPayment.transactionReference && (
+                  <div>
+                    <p className="text-sm text-gray-500">Reference</p>
+                    <p className="font-mono text-sm">{selectedPayment.transactionReference}</p>
+                  </div>
+                )}
+                {selectedPayment.platformFeeAmount && (
+                  <div>
+                    <p className="text-sm text-gray-500">Platform Fee</p>
+                    <p className="font-medium">{formatCurrency(selectedPayment.platformFeeAmount)}</p>
+                  </div>
+                )}
+                {selectedPayment.processedByName && (
+                  <div>
+                    <p className="text-sm text-gray-500">Processed By</p>
+                    <p className="font-medium">{selectedPayment.processedByName}</p>
+                  </div>
+                )}
+              </div>
+              {selectedPayment.notes && (
+                <div>
+                  <p className="text-sm text-gray-500">Notes</p>
+                  <p className="text-gray-700 bg-gray-50 rounded-lg p-3 text-sm mt-1">{selectedPayment.notes}</p>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPaymentDetailsModal(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

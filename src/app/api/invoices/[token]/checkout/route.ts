@@ -97,33 +97,39 @@ export async function POST(
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
 
-    // Create Stripe checkout session
-    const session = await stripe.checkout.sessions.create({
+    const sharedMetadata = {
+      type: 'platform_invoice',
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoiceNumber.toString(),
+      organizationId: invoice.organizationId,
+      invoiceType: invoice.invoiceType,
+      paymentToken: token,
+    }
+
+    // For setup fee payments, save the card so we can start the subscription automatically
+    const isSetupFee = invoice.invoiceType === 'setup_fee'
+
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
       success_url: `${appUrl}/pay/invoice/${token}?success=true`,
       cancel_url: `${appUrl}/pay/invoice/${token}?cancelled=true`,
-      customer_email: invoice.organization.contactEmail,
-      metadata: {
-        type: 'platform_invoice',
-        invoiceId: invoice.id,
-        invoiceNumber: invoice.invoiceNumber.toString(),
-        organizationId: invoice.organizationId,
-        invoiceType: invoice.invoiceType,
-        paymentToken: token,
-      },
+      metadata: sharedMetadata,
       payment_intent_data: {
-        metadata: {
-          type: 'platform_invoice',
-          invoiceId: invoice.id,
-          invoiceNumber: invoice.invoiceNumber.toString(),
-          organizationId: invoice.organizationId,
-          invoiceType: invoice.invoiceType,
-          paymentToken: token,
-        },
+        setup_future_usage: isSetupFee ? 'off_session' : undefined,
+        metadata: sharedMetadata,
       },
-    })
+    }
+
+    // Use the existing Stripe customer if we have one, otherwise fall back to email pre-fill
+    if (invoice.organization.stripeCustomerId) {
+      sessionParams.customer = invoice.organization.stripeCustomerId
+    } else {
+      sessionParams.customer_email = invoice.organization.contactEmail
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams)
 
     // Store the checkout session ID on the invoice
     await prisma.invoice.update({

@@ -12,6 +12,24 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
+function getSubscriptionPriceId(tier: string, billingCycle: string): string | null {
+  const key = `${tier}_${billingCycle}`
+  const priceMap: Record<string, string | undefined> = {
+    starter_monthly: process.env.STRIPE_PRICE_STARTER_MONTHLY,
+    parish_monthly: process.env.STRIPE_PRICE_PARISH_MONTHLY,
+    small_diocese_monthly: process.env.STRIPE_PRICE_PARISH_MONTHLY,
+    cathedral_monthly: process.env.STRIPE_PRICE_CATHEDRAL_MONTHLY,
+    cathedral_annual: process.env.STRIPE_PRICE_CATHEDRAL_ANNUAL,
+    growing_monthly: process.env.STRIPE_PRICE_CATHEDRAL_MONTHLY,
+    growing_annual: process.env.STRIPE_PRICE_CATHEDRAL_ANNUAL,
+    shrine_monthly: process.env.STRIPE_PRICE_SHRINE_MONTHLY,
+    shrine_annual: process.env.STRIPE_PRICE_SHRINE_ANNUAL,
+    conference_monthly: process.env.STRIPE_PRICE_SHRINE_MONTHLY,
+    conference_annual: process.env.STRIPE_PRICE_SHRINE_ANNUAL,
+  }
+  return priceMap[key] ?? null
+}
+
 export async function POST(request: NextRequest) {
   console.log('🔔 Stripe webhook received')
   const body = await request.text()
@@ -99,15 +117,60 @@ export async function POST(request: NextRequest) {
           console.log('✅ Subscription activated for org:', organizationId)
         }
 
-        // Handle setup fee
+        // Handle setup fee — mark paid then automatically start the recurring subscription
         if (invoiceType === 'setup_fee') {
           await prisma.organization.update({
             where: { id: organizationId },
-            data: {
-              setupFeePaid: true,
-            },
+            data: { setupFeePaid: true },
           })
           console.log('✅ Setup fee marked as paid for org:', organizationId)
+
+          // Start recurring subscription using the card they just paid with
+          try {
+            const org = await prisma.organization.findUnique({
+              where: { id: organizationId },
+              select: { subscriptionTier: true, billingCycle: true, stripeCustomerId: true },
+            })
+
+            if (org?.stripeCustomerId) {
+              const priceId = getSubscriptionPriceId(org.subscriptionTier, org.billingCycle ?? 'monthly')
+
+              if (priceId) {
+                // Retrieve the saved payment method from the checkout session
+                const checkoutSession = await stripe.checkout.sessions.retrieve(session.id, {
+                  expand: ['payment_intent.payment_method'],
+                })
+                const paymentIntent = checkoutSession.payment_intent as Stripe.PaymentIntent | null
+                const pm = paymentIntent?.payment_method
+
+                if (pm) {
+                  const pmId = typeof pm === 'string' ? pm : pm.id
+
+                  // Attach the payment method to the customer and set it as default
+                  await stripe.paymentMethods.attach(pmId, { customer: org.stripeCustomerId })
+                  await stripe.customers.update(org.stripeCustomerId, {
+                    invoice_settings: { default_payment_method: pmId },
+                  })
+
+                  // Create the recurring subscription — webhook customer.subscription.created will update the org
+                  await stripe.subscriptions.create({
+                    customer: org.stripeCustomerId,
+                    items: [{ price: priceId }],
+                    default_payment_method: pmId,
+                    metadata: { organizationId },
+                  })
+                  console.log('✅ Recurring subscription created for org:', organizationId)
+                } else {
+                  console.warn('⚠️ No payment method on checkout session — subscription not created for org:', organizationId)
+                }
+              } else {
+                console.warn('⚠️ No Stripe price ID configured for tier', org.subscriptionTier, org.billingCycle, '— subscription not created')
+              }
+            }
+          } catch (subError) {
+            console.error('❌ Failed to create subscription after setup fee payment:', subError)
+            // Non-fatal — setup fee is already marked paid; admin can create subscription manually
+          }
         }
 
         // Log platform activity
@@ -926,36 +989,68 @@ export async function POST(request: NextRequest) {
 
   if (event.type === 'invoice.payment_succeeded') {
     console.log('💵 Processing invoice.payment_succeeded event')
-    const invoice = event.data.object as Stripe.Invoice
+    const stripeInvoice = event.data.object as Stripe.Invoice
 
     // Only handle subscription invoices
-    if (!invoice.subscription) {
+    if (!stripeInvoice.subscription) {
       return NextResponse.json({ received: true })
     }
 
     try {
       const org = await prisma.organization.findFirst({
-        where: { stripeSubscriptionId: invoice.subscription as string },
+        where: { stripeSubscriptionId: stripeInvoice.subscription as string },
       })
 
       if (org) {
+        const periodEnd = stripeInvoice.lines.data[0]?.period?.end
+          ? new Date(stripeInvoice.lines.data[0].period.end * 1000)
+          : new Date()
+
         // Update subscription renewal date
         await prisma.organization.update({
           where: { id: org.id },
           data: {
             subscriptionStatus: 'active',
-            subscriptionRenewsAt: invoice.lines.data[0]?.period?.end
-              ? new Date(invoice.lines.data[0].period.end * 1000)
-              : undefined,
+            subscriptionRenewsAt: periodEnd,
           },
         })
+
+        // Create a local invoice record so it shows up in the billing panel
+        // Skip if this is a $0 trial invoice
+        if (stripeInvoice.amount_paid > 0) {
+          const lastInvoice = await prisma.invoice.findFirst({
+            orderBy: { invoiceNumber: 'desc' },
+            select: { invoiceNumber: true },
+          })
+          const nextInvoiceNumber = (lastInvoice?.invoiceNumber || 1000) + 1
+          const isFirstPayment = stripeInvoice.billing_reason === 'subscription_create'
+
+          await prisma.invoice.create({
+            data: {
+              organizationId: org.id,
+              invoiceNumber: nextInvoiceNumber,
+              invoiceType: 'subscription',
+              amount: stripeInvoice.amount_paid / 100,
+              description: isFirstPayment ? 'First subscription payment (via Stripe)' : 'Monthly subscription renewal (via Stripe)',
+              status: 'paid',
+              paidAt: stripeInvoice.status_transitions?.paid_at
+                ? new Date(stripeInvoice.status_transitions.paid_at * 1000)
+                : new Date(),
+              dueDate: periodEnd,
+              stripePaymentIntentId: typeof stripeInvoice.payment_intent === 'string'
+                ? stripeInvoice.payment_intent
+                : null,
+            },
+          })
+          console.log('✅ Local invoice record created for subscription payment')
+        }
 
         // Log platform activity
         await prisma.platformActivityLog.create({
           data: {
             organizationId: org.id,
             activityType: 'subscription_payment',
-            description: `Subscription payment of $${(invoice.amount_paid / 100).toFixed(2)} succeeded`,
+            description: `Subscription payment of $${(stripeInvoice.amount_paid / 100).toFixed(2)} succeeded`,
           },
         })
 
