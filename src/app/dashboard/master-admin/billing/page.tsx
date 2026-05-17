@@ -1918,7 +1918,7 @@ export default function BillingDashboard() {
                     </div>
                   ))}
                   {selectedSubscription.recentInvoices.filter(inv => inv.invoiceType === 'subscription').length === 0 && (
-                    <p className="text-sm text-gray-500">No subscription payments yet — they'll appear here after the first Stripe charge.</p>
+                    <p className="text-sm text-gray-500">No subscription payments yet — they&apos;ll appear here after the first Stripe charge.</p>
                   )}
                 </div>
               </div>
