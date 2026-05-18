@@ -131,6 +131,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Enforce per-group spot limit if configured
+    const groupSpotLimit = event.settings?.groupSpotLimit ?? null
+    if (groupSpotLimit !== null && totalParticipants > groupSpotLimit) {
+      return NextResponse.json(
+        {
+          error: `This event limits each group to ${groupSpotLimit} participant${groupSpotLimit === 1 ? '' : 's'}. Your group has ${totalParticipants}.`,
+          groupSpotLimit,
+        },
+        { status: 400 }
+      )
+    }
+
     // Fix #4: Atomic capacity check+decrement to prevent TOCTOU race conditions.
     // Do this BEFORE creating any records so we don't need to roll back on failure.
     if (event.capacityTotal !== null && event.capacityRemaining !== null) {

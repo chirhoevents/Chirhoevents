@@ -60,6 +60,8 @@ interface FormData {
   doubleRoomLabel: string
   tripleRoomLabel: string
   quadRoomLabel: string
+  // Group spot limit
+  groupSpotLimit: string
   // Option capacity fields
   onCampusCapacity: string
   offCampusCapacity: string
@@ -304,6 +306,8 @@ export default function EditEventPage() {
         doubleRoomLabel: event.settings?.doubleRoomLabel || '',
         tripleRoomLabel: event.settings?.tripleRoomLabel || '',
         quadRoomLabel: event.settings?.quadRoomLabel || '',
+        // Group spot limit
+        groupSpotLimit: event.settings?.groupSpotLimit?.toString() || '',
         // Option capacity fields
         onCampusCapacity: event.settings?.onCampusCapacity?.toString() || '',
         offCampusCapacity: event.settings?.offCampusCapacity?.toString() || '',
