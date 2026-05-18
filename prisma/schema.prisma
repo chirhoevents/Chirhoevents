@@ -284,6 +284,9 @@ model EventSettings {
   // Show/hide capacity on landing page
   showCapacity                    Boolean  @default(true) @map("show_capacity")
 
+  // Maximum participants a single group can register (null = unlimited)
+  groupSpotLimit                  Int?     @map("group_spot_limit")
+
   // Day pass as ticket type for individual registration
   allowIndividualDayPass          Boolean  @default(false) @map("allow_individual_day_pass")
 

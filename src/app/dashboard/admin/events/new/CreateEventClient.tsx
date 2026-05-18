@@ -119,6 +119,8 @@ interface EventFormData {
   tripleRoomLabel: string
   quadRoomLabel: string
 
+  // Group spot limit
+  groupSpotLimit: string
   // Option capacity fields (housing types)
   onCampusCapacity: string
   offCampusCapacity: string
@@ -357,6 +359,8 @@ export default function CreateEventClient({
     tripleRoomLabel: '',
     quadRoomLabel: '',
 
+    // Group spot limit (empty = unlimited)
+    groupSpotLimit: '',
     // Option capacity fields (empty = unlimited)
     onCampusCapacity: '',
     offCampusCapacity: '',
@@ -877,6 +881,23 @@ export default function CreateEventClient({
                         <p className="text-sm text-blue-700 mt-1">
                           Allow parishes and youth groups to register multiple participants together. Group leaders can manage their entire team.
                         </p>
+                        {formData.groupRegistrationEnabled && !formData.individualRegistrationEnabled && (
+                          <div className="mt-3 flex items-center gap-2">
+                            <Label htmlFor="groupSpotLimit" className="text-sm text-blue-800 mb-0 whitespace-nowrap">
+                              Max participants per group:
+                            </Label>
+                            <Input
+                              id="groupSpotLimit"
+                              type="number"
+                              min="1"
+                              placeholder="Unlimited"
+                              value={formData.groupSpotLimit}
+                              onChange={(e) => updateFormData({ groupSpotLimit: e.target.value })}
+                              className="w-28 h-8 text-sm"
+                            />
+                            <span className="text-xs text-blue-600">participants (leave blank for no limit)</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 

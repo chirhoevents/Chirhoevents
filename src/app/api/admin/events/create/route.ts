@@ -167,6 +167,8 @@ export async function POST(request: NextRequest) {
             tripleRoomRemaining: data.tripleRoomCapacity ? parseInt(data.tripleRoomCapacity) : null,
             quadRoomCapacity: data.quadRoomCapacity ? parseInt(data.quadRoomCapacity) : null,
             quadRoomRemaining: data.quadRoomCapacity ? parseInt(data.quadRoomCapacity) : null,
+            // Group spot limit (null = unlimited)
+            groupSpotLimit: data.groupSpotLimit ? parseInt(data.groupSpotLimit) : null,
             landingPageShowPrice: data.landingPageShowPrice !== false,
             landingPageShowSchedule: data.landingPageShowSchedule !== false,
             landingPageShowFaq: data.landingPageShowFaq !== false,

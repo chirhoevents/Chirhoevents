@@ -398,6 +398,8 @@ export async function PUT(
               ...(data.tripleRoomCapacity !== undefined && { tripleRoomRemaining: data.tripleRoomCapacity ? parseInt(data.tripleRoomCapacity) : null }),
               ...(data.quadRoomCapacity !== undefined && { quadRoomCapacity: data.quadRoomCapacity ? parseInt(data.quadRoomCapacity) : null }),
               ...(data.quadRoomCapacity !== undefined && { quadRoomRemaining: data.quadRoomCapacity ? parseInt(data.quadRoomCapacity) : null }),
+              // Group spot limit (null = unlimited)
+              ...(data.groupSpotLimit !== undefined && { groupSpotLimit: data.groupSpotLimit ? parseInt(data.groupSpotLimit) : null }),
               // Add-ons
               addOn1Enabled: data.addOn1Enabled || false,
               addOn1Title: data.addOn1Title || null,
@@ -509,6 +511,8 @@ export async function PUT(
               ...(data.tripleRoomCapacity !== undefined && { tripleRoomRemaining: data.tripleRoomCapacity ? parseInt(data.tripleRoomCapacity) : null }),
               ...(data.quadRoomCapacity !== undefined && { quadRoomCapacity: data.quadRoomCapacity ? parseInt(data.quadRoomCapacity) : null }),
               ...(data.quadRoomCapacity !== undefined && { quadRoomRemaining: data.quadRoomCapacity ? parseInt(data.quadRoomCapacity) : null }),
+              // Group spot limit (null = unlimited)
+              ...(data.groupSpotLimit !== undefined && { groupSpotLimit: data.groupSpotLimit ? parseInt(data.groupSpotLimit) : null }),
               // Add-ons
               addOn1Enabled: data.addOn1Enabled || false,
               addOn1Title: data.addOn1Title || null,

@@ -43,6 +43,7 @@ interface EventSettings {
   allowOnCampus?: boolean
   allowOffCampus?: boolean
   porosHousingEnabled?: boolean
+  groupSpotLimit?: number | null
   // Capacity fields
   onCampusCapacity?: number | null
   onCampusRemaining?: number | null
@@ -342,11 +343,27 @@ export default function GroupRegistrationPage() {
     return { hasCapacity: true, remaining: null }
   }
 
+  // Check if group size exceeds the per-group spot limit
+  const groupSpotLimit = event?.settings?.groupSpotLimit ?? null
+  const exceedsGroupSpotLimit = groupSpotLimit !== null && totalParticipants > groupSpotLimit
+
   // Check if there's enough capacity for the selected housing type
   const validateCapacity = (): { valid: boolean; error?: { message: string; requestedSpots: number; availableSpots: number; housingType?: string } } => {
     if (!event?.settings) return { valid: true }
 
     const settings = event.settings
+
+    // Check per-group spot limit
+    if (groupSpotLimit !== null && totalParticipants > groupSpotLimit) {
+      return {
+        valid: false,
+        error: {
+          message: `This event limits each group to ${groupSpotLimit} participant${groupSpotLimit === 1 ? '' : 's'}.`,
+          requestedSpots: totalParticipants,
+          availableSpots: groupSpotLimit,
+        }
+      }
+    }
 
     // For day pass, check day pass capacity
     if (formData.ticketType === 'day_pass') {
@@ -927,9 +944,24 @@ export default function GroupRegistrationPage() {
                 <Card className="mb-6">
                   <CardHeader>
                     <CardTitle>Participant Counts</CardTitle>
-                    <CardDescription>How many people are coming? (We&apos;ll collect specific details in liability forms later)</CardDescription>
+                    <CardDescription>
+                      How many people are coming? (We&apos;ll collect specific details in liability forms later)
+                      {groupSpotLimit !== null && (
+                        <span className="block mt-1 font-medium text-navy">
+                          This event allows up to {groupSpotLimit} participant{groupSpotLimit === 1 ? '' : 's'} per group.
+                        </span>
+                      )}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {exceedsGroupSpotLimit && (
+                      <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-700">
+                        <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                        <span>
+                          Your group has {totalParticipants} participants, but this event limits each group to {groupSpotLimit}. Please reduce your count to continue.
+                        </span>
+                      </div>
+                    )}
                     <div>
                       <label className="block text-sm font-medium text-navy mb-2">
                         Youth Count *

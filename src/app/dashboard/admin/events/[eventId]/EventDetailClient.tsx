@@ -84,6 +84,7 @@ interface EventDetailClientProps {
     staffRegistrationEnabled?: boolean
     vendorRegistrationEnabled?: boolean
     couponsEnabled?: boolean
+    groupSpotLimit?: number | null
     // Capacity fields
     onCampusCapacity?: number | null
     onCampusRemaining?: number | null
@@ -674,6 +675,18 @@ export default function EventDetailClient({
                         style={{ width: `${Math.min(((event.capacityTotal - (capacityRemaining ?? 0)) / event.capacityTotal) * 100, 100)}%` }}
                       />
                     </div>
+                  </div>
+                )}
+
+                {/* Group Spot Limit */}
+                {settings?.groupSpotLimit && (
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Users className="h-4 w-4 text-[#1E3A5F]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">Per-Group Limit</span>
+                    </div>
+                    <span className="text-2xl font-bold text-[#1E3A5F]">{settings.groupSpotLimit}</span>
+                    <p className="text-xs text-blue-700 mt-1">max participants per group</p>
                   </div>
                 )}
 
