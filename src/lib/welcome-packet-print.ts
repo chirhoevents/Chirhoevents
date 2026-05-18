@@ -400,13 +400,13 @@ export function generateWelcomePacketHTML(packet: PacketData, settings: PrintSet
       <div style="text-align: center; padding-bottom: 12px; margin-bottom: 16px; border-bottom: 3px solid #c9a227;">
         <!-- ChiRho Events Logo - Dark version, centered above org logo -->
         <div style="margin-bottom: 8px;">
-          <img src="/logo-dark.png" alt="ChiRho Events" style="height: 28px;" onerror="this.onerror=null; this.src='/logo-horizontal.png'; this.onerror=function(){this.style.display='none'}" />
+          <img src="/logo-dark.png" alt="ChiRho Events" style="height: 28px; display: block; margin: 0 auto;" onerror="this.onerror=null; this.src='/logo-horizontal.png'; this.onerror=function(){this.style.display='none'}" />
         </div>
 
         <!-- Organization Logo - Centered -->
         ${packet.event.logoUrl ? `
           <div style="margin-bottom: 8px;">
-            <img src="${packet.event.logoUrl}" alt="${packet.event.organizationName || 'Organization'}" style="max-height: 50px; max-width: 200px;" onerror="this.style.display='none'" />
+            <img src="${packet.event.logoUrl}" alt="${packet.event.organizationName || 'Organization'}" style="max-height: 50px; max-width: 200px; display: block; margin: 0 auto;" onerror="this.style.display='none'" />
           </div>
         ` : ''}
 

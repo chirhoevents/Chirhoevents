@@ -563,7 +563,7 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           </li>
           <li>
             <strong>Add participants</strong>
-            <p className="ml-6 mt-1">Enter the names and details of youth, chaperones, and any clergy attending.</p>
+            <p className="ml-6 mt-1">Enter the names and details of youth, chaperones, and any clergy attending. If the event has a per-group participant limit, it will be shown in this section — a warning appears if your total exceeds the limit.</p>
           </li>
           <li>
             <strong>Complete payment</strong>
@@ -2454,6 +2454,34 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           <li><strong>Off-Campus Housing:</strong> For those staying at nearby hotels</li>
           <li><strong>Day Pass:</strong> For commuters not requiring overnight accommodation</li>
         </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Per-Group Spot Limit</h3>
+        <p>
+          You can cap how many total participants a single group is allowed to register. This is useful when
+          you want to ensure equitable access across many parishes or groups.
+        </p>
+        <h4 className="text-lg font-medium text-navy mt-4">Setting the Limit</h4>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Go to <strong>Create Event</strong> or <strong>Edit Event</strong></li>
+          <li>In Step 3 (Features &amp; Modules), select <strong>Group Registration</strong></li>
+          <li>Enter a number in <strong>Max participants per group</strong></li>
+          <li>Leave it blank for no limit (unlimited group size)</li>
+          <li>Save your event — the limit takes effect immediately for new registrations</li>
+        </ol>
+        <h4 className="text-lg font-medium text-navy mt-4">How it Works</h4>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>The limit applies to <strong>total participants</strong> (youth + chaperones + priests combined)</li>
+          <li>Group leaders see the limit displayed in the registration form and get a live warning if they exceed it</li>
+          <li>The registration is blocked server-side if the count exceeds the limit</li>
+          <li>The limit is <strong>per group</strong>, not per person type — a group of 20 youth + 5 chaperones counts as 25</li>
+          <li>To remove the limit, clear the field in Edit Event and save</li>
+        </ul>
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mt-4">
+          <p className="text-sm">
+            <strong>Tip:</strong> The per-group limit works alongside the overall event capacity. Both limits must
+            be satisfied — a group cannot exceed the per-group limit even if overall event spots remain.
+          </p>
+        </div>
       </div>
     )
   },
