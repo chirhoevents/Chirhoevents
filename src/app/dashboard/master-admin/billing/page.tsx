@@ -108,6 +108,7 @@ interface Subscription {
   subscriptionTier: string
   subscriptionStatus: string
   billingCycle: string
+  stripeSubscriptionId?: string | null
   monthlyFee: number
   annualPrice: number
   annualAmount: number
@@ -288,6 +289,11 @@ export default function BillingDashboard() {
   const [showInvoiceDetailsModal, setShowInvoiceDetailsModal] = useState(false)
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null)
   const [showPaymentDetailsModal, setShowPaymentDetailsModal] = useState(false)
+  const [showUpgradeTierModal, setShowUpgradeTierModal] = useState(false)
+  const [upgradeTierForm, setUpgradeTierForm] = useState({ newTier: '', billingCycle: 'monthly' })
+  const [upgradeLoading, setUpgradeLoading] = useState(false)
+  const [startSubLoading, setStartSubLoading] = useState(false)
+  const [startSubResult, setStartSubResult] = useState<{ mode: string; message: string; checkoutUrl?: string } | null>(null)
 
   // Form states
   const [markPaidForm, setMarkPaidForm] = useState({
@@ -664,6 +670,62 @@ export default function BillingDashboard() {
     } catch (err) {
       console.error('Error pausing subscription:', err)
       alert('Failed to pause subscription')
+    }
+  }
+
+  const handleStartSubscription = async (orgId: string) => {
+    setStartSubLoading(true)
+    setStartSubResult(null)
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/master-admin/billing/subscriptions/${orgId}/start-subscription`, {
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to start subscription')
+      setStartSubResult(data)
+      if (data.mode === 'immediate') {
+        fetchSubscriptions()
+        fetchOverview()
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to start subscription')
+    } finally {
+      setStartSubLoading(false)
+    }
+  }
+
+  const handleUpgradeTier = async () => {
+    if (!selectedSubscription || !upgradeTierForm.newTier) return
+    setUpgradeLoading(true)
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/master-admin/billing/subscriptions/${selectedSubscription.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          action: 'upgrade',
+          newTier: upgradeTierForm.newTier,
+          newBillingCycle: upgradeTierForm.billingCycle,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to upgrade tier')
+      }
+      setShowUpgradeTierModal(false)
+      setShowSubscriptionDetails(false)
+      fetchSubscriptions()
+      fetchOverview()
+      alert(`Subscription upgraded to ${formatTierName(upgradeTierForm.newTier)}! Stripe will prorate the difference automatically.`)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to upgrade tier')
+    } finally {
+      setUpgradeLoading(false)
     }
   }
 
@@ -1952,13 +2014,52 @@ export default function BillingDashboard() {
                 </div>
               )}
 
+              {/* Start Subscription Result */}
+              {startSubResult && (
+                <div className={`rounded-lg p-4 ${startSubResult.mode === 'immediate' ? 'bg-green-50 border border-green-200' : 'bg-blue-50 border border-blue-200'}`}>
+                  <p className={`font-medium text-sm ${startSubResult.mode === 'immediate' ? 'text-green-800' : 'text-blue-800'}`}>
+                    {startSubResult.message}
+                  </p>
+                  {startSubResult.checkoutUrl && (
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(startSubResult.checkoutUrl!); alert('Link copied!') }}
+                        className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                      >
+                        Copy Link
+                      </button>
+                      <button
+                        onClick={() => window.open(startSubResult.checkoutUrl!, '_blank')}
+                        className="text-xs border border-blue-600 text-blue-600 px-3 py-1 rounded hover:bg-blue-50"
+                      >
+                        Open Link
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Actions */}
               <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-200">
-                <Button variant="outline" size="sm">
-                  Upgrade Tier
-                </Button>
-                <Button variant="outline" size="sm">
-                  Change Billing Cycle
+                {!selectedSubscription.stripeSubscriptionId && (
+                  <Button
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                    onClick={() => { setStartSubResult(null); handleStartSubscription(selectedSubscription.id) }}
+                    disabled={startSubLoading}
+                  >
+                    {startSubLoading ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Starting...</> : <>▶ Start Subscription</>}
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setUpgradeTierForm({ newTier: selectedSubscription.subscriptionTier, billingCycle: selectedSubscription.billingCycle || 'monthly' })
+                    setShowUpgradeTierModal(true)
+                  }}
+                >
+                  Upgrade / Change Tier
                 </Button>
                 {selectedSubscription.subscriptionStatus === 'active' && (
                   <Button
@@ -2541,6 +2642,66 @@ export default function BillingDashboard() {
             >
               <Pause className="h-4 w-4 mr-1" />
               Pause Subscription
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upgrade Tier Modal */}
+      <Dialog open={showUpgradeTierModal} onOpenChange={setShowUpgradeTierModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change Subscription Tier — {selectedSubscription?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+              Stripe will automatically prorate the difference. If upgrading mid-cycle, they&apos;ll only be charged for the remaining days at the new price.
+            </div>
+            <div>
+              <Label className="text-sm font-medium text-gray-700">New Tier</Label>
+              <select
+                value={upgradeTierForm.newTier}
+                onChange={(e) => setUpgradeTierForm({ ...upgradeTierForm, newTier: e.target.value })}
+                className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2"
+              >
+                <option value="">Select a tier...</option>
+                <option value="starter">Starter — $29/mo</option>
+                <option value="parish">Parish — $45/mo</option>
+                <option value="cathedral">Cathedral — $89/mo or $900/yr</option>
+                <option value="shrine">Shrine — $120/mo or $1,200/yr</option>
+              </select>
+            </div>
+            <div>
+              <Label className="text-sm font-medium text-gray-700">Billing Cycle</Label>
+              <select
+                value={upgradeTierForm.billingCycle}
+                onChange={(e) => setUpgradeTierForm({ ...upgradeTierForm, billingCycle: e.target.value })}
+                className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2"
+              >
+                <option value="monthly">Monthly</option>
+                <option value="annual">Annual</option>
+              </select>
+            </div>
+            {upgradeTierForm.newTier === selectedSubscription?.subscriptionTier &&
+             upgradeTierForm.billingCycle === (selectedSubscription?.billingCycle || 'monthly') && (
+              <p className="text-sm text-yellow-700 bg-yellow-50 p-2 rounded">
+                This is the same as their current plan. Select a different tier or cycle to upgrade.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowUpgradeTierModal(false)}>Cancel</Button>
+            <Button
+              onClick={handleUpgradeTier}
+              disabled={
+                upgradeLoading ||
+                !upgradeTierForm.newTier ||
+                (upgradeTierForm.newTier === selectedSubscription?.subscriptionTier &&
+                 upgradeTierForm.billingCycle === (selectedSubscription?.billingCycle || 'monthly'))
+              }
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              {upgradeLoading ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Upgrading...</> : 'Confirm Upgrade'}
             </Button>
           </DialogFooter>
         </DialogContent>

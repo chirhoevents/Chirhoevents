@@ -76,6 +76,10 @@ export async function GET(request: NextRequest) {
         notes: true,
         status: true,
         createdAt: true,
+        stripeSubscriptionId: true,
+        pauseReason: true,
+        pauseReasonNote: true,
+        pausedAt: true,
       },
       orderBy: { name: 'asc' },
     })
