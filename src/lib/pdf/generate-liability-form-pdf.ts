@@ -46,6 +46,14 @@ interface LiabilityFormWithRelations {
     name: string
     startDate: Date
     endDate: Date
+    startTime?: string | null
+    endTime?: string | null
+    locationName?: string | null
+    locationAddress?: unknown
+  } | null
+  organization?: {
+    name: string
+    contactName?: string | null
   } | null
   safeEnvironmentCertificates?: Array<{
     id: string
@@ -64,11 +72,35 @@ export async function generateLiabilityFormPDF(
     ? `${new Date(formData.event.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - ${new Date(formData.event.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
     : undefined
 
+  // Parse location address JSON into a display string
+  const locationAddress = formData.event?.locationAddress as {
+    street?: string; city?: string; state?: string; zip?: string
+  } | null | undefined
+  const locationLine1 = locationAddress?.street || undefined
+  const locationLine2 = [
+    locationAddress?.city,
+    locationAddress?.state,
+    locationAddress?.zip,
+  ].filter(Boolean).join(', ') || undefined
+
+  // Format event time range
+  const eventTime = formData.event?.startTime
+    ? formData.event.endTime
+      ? `${formData.event.startTime} – ${formData.event.endTime}`
+      : formData.event.startTime
+    : undefined
+
   // Prepare common data structure
   const commonData = {
     id: formData.id,
     eventName: formData.event?.name,
     eventDates,
+    organizationName: formData.organization?.name,
+    locationName: formData.event?.locationName || undefined,
+    locationLine1,
+    locationLine2,
+    eventTime,
+    eventCoordinator: formData.organization?.contactName || undefined,
     participantFirstName: formData.participantFirstName,
     participantLastName: formData.participantLastName,
     participantPreferredName: formData.participantPreferredName || undefined,

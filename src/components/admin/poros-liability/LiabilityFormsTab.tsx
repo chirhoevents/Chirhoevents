@@ -22,7 +22,8 @@ import {
   Download,
   FileText,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  Printer
 } from 'lucide-react'
 
 interface LiabilityFormsTabProps {
@@ -73,6 +74,7 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
   const { getToken } = useAuth()
   const [groups, setGroups] = useState<Group[]>([])
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
+  const [printingGroups, setPrintingGroups] = useState<Set<string>>(new Set())
   const [filters, setFilters] = useState({
     status: 'all',
     searchTerm: ''
@@ -104,6 +106,35 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
       console.error('Failed to fetch groups:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handlePrintAll(e: React.MouseEvent, group: Group) {
+    e.stopPropagation()
+    if (group.submittedCount === 0) return
+    setPrintingGroups(prev => new Set(prev).add(group.id))
+    try {
+      const token = await getToken()
+      const res = await fetch(
+        `/api/admin/events/${eventId}/poros-liability/groups/${group.id}/print-all`,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      )
+      if (!res.ok) {
+        const err = await res.json()
+        alert(err.error || 'Failed to generate PDF packet')
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `liability-forms-${group.groupName.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      alert('Failed to generate PDF packet')
+    } finally {
+      setPrintingGroups(prev => { const s = new Set(prev); s.delete(group.id); return s })
     }
   }
 
@@ -204,7 +235,7 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     {/* Progress */}
                     <div className="text-sm">
                       <span className="font-medium">{group.submittedCount}</span>
@@ -247,6 +278,25 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
                         {group.totalSpots > 0 ? Math.round((group.submittedCount / group.totalSpots) * 100) : 0}%
                       </div>
                     </div>
+
+                    {/* Print All Forms */}
+                    {group.submittedCount > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => handlePrintAll(e, group)}
+                        disabled={printingGroups.has(group.id)}
+                        title="Download all forms as a single PDF"
+                        className="hidden sm:flex items-center gap-1.5 text-xs"
+                      >
+                        {printingGroups.has(group.id) ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Printer className="w-3.5 h-3.5" />
+                        )}
+                        {printingGroups.has(group.id) ? 'Building…' : 'Print All'}
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>

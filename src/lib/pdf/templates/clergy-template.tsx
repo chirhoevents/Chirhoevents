@@ -123,6 +123,12 @@ interface ClergyTemplateProps {
     id: string
     eventName?: string
     eventDates?: string
+    organizationName?: string
+    locationName?: string
+    locationLine1?: string
+    locationLine2?: string
+    eventTime?: string
+    eventCoordinator?: string
     clergyTitle?: string
     participantFirstName: string
     participantLastName: string
@@ -181,10 +187,55 @@ const ClergyTemplate: React.FC<ClergyTemplateProps> = ({ data }) => {
       <Page size="A4" style={styles.page}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>LIABILITY FORM - CLERGY</Text>
-          <Text style={styles.subtitle}>
-            {data.eventName || 'Event'} • Form ID: {data.id.substring(0, 8)}
-          </Text>
+          <Text style={styles.title}>LIABILITY FORM — CLERGY, SEMINARIANS &amp; RELIGIOUS</Text>
+          <Text style={styles.subtitle}>Form ID: {data.id.substring(0, 8)}</Text>
+        </View>
+
+        {/* Event Information */}
+        <View style={[styles.section, { backgroundColor: '#F0F4F8', padding: 12, borderRadius: 4, marginTop: 0 }]}>
+          <Text style={[styles.sectionTitle, { marginBottom: 8 }]}>EVENT INFORMATION</Text>
+          <View style={styles.fieldRow}>
+            <Text style={styles.fieldLabel}>Organization:</Text>
+            <Text style={styles.fieldValue}>{data.organizationName || '—'}</Text>
+          </View>
+          <View style={styles.fieldRow}>
+            <Text style={styles.fieldLabel}>Event Name:</Text>
+            <Text style={styles.fieldValue}>{data.eventName || '—'}</Text>
+          </View>
+          {data.locationName && (
+            <View style={styles.fieldRow}>
+              <Text style={styles.fieldLabel}>Location:</Text>
+              <Text style={styles.fieldValue}>{data.locationName}</Text>
+            </View>
+          )}
+          {data.locationLine1 && (
+            <View style={styles.fieldRow}>
+              <Text style={styles.fieldLabel}>Address:</Text>
+              <Text style={styles.fieldValue}>{data.locationLine1}</Text>
+            </View>
+          )}
+          {data.locationLine2 && (
+            <View style={styles.fieldRow}>
+              <Text style={styles.fieldLabel}>City/State/Zip:</Text>
+              <Text style={styles.fieldValue}>{data.locationLine2}</Text>
+            </View>
+          )}
+          <View style={styles.fieldRow}>
+            <Text style={styles.fieldLabel}>Date:</Text>
+            <Text style={styles.fieldValue}>{data.eventDates || '—'}</Text>
+          </View>
+          {data.eventTime && (
+            <View style={styles.fieldRow}>
+              <Text style={styles.fieldLabel}>Time:</Text>
+              <Text style={styles.fieldValue}>{data.eventTime}</Text>
+            </View>
+          )}
+          {data.eventCoordinator && (
+            <View style={styles.fieldRow}>
+              <Text style={styles.fieldLabel}>Coordinator:</Text>
+              <Text style={styles.fieldValue}>{data.eventCoordinator}</Text>
+            </View>
+          )}
         </View>
 
         {/* Participant Information */}
