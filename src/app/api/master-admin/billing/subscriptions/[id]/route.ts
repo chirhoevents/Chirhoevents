@@ -1,6 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import Stripe from 'stripe'
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
+
+function getSubscriptionPriceId(tier: string, billingCycle: string): string | null {
+  const priceMap: Record<string, string | undefined> = {
+    starter_monthly: process.env.STRIPE_PRICE_STARTER_MONTHLY,
+    parish_monthly: process.env.STRIPE_PRICE_PARISH_MONTHLY,
+    small_diocese_monthly: process.env.STRIPE_PRICE_PARISH_MONTHLY,
+    cathedral_monthly: process.env.STRIPE_PRICE_CATHEDRAL_MONTHLY,
+    cathedral_annual: process.env.STRIPE_PRICE_CATHEDRAL_ANNUAL,
+    growing_monthly: process.env.STRIPE_PRICE_CATHEDRAL_MONTHLY,
+    growing_annual: process.env.STRIPE_PRICE_CATHEDRAL_ANNUAL,
+    shrine_monthly: process.env.STRIPE_PRICE_SHRINE_MONTHLY,
+    shrine_annual: process.env.STRIPE_PRICE_SHRINE_ANNUAL,
+    conference_monthly: process.env.STRIPE_PRICE_SHRINE_MONTHLY,
+    conference_annual: process.env.STRIPE_PRICE_SHRINE_ANNUAL,
+  }
+  return priceMap[`${tier}_${billingCycle}`] ?? null
+}
 
 // Get single subscription details
 export async function GET(
@@ -148,7 +168,7 @@ export async function PUT(
 
     const organization = await prisma.organization.findUnique({
       where: { id },
-      select: { id: true, name: true, subscriptionStatus: true },
+      select: { id: true, name: true, subscriptionStatus: true, stripeSubscriptionId: true, billingCycle: true },
     })
 
     if (!organization) {
@@ -220,11 +240,29 @@ export async function PUT(
 
       case 'upgrade':
         const { newTier, newBillingCycle } = updateData
+        const targetBillingCycle = newBillingCycle || organization.billingCycle || 'monthly'
+        const newPriceId = getSubscriptionPriceId(newTier, targetBillingCycle)
+
+        // Update in Stripe if the org has an active subscription
+        if (organization.stripeSubscriptionId && newPriceId) {
+          const stripeSub = await stripe.subscriptions.retrieve(organization.stripeSubscriptionId)
+          const currentItemId = stripeSub.items.data[0]?.id
+
+          if (currentItemId) {
+            // Update subscription item — Stripe prorates automatically
+            await stripe.subscriptions.update(organization.stripeSubscriptionId, {
+              items: [{ id: currentItemId, price: newPriceId }],
+              proration_behavior: 'create_prorations',
+              metadata: { organizationId: id },
+            })
+          }
+        }
+
         updatedOrg = await prisma.organization.update({
           where: { id },
           data: {
             subscriptionTier: newTier,
-            billingCycle: newBillingCycle || undefined,
+            billingCycle: targetBillingCycle as 'monthly' | 'annual',
           },
         })
         await prisma.platformActivityLog.create({
@@ -232,7 +270,7 @@ export async function PUT(
             organizationId: id,
             userId: user.id,
             activityType: 'subscription_upgraded',
-            description: `Subscription upgraded to ${newTier} for ${organization.name}`,
+            description: `Subscription upgraded to ${newTier} (${targetBillingCycle}) for ${organization.name}`,
           },
         })
         break
