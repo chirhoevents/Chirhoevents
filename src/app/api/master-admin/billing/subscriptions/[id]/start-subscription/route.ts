@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import Stripe from 'stripe'
+import { Resend } from 'resend'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
+const resend = new Resend(process.env.RESEND_API_KEY!)
 
 function getSubscriptionPriceId(tier: string, billingCycle: string): string | null {
   const priceMap: Record<string, string | undefined> = {
@@ -121,6 +123,40 @@ export async function POST(
           description: `Subscription manually started for ${org.name} by master admin`,
         },
       })
+
+      const tierLabels: Record<string, string> = {
+        starter: 'Starter', parish: 'Parish', cathedral: 'Cathedral', shrine: 'Shrine', basilica: 'Basilica',
+      }
+      const tierLabel = tierLabels[org.subscriptionTier] || org.subscriptionTier
+      const startAppUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
+      try {
+        await resend.emails.send({
+          from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+          reply_to: 'support@chirhoevents.com',
+          to: org.contactEmail,
+          subject: 'Your ChiRho Events subscription is now active',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1E3A5F;">
+              <div style="background: #1E3A5F; padding: 30px; text-align: center;">
+                <h1 style="color: white; margin: 0;">ChiRho Events</h1>
+              </div>
+              <div style="padding: 30px; background: #F5F5F5;">
+                <h2>Your subscription is active!</h2>
+                <p>Hi ${org.name},</p>
+                <p>Your ChiRho Events <strong>${tierLabel}</strong> subscription (${(org.billingCycle ?? 'monthly') === 'annual' ? 'Annual' : 'Monthly'} billing) is now active. You have full access to create and manage events.</p>
+                <p>If you have any questions, contact us at <a href="mailto:support@chirhoevents.com" style="color: #1E3A5F;">support@chirhoevents.com</a>.</p>
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="${startAppUrl}/dashboard" style="background: #9C8466; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                    Go to Your Dashboard
+                  </a>
+                </div>
+              </div>
+            </div>
+          `,
+        })
+      } catch (emailErr) {
+        console.error('Failed to send subscription start email:', emailErr)
+      }
 
       return NextResponse.json({
         success: true,
