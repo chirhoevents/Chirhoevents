@@ -70,11 +70,19 @@ interface Group {
   participants: Participant[]
 }
 
+const BLANK_FORM_TYPES = [
+  { value: 'youth_u18', label: 'Youth (Under 18)' },
+  { value: 'youth_o18_chaperone', label: 'Adults & Chaperones' },
+  { value: 'clergy', label: 'Clergy & Seminarians' },
+  { value: 'religious', label: 'Religious (Sisters & Brothers)' },
+] as const
+
 export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps) {
   const { getToken } = useAuth()
   const [groups, setGroups] = useState<Group[]>([])
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   const [printingGroups, setPrintingGroups] = useState<Set<string>>(new Set())
+  const [downloadingBlank, setDownloadingBlank] = useState<string | null>(null)
   const [filters, setFilters] = useState({
     status: 'all',
     searchTerm: ''
@@ -138,6 +146,33 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
     }
   }
 
+  async function handleDownloadBlank(formType: string) {
+    setDownloadingBlank(formType)
+    try {
+      const token = await getToken()
+      const res = await fetch(
+        `/api/admin/events/${eventId}/poros-liability/blank-forms?formType=${formType}`,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      )
+      if (!res.ok) {
+        const err = await res.json()
+        alert(err.error || 'Failed to generate blank form')
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `blank-form-${formType}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      alert('Failed to generate blank form')
+    } finally {
+      setDownloadingBlank(null)
+    }
+  }
+
   function toggleGroup(groupId: string) {
     const newExpanded = new Set(expandedGroups)
     if (newExpanded.has(groupId)) {
@@ -188,6 +223,36 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
             />
           </div>
         </div>
+      </Card>
+
+      {/* Blank Form Downloads */}
+      <Card className="p-4 bg-white border-[#D1D5DB]">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+            <FileText className="w-4 h-4" />
+            Print Blank Forms:
+          </div>
+          {BLANK_FORM_TYPES.map(({ value, label }) => (
+            <Button
+              key={value}
+              size="sm"
+              variant="outline"
+              onClick={() => handleDownloadBlank(value)}
+              disabled={downloadingBlank === value}
+              className="text-xs"
+            >
+              {downloadingBlank === value ? (
+                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Download className="w-3.5 h-3.5 mr-1.5" />
+              )}
+              {label}
+            </Button>
+          ))}
+        </div>
+        <p className="text-xs text-gray-500 mt-2">
+          Download a pre-filled event header form for participants who prefer to complete a paper copy in person.
+        </p>
       </Card>
 
       {/* Groups List */}
