@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import Stripe from 'stripe'
+import { Resend } from 'resend'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
+const resend = new Resend(process.env.RESEND_API_KEY!)
 
 function getSubscriptionPriceId(tier: string, billingCycle: string): string | null {
   const priceMap: Record<string, string | undefined> = {
@@ -168,7 +170,7 @@ export async function PUT(
 
     const organization = await prisma.organization.findUnique({
       where: { id },
-      select: { id: true, name: true, subscriptionStatus: true, stripeSubscriptionId: true, billingCycle: true },
+      select: { id: true, name: true, contactEmail: true, subscriptionStatus: true, stripeSubscriptionId: true, stripeCustomerId: true, billingCycle: true, subscriptionTier: true },
     })
 
     if (!organization) {
@@ -243,34 +245,105 @@ export async function PUT(
         const targetBillingCycle = newBillingCycle || organization.billingCycle || 'monthly'
         const newPriceId = getSubscriptionPriceId(newTier, targetBillingCycle)
 
-        // Update in Stripe if the org has an active subscription
-        if (organization.stripeSubscriptionId && newPriceId) {
-          const stripeSub = await stripe.subscriptions.retrieve(organization.stripeSubscriptionId)
-          const currentItemId = stripeSub.items.data[0]?.id
+        if (!newPriceId) {
+          return NextResponse.json(
+            { error: `No Stripe price configured for ${newTier} ${targetBillingCycle}. Check your STRIPE_PRICE_* environment variables.` },
+            { status: 400 }
+          )
+        }
 
-          if (currentItemId) {
-            // Update subscription item — Stripe prorates automatically
-            await stripe.subscriptions.update(organization.stripeSubscriptionId, {
-              items: [{ id: currentItemId, price: newPriceId }],
-              proration_behavior: 'create_prorations',
-              metadata: { organizationId: id },
+        // Find the Stripe subscription — either by stored ID or by looking up the customer
+        let stripeSubId = organization.stripeSubscriptionId
+        if (!stripeSubId && organization.stripeCustomerId) {
+          const customerSubs = await stripe.subscriptions.list({
+            customer: organization.stripeCustomerId,
+            status: 'active',
+            limit: 1,
+          })
+          if (customerSubs.data.length > 0) {
+            stripeSubId = customerSubs.data[0].id
+            // Save it so we don't have to look it up again
+            await prisma.organization.update({
+              where: { id },
+              data: { stripeSubscriptionId: stripeSubId },
             })
           }
         }
 
+        if (!stripeSubId) {
+          return NextResponse.json(
+            { error: 'No active Stripe subscription found for this organization. Use "Start Subscription" first.' },
+            { status: 400 }
+          )
+        }
+
+        // Update the subscription in Stripe — automatic proration
+        const stripeSub = await stripe.subscriptions.retrieve(stripeSubId)
+        const currentItemId = stripeSub.items.data[0]?.id
+        if (!currentItemId) {
+          return NextResponse.json({ error: 'Could not find subscription item in Stripe' }, { status: 400 })
+        }
+
+        await stripe.subscriptions.update(stripeSubId, {
+          items: [{ id: currentItemId, price: newPriceId }],
+          proration_behavior: 'create_prorations',
+          metadata: { organizationId: id },
+        })
+
+        const tierLabels: Record<string, string> = {
+          starter: 'Starter', parish: 'Parish', cathedral: 'Cathedral', shrine: 'Shrine', basilica: 'Basilica',
+        }
+
+        // Update the database
         updatedOrg = await prisma.organization.update({
           where: { id },
           data: {
             subscriptionTier: newTier,
             billingCycle: targetBillingCycle as 'monthly' | 'annual',
+            stripeSubscriptionId: stripeSubId,
           },
         })
+
+        // Send upgrade notification email to the org
+        const tierLabel = tierLabels[newTier] || newTier
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
+        try {
+          await resend.emails.send({
+            from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+            reply_to: 'support@chirhoevents.com',
+            to: organization.contactEmail,
+            subject: `Your ChiRho Events subscription has been upgraded to ${tierLabel}`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1E3A5F;">
+                <div style="background: #1E3A5F; padding: 30px; text-align: center;">
+                  <h1 style="color: white; margin: 0;">ChiRho Events</h1>
+                </div>
+                <div style="padding: 30px; background: #F5F5F5;">
+                  <h2>Your subscription has been upgraded!</h2>
+                  <p>Hi ${organization.name},</p>
+                  <p>Your ChiRho Events subscription has been upgraded to the <strong>${tierLabel}</strong> plan (${targetBillingCycle === 'annual' ? 'Annual' : 'Monthly'} billing).</p>
+                  <p>Stripe will automatically prorate any difference — you&apos;ll only be charged for the remaining days in your current billing period at the new rate.</p>
+                  <p>If you have any questions, reply to this email or contact us at <a href="mailto:support@chirhoevents.com" style="color: #1E3A5F;">support@chirhoevents.com</a>.</p>
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="${appUrl}/dashboard" style="background: #9C8466; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                      Go to Your Dashboard
+                    </a>
+                  </div>
+                </div>
+              </div>
+            `,
+          })
+        } catch (emailErr) {
+          console.error('Failed to send upgrade email:', emailErr)
+          // Non-fatal
+        }
+
         await prisma.platformActivityLog.create({
           data: {
             organizationId: id,
             userId: user.id,
             activityType: 'subscription_upgraded',
-            description: `Subscription upgraded to ${newTier} (${targetBillingCycle}) for ${organization.name}`,
+            description: `Subscription upgraded to ${newTier} (${targetBillingCycle}) for ${organization.name} — Stripe subscription updated`,
           },
         })
         break
