@@ -32,54 +32,114 @@ interface Template {
 const FORM_TYPES: { value: string; label: string; description: string }[] = [
   {
     value: 'youth_u18',
-    label: 'Youth Under 18',
-    description: 'Parent/guardian signs on behalf of the minor. Use "my child" language.',
+    label: 'Minors (Under 18)',
+    description: 'Parent or legal guardian signs on behalf of the minor. Uses "my child" language. Matches the Minor Permission Form structure.',
   },
   {
     value: 'youth_o18_chaperone',
-    label: 'Youth 18+ / Chaperone',
-    description: 'Self-signed by adult participants and chaperones.',
+    label: 'Adults & Chaperones (18+)',
+    description: 'Self-signed by adult participants and chaperones. Matches the Adult Participant Permission Form structure.',
   },
   {
     value: 'clergy',
-    label: 'Clergy',
-    description: 'For priests, deacons, and seminarians.',
+    label: 'Clergy & Seminarians',
+    description: 'For priests, bishops, deacons, seminarians, and anyone using Mr. as their title.',
   },
   {
     value: 'religious',
-    label: 'Religious',
-    description: 'For religious sisters and brothers.',
+    label: 'Religious (Sisters & Brothers)',
+    description: 'For women and men in consecrated religious life — Sisters, Brothers, and members of religious orders.',
   },
 ]
 
 const DEFAULT_TEXTS: Record<string, Record<string, string>> = {
   youth_u18: {
-    generalWaiverText: `I, as parent or legal guardian of the minor named above, hereby release and hold harmless [Organization Name], its officers, employees, and volunteers from any and all liability for injuries or damages that may occur during participation in [Event Name]. I understand that participation involves certain risks and I voluntarily assume all such risks on behalf of my child.`,
-    medicalReleaseText: `In the event of a medical emergency, I authorize [Organization Name] and its representatives to secure necessary medical treatment for my child. I understand that reasonable efforts will be made to contact me, but that immediate medical decisions may need to be made in my absence.`,
-    photoVideoConsentText: `I grant permission for [Organization Name] to use photographs and video recordings of my child for promotional purposes including social media, website, and printed materials.`,
-    transportationConsentText: `I give permission for my child to be transported in vehicles driven by licensed adult staff or volunteers for activities related to [Event Name].`,
-    emergencyTreatmentText: `I authorize emergency medical treatment for my child including first aid, CPR, AED use, ambulance transport, emergency room treatment, and surgery if deemed necessary by medical professionals. I agree to assume financial responsibility for all medical expenses incurred.`,
+    generalWaiverText: `Field Trips, Off-Site Events & Pilgrimages — Information & Permission Form
+Organization/Entity: [Organization Name]
+Name of Activity/Event: [Activity Name]
+
+WAIVER AND RELEASE: I, as the parent or legal guardian of the minor named above, hereby release, waive, and discharge [Organization Name], its officers, directors, employees, agents, and volunteers (collectively, the "Organization") from any and all liability, claims, demands, causes of action, costs, and expenses, including attorneys' fees, arising from or related to my child's participation in [Activity Name], whether caused by the negligence of the Organization or otherwise. I further agree to indemnify and hold harmless the Organization from any loss, liability, damage, or costs it may incur in connection with my child's participation.
+
+ASSUMPTION OF RISK: I acknowledge that participation in [Activity Name] involves inherent risks, including but not limited to personal injury, illness, property damage, and other hazards. I voluntarily assume all such risks on behalf of my child and understand that the Organization cannot guarantee complete safety.
+
+PAROCHIAL POLICY: I understand that participants are expected to follow all rules and policies of [Organization Name], including refraining from the possession or use of alcohol, tobacco, illegal substances, and any items prohibited by event staff. Failure to comply may result in removal from the event at the participant's expense.`,
+    medicalReleaseText: `EMERGENCY MEDICAL CARE: In the event of an accident, illness, or injury during [Activity Name], I hereby authorize [Organization Name] and its designated representatives to secure necessary emergency medical treatment for my child, including but not limited to: first aid, CPR, AED use, ambulance transport, emergency room care, hospitalization, and surgical procedures, as deemed necessary by qualified medical personnel.
+
+I understand that every reasonable effort will be made to contact me prior to any major medical decisions. However, if I cannot be reached in a timely manner, I authorize treatment to proceed in the best interest of my child. I accept financial responsibility for any medical expenses incurred.
+
+Insurance Provider: ________________________
+Policy Number: ________________________
+Subscriber/Group Number: ________________________`,
+    photoVideoConsentText: `MEDIA RELEASE: I grant [Organization Name] and its authorized representatives the right and permission to photograph, videotape, and/or audio record my child during [Activity Name], and to use such recordings and images — now or in the future — for purposes including but not limited to: print publications, newsletters, promotional materials, social media platforms, and the Organization's website.
+
+I waive any right to inspect or approve the final use of such media, and I release [Organization Name] from any and all liability arising from the use of these materials.`,
+    transportationConsentText: `TRANSPORTATION: I give permission for my child to be transported to and from [Activity Name] and any related off-site locations in vehicles operated by licensed adult drivers authorized by [Organization Name]. I understand that all drivers are required to possess valid driver's licenses and maintain appropriate vehicle insurance. I release the Organization from liability for transportation-related incidents, except those arising from the Organization's gross negligence.`,
+    emergencyTreatmentText: `AUTHORIZATION FOR EMERGENCY TREATMENT: I authorize [Organization Name] and its representatives to authorize emergency medical treatment for my child, including first aid, CPR, AED use, ambulance transport, emergency room treatment, hospitalization, and surgical procedures if deemed necessary by medical professionals. I agree to assume financial responsibility for all medical expenses incurred as a result of such treatment and to cooperate with the Organization's insurance and billing processes.`,
   },
   youth_o18_chaperone: {
-    generalWaiverText: `I hereby release and hold harmless [Organization Name], its officers, employees, and volunteers from any and all liability for injuries or damages that may occur during my participation in [Event Name]. I understand that participation involves certain risks and I voluntarily assume all such risks.`,
-    medicalReleaseText: `In the event of a medical emergency, I authorize [Organization Name] and its representatives to secure necessary medical treatment for me. I understand that reasonable efforts will be made to contact me, but that immediate decisions may need to be made.`,
-    photoVideoConsentText: `I grant permission for [Organization Name] to use photographs and video recordings of me for promotional purposes including social media, website, and printed materials.`,
-    transportationConsentText: `I give permission to be transported in vehicles driven by licensed adult staff or volunteers for activities related to [Event Name].`,
-    emergencyTreatmentText: `I authorize emergency medical treatment including first aid, CPR, AED use, ambulance transport, emergency room treatment, and surgery if deemed necessary by medical professionals. I agree to assume financial responsibility for all medical expenses incurred.`,
+    generalWaiverText: `Field Trips, Off-Site Events & Pilgrimages — Adult Participant Information & Permission Form
+Organization/Entity: [Organization Name]
+Name of Activity/Event: [Activity Name]
+
+WAIVER AND RELEASE: I hereby release, waive, and discharge [Organization Name], its officers, directors, employees, agents, and volunteers (collectively, the "Organization") from any and all liability, claims, demands, causes of action, costs, and expenses, including attorneys' fees, arising from or related to my participation in [Activity Name], whether caused by the negligence of the Organization or otherwise. I further agree to indemnify and hold harmless the Organization from any loss, liability, damage, or costs it may incur in connection with my participation.
+
+ASSUMPTION OF RISK: I acknowledge that participation in [Activity Name] involves inherent risks, including but not limited to personal injury, illness, property damage, and other hazards. I voluntarily and knowingly assume all such risks and understand that the Organization cannot guarantee complete safety.
+
+GENERAL PROVISIONS: This agreement shall be construed in accordance with the laws of the state in which [Activity Name] takes place. If any provision of this agreement is found to be unenforceable, the remaining provisions shall remain in full force. This is the entire agreement between the parties with respect to the subject matter hereof.`,
+    medicalReleaseText: `EMERGENCY MEDICAL CARE: In the event of an accident, illness, or injury during [Activity Name], I hereby authorize [Organization Name] and its designated representatives to secure necessary emergency medical treatment for me, including but not limited to: first aid, CPR, AED use, ambulance transport, emergency room care, hospitalization, and surgical procedures, as deemed necessary by qualified medical personnel.
+
+I understand that every reasonable effort will be made to contact me or my emergency contact prior to any major medical decisions. I accept financial responsibility for any medical expenses incurred.
+
+Insurance Provider: ________________________
+Policy Number: ________________________
+Subscriber/Group Number: ________________________`,
+    photoVideoConsentText: `MEDIA RELEASE: I grant [Organization Name] and its authorized representatives the right and permission to photograph, videotape, and/or audio record me during [Activity Name], and to use such recordings and images — now or in the future — for purposes including but not limited to: print publications, newsletters, promotional materials, social media platforms, and the Organization's website.
+
+I waive any right to inspect or approve the final use of such media, and I release [Organization Name] from any and all liability arising from the use of these materials.`,
+    transportationConsentText: `TRANSPORTATION: I give permission to be transported to and from [Activity Name] and any related off-site locations in vehicles operated by licensed adult drivers authorized by [Organization Name]. I understand that all drivers are required to possess valid driver's licenses and maintain appropriate vehicle insurance. I release the Organization from liability for transportation-related incidents, except those arising from the Organization's gross negligence.`,
+    emergencyTreatmentText: `AUTHORIZATION FOR EMERGENCY TREATMENT: I authorize [Organization Name] and its representatives to authorize emergency medical treatment for me, including first aid, CPR, AED use, ambulance transport, emergency room treatment, hospitalization, and surgical procedures if deemed necessary by medical professionals. I agree to assume financial responsibility for all medical expenses incurred as a result of such treatment.`,
   },
   clergy: {
-    generalWaiverText: `I hereby release and hold harmless [Organization Name], its officers, employees, and volunteers from any and all liability for injuries or damages that may occur during my participation in [Event Name] in my capacity as clergy.`,
-    medicalReleaseText: `In the event of a medical emergency, I authorize [Organization Name] and its representatives to secure necessary medical treatment for me.`,
-    photoVideoConsentText: `I grant permission for [Organization Name] to use photographs and video recordings of me for promotional purposes.`,
+    generalWaiverText: `Field Trips, Off-Site Events & Pilgrimages — Clergy & Religious Information & Permission Form
+Organization/Entity: [Organization Name]
+Name of Activity/Event: [Activity Name]
+
+WAIVER AND RELEASE: I hereby release, waive, and discharge [Organization Name], its officers, directors, employees, agents, and volunteers (collectively, the "Organization") from any and all liability, claims, demands, causes of action, costs, and expenses, including attorneys' fees, arising from or related to my participation in [Activity Name] in my capacity as clergy or religious, whether caused by the negligence of the Organization or otherwise. I further agree to indemnify and hold harmless the Organization from any loss, liability, damage, or costs it may incur in connection with my participation.
+
+ASSUMPTION OF RISK: I acknowledge that participation in [Activity Name] involves inherent risks, including but not limited to personal injury, illness, property damage, and other hazards. I voluntarily and knowingly assume all such risks and understand that the Organization cannot guarantee complete safety.`,
+    medicalReleaseText: `EMERGENCY MEDICAL CARE: In the event of an accident, illness, or injury during [Activity Name], I hereby authorize [Organization Name] and its designated representatives to secure necessary emergency medical treatment for me, including but not limited to: first aid, CPR, AED use, ambulance transport, emergency room care, hospitalization, and surgical procedures, as deemed necessary by qualified medical personnel.
+
+I understand that every reasonable effort will be made to contact me or my emergency contact prior to any major medical decisions. I accept financial responsibility for any medical expenses incurred.
+
+Insurance Provider: ________________________
+Policy Number: ________________________
+Subscriber/Group Number: ________________________`,
+    photoVideoConsentText: `MEDIA RELEASE: I grant [Organization Name] and its authorized representatives the right and permission to photograph, videotape, and/or audio record me during [Activity Name], and to use such recordings and images for purposes including but not limited to: publications, promotional materials, social media, and the Organization's website.
+
+I waive any right to inspect or approve the final use of such media, and I release [Organization Name] from any and all liability arising from the use of these materials.`,
     transportationConsentText: ``,
-    emergencyTreatmentText: `I authorize emergency medical treatment including first aid, CPR, AED use, ambulance transport, and emergency room treatment if deemed necessary.`,
+    emergencyTreatmentText: `AUTHORIZATION FOR EMERGENCY TREATMENT: I authorize [Organization Name] and its representatives to authorize emergency medical treatment for me, including first aid, CPR, AED use, ambulance transport, emergency room treatment, and hospitalization if deemed necessary by medical professionals. I agree to assume financial responsibility for all medical expenses incurred as a result of such treatment.`,
   },
   religious: {
-    generalWaiverText: `I hereby release and hold harmless [Organization Name], its officers, employees, and volunteers from any and all liability for injuries or damages that may occur during my participation in [Event Name].`,
-    medicalReleaseText: `In the event of a medical emergency, I authorize [Organization Name] and its representatives to secure necessary medical treatment for me.`,
-    photoVideoConsentText: `I grant permission for [Organization Name] to use photographs and video recordings of me for promotional purposes.`,
+    generalWaiverText: `Annual Permission Form & General Release — Religious Formation & Activities
+Organization/Entity: [Organization Name]
+Name of Activity/Event: [Activity Name]
+
+WAIVER AND RELEASE: I hereby release, waive, and discharge [Organization Name], its officers, directors, employees, agents, and volunteers (collectively, the "Organization") from any and all liability, claims, demands, causes of action, costs, and expenses, including attorneys' fees, arising from or related to my participation in [Activity Name], whether caused by the negligence of the Organization or otherwise. I further agree to indemnify and hold harmless the Organization from any loss, liability, damage, or costs it may incur in connection with my participation.
+
+ASSUMPTION OF RISK: I acknowledge that participation in [Activity Name] involves inherent risks, including but not limited to personal injury, illness, property damage, and other hazards. I voluntarily and knowingly assume all such risks and understand that the Organization cannot guarantee complete safety.`,
+    medicalReleaseText: `EMERGENCY MEDICAL CARE: In the event of an accident, illness, or injury during [Activity Name], I hereby authorize [Organization Name] and its designated representatives to secure necessary emergency medical treatment for me, including but not limited to: first aid, CPR, AED use, ambulance transport, emergency room care, and other medical procedures as deemed necessary by qualified medical personnel.
+
+I understand that every reasonable effort will be made to contact me or my emergency contact prior to any major medical decisions. I accept financial responsibility for any medical expenses incurred.
+
+Insurance Provider: ________________________
+Policy Number: ________________________
+Subscriber/Group Number: ________________________`,
+    photoVideoConsentText: `MEDIA RELEASE: I grant [Organization Name] and its authorized representatives the right and permission to photograph, videotape, and/or audio record me during [Activity Name], and to use such recordings and images for purposes including but not limited to: publications, promotional materials, social media, and the Organization's website.
+
+I release [Organization Name] from any and all liability arising from the use of these materials.`,
     transportationConsentText: ``,
-    emergencyTreatmentText: `I authorize emergency medical treatment if deemed necessary by medical professionals.`,
+    emergencyTreatmentText: `AUTHORIZATION FOR EMERGENCY TREATMENT: I authorize [Organization Name] and its representatives to authorize emergency medical treatment for me, including first aid, CPR, AED use, ambulance transport, emergency room treatment, and hospitalization if deemed necessary by medical professionals. I agree to assume financial responsibility for all medical expenses incurred.`,
   },
 }
 

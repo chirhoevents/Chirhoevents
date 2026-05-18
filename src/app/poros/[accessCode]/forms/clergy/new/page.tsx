@@ -318,8 +318,8 @@ export default function ClergyForm() {
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="bg-white rounded-lg shadow-md p-8 mb-6">
-          <h1 className="text-3xl font-bold text-navy mb-2">Clergy &amp; Religious Liability Form</h1>
-          <p className="text-gray-600">For Priests, Deacons, Seminarians, Sisters, and Brothers</p>
+          <h1 className="text-3xl font-bold text-navy mb-2">Clergy, Seminarians &amp; Religious Liability Form</h1>
+          <p className="text-gray-600">For Priests, Deacons, Seminarians, Sisters, Brothers, and Religious</p>
         </div>
 
         {error && (
