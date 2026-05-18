@@ -2620,6 +2620,21 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           <li>Track form completion and payment status</li>
           <li>Export staff lists for badges and scheduling</li>
         </ul>
+
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mt-4">
+          <p className="text-sm">
+            <strong>Capacity Note:</strong> Staff and volunteer registrations are completely separate from
+            your event&apos;s attendee capacity. Adding staff does <em>not</em> reduce the spots available
+            for regular group or individual registrants. There is no cap on the number of staff you can register.
+          </p>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Liability Forms for Staff</h3>
+        <p>
+          If liability forms are enabled on your event, staff are included in that requirement.
+          After registering, each staff member receives a secure link to complete their form.
+          Staff cannot be checked in at the event until their form is complete.
+        </p>
       </div>
     )
   },
@@ -3099,6 +3114,23 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           <li><strong>Vendor Code</strong> for booth staff registration</li>
           <li><strong>Access Code</strong> for the vendor portal</li>
           <li>Link to register your booth staff</li>
+        </ul>
+
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mt-4">
+          <p className="text-sm">
+            <strong>Capacity Note:</strong> Vendor registrations and their booth staff do <em>not</em> count
+            toward the event&apos;s attendee capacity. They are a completely separate track from group and
+            individual registrations. Only regular attendee registrations affect your event&apos;s capacity limits.
+          </p>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Vendor vs. Regular Registration</h3>
+        <p>Vendor registration is an <strong>application process</strong>, not an instant confirmation:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Regular attendees</strong> register and are confirmed immediately (subject to capacity)</li>
+          <li><strong>Vendors</strong> submit an application and must wait for admin approval</li>
+          <li>Vendors are notified by email when approved or rejected</li>
+          <li>Payment is only collected after approval</li>
         </ul>
       </div>
     )
