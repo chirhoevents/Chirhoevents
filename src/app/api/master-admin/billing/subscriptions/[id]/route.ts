@@ -180,7 +180,7 @@ export async function PUT(
     let updatedOrg
 
     switch (action) {
-      case 'pause':
+      case 'pause': {
         const { pauseReason, pauseReasonNote } = updateData
         updatedOrg = await prisma.organization.update({
           where: { id },
@@ -199,9 +199,41 @@ export async function PUT(
             description: `Subscription paused for ${organization.name}. Reason: ${pauseReason || 'other'}${pauseReasonNote ? ` - ${pauseReasonNote}` : ''}`,
           },
         })
+        try {
+          const pauseAppUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
+          await resend.emails.send({
+            from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+            reply_to: 'support@chirhoevents.com',
+            to: organization.contactEmail,
+            subject: 'Your ChiRho Events subscription has been suspended',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1E3A5F;">
+                <div style="background: #1E3A5F; padding: 30px; text-align: center;">
+                  <h1 style="color: white; margin: 0;">ChiRho Events</h1>
+                </div>
+                <div style="padding: 30px; background: #F5F5F5;">
+                  <h2>Your subscription has been suspended</h2>
+                  <p>Hi ${organization.name},</p>
+                  <p>Your ChiRho Events subscription has been temporarily suspended.</p>
+                  ${pauseReasonNote ? `<p><strong>Reason:</strong> ${pauseReasonNote}</p>` : ''}
+                  <p>During this time you will not be able to create new events or accept registrations. Your existing data is safe and will be restored when your subscription is reactivated.</p>
+                  <p>If you have questions or believe this was done in error, please contact us at <a href="mailto:support@chirhoevents.com" style="color: #1E3A5F;">support@chirhoevents.com</a>.</p>
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="${pauseAppUrl}/dashboard" style="background: #9C8466; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                      View Your Account
+                    </a>
+                  </div>
+                </div>
+              </div>
+            `,
+          })
+        } catch (emailErr) {
+          console.error('Failed to send pause email:', emailErr)
+        }
         break
+      }
 
-      case 'resume':
+      case 'resume': {
         updatedOrg = await prisma.organization.update({
           where: { id },
           data: {
@@ -219,9 +251,39 @@ export async function PUT(
             description: `Subscription resumed for ${organization.name}`,
           },
         })
+        try {
+          const resumeAppUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
+          await resend.emails.send({
+            from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+            reply_to: 'support@chirhoevents.com',
+            to: organization.contactEmail,
+            subject: 'Your ChiRho Events subscription is active again',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1E3A5F;">
+                <div style="background: #1E3A5F; padding: 30px; text-align: center;">
+                  <h1 style="color: white; margin: 0;">ChiRho Events</h1>
+                </div>
+                <div style="padding: 30px; background: #F5F5F5;">
+                  <h2>Your subscription has been reactivated!</h2>
+                  <p>Hi ${organization.name},</p>
+                  <p>Great news — your ChiRho Events subscription is now active again. You have full access to create events and manage registrations.</p>
+                  <p>If you have any questions, contact us at <a href="mailto:support@chirhoevents.com" style="color: #1E3A5F;">support@chirhoevents.com</a>.</p>
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="${resumeAppUrl}/dashboard" style="background: #9C8466; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                      Go to Your Dashboard
+                    </a>
+                  </div>
+                </div>
+              </div>
+            `,
+          })
+        } catch (emailErr) {
+          console.error('Failed to send resume email:', emailErr)
+        }
         break
+      }
 
-      case 'cancel':
+      case 'cancel': {
         updatedOrg = await prisma.organization.update({
           where: { id },
           data: {
@@ -238,7 +300,32 @@ export async function PUT(
             description: `Subscription cancelled for ${organization.name}`,
           },
         })
+        try {
+          await resend.emails.send({
+            from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+            reply_to: 'support@chirhoevents.com',
+            to: organization.contactEmail,
+            subject: 'Your ChiRho Events subscription has been cancelled',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1E3A5F;">
+                <div style="background: #1E3A5F; padding: 30px; text-align: center;">
+                  <h1 style="color: white; margin: 0;">ChiRho Events</h1>
+                </div>
+                <div style="padding: 30px; background: #F5F5F5;">
+                  <h2>Your subscription has been cancelled</h2>
+                  <p>Hi ${organization.name},</p>
+                  <p>Your ChiRho Events subscription has been cancelled. Access to your account has been removed.</p>
+                  <p>If you believe this was done in error or would like to reactivate your account in the future, please contact us at <a href="mailto:support@chirhoevents.com" style="color: #1E3A5F;">support@chirhoevents.com</a>.</p>
+                  <p>Thank you for using ChiRho Events.</p>
+                </div>
+              </div>
+            `,
+          })
+        } catch (emailErr) {
+          console.error('Failed to send cancellation email:', emailErr)
+        }
         break
+      }
 
       case 'upgrade':
         const { newTier, newBillingCycle } = updateData
