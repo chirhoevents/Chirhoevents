@@ -755,7 +755,7 @@ export default function NameTagDesignerPage() {
                             <span className="text-sm text-muted-foreground">Current logo</span>
                             <Button variant="ghost" size="sm" onClick={handleDeleteLogo} className="h-6 w-6 p-0 text-red-500 hover:bg-red-50"><X className="w-4 h-4" /></Button>
                           </div>
-                          <img src={template.logoUrl} alt="Logo" className="max-h-16 mx-auto" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                          <img src={template.logoUrl} alt="Logo" className="max-h-16 mx-auto block" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
                           <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo}>
                             {uploadingLogo ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Upload className="w-3 h-3 mr-1" />} Replace
                           </Button>

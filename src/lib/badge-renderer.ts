@@ -153,7 +153,7 @@ function renderStandardBadge(tag: NameTagData, t: BadgeTemplate, header: string)
       ` : ''}
       ${t.showLogo && t.logoUrl ? `
         <div style="text-align:center;padding:4px 0;">
-          <img src="${t.logoUrl}" style="max-height:30px;max-width:100%;" alt="" />
+          <img src="${t.logoUrl}" style="max-height:30px;max-width:100%;display:block;margin:0 auto;" alt="" />
         </div>
       ` : ''}
       <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-width:0;overflow:hidden;">
