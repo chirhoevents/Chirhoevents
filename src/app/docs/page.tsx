@@ -15,6 +15,8 @@ const docSections = [
       { id: "overview", title: "What is ChiRho Events?" },
       { id: "signup", title: "How to Sign Up" },
       { id: "plans", title: "Choosing the Right Plan" },
+      { id: "subscription-billing", title: "How Subscription Billing Works" },
+      { id: "subscription-upgrade", title: "Upgrading or Changing Your Plan" },
       { id: "setup", title: "Setting Up Your Organization" },
     ]
   },
@@ -173,6 +175,139 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
       </div>
     )
   },
+  "subscription-billing": {
+    title: "How Subscription Billing Works",
+    content: (
+      <div className="space-y-4">
+        <p>
+          ChiRho Events uses Stripe for all subscription billing. Here is the full lifecycle
+          from the moment you are approved to your recurring monthly charges.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Step 1 — Setup Fee</h3>
+        <p>
+          After your onboarding request is approved, you will receive an email with a link to pay
+          the one-time <strong>$250 setup fee</strong>. This is a single charge that covers account
+          configuration and onboarding support.
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Click <strong>Pay $250 Setup Fee</strong> in your approval email</li>
+          <li>You are taken to a secure Stripe-hosted payment page</li>
+          <li>Enter your credit or debit card details</li>
+          <li>Once paid, your card is saved on file for future subscription charges</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Step 2 — Subscription Starts Automatically</h3>
+        <p>
+          As soon as the setup fee is paid, your recurring subscription begins automatically. You do
+          not need to do anything else — ChiRho will create your subscription in Stripe using the
+          card you just paid with.
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Your first subscription charge happens immediately after setup fee payment</li>
+          <li>Subsequent charges happen on the same day each month (or year if on annual billing)</li>
+          <li>You will receive a payment confirmation email for each charge</li>
+        </ul>
+
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mt-4">
+          <p className="text-sm">
+            <strong>No card on file?</strong> If for any reason your card was not saved during setup fee
+            payment, a ChiRho admin can generate a secure subscription payment link to send to you. Your
+            account will remain active while this is resolved.
+          </p>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Recurring Billing</h3>
+        <p>Each billing cycle, Stripe automatically charges the card on file:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>You receive an email notification before and after each charge</li>
+          <li>Successful payments appear in your organization&apos;s billing history</li>
+          <li>If a charge fails, Stripe will retry and you will be notified by email</li>
+          <li>Repeated failures may result in your account being suspended until payment is resolved</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Billing Cycle Options</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Monthly</strong> — charged each month, full flexibility</li>
+          <li><strong>Annual</strong> — charged once per year at a discounted rate (where available)</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">What Your Subscription Covers</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Full platform access for your organization and all admins</li>
+          <li>Your plan&apos;s event and registration limits</li>
+          <li>Storage for documents, images, and liability forms</li>
+          <li>Email support from the ChiRho team</li>
+        </ul>
+        <p className="mt-2 text-sm text-gray-500">
+          Note: Stripe payment processing fees (2.9% + $0.30 per transaction) and the 1% ChiRho
+          platform fee apply separately to each registration payment you collect from attendees.
+          These are not part of your subscription charge.
+        </p>
+      </div>
+    )
+  },
+
+  "subscription-upgrade": {
+    title: "Upgrading or Changing Your Plan",
+    content: (
+      <div className="space-y-4">
+        <p>
+          As your organization grows, you can move to a higher plan at any time. Upgrades take
+          effect immediately and Stripe automatically handles proration so you are never double-charged.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">How to Request an Upgrade</h3>
+        <p>
+          Contact the ChiRho team at <a href="mailto:support@chirhoevents.com" className="text-navy underline">support@chirhoevents.com</a> or
+          reach out through your organization dashboard. A ChiRho admin will process the change on your behalf.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">How Proration Works</h3>
+        <p>
+          When your plan is upgraded mid-billing cycle, Stripe calculates the difference automatically:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>You are credited for the unused days on your current plan</li>
+          <li>You are charged for the remaining days at the new plan&apos;s rate</li>
+          <li>The net amount appears on your next invoice</li>
+          <li>No manual calculations needed — Stripe handles it all</li>
+        </ul>
+
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mt-4">
+          <p className="text-sm">
+            <strong>Example:</strong> You are on the Parish plan ($45/mo) and upgrade to Cathedral ($89/mo)
+            halfway through your billing cycle. Stripe credits you ~$22.50 for the unused Parish days and
+            charges ~$44.50 for the remaining Cathedral days. Your next full month will be billed at $89.
+          </p>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">What Happens After an Upgrade</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Your new plan limits (events, registrations, storage) are available immediately</li>
+          <li>You receive a confirmation email from ChiRho with the new plan details</li>
+          <li>Stripe updates your subscription and the prorated charge is applied automatically</li>
+          <li>Your billing date does not change</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Downgrading</h3>
+        <p>
+          Downgrades are handled on a case-by-case basis. Contact{" "}
+          <a href="mailto:support@chirhoevents.com" className="text-navy underline">support@chirhoevents.com</a> to
+          discuss your options. Note that downgrading while over the lower plan&apos;s limits (events, registrations,
+          or storage) may require cleanup before the change can take effect.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Suspensions &amp; Cancellations</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Suspension</strong> — your account is temporarily paused; data is preserved and access is restored once the issue is resolved</li>
+          <li><strong>Cancellation</strong> — your account is closed; you will receive an email confirmation</li>
+          <li>In both cases you are notified by email at the time the change is made</li>
+        </ul>
+      </div>
+    )
+  },
+
   "setup": {
     title: "Setting Up Your Organization",
     content: (
