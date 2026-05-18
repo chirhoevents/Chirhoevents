@@ -32,23 +32,23 @@ interface Template {
 const FORM_TYPES: { value: string; label: string; description: string }[] = [
   {
     value: 'youth_u18',
-    label: 'Youth Under 18',
-    description: 'Parent/guardian signs on behalf of the minor. Use "my child" language.',
+    label: 'Minors (Under 18)',
+    description: 'Parent or legal guardian signs on behalf of the minor. Uses "my child" language. Matches the Minor Permission Form structure.',
   },
   {
     value: 'youth_o18_chaperone',
-    label: 'Youth 18+ / Chaperone',
-    description: 'Self-signed by adult participants and chaperones.',
+    label: 'Adults & Chaperones (18+)',
+    description: 'Self-signed by adult participants and chaperones. Matches the Adult Participant Permission Form structure.',
   },
   {
     value: 'clergy',
     label: 'Clergy & Seminarians',
-    description: 'For priests, deacons, seminarians, and religious brothers (Mr.).',
+    description: 'For priests, bishops, deacons, seminarians, and anyone using Mr. as their title.',
   },
   {
     value: 'religious',
-    label: 'Religious Sisters & Brothers',
-    description: 'For religious sisters and brothers in consecrated life.',
+    label: 'Religious (Sisters & Brothers)',
+    description: 'For women and men in consecrated religious life — Sisters, Brothers, and members of religious orders.',
   },
 ]
 

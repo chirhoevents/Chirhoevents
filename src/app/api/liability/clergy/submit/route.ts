@@ -67,14 +67,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate clergy title
-    const validTitles = ['father', 'deacon', 'mr', 'most_reverend', 'seminarian', 'sister', 'brother']
-    if (!validTitles.includes(clergy_title)) {
-      return NextResponse.json(
-        { error: 'Invalid clergy title' },
-        { status: 400 }
-      )
-    }
+
 
     // Find group registration by access code
     const groupRegistration = await prisma.groupRegistration.findUnique({
