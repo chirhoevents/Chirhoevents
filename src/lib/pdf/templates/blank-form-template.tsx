@@ -68,7 +68,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333333',
     paddingBottom: 2,
-    whiteSpace: 'nowrap',
   },
   halfLine: {
     flex: 1,
@@ -120,23 +119,11 @@ const styles = StyleSheet.create({
     color: '#374151',
     lineHeight: 1.4,
   },
-  checkRow: {
-    flexDirection: 'row',
-    marginBottom: 8,
-    alignItems: 'flex-start',
-    gap: 6,
-  },
   checkbox: {
     width: 12,
     height: 12,
     border: '1pt solid #555555',
     marginTop: 1,
-  },
-  checkLabel: {
-    flex: 1,
-    fontSize: 9,
-    color: '#333333',
-    lineHeight: 1.3,
   },
   sigBlock: {
     marginTop: 16,
@@ -220,78 +207,6 @@ interface BlankFormTemplateProps {
   data: BlankFormData
 }
 
-const Field = ({ label, labelWidth = '32%' }: { label: string; labelWidth?: string }) => (
-  <View style={styles.fieldRow}>
-    <Text style={[styles.fieldLabel, { width: labelWidth }]}>{label}</Text>
-    <View style={styles.fieldLine} />
-  </View>
-)
-
-const HalfField = ({ label }: { label: string }) => (
-  <View style={styles.halfField}>
-    <Text style={styles.halfLabel}>{label}</Text>
-    <View style={styles.halfLine} />
-  </View>
-)
-
-const EventInfoBlock = ({ data }: { data: BlankFormData }) => (
-  <View style={styles.eventBlock}>
-    <Text style={styles.eventTitle}>EVENT INFORMATION</Text>
-    <View style={styles.eventRow}>
-      <Text style={styles.eventLabel}>Organization:</Text>
-      <Text style={styles.eventValue}>{data.organizationName || '—'}</Text>
-    </View>
-    <View style={styles.eventRow}>
-      <Text style={styles.eventLabel}>Event Name:</Text>
-      <Text style={styles.eventValue}>{data.eventName || '—'}</Text>
-    </View>
-    {data.locationName && (
-      <View style={styles.eventRow}>
-        <Text style={styles.eventLabel}>Location:</Text>
-        <Text style={styles.eventValue}>{data.locationName}</Text>
-      </View>
-    )}
-    {data.locationLine1 && (
-      <View style={styles.eventRow}>
-        <Text style={styles.eventLabel}>Address:</Text>
-        <Text style={styles.eventValue}>{data.locationLine1}</Text>
-      </View>
-    )}
-    {data.locationLine2 && (
-      <View style={styles.eventRow}>
-        <Text style={styles.eventLabel}>City/State/Zip:</Text>
-        <Text style={styles.eventValue}>{data.locationLine2}</Text>
-      </View>
-    )}
-    <View style={styles.eventRow}>
-      <Text style={styles.eventLabel}>Date(s):</Text>
-      <Text style={styles.eventValue}>{data.eventDates || '—'}</Text>
-    </View>
-    {data.eventTime && (
-      <View style={styles.eventRow}>
-        <Text style={styles.eventLabel}>Time:</Text>
-        <Text style={styles.eventValue}>{data.eventTime}</Text>
-      </View>
-    )}
-    {data.eventCoordinator && (
-      <View style={styles.eventRow}>
-        <Text style={styles.eventLabel}>Coordinator:</Text>
-        <Text style={styles.eventValue}>{data.eventCoordinator}</Text>
-      </View>
-    )}
-  </View>
-)
-
-const ConsentBlock = ({ title, text }: { title: string; text?: string }) => {
-  if (!text) return null
-  return (
-    <View style={styles.consentSection}>
-      <Text style={styles.consentTitle}>{title}</Text>
-      <Text style={styles.consentText}>{text}</Text>
-    </View>
-  )
-}
-
 const FORM_TITLES: Record<BlankFormType, string> = {
   youth_u18: 'LIABILITY FORM — YOUTH (UNDER 18)',
   youth_o18_chaperone: 'LIABILITY FORM — ADULTS & CHAPERONES (18+)',
@@ -323,6 +238,12 @@ const BlankFormTemplate: React.FC<BlankFormTemplateProps> = ({ data }) => {
 
   const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 
+  const genWaiver = resolveText(data.generalWaiverText)
+  const medRelease = resolveText(data.medicalReleaseText)
+  const photoConsent = resolveText(data.photoVideoConsentText)
+  const transportConsent = resolveText(data.transportationConsentText)
+  const emergencyConsent = resolveText(data.emergencyTreatmentText)
+
   return (
     <Document>
       {/* PAGE 1 — Header + Event Info + Participant Info + Medical */}
@@ -332,37 +253,123 @@ const BlankFormTemplate: React.FC<BlankFormTemplateProps> = ({ data }) => {
           <Text style={styles.subtitle}>{FORM_SUBTITLES[formType]}</Text>
         </View>
 
-        <EventInfoBlock data={data} />
+        {/* EVENT INFORMATION — inlined */}
+        <View style={styles.eventBlock}>
+          <Text style={styles.eventTitle}>EVENT INFORMATION</Text>
+          <View style={styles.eventRow}>
+            <Text style={styles.eventLabel}>Organization:</Text>
+            <Text style={styles.eventValue}>{orgName}</Text>
+          </View>
+          <View style={styles.eventRow}>
+            <Text style={styles.eventLabel}>Event Name:</Text>
+            <Text style={styles.eventValue}>{activityName}</Text>
+          </View>
+          {data.locationName ? (
+            <View style={styles.eventRow}>
+              <Text style={styles.eventLabel}>Location:</Text>
+              <Text style={styles.eventValue}>{data.locationName}</Text>
+            </View>
+          ) : null}
+          {data.locationLine1 ? (
+            <View style={styles.eventRow}>
+              <Text style={styles.eventLabel}>Address:</Text>
+              <Text style={styles.eventValue}>{data.locationLine1}</Text>
+            </View>
+          ) : null}
+          {data.locationLine2 ? (
+            <View style={styles.eventRow}>
+              <Text style={styles.eventLabel}>City/State/Zip:</Text>
+              <Text style={styles.eventValue}>{data.locationLine2}</Text>
+            </View>
+          ) : null}
+          <View style={styles.eventRow}>
+            <Text style={styles.eventLabel}>Date(s):</Text>
+            <Text style={styles.eventValue}>{data.eventDates || '—'}</Text>
+          </View>
+          {data.eventTime ? (
+            <View style={styles.eventRow}>
+              <Text style={styles.eventLabel}>Time:</Text>
+              <Text style={styles.eventValue}>{data.eventTime}</Text>
+            </View>
+          ) : null}
+          {data.eventCoordinator ? (
+            <View style={styles.eventRow}>
+              <Text style={styles.eventLabel}>Coordinator:</Text>
+              <Text style={styles.eventValue}>{data.eventCoordinator}</Text>
+            </View>
+          ) : null}
+        </View>
 
         {/* PARTICIPANT INFORMATION */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>1. PARTICIPANT INFORMATION</Text>
 
           <View style={styles.twoColRow}>
-            <HalfField label="First Name:" />
-            <HalfField label="Last Name:" />
+            <View style={styles.halfField}>
+              <Text style={styles.halfLabel}>First Name:</Text>
+              <View style={styles.halfLine} />
+            </View>
+            <View style={styles.halfField}>
+              <Text style={styles.halfLabel}>Last Name:</Text>
+              <View style={styles.halfLine} />
+            </View>
           </View>
           <View style={styles.twoColRow}>
-            <HalfField label="Preferred Name:" />
-            {isYouthU18 ? <HalfField label="Age:" /> : <HalfField label="Date of Birth:" />}
+            <View style={styles.halfField}>
+              <Text style={styles.halfLabel}>Preferred Name:</Text>
+              <View style={styles.halfLine} />
+            </View>
+            <View style={styles.halfField}>
+              <Text style={styles.halfLabel}>{isYouthU18 ? 'Age:' : 'Date of Birth:'}</Text>
+              <View style={styles.halfLine} />
+            </View>
           </View>
 
-          {(isClergy || isReligious) && (
-            <>
-              <Field label={isReligious ? 'Title / Religious Name:' : 'Title (Fr./Dcn./Mr./etc.):'} />
-              <Field label={isReligious ? 'Religious Order / Congregation:' : 'Diocese of Incardination:'} />
-              <Field label={isClergy ? 'Current Assignment / Parish:' : 'Current Convent / House:'} />
-              {isClergy && <Field label="Faculty Information:" />}
-            </>
-          )}
+          {isClergy ? (
+            <View>
+              <View style={styles.fieldRow}>
+                <Text style={[styles.fieldLabel, { width: '32%' }]}>Title (Fr./Dcn./Mr./etc.):</Text>
+                <View style={styles.fieldLine} />
+              </View>
+              <View style={styles.fieldRow}>
+                <Text style={[styles.fieldLabel, { width: '32%' }]}>Diocese of Incardination:</Text>
+                <View style={styles.fieldLine} />
+              </View>
+              <View style={styles.fieldRow}>
+                <Text style={[styles.fieldLabel, { width: '32%' }]}>Current Assignment / Parish:</Text>
+                <View style={styles.fieldLine} />
+              </View>
+              <View style={styles.fieldRow}>
+                <Text style={[styles.fieldLabel, { width: '32%' }]}>Faculty Information:</Text>
+                <View style={styles.fieldLine} />
+              </View>
+            </View>
+          ) : null}
 
-          {isAdult && (
+          {isReligious ? (
+            <View>
+              <View style={styles.fieldRow}>
+                <Text style={[styles.fieldLabel, { width: '32%' }]}>Title / Religious Name:</Text>
+                <View style={styles.fieldLine} />
+              </View>
+              <View style={styles.fieldRow}>
+                <Text style={[styles.fieldLabel, { width: '32%' }]}>Religious Order / Congregation:</Text>
+                <View style={styles.fieldLine} />
+              </View>
+              <View style={styles.fieldRow}>
+                <Text style={[styles.fieldLabel, { width: '32%' }]}>Current Convent / House:</Text>
+                <View style={styles.fieldLine} />
+              </View>
+            </View>
+          ) : null}
+
+          {isAdult ? (
             <View style={styles.fieldRow}>
               <Text style={[styles.fieldLabel, { width: '32%' }]}>Participant Type:</Text>
               <View style={{ flexDirection: 'row', gap: 20, paddingBottom: 2 }}>
                 <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
                   <View style={styles.checkbox} />
-                  <Text style={{ fontSize: 9 }}>Youth</Text>
+                  <Text style={{ fontSize: 9 }}>Youth 18+</Text>
                 </View>
                 <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
                   <View style={styles.checkbox} />
@@ -370,43 +377,63 @@ const BlankFormTemplate: React.FC<BlankFormTemplateProps> = ({ data }) => {
                 </View>
               </View>
             </View>
-          )}
+          ) : null}
 
           <View style={styles.twoColRow}>
             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: 4 }}>
               <Text style={styles.halfLabel}>Gender:</Text>
               <View style={{ flexDirection: 'row', gap: 12, paddingBottom: 2 }}>
-                {['Male', 'Female', 'Prefer not to say'].map(g => (
-                  <View key={g} style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
-                    <View style={styles.checkbox} />
-                    <Text style={{ fontSize: 9 }}>{g}</Text>
-                  </View>
-                ))}
+                <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
+                  <View style={styles.checkbox} />
+                  <Text style={{ fontSize: 9 }}>Male</Text>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
+                  <View style={styles.checkbox} />
+                  <Text style={{ fontSize: 9 }}>Female</Text>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
+                  <View style={styles.checkbox} />
+                  <Text style={{ fontSize: 9 }}>Prefer not to say</Text>
+                </View>
               </View>
             </View>
-            <HalfField label="T-Shirt Size:" />
+            <View style={styles.halfField}>
+              <Text style={styles.halfLabel}>T-Shirt Size:</Text>
+              <View style={styles.halfLine} />
+            </View>
           </View>
 
           <View style={styles.twoColRow}>
-            <HalfField label="Email:" />
-            <HalfField label="Phone:" />
+            <View style={styles.halfField}>
+              <Text style={styles.halfLabel}>Email:</Text>
+              <View style={styles.halfLine} />
+            </View>
+            <View style={styles.halfField}>
+              <Text style={styles.halfLabel}>Phone:</Text>
+              <View style={styles.halfLine} />
+            </View>
           </View>
 
-          <Field label="Parish / Parish of Origin:" />
+          <View style={styles.fieldRow}>
+            <Text style={[styles.fieldLabel, { width: '32%' }]}>Parish / Parish of Origin:</Text>
+            <View style={styles.fieldLine} />
+          </View>
 
-          {(isClergy || isReligious) && (
+          {isClergy || isReligious ? (
             <View style={styles.fieldRow}>
               <Text style={[styles.fieldLabel, { width: '32%' }]}>Needs Housing:</Text>
               <View style={{ flexDirection: 'row', gap: 20, paddingBottom: 2 }}>
-                {['Yes', 'No'].map(v => (
-                  <View key={v} style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
-                    <View style={styles.checkbox} />
-                    <Text style={{ fontSize: 9 }}>{v}</Text>
-                  </View>
-                ))}
+                <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
+                  <View style={styles.checkbox} />
+                  <Text style={{ fontSize: 9 }}>Yes</Text>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
+                  <View style={styles.checkbox} />
+                  <Text style={{ fontSize: 9 }}>No</Text>
+                </View>
               </View>
             </View>
-          )}
+          ) : null}
         </View>
 
         {/* MEDICAL INFORMATION */}
@@ -414,11 +441,26 @@ const BlankFormTemplate: React.FC<BlankFormTemplateProps> = ({ data }) => {
           <Text style={styles.sectionTitle}>2. MEDICAL INFORMATION</Text>
           <Text style={styles.noteText}>Write None if not applicable.</Text>
 
-          <Field label="Medical Conditions:" labelWidth="36%" />
-          <Field label="Current Medications:" labelWidth="36%" />
-          <Field label="Allergies:" labelWidth="36%" />
-          <Field label="Dietary Restrictions:" labelWidth="36%" />
-          <Field label="ADA Accommodations:" labelWidth="36%" />
+          <View style={styles.fieldRow}>
+            <Text style={[styles.fieldLabel, { width: '36%' }]}>Medical Conditions:</Text>
+            <View style={styles.fieldLine} />
+          </View>
+          <View style={styles.fieldRow}>
+            <Text style={[styles.fieldLabel, { width: '36%' }]}>Current Medications:</Text>
+            <View style={styles.fieldLine} />
+          </View>
+          <View style={styles.fieldRow}>
+            <Text style={[styles.fieldLabel, { width: '36%' }]}>Allergies:</Text>
+            <View style={styles.fieldLine} />
+          </View>
+          <View style={styles.fieldRow}>
+            <Text style={[styles.fieldLabel, { width: '36%' }]}>Dietary Restrictions:</Text>
+            <View style={styles.fieldLine} />
+          </View>
+          <View style={styles.fieldRow}>
+            <Text style={[styles.fieldLabel, { width: '36%' }]}>ADA Accommodations:</Text>
+            <View style={styles.fieldLine} />
+          </View>
         </View>
 
         <Text style={styles.footer}>
@@ -438,18 +480,36 @@ const BlankFormTemplate: React.FC<BlankFormTemplateProps> = ({ data }) => {
 
           <Text style={{ fontWeight: 'bold', marginBottom: 6, fontSize: 11 }}>Primary Contact:</Text>
           <View style={styles.twoColRow}>
-            <HalfField label="Name:" />
-            <HalfField label="Relationship:" />
+            <View style={styles.halfField}>
+              <Text style={styles.halfLabel}>Name:</Text>
+              <View style={styles.halfLine} />
+            </View>
+            <View style={styles.halfField}>
+              <Text style={styles.halfLabel}>Relationship:</Text>
+              <View style={styles.halfLine} />
+            </View>
           </View>
-          <Field label="Phone:" labelWidth="36%" />
+          <View style={styles.fieldRow}>
+            <Text style={[styles.fieldLabel, { width: '36%' }]}>Phone:</Text>
+            <View style={styles.fieldLine} />
+          </View>
 
           <View style={{ marginTop: 10 }}>
             <Text style={{ fontWeight: 'bold', marginBottom: 6, fontSize: 11 }}>Secondary Contact (Optional):</Text>
             <View style={styles.twoColRow}>
-              <HalfField label="Name:" />
-              <HalfField label="Relationship:" />
+              <View style={styles.halfField}>
+                <Text style={styles.halfLabel}>Name:</Text>
+                <View style={styles.halfLine} />
+              </View>
+              <View style={styles.halfField}>
+                <Text style={styles.halfLabel}>Relationship:</Text>
+                <View style={styles.halfLine} />
+              </View>
             </View>
-            <Field label="Phone:" labelWidth="36%" />
+            <View style={styles.fieldRow}>
+              <Text style={[styles.fieldLabel, { width: '36%' }]}>Phone:</Text>
+              <View style={styles.fieldLine} />
+            </View>
           </View>
         </View>
 
@@ -458,28 +518,49 @@ const BlankFormTemplate: React.FC<BlankFormTemplateProps> = ({ data }) => {
           <Text style={styles.sectionTitle}>4. INSURANCE INFORMATION</Text>
           <Text style={styles.noteText}>Please provide your primary health insurance information.</Text>
 
-          <Field label="Insurance Provider:" labelWidth="36%" />
-          <Field label="Policy Number:" labelWidth="36%" />
-          <Field label="Group Number:" labelWidth="36%" />
+          <View style={styles.fieldRow}>
+            <Text style={[styles.fieldLabel, { width: '36%' }]}>Insurance Provider:</Text>
+            <View style={styles.fieldLine} />
+          </View>
+          <View style={styles.fieldRow}>
+            <Text style={[styles.fieldLabel, { width: '36%' }]}>Policy Number:</Text>
+            <View style={styles.fieldLine} />
+          </View>
+          <View style={styles.fieldRow}>
+            <Text style={[styles.fieldLabel, { width: '36%' }]}>Group Number:</Text>
+            <View style={styles.fieldLine} />
+          </View>
         </View>
 
         {/* SAFE ENVIRONMENT (adults/chaperones only) */}
-        {isAdult && (
+        {isAdult ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>5. SAFE ENVIRONMENT CERTIFICATION</Text>
             <Text style={styles.noteText}>
               Chaperones are required to have a current Safe Environment certification. Please list your certification(s) below.
             </Text>
             <View style={styles.twoColRow}>
-              <HalfField label="Program Name:" />
-              <HalfField label="Completion Date:" />
+              <View style={styles.halfField}>
+                <Text style={styles.halfLabel}>Program Name:</Text>
+                <View style={styles.halfLine} />
+              </View>
+              <View style={styles.halfField}>
+                <Text style={styles.halfLabel}>Completion Date:</Text>
+                <View style={styles.halfLine} />
+              </View>
             </View>
             <View style={styles.twoColRow}>
-              <HalfField label="Expiration Date:" />
-              <HalfField label="Status:" />
+              <View style={styles.halfField}>
+                <Text style={styles.halfLabel}>Expiration Date:</Text>
+                <View style={styles.halfLine} />
+              </View>
+              <View style={styles.halfField}>
+                <Text style={styles.halfLabel}>Status:</Text>
+                <View style={styles.halfLine} />
+              </View>
             </View>
           </View>
-        )}
+        ) : null}
 
         <Text style={styles.footer}>
           {orgName} | {activityName} | Page 2 of 3 | Printed: {today}
@@ -489,25 +570,49 @@ const BlankFormTemplate: React.FC<BlankFormTemplateProps> = ({ data }) => {
       {/* PAGE 3 — Consent Sections + Signature */}
       <Page size="A4" style={styles.page}>
         <View style={styles.pageHeader}>
-          <Text style={styles.pageHeaderText}>{FORM_TITLES[formType]} — Waivers & Signature</Text>
+          <Text style={styles.pageHeaderText}>{FORM_TITLES[formType]} — Waivers &amp; Signature</Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {isAdult ? '5.' : isYouthU18 ? '5.' : '5.'} CONSENT & RELEASE
-          </Text>
+          <Text style={styles.sectionTitle}>5. CONSENT &amp; RELEASE</Text>
           <Text style={{ fontSize: 9, color: '#555555', marginBottom: 8, lineHeight: 1.4 }}>
-            Please read each section carefully. By signing below you acknowledge that you have read, understand, and agree to
-            the terms set forth in each section.
+            Please read each section carefully. By signing below you acknowledge that you have read, understand, and agree to the terms set forth in each section.
           </Text>
 
-          <ConsentBlock title="Waiver and Release of Liability" text={resolveText(data.generalWaiverText)} />
-          <ConsentBlock title="Medical Release Authorization" text={resolveText(data.medicalReleaseText)} />
-          <ConsentBlock title="Photo & Video Consent" text={resolveText(data.photoVideoConsentText)} />
-          {data.transportationConsentText && (
-            <ConsentBlock title="Transportation Consent" text={resolveText(data.transportationConsentText)} />
-          )}
-          <ConsentBlock title="Emergency Treatment Authorization" text={resolveText(data.emergencyTreatmentText)} />
+          {genWaiver ? (
+            <View style={styles.consentSection}>
+              <Text style={styles.consentTitle}>Waiver and Release of Liability</Text>
+              <Text style={styles.consentText}>{genWaiver}</Text>
+            </View>
+          ) : null}
+
+          {medRelease ? (
+            <View style={styles.consentSection}>
+              <Text style={styles.consentTitle}>Medical Release Authorization</Text>
+              <Text style={styles.consentText}>{medRelease}</Text>
+            </View>
+          ) : null}
+
+          {photoConsent ? (
+            <View style={styles.consentSection}>
+              <Text style={styles.consentTitle}>Photo &amp; Video Consent</Text>
+              <Text style={styles.consentText}>{photoConsent}</Text>
+            </View>
+          ) : null}
+
+          {transportConsent ? (
+            <View style={styles.consentSection}>
+              <Text style={styles.consentTitle}>Transportation Consent</Text>
+              <Text style={styles.consentText}>{transportConsent}</Text>
+            </View>
+          ) : null}
+
+          {emergencyConsent ? (
+            <View style={styles.consentSection}>
+              <Text style={styles.consentTitle}>Emergency Treatment Authorization</Text>
+              <Text style={styles.consentText}>{emergencyConsent}</Text>
+            </View>
+          ) : null}
         </View>
 
         {/* SIGNATURE */}
@@ -516,8 +621,8 @@ const BlankFormTemplate: React.FC<BlankFormTemplateProps> = ({ data }) => {
             {isYouthU18 ? 'PARENT / GUARDIAN SIGNATURE' : 'PARTICIPANT SIGNATURE'}
           </Text>
 
-          {isYouthU18 && (
-            <>
+          {isYouthU18 ? (
+            <View>
               <View style={styles.sigRow}>
                 <Text style={styles.sigLabel}>Parent/Guardian Full Legal Name:</Text>
                 <View style={styles.sigLine} />
@@ -526,10 +631,8 @@ const BlankFormTemplate: React.FC<BlankFormTemplateProps> = ({ data }) => {
                 <Text style={styles.sigLabel}>Relationship to Participant:</Text>
                 <View style={styles.sigLine} />
               </View>
-            </>
-          )}
-
-          {!isYouthU18 && (
+            </View>
+          ) : (
             <View style={styles.sigRow}>
               <Text style={styles.sigLabel}>Full Legal Name:</Text>
               <View style={styles.sigLine} />
@@ -546,13 +649,13 @@ const BlankFormTemplate: React.FC<BlankFormTemplateProps> = ({ data }) => {
             <View style={[styles.sigLine, { flex: 0, width: '40%' }]} />
           </View>
 
-          {isYouthU18 && (
+          {isYouthU18 ? (
             <View style={{ marginTop: 8 }}>
               <Text style={{ fontSize: 9, color: '#555555', fontStyle: 'italic' }}>
                 Initials confirming each section read: Waiver ____ Medical ____ Photo/Video ____ Transportation ____ Emergency ____
               </Text>
             </View>
-          )}
+          ) : null}
         </View>
 
         <Text style={styles.footer}>
