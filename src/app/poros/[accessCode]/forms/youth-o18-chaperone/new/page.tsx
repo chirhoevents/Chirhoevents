@@ -139,6 +139,10 @@ export default function YouthO18ChaperoneForm() {
       setError('Transportation consent is required')
       return
     }
+    if (cv.showEmergencyTreatment && !consentData.consentEmergencyTreatment) {
+      setError('Emergency treatment authorization is required')
+      return
+    }
 
     if (!consentData.certifyAccurate) {
       setError('You must certify that the information is accurate')
@@ -571,6 +575,25 @@ export default function YouthO18ChaperoneForm() {
                       <span className="font-semibold">Transportation Authorization</span>
                       <p className="text-sm text-gray-600">
                         I authorize transportation to/from event activities
+                      </p>
+                    </div>
+                  </label>
+                )}
+
+                {cv.showEmergencyTreatment && (
+                  <label className="flex items-start">
+                    <input
+                      type="checkbox"
+                      name="consentEmergencyTreatment"
+                      checked={consentData.consentEmergencyTreatment}
+                      onChange={handleConsentChange}
+                      required
+                      className="mr-3 mt-1"
+                    />
+                    <div>
+                      <span className="font-semibold">Emergency Treatment Authorization</span>
+                      <p className="text-sm text-gray-600">
+                        I authorize event staff to consent to emergency medical treatment on my behalf if I cannot be reached
                       </p>
                     </div>
                   </label>

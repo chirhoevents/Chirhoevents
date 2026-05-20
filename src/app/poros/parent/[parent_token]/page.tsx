@@ -40,6 +40,7 @@ export default function ParentCompletionForm() {
     consentActivity: false,
     consentPhoto: false,
     consentTransportation: false,
+    consentEmergencyTreatment: false,
     signatureFullName: '',
     signatureInitials: '',
     certifyAccurate: false,
@@ -106,6 +107,10 @@ export default function ParentCompletionForm() {
     }
     if (cv.showTransportationConsent && !consentData.consentTransportation) {
       setError('Transportation consent is required')
+      return
+    }
+    if (cv.showEmergencyTreatment && !consentData.consentEmergencyTreatment) {
+      setError('Emergency treatment authorization is required')
       return
     }
 
@@ -363,6 +368,22 @@ export default function ParentCompletionForm() {
                     />
                     <span className="text-sm text-gray-700">
                       <strong>Transportation:</strong> I authorize transportation in emergency situations
+                    </span>
+                  </label>
+                )}
+
+                {cv.showEmergencyTreatment && (
+                  <label className="flex items-start">
+                    <input
+                      type="checkbox"
+                      name="consentEmergencyTreatment"
+                      required
+                      checked={consentData.consentEmergencyTreatment}
+                      onChange={handleConsentChange}
+                      className="mt-1 mr-3 h-5 w-5 text-navy border-gray-300 rounded focus:ring-gold"
+                    />
+                    <span className="text-sm text-gray-700">
+                      <strong>Emergency Treatment Authorization:</strong> I authorize event staff to consent to emergency medical treatment for my child if I cannot be reached
                     </span>
                   </label>
                 )}
