@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import YouthU18Template from './templates/youth-u18-template'
 import YouthO18ChaperoneTemplate from './templates/youth-o18-chaperone-template'
 import ClergyTemplate from './templates/clergy-template'
+import { withRenderLock } from './render-lock'
 
 // Type for form data with relations (from Prisma)
 interface LiabilityFormWithRelations {
@@ -196,8 +197,6 @@ export async function generateLiabilityFormPDF(
       throw new Error(`Unknown form type: ${formData.formType}`)
   }
 
-  // Generate PDF buffer
-  const pdfBuffer = await renderToBuffer(pdfTemplate)
-
-  return pdfBuffer
+  // Serialize all renderToBuffer calls — react-pdf's reconciler is not concurrent-safe
+  return withRenderLock(() => renderToBuffer(pdfTemplate))
 }
