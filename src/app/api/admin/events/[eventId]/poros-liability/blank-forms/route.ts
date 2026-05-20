@@ -11,7 +11,7 @@ const FORM_TYPE_TO_PARTICIPANT_TYPE: Record<BlankFormType, string> = {
   youth_u18: 'youth_u18',
   youth_o18_chaperone: 'youth_o18',
   clergy: 'priest',
-  religious: 'sister',
+  religious: 'religious_sister',
 }
 
 export async function GET(
