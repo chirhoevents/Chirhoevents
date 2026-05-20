@@ -1,6 +1,6 @@
 import { renderToBuffer } from '@react-pdf/renderer'
-import { createElement } from 'react'
 import BlankFormTemplate, { BlankFormType } from './templates/blank-form-template'
+import { withRenderLock } from './render-lock'
 
 interface EventData {
   name: string
@@ -40,7 +40,6 @@ export async function generateBlankFormPDF(
   template?: TemplateData | null,
   sections?: SectionFlags
 ): Promise<Buffer> {
-  // Default all sections to enabled when no flags are provided
   const enabled: SectionFlags = sections ?? {
     generalWaiver: true,
     medicalRelease: true,
@@ -48,6 +47,7 @@ export async function generateBlankFormPDF(
     transportationConsent: true,
     emergencyTreatment: true,
   }
+
   const eventDates = `${new Date(event.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - ${new Date(event.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
 
   const locationAddress = event.locationAddress as {
@@ -65,47 +65,40 @@ export async function generateBlankFormPDF(
   const activityName = event.name
   const orgName = organization.name
 
-  // Resolve stored text with placeholder substitution, or fall back to generic defaults.
-  // Returns undefined when the section is disabled in the event's section config.
   const resolve = (stored: string | null | undefined, fallback: string) =>
     (stored || fallback)
       .replace(/\[Activity Name\]/g, activityName)
       .replace(/\[Organization Name\]/g, orgName)
 
-  const generalWaiverText = enabled.generalWaiver
-    ? resolve(template?.generalWaiverText, `By signing this form, I (and/or as parent/guardian of the participant) agree to release and hold harmless ${orgName}, its officers, employees, and volunteers from any claims arising from participation in ${activityName} activities, except in cases of gross negligence or willful misconduct.`)
-    : undefined
-  const medicalReleaseText = enabled.medicalRelease
-    ? resolve(template?.medicalReleaseText, `I authorize the staff and medical personnel of ${activityName} to obtain emergency medical treatment for the participant if I cannot be reached. I understand that every effort will be made to contact me first.`)
-    : undefined
-  const photoVideoConsentText = enabled.photoVideoConsent
-    ? resolve(template?.photoVideoConsentText, `I grant permission to ${orgName} to use photographs and video recordings of the participant taken during ${activityName} for educational, promotional, and informational purposes without compensation.`)
-    : undefined
-  const transportationConsentText = enabled.transportationConsent
-    ? resolve(template?.transportationConsentText, `I authorize ${orgName} and its designated drivers to transport the participant to and from ${activityName} activities and related outings in approved vehicles.`)
-    : undefined
-  const emergencyTreatmentText = enabled.emergencyTreatment
-    ? resolve(template?.emergencyTreatmentText, `In the event of a medical emergency, I authorize event staff to consent to and obtain necessary emergency medical treatment for the participant. Every attempt will be made to contact the emergency contacts listed on this form before treatment is authorized.`)
-    : undefined
+  const data = {
+    formType,
+    eventName: event.name,
+    eventDates,
+    organizationName: organization.name,
+    locationName: event.locationName || undefined,
+    locationLine1,
+    locationLine2,
+    eventTime,
+    eventCoordinator: organization.contactName || undefined,
+    generalWaiverText: enabled.generalWaiver
+      ? resolve(template?.generalWaiverText, `By signing this form, I (and/or as parent/guardian of the participant) agree to release and hold harmless ${orgName}, its officers, employees, and volunteers from any claims arising from participation in ${activityName} activities, except in cases of gross negligence or willful misconduct.`)
+      : undefined,
+    medicalReleaseText: enabled.medicalRelease
+      ? resolve(template?.medicalReleaseText, `I authorize the staff and medical personnel of ${activityName} to obtain emergency medical treatment for the participant if I cannot be reached. I understand that every effort will be made to contact me first.`)
+      : undefined,
+    photoVideoConsentText: enabled.photoVideoConsent
+      ? resolve(template?.photoVideoConsentText, `I grant permission to ${orgName} to use photographs and video recordings of the participant taken during ${activityName} for educational, promotional, and informational purposes without compensation.`)
+      : undefined,
+    transportationConsentText: enabled.transportationConsent
+      ? resolve(template?.transportationConsentText, `I authorize ${orgName} and its designated drivers to transport the participant to and from ${activityName} activities and related outings in approved vehicles.`)
+      : undefined,
+    emergencyTreatmentText: enabled.emergencyTreatment
+      ? resolve(template?.emergencyTreatmentText, `In the event of a medical emergency, I authorize event staff to consent to and obtain necessary emergency medical treatment for the participant. Every attempt will be made to contact the emergency contacts listed on this form before treatment is authorized.`)
+      : undefined,
+  }
 
-  const element = createElement(BlankFormTemplate, {
-    data: {
-      formType,
-      eventName: event.name,
-      eventDates,
-      organizationName: organization.name,
-      locationName: event.locationName || undefined,
-      locationLine1,
-      locationLine2,
-      eventTime,
-      eventCoordinator: organization.contactName || undefined,
-      generalWaiverText,
-      medicalReleaseText,
-      photoVideoConsentText,
-      transportationConsentText,
-      emergencyTreatmentText,
-    },
-  })
-
-  return renderToBuffer(element as any)
+  // Call the template as a plain function to get the Document element directly,
+  // then run renderToBuffer inside the global render lock so react-pdf's shared
+  // reconciler is never used by two requests at the same time.
+  return withRenderLock(() => renderToBuffer(BlankFormTemplate({ data }) as any))
 }
