@@ -98,5 +98,5 @@ export async function generateBlankFormPDF(
       : undefined,
   }
 
-  return withRenderLock(() => renderToBuffer(createElement(BlankFormTemplate, { data })))
+  return withRenderLock(() => renderToBuffer(createElement(BlankFormTemplate, { data }) as any))
 }
