@@ -81,6 +81,7 @@ export default function ClergyForm() {
     consentActivity: false,
     consentPhoto: false,
     consentTransportation: false,
+    consentEmergencyTreatment: false,
     signatureFullName: '',
     signatureInitials: '',
     signatureDate: '',
@@ -165,7 +166,8 @@ export default function ClergyForm() {
       (consent.showMedicalRelease && !consentData.consentMedical) ||
       !consentData.consentActivity ||
       (consent.showPhotoConsent && !consentData.consentPhoto) ||
-      (consent.showTransportationConsent && !consentData.consentTransportation)
+      (consent.showTransportationConsent && !consentData.consentTransportation) ||
+      (consent.showEmergencyTreatment && !consentData.consentEmergencyTreatment)
 
     if (missingConsent) {
       setError('All required consent checkboxes must be checked')
@@ -551,6 +553,24 @@ export default function ClergyForm() {
                       <span className="font-semibold">Transportation Authorization</span>
                       <p className="text-sm text-gray-600">
                         I authorize transportation to/from event activities.
+                      </p>
+                    </div>
+                  </label>
+                )}
+
+                {consent.showEmergencyTreatment && (
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      required
+                      checked={consentData.consentEmergencyTreatment}
+                      onChange={(e) => consentChange('consentEmergencyTreatment', e.target.checked)}
+                      className="mt-1 h-5 w-5"
+                    />
+                    <div>
+                      <span className="font-semibold">Emergency Treatment Authorization</span>
+                      <p className="text-sm text-gray-600">
+                        I authorize event staff to consent to emergency medical treatment on my behalf if I cannot be reached.
                       </p>
                     </div>
                   </label>
