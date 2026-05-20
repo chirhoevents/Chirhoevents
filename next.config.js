@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ['pdfkit'],
+  serverExternalPackages: ['pdfkit', '@react-pdf/renderer'],
   images: {
     domains: ['r2.chirhoevents.com'],
   },

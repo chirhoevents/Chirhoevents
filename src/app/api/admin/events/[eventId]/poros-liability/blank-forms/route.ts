@@ -44,10 +44,15 @@ export async function GET(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 
-    // Load stored template wording for this form type, if any
+    // Load stored template wording — prefer event-specific, fall back to org-level
     const template = await prisma.liabilityFormTemplate.findFirst({
-      where: { eventId, formType: formType as any, active: true },
-      orderBy: { updatedAt: 'desc' },
+      where: {
+        organizationId: event.organizationId,
+        formType: formType as any,
+        active: true,
+        OR: [{ eventId }, { eventId: null }],
+      },
+      orderBy: [{ eventId: 'asc' }, { updatedAt: 'desc' }],
     })
 
     // Load section config to know which consent sections are enabled for this form type
