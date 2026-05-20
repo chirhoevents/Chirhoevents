@@ -99,6 +99,8 @@ export default function ClergyForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
+  const [submittedFormId, setSubmittedFormId] = useState<string | null>(null)
+  const [eventName, setEventName] = useState<string | null>(null)
 
   const participantType = titleToParticipantType(basicData.clergyTitle)
 
@@ -124,6 +126,7 @@ export default function ClergyForm() {
       if (res.ok) {
         const data = await res.json()
         setEventId(data.eventId)
+        if (data.eventName) setEventName(data.eventName)
       }
     } catch {
       // If this fails, DynamicLiabilityForm handles it gracefully
@@ -241,6 +244,7 @@ export default function ClergyForm() {
       if (!response.ok) throw new Error(data.error || 'Failed to submit form')
 
       const liabilityFormId: string | undefined = data.liabilityFormId
+      if (data.form_id) setSubmittedFormId(data.form_id)
 
       // ── Submit letter of good standing (if collected) ───────────────────────
       if (dynValues.logsMethod && (logsFile || dynValues.logsMethod === 'external_submission')) {
@@ -288,21 +292,39 @@ export default function ClergyForm() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h1 className="text-3xl font-bold text-navy mb-4">
-              ✅ {successGreeting(basicData.clergyTitle)}
+            <h1 className="text-3xl font-bold text-navy mb-2">
+              {successGreeting(basicData.clergyTitle)}
             </h1>
-            <p className="text-gray-700 mb-6">Your liability form has been submitted successfully.</p>
+            {eventName && (
+              <p className="text-base text-gold font-semibold mb-4">{eventName}</p>
+            )}
+            <p className="text-gray-700 mb-4">Your liability form has been submitted successfully.</p>
             {basicData.email && (
-              <p className="text-gray-600 mb-8">
+              <p className="text-gray-600 mb-6">
                 A confirmation has been sent to <strong>{basicData.email}</strong>.
               </p>
             )}
-            <button
-              onClick={() => router.push(`/poros/${accessCode}`)}
-              className="bg-navy text-white px-8 py-3 rounded-lg font-semibold hover:bg-navy/90 transition-colors"
-            >
-              Back to Portal
-            </button>
+            {submittedFormId && (
+              <a
+                href={`/api/liability/forms/${submittedFormId}/pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-navy text-white px-6 py-3 rounded-lg font-semibold hover:bg-navy/90 transition-colors mb-6"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Download Your Copy (PDF)
+              </a>
+            )}
+            <div>
+              <button
+                onClick={() => router.push(`/poros/${accessCode}`)}
+                className="bg-gray-100 text-navy px-8 py-3 rounded-lg font-semibold hover:bg-gray-200 transition-colors"
+              >
+                Back to Portal
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -320,6 +342,9 @@ export default function ClergyForm() {
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="bg-white rounded-lg shadow-md p-8 mb-6">
+          {eventName && (
+            <p className="text-sm font-semibold text-gold uppercase tracking-wide mb-2">{eventName}</p>
+          )}
           <h1 className="text-3xl font-bold text-navy mb-2">Clergy, Seminarians &amp; Religious Liability Form</h1>
           <p className="text-gray-600">For Priests, Deacons, Seminarians, Sisters, Brothers, and Religious</p>
         </div>

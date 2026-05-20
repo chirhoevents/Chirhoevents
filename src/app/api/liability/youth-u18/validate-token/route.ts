@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
     // Find liability form by parent token
     const liabilityForm = await prisma.liabilityForm.findUnique({
       where: { parentToken: parent_token },
+      include: { event: { select: { name: true } } },
     })
 
     if (!liabilityForm) {
@@ -45,6 +46,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       eventId: liabilityForm.eventId,
+      eventName: liabilityForm.event?.name ?? null,
       participantType: liabilityForm.participantType ?? 'youth_u18',
       youth_info: {
         firstName: liabilityForm.participantFirstName,

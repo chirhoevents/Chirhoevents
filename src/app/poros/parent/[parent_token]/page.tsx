@@ -27,8 +27,10 @@ export default function ParentCompletionForm() {
   const [error, setError] = useState<string | null>(null)
   const [youthInfo, setYouthInfo] = useState<YouthInfo | null>(null)
   const [eventId, setEventId] = useState<string | null>(null)
+  const [eventName, setEventName] = useState<string | null>(null)
   const [participantType, setParticipantType] = useState<string>('youth_u18')
   const [submitted, setSubmitted] = useState(false)
+  const [submittedFormId, setSubmittedFormId] = useState<string | null>(null)
 
   // Dynamic sections (medical, emergency contacts, insurance, etc.)
   const [dynValues, setDynValues] = useState<DynamicFormValues>(EMPTY_DYNAMIC_VALUES)
@@ -63,6 +65,7 @@ export default function ParentCompletionForm() {
         const data = await response.json()
         setYouthInfo(data.youth_info)
         if (data.eventId) setEventId(data.eventId)
+        if (data.eventName) setEventName(data.eventName)
         if (data.participantType) setParticipantType(data.participantType)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load form')
@@ -166,6 +169,8 @@ export default function ParentCompletionForm() {
         throw new Error(errorData.error || 'Failed to submit form')
       }
 
+      const result = await response.json()
+      if (result.form_id) setSubmittedFormId(result.form_id)
       setSubmitted(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit form. Please try again.')
@@ -231,15 +236,32 @@ export default function ParentCompletionForm() {
               </div>
 
               <h1 className="text-3xl font-bold text-navy mb-3">Thank You!</h1>
-              <p className="text-lg text-gray-700 mb-6">
+              <p className="text-lg text-gray-700 mb-2">
                 {youthInfo?.firstName}&apos;s liability form has been completed and submitted.
               </p>
+              {eventName && (
+                <p className="text-base text-gold font-semibold mb-6">{eventName}</p>
+              )}
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
                 <p className="text-gray-700">
                   You should receive a confirmation email shortly.
                 </p>
               </div>
+
+              {submittedFormId && (
+                <a
+                  href={`/api/liability/forms/${submittedFormId}/pdf`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 bg-navy text-white px-6 py-3 rounded-lg font-semibold hover:bg-navy/90 transition-colors mb-6"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Download Your Copy (PDF)
+                </a>
+              )}
 
               <p className="text-sm text-gray-600">
                 Have a great event!
@@ -274,6 +296,9 @@ export default function ParentCompletionForm() {
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
           <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
+            {eventName && (
+              <p className="text-sm font-semibold text-gold uppercase tracking-wide mb-2">{eventName}</p>
+            )}
             <h1 className="text-3xl font-bold text-navy mb-2">
               Complete Liability Form for {youthInfo.firstName} {youthInfo.lastName}
             </h1>
