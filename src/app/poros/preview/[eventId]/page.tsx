@@ -152,12 +152,35 @@ export default function PreviewFormPage() {
                 </span>
               </div>
             )}
+            {cv.showEmergencyTreatment && (
+              <div className="flex items-start gap-3 p-3 bg-gray-50 rounded">
+                <input type="checkbox" disabled className="mt-1 h-4 w-4" />
+                <span className="text-sm text-gray-700">
+                  <strong>Emergency Treatment Authorization:</strong>{' '}
+                  {formConfig?.sections.find(s => s.sectionKey === 'emergency_treatment')?.waiverText
+                    ?? 'Emergency treatment authorization text (set in Waiver Templates)'}
+                </span>
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-4 opacity-50">
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Full Legal Name</label>
-              <input disabled placeholder="Type full name to sign" className="w-full border rounded px-3 py-2 bg-gray-50 text-sm" />
-            </div>
+            {participantType === 'youth_u18' ? (
+              <>
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Parent/Guardian Full Legal Name</label>
+                  <input disabled placeholder="Type parent/guardian full legal name" className="w-full border rounded px-3 py-2 bg-gray-50 text-sm" />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Participant&apos;s Full Name</label>
+                  <input disabled placeholder="Participant first and last name" className="w-full border rounded px-3 py-2 bg-gray-50 text-sm" />
+                </div>
+              </>
+            ) : (
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Full Legal Name</label>
+                <input disabled placeholder="Type full name to sign" className="w-full border rounded px-3 py-2 bg-gray-50 text-sm" />
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Initials</label>
               <input disabled placeholder="FL" maxLength={2} className="w-full border rounded px-3 py-2 bg-gray-50 text-sm" />
