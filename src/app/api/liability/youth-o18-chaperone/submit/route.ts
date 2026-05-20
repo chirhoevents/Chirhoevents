@@ -210,47 +210,51 @@ export async function POST(request: NextRequest) {
       })
 
       // Send confirmation email to individual
-      await resend.emails.send({
-        from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-        reply_to: 'support@chirhoevents.com',
-        to: email,
-        subject: `Liability Form Completed - ${first_name} ${last_name}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
-              <img src="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/Poros logo.png" alt="ChiRho Events" style="max-width: 250px; height: auto;" />
-            </div>
+      try {
+        await resend.emails.send({
+          from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+          reply_to: 'support@chirhoevents.com',
+          to: email,
+          subject: `Liability Form Completed - ${first_name} ${last_name}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
+                <img src="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/Poros logo.png" alt="ChiRho Events" style="max-width: 250px; height: auto;" />
+              </div>
 
-            <div style="padding: 30px 20px;">
-              <div style="text-align: center; margin-bottom: 30px;">
-                <div style="display: inline-block; width: 60px; height: 60px; background-color: #10B981; border-radius: 50%; padding: 15px;">
-                  <svg style="width: 30px; height: 30px; color: white;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                  </svg>
+              <div style="padding: 30px 20px;">
+                <div style="text-align: center; margin-bottom: 30px;">
+                  <div style="display: inline-block; width: 60px; height: 60px; background-color: #10B981; border-radius: 50%; padding: 15px;">
+                    <svg style="width: 30px; height: 30px; color: white;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                  </div>
                 </div>
+
+                <h1 style="color: #1E3A5F; text-align: center;">Liability Form Completed!</h1>
+
+                <p>Thank you for completing your liability form for <strong>${eventName}</strong>.</p>
+
+                <div style="text-align: center; margin: 20px 0;">
+                  <a href="${pdfUrl}" style="display: inline-block; background-color: #10B981; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                    Download PDF Copy
+                  </a>
+                </div>
+
+                <p style="margin-top: 30px;">Pax Christi,<br><strong>ChiRho Events Team</strong></p>
+
+                <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+
+                <p style="color: #666; font-size: 12px; text-align: center;">
+                  © 2025 ChiRho Events. All rights reserved.
+                </p>
               </div>
-
-              <h1 style="color: #1E3A5F; text-align: center;">Liability Form Completed!</h1>
-
-              <p>Thank you for completing your liability form for <strong>${eventName}</strong>.</p>
-
-              <div style="text-align: center; margin: 20px 0;">
-                <a href="${pdfUrl}" style="display: inline-block; background-color: #10B981; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-                  Download PDF Copy
-                </a>
-              </div>
-
-              <p style="margin-top: 30px;">Pax Christi,<br><strong>ChiRho Events Team</strong></p>
-
-              <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-
-              <p style="color: #666; font-size: 12px; text-align: center;">
-                © 2025 ChiRho Events. All rights reserved.
-              </p>
             </div>
-          </div>
-        `,
-      })
+          `,
+        })
+      } catch (emailErr) {
+        console.error('[O18/Chaperone Submit] Failed to send individual confirmation email:', emailErr)
+      }
 
       return NextResponse.json({
         success: true,
@@ -405,101 +409,109 @@ export async function POST(request: NextRequest) {
       ? '<p style="color: #F59E0B; font-weight: bold;">Please upload your safe environment certificate through the Group Leader Portal.</p>'
       : ''
 
-    await resend.emails.send({
-      from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-      reply_to: 'support@chirhoevents.com',
-      to: email,
-      subject: `Form Completed - ${first_name} ${last_name}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
-            <img src="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/Poros logo.png" alt="ChiRho Events" style="max-width: 250px; height: auto;" />
-          </div>
-
-          <div style="padding: 30px 20px;">
-            <div style="text-align: center; margin-bottom: 30px;">
-              <div style="display: inline-block; width: 60px; height: 60px; background-color: #10B981; border-radius: 50%; padding: 15px;">
-                <svg style="width: 30px; height: 30px; color: white;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-              </div>
+    try {
+      await resend.emails.send({
+        from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+        reply_to: 'support@chirhoevents.com',
+        to: email,
+        subject: `Form Completed - ${first_name} ${last_name}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
+              <img src="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/Poros logo.png" alt="ChiRho Events" style="max-width: 250px; height: auto;" />
             </div>
 
-            <h1 style="color: #1E3A5F; text-align: center;">Form Completed!</h1>
-
-            <p>Thank you for completing your liability form for <strong>${groupRegistration.event.name}</strong>.</p>
-
-            ${certUploadedMessage}
-
-            ${pdfUrl ? `
-              <div style="text-align: center; margin: 20px 0;">
-                <a href="${pdfUrl}" style="display: inline-block; background-color: #10B981; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-                  Download PDF Copy
-                </a>
+            <div style="padding: 30px 20px;">
+              <div style="text-align: center; margin-bottom: 30px;">
+                <div style="display: inline-block; width: 60px; height: 60px; background-color: #10B981; border-radius: 50%; padding: 15px;">
+                  <svg style="width: 30px; height: 30px; color: white;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                </div>
               </div>
-            ` : ''}
 
-            <p style="font-size: 14px; color: #666;">
-              A copy has been sent to your group leader at ${groupRegistration.groupLeaderEmail}.
-            </p>
+              <h1 style="color: #1E3A5F; text-align: center;">Form Completed!</h1>
 
-            <p style="margin-top: 30px;">Pax Christi,<br><strong>ChiRho Events Team</strong></p>
+              <p>Thank you for completing your liability form for <strong>${groupRegistration.event.name}</strong>.</p>
 
-            <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+              ${certUploadedMessage}
 
-            <p style="color: #666; font-size: 12px; text-align: center;">
-              © 2025 ChiRho Events. All rights reserved.
-            </p>
+              ${pdfUrl ? `
+                <div style="text-align: center; margin: 20px 0;">
+                  <a href="${pdfUrl}" style="display: inline-block; background-color: #10B981; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                    Download PDF Copy
+                  </a>
+                </div>
+              ` : ''}
+
+              <p style="font-size: 14px; color: #666;">
+                A copy has been sent to your group leader at ${groupRegistration.groupLeaderEmail}.
+              </p>
+
+              <p style="margin-top: 30px;">Pax Christi,<br><strong>ChiRho Events Team</strong></p>
+
+              <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+
+              <p style="color: #666; font-size: 12px; text-align: center;">
+                © 2025 ChiRho Events. All rights reserved.
+              </p>
+            </div>
           </div>
-        </div>
-      `,
-    })
+        `,
+      })
+    } catch (emailErr) {
+      console.error('[O18/Chaperone Submit] Failed to send participant confirmation email:', emailErr)
+    }
 
     // Send notification to group leader
     const totalParticipants = groupRegistration.totalParticipants
     const formsRemaining = totalParticipants - totalFormsCompleted
 
-    await resend.emails.send({
-      from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-      reply_to: 'support@chirhoevents.com',
-      to: groupRegistration.groupLeaderEmail,
-      subject: `Form Completed: ${first_name} ${last_name}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
-            <img src="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/Poros logo.png" alt="ChiRho Events" style="max-width: 250px; height: auto;" />
-          </div>
-
-          <div style="padding: 30px 20px;">
-            <h1 style="color: #1E3A5F;">Form Completed</h1>
-
-            <p><strong>${first_name} ${last_name}</strong> (${participant_type === 'youth_o18' ? 'Youth 18+' : 'Chaperone'}) has completed their liability form for ${groupRegistration.event.name}.</p>
-
-            <div style="background-color: #EFF6FF; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h3 style="margin-top: 0; color: #1E3A5F;">Progress:</h3>
-              <p style="font-size: 18px; margin: 10px 0;">
-                <strong style="color: #10B981;">Forms completed: ${totalFormsCompleted}/${totalParticipants}</strong>
-              </p>
-              <p style="font-size: 16px; margin: 10px 0;">
-                Forms remaining: ${formsRemaining}
-              </p>
+    try {
+      await resend.emails.send({
+        from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+        reply_to: 'support@chirhoevents.com',
+        to: groupRegistration.groupLeaderEmail,
+        subject: `Form Completed: ${first_name} ${last_name}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
+              <img src="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/Poros logo.png" alt="ChiRho Events" style="max-width: 250px; height: auto;" />
             </div>
 
-            <p style="font-size: 14px; color: #666;">
-              You can view all forms in your group leader portal.
-            </p>
+            <div style="padding: 30px 20px;">
+              <h1 style="color: #1E3A5F;">Form Completed</h1>
 
-            <p style="margin-top: 30px;">Pax Christi,<br><strong>ChiRho Events Team</strong></p>
+              <p><strong>${first_name} ${last_name}</strong> (${participant_type === 'youth_o18' ? 'Youth 18+' : 'Chaperone'}) has completed their liability form for ${groupRegistration.event.name}.</p>
 
-            <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+              <div style="background-color: #EFF6FF; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="margin-top: 0; color: #1E3A5F;">Progress:</h3>
+                <p style="font-size: 18px; margin: 10px 0;">
+                  <strong style="color: #10B981;">Forms completed: ${totalFormsCompleted}/${totalParticipants}</strong>
+                </p>
+                <p style="font-size: 16px; margin: 10px 0;">
+                  Forms remaining: ${formsRemaining}
+                </p>
+              </div>
 
-            <p style="color: #666; font-size: 12px; text-align: center;">
-              © 2025 ChiRho Events. All rights reserved.
-            </p>
+              <p style="font-size: 14px; color: #666;">
+                You can view all forms in your group leader portal.
+              </p>
+
+              <p style="margin-top: 30px;">Pax Christi,<br><strong>ChiRho Events Team</strong></p>
+
+              <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+
+              <p style="color: #666; font-size: 12px; text-align: center;">
+                © 2025 ChiRho Events. All rights reserved.
+              </p>
+            </div>
           </div>
-        </div>
-      `,
-    })
+        `,
+      })
+    } catch (emailErr) {
+      console.error('[O18/Chaperone Submit] Failed to send group leader notification:', emailErr)
+    }
 
     return NextResponse.json({
       success: true,

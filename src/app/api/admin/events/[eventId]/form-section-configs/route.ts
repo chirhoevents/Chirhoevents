@@ -21,11 +21,10 @@ export async function GET(
     )
     if (error) return error
 
-    // Seed defaults if this event has never been configured
-    const count = await prisma.liabilityFormSectionConfig.count({ where: { eventId } })
-    if (count === 0) {
-      await seedDefaultSectionConfigs(eventId, effectiveOrgId!)
-    }
+    // Always seed defaults — the seed uses upsert with update:{} so it only
+    // creates missing rows and never overwrites existing customizations.
+    // This ensures newly-added section keys appear for existing events.
+    await seedDefaultSectionConfigs(eventId, effectiveOrgId!)
 
     const configs = await prisma.liabilityFormSectionConfig.findMany({
       where: { eventId },

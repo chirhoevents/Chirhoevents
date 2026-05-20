@@ -474,8 +474,13 @@ const YouthU18Template: React.FC<YouthU18TemplateProps> = ({ data }) => {
           </Text>
 
           <View style={styles.signatureRow}>
-            <Text style={styles.signatureLabel}>Full Legal Name:</Text>
+            <Text style={styles.signatureLabel}>Parent/Guardian Full Legal Name:</Text>
             <Text style={styles.signatureValue}>{data.signatureData.full_legal_name}</Text>
+          </View>
+
+          <View style={styles.signatureRow}>
+            <Text style={styles.signatureLabel}>Participant Full Name:</Text>
+            <Text style={styles.signatureValue}>{data.participantFirstName} {data.participantLastName}</Text>
           </View>
 
           <View style={styles.signatureRow}>
