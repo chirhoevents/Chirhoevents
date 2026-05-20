@@ -79,6 +79,7 @@ export async function POST(
       templateName,
       description,
       formType = 'youth_u18',
+      eventId,
       generalWaiverText,
       medicalReleaseText,
       photoVideoConsentText,
@@ -91,6 +92,7 @@ export async function POST(
     const template = await prisma.liabilityFormTemplate.create({
       data: {
         organizationId,
+        eventId: eventId || null,
         templateName,
         description,
         formType,

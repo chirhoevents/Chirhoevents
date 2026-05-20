@@ -92,11 +92,16 @@ export async function generateLiabilityFormPDF(
       : formData.event.startTime
     : undefined
 
-  // Fetch stored template wording for this event + form type
+  // Fetch stored template wording — prefer event-specific, fall back to org-level
   const templateFormType = formData.formType === 'religious' ? 'religious' : formData.formType
   const template = await prisma.liabilityFormTemplate.findFirst({
-    where: { eventId: formData.eventId, formType: templateFormType as any, active: true },
-    orderBy: { updatedAt: 'desc' },
+    where: {
+      organizationId: formData.organizationId,
+      formType: templateFormType as any,
+      active: true,
+      OR: [{ eventId: formData.eventId }, { eventId: null }],
+    },
+    orderBy: [{ eventId: 'asc' }, { updatedAt: 'desc' }],
   }).catch(() => null)
 
   const eventName = formData.event?.name || ''

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import DynamicLiabilityForm, {
@@ -9,6 +9,14 @@ import DynamicLiabilityForm, {
   type DynamicFormValues,
   type FormConfig,
 } from '@/components/poros/DynamicLiabilityForm'
+
+interface EventInfo {
+  name: string
+  startDate: string
+  endDate: string
+  locationName?: string | null
+  organizationName: string
+}
 
 const PARTICIPANT_TYPES = [
   { value: 'youth_u18', label: 'Youth Under 18', color: 'bg-blue-100 text-blue-800' },
@@ -30,6 +38,14 @@ export default function PreviewFormPage() {
   const [participantType, setParticipantType] = useState(initialType)
   const [dynValues, setDynValues] = useState<DynamicFormValues>(EMPTY_DYNAMIC_VALUES)
   const [formConfig, setFormConfig] = useState<FormConfig | null>(null)
+  const [eventInfo, setEventInfo] = useState<EventInfo | null>(null)
+
+  useEffect(() => {
+    fetch(`/api/poros/events/${eventId}/info`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setEventInfo(data) })
+      .catch(() => {})
+  }, [eventId])
 
   const handleDynChange = useCallback((key: string, value: string | boolean) => {
     setDynValues(prev => ({ ...prev, [key]: value }))
@@ -64,6 +80,20 @@ export default function PreviewFormPage() {
       </div>
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
+        {/* Event info banner */}
+        {eventInfo && (
+          <div className="bg-[#1E3A5F] text-white rounded-lg shadow-md p-5 mb-6">
+            <h1 className="text-xl font-bold text-[#C9A84C]">{eventInfo.name}</h1>
+            <p className="text-sm mt-1 text-gray-200">
+              {new Date(eventInfo.startDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              {' – '}
+              {new Date(eventInfo.endDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              {eventInfo.locationName ? ` · ${eventInfo.locationName}` : ''}
+            </p>
+            <p className="text-xs text-gray-300 mt-0.5">{eventInfo.organizationName}</p>
+          </div>
+        )}
+
         {/* Participant type switcher */}
         <div className="bg-white rounded-lg shadow-md p-5 mb-6 border-2 border-amber-300">
           <p className="text-sm font-semibold text-amber-800 mb-3">

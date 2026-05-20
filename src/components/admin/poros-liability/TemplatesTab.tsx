@@ -19,6 +19,7 @@ interface Template {
   templateName: string | null
   description: string | null
   formType: string
+  eventId?: string | null
   generalWaiverText: string | null
   medicalReleaseText: string | null
   photoVideoConsentText: string | null
@@ -133,15 +134,17 @@ export function TemplatesTab({ eventId, organizationId }: TemplatesTabProps) {
     fetchTemplates()
   }, [organizationId])
 
-  // When active form type changes, load the matching template (or blank)
+  // When active form type changes, load the matching template (event-specific preferred)
   useEffect(() => {
-    const match = allTemplates.find(t => t.formType === activeFormType && t.active)
-      ?? allTemplates.find(t => t.formType === activeFormType)
+    const match =
+      allTemplates.find(t => t.formType === activeFormType && t.active && t.eventId === eventId) ??
+      allTemplates.find(t => t.formType === activeFormType && t.active) ??
+      allTemplates.find(t => t.formType === activeFormType)
     setCurrent(match ?? emptyTemplate(activeFormType))
     setEditing(false)
     setError(null)
     setSaved(false)
-  }, [activeFormType, allTemplates])
+  }, [activeFormType, allTemplates, eventId])
 
   async function fetchTemplates() {
     setLoading(true)
@@ -189,7 +192,7 @@ export function TemplatesTab({ eventId, organizationId }: TemplatesTabProps) {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ ...current, formType: activeFormType }),
+        body: JSON.stringify({ ...current, formType: activeFormType, ...(isNew ? { eventId } : {}) }),
       })
 
       if (!res.ok) {
