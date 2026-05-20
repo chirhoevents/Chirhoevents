@@ -51,6 +51,8 @@ export default function YouthO18ChaperoneForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
+  const [submittedFormId, setSubmittedFormId] = useState<string | null>(null)
+  const [eventName, setEventName] = useState<string | null>(null)
 
   // Resolve eventId from access code (lazy — only when participantType is first set)
   const [eventId, setEventId] = useState<string | null>(null)
@@ -66,6 +68,7 @@ export default function YouthO18ChaperoneForm() {
       if (!res.ok) return null
       const data = await res.json()
       setEventId(data.eventId)
+      if (data.eventName) setEventName(data.eventName)
       return data.eventId
     } catch {
       return null
@@ -222,6 +225,7 @@ export default function YouthO18ChaperoneForm() {
         throw new Error(data.error || 'Failed to submit form')
       }
 
+      if (data.form_id) setSubmittedFormId(data.form_id)
       setSubmitted(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit form')
@@ -254,19 +258,37 @@ export default function YouthO18ChaperoneForm() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h1 className="text-3xl font-bold text-navy mb-4">Thank You!</h1>
-            <p className="text-gray-700 mb-6">
+            <h1 className="text-3xl font-bold text-navy mb-2">Thank You!</h1>
+            {eventName && (
+              <p className="text-base text-gold font-semibold mb-4">{eventName}</p>
+            )}
+            <p className="text-gray-700 mb-4">
               Your liability form has been submitted successfully.
             </p>
-            <p className="text-gray-600 mb-8">
+            <p className="text-gray-600 mb-6">
               A confirmation email has been sent to {basicData.email}.
             </p>
-            <button
-              onClick={() => router.push(`/poros/${accessCode}`)}
-              className="bg-navy text-white px-8 py-3 rounded-lg font-semibold hover:bg-navy/90 transition-colors"
-            >
-              Back to Portal
-            </button>
+            {submittedFormId && (
+              <a
+                href={`/api/liability/forms/${submittedFormId}/pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-navy text-white px-6 py-3 rounded-lg font-semibold hover:bg-navy/90 transition-colors mb-6"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Download Your Copy (PDF)
+              </a>
+            )}
+            <div>
+              <button
+                onClick={() => router.push(`/poros/${accessCode}`)}
+                className="bg-gray-100 text-navy px-8 py-3 rounded-lg font-semibold hover:bg-gray-200 transition-colors"
+              >
+                Back to Portal
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -298,6 +320,9 @@ export default function YouthO18ChaperoneForm() {
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="bg-white rounded-lg shadow-md p-8 mb-6">
+          {eventName && (
+            <p className="text-sm font-semibold text-gold uppercase tracking-wide mb-2">{eventName}</p>
+          )}
           <h1 className="text-3xl font-bold text-navy mb-2">Youth 18+ / Chaperone Liability Form</h1>
           <p className="text-gray-600">Please complete all sections below</p>
         </div>

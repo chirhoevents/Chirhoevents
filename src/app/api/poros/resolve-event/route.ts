@@ -22,23 +22,23 @@ export async function POST(request: NextRequest) {
     if (code.startsWith('IND-')) {
       const individual = await prisma.individualRegistration.findUnique({
         where: { confirmationCode: code },
-        select: { eventId: true },
+        select: { eventId: true, event: { select: { name: true } } },
       })
       if (!individual) {
         return NextResponse.json({ error: 'Invalid access code' }, { status: 404 })
       }
-      return NextResponse.json({ eventId: individual.eventId })
+      return NextResponse.json({ eventId: individual.eventId, eventName: individual.event?.name ?? null })
     }
 
     // Group registration
     const group = await prisma.groupRegistration.findUnique({
       where: { accessCode: code },
-      select: { eventId: true },
+      select: { eventId: true, event: { select: { name: true } } },
     })
     if (!group) {
       return NextResponse.json({ error: 'Invalid access code' }, { status: 404 })
     }
-    return NextResponse.json({ eventId: group.eventId })
+    return NextResponse.json({ eventId: group.eventId, eventName: group.event?.name ?? null })
   } catch (error) {
     console.error('Resolve event error:', error)
     return NextResponse.json({ error: 'Failed to resolve event' }, { status: 500 })
