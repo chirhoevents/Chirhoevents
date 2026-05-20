@@ -6,6 +6,14 @@ import type { BlankFormType } from '@/lib/pdf/templates/blank-form-template'
 
 const VALID_FORM_TYPES = ['youth_u18', 'youth_o18_chaperone', 'clergy', 'religious'] as const
 
+// Representative participant type used to look up section config per form type
+const FORM_TYPE_TO_PARTICIPANT_TYPE: Record<BlankFormType, string> = {
+  youth_u18: 'youth_u18',
+  youth_o18_chaperone: 'youth_o18',
+  clergy: 'priest',
+  religious: 'sister',
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
@@ -38,19 +46,32 @@ export async function GET(
 
     // Load stored template wording for this form type, if any
     const template = await prisma.liabilityFormTemplate.findFirst({
-      where: {
-        eventId,
-        formType: formType as any,
-        active: true,
-      },
+      where: { eventId, formType: formType as any, active: true },
       orderBy: { updatedAt: 'desc' },
     })
+
+    // Load section config to know which consent sections are enabled for this form type
+    const participantType = FORM_TYPE_TO_PARTICIPANT_TYPE[formType]
+    const sectionConfigs = await prisma.liabilityFormSectionConfig.findMany({
+      where: { eventId, participantType: participantType as any },
+      select: { sectionKey: true, enabled: true },
+    })
+    const sectionMap = new Map(sectionConfigs.map((s) => [s.sectionKey, s.enabled]))
+    // Default true when no config row exists (not yet seeded or new section key)
+    const sectionEnabled = (key: string) => sectionMap.get(key) ?? true
 
     const pdfBuffer = await generateBlankFormPDF(
       formType,
       event,
       event.organization,
-      template
+      template,
+      {
+        generalWaiver: sectionEnabled('general_waiver'),
+        medicalRelease: sectionEnabled('medical_release'),
+        photoVideoConsent: sectionEnabled('photo_video_consent'),
+        transportationConsent: sectionEnabled('transportation_consent'),
+        emergencyTreatment: sectionEnabled('emergency_treatment'),
+      }
     )
 
     const typeLabels: Record<BlankFormType, string> = {
