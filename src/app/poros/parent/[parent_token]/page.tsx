@@ -122,7 +122,7 @@ export default function ParentCompletionForm() {
     if (youthInfo && consentData.signatureFullName && consentData.signatureInitials) {
       const nameParts = consentData.signatureFullName.trim().split(' ')
       if (nameParts.length < 2) {
-        setError('Please enter your full legal name (first and last)')
+        setError('Please enter your full legal name as parent/guardian (first and last)')
         return
       }
       const expectedInitials = (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
@@ -321,7 +321,9 @@ export default function ParentCompletionForm() {
                       className="mt-1 mr-3 h-5 w-5 text-navy border-gray-300 rounded focus:ring-gold"
                     />
                     <span className="text-sm text-gray-700">
-                      <strong>Medical Consent:</strong> I authorize event staff to provide or arrange for medical care in case of emergency
+                      <strong>Medical Release:</strong>{' '}
+                      {formConfig?.sections.find(s => s.sectionKey === 'medical_release')?.waiverText
+                        ?? 'I authorize event staff to provide or arrange for medical care in case of emergency'}
                     </span>
                   </label>
                 )}
@@ -336,7 +338,8 @@ export default function ParentCompletionForm() {
                     className="mt-1 mr-3 h-5 w-5 text-navy border-gray-300 rounded focus:ring-gold"
                   />
                   <span className="text-sm text-gray-700">
-                    <strong>Activity Waiver:</strong> I understand activities may include physical activities and waive liability
+                    <strong>Activity Waiver:</strong>{' '}
+                    {formConfig?.generalWaiverText ?? 'I understand activities may include physical activities and waive liability'}
                   </span>
                 </label>
 
@@ -351,7 +354,9 @@ export default function ParentCompletionForm() {
                       className="mt-1 mr-3 h-5 w-5 text-navy border-gray-300 rounded focus:ring-gold"
                     />
                     <span className="text-sm text-gray-700">
-                      <strong>Photo Release:</strong> I grant permission for photos/videos to be taken
+                      <strong>Photo &amp; Video Consent:</strong>{' '}
+                      {formConfig?.sections.find(s => s.sectionKey === 'photo_video_consent')?.waiverText
+                        ?? 'I grant permission for photos/videos to be taken'}
                     </span>
                   </label>
                 )}
@@ -367,7 +372,9 @@ export default function ParentCompletionForm() {
                       className="mt-1 mr-3 h-5 w-5 text-navy border-gray-300 rounded focus:ring-gold"
                     />
                     <span className="text-sm text-gray-700">
-                      <strong>Transportation:</strong> I authorize transportation in emergency situations
+                      <strong>Transportation Consent:</strong>{' '}
+                      {formConfig?.sections.find(s => s.sectionKey === 'transportation_consent')?.waiverText
+                        ?? 'I authorize transportation in emergency situations'}
                     </span>
                   </label>
                 )}
@@ -383,7 +390,9 @@ export default function ParentCompletionForm() {
                       className="mt-1 mr-3 h-5 w-5 text-navy border-gray-300 rounded focus:ring-gold"
                     />
                     <span className="text-sm text-gray-700">
-                      <strong>Emergency Treatment Authorization:</strong> I authorize event staff to consent to emergency medical treatment for my child if I cannot be reached
+                      <strong>Emergency Treatment Authorization:</strong>{' '}
+                      {formConfig?.sections.find(s => s.sectionKey === 'emergency_treatment')?.waiverText
+                        ?? 'I authorize event staff to consent to emergency medical treatment for my child if I cannot be reached'}
                     </span>
                   </label>
                 )}
@@ -392,7 +401,7 @@ export default function ParentCompletionForm() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Full Legal Name <span className="text-red-500">*</span>
+                    Parent/Guardian Full Legal Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -401,9 +410,22 @@ export default function ParentCompletionForm() {
                     value={consentData.signatureFullName}
                     onChange={handleConsentChange}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gold focus:border-gold"
-                    placeholder="Type your full legal name"
+                    placeholder="Type parent/guardian full legal name"
                   />
                 </div>
+                {youthInfo && (
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Participant&apos;s Full Name
+                    </label>
+                    <input
+                      type="text"
+                      disabled
+                      value={`${youthInfo.firstName} ${youthInfo.lastName}`}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                    />
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Initials <span className="text-red-500">*</span>
