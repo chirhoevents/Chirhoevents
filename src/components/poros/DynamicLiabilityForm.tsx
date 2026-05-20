@@ -46,6 +46,10 @@ export interface FormConfig {
   sections: Section[]
   customSections: CustomSection[]
   customQuestions: CustomField[]
+  // Event info (for display in preview and form headers)
+  eventName?: string | null
+  eventDates?: string | null
+  organizationName?: string | null
 }
 
 // Flat values bag — parent owns state, this component is pure controlled

@@ -74,6 +74,10 @@ export async function GET(
         id: true,
         organizationId: true,
         status: true,
+        name: true,
+        startDate: true,
+        endDate: true,
+        organization: { select: { name: true } },
         settings: {
           select: {
             letterOfGoodStandingMethod: true,
@@ -105,8 +109,7 @@ export async function GET(
         active: true,
         OR: [{ eventId }, { eventId: null }],
       },
-      // Prefer event-specific template over org-wide template
-      orderBy: [{ eventId: 'desc' }, { version: 'desc' }],
+      orderBy: [{ eventId: 'asc' }, { version: 'desc' }],
       select: {
         generalWaiverText: true,
         medicalReleaseText: true,
@@ -118,12 +121,29 @@ export async function GET(
       },
     })
 
+    // Fallback: if no template matched the strict query, try any active template for this org+formType
+    const effectiveTemplate = template ?? await prisma.liabilityFormTemplate.findFirst({
+      where: { organizationId: event.organizationId, formType, active: true },
+      orderBy: { version: 'desc' },
+      select: {
+        generalWaiverText: true,
+        medicalReleaseText: true,
+        photoVideoConsentText: true,
+        transportationConsentText: true,
+        emergencyTreatmentText: true,
+        customSections: true,
+        customQuestions: true,
+      },
+    })
+
+    console.log(`[FormConfig] eventId=${eventId} orgId=${event.organizationId} formType=${formType} template=${template ? 'found(OR query)' : effectiveTemplate ? 'found(fallback)' : 'NOT FOUND'}`)
+
     // Map section keys to their template waiver text field
     const waiverTextBySection: Record<string, string | null> = {
-      medical_release: template?.medicalReleaseText ?? null,
-      photo_video_consent: template?.photoVideoConsentText ?? null,
-      transportation_consent: template?.transportationConsentText ?? null,
-      emergency_treatment: template?.emergencyTreatmentText ?? null,
+      medical_release: effectiveTemplate?.medicalReleaseText ?? null,
+      photo_video_consent: effectiveTemplate?.photoVideoConsentText ?? null,
+      transportation_consent: effectiveTemplate?.transportationConsentText ?? null,
+      emergency_treatment: effectiveTemplate?.emergencyTreatmentText ?? null,
       // general_waiver_text is attached to the top-level consent block, not a
       // specific section key — expose it separately in the root response.
     }
@@ -194,8 +214,8 @@ export async function GET(
       [k: string]: unknown
     }
 
-    const rawCustomSections = (template?.customSections ?? []) as unknown[]
-    const rawCustomQuestions = (template?.customQuestions ?? []) as unknown[]
+    const rawCustomSections = (effectiveTemplate?.customSections ?? []) as unknown[]
+    const rawCustomQuestions = (effectiveTemplate?.customQuestions ?? []) as unknown[]
 
     // customSections: array of section objects with a `fields` array
     const customSections: CustomSection[] = Array.isArray(rawCustomSections)
@@ -208,14 +228,19 @@ export async function GET(
       ? (rawCustomQuestions as CustomField[])
       : []
 
+    const eventDates = `${new Date(event.startDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} – ${new Date(event.endDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`
+
     return NextResponse.json({
       eventId,
       participantType,
       formType,
-      generalWaiverText: template?.generalWaiverText ?? null,
+      generalWaiverText: effectiveTemplate?.generalWaiverText ?? null,
       sections,
       customSections,
       customQuestions,
+      eventName: event.name,
+      eventDates,
+      organizationName: event.organization.name,
     })
   } catch (err) {
     console.error('[FormConfig GET] error:', err)
