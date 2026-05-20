@@ -156,6 +156,8 @@ export async function POST(request: NextRequest) {
     // Send email to parent
     const parentLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/poros/parent/${parentToken}`
 
+    let emailSent = true
+    try {
     await resend.emails.send({
       from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
       reply_to: 'support@chirhoevents.com',
@@ -215,10 +217,16 @@ export async function POST(request: NextRequest) {
         </div>
       `,
     })
+    } catch (emailErr) {
+      emailSent = false
+      console.error('[Youth U18 Initiate] Failed to send parent email:', emailErr)
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Email sent to parent successfully',
+      email_sent: emailSent,
+      message: emailSent ? 'Email sent to parent successfully' : 'Form created but email failed to send — share the link manually',
+      parent_link: parentLink,
       form_id: liabilityForm.id,
     })
   } catch (error) {
