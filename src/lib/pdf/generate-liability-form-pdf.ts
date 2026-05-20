@@ -1,5 +1,6 @@
 import { renderToBuffer } from '@react-pdf/renderer'
 import { createElement } from 'react'
+import { prisma } from '@/lib/prisma'
 import YouthU18Template from './templates/youth-u18-template'
 import YouthO18ChaperoneTemplate from './templates/youth-o18-chaperone-template'
 import ClergyTemplate from './templates/clergy-template'
@@ -90,6 +91,20 @@ export async function generateLiabilityFormPDF(
       : formData.event.startTime
     : undefined
 
+  // Fetch stored template wording for this event + form type
+  const templateFormType = formData.formType === 'religious' ? 'religious' : formData.formType
+  const template = await prisma.liabilityFormTemplate.findFirst({
+    where: { eventId: formData.eventId, formType: templateFormType as any, active: true },
+    orderBy: { updatedAt: 'desc' },
+  }).catch(() => null)
+
+  const eventName = formData.event?.name || ''
+  const orgName = formData.organization?.name || ''
+  const resolveText = (text: string | null | undefined) =>
+    text
+      ? text.replace(/\[Activity Name\]/g, eventName).replace(/\[Organization Name\]/g, orgName)
+      : undefined
+
   // Prepare common data structure
   const commonData = {
     id: formData.id,
@@ -132,18 +147,24 @@ export async function generateLiabilityFormPDF(
     },
     completedByEmail: formData.completedByEmail || undefined,
     completedAt: formData.completedAt || undefined,
+    // Template wording (with placeholders resolved)
+    generalWaiverText: resolveText(template?.generalWaiverText),
+    medicalReleaseText: resolveText(template?.medicalReleaseText),
+    photoVideoConsentText: resolveText(template?.photoVideoConsentText),
+    transportationConsentText: resolveText(template?.transportationConsentText),
+    emergencyTreatmentText: resolveText(template?.emergencyTreatmentText),
   }
 
   // Select template based on form type
-  let template: any
+  let pdfTemplate: any
 
   switch (formData.formType) {
     case 'youth_u18':
-      template = createElement(YouthU18Template, { data: commonData })
+      pdfTemplate = createElement(YouthU18Template, { data: commonData })
       break
 
     case 'youth_o18_chaperone':
-      template = createElement(YouthO18ChaperoneTemplate, {
+      pdfTemplate = createElement(YouthO18ChaperoneTemplate, {
         data: {
           ...commonData,
           participantType: formData.participantType || undefined,
@@ -158,7 +179,8 @@ export async function generateLiabilityFormPDF(
       break
 
     case 'clergy':
-      template = createElement(ClergyTemplate, {
+    case 'religious':
+      pdfTemplate = createElement(ClergyTemplate, {
         data: {
           ...commonData,
           clergyTitle: formData.clergyTitle || undefined,
@@ -175,7 +197,7 @@ export async function generateLiabilityFormPDF(
   }
 
   // Generate PDF buffer
-  const pdfBuffer = await renderToBuffer(template)
+  const pdfBuffer = await renderToBuffer(pdfTemplate)
 
   return pdfBuffer
 }

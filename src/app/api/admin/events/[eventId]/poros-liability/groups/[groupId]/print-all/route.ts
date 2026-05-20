@@ -44,16 +44,12 @@ export async function GET(
       return NextResponse.json({ error: 'No completed forms found for this group' }, { status: 404 })
     }
 
-    // Generate individual PDFs in parallel (capped to avoid memory spikes)
-    const BATCH_SIZE = 5
+    // Generate PDFs sequentially — renderToBuffer uses a shared React reconciler
+    // and throws error #31 when called in parallel
     const pdfBuffers: Buffer[] = []
-
-    for (let i = 0; i < group.liabilityForms.length; i += BATCH_SIZE) {
-      const batch = group.liabilityForms.slice(i, i + BATCH_SIZE)
-      const batchBuffers = await Promise.all(
-        batch.map(form => generateLiabilityFormPDF(form))
-      )
-      pdfBuffers.push(...batchBuffers)
+    for (const form of group.liabilityForms) {
+      const buf = await generateLiabilityFormPDF(form)
+      pdfBuffers.push(buf)
     }
 
     // Merge all PDFs into one document
