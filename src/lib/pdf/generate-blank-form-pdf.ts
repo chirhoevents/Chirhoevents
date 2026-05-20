@@ -1,4 +1,5 @@
 import { renderToBuffer } from '@react-pdf/renderer'
+import { createElement } from 'react'
 import BlankFormTemplate, { BlankFormType } from './templates/blank-form-template'
 import { withRenderLock } from './render-lock'
 
@@ -97,8 +98,5 @@ export async function generateBlankFormPDF(
       : undefined,
   }
 
-  // Call the template as a plain function to get the Document element directly,
-  // then run renderToBuffer inside the global render lock so react-pdf's shared
-  // reconciler is never used by two requests at the same time.
-  return withRenderLock(() => renderToBuffer(BlankFormTemplate({ data }) as any))
+  return withRenderLock(() => renderToBuffer(createElement(BlankFormTemplate, { data }) as any))
 }
