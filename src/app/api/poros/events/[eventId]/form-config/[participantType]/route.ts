@@ -77,7 +77,6 @@ export async function GET(
         name: true,
         startDate: true,
         endDate: true,
-        organization: { select: { name: true } },
         settings: {
           select: {
             letterOfGoodStandingMethod: true,
@@ -93,6 +92,12 @@ export async function GET(
     if (!event) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
+
+    // Fetch org name separately to avoid nested-select Prisma issues
+    const org = await prisma.organization.findUnique({
+      where: { id: event.organizationId },
+      select: { name: true },
+    })
 
     // ── Fetch section configs ─────────────────────────────────────────────────
     const configs = await prisma.liabilityFormSectionConfig.findMany({
@@ -240,7 +245,7 @@ export async function GET(
       customQuestions,
       eventName: event.name,
       eventDates,
-      organizationName: event.organization.name,
+      organizationName: org?.name ?? null,
     })
   } catch (err) {
     console.error('[FormConfig GET] error:', err)

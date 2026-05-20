@@ -42,6 +42,7 @@ const isPublicRoute = createRouteMatcher([
   '/portal(.*)',  // All portal routes (salve, rapha, youth-group) - they handle their own auth
   '/vendor-dashboard(.*)',  // Vendor dashboard - uses access code auth
   '/dashboard(.*)',  // All dashboard routes - they handle their own auth
+  '/api/poros(.*)',  // Poros participant APIs - public, endpoints handle their own auth
   '/api/user/role',  // Needed by dashboard redirect page
   '/api/master-admin(.*)',  // Master admin APIs - handle their own auth
   '/api/admin(.*)',  // Admin APIs - handle their own auth
