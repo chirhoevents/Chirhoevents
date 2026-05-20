@@ -28,6 +28,11 @@ const SECTION_KEY_LABELS: Record<string, string> = {
   medical: 'Medical Information',
   emergency_contacts: 'Emergency Contacts',
   insurance: 'Insurance',
+  general_waiver: 'General Waiver & Release',
+  transportation_consent: 'Transportation Consent',
+  photo_video_consent: 'Photo & Video Consent',
+  medical_release: 'Medical Release',
+  emergency_treatment: 'Emergency Treatment Authorization',
   clergy_info: 'Clergy / Religious Information',
   housing: 'Housing Preferences',
   safe_environment_cert: 'Safe Environment Certificate',
@@ -205,7 +210,7 @@ export function SectionConfigTab({ eventId }: SectionConfigTabProps) {
         {typeSections.map((section, idx) => {
           const isFirst = idx === 0
           const isLast = idx === typeSections.length - 1
-          const isLocked = section.sectionKey === 'basic_info' || section.sectionKey === 'consent_signature'
+          const isLocked = section.sectionKey === 'basic_info' || section.sectionKey === 'consent_signature' || section.sectionKey === 'general_waiver'
 
           return (
             <Card key={section.sectionKey} className={`p-4 ${!section.enabled ? 'opacity-60' : ''}`}>

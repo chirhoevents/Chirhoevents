@@ -164,6 +164,11 @@ interface YouthU18TemplateProps {
     }
     completedByEmail?: string
     completedAt?: Date | string
+    generalWaiverText?: string
+    medicalReleaseText?: string
+    photoVideoConsentText?: string
+    transportationConsentText?: string
+    emergencyTreatmentText?: string
   }
 }
 
@@ -408,60 +413,56 @@ const YouthU18Template: React.FC<YouthU18TemplateProps> = ({ data }) => {
           <Text style={styles.sectionTitle}>5. CONSENT & WAIVER</Text>
 
           <Text style={{ marginBottom: 10, fontSize: 10 }}>
-            The parent/guardian has reviewed and consented to the following sections:
+            The parent/guardian has reviewed and agreed to the following sections:
           </Text>
 
-          {data.signatureData.sections_initialed?.includes('medical_consent') && (
+          {data.generalWaiverText && (
             <View style={styles.consentSection}>
               <View style={{ flexDirection: 'row' }}>
                 <Text style={styles.checkmark}>✓</Text>
-                <Text style={styles.consentTitle}>Medical Consent</Text>
+                <Text style={styles.consentTitle}>Waiver and Release of Liability</Text>
               </View>
-              <Text style={styles.consentText}>
-                I authorize ChiRho Events staff and medical personnel to provide necessary medical treatment
-                for my child in case of emergency. I understand that every effort will be made to contact
-                me before any medical treatment is administered.
-              </Text>
+              <Text style={styles.consentText}>{data.generalWaiverText}</Text>
             </View>
           )}
 
-          {data.signatureData.sections_initialed?.includes('activity_waiver') && (
+          {data.medicalReleaseText && (
             <View style={styles.consentSection}>
               <View style={{ flexDirection: 'row' }}>
                 <Text style={styles.checkmark}>✓</Text>
-                <Text style={styles.consentTitle}>Activity Waiver</Text>
+                <Text style={styles.consentTitle}>Medical Release Authorization</Text>
               </View>
-              <Text style={styles.consentText}>
-                I acknowledge that participation in this event involves physical activities and accept any
-                risks associated with such participation. I release ChiRho Events from liability for any
-                injuries that may occur during normal activities.
-              </Text>
+              <Text style={styles.consentText}>{data.medicalReleaseText}</Text>
             </View>
           )}
 
-          {data.signatureData.sections_initialed?.includes('photo_release') && (
+          {data.photoVideoConsentText && (
             <View style={styles.consentSection}>
               <View style={{ flexDirection: 'row' }}>
                 <Text style={styles.checkmark}>✓</Text>
-                <Text style={styles.consentTitle}>Photo & Media Release</Text>
+                <Text style={styles.consentTitle}>Photo & Video Consent</Text>
               </View>
-              <Text style={styles.consentText}>
-                I grant permission for ChiRho Events to use photographs and videos of my child for
-                promotional purposes including website, social media, and printed materials.
-              </Text>
+              <Text style={styles.consentText}>{data.photoVideoConsentText}</Text>
             </View>
           )}
 
-          {data.signatureData.sections_initialed?.includes('transportation') && (
+          {data.transportationConsentText && (
             <View style={styles.consentSection}>
               <View style={{ flexDirection: 'row' }}>
                 <Text style={styles.checkmark}>✓</Text>
                 <Text style={styles.consentTitle}>Transportation Consent</Text>
               </View>
-              <Text style={styles.consentText}>
-                I give permission for my child to be transported by ChiRho Events staff or designated
-                drivers for event-related activities and in case of emergency.
-              </Text>
+              <Text style={styles.consentText}>{data.transportationConsentText}</Text>
+            </View>
+          )}
+
+          {data.emergencyTreatmentText && (
+            <View style={styles.consentSection}>
+              <View style={{ flexDirection: 'row' }}>
+                <Text style={styles.checkmark}>✓</Text>
+                <Text style={styles.consentTitle}>Emergency Treatment Authorization</Text>
+              </View>
+              <Text style={styles.consentText}>{data.emergencyTreatmentText}</Text>
             </View>
           )}
         </View>

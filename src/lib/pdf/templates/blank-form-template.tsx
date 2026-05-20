@@ -412,7 +412,7 @@ const BlankFormTemplate: React.FC<BlankFormTemplateProps> = ({ data }) => {
         {/* MEDICAL INFORMATION */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>2. MEDICAL INFORMATION</Text>
-          <Text style={styles.noteText}>Write "None" if not applicable.</Text>
+          <Text style={styles.noteText}>Write None if not applicable.</Text>
 
           <Field label="Medical Conditions:" labelWidth="36%" />
           <Field label="Current Medications:" labelWidth="36%" />
