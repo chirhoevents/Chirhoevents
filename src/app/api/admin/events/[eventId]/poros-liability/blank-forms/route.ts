@@ -93,7 +93,8 @@ export async function GET(
       },
     })
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
     console.error('[Blank Form] error:', err)
-    return NextResponse.json({ error: 'Failed to generate blank form' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to generate blank form', detail: message }, { status: 500 })
   }
 }
