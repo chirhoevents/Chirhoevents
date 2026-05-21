@@ -217,40 +217,40 @@ const YouthU18Template: React.FC<YouthU18TemplateProps> = ({ data }) => {
             <Text style={styles.fieldLabel}>Event Name:</Text>
             <Text style={styles.fieldValue}>{safeString(data.eventName, '—')}</Text>
           </View>
-          {data.locationName && (
+          {data.locationName ? (
             <View style={styles.fieldRow}>
               <Text style={styles.fieldLabel}>Location:</Text>
               <Text style={styles.fieldValue}>{safeString(data.locationName)}</Text>
             </View>
-          )}
-          {data.locationLine1 && (
+          ) : null}
+          {data.locationLine1 ? (
             <View style={styles.fieldRow}>
               <Text style={styles.fieldLabel}>Address:</Text>
               <Text style={styles.fieldValue}>{safeString(data.locationLine1)}</Text>
             </View>
-          )}
-          {data.locationLine2 && (
+          ) : null}
+          {data.locationLine2 ? (
             <View style={styles.fieldRow}>
               <Text style={styles.fieldLabel}>City/State/Zip:</Text>
               <Text style={styles.fieldValue}>{safeString(data.locationLine2)}</Text>
             </View>
-          )}
+          ) : null}
           <View style={styles.fieldRow}>
             <Text style={styles.fieldLabel}>Date:</Text>
             <Text style={styles.fieldValue}>{safeString(data.eventDates, '—')}</Text>
           </View>
-          {data.eventTime && (
+          {data.eventTime ? (
             <View style={styles.fieldRow}>
               <Text style={styles.fieldLabel}>Time:</Text>
               <Text style={styles.fieldValue}>{safeString(data.eventTime)}</Text>
             </View>
-          )}
-          {data.eventCoordinator && (
+          ) : null}
+          {data.eventCoordinator ? (
             <View style={styles.fieldRow}>
               <Text style={styles.fieldLabel}>Coordinator:</Text>
               <Text style={styles.fieldValue}>{safeString(data.eventCoordinator)}</Text>
             </View>
-          )}
+          ) : null}
         </View>
 
         {/* Participant Information */}
@@ -264,12 +264,12 @@ const YouthU18Template: React.FC<YouthU18TemplateProps> = ({ data }) => {
             </Text>
           </View>
 
-          {data.participantPreferredName && (
+          {data.participantPreferredName ? (
             <View style={styles.fieldRow}>
               <Text style={styles.fieldLabel}>Preferred Name:</Text>
               <Text style={styles.fieldValue}>{safeString(data.participantPreferredName)}</Text>
             </View>
-          )}
+          ) : null}
 
           <View style={styles.fieldRow}>
             <Text style={styles.fieldLabel}>Age:</Text>
@@ -281,12 +281,12 @@ const YouthU18Template: React.FC<YouthU18TemplateProps> = ({ data }) => {
             <Text style={styles.fieldValue}>{genderLabel}</Text>
           </View>
 
-          {data.tShirtSize && (
+          {data.tShirtSize ? (
             <View style={styles.fieldRow}>
               <Text style={styles.fieldLabel}>T-Shirt Size:</Text>
               <Text style={styles.fieldValue}>{safeString(data.tShirtSize)}</Text>
             </View>
-          )}
+          ) : null}
         </View>
 
         {/* Medical Information */}
@@ -367,7 +367,7 @@ const YouthU18Template: React.FC<YouthU18TemplateProps> = ({ data }) => {
             </View>
           </View>
 
-          {data.emergencyContact2Name && (
+          {data.emergencyContact2Name ? (
             <View>
               <Text style={{ fontWeight: 'bold', marginBottom: 8, fontSize: 12 }}>
                 Secondary Contact:
@@ -385,7 +385,7 @@ const YouthU18Template: React.FC<YouthU18TemplateProps> = ({ data }) => {
                 <Text style={styles.fieldValue}>{safeString(data.emergencyContact2Relation, 'N/A')}</Text>
               </View>
             </View>
-          )}
+          ) : null}
         </View>
 
         {/* Insurance Information */}
@@ -431,7 +431,7 @@ const YouthU18Template: React.FC<YouthU18TemplateProps> = ({ data }) => {
             The parent/guardian has reviewed and agreed to the following sections:
           </Text>
 
-          {data.generalWaiverText && (
+          {data.generalWaiverText ? (
             <View style={styles.consentSection}>
               <View style={{ flexDirection: 'row' }}>
                 <Text style={styles.checkmark}>✓</Text>
@@ -439,9 +439,9 @@ const YouthU18Template: React.FC<YouthU18TemplateProps> = ({ data }) => {
               </View>
               <Text style={styles.consentText}>{safeString(data.generalWaiverText)}</Text>
             </View>
-          )}
+          ) : null}
 
-          {data.medicalReleaseText && (
+          {data.medicalReleaseText ? (
             <View style={styles.consentSection}>
               <View style={{ flexDirection: 'row' }}>
                 <Text style={styles.checkmark}>✓</Text>
@@ -449,9 +449,9 @@ const YouthU18Template: React.FC<YouthU18TemplateProps> = ({ data }) => {
               </View>
               <Text style={styles.consentText}>{safeString(data.medicalReleaseText)}</Text>
             </View>
-          )}
+          ) : null}
 
-          {data.photoVideoConsentText && (
+          {data.photoVideoConsentText ? (
             <View style={styles.consentSection}>
               <View style={{ flexDirection: 'row' }}>
                 <Text style={styles.checkmark}>✓</Text>
@@ -459,9 +459,9 @@ const YouthU18Template: React.FC<YouthU18TemplateProps> = ({ data }) => {
               </View>
               <Text style={styles.consentText}>{safeString(data.photoVideoConsentText)}</Text>
             </View>
-          )}
+          ) : null}
 
-          {data.transportationConsentText && (
+          {data.transportationConsentText ? (
             <View style={styles.consentSection}>
               <View style={{ flexDirection: 'row' }}>
                 <Text style={styles.checkmark}>✓</Text>
@@ -469,9 +469,9 @@ const YouthU18Template: React.FC<YouthU18TemplateProps> = ({ data }) => {
               </View>
               <Text style={styles.consentText}>{safeString(data.transportationConsentText)}</Text>
             </View>
-          )}
+          ) : null}
 
-          {data.emergencyTreatmentText && (
+          {data.emergencyTreatmentText ? (
             <View style={styles.consentSection}>
               <View style={{ flexDirection: 'row' }}>
                 <Text style={styles.checkmark}>✓</Text>
@@ -479,7 +479,7 @@ const YouthU18Template: React.FC<YouthU18TemplateProps> = ({ data }) => {
               </View>
               <Text style={styles.consentText}>{safeString(data.emergencyTreatmentText)}</Text>
             </View>
-          )}
+          ) : null}
         </View>
 
         {/* Electronic Signature */}
@@ -513,12 +513,12 @@ const YouthU18Template: React.FC<YouthU18TemplateProps> = ({ data }) => {
             <Text style={styles.signatureValue}>{safeString(data.completedByEmail, 'N/A')}</Text>
           </View>
 
-          {data.signatureData.ip_address && (
+          {data.signatureData.ip_address ? (
             <View style={styles.signatureRow}>
               <Text style={styles.signatureLabel}>IP Address:</Text>
               <Text style={styles.signatureValue}>{safeString(data.signatureData.ip_address)}</Text>
             </View>
-          )}
+          ) : null}
 
           <View style={{ marginTop: 10, flexDirection: 'row' }}>
             <Text style={styles.checkmark}>✓</Text>
