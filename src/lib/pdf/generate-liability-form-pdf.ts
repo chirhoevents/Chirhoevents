@@ -1,8 +1,8 @@
+import React from 'react'
 import { prisma } from '@/lib/prisma'
 import YouthU18Template from './templates/youth-u18-template'
 import YouthO18ChaperoneTemplate from './templates/youth-o18-chaperone-template'
 import ClergyTemplate from './templates/clergy-template'
-import { withRenderLock } from './render-lock'
 
 // Type for form data with relations (from Prisma)
 interface LiabilityFormWithRelations {
@@ -159,16 +159,17 @@ export async function generateLiabilityFormPDF(
     emergencyTreatmentText: resolveText(template?.emergencyTreatmentText),
   }
 
-  // Select template based on form type
-  let pdfTemplate: any
+  // Select template based on form type — pass component reference so react-pdf's
+  // reconciler calls it (matches the pattern used by the working invoice PDF route)
+  let element: React.ReactElement
 
   switch (formData.formType) {
     case 'youth_u18':
-      pdfTemplate = YouthU18Template({ data: commonData })
+      element = React.createElement(YouthU18Template, { data: commonData })
       break
 
     case 'youth_o18_chaperone':
-      pdfTemplate = YouthO18ChaperoneTemplate({
+      element = React.createElement(YouthO18ChaperoneTemplate, {
         data: {
           ...commonData,
           participantType: formData.participantType || undefined,
@@ -184,7 +185,7 @@ export async function generateLiabilityFormPDF(
 
     case 'clergy':
     case 'religious':
-      pdfTemplate = ClergyTemplate({
+      element = React.createElement(ClergyTemplate, {
         data: {
           ...commonData,
           clergyTitle: formData.clergyTitle || undefined,
@@ -201,5 +202,5 @@ export async function generateLiabilityFormPDF(
   }
 
   const { renderToBuffer } = await import('@react-pdf/renderer')
-  return withRenderLock(() => renderToBuffer(pdfTemplate))
+  return renderToBuffer(element)
 }
