@@ -17,7 +17,8 @@ import {
   Loader2,
   User,
   ScrollText,
-  Sliders
+  Sliders,
+  PenLine,
 } from 'lucide-react'
 import { LiabilityFormsTab } from '@/components/admin/poros-liability/LiabilityFormsTab'
 import { IndividualFormsTab } from '@/components/admin/poros-liability/IndividualFormsTab'
@@ -25,6 +26,7 @@ import { SafeEnvironmentTab } from '@/components/admin/poros-liability/SafeEnvir
 import { TemplatesTab } from '@/components/admin/poros-liability/TemplatesTab'
 import { SectionConfigTab } from '@/components/admin/poros-liability/SectionConfigTab'
 import { LettersTab } from '@/components/admin/poros-liability/LettersTab'
+import { ManualEntryTab } from '@/components/admin/poros-liability/ManualEntryTab'
 
 interface PorosLiabilityClientProps {
   eventId: string
@@ -249,6 +251,10 @@ export default function PorosLiabilityClient({
             <Sliders className="w-4 h-4" />
             Section Config
           </TabsTrigger>
+          <TabsTrigger value="manual" className="flex items-center gap-2">
+            <PenLine className="w-4 h-4" />
+            Manual Entry
+          </TabsTrigger>
           <TabsTrigger value="letters" className="flex items-center gap-2">
             <ScrollText className="w-4 h-4" />
             Letters of Good Standing
@@ -273,6 +279,10 @@ export default function PorosLiabilityClient({
 
         <TabsContent value="section-config">
           <SectionConfigTab eventId={eventId} />
+        </TabsContent>
+
+        <TabsContent value="manual">
+          <ManualEntryTab eventId={eventId} onUpdate={fetchStats} />
         </TabsContent>
 
         <TabsContent value="letters">

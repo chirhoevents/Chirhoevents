@@ -4,6 +4,9 @@ import { verifyEventAccess } from '@/lib/api-auth'
 import { generateBlankFormPDF } from '@/lib/pdf/generate-blank-form-pdf'
 import type { BlankFormType } from '@/lib/pdf/templates/blank-form-template'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 const VALID_FORM_TYPES = ['youth_u18', 'youth_o18_chaperone', 'clergy', 'religious'] as const
 
 // Representative participant type used to look up section config per form type
