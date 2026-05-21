@@ -184,6 +184,16 @@ const styles = StyleSheet.create({
   },
 })
 
+function safeString(value: any, fallback = ''): string {
+  if (value === null || value === undefined) return fallback
+  if (typeof value === 'string') return value
+  if (typeof value === 'number') return String(value)
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+  if (value instanceof Date) return value.toLocaleDateString()
+  if (typeof value === 'object') return fallback
+  return String(value)
+}
+
 export type BlankFormType = 'youth_u18' | 'youth_o18_chaperone' | 'clergy' | 'religious'
 
 interface BlankFormData {
@@ -228,8 +238,8 @@ const BlankFormTemplate: React.FC<BlankFormTemplateProps> = ({ data }) => {
   const isReligious = formType === 'religious'
   const isAdult = formType === 'youth_o18_chaperone'
 
-  const activityName = data.eventName || '[Activity Name]'
-  const orgName = data.organizationName || '[Organization Name]'
+  const activityName = safeString(data.eventName, '[Activity Name]')
+  const orgName = safeString(data.organizationName, '[Organization Name]')
 
   const resolveText = (text?: string) =>
     text
@@ -249,8 +259,8 @@ const BlankFormTemplate: React.FC<BlankFormTemplateProps> = ({ data }) => {
       {/* PAGE 1 — Header + Event Info + Participant Info + Medical */}
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
-          <Text style={styles.title}>{FORM_TITLES[formType]}</Text>
-          <Text style={styles.subtitle}>{FORM_SUBTITLES[formType]}</Text>
+          <Text style={styles.title}>{safeString(FORM_TITLES[formType])}</Text>
+          <Text style={styles.subtitle}>{safeString(FORM_SUBTITLES[formType])}</Text>
         </View>
 
         {/* EVENT INFORMATION — inlined */}
@@ -267,35 +277,35 @@ const BlankFormTemplate: React.FC<BlankFormTemplateProps> = ({ data }) => {
           {data.locationName ? (
             <View style={styles.eventRow}>
               <Text style={styles.eventLabel}>Location:</Text>
-              <Text style={styles.eventValue}>{data.locationName}</Text>
+              <Text style={styles.eventValue}>{safeString(data.locationName)}</Text>
             </View>
           ) : null}
           {data.locationLine1 ? (
             <View style={styles.eventRow}>
               <Text style={styles.eventLabel}>Address:</Text>
-              <Text style={styles.eventValue}>{data.locationLine1}</Text>
+              <Text style={styles.eventValue}>{safeString(data.locationLine1)}</Text>
             </View>
           ) : null}
           {data.locationLine2 ? (
             <View style={styles.eventRow}>
               <Text style={styles.eventLabel}>City/State/Zip:</Text>
-              <Text style={styles.eventValue}>{data.locationLine2}</Text>
+              <Text style={styles.eventValue}>{safeString(data.locationLine2)}</Text>
             </View>
           ) : null}
           <View style={styles.eventRow}>
             <Text style={styles.eventLabel}>Date(s):</Text>
-            <Text style={styles.eventValue}>{data.eventDates || '—'}</Text>
+            <Text style={styles.eventValue}>{safeString(data.eventDates, '—')}</Text>
           </View>
           {data.eventTime ? (
             <View style={styles.eventRow}>
               <Text style={styles.eventLabel}>Time:</Text>
-              <Text style={styles.eventValue}>{data.eventTime}</Text>
+              <Text style={styles.eventValue}>{safeString(data.eventTime)}</Text>
             </View>
           ) : null}
           {data.eventCoordinator ? (
             <View style={styles.eventRow}>
               <Text style={styles.eventLabel}>Coordinator:</Text>
-              <Text style={styles.eventValue}>{data.eventCoordinator}</Text>
+              <Text style={styles.eventValue}>{safeString(data.eventCoordinator)}</Text>
             </View>
           ) : null}
         </View>
@@ -464,14 +474,14 @@ const BlankFormTemplate: React.FC<BlankFormTemplateProps> = ({ data }) => {
         </View>
 
         <Text style={styles.footer}>
-          {orgName} | {activityName} | Page 1 of 3 | Printed: {today}
+          {orgName} | {activityName} | Page 1 of 3 | Printed: {safeString(today)}
         </Text>
       </Page>
 
       {/* PAGE 2 — Emergency Contacts + Insurance */}
       <Page size="A4" style={styles.page}>
         <View style={styles.pageHeader}>
-          <Text style={styles.pageHeaderText}>{FORM_TITLES[formType]} (continued)</Text>
+          <Text style={styles.pageHeaderText}>{safeString(FORM_TITLES[formType])} (continued)</Text>
         </View>
 
         {/* EMERGENCY CONTACTS */}
@@ -563,18 +573,18 @@ const BlankFormTemplate: React.FC<BlankFormTemplateProps> = ({ data }) => {
         ) : null}
 
         <Text style={styles.footer}>
-          {orgName} | {activityName} | Page 2 of 3 | Printed: {today}
+          {orgName} | {activityName} | Page 2 of 3 | Printed: {safeString(today)}
         </Text>
       </Page>
 
       {/* PAGE 3 — Consent Sections + Signature */}
       <Page size="A4" style={styles.page}>
         <View style={styles.pageHeader}>
-          <Text style={styles.pageHeaderText}>{FORM_TITLES[formType]} — Waivers &amp; Signature</Text>
+          <Text style={styles.pageHeaderText}>{safeString(FORM_TITLES[formType])} {' & '} Signature</Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>5. CONSENT &amp; RELEASE</Text>
+          <Text style={styles.sectionTitle}>5. CONSENT {' & '} RELEASE</Text>
           <Text style={{ fontSize: 9, color: '#555555', marginBottom: 8, lineHeight: 1.4 }}>
             Please read each section carefully. By signing below you acknowledge that you have read, understand, and agree to the terms set forth in each section.
           </Text>
@@ -582,35 +592,35 @@ const BlankFormTemplate: React.FC<BlankFormTemplateProps> = ({ data }) => {
           {genWaiver ? (
             <View style={styles.consentSection}>
               <Text style={styles.consentTitle}>Waiver and Release of Liability</Text>
-              <Text style={styles.consentText}>{genWaiver}</Text>
+              <Text style={styles.consentText}>{safeString(genWaiver)}</Text>
             </View>
           ) : null}
 
           {medRelease ? (
             <View style={styles.consentSection}>
               <Text style={styles.consentTitle}>Medical Release Authorization</Text>
-              <Text style={styles.consentText}>{medRelease}</Text>
+              <Text style={styles.consentText}>{safeString(medRelease)}</Text>
             </View>
           ) : null}
 
           {photoConsent ? (
             <View style={styles.consentSection}>
-              <Text style={styles.consentTitle}>Photo &amp; Video Consent</Text>
-              <Text style={styles.consentText}>{photoConsent}</Text>
+              <Text style={styles.consentTitle}>Photo {' & '} Video Consent</Text>
+              <Text style={styles.consentText}>{safeString(photoConsent)}</Text>
             </View>
           ) : null}
 
           {transportConsent ? (
             <View style={styles.consentSection}>
               <Text style={styles.consentTitle}>Transportation Consent</Text>
-              <Text style={styles.consentText}>{transportConsent}</Text>
+              <Text style={styles.consentText}>{safeString(transportConsent)}</Text>
             </View>
           ) : null}
 
           {emergencyConsent ? (
             <View style={styles.consentSection}>
               <Text style={styles.consentTitle}>Emergency Treatment Authorization</Text>
-              <Text style={styles.consentText}>{emergencyConsent}</Text>
+              <Text style={styles.consentText}>{safeString(emergencyConsent)}</Text>
             </View>
           ) : null}
         </View>
@@ -659,7 +669,7 @@ const BlankFormTemplate: React.FC<BlankFormTemplateProps> = ({ data }) => {
         </View>
 
         <Text style={styles.footer}>
-          {orgName} | {activityName} | Page 3 of 3 | Printed: {today}
+          {orgName} | {activityName} | Page 3 of 3 | Printed: {safeString(today)}
         </Text>
       </Page>
     </Document>

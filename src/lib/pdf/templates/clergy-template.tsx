@@ -118,6 +118,16 @@ const styles = StyleSheet.create({
   },
 })
 
+function safeString(value: any, fallback = ''): string {
+  if (value === null || value === undefined) return fallback
+  if (typeof value === 'string') return value
+  if (typeof value === 'number') return String(value)
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+  if (value instanceof Date) return value.toLocaleDateString()
+  if (typeof value === 'object') return fallback
+  return String(value)
+}
+
 interface ClergyTemplateProps {
   data: {
     id: string
@@ -186,14 +196,23 @@ const ClergyTemplate: React.FC<ClergyTemplateProps> = ({ data }) => {
     data.clergyTitle === 'bishop' ? 'Bishop' :
     data.clergyTitle === 'cardinal' ? 'Cardinal' : 'Clergy'
 
+  const genderLabel =
+    data.participantGender === 'male' ? 'Male' :
+    data.participantGender === 'female' ? 'Female' : 'N/A'
+
+  const allergiesDisplay = safeString(data.allergies)
+  const needsHousingLabel = data.needsHousing ? 'Yes' : 'No'
+  const needsHousingColor = data.needsHousing ? '#059669' : '#6B7280'
+  const formId = safeString(data.id, '').substring(0, 8)
+
   return (
     <Document>
       {/* PAGE 1: Header + Participant + Clergy Info + Medical */}
       <Page size="A4" style={styles.page}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>LIABILITY FORM — CLERGY, SEMINARIANS &amp; RELIGIOUS</Text>
-          <Text style={styles.subtitle}>Form ID: {data.id.substring(0, 8)}</Text>
+          <Text style={styles.title}>LIABILITY FORM {' — '} CLERGY, SEMINARIANS {' & '} RELIGIOUS</Text>
+          <Text style={styles.subtitle}>Form ID: {formId}</Text>
         </View>
 
         {/* Event Information */}
@@ -201,44 +220,44 @@ const ClergyTemplate: React.FC<ClergyTemplateProps> = ({ data }) => {
           <Text style={[styles.sectionTitle, { marginBottom: 8 }]}>EVENT INFORMATION</Text>
           <View style={styles.fieldRow}>
             <Text style={styles.fieldLabel}>Organization:</Text>
-            <Text style={styles.fieldValue}>{data.organizationName || '—'}</Text>
+            <Text style={styles.fieldValue}>{safeString(data.organizationName, '—')}</Text>
           </View>
           <View style={styles.fieldRow}>
             <Text style={styles.fieldLabel}>Event Name:</Text>
-            <Text style={styles.fieldValue}>{data.eventName || '—'}</Text>
+            <Text style={styles.fieldValue}>{safeString(data.eventName, '—')}</Text>
           </View>
           {data.locationName && (
             <View style={styles.fieldRow}>
               <Text style={styles.fieldLabel}>Location:</Text>
-              <Text style={styles.fieldValue}>{data.locationName}</Text>
+              <Text style={styles.fieldValue}>{safeString(data.locationName)}</Text>
             </View>
           )}
           {data.locationLine1 && (
             <View style={styles.fieldRow}>
               <Text style={styles.fieldLabel}>Address:</Text>
-              <Text style={styles.fieldValue}>{data.locationLine1}</Text>
+              <Text style={styles.fieldValue}>{safeString(data.locationLine1)}</Text>
             </View>
           )}
           {data.locationLine2 && (
             <View style={styles.fieldRow}>
               <Text style={styles.fieldLabel}>City/State/Zip:</Text>
-              <Text style={styles.fieldValue}>{data.locationLine2}</Text>
+              <Text style={styles.fieldValue}>{safeString(data.locationLine2)}</Text>
             </View>
           )}
           <View style={styles.fieldRow}>
             <Text style={styles.fieldLabel}>Date:</Text>
-            <Text style={styles.fieldValue}>{data.eventDates || '—'}</Text>
+            <Text style={styles.fieldValue}>{safeString(data.eventDates, '—')}</Text>
           </View>
           {data.eventTime && (
             <View style={styles.fieldRow}>
               <Text style={styles.fieldLabel}>Time:</Text>
-              <Text style={styles.fieldValue}>{data.eventTime}</Text>
+              <Text style={styles.fieldValue}>{safeString(data.eventTime)}</Text>
             </View>
           )}
           {data.eventCoordinator && (
             <View style={styles.fieldRow}>
               <Text style={styles.fieldLabel}>Coordinator:</Text>
-              <Text style={styles.fieldValue}>{data.eventCoordinator}</Text>
+              <Text style={styles.fieldValue}>{safeString(data.eventCoordinator)}</Text>
             </View>
           )}
         </View>
@@ -250,50 +269,48 @@ const ClergyTemplate: React.FC<ClergyTemplateProps> = ({ data }) => {
           <View style={styles.clergyBox}>
             <View style={styles.fieldRow}>
               <Text style={styles.fieldLabel}>Clergy Title:</Text>
-              <Text style={[styles.fieldValue, { fontWeight: 'bold' }]}>{clergyTitleLabel}</Text>
+              <Text style={[styles.fieldValue, { fontWeight: 'bold' }]}>{safeString(clergyTitleLabel)}</Text>
             </View>
           </View>
 
           <View style={styles.fieldRow}>
             <Text style={styles.fieldLabel}>Full Legal Name:</Text>
             <Text style={styles.fieldValue}>
-              {data.participantFirstName} {data.participantLastName}
+              {safeString(data.participantFirstName)} {safeString(data.participantLastName)}
             </Text>
           </View>
 
           {data.participantPreferredName && (
             <View style={styles.fieldRow}>
               <Text style={styles.fieldLabel}>Preferred Name:</Text>
-              <Text style={styles.fieldValue}>{data.participantPreferredName}</Text>
+              <Text style={styles.fieldValue}>{safeString(data.participantPreferredName)}</Text>
             </View>
           )}
 
           <View style={styles.fieldRow}>
             <Text style={styles.fieldLabel}>Age:</Text>
-            <Text style={styles.fieldValue}>{data.participantAge || 'N/A'}</Text>
+            <Text style={styles.fieldValue}>{safeString(data.participantAge, 'N/A')}</Text>
           </View>
 
           <View style={styles.fieldRow}>
             <Text style={styles.fieldLabel}>Gender:</Text>
-            <Text style={styles.fieldValue}>
-              {data.participantGender === 'male' ? 'Male' : data.participantGender === 'female' ? 'Female' : 'N/A'}
-            </Text>
+            <Text style={styles.fieldValue}>{genderLabel}</Text>
           </View>
 
           <View style={styles.fieldRow}>
             <Text style={styles.fieldLabel}>Email:</Text>
-            <Text style={styles.fieldValue}>{data.participantEmail || 'N/A'}</Text>
+            <Text style={styles.fieldValue}>{safeString(data.participantEmail, 'N/A')}</Text>
           </View>
 
           <View style={styles.fieldRow}>
             <Text style={styles.fieldLabel}>Phone:</Text>
-            <Text style={styles.fieldValue}>{data.participantPhone || 'N/A'}</Text>
+            <Text style={styles.fieldValue}>{safeString(data.participantPhone, 'N/A')}</Text>
           </View>
 
           {data.tShirtSize && (
             <View style={styles.fieldRow}>
               <Text style={styles.fieldLabel}>T-Shirt Size:</Text>
-              <Text style={styles.fieldValue}>{data.tShirtSize}</Text>
+              <Text style={styles.fieldValue}>{safeString(data.tShirtSize)}</Text>
             </View>
           )}
         </View>
@@ -304,27 +321,27 @@ const ClergyTemplate: React.FC<ClergyTemplateProps> = ({ data }) => {
 
           <View style={styles.fieldRow}>
             <Text style={styles.fieldLabel}>Diocese of Incardination:</Text>
-            <Text style={styles.fieldValue}>{data.dioceseOfIncardination || 'N/A'}</Text>
+            <Text style={styles.fieldValue}>{safeString(data.dioceseOfIncardination, 'N/A')}</Text>
           </View>
 
           <View style={styles.fieldRow}>
             <Text style={styles.fieldLabel}>Current Assignment:</Text>
-            <Text style={styles.fieldValue}>{data.currentAssignment || 'N/A'}</Text>
+            <Text style={styles.fieldValue}>{safeString(data.currentAssignment, 'N/A')}</Text>
           </View>
 
           {data.facultyInformation && (
             <View style={{ marginTop: 8 }}>
               <Text style={{ fontWeight: 'bold', marginBottom: 5 }}>Faculty Information:</Text>
               <Text style={{ fontSize: 10, lineHeight: 1.4, color: '#374151' }}>
-                {data.facultyInformation}
+                {safeString(data.facultyInformation)}
               </Text>
             </View>
           )}
 
           <View style={styles.fieldRow}>
             <Text style={styles.fieldLabel}>Needs Housing:</Text>
-            <Text style={[styles.fieldValue, { fontWeight: 'bold', color: data.needsHousing ? '#059669' : '#6B7280' }]}>
-              {data.needsHousing ? 'Yes' : 'No'}
+            <Text style={[styles.fieldValue, { fontWeight: 'bold', color: needsHousingColor }]}>
+              {needsHousingLabel}
             </Text>
           </View>
         </View>
@@ -336,43 +353,43 @@ const ClergyTemplate: React.FC<ClergyTemplateProps> = ({ data }) => {
           <View style={styles.fieldRow}>
             <Text style={styles.fieldLabel}>Medical Conditions:</Text>
             <Text style={styles.fieldValue}>
-              {data.medicalConditions || 'None reported'}
+              {safeString(data.medicalConditions, 'None reported')}
             </Text>
           </View>
 
           <View style={styles.fieldRow}>
             <Text style={styles.fieldLabel}>Current Medications:</Text>
             <Text style={styles.fieldValue}>
-              {data.medications || 'None'}
+              {safeString(data.medications, 'None')}
             </Text>
           </View>
 
           <View style={styles.fieldRow}>
-            <Text style={styles.fieldLabel}>⚠️ ALLERGIES:</Text>
-            <Text style={[styles.fieldValue, data.allergies ? styles.alertText : {}]}>
-              {data.allergies ? data.allergies.toUpperCase() : 'None'}
+            <Text style={styles.fieldLabel}>ALLERGIES:</Text>
+            <Text style={[styles.fieldValue, allergiesDisplay ? styles.alertText : {}]}>
+              {allergiesDisplay ? allergiesDisplay.toUpperCase() : 'None'}
             </Text>
           </View>
 
           <View style={styles.fieldRow}>
             <Text style={styles.fieldLabel}>Dietary Restrictions:</Text>
             <Text style={styles.fieldValue}>
-              {data.dietaryRestrictions || 'None'}
+              {safeString(data.dietaryRestrictions, 'None')}
             </Text>
           </View>
 
           <View style={styles.fieldRow}>
             <Text style={styles.fieldLabel}>ADA Accommodations:</Text>
             <Text style={styles.fieldValue}>
-              {data.adaAccommodations || 'None'}
+              {safeString(data.adaAccommodations, 'None')}
             </Text>
           </View>
         </View>
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text>ChiRho Events | Form ID: {data.id.substring(0, 8)} | Page 1 of 3</Text>
-          <Text>{data.eventName || 'Event'} | Generated: {formatDate(new Date())}</Text>
+          <Text>ChiRho Events | Form ID: {formId} | Page 1 of 3</Text>
+          <Text>{safeString(data.eventName, 'Event')} | Generated: {formatDate(new Date())}</Text>
         </View>
       </Page>
 
@@ -381,7 +398,7 @@ const ClergyTemplate: React.FC<ClergyTemplateProps> = ({ data }) => {
         <View style={styles.header}>
           <Text style={styles.title}>LIABILITY FORM - CLERGY</Text>
           <Text style={styles.subtitle}>
-            {clergyTitleLabel} {data.participantFirstName} {data.participantLastName} (continued)
+            {safeString(clergyTitleLabel)} {safeString(data.participantFirstName)} {safeString(data.participantLastName)} (continued)
           </Text>
         </View>
 
@@ -395,15 +412,15 @@ const ClergyTemplate: React.FC<ClergyTemplateProps> = ({ data }) => {
             </Text>
             <View style={styles.fieldRow}>
               <Text style={styles.fieldLabel}>Name:</Text>
-              <Text style={styles.fieldValue}>{data.emergencyContact1Name || 'N/A'}</Text>
+              <Text style={styles.fieldValue}>{safeString(data.emergencyContact1Name, 'N/A')}</Text>
             </View>
             <View style={styles.fieldRow}>
               <Text style={styles.fieldLabel}>Phone:</Text>
-              <Text style={styles.fieldValue}>{data.emergencyContact1Phone || 'N/A'}</Text>
+              <Text style={styles.fieldValue}>{safeString(data.emergencyContact1Phone, 'N/A')}</Text>
             </View>
             <View style={styles.fieldRow}>
               <Text style={styles.fieldLabel}>Relationship:</Text>
-              <Text style={styles.fieldValue}>{data.emergencyContact1Relation || 'N/A'}</Text>
+              <Text style={styles.fieldValue}>{safeString(data.emergencyContact1Relation, 'N/A')}</Text>
             </View>
           </View>
 
@@ -414,15 +431,15 @@ const ClergyTemplate: React.FC<ClergyTemplateProps> = ({ data }) => {
               </Text>
               <View style={styles.fieldRow}>
                 <Text style={styles.fieldLabel}>Name:</Text>
-                <Text style={styles.fieldValue}>{data.emergencyContact2Name}</Text>
+                <Text style={styles.fieldValue}>{safeString(data.emergencyContact2Name)}</Text>
               </View>
               <View style={styles.fieldRow}>
                 <Text style={styles.fieldLabel}>Phone:</Text>
-                <Text style={styles.fieldValue}>{data.emergencyContact2Phone || 'N/A'}</Text>
+                <Text style={styles.fieldValue}>{safeString(data.emergencyContact2Phone, 'N/A')}</Text>
               </View>
               <View style={styles.fieldRow}>
                 <Text style={styles.fieldLabel}>Relationship:</Text>
-                <Text style={styles.fieldValue}>{data.emergencyContact2Relation || 'N/A'}</Text>
+                <Text style={styles.fieldValue}>{safeString(data.emergencyContact2Relation, 'N/A')}</Text>
               </View>
             </View>
           )}
@@ -434,23 +451,23 @@ const ClergyTemplate: React.FC<ClergyTemplateProps> = ({ data }) => {
 
           <View style={styles.fieldRow}>
             <Text style={styles.fieldLabel}>Insurance Provider:</Text>
-            <Text style={styles.fieldValue}>{data.insuranceProvider || 'N/A'}</Text>
+            <Text style={styles.fieldValue}>{safeString(data.insuranceProvider, 'N/A')}</Text>
           </View>
 
           <View style={styles.fieldRow}>
             <Text style={styles.fieldLabel}>Policy Number:</Text>
-            <Text style={styles.fieldValue}>{data.insurancePolicyNumber || 'N/A'}</Text>
+            <Text style={styles.fieldValue}>{safeString(data.insurancePolicyNumber, 'N/A')}</Text>
           </View>
 
           <View style={styles.fieldRow}>
             <Text style={styles.fieldLabel}>Group Number:</Text>
-            <Text style={styles.fieldValue}>{data.insuranceGroupNumber || 'N/A'}</Text>
+            <Text style={styles.fieldValue}>{safeString(data.insuranceGroupNumber, 'N/A')}</Text>
           </View>
         </View>
 
         <View style={styles.footer}>
-          <Text>ChiRho Events | Form ID: {data.id.substring(0, 8)} | Page 2 of 3</Text>
-          <Text>{data.eventName || 'Event'} | Generated: {formatDate(new Date())}</Text>
+          <Text>ChiRho Events | Form ID: {formId} | Page 2 of 3</Text>
+          <Text>{safeString(data.eventName, 'Event')} | Generated: {formatDate(new Date())}</Text>
         </View>
       </Page>
 
@@ -459,13 +476,13 @@ const ClergyTemplate: React.FC<ClergyTemplateProps> = ({ data }) => {
         <View style={styles.header}>
           <Text style={styles.title}>LIABILITY FORM - CLERGY</Text>
           <Text style={styles.subtitle}>
-            {clergyTitleLabel} {data.participantFirstName} {data.participantLastName} (continued)
+            {safeString(clergyTitleLabel)} {safeString(data.participantFirstName)} {safeString(data.participantLastName)} (continued)
           </Text>
         </View>
 
         {/* Consent Sections */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>6. CONSENT & WAIVER</Text>
+          <Text style={styles.sectionTitle}>6. CONSENT {' & '} WAIVER</Text>
 
           <Text style={{ marginBottom: 10, fontSize: 10 }}>
             The participant has reviewed and agreed to the following sections:
@@ -477,7 +494,7 @@ const ClergyTemplate: React.FC<ClergyTemplateProps> = ({ data }) => {
                 <Text style={styles.checkmark}>✓</Text>
                 <Text style={styles.consentTitle}>Waiver and Release of Liability</Text>
               </View>
-              <Text style={styles.consentText}>{data.generalWaiverText}</Text>
+              <Text style={styles.consentText}>{safeString(data.generalWaiverText)}</Text>
             </View>
           )}
 
@@ -487,7 +504,7 @@ const ClergyTemplate: React.FC<ClergyTemplateProps> = ({ data }) => {
                 <Text style={styles.checkmark}>✓</Text>
                 <Text style={styles.consentTitle}>Medical Release Authorization</Text>
               </View>
-              <Text style={styles.consentText}>{data.medicalReleaseText}</Text>
+              <Text style={styles.consentText}>{safeString(data.medicalReleaseText)}</Text>
             </View>
           )}
 
@@ -495,9 +512,9 @@ const ClergyTemplate: React.FC<ClergyTemplateProps> = ({ data }) => {
             <View style={styles.consentSection}>
               <View style={{ flexDirection: 'row' }}>
                 <Text style={styles.checkmark}>✓</Text>
-                <Text style={styles.consentTitle}>Photo & Video Consent</Text>
+                <Text style={styles.consentTitle}>Photo {' & '} Video Consent</Text>
               </View>
-              <Text style={styles.consentText}>{data.photoVideoConsentText}</Text>
+              <Text style={styles.consentText}>{safeString(data.photoVideoConsentText)}</Text>
             </View>
           )}
 
@@ -507,7 +524,7 @@ const ClergyTemplate: React.FC<ClergyTemplateProps> = ({ data }) => {
                 <Text style={styles.checkmark}>✓</Text>
                 <Text style={styles.consentTitle}>Transportation Consent</Text>
               </View>
-              <Text style={styles.consentText}>{data.transportationConsentText}</Text>
+              <Text style={styles.consentText}>{safeString(data.transportationConsentText)}</Text>
             </View>
           )}
 
@@ -517,7 +534,7 @@ const ClergyTemplate: React.FC<ClergyTemplateProps> = ({ data }) => {
                 <Text style={styles.checkmark}>✓</Text>
                 <Text style={styles.consentTitle}>Emergency Treatment Authorization</Text>
               </View>
-              <Text style={styles.consentText}>{data.emergencyTreatmentText}</Text>
+              <Text style={styles.consentText}>{safeString(data.emergencyTreatmentText)}</Text>
             </View>
           )}
         </View>
@@ -530,28 +547,28 @@ const ClergyTemplate: React.FC<ClergyTemplateProps> = ({ data }) => {
 
           <View style={styles.signatureRow}>
             <Text style={styles.signatureLabel}>Full Legal Name:</Text>
-            <Text style={styles.signatureValue}>{data.signatureData.full_legal_name}</Text>
+            <Text style={styles.signatureValue}>{safeString(data.signatureData.full_legal_name)}</Text>
           </View>
 
           <View style={styles.signatureRow}>
             <Text style={styles.signatureLabel}>Initials:</Text>
-            <Text style={styles.signatureValue}>{data.signatureData.initials}</Text>
+            <Text style={styles.signatureValue}>{safeString(data.signatureData.initials)}</Text>
           </View>
 
           <View style={styles.signatureRow}>
             <Text style={styles.signatureLabel}>Date Signed:</Text>
-            <Text style={styles.signatureValue}>{data.signatureData.date_signed}</Text>
+            <Text style={styles.signatureValue}>{safeString(data.signatureData.date_signed)}</Text>
           </View>
 
           <View style={styles.signatureRow}>
             <Text style={styles.signatureLabel}>Completed By:</Text>
-            <Text style={styles.signatureValue}>{data.completedByEmail || 'N/A'}</Text>
+            <Text style={styles.signatureValue}>{safeString(data.completedByEmail, 'N/A')}</Text>
           </View>
 
           {data.signatureData.ip_address && (
             <View style={styles.signatureRow}>
               <Text style={styles.signatureLabel}>IP Address:</Text>
-              <Text style={styles.signatureValue}>{data.signatureData.ip_address}</Text>
+              <Text style={styles.signatureValue}>{safeString(data.signatureData.ip_address)}</Text>
             </View>
           )}
 
@@ -564,8 +581,8 @@ const ClergyTemplate: React.FC<ClergyTemplateProps> = ({ data }) => {
         </View>
 
         <View style={styles.footer}>
-          <Text>ChiRho Events | Form ID: {data.id.substring(0, 8)} | Page 3 of 3</Text>
-          <Text>{data.eventName || 'Event'} | Generated: {formatDate(new Date())}</Text>
+          <Text>ChiRho Events | Form ID: {formId} | Page 3 of 3</Text>
+          <Text>{safeString(data.eventName, 'Event')} | Generated: {formatDate(new Date())}</Text>
         </View>
       </Page>
     </Document>

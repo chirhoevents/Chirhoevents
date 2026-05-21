@@ -5,6 +5,48 @@ import { verifyEventAccess } from '@/lib/api-auth'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+// GET /manual/lookup-group?accessCode=XXX — verify a group's access code
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ eventId: string }> }
+) {
+  try {
+    const { eventId } = await params
+
+    const { error } = await verifyEventAccess(request, eventId, {
+      requireAdmin: true,
+      logPrefix: '[Manual Liability Form Lookup]',
+    })
+    if (error) return error
+
+    const accessCode = request.nextUrl.searchParams.get('accessCode')?.trim()
+    if (!accessCode) {
+      return NextResponse.json({ error: 'accessCode is required' }, { status: 400 })
+    }
+
+    const group = await prisma.groupRegistration.findFirst({
+      where: { accessCode, eventId },
+      select: { id: true, groupName: true, groupLeaderName: true },
+    })
+
+    if (!group) {
+      return NextResponse.json(
+        { error: 'No group found with that access code for this event.' },
+        { status: 404 }
+      )
+    }
+
+    return NextResponse.json({
+      id: group.id,
+      name: group.groupName,
+      leaderName: group.groupLeaderName,
+    })
+  } catch (err) {
+    console.error('[Manual Liability Form Lookup] error:', err)
+    return NextResponse.json({ error: 'Lookup failed' }, { status: 500 })
+  }
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
@@ -24,6 +66,7 @@ export async function POST(
     const {
       formType,
       participantType,
+      groupAccessCode,
       participantFirstName,
       participantLastName,
       participantPreferredName,
@@ -81,6 +124,22 @@ export async function POST(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 
+    // Resolve group registration ID from access code (if provided)
+    let groupRegistrationId: string | null = null
+    if (groupAccessCode?.trim()) {
+      const group = await prisma.groupRegistration.findFirst({
+        where: { accessCode: groupAccessCode.trim(), eventId },
+        select: { id: true },
+      })
+      if (!group) {
+        return NextResponse.json(
+          { error: `No group found with access code "${groupAccessCode.trim()}" for this event.` },
+          { status: 400 }
+        )
+      }
+      groupRegistrationId = group.id
+    }
+
     const resolvedParticipantType =
       participantType ||
       (formType === 'youth_u18' ? 'youth_u18' :
@@ -92,6 +151,7 @@ export async function POST(
       data: {
         organizationId: event.organizationId,
         eventId,
+        groupRegistrationId,
         formType: formType as any,
         participantType: resolvedParticipantType as any,
         participantFirstName: participantFirstName.trim(),
