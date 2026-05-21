@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { CheckCircle, Download, Loader2, PenLine } from 'lucide-react'
+import { CheckCircle, Download, Loader2, PenLine, Users, Search } from 'lucide-react'
 
 interface ManualEntryTabProps {
   eventId: string
@@ -48,6 +48,7 @@ const PARTICIPANT_TYPE_FOR_FORM: Record<string, { value: string; label: string }
 const initialForm = {
   formType: 'youth_u18',
   participantType: '',
+  groupAccessCode: '',
   participantFirstName: '',
   participantLastName: '',
   participantPreferredName: '',
@@ -90,6 +91,32 @@ export function ManualEntryTab({ eventId, onUpdate }: ManualEntryTabProps) {
   const [submitting, setSubmitting] = useState(false)
   const [createdFormId, setCreatedFormId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [groupLookup, setGroupLookup] = useState<{
+    loading: boolean
+    group: { id: string; name: string; leaderName: string } | null
+    error: string | null
+  }>({ loading: false, group: null, error: null })
+
+  async function lookupGroup() {
+    const code = form.groupAccessCode.trim()
+    if (!code) return
+    setGroupLookup({ loading: true, group: null, error: null })
+    try {
+      const token = await getToken()
+      const res = await fetch(
+        `/api/admin/events/${eventId}/poros-liability/manual?accessCode=${encodeURIComponent(code)}`,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      )
+      const data = await res.json()
+      if (!res.ok) {
+        setGroupLookup({ loading: false, group: null, error: data.error || 'Group not found' })
+      } else {
+        setGroupLookup({ loading: false, group: data, error: null })
+      }
+    } catch {
+      setGroupLookup({ loading: false, group: null, error: 'Failed to look up group' })
+    }
+  }
 
   const isClergy = form.formType === 'clergy'
   const isReligious = form.formType === 'religious'
@@ -145,6 +172,7 @@ export function ManualEntryTab({ eventId, onUpdate }: ManualEntryTabProps) {
     setForm(initialForm)
     setCreatedFormId(null)
     setError(null)
+    setGroupLookup({ loading: false, group: null, error: null })
   }
 
   if (createdFormId) {
@@ -153,9 +181,17 @@ export function ManualEntryTab({ eventId, onUpdate }: ManualEntryTabProps) {
         <Card className="p-8 bg-white border-[#D1D5DB] text-center">
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-[#1E3A5F] mb-2">Form Created Successfully</h2>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 mb-2">
             The liability form has been manually entered and approved.
           </p>
+          {groupLookup.group && (
+            <p className="text-sm text-green-700 mb-4">
+              Linked to group: <strong>{groupLookup.group.name}</strong>
+            </p>
+          )}
+          {!groupLookup.group && (
+            <p className="text-gray-500 text-sm mb-4" />
+          )}
           <div className="flex justify-center gap-3">
             <Button
               onClick={() => window.open(`/api/liability/forms/${createdFormId}/pdf`, '_blank')}
@@ -219,6 +255,58 @@ export function ManualEntryTab({ eventId, onUpdate }: ManualEntryTabProps) {
               </div>
             )}
           </div>
+        </Card>
+
+        {/* Group Association */}
+        <Card className="p-6 bg-white border-[#D1D5DB]">
+          <div className="flex items-center gap-2 mb-1">
+            <Users className="w-4 h-4 text-[#1E3A5F]" />
+            <h3 className="font-semibold text-[#1E3A5F]">Group Association (Optional)</h3>
+          </div>
+          <p className="text-sm text-gray-500 mb-4">
+            Enter the group's access code to link this participant to their group registration — the same way they would be linked if they filled out the form online through their group portal.
+          </p>
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <Label>Group Access Code</Label>
+              <Input
+                className="mt-1 font-mono uppercase"
+                placeholder="e.g. ABC123XYZ"
+                value={form.groupAccessCode}
+                onChange={e => {
+                  set('groupAccessCode', e.target.value.toUpperCase())
+                  setGroupLookup({ loading: false, group: null, error: null })
+                }}
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={lookupGroup}
+              disabled={!form.groupAccessCode.trim() || groupLookup.loading}
+            >
+              {groupLookup.loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <><Search className="w-4 h-4 mr-1" /> Verify</>
+              )}
+            </Button>
+          </div>
+          {groupLookup.group && (
+            <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded flex items-start gap-2">
+              <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+              <div className="text-sm">
+                <div className="font-medium text-green-800">{groupLookup.group.name}</div>
+                <div className="text-green-700">Leader: {groupLookup.group.leaderName}</div>
+                <div className="text-green-600 text-xs mt-0.5">This participant will be linked to this group.</div>
+              </div>
+            </div>
+          )}
+          {groupLookup.error && (
+            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+              {groupLookup.error}
+            </div>
+          )}
         </Card>
 
         {/* Participant Info */}
