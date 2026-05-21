@@ -264,7 +264,7 @@ export function ManualEntryTab({ eventId, onUpdate }: ManualEntryTabProps) {
             <h3 className="font-semibold text-[#1E3A5F]">Group Association (Optional)</h3>
           </div>
           <p className="text-sm text-gray-500 mb-4">
-            Enter the group's access code to link this participant to their group registration — the same way they would be linked if they filled out the form online through their group portal.
+            Enter the group&apos;s access code to link this participant to their group registration — the same way they would be linked if they filled out the form online through their group portal.
           </p>
           <div className="flex gap-2 items-end">
             <div className="flex-1">
