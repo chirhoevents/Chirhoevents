@@ -1,5 +1,3 @@
-import { renderToBuffer } from '@react-pdf/renderer'
-import { createElement } from 'react'
 import { prisma } from '@/lib/prisma'
 import YouthU18Template from './templates/youth-u18-template'
 import YouthO18ChaperoneTemplate from './templates/youth-o18-chaperone-template'
@@ -166,11 +164,11 @@ export async function generateLiabilityFormPDF(
 
   switch (formData.formType) {
     case 'youth_u18':
-      pdfTemplate = createElement(YouthU18Template, { data: commonData })
+      pdfTemplate = YouthU18Template({ data: commonData })
       break
 
     case 'youth_o18_chaperone':
-      pdfTemplate = createElement(YouthO18ChaperoneTemplate, {
+      pdfTemplate = YouthO18ChaperoneTemplate({
         data: {
           ...commonData,
           participantType: formData.participantType || undefined,
@@ -186,7 +184,7 @@ export async function generateLiabilityFormPDF(
 
     case 'clergy':
     case 'religious':
-      pdfTemplate = createElement(ClergyTemplate, {
+      pdfTemplate = ClergyTemplate({
         data: {
           ...commonData,
           clergyTitle: formData.clergyTitle || undefined,
@@ -202,6 +200,6 @@ export async function generateLiabilityFormPDF(
       throw new Error(`Unknown form type: ${formData.formType}`)
   }
 
-  // Serialize all renderToBuffer calls — react-pdf's reconciler is not concurrent-safe
+  const { renderToBuffer } = await import('@react-pdf/renderer')
   return withRenderLock(() => renderToBuffer(pdfTemplate))
 }

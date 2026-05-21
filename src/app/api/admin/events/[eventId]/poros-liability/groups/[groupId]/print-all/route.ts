@@ -4,6 +4,9 @@ import { prisma } from '@/lib/prisma'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { generateLiabilityFormPDF } from '@/lib/pdf/generate-liability-form-pdf'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string; groupId: string }> }
