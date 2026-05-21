@@ -1,5 +1,5 @@
+import React from 'react'
 import BlankFormTemplate, { BlankFormType } from './templates/blank-form-template'
-import { withRenderLock } from './render-lock'
 
 interface EventData {
   name: string
@@ -96,7 +96,6 @@ export async function generateBlankFormPDF(
       : undefined,
   }
 
-  const element = BlankFormTemplate({ data })
   const { renderToBuffer } = await import('@react-pdf/renderer')
-  return withRenderLock(() => renderToBuffer(element as any))
+  return renderToBuffer(React.createElement(BlankFormTemplate, { data }) as React.ReactElement)
 }
