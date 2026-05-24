@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import React from 'react'
+import { renderToBuffer } from '@react-pdf/renderer'
 import { InvoicePDF } from '@/components/pdf/InvoicePDF'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
+import { withRenderLock } from '@/lib/pdf/render-lock'
 
 // Must use Node.js runtime for @react-pdf/renderer (not Edge)
 export const runtime = 'nodejs'
@@ -110,9 +112,10 @@ export async function GET(
     }
 
     // Generate PDF using renderToBuffer for server-side rendering
-    const { renderToBuffer } = await import('@react-pdf/renderer')
-    const pdfBuffer = await renderToBuffer(
-      React.createElement(InvoicePDF, { invoice: invoiceData }) as React.ReactElement
+    const pdfBuffer = await withRenderLock(() =>
+      renderToBuffer(
+        React.createElement(InvoicePDF, { invoice: invoiceData }) as React.ReactElement
+      )
     )
 
     // Return PDF as response (convert Buffer to Uint8Array for NextResponse)
