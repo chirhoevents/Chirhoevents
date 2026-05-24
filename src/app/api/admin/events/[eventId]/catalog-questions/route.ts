@@ -47,14 +47,14 @@ export async function GET(
     type Template = (typeof templates)[number]
 
     // Check which event copies have existing answers
-    const copiesWithAnswerCounts: Array<{ questionId: string; _count: { questionId: number } }> =
+    const copiesWithAnswerCounts =
       eventCopies.length > 0
         ? await prisma.customRegistrationAnswer.groupBy({
             by: ['questionId'],
             where: { questionId: { in: eventCopies.map((c: EventCopy) => c.id) } },
             _count: { questionId: true },
           })
-        : []
+        : ([] as Array<{ questionId: string; _count: { questionId: number } }>)
 
     const answerCountByQuestionId = new Map<string, number>(
       copiesWithAnswerCounts.map((r) => [r.questionId, r._count.questionId] as [string, number])
@@ -170,14 +170,14 @@ export async function POST(
       .filter((s) => existingBySlug.has(s))
 
     const disableCopyIds = toDisableSlugs.map((s) => existingBySlug.get(s)!.id)
-    const answerCounts: Array<{ questionId: string; _count: { questionId: number } }> =
+    const answerCounts =
       disableCopyIds.length > 0
         ? await prisma.customRegistrationAnswer.groupBy({
             by: ['questionId'],
             where: { questionId: { in: disableCopyIds } },
             _count: { questionId: true },
           })
-        : []
+        : ([] as Array<{ questionId: string; _count: { questionId: number } }>)
     const answerCountById = new Map<string, number>(
       answerCounts.map((r) => [r.questionId, r._count.questionId] as [string, number])
     )
