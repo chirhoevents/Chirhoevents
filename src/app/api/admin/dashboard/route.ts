@@ -238,7 +238,8 @@ export async function GET(request: NextRequest) {
     })
     const availableYears = [
       ...new Set(allEvents.map((e: { startDate: Date }) => e.startDate.getFullYear())),
-    ].sort((a, b) => b - a) as number[]
+    ].sort() as number[]
+    availableYears.reverse()
 
     return NextResponse.json({
       stats: {

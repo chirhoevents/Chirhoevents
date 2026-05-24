@@ -43,22 +43,27 @@ export async function GET(
       }),
     ])
 
+    type EventCopy = (typeof eventCopies)[number]
+    type Template = (typeof templates)[number]
+
     // Check which event copies have existing answers
-    const copiesWithAnswerCounts =
+    const copiesWithAnswerCounts: Array<{ questionId: string; _count: { questionId: number } }> =
       eventCopies.length > 0
         ? await prisma.customRegistrationAnswer.groupBy({
             by: ['questionId'],
-            where: { questionId: { in: eventCopies.map((c) => c.id) } },
+            where: { questionId: { in: eventCopies.map((c: EventCopy) => c.id) } },
             _count: { questionId: true },
           })
         : []
 
-    const answerCountByQuestionId = new Map(
-      copiesWithAnswerCounts.map((r) => [r.questionId, r._count.questionId])
+    const answerCountByQuestionId = new Map<string, number>(
+      copiesWithAnswerCounts.map((r) => [r.questionId, r._count.questionId] as [string, number])
     )
-    const eventCopyBySlug = new Map(eventCopies.map((c) => [c.catalogSlug, c]))
+    const eventCopyBySlug = new Map<string, EventCopy>(
+      eventCopies.map((c: EventCopy) => [c.catalogSlug ?? '', c] as [string, EventCopy])
+    )
 
-    const questions = templates.map((t) => {
+    const questions = templates.map((t: Template) => {
       const copy = eventCopyBySlug.get(t.catalogSlug ?? '')
       return {
         // Template fields (read-only)
@@ -132,7 +137,12 @@ export async function POST(
     const templates = await prisma.customRegistrationQuestion.findMany({
       where: { isTemplate: true, catalogSlug: { in: slugs } },
     })
-    const templateBySlug = new Map(templates.map((t) => [t.catalogSlug!, t]))
+
+    type Template = (typeof templates)[number]
+
+    const templateBySlug = new Map<string, Template>(
+      templates.map((t: Template) => [t.catalogSlug ?? '', t] as [string, Template])
+    )
 
     const unknownSlugs = slugs.filter((s) => !templateBySlug.has(s))
     if (unknownSlugs.length > 0) {
@@ -146,7 +156,12 @@ export async function POST(
     const existingCopies = await prisma.customRegistrationQuestion.findMany({
       where: { eventId, isTemplate: false, catalogSlug: { in: slugs } },
     })
-    const existingBySlug = new Map(existingCopies.map((c) => [c.catalogSlug!, c]))
+
+    type ExistingCopy = (typeof existingCopies)[number]
+
+    const existingBySlug = new Map<string, ExistingCopy>(
+      existingCopies.map((c: ExistingCopy) => [c.catalogSlug ?? '', c] as [string, ExistingCopy])
+    )
 
     // Check answer counts for copies being toggled off
     const toDisableSlugs = incoming
@@ -155,7 +170,7 @@ export async function POST(
       .filter((s) => existingBySlug.has(s))
 
     const disableCopyIds = toDisableSlugs.map((s) => existingBySlug.get(s)!.id)
-    const answerCounts =
+    const answerCounts: Array<{ questionId: string; _count: { questionId: number } }> =
       disableCopyIds.length > 0
         ? await prisma.customRegistrationAnswer.groupBy({
             by: ['questionId'],
@@ -163,7 +178,9 @@ export async function POST(
             _count: { questionId: true },
           })
         : []
-    const answerCountById = new Map(answerCounts.map((r) => [r.questionId, r._count.questionId]))
+    const answerCountById = new Map<string, number>(
+      answerCounts.map((r) => [r.questionId, r._count.questionId] as [string, number])
+    )
 
     // Collect slugs that cannot be disabled (have answers)
     const blockedSlugs: string[] = []
