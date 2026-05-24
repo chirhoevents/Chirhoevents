@@ -93,6 +93,103 @@ export async function POST(request: NextRequest) {
     let contactEmail: string
     let isIndividual = false
 
+    // Check if this is a staff registration code (starts with "STF-")
+    if (access_code.startsWith('STF-')) {
+      const staffRegistration = await prisma.staffRegistration.findUnique({
+        where: { porosAccessCode: access_code },
+        include: { event: { include: { organization: true } } },
+      })
+
+      if (!staffRegistration) {
+        return NextResponse.json({ error: 'Invalid access code' }, { status: 404 })
+      }
+
+      if (staffRegistration.liabilityFormId) {
+        return NextResponse.json({ error: 'Liability form already completed' }, { status: 400 })
+      }
+
+      eventName = staffRegistration.event.name
+      contactEmail = staffRegistration.email
+
+      liabilityForm = await prisma.liabilityForm.create({
+        data: {
+          organizationId: staffRegistration.organizationId,
+          eventId: staffRegistration.eventId,
+          formType: 'youth_o18_chaperone',
+          participantType: participant_type,
+          participantFirstName: first_name,
+          participantLastName: last_name,
+          participantPreferredName: preferred_name || null,
+          participantAge: age,
+          participantGender: gender,
+          participantEmail: email,
+          participantPhone: phone,
+          tShirtSize: t_shirt_size,
+          medicalConditions: medical_conditions || null,
+          medications: medications || null,
+          allergies: allergies || null,
+          dietaryRestrictions: dietary_restrictions || null,
+          adaAccommodations: ada_accommodations || null,
+          emergencyContact1Name: emergency_contact_1_name,
+          emergencyContact1Phone: emergency_contact_1_phone,
+          emergencyContact1Relation: emergency_contact_1_relation,
+          emergencyContact2Name: emergency_contact_2_name || null,
+          emergencyContact2Phone: emergency_contact_2_phone || null,
+          emergencyContact2Relation: emergency_contact_2_relation || null,
+          insuranceProvider: insurance_provider,
+          insurancePolicyNumber: insurance_policy_number,
+          insuranceGroupNumber: insurance_group_number || null,
+          signatureData: signatureData,
+          completed: true,
+          completedByEmail: email,
+          completedAt: new Date(),
+        },
+        include: { event: true },
+      })
+
+      // Link the form back to the staff registration
+      await prisma.staffRegistration.update({
+        where: { id: staffRegistration.id },
+        data: { liabilityFormId: liabilityForm.id },
+      })
+
+      const pdfUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/liability/forms/${liabilityForm.id}/pdf`
+      await prisma.liabilityForm.update({
+        where: { id: liabilityForm.id },
+        data: { pdfUrl },
+      })
+
+      try {
+        await resend.emails.send({
+          from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+          reply_to: 'support@chirhoevents.com',
+          to: email,
+          subject: `Liability Form Completed - ${first_name} ${last_name}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
+                <img src="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/Poros logo.png" alt="ChiRho Events" style="max-width: 250px; height: auto;" />
+              </div>
+              <div style="padding: 30px 20px;">
+                <h1 style="color: #1E3A5F; text-align: center;">Liability Form Completed!</h1>
+                <p>Thank you for completing your liability form for <strong>${eventName}</strong>.</p>
+                <div style="text-align: center; margin: 20px 0;">
+                  <a href="${pdfUrl}" style="display: inline-block; background-color: #10B981; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                    Download PDF Copy
+                  </a>
+                </div>
+                <p style="margin-top: 30px;">Pax Christi,<br><strong>ChiRho Events Team</strong></p>
+              </div>
+            </div>
+          `,
+        })
+      } catch (emailErr) {
+        console.error('[O18/Chaperone Submit] Failed to send staff confirmation email:', emailErr)
+      }
+
+      return NextResponse.json({ success: true, form_id: liabilityForm.id, pdf_url: pdfUrl })
+    }
+
     // Check if this is an individual registration code (starts with "IND-")
     if (access_code.startsWith('IND-')) {
       isIndividual = true

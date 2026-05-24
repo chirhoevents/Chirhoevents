@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import DynamicLiabilityForm, {
@@ -14,9 +14,12 @@ import DynamicLiabilityForm, {
 export default function YouthO18ChaperoneForm() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const accessCode = params.accessCode as string
+  const isStaff = searchParams.get('staff') === 'true'
 
   // Basic info (section 1) — hardcoded
+  // Staff are always adults; default their participant type so they skip the selector
   const [basicData, setBasicData] = useState({
     firstName: '',
     lastName: '',
@@ -26,7 +29,7 @@ export default function YouthO18ChaperoneForm() {
     gender: '',
     email: '',
     phone: '',
-    participantType: '',
+    participantType: isStaff ? 'youth_o18' : '',
     tShirtSize: '',
   })
 
@@ -469,37 +472,39 @@ export default function YouthO18ChaperoneForm() {
               </div>
             </div>
 
-            <div className="mt-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                Participant Type <span className="text-red-500">*</span>
-              </label>
-              <div className="space-y-2">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="participantType"
-                    value="youth_o18"
-                    checked={basicData.participantType === 'youth_o18'}
-                    onChange={() => handleParticipantTypeChange('youth_o18')}
-                    required
-                    className="mr-2"
-                  />
-                  <span>Youth (18+)</span>
+            {!isStaff && (
+              <div className="mt-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  Participant Type <span className="text-red-500">*</span>
                 </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="participantType"
-                    value="chaperone"
-                    checked={basicData.participantType === 'chaperone'}
-                    onChange={() => handleParticipantTypeChange('chaperone')}
-                    required
-                    className="mr-2"
-                  />
-                  <span>Chaperone</span>
-                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="participantType"
+                      value="youth_o18"
+                      checked={basicData.participantType === 'youth_o18'}
+                      onChange={() => handleParticipantTypeChange('youth_o18')}
+                      required
+                      className="mr-2"
+                    />
+                    <span>Youth (18+)</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="participantType"
+                      value="chaperone"
+                      checked={basicData.participantType === 'chaperone'}
+                      onChange={() => handleParticipantTypeChange('chaperone')}
+                      required
+                      className="mr-2"
+                    />
+                    <span>Chaperone</span>
+                  </label>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* SECTIONS 2+: Dynamic sections rendered by DynamicLiabilityForm */}
