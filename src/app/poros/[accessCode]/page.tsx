@@ -25,7 +25,18 @@ interface IndividualData {
   autoFormType: 'youth_u18' | 'youth_o18_chaperone'
 }
 
-type PortalData = GroupData | IndividualData
+interface StaffData {
+  registrationType: 'staff'
+  staffId: string
+  staffName: string
+  staffEmail: string
+  eventName: string
+  eventDates: string
+  formCompleted: boolean
+  autoFormType: 'youth_o18_chaperone'
+}
+
+type PortalData = GroupData | IndividualData | StaffData
 
 export default function PorosRoleSelection() {
   const params = useParams()
@@ -59,7 +70,6 @@ export default function PorosRoleSelection() {
             return
           }
 
-          // Store the individual data
           setPortalData({
             registrationType: 'individual',
             individualId: data.individualId,
@@ -70,6 +80,23 @@ export default function PorosRoleSelection() {
             eventDates: data.eventDates,
             formCompleted: data.formCompleted,
             autoFormType: data.autoFormType,
+          })
+        } else if (data.registrationType === 'staff') {
+          if (data.formCompleted) {
+            setError('Your liability form has already been completed.')
+            setLoading(false)
+            return
+          }
+
+          setPortalData({
+            registrationType: 'staff',
+            staffId: data.staffId,
+            staffName: data.staffName,
+            staffEmail: data.staffEmail,
+            eventName: data.eventName,
+            eventDates: data.eventDates,
+            formCompleted: data.formCompleted,
+            autoFormType: 'youth_o18_chaperone',
           })
         } else {
           // Group registration
@@ -152,6 +179,11 @@ export default function PorosRoleSelection() {
     // Convert form type format for URL (youth_o18_chaperone -> youth-o18-chaperone)
     const formTypeUrl = portalData.autoFormType.replaceAll('_', '-')
     router.push(`/poros/${accessCode}/forms/${formTypeUrl}/new?individual=true`)
+  }
+
+  const handleStaffContinue = () => {
+    if (!portalData || portalData.registrationType !== 'staff') return
+    router.push(`/poros/${accessCode}/forms/youth-o18-chaperone/new?staff=true`)
   }
 
   if (loading) {
@@ -300,6 +332,72 @@ export default function PorosRoleSelection() {
             <p className="text-sm text-gray-500">
               © 2025 ChiRho Events. All rights reserved.
             </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Staff Registration Flow - Go directly to adult form
+  if (portalData.registrationType === 'staff') {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-navy py-6 shadow-md">
+          <div className="container mx-auto px-4">
+            <div className="flex justify-center">
+              <Link href="/poros">
+                <Image
+                  src="/Poros logo.png"
+                  alt="Poros - ChiRho Events"
+                  width={350}
+                  height={105}
+                  className="h-16 md:h-20 w-auto cursor-pointer hover:opacity-90 transition-opacity"
+                />
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        <div className="container mx-auto px-4 py-12">
+          <div className="max-w-2xl mx-auto">
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-bold text-navy mb-3">Liability Form</h1>
+              <p className="text-xl text-gray-700 mb-2">{portalData.eventName}</p>
+              <p className="text-lg text-gray-600">{portalData.eventDates}</p>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
+              <div className="text-center mb-6">
+                <div className="w-20 h-20 bg-navy/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-10 h-10 text-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-navy mb-1">{portalData.staffName}</h2>
+                <p className="text-gray-600">{portalData.staffEmail}</p>
+              </div>
+
+              <div className="bg-green-50 border border-green-200 p-4 rounded-lg mb-6 text-center">
+                <span className="font-semibold text-green-900">Staff / Volunteer</span>
+                <p className="text-sm text-green-700 mt-1">You can complete this form yourself.</p>
+              </div>
+
+              <button
+                onClick={handleStaffContinue}
+                className="w-full bg-navy text-white py-4 rounded-lg font-semibold text-lg hover:bg-navy/90 transition-colors flex items-center justify-center gap-2"
+              >
+                Continue to Form
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white border-t border-gray-200 py-6 mt-12">
+          <div className="container mx-auto px-4 text-center">
+            <p className="text-sm text-gray-500">© 2025 ChiRho Events. All rights reserved.</p>
           </div>
         </div>
       </div>

@@ -789,7 +789,7 @@ export async function POST(request: NextRequest) {
 
       // Build URLs for email
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
-      const porosLiabilityUrl = `${appUrl}/poros/liability?code=${registration.accessCode}`
+      const porosLiabilityUrl = `${appUrl}/poros?code=${registration.accessCode}`
       const groupLeaderPortalUrl = `${appUrl}/dashboard/group-leader`
       const confirmationPageUrl = `${appUrl}/registration/confirmation/${registration.id}`
 

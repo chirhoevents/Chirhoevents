@@ -120,14 +120,19 @@ export default function StaffRegistrationSuccessPage() {
                 <p className="text-sm text-amber-800 mb-3">
                   Please complete your liability form using this access code:
                 </p>
-                <div className="bg-white border border-amber-300 rounded-lg p-3 text-center">
+                <div className="bg-white border border-amber-300 rounded-lg p-3 text-center mb-3">
                   <code className="text-xl font-mono font-bold text-[#1E3A5F]">
                     {registration.porosAccessCode}
                   </code>
                 </div>
-                <p className="text-xs text-amber-700 mt-2">
-                  You will receive an email with this code and instructions.
-                </p>
+                <a
+                  href={`https://chirhoevents.com/poros?code=${registration.porosAccessCode}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full text-center bg-[#1E3A5F] hover:bg-[#2d4a6f] text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm"
+                >
+                  Complete Liability Form
+                </a>
               </div>
             )}
 

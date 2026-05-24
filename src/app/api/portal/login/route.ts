@@ -87,6 +87,65 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Check if this is a staff registration code (starts with "STF-")
+    if (access_code.startsWith('STF-')) {
+      const staffRegistration = await prisma.staffRegistration.findUnique({
+        where: { porosAccessCode: access_code },
+        include: {
+          event: {
+            include: {
+              settings: true,
+            },
+          },
+        },
+      })
+
+      if (!staffRegistration) {
+        return NextResponse.json(
+          { error: 'Invalid access code. Please check and try again.' },
+          { status: 404 }
+        )
+      }
+
+      const liabilityRequired =
+        staffRegistration.event.settings?.liabilityFormsRequiredGroup ||
+        staffRegistration.event.settings?.liabilityFormsRequiredIndividual ||
+        false
+
+      if (!liabilityRequired) {
+        return NextResponse.json(
+          { error: 'Liability forms are not required for this event.' },
+          { status: 400 }
+        )
+      }
+
+      const startDate = new Date(staffRegistration.event.startDate)
+      const endDate = new Date(staffRegistration.event.endDate)
+      const eventDates = `${startDate.toLocaleDateString('en-US', {
+        month: 'numeric',
+        day: 'numeric',
+        year: 'numeric',
+      })} - ${endDate.toLocaleDateString('en-US', {
+        month: 'numeric',
+        day: 'numeric',
+        year: 'numeric',
+      })}`
+
+      return NextResponse.json({
+        success: true,
+        registrationType: 'staff',
+        staffId: staffRegistration.id,
+        staffName: `${staffRegistration.firstName} ${staffRegistration.lastName}`,
+        staffEmail: staffRegistration.email,
+        eventId: staffRegistration.event.id,
+        eventName: staffRegistration.event.name,
+        eventDates,
+        // Staff are always adults — use the adult form
+        autoFormType: 'youth_o18_chaperone',
+        formCompleted: !!staffRegistration.liabilityFormId,
+      })
+    }
+
     // Otherwise, treat as a group registration access code
     const groupRegistration = await prisma.groupRegistration.findUnique({
       where: { accessCode: access_code },
