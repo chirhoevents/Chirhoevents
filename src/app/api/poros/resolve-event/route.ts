@@ -30,6 +30,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ eventId: individual.eventId, eventName: individual.event?.name ?? null })
     }
 
+    // Staff registration (STF- prefix)
+    if (code.startsWith('STF-')) {
+      const staff = await prisma.staffRegistration.findUnique({
+        where: { porosAccessCode: code },
+        select: { eventId: true, event: { select: { name: true } } },
+      })
+      if (!staff) {
+        return NextResponse.json({ error: 'Invalid access code' }, { status: 404 })
+      }
+      return NextResponse.json({ eventId: staff.eventId, eventName: staff.event?.name ?? null })
+    }
+
     // Group registration
     const group = await prisma.groupRegistration.findUnique({
       where: { accessCode: code },

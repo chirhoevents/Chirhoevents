@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Download, Loader2, Users, Store, CheckCircle, Clock, FileText } from 'lucide-react'
+import { Download, Loader2, Users, Store, CheckCircle, Clock, FileText, Activity } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 
 interface StaffReportModalProps {
@@ -173,6 +173,51 @@ export default function StaffReportModal({
                 </CardContent>
               </Card>
             </div>
+
+            {/* Medical / Allergy Summary */}
+            {(data.staffWithAllergies > 0 || data.staffWithMedical > 0 || data.staffWithMedications > 0 || data.staffWithAda > 0) && (
+              <Card className="bg-white border-[#E5E7EB]">
+                <CardContent className="pt-6">
+                  <h3 className="font-semibold text-[#1E3A5F] mb-4 flex items-center gap-2">
+                    <Activity className="h-5 w-5" />
+                    MEDICAL &amp; ALLERGY SUMMARY
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="p-3 bg-red-50 rounded text-center">
+                      <p className="text-2xl font-bold text-red-600">{data.staffWithAllergies}</p>
+                      <p className="text-xs text-[#6B7280] mt-1">With Allergies</p>
+                    </div>
+                    <div className="p-3 bg-amber-50 rounded text-center">
+                      <p className="text-2xl font-bold text-amber-600">{data.staffWithMedical}</p>
+                      <p className="text-xs text-[#6B7280] mt-1">Medical Conditions</p>
+                    </div>
+                    <div className="p-3 bg-blue-50 rounded text-center">
+                      <p className="text-2xl font-bold text-blue-600">{data.staffWithMedications}</p>
+                      <p className="text-xs text-[#6B7280] mt-1">On Medications</p>
+                    </div>
+                    <div className="p-3 bg-purple-50 rounded text-center">
+                      <p className="text-2xl font-bold text-purple-600">{data.staffWithAda}</p>
+                      <p className="text-xs text-[#6B7280] mt-1">ADA Needs</p>
+                    </div>
+                  </div>
+                  {data.staffList?.some((s: any) => s.allergies) && (
+                    <div className="mt-4">
+                      <p className="text-xs font-medium text-[#6B7280] uppercase mb-2">Staff with Allergies</p>
+                      <div className="space-y-1">
+                        {data.staffList
+                          .filter((s: any) => s.allergies)
+                          .map((s: any) => (
+                            <div key={s.id} className="flex justify-between items-start text-sm p-2 bg-red-50 rounded">
+                              <span className="font-medium">{s.fullName}</span>
+                              <span className="text-red-700 text-xs text-right max-w-[60%]">{s.allergies}</span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Role Breakdown */}
             {data.roleBreakdown && Object.keys(data.roleBreakdown).length > 0 && (

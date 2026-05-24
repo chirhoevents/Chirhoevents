@@ -13,6 +13,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Detect vendor codes entered by mistake
+    if (access_code.startsWith('VND-') || access_code.startsWith('VNDACC-')) {
+      return NextResponse.json(
+        {
+          error: 'vendor_code',
+          message: 'That looks like a vendor registration code, not a liability form code. Your liability form code starts with STF- and was sent in your staff registration confirmation email.',
+        },
+        { status: 400 }
+      )
+    }
+
     // Check if this is an individual registration code (starts with "IND-")
     if (access_code.startsWith('IND-')) {
       // Look up individual registration by confirmation code
@@ -84,6 +95,65 @@ export async function POST(request: NextRequest) {
         // For individuals, we auto-determine form type based on age
         // No role selection needed
         autoFormType: individualRegistration.age && individualRegistration.age < 18 ? 'youth_u18' : 'youth_o18_chaperone',
+      })
+    }
+
+    // Check if this is a staff registration code (starts with "STF-")
+    if (access_code.startsWith('STF-')) {
+      const staffRegistration = await prisma.staffRegistration.findUnique({
+        where: { porosAccessCode: access_code },
+        include: {
+          event: {
+            include: {
+              settings: true,
+            },
+          },
+        },
+      })
+
+      if (!staffRegistration) {
+        return NextResponse.json(
+          { error: 'Invalid access code. Please check and try again.' },
+          { status: 404 }
+        )
+      }
+
+      const liabilityRequired =
+        staffRegistration.event.settings?.liabilityFormsRequiredGroup ||
+        staffRegistration.event.settings?.liabilityFormsRequiredIndividual ||
+        false
+
+      if (!liabilityRequired) {
+        return NextResponse.json(
+          { error: 'Liability forms are not required for this event.' },
+          { status: 400 }
+        )
+      }
+
+      const startDate = new Date(staffRegistration.event.startDate)
+      const endDate = new Date(staffRegistration.event.endDate)
+      const eventDates = `${startDate.toLocaleDateString('en-US', {
+        month: 'numeric',
+        day: 'numeric',
+        year: 'numeric',
+      })} - ${endDate.toLocaleDateString('en-US', {
+        month: 'numeric',
+        day: 'numeric',
+        year: 'numeric',
+      })}`
+
+      return NextResponse.json({
+        success: true,
+        registrationType: 'staff',
+        staffId: staffRegistration.id,
+        staffName: `${staffRegistration.firstName} ${staffRegistration.lastName}`,
+        staffEmail: staffRegistration.email,
+        eventId: staffRegistration.event.id,
+        eventName: staffRegistration.event.name,
+        eventDates,
+        // Staff are always adults — use the adult form
+        autoFormType: 'youth_o18_chaperone',
+        formCompleted: !!staffRegistration.liabilityFormId,
       })
     }
 

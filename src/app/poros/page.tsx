@@ -6,7 +6,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 
 interface GroupInfo {
-  groupName: string
+  displayName: string
+  registrationType: 'group' | 'individual' | 'staff'
   eventName: string
   eventDates: string
   accessCode: string
@@ -41,12 +42,25 @@ export default function PorosLandingPage() {
       })
 
       if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        if (errData.error === 'vendor_code') {
+          setError(errData.message)
+          setLoading(false)
+          return
+        }
         throw new Error('Invalid or expired access code')
       }
 
       const data = await response.json()
+      const displayName =
+        data.registrationType === 'staff'
+          ? data.staffName
+          : data.registrationType === 'individual'
+          ? data.participantName
+          : data.groupName
       setGroupInfo({
-        groupName: data.groupName,
+        displayName,
+        registrationType: data.registrationType,
         eventName: data.eventName,
         eventDates: data.eventDates,
         accessCode: accessCode.trim().toUpperCase(),
@@ -120,6 +134,10 @@ export default function PorosLandingPage() {
                   />
                 </div>
 
+                <p className="text-xs text-gray-500 -mt-4">
+                  Staff &amp; volunteer codes begin with <strong>STF-</strong> · Group codes look like <strong>EX2026-GROUPNAME-XXXX</strong>
+                </p>
+
                 {error && (
                   <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
                     <p className="text-red-700 text-sm">{error}</p>
@@ -165,8 +183,10 @@ export default function PorosLandingPage() {
 
               <div className="bg-gray-50 rounded-lg p-6 mb-8 space-y-3">
                 <div className="flex justify-between items-center pb-3 border-b border-gray-200">
-                  <span className="text-gray-600 font-medium">Group Name:</span>
-                  <span className="text-navy font-semibold text-right">{groupInfo.groupName}</span>
+                  <span className="text-gray-600 font-medium">
+                    {groupInfo.registrationType === 'staff' ? 'Name:' : groupInfo.registrationType === 'individual' ? 'Participant:' : 'Group Name:'}
+                  </span>
+                  <span className="text-navy font-semibold text-right">{groupInfo.displayName}</span>
                 </div>
                 <div className="flex justify-between items-center pb-3 border-b border-gray-200">
                   <span className="text-gray-600 font-medium">Event:</span>
