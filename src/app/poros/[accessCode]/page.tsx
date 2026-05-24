@@ -338,7 +338,7 @@ export default function PorosRoleSelection() {
     )
   }
 
-  // Staff Registration Flow - Go directly to adult form
+  // Staff Registration Flow - Show role selector (Adult/Volunteer or Clergy)
   if (portalData.registrationType === 'staff') {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -359,37 +359,59 @@ export default function PorosRoleSelection() {
         </div>
 
         <div className="container mx-auto px-4 py-12">
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-4xl mx-auto">
             <div className="text-center mb-8">
-              <h1 className="text-4xl font-bold text-navy mb-3">Liability Form</h1>
-              <p className="text-xl text-gray-700 mb-2">{portalData.eventName}</p>
-              <p className="text-lg text-gray-600">{portalData.eventDates}</p>
+              <h1 className="text-4xl font-bold text-navy mb-3">Fill Out Your Liability Form</h1>
+              <p className="text-xl text-gray-700 mb-1">{portalData.eventName}</p>
+              <p className="text-lg text-gray-600 mb-2">{portalData.eventDates}</p>
+              <p className="text-gray-500">Staff: <strong className="text-navy">{portalData.staffName}</strong></p>
             </div>
 
-            <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
-              <div className="text-center mb-6">
-                <div className="w-20 h-20 bg-navy/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-10 h-10 text-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-semibold text-navy">Which form applies to you?</h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+              {/* Adult / Volunteer */}
+              <button
+                onClick={handleStaffContinue}
+                className="bg-green-50 border-2 border-green-200 hover:border-green-400 hover:shadow-lg transform hover:-translate-y-1 rounded-xl p-8 text-center transition-all duration-200"
+              >
+                <div className="flex justify-center text-green-600 mb-4">
+                  <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 </div>
-                <h2 className="text-2xl font-bold text-navy mb-1">{portalData.staffName}</h2>
-                <p className="text-gray-600">{portalData.staffEmail}</p>
-              </div>
+                <h3 className="text-2xl font-bold text-navy mb-2">Adult / Volunteer</h3>
+                <p className="text-gray-700 font-medium mb-1">Staff, Volunteer, Vendor</p>
+                <p className="text-sm text-gray-600 mb-6">Ages 18+ · Self-completion</p>
+                <div className="flex items-center justify-center text-navy font-medium">
+                  Select
+                  <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </div>
+              </button>
 
-              <div className="bg-green-50 border border-green-200 p-4 rounded-lg mb-6 text-center">
-                <span className="font-semibold text-green-900">Staff / Volunteer</span>
-                <p className="text-sm text-green-700 mt-1">You can complete this form yourself.</p>
-              </div>
-
+              {/* Clergy & Religious */}
               <button
-                onClick={handleStaffContinue}
-                className="w-full bg-navy text-white py-4 rounded-lg font-semibold text-lg hover:bg-navy/90 transition-colors flex items-center justify-center gap-2"
+                onClick={() => router.push(`/poros/${accessCode}/forms/clergy/new?staff=true`)}
+                className="bg-purple-50 border-2 border-purple-200 hover:border-purple-400 hover:shadow-lg transform hover:-translate-y-1 rounded-xl p-8 text-center transition-all duration-200"
               >
-                Continue to Form
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
+                <div className="flex justify-center text-purple-600 mb-4">
+                  <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  </svg>
+                </div>
+                <h3 className="text-2xl font-bold text-navy mb-2">Clergy & Religious</h3>
+                <p className="text-gray-700 font-medium mb-1">Priest, Deacon, Seminarian, Sister, Brother</p>
+                <p className="text-sm text-gray-600 mb-6">Specialized clergy form</p>
+                <div className="flex items-center justify-center text-navy font-medium">
+                  Select
+                  <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </div>
               </button>
             </div>
           </div>

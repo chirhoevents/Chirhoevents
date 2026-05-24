@@ -13,6 +13,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Detect vendor codes entered by mistake
+    if (access_code.startsWith('VND-') || access_code.startsWith('VNDACC-')) {
+      return NextResponse.json(
+        {
+          error: 'vendor_code',
+          message: 'That looks like a vendor registration code, not a liability form code. Your liability form code starts with STF- and was sent in your staff registration confirmation email.',
+        },
+        { status: 400 }
+      )
+    }
+
     // Check if this is an individual registration code (starts with "IND-")
     if (access_code.startsWith('IND-')) {
       // Look up individual registration by confirmation code

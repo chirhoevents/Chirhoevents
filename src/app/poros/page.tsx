@@ -42,6 +42,12 @@ export default function PorosLandingPage() {
       })
 
       if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        if (errData.error === 'vendor_code') {
+          setError(errData.message)
+          setLoading(false)
+          return
+        }
         throw new Error('Invalid or expired access code')
       }
 
@@ -127,6 +133,10 @@ export default function PorosLandingPage() {
                     disabled={loading}
                   />
                 </div>
+
+                <p className="text-xs text-gray-500 -mt-4">
+                  Staff &amp; volunteer codes begin with <strong>STF-</strong> · Group codes look like <strong>EX2026-GROUPNAME-XXXX</strong>
+                </p>
 
                 {error && (
                   <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
