@@ -69,6 +69,16 @@ export async function POST(request: NextRequest) {
 
 
 
+    // Build signature data (shared by both STF- and group paths)
+    const signatureData = {
+      full_legal_name: signature_full_name,
+      initials: signature_initials,
+      date_signed: signature_date,
+      sections_initialed: ['medical_consent', 'activity_waiver', 'photo_release', 'transportation'],
+      ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+      user_agent: request.headers.get('user-agent') || 'unknown',
+    }
+
     // Staff registration (STF- prefix)
     if (access_code.startsWith('STF-')) {
       const staffRegistration = await prisma.staffRegistration.findUnique({
@@ -180,16 +190,6 @@ export async function POST(request: NextRequest) {
         { error: 'Invalid access code' },
         { status: 404 }
       )
-    }
-
-    // Build signature data
-    const signatureData = {
-      full_legal_name: signature_full_name,
-      initials: signature_initials,
-      date_signed: signature_date,
-      sections_initialed: ['medical_consent', 'activity_waiver', 'photo_release', 'transportation'],
-      ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
-      user_agent: request.headers.get('user-agent') || 'unknown',
     }
 
     // Create Participant record first
