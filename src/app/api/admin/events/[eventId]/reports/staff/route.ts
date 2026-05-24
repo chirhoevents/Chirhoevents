@@ -41,6 +41,11 @@ export async function GET(
           select: {
             id: true,
             completed: true,
+            allergies: true,
+            medicalConditions: true,
+            medications: true,
+            dietaryRestrictions: true,
+            adaAccommodations: true,
           },
         },
       },
@@ -93,6 +98,12 @@ export async function GET(
       tshirtBreakdown[size] = (tshirtBreakdown[size] || 0) + 1
     }
 
+    // Allergy/medical summary stats
+    const staffWithAllergies = staffRegistrations.filter((s: StaffReg) => s.liabilityForm?.allergies).length
+    const staffWithMedical = staffRegistrations.filter((s: StaffReg) => s.liabilityForm?.medicalConditions).length
+    const staffWithMedications = staffRegistrations.filter((s: StaffReg) => s.liabilityForm?.medications).length
+    const staffWithAda = staffRegistrations.filter((s: StaffReg) => s.liabilityForm?.adaAccommodations).length
+
     // Detailed staff list
     const staffList = staffRegistrations.map((s: StaffReg) => ({
       id: s.id,
@@ -103,7 +114,7 @@ export async function GET(
       phone: s.phone,
       role: s.role,
       tshirtSize: s.tshirtSize,
-      dietaryRestrictions: s.dietaryRestrictions,
+      dietaryRestrictions: s.dietaryRestrictions || s.liabilityForm?.dietaryRestrictions || null,
       isVendorStaff: s.isVendorStaff,
       vendorCode: s.vendorCode,
       vendorBusinessName: s.vendorRegistration?.businessName || null,
@@ -113,6 +124,11 @@ export async function GET(
       checkedInAt: s.checkedInAt,
       liabilityFormCompleted: s.liabilityForm?.completed || false,
       porosAccessCode: s.porosAccessCode,
+      // Medical data from linked LiabilityForm
+      allergies: s.liabilityForm?.allergies || null,
+      medicalConditions: s.liabilityForm?.medicalConditions || null,
+      medications: s.liabilityForm?.medications || null,
+      adaAccommodations: s.liabilityForm?.adaAccommodations || null,
       eventName: s.event.name,
       createdAt: s.createdAt,
     }))
@@ -130,6 +146,10 @@ export async function GET(
       totalRevenue,
       roleBreakdown,
       tshirtBreakdown,
+      staffWithAllergies,
+      staffWithMedical,
+      staffWithMedications,
+      staffWithAda,
       staffList,
     })
   } catch (error) {
