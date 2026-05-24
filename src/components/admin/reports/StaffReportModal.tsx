@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Download, Loader2, Users, Store, CheckCircle, Clock, FileText, HeartPulse } from 'lucide-react'
+import { Download, Loader2, Users, Store, CheckCircle, Clock, FileText, Activity } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 
 interface StaffReportModalProps {
@@ -179,7 +179,7 @@ export default function StaffReportModal({
               <Card className="bg-white border-[#E5E7EB]">
                 <CardContent className="pt-6">
                   <h3 className="font-semibold text-[#1E3A5F] mb-4 flex items-center gap-2">
-                    <HeartPulse className="h-5 w-5" />
+                    <Activity className="h-5 w-5" />
                     MEDICAL &amp; ALLERGY SUMMARY
                   </h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
