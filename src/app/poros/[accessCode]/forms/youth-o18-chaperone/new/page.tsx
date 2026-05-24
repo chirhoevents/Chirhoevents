@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -59,6 +59,26 @@ export default function YouthO18ChaperoneForm() {
 
   // Resolve eventId from access code (lazy — only when participantType is first set)
   const [eventId, setEventId] = useState<string | null>(null)
+
+  // For staff users participantType is pre-set on mount, so the radio-button
+  // onChange path that calls ensureEventId is never triggered. Resolve the
+  // event immediately so DynamicLiabilityForm and the consent section render.
+  useEffect(() => {
+    if (!isStaff) return
+    fetch('/api/poros/resolve-event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ access_code: accessCode }),
+    })
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (data?.eventId) {
+          setEventId(data.eventId)
+          if (data.eventName) setEventName(data.eventName)
+        }
+      })
+      .catch(() => {})
+  }, [isStaff, accessCode])
 
   async function ensureEventId(): Promise<string | null> {
     if (eventId) return eventId
