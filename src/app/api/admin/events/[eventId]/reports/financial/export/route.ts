@@ -3,6 +3,7 @@ import { verifyFinancialReportAccess } from '@/lib/api-auth'
 import { generateFinancialCSV } from '@/lib/reports/generate-csv'
 import { renderToBuffer } from '@react-pdf/renderer'
 import { FinancialReportPDF } from '@/lib/reports/pdf-generator'
+import { withRenderLock } from '@/lib/pdf/render-lock'
 
 // Deep sanitize function to ensure all values are primitives
 function sanitizeForPDF(obj: any): any {
@@ -121,7 +122,7 @@ export async function POST(
         const pdfElement = FinancialReportPDF({ reportData, eventName })
         console.log('[Financial Export] PDF element created, calling renderToBuffer...')
 
-        const pdfBuffer = await renderToBuffer(pdfElement)
+        const pdfBuffer = await withRenderLock(() => renderToBuffer(pdfElement))
         console.log('[Financial Export] PDF generated, size:', pdfBuffer.length, 'bytes')
 
         if (!pdfBuffer || pdfBuffer.length < 100) {

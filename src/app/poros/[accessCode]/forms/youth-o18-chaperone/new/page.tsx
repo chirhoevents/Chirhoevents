@@ -569,7 +569,8 @@ export default function YouthO18ChaperoneForm() {
                     <div>
                       <span className="font-semibold">Medical Treatment Consent</span>
                       <p className="text-sm text-gray-600">
-                        I authorize event staff to obtain necessary medical treatment in case of emergency
+                        {formConfig?.sections.find(s => s.sectionKey === 'medical_release')?.waiverText
+                          || 'I authorize event staff to obtain necessary medical treatment in case of emergency'}
                       </p>
                     </div>
                   </label>
@@ -587,7 +588,7 @@ export default function YouthO18ChaperoneForm() {
                   <div>
                     <span className="font-semibold">Activity Participation &amp; Liability Waiver</span>
                     <p className="text-sm text-gray-600">
-                      I understand the risks and release the organization from liability
+                      {formConfig?.generalWaiverText || 'I understand the risks and release the organization from liability'}
                     </p>
                   </div>
                 </label>
@@ -605,7 +606,8 @@ export default function YouthO18ChaperoneForm() {
                     <div>
                       <span className="font-semibold">Photo &amp; Media Release</span>
                       <p className="text-sm text-gray-600">
-                        I consent to use of photos/videos for promotional purposes
+                        {formConfig?.sections.find(s => s.sectionKey === 'photo_video_consent')?.waiverText
+                          || 'I consent to use of photos/videos for promotional purposes'}
                       </p>
                     </div>
                   </label>
@@ -624,7 +626,8 @@ export default function YouthO18ChaperoneForm() {
                     <div>
                       <span className="font-semibold">Transportation Authorization</span>
                       <p className="text-sm text-gray-600">
-                        I authorize transportation to/from event activities
+                        {formConfig?.sections.find(s => s.sectionKey === 'transportation_consent')?.waiverText
+                          || 'I authorize transportation to/from event activities'}
                       </p>
                     </div>
                   </label>
@@ -643,7 +646,8 @@ export default function YouthO18ChaperoneForm() {
                     <div>
                       <span className="font-semibold">Emergency Treatment Authorization</span>
                       <p className="text-sm text-gray-600">
-                        I authorize event staff to consent to emergency medical treatment on my behalf if I cannot be reached
+                        {formConfig?.sections.find(s => s.sectionKey === 'emergency_treatment')?.waiverText
+                          || 'I authorize event staff to consent to emergency medical treatment on my behalf if I cannot be reached'}
                       </p>
                     </div>
                   </label>
