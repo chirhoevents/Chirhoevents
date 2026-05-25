@@ -313,7 +313,7 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
       </Card>
 
       {/* Staff & Vendors Section */}
-      {(staffStats?.totalCount ?? 0) > 0 && (
+      {staffStats !== null && (
         <div className="space-y-3">
           <Card className="overflow-hidden bg-white border-[#D1D5DB]">
             <div
