@@ -1,10 +1,10 @@
-import React from 'react'
 import { renderToBuffer } from '@react-pdf/renderer'
 import { prisma } from '@/lib/prisma'
 import YouthU18Template from './templates/youth-u18-template'
 import YouthO18ChaperoneTemplate from './templates/youth-o18-chaperone-template'
 import ClergyTemplate from './templates/clergy-template'
 import { withRenderLock } from './render-lock'
+import type React from 'react'
 
 // Type for form data with relations (from Prisma)
 interface LiabilityFormWithRelations {
@@ -66,6 +66,15 @@ interface LiabilityFormWithRelations {
   }>
 }
 
+/** Ensure a value is a plain string, never an object/Decimal/Date/React element. */
+function toSafeString(v: unknown, fallback = ''): string {
+  if (v === null || v === undefined) return fallback
+  if (typeof v === 'string') return v
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v)
+  if (v instanceof Date) return v.toLocaleDateString()
+  return fallback
+}
+
 export async function generateLiabilityFormPDF(
   formData: LiabilityFormWithRelations
 ): Promise<Buffer> {
@@ -104,55 +113,61 @@ export async function generateLiabilityFormPDF(
     orderBy: [{ eventId: 'asc' }, { updatedAt: 'desc' }],
   }).catch(() => null)
 
-  const eventName = formData.event?.name || ''
-  const orgName = formData.organization?.name || ''
+  const eventName = toSafeString(formData.event?.name)
+  const orgName = toSafeString(formData.organization?.name)
   const resolveText = (text: string | null | undefined) =>
     text
       ? text.replace(/\[Activity Name\]/g, eventName).replace(/\[Organization Name\]/g, orgName)
       : undefined
 
-  // Prepare common data structure
+  // Ensure signatureData is a plain object with string fields
+  const rawSig = formData.signatureData as Record<string, unknown> | null | undefined
+  const signatureData = {
+    full_legal_name: toSafeString(rawSig?.full_legal_name),
+    initials: toSafeString(rawSig?.initials),
+    date_signed: toSafeString(rawSig?.date_signed),
+    ip_address: rawSig?.ip_address ? toSafeString(rawSig.ip_address) : undefined,
+    sections_initialed: Array.isArray(rawSig?.sections_initialed)
+      ? (rawSig.sections_initialed as unknown[]).map(s => toSafeString(s)).filter(Boolean)
+      : undefined,
+  }
+
+  // Prepare common data — all values are plain primitives, no objects
   const commonData = {
-    id: formData.id,
-    eventName: formData.event?.name,
+    id: toSafeString(formData.id),
+    eventName: toSafeString(formData.event?.name) || undefined,
     eventDates,
-    organizationName: formData.organization?.name,
-    locationName: formData.event?.locationName || undefined,
+    organizationName: toSafeString(formData.organization?.name) || undefined,
+    locationName: toSafeString(formData.event?.locationName) || undefined,
     locationLine1,
     locationLine2,
     eventTime,
-    eventCoordinator: formData.organization?.contactName || undefined,
-    participantFirstName: formData.participantFirstName,
-    participantLastName: formData.participantLastName,
-    participantPreferredName: formData.participantPreferredName || undefined,
-    participantAge: formData.participantAge || undefined,
-    participantGender: formData.participantGender || undefined,
-    participantEmail: formData.participantEmail || undefined,
-    participantPhone: formData.participantPhone || undefined,
-    tShirtSize: formData.tShirtSize || undefined,
-    medicalConditions: formData.medicalConditions || undefined,
-    medications: formData.medications || undefined,
-    allergies: formData.allergies || undefined,
-    dietaryRestrictions: formData.dietaryRestrictions || undefined,
-    adaAccommodations: formData.adaAccommodations || undefined,
-    emergencyContact1Name: formData.emergencyContact1Name || undefined,
-    emergencyContact1Phone: formData.emergencyContact1Phone || undefined,
-    emergencyContact1Relation: formData.emergencyContact1Relation || undefined,
-    emergencyContact2Name: formData.emergencyContact2Name || undefined,
-    emergencyContact2Phone: formData.emergencyContact2Phone || undefined,
-    emergencyContact2Relation: formData.emergencyContact2Relation || undefined,
-    insuranceProvider: formData.insuranceProvider || undefined,
-    insurancePolicyNumber: formData.insurancePolicyNumber || undefined,
-    insuranceGroupNumber: formData.insuranceGroupNumber || undefined,
-    signatureData: formData.signatureData as {
-      full_legal_name: string
-      initials: string
-      date_signed: string
-      ip_address?: string
-      sections_initialed?: string[]
-    },
-    completedByEmail: formData.completedByEmail || undefined,
-    completedAt: formData.completedAt || undefined,
+    eventCoordinator: toSafeString(formData.organization?.contactName) || undefined,
+    participantFirstName: toSafeString(formData.participantFirstName),
+    participantLastName: toSafeString(formData.participantLastName),
+    participantPreferredName: toSafeString(formData.participantPreferredName) || undefined,
+    participantAge: typeof formData.participantAge === 'number' ? formData.participantAge : undefined,
+    participantGender: toSafeString(formData.participantGender) || undefined,
+    participantEmail: toSafeString(formData.participantEmail) || undefined,
+    participantPhone: toSafeString(formData.participantPhone) || undefined,
+    tShirtSize: toSafeString(formData.tShirtSize) || undefined,
+    medicalConditions: toSafeString(formData.medicalConditions) || undefined,
+    medications: toSafeString(formData.medications) || undefined,
+    allergies: toSafeString(formData.allergies) || undefined,
+    dietaryRestrictions: toSafeString(formData.dietaryRestrictions) || undefined,
+    adaAccommodations: toSafeString(formData.adaAccommodations) || undefined,
+    emergencyContact1Name: toSafeString(formData.emergencyContact1Name) || undefined,
+    emergencyContact1Phone: toSafeString(formData.emergencyContact1Phone) || undefined,
+    emergencyContact1Relation: toSafeString(formData.emergencyContact1Relation) || undefined,
+    emergencyContact2Name: toSafeString(formData.emergencyContact2Name) || undefined,
+    emergencyContact2Phone: toSafeString(formData.emergencyContact2Phone) || undefined,
+    emergencyContact2Relation: toSafeString(formData.emergencyContact2Relation) || undefined,
+    insuranceProvider: toSafeString(formData.insuranceProvider) || undefined,
+    insurancePolicyNumber: toSafeString(formData.insurancePolicyNumber) || undefined,
+    insuranceGroupNumber: toSafeString(formData.insuranceGroupNumber) || undefined,
+    signatureData,
+    completedByEmail: toSafeString(formData.completedByEmail) || undefined,
+    completedAt: formData.completedAt instanceof Date ? formData.completedAt : undefined,
     // Template wording (with placeholders resolved)
     generalWaiverText: resolveText(template?.generalWaiverText),
     medicalReleaseText: resolveText(template?.medicalReleaseText),
@@ -161,47 +176,60 @@ export async function generateLiabilityFormPDF(
     emergencyTreatmentText: resolveText(template?.emergencyTreatmentText),
   }
 
-  // Select template based on form type — pass component reference so react-pdf's
-  // reconciler calls it (matches the pattern used by the working invoice PDF route)
+  // Call template functions directly (not via React.createElement) so that
+  // renderToBuffer receives a <Document> element from @react-pdf/renderer,
+  // not a user-component wrapper.  Template functions don't use hooks so
+  // calling them as plain functions is safe.
   let element: React.ReactElement
 
   switch (formData.formType) {
     case 'youth_u18':
-      element = React.createElement(YouthU18Template, { data: commonData })
+      element = YouthU18Template({ data: commonData }) as React.ReactElement
       break
 
     case 'youth_o18_chaperone':
-      element = React.createElement(YouthO18ChaperoneTemplate, {
+      element = YouthO18ChaperoneTemplate({
         data: {
           ...commonData,
-          participantType: formData.participantType || undefined,
+          participantType: toSafeString(formData.participantType) || undefined,
           safeEnvironmentCertificates: formData.safeEnvironmentCertificates?.map(cert => ({
-            programName: cert.programName || undefined,
-            completionDate: cert.completionDate || undefined,
-            expirationDate: cert.expirationDate || undefined,
-            status: cert.status || undefined,
+            programName: toSafeString(cert.programName) || undefined,
+            completionDate: cert.completionDate instanceof Date ? cert.completionDate : undefined,
+            expirationDate: cert.expirationDate instanceof Date ? cert.expirationDate : undefined,
+            status: toSafeString(cert.status) || undefined,
           })),
         },
-      })
+      }) as React.ReactElement
       break
 
     case 'clergy':
     case 'religious':
-      element = React.createElement(ClergyTemplate, {
+      element = ClergyTemplate({
         data: {
           ...commonData,
-          clergyTitle: formData.clergyTitle || undefined,
-          dioceseOfIncardination: formData.dioceseOfIncardination || undefined,
-          currentAssignment: formData.currentAssignment || undefined,
-          facultyInformation: formData.facultyInformation || undefined,
-          needsHousing: formData.needsHousing || false,
+          clergyTitle: toSafeString(formData.clergyTitle) || undefined,
+          dioceseOfIncardination: toSafeString(formData.dioceseOfIncardination) || undefined,
+          currentAssignment: toSafeString(formData.currentAssignment) || undefined,
+          facultyInformation: toSafeString(formData.facultyInformation) || undefined,
+          needsHousing: formData.needsHousing === true,
         },
-      })
+      }) as React.ReactElement
       break
 
     default:
       throw new Error(`Unknown form type: ${formData.formType}`)
   }
 
-  return withRenderLock(() => renderToBuffer(element))
+  return withRenderLock(async () => {
+    try {
+      return await renderToBuffer(element)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      const stack = err instanceof Error ? err.stack : undefined
+      console.error('[generateLiabilityFormPDF] renderToBuffer failed:', msg)
+      if (stack) console.error('[generateLiabilityFormPDF] stack:', stack)
+      console.error('[generateLiabilityFormPDF] formType:', formData.formType, 'formId:', formData.id)
+      throw err
+    }
+  })
 }
