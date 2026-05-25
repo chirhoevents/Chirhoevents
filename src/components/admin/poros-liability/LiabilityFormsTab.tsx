@@ -70,6 +70,38 @@ interface Group {
   participants: Participant[]
 }
 
+interface StaffMember {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  role: string
+  isVendorStaff: boolean
+  tShirtSize: string | null
+  dietaryRestrictions: string | null
+  porosAccessCode: string | null
+  formStatus: string
+  formId: string | null
+  formCompleted: boolean
+  completedAt: string | null
+  approvedAt: string | null
+  approvedByName: string | null
+  deniedReason: string | null
+  allergies: string | null
+  medications: string | null
+  medicalConditions: string | null
+  emergencyContact1Name: string | null
+  emergencyContact1Phone: string | null
+}
+
+interface StaffStats {
+  totalCount: number
+  submittedCount: number
+  pendingCount: number
+  approvedCount: number
+}
+
 const BLANK_FORM_TYPES = [
   { value: 'youth_u18', label: 'Youth (Under 18)' },
   { value: 'youth_o18_chaperone', label: 'Adults & Chaperones' },
@@ -80,6 +112,9 @@ const BLANK_FORM_TYPES = [
 export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps) {
   const { getToken } = useAuth()
   const [groups, setGroups] = useState<Group[]>([])
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([])
+  const [staffStats, setStaffStats] = useState<StaffStats | null>(null)
+  const [staffExpanded, setStaffExpanded] = useState(false)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   const [printingGroups, setPrintingGroups] = useState<Set<string>>(new Set())
   const [downloadingBlank, setDownloadingBlank] = useState<string | null>(null)
@@ -91,6 +126,7 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
 
   useEffect(() => {
     fetchGroups()
+    fetchStaff()
   }, [eventId, filters])
 
   async function fetchGroups() {
@@ -114,6 +150,27 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
       console.error('Failed to fetch groups:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function fetchStaff() {
+    try {
+      const token = await getToken()
+      const params = new URLSearchParams({
+        status: filters.status,
+        search: filters.searchTerm,
+      })
+      const response = await fetch(
+        `/api/admin/events/${eventId}/poros-liability/staff?${params}`,
+        { headers: token ? { 'Authorization': `Bearer ${token}` } : {} }
+      )
+      if (response.ok) {
+        const data = await response.json()
+        setStaffMembers(data.members || [])
+        setStaffStats(data.stats || null)
+      }
+    } catch (error) {
+      console.error('Failed to fetch staff forms:', error)
     }
   }
 
@@ -254,6 +311,78 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
           Download a pre-filled event header form for participants who prefer to complete a paper copy in person.
         </p>
       </Card>
+
+      {/* Staff & Vendors Section */}
+      {(staffStats?.totalCount ?? 0) > 0 && (
+        <div className="space-y-3">
+          <Card className="overflow-hidden bg-white border-[#D1D5DB]">
+            <div
+              className="p-4 bg-gray-50 cursor-pointer hover:bg-gray-100 transition"
+              onClick={() => setStaffExpanded(!staffExpanded)}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {staffExpanded ? (
+                    <ChevronDown className="w-5 h-5 text-gray-600" />
+                  ) : (
+                    <ChevronRight className="w-5 h-5 text-gray-600" />
+                  )}
+                  <div>
+                    <h3 className="font-semibold text-[#1E3A5F]">Staff, Volunteers &amp; Vendors</h3>
+                    <p className="text-sm text-gray-600">
+                      {staffStats?.submittedCount ?? 0} of {staffStats?.totalCount ?? 0} forms submitted
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="text-sm">
+                    <span className="font-medium">{staffStats?.submittedCount ?? 0}</span>
+                    <span className="text-gray-600"> / {staffStats?.totalCount ?? 0} forms</span>
+                  </div>
+                  <div className="flex gap-2">
+                    {(staffStats?.approvedCount ?? 0) > 0 && (
+                      <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3" />
+                        {staffStats!.approvedCount}
+                      </span>
+                    )}
+                    {(staffStats?.pendingCount ?? 0) > 0 && (
+                      <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {staffStats!.pendingCount}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {staffExpanded && (
+              <div className="p-4 border-t">
+                {staffMembers.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-4">
+                    No matching forms found
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {staffMembers.map((member) => (
+                      <StaffMemberRow
+                        key={member.id}
+                        member={member}
+                        eventId={eventId}
+                        onUpdate={() => {
+                          fetchStaff()
+                          onUpdate()
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
 
       {/* Groups List */}
       <div className="space-y-3">
@@ -410,6 +539,251 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
           ))
         )}
       </div>
+    </div>
+  )
+}
+
+// Staff Member Row Component
+function StaffMemberRow({
+  member,
+  eventId,
+  onUpdate,
+}: {
+  member: StaffMember
+  eventId: string
+  onUpdate: () => void
+}) {
+  const { getToken } = useAuth()
+  const [showDetails, setShowDetails] = useState(false)
+  const [processing, setProcessing] = useState(false)
+
+  async function handleApprove() {
+    if (!member.formId) return
+    if (!confirm(`Approve liability form for ${member.firstName} ${member.lastName}?`)) return
+
+    setProcessing(true)
+    try {
+      const token = await getToken()
+      const response = await fetch(
+        `/api/admin/events/${eventId}/poros-liability/forms/${member.formId}/approve`,
+        { method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      )
+      if (response.ok) {
+        onUpdate()
+      } else {
+        const err = await response.json()
+        alert(`Failed to approve: ${err.error}`)
+      }
+    } catch {
+      alert('Failed to approve form')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  async function handleDeny() {
+    if (!member.formId) return
+    const reason = prompt(`Enter reason for denying ${member.firstName} ${member.lastName}'s form:`)
+    if (!reason) return
+
+    setProcessing(true)
+    try {
+      const token = await getToken()
+      const response = await fetch(
+        `/api/admin/events/${eventId}/poros-liability/forms/${member.formId}/deny`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ reason }),
+        }
+      )
+      if (response.ok) {
+        onUpdate()
+      } else {
+        const err = await response.json()
+        alert(`Failed to deny: ${err.error}`)
+      }
+    } catch {
+      alert('Failed to deny form')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const hasMedicalInfo = member.allergies || member.medications || member.medicalConditions
+  const statusLabel =
+    member.formStatus === 'not_submitted' ? 'Not Submitted' :
+    member.formStatus === 'pending' ? 'Pending Review' :
+    member.formStatus === 'approved' ? 'Approved' :
+    member.formStatus === 'denied' ? 'Denied' : member.formStatus
+
+  return (
+    <div className="border rounded-lg overflow-hidden">
+      <div className="p-3 flex items-center justify-between bg-white hover:bg-gray-50">
+        <div className="flex-1">
+          <div className="flex items-center gap-3">
+            {member.formStatus === 'approved' ? (
+              <CheckCircle className="w-5 h-5 text-green-600" />
+            ) : member.formStatus === 'pending' ? (
+              <Clock className="w-5 h-5 text-yellow-600" />
+            ) : member.formStatus === 'denied' ? (
+              <XCircle className="w-5 h-5 text-red-600" />
+            ) : (
+              <Clock className="w-5 h-5 text-gray-400" />
+            )}
+
+            <div className="flex-1">
+              <div className="font-medium text-[#1E3A5F]">
+                {member.firstName} {member.lastName}
+                {member.isVendorStaff && (
+                  <span className="ml-2 text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded">
+                    Vendor
+                  </span>
+                )}
+              </div>
+              <div className="text-sm text-gray-600">
+                {member.role} · {statusLabel}
+              </div>
+            </div>
+
+            {hasMedicalInfo && (
+              <div className="px-3 py-1 bg-red-50 border border-red-200 rounded text-xs text-red-700 flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3" />
+                Medical Info
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="ghost" onClick={() => setShowDetails(!showDetails)} title="View Details">
+            <Eye className="w-4 h-4" />
+          </Button>
+
+          {member.formId && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => window.open(`/api/liability/forms/${member.formId}/pdf`, '_blank')}
+              title="Download PDF"
+            >
+              <Download className="w-4 h-4" />
+            </Button>
+          )}
+
+          {member.formId && member.formStatus === 'pending' && (
+            <>
+              <Button
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 text-white"
+                onClick={handleApprove}
+                disabled={processing}
+              >
+                <CheckCircle className="w-4 h-4 mr-1" />
+                Approve
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-red-300 text-red-600 hover:bg-red-50"
+                onClick={handleDeny}
+                disabled={processing}
+              >
+                <XCircle className="w-4 h-4 mr-1" />
+                Deny
+              </Button>
+            </>
+          )}
+
+          {!member.formCompleted && (
+            <span className="text-xs text-gray-400 px-2">No form yet</span>
+          )}
+        </div>
+      </div>
+
+      {showDetails && (
+        <div className="p-4 bg-gray-50 border-t">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            {hasMedicalInfo && (
+              <div className="col-span-full">
+                <h4 className="font-semibold text-red-700 mb-2 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" />
+                  Medical Information
+                </h4>
+                <Card className="p-3 bg-red-50 border-red-200">
+                  {member.allergies && (
+                    <div className="mb-2">
+                      <span className="font-medium">Allergies:</span>
+                      <p className="text-red-700">{member.allergies}</p>
+                    </div>
+                  )}
+                  {member.medications && (
+                    <div className="mb-2">
+                      <span className="font-medium">Medications:</span>
+                      <p className="text-red-700">{member.medications}</p>
+                    </div>
+                  )}
+                  {member.medicalConditions && (
+                    <div>
+                      <span className="font-medium">Conditions:</span>
+                      <p className="text-red-700">{member.medicalConditions}</p>
+                    </div>
+                  )}
+                </Card>
+              </div>
+            )}
+
+            <div>
+              <span className="text-gray-600">Email:</span>
+              <p className="font-medium">{member.email}</p>
+            </div>
+            <div>
+              <span className="text-gray-600">Phone:</span>
+              <p className="font-medium">{member.phone}</p>
+            </div>
+            {member.tShirtSize && (
+              <div>
+                <span className="text-gray-600">Shirt Size:</span>
+                <p className="font-medium">{member.tShirtSize}</p>
+              </div>
+            )}
+            {member.emergencyContact1Name && (
+              <div>
+                <span className="text-gray-600">Emergency Contact:</span>
+                <p className="font-medium">{member.emergencyContact1Name}</p>
+                <p className="text-xs text-gray-500">{member.emergencyContact1Phone}</p>
+              </div>
+            )}
+            {member.completedAt && (
+              <div>
+                <span className="text-gray-600">Submitted:</span>
+                <p className="font-medium">{new Date(member.completedAt).toLocaleDateString()}</p>
+              </div>
+            )}
+
+            {member.formStatus === 'approved' && member.approvedAt && (
+              <div className="col-span-full pt-3 border-t">
+                <span className="text-green-600 font-medium">Approved</span>
+                {member.approvedByName && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    by {member.approvedByName} on {new Date(member.approvedAt).toLocaleString()}
+                  </p>
+                )}
+              </div>
+            )}
+            {member.formStatus === 'denied' && member.deniedReason && (
+              <div className="col-span-full pt-3 border-t">
+                <div className="p-2 bg-red-50 border border-red-200 rounded text-xs">
+                  <span className="font-medium">Denied — Reason:</span> {member.deniedReason}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
