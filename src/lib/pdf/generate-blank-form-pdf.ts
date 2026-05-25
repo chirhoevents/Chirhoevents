@@ -1,7 +1,7 @@
-import React from 'react'
 import { renderToBuffer } from '@react-pdf/renderer'
 import BlankFormTemplate, { BlankFormType } from './templates/blank-form-template'
 import { withRenderLock } from './render-lock'
+import type React from 'react'
 
 interface EventData {
   name: string
@@ -98,5 +98,16 @@ export async function generateBlankFormPDF(
       : undefined,
   }
 
-  return withRenderLock(() => renderToBuffer(React.createElement(BlankFormTemplate, { data }) as React.ReactElement))
+  // Call template as plain function so renderToBuffer receives the <Document>
+  // element directly rather than a user-component wrapper
+  const element = BlankFormTemplate({ data }) as React.ReactElement
+  return withRenderLock(async () => {
+    try {
+      return await renderToBuffer(element)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error('[generateBlankFormPDF] renderToBuffer failed:', msg, 'formType:', formType)
+      throw err
+    }
+  })
 }
