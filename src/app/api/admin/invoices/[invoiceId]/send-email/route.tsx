@@ -123,6 +123,25 @@ export async function POST(
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
 
+    // Fetch billing address settings
+    const billingSettings = await prisma.platformSetting.findMany({
+      where: {
+        settingKey: {
+          in: ['check_enabled', 'check_payable_to', 'billing_address_line1', 'billing_address_line2', 'billing_address_city', 'billing_address_state', 'billing_address_zip'],
+        },
+      },
+    })
+    const bsMap: Record<string, string> = {}
+    billingSettings.forEach((s: { settingKey: string; settingValue: string }) => { bsMap[s.settingKey] = s.settingValue })
+    const checkEnabled = bsMap.check_enabled !== 'false'
+    const checkPayableTo = bsMap.check_payable_to || 'ChiRho Events'
+    const billingLine1 = bsMap.billing_address_line1 || ''
+    const billingLine2 = bsMap.billing_address_line2 || ''
+    const billingCity = bsMap.billing_address_city || ''
+    const billingState = bsMap.billing_address_state || ''
+    const billingZip = bsMap.billing_address_zip || ''
+    const hasAddress = billingLine1 && billingCity && billingState && billingZip
+
     if (!invoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
     }
@@ -246,11 +265,21 @@ export async function POST(
                   </p>
                   <hr style="border: none; border-top: 1px solid #E5E7EB; margin: 20px 0;" />
                 ` : ''}
-                <p><strong>Other Payment Options:</strong></p>
-                <ul style="color: #666;">
-                  <li><strong>Check:</strong> Make payable to "ChirhoEvents" and mail to our billing address</li>
-                  <li><strong>ACH/Wire:</strong> Contact support@chirhoevents.com for banking details</li>
-                </ul>
+                ${checkEnabled ? `
+                <div style="margin: 24px 0; padding: 20px; background: #f9f6f2; border: 1px solid #d4c4a8; border-radius: 8px;">
+                  <p style="margin: 0 0 8px; font-size: 15px; font-weight: bold; color: #1E3A5F;">Pay by Check / Money Order</p>
+                  <p style="margin: 0 0 4px; font-size: 14px; color: #555;">Make check payable to: <strong>${checkPayableTo}</strong></p>
+                  ${hasAddress ? `
+                  <p style="margin: 8px 0 0; font-size: 14px; color: #555;">Mail to:<br>
+                    <strong style="color: #1E3A5F;">${checkPayableTo}</strong><br>
+                    ${billingLine1}<br>
+                    ${billingLine2 ? billingLine2 + '<br>' : ''}
+                    ${billingCity}, ${billingState} ${billingZip}
+                  </p>
+                  <p style="margin: 8px 0 0; font-size: 13px; color: #888;">Please include invoice number <strong>#${invoice.invoiceNumber}</strong> on the memo line.</p>
+                  ` : `<p style="margin: 8px 0 0; font-size: 13px; color: #888;">Contact us at <a href="mailto:billing@chirhoevents.com" style="color: #1E3A5F;">billing@chirhoevents.com</a> for our mailing address.</p>`}
+                </div>
+                ` : ''}
                 <p>If you have any questions about this invoice, please contact us at support@chirhoevents.com.</p>
               ` : `
                 <p>Thank you for your payment!</p>

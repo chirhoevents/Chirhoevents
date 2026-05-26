@@ -51,6 +51,40 @@ export async function POST(
     const toEmail = customEmail || invoice.organization.contactEmail
     const dueDate = new Date(invoice.dueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 
+    // Fetch billing address settings
+    const billingSettings = await prisma.platformSetting.findMany({
+      where: {
+        settingKey: {
+          in: ['check_enabled', 'check_payable_to', 'billing_address_line1', 'billing_address_line2', 'billing_address_city', 'billing_address_state', 'billing_address_zip'],
+        },
+      },
+    })
+    const bsMap: Record<string, string> = {}
+    billingSettings.forEach((s: { settingKey: string; settingValue: string }) => { bsMap[s.settingKey] = s.settingValue })
+    const checkEnabled = bsMap.check_enabled !== 'false'
+    const checkPayableTo = bsMap.check_payable_to || 'ChiRho Events'
+    const billingLine1 = bsMap.billing_address_line1 || ''
+    const billingLine2 = bsMap.billing_address_line2 || ''
+    const billingCity = bsMap.billing_address_city || ''
+    const billingState = bsMap.billing_address_state || ''
+    const billingZip = bsMap.billing_address_zip || ''
+    const hasAddress = billingLine1 && billingCity && billingState && billingZip
+    const checkAddressHtml = checkEnabled ? `
+      <div style="margin: 24px 0; padding: 20px; background: #f9f6f2; border: 1px solid #d4c4a8; border-radius: 8px;">
+        <p style="margin: 0 0 8px; font-size: 15px; font-weight: bold; color: #1E3A5F;">Pay by Check / Money Order</p>
+        <p style="margin: 0 0 4px; font-size: 14px; color: #555;">Make check payable to: <strong>${checkPayableTo}</strong></p>
+        ${hasAddress ? `
+        <p style="margin: 8px 0 0; font-size: 14px; color: #555;">Mail to:<br>
+          <strong style="color: #1E3A5F;">${checkPayableTo}</strong><br>
+          ${billingLine1}<br>
+          ${billingLine2 ? billingLine2 + '<br>' : ''}
+          ${billingCity}, ${billingState} ${billingZip}
+        </p>
+        <p style="margin: 8px 0 0; font-size: 13px; color: #888;">Please include your invoice number <strong>#${invoice.invoiceNumber}</strong> on the memo line.</p>
+        ` : `<p style="margin: 8px 0 0; font-size: 13px; color: #888;">Contact us at <a href="mailto:billing@chirhoevents.com" style="color: #1E3A5F;">billing@chirhoevents.com</a> for our mailing address.</p>`}
+      </div>
+    ` : ''
+
     const invoiceTypeLabels: Record<string, string> = {
       setup_fee: 'Setup Fee',
       subscription: 'Subscription',
@@ -84,12 +118,13 @@ export async function POST(
                 </div>
                 <div style="text-align: center; margin: 30px 0;">
                   <a href="${paymentUrl}" style="display: inline-block; background: #9C8466; color: white; padding: 15px 40px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
-                    Pay Now
+                    Pay Online Now
                   </a>
                 </div>
                 <p style="font-size: 13px; color: #666; text-align: center;">
                   Or copy this link: <a href="${paymentUrl}" style="color: #1E3A5F;">${paymentUrl}</a>
                 </p>
+                ${checkAddressHtml}
                 <p>If you have any questions, please contact us at <a href="mailto:support@chirhoevents.com" style="color: #1E3A5F;">support@chirhoevents.com</a>.</p>
               </div>
               <div style="text-align: center; padding: 20px; color: #6B7280; font-size: 12px;">
