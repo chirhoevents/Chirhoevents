@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyReportAccess } from '@/lib/api-auth'
 import { generateRegistrationCSV } from '@/lib/reports/generate-csv'
-import { renderToBuffer } from '@react-pdf/renderer'
-import { RegistrationReportPDF } from '@/lib/reports/pdf-generator'
-import { withRenderLock } from '@/lib/pdf/render-lock'
+import { generateRegistrationReportPDF } from '@/lib/reports/generate-report-pdfs'
 
 // Deep sanitize function to ensure all values are primitives
 function sanitizeForPDF(obj: any): any {
@@ -141,19 +139,10 @@ export async function POST(
       console.log('[Registration Export] Top groups sample:', reportData?.topGroups?.slice(0, 2))
 
       try {
-        // Call the component function directly - it returns a <Document> element
-        const pdfElement = RegistrationReportPDF({ reportData, eventName })
-        console.log('[Registration Export] PDF element created, calling renderToBuffer...')
-
-        const pdfBuffer = await withRenderLock(() => renderToBuffer(pdfElement))
+        const pdfBuffer = await generateRegistrationReportPDF(reportData, eventName)
         console.log('[Registration Export] PDF generated, size:', pdfBuffer.length, 'bytes')
 
-        if (!pdfBuffer || pdfBuffer.length < 100) {
-          console.error('[Registration Export] PDF buffer too small:', pdfBuffer?.length)
-          return NextResponse.json({ error: 'PDF generation failed' }, { status: 500 })
-        }
-
-        return new NextResponse(Buffer.from(pdfBuffer), {
+        return new NextResponse(new Uint8Array(pdfBuffer), {
           headers: {
             'Content-Type': 'application/pdf',
             'Content-Disposition': `attachment; filename="registration_report_${eventName.replace(/\s+/g, '_')}.pdf"`,
@@ -161,7 +150,6 @@ export async function POST(
         })
       } catch (pdfError: any) {
         console.error('[Registration Export] PDF generation error:', pdfError?.message || pdfError)
-        console.error('[Registration Export] PDF error stack:', pdfError?.stack)
         return NextResponse.json({ error: 'PDF generation failed: ' + String(pdfError?.message || pdfError) }, { status: 500 })
       }
     }

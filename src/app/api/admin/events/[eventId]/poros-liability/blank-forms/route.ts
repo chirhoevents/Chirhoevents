@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { generateBlankFormPDF } from '@/lib/pdf/generate-blank-form-pdf'
-import type { BlankFormType } from '@/lib/pdf/templates/blank-form-template'
+import type { BlankFormType } from '@/lib/pdf/generate-blank-form-pdf'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'

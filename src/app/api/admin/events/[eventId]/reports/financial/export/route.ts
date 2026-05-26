@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyFinancialReportAccess } from '@/lib/api-auth'
 import { generateFinancialCSV } from '@/lib/reports/generate-csv'
-import { renderToBuffer } from '@react-pdf/renderer'
-import { FinancialReportPDF } from '@/lib/reports/pdf-generator'
-import { withRenderLock } from '@/lib/pdf/render-lock'
+import { generateFinancialReportPDF } from '@/lib/reports/generate-report-pdfs'
 
 // Deep sanitize function to ensure all values are primitives
 function sanitizeForPDF(obj: any): any {
@@ -118,19 +116,10 @@ export async function POST(
       console.log('[Financial Export] Starting PDF generation with sanitized data...')
 
       try {
-        // Call the component function directly - it returns a <Document> element
-        const pdfElement = FinancialReportPDF({ reportData, eventName })
-        console.log('[Financial Export] PDF element created, calling renderToBuffer...')
-
-        const pdfBuffer = await withRenderLock(() => renderToBuffer(pdfElement))
+        const pdfBuffer = await generateFinancialReportPDF(reportData, eventName)
         console.log('[Financial Export] PDF generated, size:', pdfBuffer.length, 'bytes')
 
-        if (!pdfBuffer || pdfBuffer.length < 100) {
-          console.error('[Financial Export] PDF buffer too small:', pdfBuffer?.length)
-          return NextResponse.json({ error: 'PDF generation failed' }, { status: 500 })
-        }
-
-        return new NextResponse(Buffer.from(pdfBuffer), {
+        return new NextResponse(new Uint8Array(pdfBuffer), {
           headers: {
             'Content-Type': 'application/pdf',
             'Content-Disposition': `attachment; filename="financial_report_${eventName.replace(/\s+/g, '_')}.pdf"`,
