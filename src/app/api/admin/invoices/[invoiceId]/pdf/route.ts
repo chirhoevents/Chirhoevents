@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
-import { renderToBuffer } from '@react-pdf/renderer'
-import { InvoicePDF } from '@/components/pdf/InvoicePDF'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
-import { withRenderLock } from '@/lib/pdf/render-lock'
-import type React from 'react'
+import { generateInvoicePDF } from '@/lib/pdf/generate-invoice-pdf'
 
-// Must use Node.js runtime for @react-pdf/renderer (not Edge)
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
@@ -17,7 +13,6 @@ const tierLabels: Record<string, string> = {
   cathedral: 'Cathedral',
   shrine: 'Shrine',
   basilica: 'Basilica',
-  // Legacy tier names for backward compatibility
   small_diocese: 'Parish',
   growing: 'Cathedral',
   conference: 'Shrine',
@@ -44,7 +39,6 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Verify user has access (org_admin or master_admin)
     const user = await prisma.user.findFirst({
       where: { clerkUserId },
       include: { organization: true },
@@ -80,14 +74,12 @@ export async function GET(
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
     }
 
-    // Check access: master_admin can see all, org_admin can only see their org's invoices
     if (user.role !== 'master_admin') {
       if (organizationId !== invoice.organizationId) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
     }
 
-    // Prepare invoice data for PDF
     const invoiceData = {
       invoiceNumber: invoice.invoiceNumber,
       invoiceType: invoiceTypeLabels[invoice.invoiceType] || invoice.invoiceType,
@@ -111,20 +103,8 @@ export async function GET(
       },
     }
 
-    // Call component as plain function so renderToBuffer receives the Document
-    // element directly (no user-component wrapper around it)
-    const element = InvoicePDF({ invoice: invoiceData }) as React.ReactElement
-    const pdfBuffer = await withRenderLock(async () => {
-      try {
-        return await renderToBuffer(element)
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err)
-        console.error('[Invoice PDF] renderToBuffer failed:', msg, 'invoiceId:', invoiceId)
-        throw err
-      }
-    })
+    const pdfBuffer = await generateInvoicePDF(invoiceData)
 
-    // Return PDF as response (convert Buffer to Uint8Array for NextResponse)
     return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,
       headers: {
@@ -133,7 +113,7 @@ export async function GET(
       },
     })
   } catch (error) {
-    console.error('Invoice PDF generation error:', error)
+    console.error('[Invoice PDF] generation error:', error)
     return NextResponse.json(
       { error: 'Failed to generate invoice PDF' },
       { status: 500 }
