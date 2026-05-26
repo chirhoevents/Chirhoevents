@@ -100,10 +100,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Fix #1 (individual): Guard — org must have Stripe onboarding complete before accepting card payments
-    if (!event.organization.stripeAccountId || !event.organization.stripeChargesEnabled) {
+    // Stripe is only required for card payments
+    if (paymentMethod === 'card' && (!event.organization.stripeAccountId || !event.organization.stripeChargesEnabled)) {
       return NextResponse.json(
-        { error: 'This organization has not completed payment setup. Registration cannot be processed at this time. Please contact the event organizer.' },
+        { error: 'This organization has not completed payment setup. Please use the Pay Later option or contact the event organizer.' },
         { status: 400 }
       )
     }

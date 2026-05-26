@@ -587,18 +587,16 @@ export default function InvoiceReviewPage() {
                   )}
                 </Button>
 
-                {event?.settings.checkPaymentEnabled && (
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => setShowCheckModal(true)}
-                    disabled={submitting}
-                  >
-                    <FileText className="mr-2 h-5 w-5" />
-                    Pay Later
-                  </Button>
-                )}
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setShowCheckModal(true)}
+                  disabled={submitting}
+                >
+                  <FileText className="mr-2 h-5 w-5" />
+                  Pay Later
+                </Button>
               </div>
             </div>
 

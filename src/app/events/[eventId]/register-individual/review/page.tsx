@@ -618,6 +618,15 @@ export default function IndividualInvoiceReviewPage() {
                         </>
                       )}
                     </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowCheckModal(true)}
+                      disabled={submitting}
+                      className="w-full"
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Pay Later
+                    </Button>
                   </div>
 
                   <div className="bg-beige p-4 rounded-md text-xs text-gray-600">
