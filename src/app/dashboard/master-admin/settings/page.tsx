@@ -29,6 +29,13 @@ interface SettingsData {
   stripe_enabled: string
   invoice_enabled: string
   ach_enabled: string
+  check_enabled: string
+  check_payable_to: string
+  billing_address_line1: string
+  billing_address_line2: string
+  billing_address_city: string
+  billing_address_state: string
+  billing_address_zip: string
   starter_monthly: string
   starter_annual: string
   parish_monthly: string
@@ -455,6 +462,111 @@ export default function SettingsPage() {
                   }`}
                 />
               </button>
+            </div>
+
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div>
+                <p className="font-medium text-gray-900">Check / Money Order</p>
+                <p className="text-sm text-gray-500">Show check mailing option on invoices</p>
+              </div>
+              <button
+                onClick={() => handleToggle('check_enabled')}
+                className={`relative w-12 h-6 rounded-full transition-colors ${
+                  settings.check_enabled === 'true' ? 'bg-green-500' : 'bg-gray-300'
+                }`}
+              >
+                <span
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                    settings.check_enabled === 'true' ? 'left-7' : 'left-1'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Check Billing Address */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <CreditCard className="h-5 w-5 text-purple-600" />
+            <h2 className="text-lg font-semibold text-gray-900">Check / Mail-In Billing Address</h2>
+          </div>
+          <p className="text-sm text-gray-500 mb-4">
+            This address appears on invoice emails so clients know where to mail checks.
+          </p>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Make Check Payable To
+              </label>
+              <input
+                type="text"
+                value={settings.check_payable_to}
+                onChange={(e) => handleChange('check_payable_to', e.target.value)}
+                placeholder="ChiRho Events"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Address Line 1
+              </label>
+              <input
+                type="text"
+                value={settings.billing_address_line1}
+                onChange={(e) => handleChange('billing_address_line1', e.target.value)}
+                placeholder="123 Main St"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Address Line 2 <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={settings.billing_address_line2}
+                onChange={(e) => handleChange('billing_address_line2', e.target.value)}
+                placeholder="Suite 100"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                <input
+                  type="text"
+                  value={settings.billing_address_city}
+                  onChange={(e) => handleChange('billing_address_city', e.target.value)}
+                  placeholder="City"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                />
+              </div>
+              <div className="col-span-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+                <input
+                  type="text"
+                  value={settings.billing_address_state}
+                  onChange={(e) => handleChange('billing_address_state', e.target.value)}
+                  placeholder="TX"
+                  maxLength={2}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                />
+              </div>
+              <div className="col-span-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">ZIP Code</label>
+                <input
+                  type="text"
+                  value={settings.billing_address_zip}
+                  onChange={(e) => handleChange('billing_address_zip', e.target.value)}
+                  placeholder="78201"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                />
+              </div>
             </div>
           </div>
         </div>
