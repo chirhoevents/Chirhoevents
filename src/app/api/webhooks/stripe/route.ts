@@ -39,12 +39,26 @@ export async function POST(request: NextRequest) {
   let event: Stripe.Event
 
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    )
-    console.log('✅ Webhook signature verified, event type:', event.type)
+    // Try the platform webhook secret first, fall back to the connected accounts secret.
+    // This lets a single endpoint handle both webhook destinations.
+    const secrets = [
+      process.env.STRIPE_PLATFORM_WEBHOOK_SECRET,
+      process.env.STRIPE_WEBHOOK_SECRET,
+    ].filter(Boolean) as string[]
+
+    let verified = false
+    for (const secret of secrets) {
+      try {
+        event = stripe.webhooks.constructEvent(body, signature, secret)
+        verified = true
+        break
+      } catch {
+        // try next secret
+      }
+    }
+
+    if (!verified) throw new Error('No matching webhook secret')
+    console.log('✅ Webhook signature verified, event type:', event!.type)
   } catch (err: any) {
     console.error('❌ Webhook signature verification failed:', err.message)
     return NextResponse.json(
