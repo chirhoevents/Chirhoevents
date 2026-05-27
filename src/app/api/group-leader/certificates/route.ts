@@ -19,7 +19,11 @@ export async function GET(request: NextRequest) {
       include: {
         participants: {
           where: {
-            participantType: 'chaperone',
+            // Include chaperones AND all clergy/religious types — seminarians,
+            // deacons, etc. all require Safe Environment certificates.
+            participantType: {
+              in: ['chaperone', 'priest', 'deacon', 'seminarian', 'religious_sister', 'religious_brother'],
+            },
           },
           select: {
             id: true,
@@ -67,7 +71,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       groupId: groupRegistration.id,
       groupName: groupRegistration.groupName,
-      chaperoneCount: groupRegistration.chaperoneCount,
+      // Use actual participant count so clergy/religious are included in totals
+      chaperoneCount: certificates.length,
       certificates,
     })
   } catch (error) {
