@@ -281,10 +281,14 @@ export default function EditGroupRegistrationModal({
         adminNotes: '',
       })
 
-      // Initialize inventory counts from registration data
+      // Initialize inventory counts from registration data. Only initialize
+      // once per registration load — once the user starts editing counters,
+      // don't clobber their in-progress edits when other state updates trigger
+      // this effect.
       const priestCount = (regData as any).priestCount || 0
-      const youthCount = (regData as any).youthCount || 0
-      const chaperoneCount = (regData as any).chaperoneCount || 0
+      let youthCount = (regData as any).youthCount || 0
+      let chaperoneCount = (regData as any).chaperoneCount || 0
+      const storedTotal = (regData as any).totalParticipants || 0
 
       // Nullable Int fields come back as `null` (not `undefined`), so checking
       // `!== undefined` would be true even when no inventory was recorded —
@@ -298,6 +302,14 @@ export default function EditGroupRegistrationModal({
         (regData as any).dayPassChaperones,
       ]
       const hasInventoryData = inventoryValues.some(v => typeof v === 'number' && v > 0)
+
+      // Safety net for data inconsistency: if the breakdown counters are all
+      // zero but totalParticipants is positive, treat everyone as youth so the
+      // headcount surfaces somewhere. The admin can then reassign within the
+      // inventory editor.
+      if (!hasInventoryData && youthCount === 0 && chaperoneCount === 0 && priestCount === 0 && storedTotal > 0) {
+        youthCount = storedTotal
+      }
 
       if (hasInventoryData) {
         // Use new inventory-style fields

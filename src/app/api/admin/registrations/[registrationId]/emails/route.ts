@@ -31,7 +31,7 @@ export async function GET(
 
     console.log('[GET /emails] User found:', { id: user?.id, role: user?.role })
 
-    if (!user || user.role !== 'org_admin') {
+    if (!user || (user.role !== 'org_admin' && user.role !== 'master_admin')) {
       console.log('[GET /emails] Forbidden - not org admin')
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -117,7 +117,7 @@ export async function POST(
       include: { organization: true },
     })
 
-    if (!user || user.role !== 'org_admin') {
+    if (!user || (user.role !== 'org_admin' && user.role !== 'master_admin')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

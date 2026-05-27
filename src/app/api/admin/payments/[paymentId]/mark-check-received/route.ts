@@ -23,7 +23,7 @@ export async function POST(
       include: { organization: true },
     })
 
-    if (!user || user.role !== 'org_admin') {
+    if (!user || (user.role !== 'org_admin' && user.role !== 'master_admin')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
