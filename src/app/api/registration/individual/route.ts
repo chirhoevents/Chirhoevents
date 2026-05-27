@@ -302,7 +302,7 @@ export async function POST(request: NextRequest) {
         gender: body.gender || null,
         ticketType: body.ticketType || 'general_admission',
         dayPassOptionId: body.dayPassOptionId || null,
-        housingType,
+        housingType: housingType || null,
         roomType: body.roomType || null,
         preferredRoommate: body.preferredRoommate || null,
         tShirtSize: body.tShirtSize || null,

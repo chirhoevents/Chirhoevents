@@ -102,6 +102,8 @@ export default function IntegrationsSettingsTab() {
   const [showSetupHelp, setShowSetupHelp] = useState(false)
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({})
   const [stripeEmail, setStripeEmail] = useState('')
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
     fetchIntegrations()
@@ -165,6 +167,25 @@ export default function IntegrationsSettingsTab() {
 
   const toggleSection = (section: string) => {
     setOpenSections(prev => ({ ...prev, [section]: !prev[section] }))
+  }
+
+  const handleSyncStatus = async () => {
+    setIsSyncing(true)
+    setSyncMessage(null)
+    try {
+      const token = await getToken()
+      const response = await fetch('/api/stripe/sync-status', {
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
+      if (!response.ok) throw new Error('Sync failed')
+      await fetchIntegrations()
+      setSyncMessage({ type: 'success', text: 'Status synced from Stripe successfully.' })
+    } catch {
+      setSyncMessage({ type: 'error', text: 'Failed to sync status. Please try again.' })
+    } finally {
+      setIsSyncing(false)
+    }
   }
 
   if (isLoading) {
@@ -474,15 +495,46 @@ export default function IntegrationsSettingsTab() {
                         <ul className="mt-2 text-sm text-green-700 list-disc list-inside">
                           <li>Stripe typically reviews and approves within a few minutes</li>
                           <li>You&apos;ll receive an email when your account is fully activated</li>
-                          <li>Refresh this page to see updated status</li>
+                          <li>Click &quot;Sync Status from Stripe&quot; below to enable payments immediately</li>
                         </ul>
+                      </div>
+
+                      <div className="mt-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-blue-800 font-medium">Already completed setup in Stripe?</p>
+                        <p className="mt-1 text-sm text-blue-700">
+                          If your Stripe account has been activated but this page still shows &quot;Charges disabled&quot;,
+                          click the <strong>Sync Status from Stripe</strong> button below. This pulls the latest
+                          status from Stripe and enables payments in your account.
+                        </p>
+                        <Button
+                          className="mt-3 bg-blue-600 hover:bg-blue-700 text-white"
+                          onClick={handleSyncStatus}
+                          disabled={isSyncing}
+                        >
+                          {isSyncing ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Syncing...
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-2" />
+                              Sync Status from Stripe
+                            </>
+                          )}
+                        </Button>
+                        {syncMessage && (
+                          <p className={`mt-2 text-sm font-medium ${syncMessage.type === 'success' ? 'text-green-700' : 'text-red-600'}`}>
+                            {syncMessage.text}
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}
                 </div>
               )}
 
-              <div className="flex gap-2 pt-2">
+              <div className="flex gap-2 pt-2 flex-wrap">
                 <Button
                   variant="outline"
                   onClick={() => window.open('https://dashboard.stripe.com', '_blank')}
@@ -492,12 +544,27 @@ export default function IntegrationsSettingsTab() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={fetchIntegrations}
+                  onClick={handleSyncStatus}
+                  disabled={isSyncing}
                 >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Refresh Status
+                  {isSyncing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Syncing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Sync Status from Stripe
+                    </>
+                  )}
                 </Button>
               </div>
+              {syncMessage && (
+                <p className={`text-sm font-medium ${syncMessage.type === 'success' ? 'text-green-700' : 'text-red-600'}`}>
+                  {syncMessage.text}
+                </p>
+              )}
             </>
           ) : (
             <div className="py-4 space-y-5">

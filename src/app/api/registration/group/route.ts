@@ -396,7 +396,7 @@ export async function POST(request: NextRequest) {
           totalParticipants,
           ticketType: body.ticketType || 'general_admission',
           dayPassOptionId: body.dayPassOptionId || null,
-          housingType,
+          housingType: housingType || null,
           onCampusYouth: initialOnCampusYouth > 0 ? initialOnCampusYouth : null,
           onCampusChaperones: initialOnCampusChaperones > 0 ? initialOnCampusChaperones : null,
           offCampusYouth: initialOffCampusYouth > 0 ? initialOffCampusYouth : null,
