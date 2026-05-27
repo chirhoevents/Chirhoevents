@@ -36,22 +36,32 @@ export async function POST(request: NextRequest) {
   const headersList = await headers()
   const signature = headersList.get('stripe-signature')!
 
-  let event: Stripe.Event
+  // Try each webhook secret until one verifies — supports both the platform
+  // webhook and the connected-accounts webhook posting to the same endpoint.
+  const secrets = [
+    process.env.STRIPE_PLATFORM_WEBHOOK_SECRET,
+    process.env.STRIPE_WEBHOOK_SECRET,
+  ].filter(Boolean) as string[]
 
-  try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    )
-    console.log('✅ Webhook signature verified, event type:', event.type)
-  } catch (err: any) {
-    console.error('❌ Webhook signature verification failed:', err.message)
+  let event: Stripe.Event | undefined
+  for (const secret of secrets) {
+    try {
+      event = stripe.webhooks.constructEvent(body, signature, secret)
+      break
+    } catch {
+      // try next secret
+    }
+  }
+
+  if (!event) {
+    console.error('❌ Webhook signature verification failed — no matching secret')
     return NextResponse.json(
       { error: 'Webhook signature verification failed' },
       { status: 400 }
     )
   }
+
+  console.log('✅ Webhook signature verified, event type:', event.type)
 
   // Handle Platform Invoice Payments (checkout.session.completed with platform_invoice type)
   if (event.type === 'checkout.session.completed') {
