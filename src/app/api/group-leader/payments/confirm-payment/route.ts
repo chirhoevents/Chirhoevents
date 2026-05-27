@@ -3,7 +3,6 @@ import { prisma } from '@/lib/prisma'
 import Stripe from 'stripe'
 import { Resend } from 'resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
-import { wrapEmail, emailInfoBox } from '@/lib/email-templates'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -103,34 +102,58 @@ export async function POST(req: NextRequest) {
   })
 
   // Send receipt email
+  const amount = Number(paymentRecord.amount)
+  const cardLine = card ? `${(card.brand || '').toUpperCase()} ending in ${card.last4}` : null
+  const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+
   try {
-    const amount = Number(paymentRecord.amount)
-    const cardLine = card ? `${(card.brand || '').toUpperCase()} ending in ${card.last4}` : null
-
-    const emailHtml = wrapEmail(`
-      <h2 style="color: #1E3A5F; margin: 0 0 20px;">Payment Confirmation</h2>
-      <p>Dear ${groupReg.groupLeaderName},</p>
-      <p>Your payment for <strong>${groupReg.event.name}</strong> has been successfully processed.</p>
-      ${emailInfoBox(`
-        <strong>Payment Details</strong><br/>
-        Group: ${groupReg.groupName}<br/>
-        Amount Paid: <strong>$${amount.toFixed(2)}</strong><br/>
-        ${cardLine ? `Card: ${cardLine}<br/>` : ''}
-        Date: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-        ${receiptUrl ? `<br/><a href="${receiptUrl}" style="color:#9C8466;">View Stripe Receipt →</a>` : ''}
-      `, 'success')}
-      <p>You can view your full payment history and download invoices from your group leader portal.</p>
-    `)
-
-    await resend.emails.send({
+    const { error: emailError } = await resend.emails.send({
       from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+      reply_to: 'support@chirhoevents.com',
       to: groupReg.groupLeaderEmail,
       subject: `Payment Confirmed — ${groupReg.event.name}`,
-      html: emailHtml,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
+            <h1 style="color: white; margin: 0;">ChiRho Events</h1>
+          </div>
+
+          <div style="padding: 30px 20px;">
+            <div style="background-color: #D4EDDA; padding: 20px; border-left: 4px solid #28A745; margin-bottom: 20px;">
+              <h2 style="color: #155724; margin-top: 0;">Payment Confirmed!</h2>
+              <p style="margin: 0; color: #155724;">Your payment has been successfully processed.</p>
+            </div>
+
+            <p>Dear ${groupReg.groupLeaderName},</p>
+            <p>Thank you — your payment for <strong>${groupReg.event.name}</strong> has been received.</p>
+
+            <div style="background-color: #F5F5F5; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+              <p style="margin: 5px 0;"><strong>Group:</strong> ${groupReg.groupName}</p>
+              <p style="margin: 5px 0;"><strong>Amount Paid:</strong> $${amount.toFixed(2)}</p>
+              ${cardLine ? `<p style="margin: 5px 0;"><strong>Card:</strong> ${cardLine}</p>` : ''}
+              <p style="margin: 5px 0;"><strong>Date:</strong> ${dateStr}</p>
+              ${receiptUrl ? `<p style="margin: 5px 0;"><a href="${receiptUrl}" style="color: #9C8466;">View Stripe Receipt</a></p>` : ''}
+            </div>
+
+            <p>You can view your full payment history and download invoices from your group leader portal.</p>
+            <p>If you have any questions, please contact us at support@chirhoevents.com.</p>
+            <p>Best regards,<br><strong>ChiRho Events Team</strong></p>
+          </div>
+
+          <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
+            <p>ChiRho Events | support@chirhoevents.com</p>
+          </div>
+        </div>
+      `,
     })
+
+    if (emailError) {
+      console.error('Resend error sending receipt email:', emailError)
+    } else {
+      console.log('Receipt email sent to:', groupReg.groupLeaderEmail)
+    }
   } catch (emailError) {
-    // Non-fatal — log but don't fail the response
-    console.error('Failed to send receipt email:', emailError)
+    console.error('Exception sending receipt email:', emailError)
   }
 
   return NextResponse.json({ status: 'succeeded', receiptUrl })
