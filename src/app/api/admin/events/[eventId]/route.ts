@@ -53,12 +53,15 @@ export async function GET(
       where: { eventId },
     })
 
-    // Count participants
-    const participantCount = await prisma.participant.count({
-      where: {
-        groupRegistration: { eventId },
-      },
+    // Sum headcount across all group registrations using the stored totalParticipants
+    // field (which represents youthCount + chaperoneCount + priestCount at registration time).
+    // Counting rows in the Participant table would under-count groups whose individual
+    // participant records haven't been filled in yet.
+    const groupHeadcount = await prisma.groupRegistration.aggregate({
+      where: { eventId },
+      _sum: { totalParticipants: true },
     })
+    const participantCount = groupHeadcount._sum.totalParticipants || 0
 
     // Get recent activity for activity report
     const now = new Date()

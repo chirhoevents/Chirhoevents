@@ -145,6 +145,12 @@ export default function EditGroupRegistrationModal({
     groupLeaderCity: '',
     groupLeaderState: '',
     groupLeaderZip: '',
+    alternativeContact1Name: '',
+    alternativeContact1Email: '',
+    alternativeContact1Phone: '',
+    alternativeContact2Name: '',
+    alternativeContact2Email: '',
+    alternativeContact2Phone: '',
     housingType: 'on_campus' as 'on_campus' | 'off_campus' | 'day_pass',
     specialRequests: '',
     adminNotes: '',
@@ -264,6 +270,12 @@ export default function EditGroupRegistrationModal({
         groupLeaderCity: regData.groupLeaderCity || '',
         groupLeaderState: regData.groupLeaderState || '',
         groupLeaderZip: regData.groupLeaderZip || '',
+        alternativeContact1Name: (regData as any).alternativeContact1Name || '',
+        alternativeContact1Email: (regData as any).alternativeContact1Email || '',
+        alternativeContact1Phone: (regData as any).alternativeContact1Phone || '',
+        alternativeContact2Name: (regData as any).alternativeContact2Name || '',
+        alternativeContact2Email: (regData as any).alternativeContact2Email || '',
+        alternativeContact2Phone: (regData as any).alternativeContact2Phone || '',
         housingType: regData.housingType,
         specialRequests: regData.specialRequests || '',
         adminNotes: '',
@@ -274,10 +286,18 @@ export default function EditGroupRegistrationModal({
       const youthCount = (regData as any).youthCount || 0
       const chaperoneCount = (regData as any).chaperoneCount || 0
 
-      // Check if we have new inventory-style data
-      const hasInventoryData = (regData as any).onCampusYouth !== undefined ||
-                               (regData as any).offCampusYouth !== undefined ||
-                               (regData as any).dayPassYouth !== undefined
+      // Nullable Int fields come back as `null` (not `undefined`), so checking
+      // `!== undefined` would be true even when no inventory was recorded —
+      // forcing all counts to 0. Require at least one positive value.
+      const inventoryValues = [
+        (regData as any).onCampusYouth,
+        (regData as any).onCampusChaperones,
+        (regData as any).offCampusYouth,
+        (regData as any).offCampusChaperones,
+        (regData as any).dayPassYouth,
+        (regData as any).dayPassChaperones,
+      ]
+      const hasInventoryData = inventoryValues.some(v => typeof v === 'number' && v > 0)
 
       if (hasInventoryData) {
         // Use new inventory-style fields
@@ -291,15 +311,18 @@ export default function EditGroupRegistrationModal({
           priests: priestCount,
         })
       } else {
-        // Migrate from old format: put all youth/chaperones in their housing type
+        // Fall back to legacy youthCount/chaperoneCount. When the event has no
+        // housing type, bucket participants under day_pass so admins still see
+        // the counts; otherwise place them under the registration's housingType.
         const housingType = regData.housingType
+        const bucket = housingType || 'day_pass'
         setInventoryCounts({
-          onCampusYouth: housingType === 'on_campus' ? youthCount : 0,
-          onCampusChaperones: housingType === 'on_campus' ? chaperoneCount : 0,
-          offCampusYouth: housingType === 'off_campus' ? youthCount : 0,
-          offCampusChaperones: housingType === 'off_campus' ? chaperoneCount : 0,
-          dayPassYouth: housingType === 'day_pass' ? youthCount : 0,
-          dayPassChaperones: housingType === 'day_pass' ? chaperoneCount : 0,
+          onCampusYouth: bucket === 'on_campus' ? youthCount : 0,
+          onCampusChaperones: bucket === 'on_campus' ? chaperoneCount : 0,
+          offCampusYouth: bucket === 'off_campus' ? youthCount : 0,
+          offCampusChaperones: bucket === 'off_campus' ? chaperoneCount : 0,
+          dayPassYouth: bucket === 'day_pass' ? youthCount : 0,
+          dayPassChaperones: bucket === 'day_pass' ? chaperoneCount : 0,
           priests: priestCount,
         })
       }
@@ -314,6 +337,11 @@ export default function EditGroupRegistrationModal({
   const totalYouth = inventoryCounts.onCampusYouth + inventoryCounts.offCampusYouth + inventoryCounts.dayPassYouth
   const totalChaperones = inventoryCounts.onCampusChaperones + inventoryCounts.offCampusChaperones + inventoryCounts.dayPassChaperones
   const totalParticipantsCalc = totalYouth + totalChaperones + inventoryCounts.priests
+
+  // Prefer the headcount from the fetched full registration. The prop passed in
+  // from the registrations list historically used participants.length, which
+  // under-counts groups whose individual Participant records haven't been added.
+  const originalParticipantCount = fullRegistration?.totalParticipants ?? registration?.totalParticipants ?? 0
 
   // Recalculate price when inventory counts change
   // Use fetchedEventPricing which is either the prop or fetched from API
@@ -639,6 +667,75 @@ export default function EditGroupRegistrationModal({
               </div>
 
             </div>
+
+            {/* Alternative Contacts */}
+            <Card className="p-4 border-[#1E3A5F]/20">
+              <h4 className="font-semibold text-[#1E3A5F] mb-4">
+                Alternative Contacts
+              </h4>
+              <div className="space-y-4">
+                <div>
+                  <div className="font-medium text-sm text-gray-700 mb-2">Contact 1</div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label htmlFor="altContact1Name" className="text-xs">Name</Label>
+                      <Input
+                        id="altContact1Name"
+                        value={formData.alternativeContact1Name}
+                        onChange={(e) => handleInputChange('alternativeContact1Name', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="altContact1Email" className="text-xs">Email</Label>
+                      <Input
+                        id="altContact1Email"
+                        type="email"
+                        value={formData.alternativeContact1Email}
+                        onChange={(e) => handleInputChange('alternativeContact1Email', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="altContact1Phone" className="text-xs">Phone</Label>
+                      <Input
+                        id="altContact1Phone"
+                        value={formData.alternativeContact1Phone}
+                        onChange={(e) => handleInputChange('alternativeContact1Phone', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <div className="font-medium text-sm text-gray-700 mb-2">Contact 2 (optional)</div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label htmlFor="altContact2Name" className="text-xs">Name</Label>
+                      <Input
+                        id="altContact2Name"
+                        value={formData.alternativeContact2Name}
+                        onChange={(e) => handleInputChange('alternativeContact2Name', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="altContact2Email" className="text-xs">Email</Label>
+                      <Input
+                        id="altContact2Email"
+                        type="email"
+                        value={formData.alternativeContact2Email}
+                        onChange={(e) => handleInputChange('alternativeContact2Email', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="altContact2Phone" className="text-xs">Phone</Label>
+                      <Input
+                        id="altContact2Phone"
+                        value={formData.alternativeContact2Phone}
+                        onChange={(e) => handleInputChange('alternativeContact2Phone', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
 
             {/* Participant Inventory by Housing Type */}
             <Card className="p-4 border-[#1E3A5F]/20">
@@ -1102,19 +1199,19 @@ export default function EditGroupRegistrationModal({
                 Total Participants: {totalParticipantsCalc}
               </h3>
               <div className="text-sm text-gray-600">
-                Original: {registration.totalParticipants}
+                Original: {originalParticipantCount}
               </div>
             </div>
 
             {/* Warning if count reduced */}
-            {totalParticipantsCalc < registration.totalParticipants && (
+            {totalParticipantsCalc < originalParticipantCount && (
               <Card className="p-4 bg-yellow-50 border-yellow-300">
                 <div className="flex items-start gap-2">
                   <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
                   <div>
                     <div className="font-medium text-yellow-900">Participant Count Reduced</div>
                     <div className="text-sm text-yellow-800 mt-1">
-                      You are reducing the participant count from {registration.totalParticipants} to {totalParticipantsCalc}. A refund may be needed based on the updated balance.
+                      You are reducing the participant count from {originalParticipantCount} to {totalParticipantsCalc}. A refund may be needed based on the updated balance.
                     </div>
                   </div>
                 </div>
