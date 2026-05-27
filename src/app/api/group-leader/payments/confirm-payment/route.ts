@@ -42,12 +42,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // Already confirmed — nothing to do
-  if (paymentRecord.paymentStatus === 'succeeded') {
-    return NextResponse.json({ status: 'succeeded' })
-  }
-
-  // Pull current status from Stripe
+  // Pull current status from Stripe (even if already marked succeeded — we still need
+  // charge details for the receipt and need to ensure the email is sent)
   const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
     expand: ['latest_charge'],
   })
@@ -60,7 +56,7 @@ export async function POST(req: NextRequest) {
   const receiptUrl = charge?.receipt_url || null
   const card = charge?.payment_method_details?.card
 
-  // Update the payment record with all Stripe charge details
+  // Update the payment record (idempotent — safe to run even if webhook already did this)
   await prisma.payment.updateMany({
     where: {
       registrationId: paymentRecord.registrationId,
