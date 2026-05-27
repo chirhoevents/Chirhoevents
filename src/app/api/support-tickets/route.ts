@@ -1,9 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
+import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
+
+/** Returns the effective organizationId for the request, respecting master-admin impersonation. */
+async function getEffectiveOrgId(clerkUserId: string): Promise<string | null> {
+  const user = await prisma.user.findFirst({
+    where: { clerkUserId },
+    select: { id: true, organizationId: true, role: true },
+  })
+  if (!user) return null
+
+  // If this is a master admin, check for an active impersonation session
+  if (user.role === 'master_admin') {
+    const cookieStore = await cookies()
+    const impersonatingOrg = cookieStore.get('impersonating_org')?.value
+    const masterAdminId = cookieStore.get('master_admin_id')?.value
+    if (impersonatingOrg && masterAdminId && user.id === masterAdminId) {
+      return impersonatingOrg
+    }
+  }
+
+  return user.organizationId
+}
 
 // Create a new support ticket (org admin)
 export async function POST(request: NextRequest) {
@@ -23,7 +45,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    if (!user.organizationId) {
+    // Resolve effective org (respects impersonation for master admins)
+    const effectiveOrgId = await getEffectiveOrgId(clerkUserId)
+
+    if (!effectiveOrgId) {
       return NextResponse.json(
         { error: 'You must belong to an organization to submit tickets' },
         { status: 403 }
@@ -32,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     // Get organization name
     const org = await prisma.organization.findUnique({
-      where: { id: user.organizationId },
+      where: { id: effectiveOrgId },
       select: { name: true },
     })
 
@@ -51,7 +76,7 @@ export async function POST(request: NextRequest) {
       const event = await prisma.event.findFirst({
         where: {
           id: eventId,
-          organizationId: user.organizationId,
+          organizationId: effectiveOrgId,
         },
       })
       if (!event) {
@@ -234,12 +259,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = await prisma.user.findFirst({
-      where: { clerkUserId },
-      select: { id: true, organizationId: true },
-    })
+    const organizationId = await getEffectiveOrgId(clerkUserId)
 
-    if (!user || !user.organizationId) {
+    if (!organizationId) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
     }
 
@@ -247,7 +269,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
 
     const where: Record<string, unknown> = {
-      organizationId: user.organizationId,
+      organizationId,
     }
 
     if (status && status !== 'all') {
