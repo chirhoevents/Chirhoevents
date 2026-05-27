@@ -259,7 +259,24 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      // Update payment status and store notes
+      // Fetch charge details for receipt URL and card info
+      let receiptUrl: string | null = null
+      let stripeChargeId: string | null = null
+      let cardLast4: string | null = null
+      let cardBrand: string | null = null
+      if (paymentIntent.latest_charge) {
+        try {
+          const charge = await stripe.charges.retrieve(paymentIntent.latest_charge as string)
+          receiptUrl = charge.receipt_url || null
+          stripeChargeId = charge.id
+          cardLast4 = charge.payment_method_details?.card?.last4 || null
+          cardBrand = charge.payment_method_details?.card?.brand || null
+        } catch {
+          console.error('⚠️ Could not retrieve charge for receipt URL')
+        }
+      }
+
+      // Update payment status and store charge details
       await prisma.payment.updateMany({
         where: {
           registrationId: registrationId,
@@ -268,6 +285,10 @@ export async function POST(request: NextRequest) {
         data: {
           paymentStatus: 'succeeded',
           processedAt: new Date(),
+          receiptUrl,
+          stripeChargeId,
+          cardLast4,
+          cardBrand,
         },
       })
 

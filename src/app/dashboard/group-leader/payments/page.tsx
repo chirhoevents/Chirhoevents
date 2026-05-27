@@ -170,6 +170,8 @@ export default function PaymentsPage() {
   const [paymentNotes, setPaymentNotes] = useState('')
   const [clientSecret, setClientSecret] = useState('')
   const [creatingPayment, setCreatingPayment] = useState(false)
+  const [confirmingPayment, setConfirmingPayment] = useState(false)
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false)
 
   const fetchPaymentData = async () => {
     if (!selectedEventId) {
@@ -191,17 +193,44 @@ export default function PaymentsPage() {
     }
   }
 
+  const confirmPayment = async (paymentIntentId: string) => {
+    setConfirmingPayment(true)
+    try {
+      const res = await fetch('/api/group-leader/payments/confirm-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentIntentId }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.status === 'succeeded') {
+          setPaymentConfirmed(true)
+          await fetchPaymentData()
+        }
+      }
+    } catch (err) {
+      console.error('Error confirming payment:', err)
+    } finally {
+      setConfirmingPayment(false)
+      // Clean up Stripe params from URL
+      if (typeof window !== 'undefined') {
+        window.history.replaceState({}, '', window.location.pathname)
+      }
+    }
+  }
+
   useEffect(() => {
     fetchPaymentData()
 
-    // Check if returning from successful payment
+    // After Stripe redirect, confirm payment using the payment_intent param Stripe adds to the URL
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search)
-      if (urlParams.get('payment') === 'success') {
-        // Refresh payment data after successful payment
-        setTimeout(() => {
-          fetchPaymentData()
-        }, 2000)
+      const paymentIntentId = urlParams.get('payment_intent')
+      if (paymentIntentId) {
+        confirmPayment(paymentIntentId)
+      } else if (urlParams.get('payment') === 'success') {
+        // Fallback: no payment_intent param, just refresh after a short delay
+        setTimeout(() => fetchPaymentData(), 3000)
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -346,6 +375,23 @@ export default function PaymentsPage() {
           Manage your group&apos;s payments and view transaction history
         </p>
       </div>
+
+      {/* Payment confirmation banner */}
+      {confirmingPayment && (
+        <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <span className="text-blue-800 font-medium">Confirming your payment...</span>
+        </div>
+      )}
+      {paymentConfirmed && !confirmingPayment && (
+        <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <CheckCircle className="h-5 w-5 text-green-600" />
+          <div>
+            <p className="text-green-800 font-medium">Payment confirmed!</p>
+            <p className="text-sm text-green-700">A receipt has been sent to your email.</p>
+          </div>
+        </div>
+      )}
 
       {/* Payment Balance Summary */}
       {balance && (
