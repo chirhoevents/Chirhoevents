@@ -427,7 +427,9 @@ export default function PorosRoleSelection() {
   }
 
   // Group Registration Flow - Show role selection
-  const isClergyAllowed = portalData.priestCount > 0
+  // Clergy & Religious is always available — seminarians/religious may be
+  // registered as chaperones but still need the clergy form type.
+  const isClergyAllowed = true
 
   return (
     <div className="min-h-screen bg-gray-50">
