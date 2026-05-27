@@ -651,32 +651,39 @@ export default function EventDetailClient({
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* Overall Event Capacity */}
-                {event.capacityTotal && (
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Users className="h-4 w-4 text-[#9C8466]" />
-                      <span className="text-sm font-medium text-[#1E3A5F]">Total Spots</span>
+                {event.capacityTotal && (() => {
+                  // Use stats.totalParticipants (computed from actual registrations) for
+                  // display so the number reflects reality even if the cached
+                  // capacityRemaining counter has drifted from cancellations/edits.
+                  const spotsTaken = Math.min(stats.totalParticipants, event.capacityTotal)
+                  const fillRatio = spotsTaken / event.capacityTotal
+                  return (
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Users className="h-4 w-4 text-[#9C8466]" />
+                        <span className="text-sm font-medium text-[#1E3A5F]">Total Spots</span>
+                      </div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-2xl font-bold text-[#1E3A5F]">
+                          {spotsTaken}/{event.capacityTotal}
+                        </span>
+                        {spotsTaken >= event.capacityTotal && (
+                          <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">SOLD OUT</span>
+                        )}
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full transition-all ${
+                            fillRatio >= 1 ? 'bg-red-500' :
+                            fillRatio >= 0.8 ? 'bg-amber-500' :
+                            'bg-green-500'
+                          }`}
+                          style={{ width: `${Math.min(fillRatio * 100, 100)}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-2xl font-bold text-[#1E3A5F]">
-                        {event.capacityTotal - (capacityRemaining ?? 0)}/{event.capacityTotal}
-                      </span>
-                      {capacityRemaining === 0 && (
-                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">SOLD OUT</span>
-                      )}
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full transition-all ${
-                          (capacityRemaining ?? 0) === 0 ? 'bg-red-500' :
-                          ((event.capacityTotal - (capacityRemaining ?? 0)) / event.capacityTotal) >= 0.8 ? 'bg-amber-500' :
-                          'bg-green-500'
-                        }`}
-                        style={{ width: `${Math.min(((event.capacityTotal - (capacityRemaining ?? 0)) / event.capacityTotal) * 100, 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
+                  )
+                })()}
 
                 {/* Group Spot Limit */}
                 {settings?.groupSpotLimit && (

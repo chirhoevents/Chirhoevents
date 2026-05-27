@@ -88,15 +88,36 @@ export async function GET(
         (p: any) => p.liabilityFormCompleted
       ).length
 
+      // participantCount represents the headcount stored on the group registration.
+      // We fall back to participants.length only if totalParticipants is missing.
+      const headcount = reg.totalParticipants ?? reg.participants.length
+
       return {
         id: reg.id,
         type: 'group' as const,
         groupName: reg.groupName,
         parishName: reg.parishName,
+        dioceseName: reg.dioceseName,
         leaderName: reg.groupLeaderName,
         leaderEmail: reg.groupLeaderEmail,
         leaderPhone: reg.groupLeaderPhone,
-        participantCount: reg.participants.length,
+        participantCount: headcount,
+        totalParticipants: headcount,
+        youthCount: reg.youthCount,
+        chaperoneCount: reg.chaperoneCount,
+        priestCount: reg.priestCount,
+        onCampusYouth: reg.onCampusYouth,
+        onCampusChaperones: reg.onCampusChaperones,
+        offCampusYouth: reg.offCampusYouth,
+        offCampusChaperones: reg.offCampusChaperones,
+        dayPassYouth: reg.dayPassYouth,
+        dayPassChaperones: reg.dayPassChaperones,
+        alternativeContact1Name: reg.alternativeContact1Name,
+        alternativeContact1Email: reg.alternativeContact1Email,
+        alternativeContact1Phone: reg.alternativeContact1Phone,
+        alternativeContact2Name: reg.alternativeContact2Name,
+        alternativeContact2Email: reg.alternativeContact2Email,
+        alternativeContact2Phone: reg.alternativeContact2Phone,
         housingType: reg.housingType,
         registeredAt: reg.registeredAt.toISOString(),
         totalAmount: payment?.totalAmountDue ? Number(payment.totalAmountDue) : 0,
@@ -104,7 +125,7 @@ export async function GET(
         balance: payment?.amountRemaining ? Number(payment.amountRemaining) : 0,
         paymentStatus: payment?.paymentStatus || 'pending',
         formsCompleted: completedForms,
-        formsTotal: reg.participants.length,
+        formsTotal: headcount,
       }
     })
 
