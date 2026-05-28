@@ -18,14 +18,52 @@ interface FinancialReportModalProps {
   eventName: string
 }
 
+interface Transaction {
+  processedAt: string | null
+  amount: number
+  paymentMethod: string
+  paymentType: string
+  paymentStatus: string
+  payer: string
+  registrationType: string
+  checkNumber: string | null
+  cardLast4: string | null
+  cardBrand: string | null
+  notes: string | null
+}
+
+interface BalanceRow {
+  payer: string
+  registrationType: string
+  totalAmountDue: number
+  amountPaid: number
+  amountRemaining: number
+  paymentStatus: string
+  lastPaymentDate: string | null
+}
+
+interface RefundDetail {
+  payer: string
+  registrationType: string
+  refundAmount: number
+  refundReason: string
+  refundMethod: string | null
+  refundStatus: string | null
+  processedAt: string | null
+}
+
 interface FinancialData {
   totalRevenue: number
   amountPaid: number
+  actualAmountPaid: number
+  paymentMismatch: boolean
   balanceDue: number
   overdueBalance: number
   paymentMethods: {
     stripe: number
     check: number
+    cash: number
+    other: number
     pending: number
   }
   byParticipantType: {
@@ -44,10 +82,13 @@ interface FinancialData {
     individual: number
   }
   paymentTimeline: Array<{ month: string; amount: number }>
+  transactions: Transaction[]
+  balancesByRegistration: BalanceRow[]
   refunds: {
     totalRefunded: number
     count: number
     reasons: Record<string, number>
+    details: RefundDetail[]
   }
 }
 
@@ -77,7 +118,26 @@ export default function FinancialReportModal({
       }
 
       const reportData = await response.json()
-      setData(reportData)
+      // Defensive defaults — keeps the UI sane if a cached old API shape
+      // is returned before the new fields land.
+      setData({
+        ...reportData,
+        actualAmountPaid: reportData.actualAmountPaid ?? reportData.amountPaid ?? 0,
+        paymentMismatch: !!reportData.paymentMismatch,
+        paymentMethods: {
+          stripe: reportData.paymentMethods?.stripe ?? 0,
+          check: reportData.paymentMethods?.check ?? 0,
+          cash: reportData.paymentMethods?.cash ?? 0,
+          other: reportData.paymentMethods?.other ?? 0,
+          pending: reportData.paymentMethods?.pending ?? 0,
+        },
+        transactions: reportData.transactions ?? [],
+        balancesByRegistration: reportData.balancesByRegistration ?? [],
+        refunds: {
+          ...reportData.refunds,
+          details: reportData.refunds?.details ?? [],
+        },
+      })
     } catch (error) {
       console.error('Error fetching financial report:', error)
     } finally {
@@ -126,8 +186,35 @@ export default function FinancialReportModal({
   }
 
   const formatPercent = (value: number, total: number) => {
-    if (total === 0) return '0%'
+    if (!total || total <= 0) return '0%'
     return `${Math.round((value / total) * 100)}%`
+  }
+
+  const formatDate = (iso: string | null) => {
+    if (!iso) return '—'
+    try {
+      return new Date(iso).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })
+    } catch {
+      return '—'
+    }
+  }
+
+  const paymentMethodLabel = (method: string, t: Transaction) => {
+    if (method === 'card') {
+      const brand = t.cardBrand ? t.cardBrand : 'Card'
+      const last4 = t.cardLast4 ? ` ••${t.cardLast4}` : ''
+      return `${brand}${last4}`
+    }
+    if (method === 'check') {
+      return t.checkNumber ? `Check #${t.checkNumber}` : 'Check'
+    }
+    if (method === 'cash') return 'Cash'
+    if (method === 'bank_transfer') return 'Bank Transfer'
+    return method || 'Other'
   }
 
   return (
@@ -161,10 +248,10 @@ export default function FinancialReportModal({
                   <div>
                     <p className="text-sm text-[#6B7280]">Amount Paid</p>
                     <p className="text-2xl font-bold text-green-600">
-                      {formatCurrency(data.amountPaid)}
+                      {formatCurrency(data.actualAmountPaid)}
                     </p>
                     <p className="text-xs text-[#6B7280]">
-                      {formatPercent(data.amountPaid, data.totalRevenue)}
+                      {formatPercent(data.actualAmountPaid, data.totalRevenue)} of revenue
                     </p>
                   </div>
                   <div>
@@ -173,7 +260,7 @@ export default function FinancialReportModal({
                       {formatCurrency(data.balanceDue)}
                     </p>
                     <p className="text-xs text-[#6B7280]">
-                      {formatPercent(data.balanceDue, data.totalRevenue)}
+                      {formatPercent(data.balanceDue, data.totalRevenue)} of revenue
                     </p>
                   </div>
                   <div>
@@ -186,32 +273,78 @@ export default function FinancialReportModal({
               </CardContent>
             </Card>
 
+            {/* Reconciliation mismatch warning */}
+            {data.paymentMismatch && (
+              <div className="p-4 bg-yellow-50 border border-yellow-300 rounded">
+                <p className="text-sm font-semibold text-yellow-900 mb-1">
+                  Reconciliation mismatch
+                </p>
+                <p className="text-xs text-yellow-900">
+                  Recorded transactions total{' '}
+                  <strong>{formatCurrency(data.actualAmountPaid)}</strong>, but the
+                  payment-balance table shows{' '}
+                  <strong>{formatCurrency(data.amountPaid)}</strong> paid. This
+                  usually means a payment was inserted without updating the balance
+                  record. Transactions list below shows what actually settled.
+                </p>
+              </div>
+            )}
+
             {/* Payment Methods */}
             <div>
               <h3 className="font-semibold text-[#1E3A5F] mb-3">
                 PAYMENT METHOD BREAKDOWN
               </h3>
+              <p className="text-xs text-[#6B7280] mb-2">
+                Percentages are of total settled payments (
+                {formatCurrency(data.actualAmountPaid)}).
+              </p>
               <div className="space-y-2">
                 <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
                   <span className="text-sm">Credit Card (Stripe)</span>
                   <span className="font-semibold">
                     {formatCurrency(data.paymentMethods.stripe)} (
-                    {formatPercent(data.paymentMethods.stripe, data.amountPaid)})
+                    {formatPercent(data.paymentMethods.stripe, data.actualAmountPaid)})
                   </span>
                 </div>
                 <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
                   <span className="text-sm">Check</span>
                   <span className="font-semibold">
                     {formatCurrency(data.paymentMethods.check)} (
-                    {formatPercent(data.paymentMethods.check, data.amountPaid)})
+                    {formatPercent(data.paymentMethods.check, data.actualAmountPaid)})
                   </span>
                 </div>
-                <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
-                  <span className="text-sm">Pending</span>
-                  <span className="font-semibold">
-                    {formatCurrency(data.paymentMethods.pending)}
-                  </span>
-                </div>
+                {data.paymentMethods.cash > 0 && (
+                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                    <span className="text-sm">Cash</span>
+                    <span className="font-semibold">
+                      {formatCurrency(data.paymentMethods.cash)} (
+                      {formatPercent(data.paymentMethods.cash, data.actualAmountPaid)})
+                    </span>
+                  </div>
+                )}
+                {data.paymentMethods.other > 0 && (
+                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                    <span className="text-sm">Other</span>
+                    <span className="font-semibold">
+                      {formatCurrency(data.paymentMethods.other)} (
+                      {formatPercent(data.paymentMethods.other, data.actualAmountPaid)})
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Outstanding Balance (separate from payment methods) */}
+            <div>
+              <h3 className="font-semibold text-[#1E3A5F] mb-3">
+                OUTSTANDING BALANCE
+              </h3>
+              <div className="flex justify-between items-center p-3 bg-orange-50 border border-orange-200 rounded">
+                <span className="text-sm">Awaiting payment</span>
+                <span className="font-semibold text-orange-700">
+                  {formatCurrency(data.balanceDue)}
+                </span>
               </div>
             </div>
 
@@ -316,13 +449,116 @@ export default function FinancialReportModal({
               </div>
             </div>
 
+            {/* Transactions */}
+            <div>
+              <h3 className="font-semibold text-[#1E3A5F] mb-3">
+                TRANSACTIONS ({data.transactions.length})
+              </h3>
+              {data.transactions.length === 0 ? (
+                <div className="p-3 bg-gray-50 rounded text-sm text-[#6B7280]">
+                  No settled payments yet.
+                </div>
+              ) : (
+                <div className="overflow-x-auto border border-gray-200 rounded">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 text-left text-xs uppercase text-[#6B7280]">
+                      <tr>
+                        <th className="px-3 py-2">Date</th>
+                        <th className="px-3 py-2">Payer</th>
+                        <th className="px-3 py-2">Method</th>
+                        <th className="px-3 py-2 text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.transactions.map((t, i) => (
+                        <tr key={i} className="border-t border-gray-100">
+                          <td className="px-3 py-2 text-[#6B7280]">
+                            {formatDate(t.processedAt)}
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="font-medium text-[#1E3A5F]">{t.payer}</div>
+                            <div className="text-xs text-[#6B7280]">
+                              {t.registrationType}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2">
+                            <div>{paymentMethodLabel(t.paymentMethod, t)}</div>
+                            <div className="text-xs text-[#6B7280] capitalize">
+                              {t.paymentType?.replace(/_/g, ' ')}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-right font-semibold">
+                            {formatCurrency(t.amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Balances by Registration */}
+            <div>
+              <h3 className="font-semibold text-[#1E3A5F] mb-3">
+                BALANCE BY REGISTRATION ({data.balancesByRegistration.length})
+              </h3>
+              {data.balancesByRegistration.length === 0 ? (
+                <div className="p-3 bg-gray-50 rounded text-sm text-[#6B7280]">
+                  No payment balances on file.
+                </div>
+              ) : (
+                <div className="overflow-x-auto border border-gray-200 rounded">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 text-left text-xs uppercase text-[#6B7280]">
+                      <tr>
+                        <th className="px-3 py-2">Payer</th>
+                        <th className="px-3 py-2">Status</th>
+                        <th className="px-3 py-2 text-right">Invoiced</th>
+                        <th className="px-3 py-2 text-right">Paid</th>
+                        <th className="px-3 py-2 text-right">Balance</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.balancesByRegistration.map((b, i) => (
+                        <tr key={i} className="border-t border-gray-100">
+                          <td className="px-3 py-2">
+                            <div className="font-medium text-[#1E3A5F]">{b.payer}</div>
+                            <div className="text-xs text-[#6B7280]">
+                              {b.registrationType}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-xs capitalize">
+                            {b.paymentStatus?.replace(/_/g, ' ')}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {formatCurrency(b.totalAmountDue)}
+                          </td>
+                          <td className="px-3 py-2 text-right text-green-700">
+                            {formatCurrency(b.amountPaid)}
+                          </td>
+                          <td
+                            className={`px-3 py-2 text-right font-semibold ${
+                              b.amountRemaining > 0 ? 'text-orange-700' : 'text-[#6B7280]'
+                            }`}
+                          >
+                            {formatCurrency(b.amountRemaining)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
             {/* Refunds */}
             {data.refunds.count > 0 && (
               <div>
                 <h3 className="font-semibold text-[#1E3A5F] mb-3">
                   REFUNDS ISSUED
                 </h3>
-                <div className="p-4 bg-red-50 border border-red-200 rounded">
+                <div className="p-4 bg-red-50 border border-red-200 rounded mb-3">
                   <div className="flex justify-between mb-2">
                     <span className="text-sm">Total Refunded:</span>
                     <span className="font-semibold text-red-600">
@@ -334,6 +570,39 @@ export default function FinancialReportModal({
                     <span className="font-semibold">{data.refunds.count}</span>
                   </div>
                 </div>
+                {data.refunds.details.length > 0 && (
+                  <div className="overflow-x-auto border border-gray-200 rounded">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 text-left text-xs uppercase text-[#6B7280]">
+                        <tr>
+                          <th className="px-3 py-2">Date</th>
+                          <th className="px-3 py-2">Payer</th>
+                          <th className="px-3 py-2">Reason</th>
+                          <th className="px-3 py-2 text-right">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.refunds.details.map((r, i) => (
+                          <tr key={i} className="border-t border-gray-100">
+                            <td className="px-3 py-2 text-[#6B7280]">
+                              {formatDate(r.processedAt)}
+                            </td>
+                            <td className="px-3 py-2">
+                              <div className="font-medium">{r.payer}</div>
+                              <div className="text-xs text-[#6B7280]">
+                                {r.registrationType}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 text-xs">{r.refundReason}</td>
+                            <td className="px-3 py-2 text-right font-semibold text-red-600">
+                              -{formatCurrency(r.refundAmount)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
 

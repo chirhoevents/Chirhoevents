@@ -27,83 +27,238 @@ export function generateCSV(data: any[], headers: string[]): string {
 }
 
 export function generateFinancialCSV(reportData: any): string {
-  const rows: any[] = []
+  const dollars = (v: any) => `$${Number(v || 0).toFixed(2)}`
+  const sections: string[] = []
 
-  // Summary section
-  rows.push({
-    Section: 'Summary',
-    Metric: 'Total Revenue',
-    Value: `$${reportData.totalRevenue.toFixed(2)}`,
-  })
-  rows.push({
-    Section: 'Summary',
-    Metric: 'Amount Paid',
-    Value: `$${reportData.amountPaid.toFixed(2)}`,
-  })
-  rows.push({
-    Section: 'Summary',
-    Metric: 'Balance Due',
-    Value: `$${reportData.balanceDue.toFixed(2)}`,
-  })
+  // ── Summary ────────────────────────────────────────────────
+  const summaryRows: any[] = [
+    { Section: 'Summary', Metric: 'Total Revenue', Value: dollars(reportData.totalRevenue) },
+    {
+      Section: 'Summary',
+      Metric: 'Settled Payments',
+      Value: dollars(reportData.actualAmountPaid ?? reportData.amountPaid),
+    },
+    {
+      Section: 'Summary',
+      Metric: 'PaymentBalance Amount Paid',
+      Value: dollars(reportData.amountPaid),
+    },
+    { Section: 'Summary', Metric: 'Balance Due', Value: dollars(reportData.balanceDue) },
+    {
+      Section: 'Summary',
+      Metric: 'Overdue Balance',
+      Value: dollars(reportData.overdueBalance),
+    },
+    {
+      Section: 'Summary',
+      Metric: 'Reconciliation Mismatch',
+      Value: reportData.paymentMismatch ? 'YES' : 'NO',
+    },
+  ]
 
   // Payment methods
-  rows.push({
-    Section: 'Payment Methods',
-    Metric: 'Stripe/Card',
-    Value: `$${reportData.paymentMethods.stripe.toFixed(2)}`,
-  })
-  rows.push({
-    Section: 'Payment Methods',
-    Metric: 'Check',
-    Value: `$${reportData.paymentMethods.check.toFixed(2)}`,
-  })
+  const pm = reportData.paymentMethods || {}
+  summaryRows.push(
+    { Section: 'Payment Methods', Metric: 'Stripe/Card', Value: dollars(pm.stripe) },
+    { Section: 'Payment Methods', Metric: 'Check', Value: dollars(pm.check) },
+    { Section: 'Payment Methods', Metric: 'Cash', Value: dollars(pm.cash) },
+    { Section: 'Payment Methods', Metric: 'Other', Value: dollars(pm.other) }
+  )
 
   // By participant type
-  Object.entries(reportData.byParticipantType).forEach(([type, data]: [string, any]) => {
-    rows.push({
+  Object.entries(reportData.byParticipantType || {}).forEach(([type, data]: [string, any]) => {
+    summaryRows.push({
       Section: 'By Participant Type',
       Metric: type.replace(/_/g, ' '),
-      Value: `$${data.revenue.toFixed(2)}`,
+      Value: dollars(data.revenue),
       Count: data.count,
-      Average: `$${data.avg.toFixed(2)}`,
+      Average: dollars(data.avg),
     })
   })
 
-  return generateCSV(rows, ['Section', 'Metric', 'Value', 'Count', 'Average'])
+  // By housing type
+  const bh = reportData.byHousingType || {}
+  summaryRows.push(
+    {
+      Section: 'By Housing Type',
+      Metric: 'On-Campus',
+      Value: dollars(bh.onCampus?.revenue),
+      Count: bh.onCampus?.count,
+    },
+    {
+      Section: 'By Housing Type',
+      Metric: 'Off-Campus',
+      Value: dollars(bh.offCampus?.revenue),
+      Count: bh.offCampus?.count,
+    },
+    {
+      Section: 'By Housing Type',
+      Metric: 'Day Pass',
+      Value: dollars(bh.dayPass?.revenue),
+      Count: bh.dayPass?.count,
+    }
+  )
+
+  // By registration type
+  const br = reportData.byRegistrationType || {}
+  summaryRows.push(
+    { Section: 'By Registration Type', Metric: 'Group', Value: dollars(br.group) },
+    { Section: 'By Registration Type', Metric: 'Individual', Value: dollars(br.individual) }
+  )
+
+  sections.push(generateCSV(summaryRows, ['Section', 'Metric', 'Value', 'Count', 'Average']))
+
+  // ── Transactions ────────────────────────────────────────────
+  if (Array.isArray(reportData.transactions) && reportData.transactions.length > 0) {
+    const txRows = reportData.transactions.map((t: any) => ({
+      Date: t.processedAt ? new Date(t.processedAt).toLocaleDateString() : '',
+      Payer: t.payer,
+      'Registration Type': t.registrationType,
+      Method: t.paymentMethod,
+      'Card Brand': t.cardBrand || '',
+      'Card Last4': t.cardLast4 || '',
+      'Check Number': t.checkNumber || '',
+      'Payment Type': t.paymentType,
+      Status: t.paymentStatus,
+      Amount: dollars(t.amount),
+      Notes: t.notes || '',
+    }))
+    sections.push(
+      '\n\nTransactions\n' +
+        generateCSV(txRows, [
+          'Date',
+          'Payer',
+          'Registration Type',
+          'Method',
+          'Card Brand',
+          'Card Last4',
+          'Check Number',
+          'Payment Type',
+          'Status',
+          'Amount',
+          'Notes',
+        ])
+    )
+  }
+
+  // ── Balances by Registration ───────────────────────────────
+  if (
+    Array.isArray(reportData.balancesByRegistration) &&
+    reportData.balancesByRegistration.length > 0
+  ) {
+    const balRows = reportData.balancesByRegistration.map((b: any) => ({
+      Payer: b.payer,
+      'Registration Type': b.registrationType,
+      Status: b.paymentStatus,
+      Invoiced: dollars(b.totalAmountDue),
+      Paid: dollars(b.amountPaid),
+      Balance: dollars(b.amountRemaining),
+      'Last Payment Date': b.lastPaymentDate
+        ? new Date(b.lastPaymentDate).toLocaleDateString()
+        : '',
+    }))
+    sections.push(
+      '\n\nBalance by Registration\n' +
+        generateCSV(balRows, [
+          'Payer',
+          'Registration Type',
+          'Status',
+          'Invoiced',
+          'Paid',
+          'Balance',
+          'Last Payment Date',
+        ])
+    )
+  }
+
+  // ── Refunds ─────────────────────────────────────────────────
+  if (
+    Array.isArray(reportData.refunds?.details) &&
+    reportData.refunds.details.length > 0
+  ) {
+    const refundRows = reportData.refunds.details.map((r: any) => ({
+      Date: r.processedAt ? new Date(r.processedAt).toLocaleDateString() : '',
+      Payer: r.payer,
+      'Registration Type': r.registrationType,
+      Reason: r.refundReason,
+      Method: r.refundMethod || '',
+      Status: r.refundStatus || '',
+      Amount: `-${dollars(r.refundAmount)}`,
+    }))
+    sections.push(
+      '\n\nRefunds\n' +
+        generateCSV(refundRows, [
+          'Date',
+          'Payer',
+          'Registration Type',
+          'Reason',
+          'Method',
+          'Status',
+          'Amount',
+        ])
+    )
+  }
+
+  return sections.join('\n')
 }
 
 export function generateRegistrationCSV(reportData: any): string {
-  const rows: any[] = []
+  const sections: string[] = []
+  const summaryRows: any[] = []
 
-  rows.push({
-    Metric: 'Total Registrations',
-    Value: reportData.totalRegistrations,
+  summaryRows.push({ Metric: 'Total Registrations', Value: reportData.totalRegistrations })
+  summaryRows.push({ Metric: 'Group Registrations', Value: reportData.groupCount })
+  summaryRows.push({
+    Metric: 'Group Participants',
+    Value: reportData.groupParticipants ?? '',
   })
-  rows.push({
-    Metric: 'Group Registrations',
-    Value: reportData.groupCount,
-  })
-  rows.push({
-    Metric: 'Individual Registrations',
-    Value: reportData.individualCount,
+  summaryRows.push({ Metric: 'Individual Registrations', Value: reportData.individualCount })
+  summaryRows.push({
+    Metric: 'Average Group Size',
+    Value:
+      typeof reportData.avgGroupSize === 'number'
+        ? reportData.avgGroupSize.toFixed(1)
+        : reportData.avgGroupSize,
   })
 
   Object.entries(reportData.demographics || {}).forEach(([type, data]: [string, any]) => {
-    rows.push({
-      Metric: `${type.replace(/_/g, ' ')} - Total`,
-      Value: data.total,
-    })
-    rows.push({
-      Metric: `${type.replace(/_/g, ' ')} - Male`,
-      Value: data.male,
-    })
-    rows.push({
-      Metric: `${type.replace(/_/g, ' ')} - Female`,
-      Value: data.female,
-    })
+    summaryRows.push({ Metric: `${type.replace(/_/g, ' ')} - Total`, Value: data.total })
+    summaryRows.push({ Metric: `${type.replace(/_/g, ' ')} - Male`, Value: data.male })
+    summaryRows.push({ Metric: `${type.replace(/_/g, ' ')} - Female`, Value: data.female })
   })
 
-  return generateCSV(rows, ['Metric', 'Value'])
+  Object.entries(reportData.housingBreakdown || {}).forEach(([type, count]: [string, any]) => {
+    summaryRows.push({ Metric: `Housing - ${type.replace(/_/g, ' ')}`, Value: count })
+  })
+
+  sections.push(generateCSV(summaryRows, ['Metric', 'Value']))
+
+  // Roster — one row per registered person
+  if (Array.isArray(reportData.roster) && reportData.roster.length > 0) {
+    const rosterRows = reportData.roster.map((p: any) => ({
+      Name: p.name,
+      Type: p.participantType || p.displayType || '',
+      Age: p.age ?? '',
+      Gender: p.gender || '',
+      Group: p.group || '',
+      'Registration Type': p.registrationType || '',
+      Housing: p.housingType || '',
+    }))
+    sections.push(
+      '\n\nRoster\n' +
+        generateCSV(rosterRows, [
+          'Name',
+          'Type',
+          'Age',
+          'Gender',
+          'Group',
+          'Registration Type',
+          'Housing',
+        ])
+    )
+  }
+
+  return sections.join('\n')
 }
 
 export function generateFormsCSV(reportData: any): string {

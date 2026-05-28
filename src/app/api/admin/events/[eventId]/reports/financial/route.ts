@@ -107,13 +107,37 @@ export async function GET(
       })
     }
 
+    // Only count payments that actually settled. Pending / failed / cancelled
+    // Payment rows would otherwise inflate the totals and skew percentages.
+    const isSettled = (p: any) =>
+      p.paymentStatus === 'succeeded' || p.paymentStatus === 'processing'
+    const settledPayments = payments.filter(isSettled)
+
     // Payment methods breakdown
-    const stripePayments = payments
+    const stripePayments = settledPayments
       .filter((p: any) => p.paymentMethod === 'card')
       .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0)
-    const checkPayments = payments
+    const checkPayments = settledPayments
       .filter((p: any) => p.paymentMethod === 'check')
       .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0)
+    const cashPayments = settledPayments
+      .filter((p: any) => p.paymentMethod === 'cash')
+      .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0)
+    const otherPayments = settledPayments
+      .filter(
+        (p: any) =>
+          p.paymentMethod !== 'card' &&
+          p.paymentMethod !== 'check' &&
+          p.paymentMethod !== 'cash'
+      )
+      .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0)
+
+    // Reconciliation: actualAmountPaid is the sum of settled Payment rows.
+    // This can drift from PaymentBalance.amountPaid if balances weren't
+    // updated when a Payment was recorded — surface the mismatch so admins
+    // can investigate rather than silently trusting the cached value.
+    const actualAmountPaid = stripePayments + checkPayments + cashPayments + otherPayments
+    const paymentMismatch = Math.abs(actualAmountPaid - amountPaid) > 0.01
 
     // Revenue by participant type
     const participantTypeStats = {
@@ -223,9 +247,9 @@ export async function GET(
       .filter((pb: any) => pb.registrationType === 'individual')
       .reduce((sum: number, pb: any) => sum + Number(pb.totalAmountDue || 0), 0)
 
-    // Payment timeline (group by month)
+    // Payment timeline (group by month, settled payments only)
     const paymentsByMonth: Record<string, number> = {}
-    for (const payment of payments) {
+    for (const payment of settledPayments) {
       if (payment.processedAt) {
         const month = new Date(payment.processedAt).toLocaleDateString('en-US', {
           month: 'short',
@@ -246,14 +270,107 @@ export async function GET(
       refundReasons[refund.refundReason] = (refundReasons[refund.refundReason] || 0) + 1
     }
 
+    // Helper to derive a human label for a registration
+    const labelForRegistration = (pb: any): { payer: string; type: string } => {
+      const groupReg = groupRegMap.get(pb.registrationId)
+      const indReg = individualRegMap.get(pb.registrationId)
+      if (groupReg) {
+        return {
+          payer: groupReg.groupName || groupReg.parishName || 'Group',
+          type: 'Group',
+        }
+      }
+      if (indReg) {
+        return {
+          payer: `${indReg.firstName || ''} ${indReg.lastName || ''}`.trim() || 'Individual',
+          type: 'Individual',
+        }
+      }
+      return { payer: 'Unknown', type: pb.registrationType || '—' }
+    }
+
+    // Per-transaction detail for the financial statement.
+    // We deliberately exclude Stripe IDs (PaymentIntent / Charge) — they're
+    // sensitive and not useful for accounting reports.
+    const transactions = settledPayments
+      .slice()
+      .sort((a: any, b: any) => {
+        const da = a.processedAt ? new Date(a.processedAt).getTime() : 0
+        const db = b.processedAt ? new Date(b.processedAt).getTime() : 0
+        return db - da
+      })
+      .map((p: any) => {
+        const { payer, type: regType } = labelForRegistration({
+          registrationId: p.registrationId,
+          registrationType: p.registrationType,
+        })
+        return {
+          processedAt: p.processedAt ? new Date(p.processedAt).toISOString() : null,
+          amount: Number(p.amount || 0),
+          paymentMethod: p.paymentMethod,
+          paymentType: p.paymentType,
+          paymentStatus: p.paymentStatus,
+          payer,
+          registrationType: regType,
+          checkNumber: p.checkNumber || null,
+          cardLast4: p.cardLast4 || null,
+          cardBrand: p.cardBrand || null,
+          notes: p.notes || null,
+        }
+      })
+
+    // Per-registration balance breakdown — gives accounting a row per invoice
+    const balancesByRegistration = paymentBalances
+      .map((pb: any) => {
+        const { payer, type: regType } = labelForRegistration(pb)
+        return {
+          payer,
+          registrationType: regType,
+          totalAmountDue: Number(pb.totalAmountDue || 0),
+          amountPaid: Number(pb.amountPaid || 0),
+          amountRemaining: Number(pb.amountRemaining || 0),
+          paymentStatus: pb.paymentStatus,
+          lastPaymentDate: pb.lastPaymentDate
+            ? new Date(pb.lastPaymentDate).toISOString()
+            : null,
+        }
+      })
+      .sort((a: any, b: any) => b.totalAmountDue - a.totalAmountDue)
+
+    // Refund detail rows
+    const refundDetails = refunds
+      .map((r: any) => {
+        const { payer, type: regType } = labelForRegistration({
+          registrationId: r.registrationId,
+          registrationType: r.registrationType,
+        })
+        return {
+          payer,
+          registrationType: regType,
+          refundAmount: Number(r.refundAmount || 0),
+          refundReason: r.refundReason || '',
+          refundMethod: r.refundMethod || null,
+          refundStatus: r.refundStatus || null,
+          processedAt: r.processedAt ? new Date(r.processedAt).toISOString() : null,
+        }
+      })
+      .sort((a: any, b: any) => b.refundAmount - a.refundAmount)
+
     return NextResponse.json({
       totalRevenue,
       amountPaid,
+      actualAmountPaid,
+      paymentMismatch,
       balanceDue,
       overdueBalance,
       paymentMethods: {
         stripe: stripePayments,
         check: checkPayments,
+        cash: cashPayments,
+        other: otherPayments,
+        // Kept for backward compatibility with existing consumers.
+        // This is the outstanding balance, NOT a payment method, and the UI
+        // should display it separately.
         pending: balanceDue,
       },
       byParticipantType: participantTypeStats,
@@ -263,10 +380,13 @@ export async function GET(
         individual: individualRevenue,
       },
       paymentTimeline,
+      transactions,
+      balancesByRegistration,
       refunds: {
         totalRefunded,
         count: refunds.length,
         reasons: refundReasons,
+        details: refundDetails,
       },
     })
   } catch (error) {
