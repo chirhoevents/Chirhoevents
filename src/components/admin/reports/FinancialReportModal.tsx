@@ -52,6 +52,16 @@ interface RefundDetail {
   processedAt: string | null
 }
 
+interface ExpectedPayment {
+  createdAt: string | null
+  amount: number
+  paymentMethod: string
+  paymentType: string
+  payer: string
+  registrationType: string
+  checkNumber: string | null
+}
+
 interface FinancialData {
   totalRevenue: number
   amountPaid: number
@@ -65,6 +75,14 @@ interface FinancialData {
     cash: number
     other: number
     pending: number
+  }
+  expectedPayments: {
+    total: number
+    stripe: number
+    check: number
+    other: number
+    count: number
+    details: ExpectedPayment[]
   }
   byParticipantType: {
     youthU18: { revenue: number; count: number; avg: number }
@@ -130,6 +148,14 @@ export default function FinancialReportModal({
           cash: reportData.paymentMethods?.cash ?? 0,
           other: reportData.paymentMethods?.other ?? 0,
           pending: reportData.paymentMethods?.pending ?? 0,
+        },
+        expectedPayments: {
+          total: reportData.expectedPayments?.total ?? 0,
+          stripe: reportData.expectedPayments?.stripe ?? 0,
+          check: reportData.expectedPayments?.check ?? 0,
+          other: reportData.expectedPayments?.other ?? 0,
+          count: reportData.expectedPayments?.count ?? 0,
+          details: reportData.expectedPayments?.details ?? [],
         },
         transactions: reportData.transactions ?? [],
         balancesByRegistration: reportData.balancesByRegistration ?? [],
@@ -293,10 +319,11 @@ export default function FinancialReportModal({
             {/* Payment Methods */}
             <div>
               <h3 className="font-semibold text-[#1E3A5F] mb-3">
-                PAYMENT METHOD BREAKDOWN
+                PAYMENTS RECEIVED (BY METHOD)
               </h3>
               <p className="text-xs text-[#6B7280] mb-2">
-                Percentages are of total settled payments (
+                Money actually settled, broken down by how it was paid.
+                Percentages are of total received (
                 {formatCurrency(data.actualAmountPaid)}).
               </p>
               <div className="space-y-2">
@@ -341,12 +368,93 @@ export default function FinancialReportModal({
                 OUTSTANDING BALANCE
               </h3>
               <div className="flex justify-between items-center p-3 bg-orange-50 border border-orange-200 rounded">
-                <span className="text-sm">Awaiting payment</span>
+                <span className="text-sm">Total awaiting payment (across all registrations)</span>
                 <span className="font-semibold text-orange-700">
                   {formatCurrency(data.balanceDue)}
                 </span>
               </div>
             </div>
+
+            {/* Expected Payments — intents, not money received */}
+            {data.expectedPayments.count > 0 && (
+              <div>
+                <h3 className="font-semibold text-[#1E3A5F] mb-3">
+                  EXPECTED PAYMENTS ({data.expectedPayments.count})
+                </h3>
+                <p className="text-xs text-[#6B7280] mb-2">
+                  These are commitments — e.g. a group leader who chose &quot;pay by
+                  check later&quot; or an unfinished Stripe checkout. They are{' '}
+                  <strong>not</strong> counted as received. Move them to
+                  Transactions above by marking the check received or completing
+                  the card payment.
+                </p>
+                <div className="space-y-2 mb-3">
+                  {data.expectedPayments.check > 0 && (
+                    <div className="flex justify-between items-center p-3 bg-amber-50 border border-amber-200 rounded">
+                      <span className="text-sm">Check (awaiting receipt)</span>
+                      <span className="font-semibold text-amber-800">
+                        {formatCurrency(data.expectedPayments.check)}
+                      </span>
+                    </div>
+                  )}
+                  {data.expectedPayments.stripe > 0 && (
+                    <div className="flex justify-between items-center p-3 bg-amber-50 border border-amber-200 rounded">
+                      <span className="text-sm">
+                        Credit Card (unfinished checkout)
+                      </span>
+                      <span className="font-semibold text-amber-800">
+                        {formatCurrency(data.expectedPayments.stripe)}
+                      </span>
+                    </div>
+                  )}
+                  {data.expectedPayments.other > 0 && (
+                    <div className="flex justify-between items-center p-3 bg-amber-50 border border-amber-200 rounded">
+                      <span className="text-sm">Other</span>
+                      <span className="font-semibold text-amber-800">
+                        {formatCurrency(data.expectedPayments.other)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="overflow-x-auto border border-gray-200 rounded">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 text-left text-xs uppercase text-[#6B7280]">
+                      <tr>
+                        <th className="px-3 py-2">Created</th>
+                        <th className="px-3 py-2">Payer</th>
+                        <th className="px-3 py-2">Intended Method</th>
+                        <th className="px-3 py-2 text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.expectedPayments.details.map((e, i) => (
+                        <tr key={i} className="border-t border-gray-100">
+                          <td className="px-3 py-2 text-[#6B7280]">
+                            {formatDate(e.createdAt)}
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="font-medium">{e.payer}</div>
+                            <div className="text-xs text-[#6B7280]">
+                              {e.registrationType}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 capitalize">
+                            {e.paymentMethod === 'card'
+                              ? 'Credit Card'
+                              : e.paymentMethod === 'check'
+                                ? `Check${e.checkNumber ? ` #${e.checkNumber}` : ''}`
+                                : e.paymentMethod}
+                          </td>
+                          <td className="px-3 py-2 text-right font-semibold text-amber-800">
+                            {formatCurrency(e.amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* Revenue by Participant Type */}
             <div>
@@ -452,8 +560,12 @@ export default function FinancialReportModal({
             {/* Transactions */}
             <div>
               <h3 className="font-semibold text-[#1E3A5F] mb-3">
-                TRANSACTIONS ({data.transactions.length})
+                TRANSACTIONS — MONEY RECEIVED ({data.transactions.length})
               </h3>
+              <p className="text-xs text-[#6B7280] mb-2">
+                Only settled payments. Pending check intents and abandoned card
+                checkouts are listed under Expected Payments above.
+              </p>
               {data.transactions.length === 0 ? (
                 <div className="p-3 bg-gray-50 rounded text-sm text-[#6B7280]">
                   No settled payments yet.
