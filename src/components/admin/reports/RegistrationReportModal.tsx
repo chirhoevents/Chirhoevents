@@ -181,6 +181,48 @@ export default function RegistrationReportModal({
               </div>
             )}
 
+            {/* Roster */}
+            {data.roster && data.roster.length > 0 && (
+              <div>
+                <h3 className="font-semibold text-[#1E3A5F] mb-3">
+                  REGISTERED PEOPLE ({data.roster.length})
+                </h3>
+                <div className="overflow-x-auto border border-gray-200 rounded">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 text-left text-xs uppercase text-[#6B7280]">
+                      <tr>
+                        <th className="px-3 py-2">Name</th>
+                        <th className="px-3 py-2">Type</th>
+                        <th className="px-3 py-2">Age / Gender</th>
+                        <th className="px-3 py-2">Group</th>
+                        <th className="px-3 py-2">Housing</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.roster.map((person: any, i: number) => (
+                        <tr key={i} className="border-t border-gray-100">
+                          <td className="px-3 py-2 font-medium text-[#1E3A5F]">
+                            {person.name}
+                          </td>
+                          <td className="px-3 py-2 capitalize">
+                            {(person.participantType || person.displayType || '—').replace(/_/g, ' ')}
+                          </td>
+                          <td className="px-3 py-2 text-[#6B7280]">
+                            {person.age ?? '—'}
+                            {person.gender ? ` / ${person.gender}` : ''}
+                          </td>
+                          <td className="px-3 py-2 text-[#6B7280]">{person.group}</td>
+                          <td className="px-3 py-2 text-[#6B7280] capitalize">
+                            {person.housingType ? person.housingType.replace(/_/g, ' ') : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="flex gap-3 pt-4 border-t">
               <Button
