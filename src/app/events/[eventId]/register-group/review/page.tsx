@@ -625,8 +625,9 @@ export default function InvoiceReviewPage() {
 
       {/* Check Payment Modal */}
       {showCheckModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-2xl w-full">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-start sm:items-center justify-center p-4">
+          <Card className="max-w-2xl w-full my-4">
             <CardHeader>
               <CardTitle>Pay Later Options</CardTitle>
               <CardDescription>Choose how you&apos;d like to complete payment</CardDescription>
@@ -737,6 +738,7 @@ export default function InvoiceReviewPage() {
               </div>
             </CardContent>
           </Card>
+          </div>
         </div>
       )}
 

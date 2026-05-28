@@ -20,6 +20,12 @@ export async function GET(
             startDate: true,
             endDate: true,
             organizationId: true,
+            settings: {
+              select: {
+                contactEmail: true,
+                contactPhone: true,
+              },
+            },
             organization: {
               select: {
                 name: true,
@@ -65,15 +71,21 @@ export async function GET(
       return NextResponse.json(registration)
     }
 
+    // Prefer the event-specific contact (set on the edit-event page) over the org-level admin contact
+    const contactEmail =
+      registration.event.settings?.contactEmail || registration.event.organization.contactEmail
+    const contactPhone =
+      registration.event.settings?.contactPhone || registration.event.organization.contactPhone
+
     // Stripped public response — NO phone, access code, or vendor data
     return NextResponse.json({
       id: registration.id,
       eventName: registration.event.name,
       registrationStatus: registration.paymentStatus,
       organizationName: registration.event.organization.name,
-      organizationContactEmail: registration.event.organization.contactEmail,
-      organizationContactPhone: registration.event.organization.contactPhone,
-      message: `Need help? Contact ${registration.event.organization.name} at ${registration.event.organization.contactEmail || 'the event organizer'}.`,
+      organizationContactEmail: contactEmail,
+      organizationContactPhone: contactPhone,
+      message: `Need help? Contact ${registration.event.organization.name} at ${contactEmail || 'the event organizer'}.`,
     })
   } catch (error) {
     console.error('Error fetching staff registration:', error)

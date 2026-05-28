@@ -633,8 +633,9 @@ export default function IndividualInvoiceReviewPage() {
 
       {/* Check Payment Modal */}
       {showCheckModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="max-w-md w-full">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-start sm:items-center justify-center p-4">
+          <Card className="max-w-md w-full my-4">
             <CardHeader>
               <CardTitle>Pay Later with Check or Cash</CardTitle>
               <CardDescription>Your registration will be marked as pending payment</CardDescription>
@@ -707,6 +708,7 @@ export default function IndividualInvoiceReviewPage() {
               </div>
             </CardContent>
           </Card>
+          </div>
         </div>
       )}
     </div>
