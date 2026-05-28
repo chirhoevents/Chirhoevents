@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckCircle, Printer, Mail, Loader2 } from 'lucide-react'
+import { CheckCircle, Printer, Mail, Loader2, AlertTriangle, Copy, Check } from 'lucide-react'
 import '@/styles/print-receipt.css'
 import LoadingScreen from '@/components/LoadingScreen'
 
@@ -44,6 +44,7 @@ export default function ConfirmationPage() {
   const [loading, setLoading] = useState(true)
   const [registration, setRegistration] = useState<RegistrationData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [messageCopied, setMessageCopied] = useState(false)
 
   useEffect(() => {
     async function loadRegistration() {
@@ -391,6 +392,86 @@ export default function ConfirmationPage() {
             </CardContent>
           </Card>
 
+          {/* Liability Forms — High-Priority Callout */}
+          {accessCode && (
+            <Card className="mb-6 border-2 border-red-500 bg-red-50">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-red-700">
+                  <AlertTriangle className="h-6 w-6" />
+                  Liability Forms — Required for EVERY Participant
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-800 mb-3">
+                  <strong>Every single person in your group must complete a liability form before the event.</strong>{' '}
+                  Use Step 2 below to share the link with all your participants — they&apos;ll enter your group code{' '}
+                  <strong className="font-mono">{accessCode}</strong> to fill out their form.
+                </p>
+                <p className="text-sm text-gray-600 mb-4">
+                  Your registration will not be fully confirmed until all participants have submitted their liability forms.
+                </p>
+                <Button
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                  onClick={() => window.open(`/poros?code=${accessCode}`, '_blank')}
+                >
+                  Open Liability Form Page
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Share With Your Group — Message Template */}
+          {accessCode && (() => {
+            const porosUrl = `${appUrl || (typeof window !== 'undefined' ? window.location.origin : '')}/poros?code=${accessCode}`
+            const messageTemplate = `Hey! You're signed up for ${registration.eventName} with our group ${groupName}. Please fill out your liability form before the event (takes ~5 min, required for everyone): ${porosUrl}`
+
+            const handleCopyMessage = async () => {
+              try {
+                await navigator.clipboard.writeText(messageTemplate)
+                setMessageCopied(true)
+                setTimeout(() => setMessageCopied(false), 2500)
+              } catch {
+                // Clipboard API can fail in non-secure contexts — fall back to a manual prompt
+                window.prompt('Copy this message:', messageTemplate)
+              }
+            }
+
+            return (
+              <Card className="mb-6 border-2 border-navy">
+                <CardHeader>
+                  <CardTitle className="text-navy">Share With Your Group</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-700 mb-3">
+                    Copy this message and send it to every participant by text, email, or group chat:
+                  </p>
+                  <div className="bg-gray-50 border border-dashed border-gray-400 rounded-md p-4 text-sm text-gray-900 whitespace-pre-wrap break-words mb-3">
+                    {messageTemplate}
+                  </div>
+                  <Button
+                    onClick={handleCopyMessage}
+                    className={messageCopied ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-navy hover:bg-navy/90 text-white'}
+                  >
+                    {messageCopied ? (
+                      <>
+                        <Check className="mr-2 h-4 w-4" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="mr-2 h-4 w-4" />
+                        Copy Message to Clipboard
+                      </>
+                    )}
+                  </Button>
+                  <p className="text-xs text-gray-500 mt-3">
+                    Tip: Each participant only needs the link — your group code is already included in it.
+                  </p>
+                </CardContent>
+              </Card>
+            )
+          })()}
+
           {/* Next Steps */}
           <Card className="mb-6">
             <CardHeader>
@@ -401,28 +482,6 @@ export default function ConfirmationPage() {
                 <li className="flex items-start">
                   <div className="flex-shrink-0 w-8 h-8 bg-navy text-white rounded-full flex items-center justify-center font-bold mr-3">
                     1
-                  </div>
-                  <div>
-                    <p className="font-semibold text-navy">Complete Liability Forms</p>
-                    <p className="text-sm text-gray-600">
-                      Each participant must complete their liability form using your access code.
-                    </p>
-                    {accessCode && (
-                      <Button
-                        variant="outline"
-                        className="mt-2"
-                        size="sm"
-                        onClick={() => window.open(`/poros?code=${accessCode}`, '_blank')}
-                      >
-                        Go to Poros Liability
-                      </Button>
-                    )}
-                  </div>
-                </li>
-
-                <li className="flex items-start">
-                  <div className="flex-shrink-0 w-8 h-8 bg-navy text-white rounded-full flex items-center justify-center font-bold mr-3">
-                    2
                   </div>
                   <div>
                     <p className="font-semibold text-navy">Link Your Group Leader Account</p>
@@ -447,7 +506,7 @@ export default function ConfirmationPage() {
 
                 <li className="flex items-start">
                   <div className="flex-shrink-0 w-8 h-8 bg-navy text-white rounded-full flex items-center justify-center font-bold mr-3">
-                    3
+                    2
                   </div>
                   <div>
                     <p className="font-semibold text-navy">Check-In Information Coming Soon</p>
