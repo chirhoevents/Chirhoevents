@@ -2256,7 +2256,9 @@ export function generateGroupRegistrationConfirmationEmail({
   groupLeaderEmail?: string
   supportEmail?: string
 }): string {
-  const formatCurrency = (amount: number) => `$${(amount / 100).toFixed(2)}`
+  // Amounts are passed in dollars (from PaymentBalance.totalAmountDue and the
+  // group registration's calculated totals), not Stripe-style cents.
+  const formatCurrency = (amount: number) => `$${amount.toFixed(2)}`
 
   const paymentSection = paymentMethod === 'check' ? `
     <h2>Payment Information</h2>
