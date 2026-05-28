@@ -522,7 +522,7 @@ export default function PorosRoleSelection() {
                 <ul className="space-y-2 text-sm text-gray-700">
                   <li><strong>Youth Under 18:</strong> If the participant is between ages 12-17, select this option. A parent will need to complete and sign the form.</li>
                   <li><strong>Youth 18+ or Chaperone:</strong> If the participant is 18 or older (including adult chaperones), select this option. The participant can complete the form themselves.</li>
-                  <li><strong>Priest/Deacon/Bishop:</strong> Only for clergy members attending the event. This form has specialized fields for clergy information.</li>
+                  <li><strong>Clergy &amp; Religious:</strong> For priests, deacons, seminarians, sisters, or brothers attending the event. This form has specialized fields for clergy and religious information.</li>
                 </ul>
               </div>
             </div>
