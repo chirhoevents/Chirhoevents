@@ -510,7 +510,7 @@ export default function IndividualRegistrationPage() {
                           className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
                           value={formData.city}
                           onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                          placeholder="Tulsa"
+                          placeholder="Springfield"
                         />
                       </div>
 
@@ -590,7 +590,7 @@ export default function IndividualRegistrationPage() {
                           className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
                           value={formData.zip}
                           onChange={(e) => setFormData({ ...formData, zip: e.target.value })}
-                          placeholder="74105"
+                          placeholder="12345"
                           maxLength={5}
                         />
                       </div>

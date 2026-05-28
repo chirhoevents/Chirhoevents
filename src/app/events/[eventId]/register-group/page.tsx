@@ -675,7 +675,7 @@ export default function GroupRegistrationPage() {
                           className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
                           value={formData.dioceseName}
                           onChange={(e) => setFormData({ ...formData, dioceseName: e.target.value })}
-                          placeholder="Diocese of Tulsa"
+                          placeholder="Diocese of Rome"
                         />
                       </div>
                     </div>
@@ -708,7 +708,7 @@ export default function GroupRegistrationPage() {
                           className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
                           value={formData.groupLeaderEmail}
                           onChange={(e) => setFormData({ ...formData, groupLeaderEmail: e.target.value })}
-                          placeholder="mike@stmarystulsa.org"
+                          placeholder="mike@stmarys.org"
                         />
                       </div>
 
@@ -722,7 +722,7 @@ export default function GroupRegistrationPage() {
                           className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
                           value={formData.groupLeaderPhone}
                           onChange={(e) => setFormData({ ...formData, groupLeaderPhone: e.target.value })}
-                          placeholder="(918) 555-1234"
+                          placeholder="(555) 555-1234"
                         />
                       </div>
                     </div>
@@ -752,7 +752,7 @@ export default function GroupRegistrationPage() {
                           className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
                           value={formData.groupLeaderCity}
                           onChange={(e) => setFormData({ ...formData, groupLeaderCity: e.target.value })}
-                          placeholder="Tulsa"
+                          placeholder="Springfield"
                         />
                       </div>
 
@@ -832,7 +832,7 @@ export default function GroupRegistrationPage() {
                           className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
                           value={formData.groupLeaderZip}
                           onChange={(e) => setFormData({ ...formData, groupLeaderZip: e.target.value })}
-                          placeholder="74105"
+                          placeholder="12345"
                           maxLength={5}
                         />
                       </div>
@@ -888,7 +888,7 @@ export default function GroupRegistrationPage() {
                             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
                             value={formData.alternativeContact1Phone}
                             onChange={(e) => setFormData({ ...formData, alternativeContact1Phone: e.target.value })}
-                            placeholder="(918) 555-9876"
+                            placeholder="(555) 555-9876"
                           />
                         </div>
                       </div>
@@ -933,7 +933,7 @@ export default function GroupRegistrationPage() {
                             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
                             value={formData.alternativeContact2Phone}
                             onChange={(e) => setFormData({ ...formData, alternativeContact2Phone: e.target.value })}
-                            placeholder="(918) 555-5432"
+                            placeholder="(555) 555-5432"
                           />
                         </div>
                       </div>

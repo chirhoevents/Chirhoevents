@@ -26,6 +26,12 @@ export async function GET(
           select: {
             name: true,
             organizationId: true,
+            settings: {
+              select: {
+                contactEmail: true,
+                contactPhone: true,
+              },
+            },
             organization: {
               select: {
                 id: true,
@@ -98,6 +104,12 @@ export async function GET(
       }
     }
 
+    // Prefer the event-specific contact (set on the edit-event page) over the org-level admin contact
+    const contactEmail =
+      registration.event.settings?.contactEmail || registration.event.organization.contactEmail
+    const contactPhone =
+      registration.event.settings?.contactPhone || registration.event.organization.contactPhone
+
     if (isAuthorized) {
       // Full response for authenticated + authorized callers
       return NextResponse.json({
@@ -115,8 +127,8 @@ export async function GET(
         registrationStatus: registration.registrationStatus,
         organizationName: registration.event.organization.name,
         organizationLogoUrl: registration.event.organization.logoUrl,
-        organizationContactEmail: registration.event.organization.contactEmail,
-        organizationContactPhone: registration.event.organization.contactPhone,
+        organizationContactEmail: contactEmail,
+        organizationContactPhone: contactPhone,
       })
     } else {
       // Stripped public response — no access code, no email, no financial data
@@ -130,8 +142,8 @@ export async function GET(
         registrationStatus: registration.registrationStatus,
         organizationName: registration.event.organization.name,
         organizationLogoUrl: registration.event.organization.logoUrl,
-        organizationContactEmail: registration.event.organization.contactEmail,
-        organizationContactPhone: registration.event.organization.contactPhone,
+        organizationContactEmail: contactEmail,
+        organizationContactPhone: contactPhone,
       })
     }
   } catch (error) {
