@@ -59,11 +59,38 @@ export function generateFinancialCSV(reportData: any): string {
   // Payment methods
   const pm = reportData.paymentMethods || {}
   summaryRows.push(
-    { Section: 'Payment Methods', Metric: 'Stripe/Card', Value: dollars(pm.stripe) },
-    { Section: 'Payment Methods', Metric: 'Check', Value: dollars(pm.check) },
-    { Section: 'Payment Methods', Metric: 'Cash', Value: dollars(pm.cash) },
-    { Section: 'Payment Methods', Metric: 'Other', Value: dollars(pm.other) }
+    { Section: 'Payments Received', Metric: 'Stripe/Card', Value: dollars(pm.stripe) },
+    { Section: 'Payments Received', Metric: 'Check', Value: dollars(pm.check) },
+    { Section: 'Payments Received', Metric: 'Cash', Value: dollars(pm.cash) },
+    { Section: 'Payments Received', Metric: 'Other', Value: dollars(pm.other) }
   )
+
+  // Expected (pending intents — NOT received)
+  const ep = reportData.expectedPayments || {}
+  if (Number(ep.total || 0) > 0) {
+    summaryRows.push(
+      {
+        Section: 'Expected Payments (NOT received)',
+        Metric: 'Check (awaiting receipt)',
+        Value: dollars(ep.check),
+      },
+      {
+        Section: 'Expected Payments (NOT received)',
+        Metric: 'Credit Card (unfinished)',
+        Value: dollars(ep.stripe),
+      },
+      {
+        Section: 'Expected Payments (NOT received)',
+        Metric: 'Other',
+        Value: dollars(ep.other),
+      },
+      {
+        Section: 'Expected Payments (NOT received)',
+        Metric: 'Total Expected',
+        Value: dollars(ep.total),
+      }
+    )
+  }
 
   // By participant type
   Object.entries(reportData.byParticipantType || {}).forEach(([type, data]: [string, any]) => {
@@ -107,6 +134,34 @@ export function generateFinancialCSV(reportData: any): string {
   )
 
   sections.push(generateCSV(summaryRows, ['Section', 'Metric', 'Value', 'Count', 'Average']))
+
+  // ── Expected Payments (intents, not received) ─────────────
+  if (
+    Array.isArray(reportData.expectedPayments?.details) &&
+    reportData.expectedPayments.details.length > 0
+  ) {
+    const expRows = reportData.expectedPayments.details.map((e: any) => ({
+      Created: e.createdAt ? new Date(e.createdAt).toLocaleDateString() : '',
+      Payer: e.payer,
+      'Registration Type': e.registrationType,
+      'Intended Method': e.paymentMethod,
+      'Check Number': e.checkNumber || '',
+      'Payment Type': e.paymentType,
+      Amount: dollars(e.amount),
+    }))
+    sections.push(
+      '\n\nExpected Payments (NOT received)\n' +
+        generateCSV(expRows, [
+          'Created',
+          'Payer',
+          'Registration Type',
+          'Intended Method',
+          'Check Number',
+          'Payment Type',
+          'Amount',
+        ])
+    )
+  }
 
   // ── Transactions ────────────────────────────────────────────
   if (Array.isArray(reportData.transactions) && reportData.transactions.length > 0) {

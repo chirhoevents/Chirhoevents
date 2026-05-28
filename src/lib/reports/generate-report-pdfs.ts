@@ -209,7 +209,7 @@ export async function generateFinancialReportPDF(reportData: any, eventName: str
 
       // Payment Methods
       y += 10
-      sectionHead('Payment Methods (Settled)')
+      sectionHead('Payments Received (by method)')
       const totalSettled = Number(reportData?.actualAmountPaid || 0)
       const pmStripe = Number(reportData?.paymentMethods?.stripe || 0)
       const pmCheck = Number(reportData?.paymentMethods?.check || 0)
@@ -219,6 +219,19 @@ export async function generateFinancialReportPDF(reportData: any, eventName: str
       row('Check:', `${fmtMoney(pmCheck)} (${pctOf(pmCheck, totalSettled)})`)
       if (pmCash > 0) row('Cash:', `${fmtMoney(pmCash)} (${pctOf(pmCash, totalSettled)})`)
       if (pmOther > 0) row('Other:', `${fmtMoney(pmOther)} (${pctOf(pmOther, totalSettled)})`)
+
+      // Expected (pending) payments — commitments only, NOT received
+      const expectedCount = Number(reportData?.expectedPayments?.count || 0)
+      if (expectedCount > 0) {
+        y += 10
+        sectionHead(`Expected Payments (${expectedCount}, not yet received)`)
+        const expStripe = Number(reportData?.expectedPayments?.stripe || 0)
+        const expCheck = Number(reportData?.expectedPayments?.check || 0)
+        const expOther = Number(reportData?.expectedPayments?.other || 0)
+        if (expCheck > 0) row('Check (awaiting receipt):', fmtMoney(expCheck), ORANGE)
+        if (expStripe > 0) row('Credit Card (unfinished):', fmtMoney(expStripe), ORANGE)
+        if (expOther > 0) row('Other:', fmtMoney(expOther), ORANGE)
+      }
 
       // Revenue by Participant Type (dynamic)
       if (reportData?.byParticipantType && typeof reportData.byParticipantType === 'object') {
@@ -346,6 +359,80 @@ export async function generateFinancialReportPDF(reportData: any, eventName: str
       } else {
         doc.font('Helvetica').fontSize(10).fillColor(GRAY).text('No settled payments yet.', M, y)
         y += 16
+      }
+
+      // ============================================================
+      // Expected Payments (intents — NOT money received)
+      // ============================================================
+      if (
+        Array.isArray(reportData?.expectedPayments?.details) &&
+        reportData.expectedPayments.details.length > 0
+      ) {
+        doc.addPage()
+        y = M
+        doc.font('Helvetica-Bold').fontSize(16).fillColor(NAVY).text(
+          'Expected Payments',
+          M,
+          y
+        )
+        y += 22
+        doc.font('Helvetica').fontSize(10).fillColor(GRAY).text(
+          'Commitments only — e.g. group leaders who chose "pay by check later" or ' +
+            'unfinished card checkouts. These are NOT counted as revenue received.',
+          M,
+          y,
+          { width: W }
+        )
+        y += 28
+
+        const expCols: { label: string; w: number; align?: 'left' | 'right' }[] = [
+          { label: 'Created', w: 80 },
+          { label: 'Payer', w: 180 },
+          { label: 'Type', w: 70 },
+          { label: 'Intended Method', w: 110 },
+          { label: 'Amount', w: W - 80 - 180 - 70 - 110, align: 'right' },
+        ]
+        drawTableHeader(expCols)
+        let zebra = false
+        let expTotal = 0
+        for (const e of reportData.expectedPayments.details) {
+          if (y + 18 > BOTTOM) {
+            doc.addPage()
+            y = M
+            drawTableHeader(expCols)
+            zebra = false
+          }
+          const method =
+            e?.paymentMethod === 'card'
+              ? 'Credit Card'
+              : e?.paymentMethod === 'check'
+                ? e?.checkNumber
+                  ? `Check #${e.checkNumber}`
+                  : 'Check'
+                : safeTxt(e?.paymentMethod, '—')
+          const amount = Number(e?.amount || 0)
+          expTotal += amount
+          drawTableRow(
+            expCols,
+            [
+              fmtDate(e?.createdAt),
+              safeTxt(e?.payer, '—'),
+              safeTxt(e?.registrationType, '—'),
+              method,
+              fmtMoney(amount),
+            ],
+            zebra
+          )
+          zebra = !zebra
+        }
+        checkPage(20)
+        doc.moveTo(M, y).lineTo(M + W, y).strokeColor(NAVY).lineWidth(1).stroke()
+        y += 4
+        drawTableRow(
+          expCols.map(c => ({ ...c, color: NAVY })),
+          ['', '', '', 'Total expected', fmtMoney(expTotal)],
+          false
+        )
       }
 
       // ============================================================
