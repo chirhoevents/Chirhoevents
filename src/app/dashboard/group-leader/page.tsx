@@ -57,6 +57,7 @@ export default function GroupLeaderDashboard() {
   const [error, setError] = useState<string | null>(null)
   const [copySuccess, setCopySuccess] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [shareCopySuccess, setShareCopySuccess] = useState(false)
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -113,6 +114,24 @@ export default function GroupLeaderDashboard() {
       navigator.clipboard.writeText(data.accessCode)
       setCopySuccess(true)
       setTimeout(() => setCopySuccess(false), 2000)
+    }
+  }
+
+  const buildShareMessage = (d: DashboardData) => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://chirhoevents.com'
+    const porosUrl = `${origin}/poros?code=${d.accessCode}`
+    return `Hey! You're signed up for ${d.eventName} with our group ${d.groupName}. Please fill out your liability form before the event (takes ~5 min, required for everyone): ${porosUrl}`
+  }
+
+  const copyShareMessage = async () => {
+    if (!data) return
+    const message = buildShareMessage(data)
+    try {
+      await navigator.clipboard.writeText(message)
+      setShareCopySuccess(true)
+      setTimeout(() => setShareCopySuccess(false), 2500)
+    } catch {
+      window.prompt('Copy this message:', message)
     }
   }
 
@@ -466,20 +485,32 @@ export default function GroupLeaderDashboard() {
 
           <div className="space-y-3">
             <div>
+              <p className="text-sm font-medium text-[#1E3A5F] mb-2">
+                Share With Your Group
+              </p>
+              <p className="text-xs text-[#6B7280] mb-2">
+                Copy a ready-to-send message for participants so they can complete their liability form:
+              </p>
+              <div className="bg-[#F9FAFB] border border-dashed border-[#9CA3AF] rounded-md p-3 text-xs text-[#1F2937] whitespace-pre-wrap break-words mb-2">
+                {buildShareMessage(data)}
+              </div>
               <Button
-                onClick={copyAccessCode}
-                variant="outline"
-                className="w-full border-[#1E3A5F] text-[#1E3A5F]"
+                onClick={copyShareMessage}
+                className={
+                  shareCopySuccess
+                    ? 'w-full bg-green-600 hover:bg-green-700 text-white'
+                    : 'w-full bg-[#1E3A5F] hover:bg-[#15294A] text-white'
+                }
               >
-                {copySuccess ? (
+                {shareCopySuccess ? (
                   <>
-                    <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
-                    Copied to Clipboard!
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Copied!
                   </>
                 ) : (
                   <>
                     <Share2 className="h-4 w-4 mr-2" />
-                    Share Access Code
+                    Copy Share Message
                   </>
                 )}
               </Button>
