@@ -48,8 +48,8 @@ interface BillingData {
 }
 
 const tierLabels: Record<string, string> = {
-  // Current tier names
-  starter: 'Starter',
+  // Current tier names ('starter' DB enum renders as "Chapel")
+  starter: 'Chapel',
   parish: 'Parish',
   cathedral: 'Cathedral',
   shrine: 'Shrine',

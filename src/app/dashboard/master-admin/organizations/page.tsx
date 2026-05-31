@@ -76,7 +76,7 @@ function getOnboardingStatus(org: Organization): { label: string; color: string;
 }
 
 const tierLabels: Record<string, string> = {
-  starter: 'Starter',
+  starter: 'Chapel',
   parish: 'Parish',
   shrine: 'Shrine',
   cathedral: 'Cathedral',
@@ -302,7 +302,7 @@ export default function OrganizationsPage() {
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
           >
             <option value="all">All Tiers</option>
-            <option value="starter">Starter</option>
+            <option value="starter">Chapel</option>
             <option value="parish">Parish</option>
             <option value="shrine">Shrine</option>
             <option value="cathedral">Cathedral</option>

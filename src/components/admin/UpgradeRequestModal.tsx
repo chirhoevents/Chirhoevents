@@ -21,7 +21,7 @@ interface UpgradeRequestModalProps {
 }
 
 const tierLabels: Record<string, string> = {
-  starter: 'Starter',
+  starter: 'Chapel',
   parish: 'Parish',
   cathedral: 'Cathedral',
   shrine: 'Shrine',
@@ -45,7 +45,7 @@ const nextTierSuggestions: Record<string, string> = {
   growing: 'Shrine',
   conference: 'Basilica',
   enterprise: 'Basilica (custom)',
-  test: 'Starter',
+  test: 'Chapel',
 }
 
 export default function UpgradeRequestModal({

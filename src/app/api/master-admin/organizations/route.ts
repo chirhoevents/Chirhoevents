@@ -195,14 +195,20 @@ export async function POST(request: NextRequest) {
       sendStripeOnboarding,
     } = body
 
-    // Tier pricing
-    const tierPricing: Record<string, { monthly: number; annual: number; eventsLimit: number; registrationsLimit: number; storageLimit: number }> = {
-      starter: { monthly: 29, annual: 290, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
-      small_diocese: { monthly: 49, annual: 490, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
-      growing: { monthly: 89, annual: 900, eventsLimit: 10, registrationsLimit: 2000, storageLimit: 25 },
-      conference: { monthly: 120, annual: 1200, eventsLimit: 20, registrationsLimit: 4000, storageLimit: 100 },
-      enterprise: { monthly: 199, annual: 1990, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
-      test: { monthly: 0, annual: 0, eventsLimit: 3, registrationsLimit: 100, storageLimit: 1 },
+    // Tier pricing — keyed by DB enum value. 'starter' renders as "Chapel".
+    // Legacy keys (small_diocese / growing / conference / enterprise) map to current tiers.
+    const tierPricing: Record<string, { monthly: number; annual: number; setupFee: number; eventsLimit: number; registrationsLimit: number; storageLimit: number }> = {
+      starter: { monthly: 39, annual: 468, setupFee: 99, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
+      parish: { monthly: 59, annual: 708, setupFee: 199, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
+      cathedral: { monthly: 109, annual: 1080, setupFee: 349, eventsLimit: 10, registrationsLimit: 2000, storageLimit: 25 },
+      shrine: { monthly: 159, annual: 1908, setupFee: 499, eventsLimit: 20, registrationsLimit: 4000, storageLimit: 100 },
+      basilica: { monthly: 1250, annual: 15000, setupFee: 0, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
+      // Legacy tier keys — map to current tier pricing
+      small_diocese: { monthly: 59, annual: 708, setupFee: 199, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
+      growing: { monthly: 109, annual: 1080, setupFee: 349, eventsLimit: 10, registrationsLimit: 2000, storageLimit: 25 },
+      conference: { monthly: 159, annual: 1908, setupFee: 499, eventsLimit: 20, registrationsLimit: 4000, storageLimit: 100 },
+      enterprise: { monthly: 1250, annual: 15000, setupFee: 0, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
+      test: { monthly: 0, annual: 0, setupFee: 0, eventsLimit: 3, registrationsLimit: 100, storageLimit: 1 },
     }
 
     const pricing = tierPricing[subscriptionTier] || tierPricing.starter
@@ -227,7 +233,7 @@ export async function POST(request: NextRequest) {
         registrationsLimit: pricing.registrationsLimit === -1 ? null : pricing.registrationsLimit,
         storageLimitGb: pricing.storageLimit,
         setupFeePaid: setupFeeWaived || setupFeePaid || false,
-        setupFeeAmount: setupFeeWaived ? 0 : 250,
+        setupFeeAmount: setupFeeWaived ? 0 : pricing.setupFee,
         paymentMethodPreference: paymentMethod || 'credit_card',
         legalEntityName,
         taxId,

@@ -32,14 +32,15 @@ export async function GET(request: NextRequest) {
       settingsObj[s.settingKey] = s.settingValue
     })
 
-    // Default settings if none exist
+    // Default settings if none exist.
+    // Note: setup_fee is now per-tier (see chapel/parish/cathedral/shrine_setup_fee).
+    // 'starter' renders as "Chapel" — DB enum value preserved for backward compat.
     const defaults: Record<string, string> = {
       platform_name: 'ChiRho Events',
       support_email: 'support@chirhoevents.com',
       billing_email: 'billing@chirhoevents.com',
-      setup_fee: '250',
       trial_days: '14',
-      default_tier: 'growing',
+      default_tier: 'cathedral',
       maintenance_mode: 'false',
       allow_new_signups: 'true',
       require_approval: 'true',
@@ -53,16 +54,24 @@ export async function GET(request: NextRequest) {
       billing_address_city: '',
       billing_address_state: '',
       billing_address_zip: '',
-      starter_monthly: '29',
-      starter_annual: '290',
-      small_diocese_monthly: '49',
-      small_diocese_annual: '490',
-      growing_monthly: '79',
-      growing_annual: '790',
-      conference_monthly: '99',
-      conference_annual: '990',
-      enterprise_monthly: '199',
-      enterprise_annual: '1990',
+      // Per-tier monthly / annual / setup or access fees
+      starter_monthly: '39',
+      starter_annual: '468',
+      starter_setup_fee: '99',
+      parish_monthly: '59',
+      parish_annual: '708',
+      parish_setup_fee: '199',
+      cathedral_monthly: '109',
+      cathedral_annual: '1080',
+      cathedral_setup_fee: '349',
+      shrine_monthly: '159',
+      shrine_annual: '1908',
+      shrine_setup_fee: '499',
+      basilica_annual: '15000',
+      // Consulting packages
+      guided_setup_price: '199',
+      full_implementation_price: '499',
+      consulting_hourly_rate: '75',
     }
 
     // Merge with defaults

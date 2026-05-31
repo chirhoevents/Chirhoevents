@@ -45,9 +45,11 @@ async function getClerkUserId(request: NextRequest): Promise<string | null> {
 // See STRIPE_SETUP_INSTRUCTIONS.md for details on creating these prices
 const TIER_PRICES: Record<string, { monthly: string | null; annual: string | null }> = {
   // Current tier names
+  // 'starter' is the DB enum value; renders as "Chapel".
+  // STRIPE_PRICE_STARTER_MONTHLY env var name is preserved for backward compat.
   starter: {
     monthly: process.env.STRIPE_PRICE_STARTER_MONTHLY || null,
-    annual: null, // Starter is monthly only
+    annual: null, // Chapel is monthly only
   },
   parish: {
     monthly: process.env.STRIPE_PRICE_PARISH_MONTHLY || null,

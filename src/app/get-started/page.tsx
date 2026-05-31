@@ -611,7 +611,8 @@ export default function GetStartedPage() {
             </label>
 
             <div className="bg-[#F5F1E8] rounded-lg p-4 text-sm text-gray-700">
-              After approval, you&apos;ll receive an invoice for the $250 setup fee and your first subscription payment.
+              After approval, you&apos;ll receive an invoice for your tier&apos;s one-time access or setup fee
+              ($99 Chapel, $199 Parish, $349 Cathedral, $499 Shrine, custom for Basilica) and your first subscription payment.
             </div>
 
             <button

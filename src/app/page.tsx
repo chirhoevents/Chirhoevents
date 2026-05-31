@@ -133,7 +133,7 @@ export default function LandingPage() {
                   <tr className="bg-gold-50 border-2 border-gold">
                     <td className="py-4 px-6 font-bold text-navy">ChiRho ✅</td>
                     <td className="py-4 px-6">3.9%*</td>
-                    <td className="py-4 px-6">$29-$120</td>
+                    <td className="py-4 px-6">$39-$159</td>
                     <td className="py-4 px-6 font-bold text-gold-700">$3,900 + monthly</td>
                   </tr>
                   <tr className="border-b">
@@ -358,18 +358,18 @@ export default function LandingPage() {
             Simple, Transparent Pricing
           </h2>
           <p className="text-center text-gray-600 mb-4 text-lg">
-            Processing Fee: 2.9% + $0.30 per ticket (Stripe) • Platform Fee: 1% • Setup Fee: $250 (one-time)
+            Processing Fee: 2.9% + $0.30 per ticket (Stripe) • Platform Fee: 1% of registrations
           </p>
           <p className="text-center text-sm text-gray-500 mb-12">
-            All payments are processed securely via Stripe. The 1% platform fee helps us maintain and improve ChiRho Events.
+            All payments are processed securely via Stripe. The 1% platform fee helps us maintain and improve ChiRho Events. Each tier has a one-time access or setup fee — see individual cards below.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 max-w-7xl mx-auto">
-            {/* Starter */}
+            {/* Chapel */}
             <Card className="border-2 border-gray-200">
               <CardHeader>
-                <CardTitle className="text-2xl">Starter</CardTitle>
+                <CardTitle className="text-2xl">Chapel</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$29</span>
+                  <span className="text-4xl font-bold text-navy">$39</span>
                   <span className="text-gray-600">/mo</span>
                 </div>
               </CardHeader>
@@ -379,12 +379,8 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• 5GB storage</p>
                 <p className="text-sm text-gray-600">• Basic registration only</p>
                 <div className="mt-4 text-xs text-gray-600">
-                  <p className="font-semibold mb-1">Additional Fees:</p>
-                  <ul className="space-y-1">
-                    <li>• $250 one-time setup fee</li>
-                    <li>• Stripe fees: 2.9% + $0.30 per transaction</li>
-                    <li>• ChiRho platform fee: 1% of registrations</li>
-                  </ul>
+                  <p className="font-semibold">Basic Access Fee: $99 one-time</p>
+                  <p className="italic text-gray-500 mt-1">Self-serve only — no onboarding assistance included.</p>
                 </div>
                 <Link href="/get-started?tier=starter">
                   <Button className="w-full mt-6">Get Started</Button>
@@ -397,7 +393,7 @@ export default function LandingPage() {
               <CardHeader>
                 <CardTitle className="text-2xl">Parish</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$45</span>
+                  <span className="text-4xl font-bold text-navy">$59</span>
                   <span className="text-gray-600">/mo</span>
                 </div>
               </CardHeader>
@@ -407,12 +403,8 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• 10GB storage</p>
                 <p className="text-sm text-gray-600">• Basic registration only</p>
                 <div className="mt-4 text-xs text-gray-600">
-                  <p className="font-semibold mb-1">Additional Fees:</p>
-                  <ul className="space-y-1">
-                    <li>• $250 one-time setup fee</li>
-                    <li>• Stripe fees: 2.9% + $0.30 per transaction</li>
-                    <li>• ChiRho platform fee: 1% of registrations</li>
-                  </ul>
+                  <p className="font-semibold">Basic Access Fee: $199 one-time</p>
+                  <p className="italic text-gray-500 mt-1">Self-serve only — no onboarding assistance included.</p>
                 </div>
                 <Link href="/get-started?tier=parish">
                   <Button className="w-full mt-6">Get Started</Button>
@@ -428,9 +420,9 @@ export default function LandingPage() {
               <CardHeader>
                 <CardTitle className="text-2xl">Cathedral</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$89</span>
+                  <span className="text-4xl font-bold text-navy">$109</span>
                   <span className="text-gray-600">/mo</span>
-                  <p className="text-sm text-gray-500 mt-1">or $900/year</p>
+                  <p className="text-sm text-gray-500 mt-1">or $1,080/year</p>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -439,12 +431,8 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• 25GB storage</p>
                 <p className="text-sm font-semibold text-green-700">• Includes POROS, SALVE, RAPHA</p>
                 <div className="mt-4 text-xs text-gray-600">
-                  <p className="font-semibold mb-1">Additional Fees:</p>
-                  <ul className="space-y-1">
-                    <li>• $250 one-time setup fee</li>
-                    <li>• Stripe fees: 2.9% + $0.30 per transaction</li>
-                    <li>• ChiRho platform fee: 1% of registrations</li>
-                  </ul>
+                  <p className="font-semibold">Setup Fee: $349 one-time</p>
+                  <p className="text-gray-500 mt-1">Includes onboarding and configuration assistance.</p>
                 </div>
                 <Link href="/get-started?tier=cathedral">
                   <Button className="w-full mt-6">Get Started</Button>
@@ -457,9 +445,9 @@ export default function LandingPage() {
               <CardHeader>
                 <CardTitle className="text-2xl">Shrine</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-navy">$120</span>
+                  <span className="text-4xl font-bold text-navy">$159</span>
                   <span className="text-gray-600">/mo</span>
-                  <p className="text-sm text-gray-500 mt-1">or $1,200/year</p>
+                  <p className="text-sm text-gray-500 mt-1">or $1,908/year</p>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -468,12 +456,8 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• 100GB storage</p>
                 <p className="text-sm font-semibold text-green-700">• Includes POROS, SALVE, RAPHA</p>
                 <div className="mt-4 text-xs text-gray-600">
-                  <p className="font-semibold mb-1">Additional Fees:</p>
-                  <ul className="space-y-1">
-                    <li>• $250 one-time setup fee</li>
-                    <li>• Stripe fees: 2.9% + $0.30 per transaction</li>
-                    <li>• ChiRho platform fee: 1% of registrations</li>
-                  </ul>
+                  <p className="font-semibold">Setup Fee: $499 one-time</p>
+                  <p className="text-gray-500 mt-1">Includes onboarding and configuration assistance.</p>
                 </div>
                 <Link href="/get-started?tier=shrine">
                   <Button className="w-full mt-6">Get Started</Button>
@@ -497,12 +481,8 @@ export default function LandingPage() {
                 <p className="text-sm font-semibold text-green-700">• All features included</p>
                 <p className="text-sm text-gray-600">• Dedicated account manager</p>
                 <div className="mt-4 text-xs text-gray-600">
-                  <p className="font-semibold mb-1">Additional Fees:</p>
-                  <ul className="space-y-1">
-                    <li>• Custom setup fee</li>
-                    <li>• Stripe fees: 2.9% + $0.30 per transaction</li>
-                    <li>• ChiRho platform fee: 1% of registrations</li>
-                  </ul>
+                  <p className="font-semibold">Setup Fee: Custom</p>
+                  <p className="text-gray-500 mt-1">Tailored implementation and onboarding included.</p>
                 </div>
                 <Link href="/get-started?tier=basilica">
                   <Button variant="outline" className="w-full mt-6">Contact Us</Button>
@@ -518,6 +498,65 @@ export default function LandingPage() {
             <p>• Stripe fee: $3.20</p>
             <p>• ChiRho fee (1%): $1.00</p>
             <p className="mt-2"><strong>You receive: $95.80</strong></p>
+          </div>
+
+          {/* Implementation & Consulting */}
+          <div className="mt-16">
+            <h3 className="text-2xl sm:text-3xl font-bold text-center text-navy mb-4">
+              Implementation &amp; Consulting
+            </h3>
+            <p className="text-center text-gray-600 mb-10 max-w-2xl mx-auto">
+              Need help getting started? Choose the level of hands-on support that fits your team.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              {/* Self-Serve */}
+              <Card className="border-2 border-gray-200">
+                <CardHeader>
+                  <CardTitle className="text-xl">Self-Serve</CardTitle>
+                  <div className="mt-2">
+                    <span className="text-3xl font-bold text-navy">Free</span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600">
+                    <strong>Required for Chapel tier.</strong> Documentation and video walkthroughs only — no live support.
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Guided Setup */}
+              <Card className="border-2 border-gray-200">
+                <CardHeader>
+                  <CardTitle className="text-xl">Guided Setup</CardTitle>
+                  <div className="mt-2">
+                    <span className="text-3xl font-bold text-navy">$199</span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600">
+                    One onboarding call + we configure your first event.
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Full Implementation */}
+              <Card className="border-2 border-gold">
+                <CardHeader>
+                  <CardTitle className="text-xl">Full Implementation</CardTitle>
+                  <div className="mt-2">
+                    <span className="text-3xl font-bold text-navy">$499</span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600">
+                    We build everything, train your team, and provide go-live support.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+            <p className="text-center text-sm text-gray-600 mt-8">
+              Need ongoing help? We offer consulting at <strong>$75/hr</strong> (1-hour minimum).
+            </p>
           </div>
         </div>
       </section>
@@ -535,7 +574,7 @@ export default function LandingPage() {
                   What fees does ChiRho charge?
                 </AccordionTrigger>
                 <AccordionContent className="text-gray-600">
-                  ChiRho charges a 1% platform fee on all event registrations plus a monthly or annual subscription fee based on your plan. Standard Stripe processing fees (2.9% + $0.30) also apply to credit card transactions.
+                  Your monthly or annual subscription plus a one-time access or setup fee (see the pricing section above for tier-specific amounts). Processing and platform fees are summarized in the pricing header.
                 </AccordionContent>
               </AccordionItem>
 
@@ -544,7 +583,7 @@ export default function LandingPage() {
                   Can I cancel anytime?
                 </AccordionTrigger>
                 <AccordionContent className="text-gray-600">
-                  Yes! You can cancel your subscription at any time with no penalties. Your data is archived and can be reactivated for a $75-$250 fee.
+                  Yes! You can cancel your subscription at any time with no penalties. Your data is archived and can be reactivated for a $75-$499 fee depending on your plan.
                 </AccordionContent>
               </AccordionItem>
 
@@ -616,7 +655,7 @@ export default function LandingPage() {
                   Is there a free trial?
                 </AccordionTrigger>
                 <AccordionContent className="text-gray-600">
-                  We don&apos;t offer free trials, but we do offer a $250 setup fee that includes onboarding assistance and dedicated support for your first 30 days.
+                  We don&apos;t offer free trials. Each tier has a one-time access or setup fee — Chapel and Parish are self-serve (Basic Access Fee), while Cathedral and above include onboarding and configuration assistance. You can also purchase a Guided Setup ($199) or Full Implementation ($499) package separately.
                 </AccordionContent>
               </AccordionItem>
             </Accordion>

@@ -5,6 +5,8 @@
  * Update this file to change pricing, features, or limits across the entire application.
  */
 
+// Internal tier keys are kept as their original DB enum values for backward
+// compatibility (e.g. 'starter' is the database key but renders as "Chapel").
 export type SubscriptionTierKey = 'starter' | 'parish' | 'cathedral' | 'shrine' | 'basilica' | 'test';
 
 export interface SubscriptionTier {
@@ -13,6 +15,9 @@ export interface SubscriptionTier {
   description: string;
   monthlyPrice: number;
   annualPrice: number | null; // null if no annual option
+  setupFee: number | null; // null = custom (Basilica)
+  setupFeeLabel: 'Basic Access Fee' | 'Setup Fee' | 'Custom';
+  isSelfServe: boolean; // true = no onboarding/configuration assistance included
   eventsPerYear: number | null; // null = unlimited
   maxPeoplePerYear: number | null; // null = unlimited
   storageGb: number;
@@ -33,10 +38,13 @@ export interface SubscriptionTier {
 export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> = {
   starter: {
     key: 'starter',
-    name: 'Starter',
-    description: 'Perfect for small parishes or organizations just getting started',
-    monthlyPrice: 29,
+    name: 'Chapel',
+    description: 'Self-serve platform access for small parishes or technically capable users',
+    monthlyPrice: 39,
     annualPrice: null, // Monthly only
+    setupFee: 99,
+    setupFeeLabel: 'Basic Access Fee',
+    isSelfServe: true,
     eventsPerYear: 3,
     maxPeoplePerYear: 500,
     storageGb: 5,
@@ -54,9 +62,12 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
   parish: {
     key: 'parish',
     name: 'Parish',
-    description: 'Ideal for parishes and small diocesan programs',
-    monthlyPrice: 45,
+    description: 'Self-serve platform access for parishes and small diocesan programs',
+    monthlyPrice: 59,
     annualPrice: null, // Monthly only
+    setupFee: 199,
+    setupFeeLabel: 'Basic Access Fee',
+    isSelfServe: true,
     eventsPerYear: 5,
     maxPeoplePerYear: 1000,
     storageGb: 10,
@@ -75,8 +86,11 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
     key: 'cathedral',
     name: 'Cathedral',
     description: 'For growing dioceses with multiple events',
-    monthlyPrice: 89,
-    annualPrice: 900,
+    monthlyPrice: 109,
+    annualPrice: 1080,
+    setupFee: 349,
+    setupFeeLabel: 'Setup Fee',
+    isSelfServe: false,
     eventsPerYear: 10,
     maxPeoplePerYear: 2000,
     storageGb: 25,
@@ -96,8 +110,11 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
     key: 'shrine',
     name: 'Shrine',
     description: 'For large conferences and multi-event organizations',
-    monthlyPrice: 120,
-    annualPrice: 1200,
+    monthlyPrice: 159,
+    annualPrice: 1908,
+    setupFee: 499,
+    setupFeeLabel: 'Setup Fee',
+    isSelfServe: false,
     eventsPerYear: 20,
     maxPeoplePerYear: 4000,
     storageGb: 100,
@@ -118,6 +135,9 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
     description: 'Custom enterprise solution for large organizations',
     monthlyPrice: 15000, // Starting annual price shown as monthly equivalent
     annualPrice: 15000, // Starting at $15,000/year - custom pricing
+    setupFee: null, // Custom
+    setupFeeLabel: 'Custom',
+    isSelfServe: false,
     eventsPerYear: null, // Unlimited
     maxPeoplePerYear: 10000, // 10,000+ (customizable)
     storageGb: 500,
@@ -139,6 +159,9 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
     description: 'Free testing tier for development',
     monthlyPrice: 0,
     annualPrice: 0,
+    setupFee: 0,
+    setupFeeLabel: 'Setup Fee',
+    isSelfServe: true,
     eventsPerYear: 1,
     maxPeoplePerYear: 100,
     storageGb: 1,
@@ -231,11 +254,23 @@ export function getTierPrice(tierKey: string, billingCycle: 'monthly' | 'annual'
 }
 
 /**
+ * Get the setup fee for a tier (returns null for custom/Basilica)
+ */
+export function getTierSetupFee(tierKey: string): number | null {
+  const tier = getTier(tierKey);
+  return tier?.setupFee ?? null;
+}
+
+/**
  * Mapping from old tier keys to new tier keys
  * Used for database migrations and backward compatibility
+ *
+ * Note: 'starter' is the legacy DB enum value — display name is now "Chapel".
+ * The 'chapel' key is accepted as input and routed to the 'starter' tier.
  */
 export const TIER_KEY_MIGRATION: Record<string, SubscriptionTierKey> = {
   starter: 'starter',
+  chapel: 'starter',
   small_diocese: 'parish',
   growing: 'cathedral',
   conference: 'shrine',
@@ -292,10 +327,44 @@ export function getSuggestedTierByEvents(eventsPerYear: number): SubscriptionTie
 }
 
 /**
- * Platform fees configuration
+ * Implementation & consulting packages (separate from tier subscriptions)
+ */
+export const CONSULTING_PACKAGES = [
+  {
+    key: 'self_serve',
+    name: 'Self-Serve',
+    price: 0,
+    priceLabel: 'Free',
+    description: 'Required for Chapel tier. Documentation and video walkthroughs only — no live support.',
+  },
+  {
+    key: 'guided_setup',
+    name: 'Guided Setup',
+    price: 199,
+    priceLabel: '$199',
+    description: 'One onboarding call + we configure your first event',
+  },
+  {
+    key: 'full_implementation',
+    name: 'Full Implementation',
+    price: 499,
+    priceLabel: '$499',
+    description: 'We build everything, train your team, and provide go-live support',
+  },
+] as const;
+
+/**
+ * Hourly consulting rate (1-hour minimum)
+ */
+export const CONSULTING_HOURLY_RATE = 75;
+
+/**
+ * Platform fees configuration.
+ *
+ * Note: per-tier setup/access fees are defined on each tier (see SUBSCRIPTION_TIERS).
+ * The fields below are platform-wide constants.
  */
 export const PLATFORM_FEES = {
-  setupFee: 250,
   reactivationFee: 150,
   platformFeePercent: 1, // 1% of registrations
   stripeProcessingPercent: 2.9,

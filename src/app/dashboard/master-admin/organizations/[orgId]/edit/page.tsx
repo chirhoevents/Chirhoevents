@@ -52,18 +52,18 @@ function getModulesEnabled(modulesEnabled: unknown): { poros: boolean; salve: bo
   }
 }
 
-// Standard tier pricing
-const tierPricing: Record<string, { monthly: number; annual: number; eventsLimit: number; registrationsLimit: number; storageLimit: number }> = {
-  starter: { monthly: 29, annual: 290, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
-  parish: { monthly: 45, annual: 450, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
-  cathedral: { monthly: 89, annual: 900, eventsLimit: 10, registrationsLimit: 2000, storageLimit: 25 },
-  shrine: { monthly: 120, annual: 1200, eventsLimit: 20, registrationsLimit: 4000, storageLimit: 100 },
-  basilica: { monthly: 200, annual: 15000, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
-  test: { monthly: 0, annual: 0, eventsLimit: 3, registrationsLimit: 100, storageLimit: 1 },
+// Standard tier pricing. 'starter' is the DB enum value; renders as "Chapel".
+const tierPricing: Record<string, { monthly: number; annual: number; setupFee: number; eventsLimit: number; registrationsLimit: number; storageLimit: number }> = {
+  starter: { monthly: 39, annual: 468, setupFee: 99, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
+  parish: { monthly: 59, annual: 708, setupFee: 199, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
+  cathedral: { monthly: 109, annual: 1080, setupFee: 349, eventsLimit: 10, registrationsLimit: 2000, storageLimit: 25 },
+  shrine: { monthly: 159, annual: 1908, setupFee: 499, eventsLimit: 20, registrationsLimit: 4000, storageLimit: 100 },
+  basilica: { monthly: 1250, annual: 15000, setupFee: 0, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
+  test: { monthly: 0, annual: 0, setupFee: 0, eventsLimit: 3, registrationsLimit: 100, storageLimit: 1 },
 }
 
 const tierLabels: Record<string, string> = {
-  starter: 'Starter',
+  starter: 'Chapel',
   parish: 'Parish',
   shrine: 'Shrine',
   cathedral: 'Cathedral',
@@ -95,7 +95,8 @@ export default function EditOrganizationPage() {
     registrationsLimit: 3000,
     storageLimitGb: 25,
     setupFeePaid: false,
-    setupFeeAmount: 250,
+    setupFeeAmount: 349, // Default to Cathedral tier setup fee
+
     primaryColor: '#1E3A5F',
     secondaryColor: '#9C8466',
     modulesEnabled: { poros: true, salve: true, rapha: true },

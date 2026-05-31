@@ -21,7 +21,7 @@ interface RegistrationLimitModalProps {
 }
 
 const tierLabels: Record<string, string> = {
-  starter: 'Starter',
+  starter: 'Chapel',
   parish: 'Parish',
   cathedral: 'Cathedral',
   shrine: 'Shrine',

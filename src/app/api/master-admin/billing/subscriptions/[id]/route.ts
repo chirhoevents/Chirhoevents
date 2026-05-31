@@ -117,7 +117,7 @@ export async function GET(
         ...organization,
         monthlyFee: Number(organization.monthlyFee) || Number(organization.monthlyPrice) || 0,
         annualPrice: Number(organization.annualPrice) || 0,
-        setupFeeAmount: Number(organization.setupFeeAmount) || 250,
+        setupFeeAmount: Number(organization.setupFeeAmount) || 349,
         storageUsedGb: Number(organization.storageUsedGb) || 0,
       },
       payments: payments.map((p: PaymentType) => ({
@@ -378,7 +378,7 @@ export async function PUT(
         })
 
         const tierLabels: Record<string, string> = {
-          starter: 'Starter', parish: 'Parish', cathedral: 'Cathedral', shrine: 'Shrine', basilica: 'Basilica',
+          starter: 'Chapel', parish: 'Parish', cathedral: 'Cathedral', shrine: 'Shrine', basilica: 'Basilica',
         }
 
         // Update the database

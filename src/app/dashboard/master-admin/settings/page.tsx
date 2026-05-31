@@ -264,7 +264,7 @@ export default function SettingsPage() {
                 onChange={(e) => handleChange('default_tier', e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
               >
-                <option value="starter">Starter</option>
+                <option value="starter">Chapel</option>
                 <option value="parish">Parish</option>
                 <option value="cathedral">Cathedral</option>
                 <option value="shrine">Shrine</option>
@@ -590,7 +590,7 @@ export default function SettingsPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {[
-                  { key: 'starter', label: 'Starter' },
+                  { key: 'starter', label: 'Chapel' },
                   { key: 'parish', label: 'Parish' },
                   { key: 'cathedral', label: 'Cathedral' },
                   { key: 'shrine', label: 'Shrine' },

@@ -37,7 +37,7 @@ interface OnboardingRequest {
 }
 
 const tierLabels: Record<string, string> = {
-  starter: 'Starter',
+  starter: 'Chapel',
   parish: 'Parish',
   cathedral: 'Cathedral',
   shrine: 'Shrine',
@@ -49,17 +49,17 @@ const tierLabels: Record<string, string> = {
   enterprise: 'Basilica',
 }
 
-const tierPricing: Record<string, { monthly: number; annual: number }> = {
-  starter: { monthly: 29, annual: 290 },
-  parish: { monthly: 45, annual: 450 },
-  cathedral: { monthly: 89, annual: 900 },
-  shrine: { monthly: 120, annual: 1200 },
-  basilica: { monthly: 200, annual: 2000 },
+const tierPricing: Record<string, { monthly: number; annual: number; setupFee: number }> = {
+  starter: { monthly: 39, annual: 468, setupFee: 99 },
+  parish: { monthly: 59, annual: 708, setupFee: 199 },
+  cathedral: { monthly: 109, annual: 1080, setupFee: 349 },
+  shrine: { monthly: 159, annual: 1908, setupFee: 499 },
+  basilica: { monthly: 1250, annual: 15000, setupFee: 0 },
   // Legacy tier names for backward compatibility
-  small_diocese: { monthly: 45, annual: 450 },
-  growing: { monthly: 89, annual: 890 },
-  conference: { monthly: 120, annual: 1200 },
-  enterprise: { monthly: 200, annual: 2000 },
+  small_diocese: { monthly: 59, annual: 708, setupFee: 199 },
+  growing: { monthly: 109, annual: 1080, setupFee: 349 },
+  conference: { monthly: 159, annual: 1908, setupFee: 499 },
+  enterprise: { monthly: 1250, annual: 15000, setupFee: 0 },
 }
 
 export default function PendingRequestsPage() {
@@ -160,8 +160,7 @@ export default function PendingRequestsPage() {
     const pricing = tierPricing[tier] || tierPricing.cathedral
     const isAnnual = request.billingCyclePreference === 'annual'
     const subscriptionAmount = isAnnual ? pricing.annual : pricing.monthly * 12
-    const setupFee = 250
-    return subscriptionAmount + setupFee
+    return subscriptionAmount + pricing.setupFee
   }
 
   const pendingRequests = requests.filter(r => r.status === 'pending')
@@ -296,8 +295,16 @@ export default function PendingRequestsPage() {
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-green-700">Setup Fee:</span>
-                      <span className="font-medium text-green-900">$250</span>
+                      <span className="text-green-700">
+                        {(selectedRequest.requestedTier === 'starter' || selectedRequest.requestedTier === 'parish')
+                          ? 'Basic Access Fee:'
+                          : 'Setup Fee:'}
+                      </span>
+                      <span className="font-medium text-green-900">
+                        {selectedRequest.requestedTier === 'basilica' || selectedRequest.requestedTier === 'enterprise'
+                          ? 'Custom'
+                          : formatCurrency(tierPricing[selectedRequest.requestedTier]?.setupFee || 349)}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-green-700">
