@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { resolveModuleAccess } from '@/lib/subscription-tiers'
 
 export async function GET(
   request: NextRequest,
@@ -85,6 +86,10 @@ export async function GET(
         platformFeePercentage: Number(organization.platformFeePercentage),
         reactivationFee: Number(organization.reactivationFee),
         storageUsedGb: Number(organization.storageUsedGb),
+        modulesEnabled: resolveModuleAccess(
+          organization.modulesEnabled,
+          organization.subscriptionTier
+        ),
         totalPayments: Number(paymentTotal._sum.amount || 0),
         totalRegistrations: organization._count.groupRegistrations + organization._count.individualRegistrations,
       },

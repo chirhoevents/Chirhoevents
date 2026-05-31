@@ -30,7 +30,7 @@ const organizationTypes = [
 ]
 
 const subscriptionTiers = [
-  { value: 'starter', label: 'Starter', monthly: 29, annual: 290, description: 'Up to 3 events, 500 registrations' },
+  { value: 'chapel', label: 'Chapel', monthly: 29, annual: 290, description: 'Up to 3 events, 500 registrations' },
   { value: 'parish', label: 'Parish', monthly: 45, annual: 450, description: 'Up to 5 events, 1,000 registrations' },
   { value: 'cathedral', label: 'Cathedral', monthly: 89, annual: 900, description: 'Up to 10 events, 2,000 registrations', popular: true },
   { value: 'shrine', label: 'Shrine', monthly: 120, annual: 1200, description: 'Up to 20 events, 4,000 registrations' },

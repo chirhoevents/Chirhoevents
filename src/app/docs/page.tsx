@@ -167,7 +167,7 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
               </tr>
             </thead>
             <tbody>
-              <tr><td className="border p-3">Starter</td><td className="border p-3">$29/mo</td><td className="border p-3">3</td><td className="border p-3">500</td></tr>
+              <tr><td className="border p-3">Chapel</td><td className="border p-3">$29/mo</td><td className="border p-3">3</td><td className="border p-3">500</td></tr>
               <tr><td className="border p-3">Parish</td><td className="border p-3">$45/mo</td><td className="border p-3">5</td><td className="border p-3">1,000</td></tr>
               <tr><td className="border p-3">Cathedral</td><td className="border p-3">$89/mo</td><td className="border p-3">10</td><td className="border p-3">2,000</td></tr>
               <tr><td className="border p-3">Shrine</td><td className="border p-3">$120/mo</td><td className="border p-3">20</td><td className="border p-3">4,000</td></tr>

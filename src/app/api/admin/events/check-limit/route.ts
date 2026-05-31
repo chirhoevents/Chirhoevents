@@ -6,12 +6,13 @@ import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 
 // Tier limits and pricing
 const TIER_LIMITS: Record<string, { events: number; monthlyPrice: number }> = {
-  starter: { events: 3, monthlyPrice: 29 },
+  chapel: { events: 3, monthlyPrice: 29 },
   parish: { events: 5, monthlyPrice: 45 },
   cathedral: { events: 10, monthlyPrice: 89 },
   shrine: { events: 20, monthlyPrice: 120 },
   basilica: { events: 999, monthlyPrice: 200 },
   // Legacy tier names for backward compatibility
+  starter: { events: 3, monthlyPrice: 29 },
   small_diocese: { events: 5, monthlyPrice: 45 },
   growing: { events: 10, monthlyPrice: 89 },
   conference: { events: 20, monthlyPrice: 120 },
@@ -20,12 +21,13 @@ const TIER_LIMITS: Record<string, { events: number; monthlyPrice: number }> = {
 }
 
 const TIER_LABELS: Record<string, string> = {
-  starter: 'Starter',
+  chapel: 'Chapel',
   parish: 'Parish',
   cathedral: 'Cathedral',
   shrine: 'Shrine',
   basilica: 'Basilica',
   // Legacy tier names for backward compatibility
+  starter: 'Chapel',
   small_diocese: 'Parish',
   growing: 'Cathedral',
   conference: 'Shrine',
@@ -34,8 +36,10 @@ const TIER_LABELS: Record<string, string> = {
 }
 
 function getUpgradeTiers(currentTier: string) {
-  const tierOrder = ['starter', 'parish', 'cathedral', 'shrine', 'basilica']
-  const currentIndex = tierOrder.indexOf(currentTier)
+  const tierOrder = ['chapel', 'parish', 'cathedral', 'shrine', 'basilica']
+  // Normalize legacy tier keys to current keys before indexing.
+  const normalizedTier = currentTier === 'starter' ? 'chapel' : currentTier
+  const currentIndex = tierOrder.indexOf(normalizedTier)
 
   if (currentIndex === -1 || currentIndex >= tierOrder.length - 1) {
     return []

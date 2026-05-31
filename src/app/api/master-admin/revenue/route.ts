@@ -56,8 +56,13 @@ export async function GET(request: NextRequest) {
     // Calculate ARR
     const arr = mrr * 12
 
-    // Revenue by tier
+    // Revenue by tier (canonical keys + legacy)
     const tierRevenue: Record<string, { count: number; mrr: number }> = {
+      chapel: { count: 0, mrr: 0 },
+      parish: { count: 0, mrr: 0 },
+      cathedral: { count: 0, mrr: 0 },
+      shrine: { count: 0, mrr: 0 },
+      basilica: { count: 0, mrr: 0 },
       starter: { count: 0, mrr: 0 },
       small_diocese: { count: 0, mrr: 0 },
       growing: { count: 0, mrr: 0 },

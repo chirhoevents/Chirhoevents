@@ -58,11 +58,11 @@ export async function POST(
 
     // Tier pricing
     const tierPricing: Record<string, { monthly: number; annual: number; eventsLimit: number; registrationsLimit: number; storageLimit: number }> = {
-      starter: { monthly: 29, annual: 290, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
-      small_diocese: { monthly: 49, annual: 490, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
-      growing: { monthly: 89, annual: 900, eventsLimit: 10, registrationsLimit: 2000, storageLimit: 25 },
-      conference: { monthly: 120, annual: 1200, eventsLimit: 20, registrationsLimit: 4000, storageLimit: 100 },
-      enterprise: { monthly: 199, annual: 1990, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
+      chapel: { monthly: 29, annual: 290, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
+      parish: { monthly: 45, annual: 450, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
+      cathedral: { monthly: 89, annual: 900, eventsLimit: 10, registrationsLimit: 2000, storageLimit: 25 },
+      shrine: { monthly: 120, annual: 1200, eventsLimit: 20, registrationsLimit: 4000, storageLimit: 100 },
+      basilica: { monthly: 200, annual: 15000, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
     }
 
     const requestedTier = onboardingRequest.requestedTier || 'shrine'
@@ -92,7 +92,7 @@ export async function POST(
         contactEmail: onboardingRequest.contactEmail,
         contactPhone: onboardingRequest.contactPhone,
         address: onboardingRequest.billingAddress ? { street: onboardingRequest.billingAddress } : undefined,
-        subscriptionTier: requestedTier as 'starter' | 'parish' | 'shrine' | 'cathedral' | 'basilica',
+        subscriptionTier: requestedTier as 'chapel' | 'parish' | 'shrine' | 'cathedral' | 'basilica',
         subscriptionStatus: 'active',
         status: 'active',
         billingCycle: billingCycle as 'monthly' | 'annual',
@@ -110,7 +110,10 @@ export async function POST(
         website: onboardingRequest.website,
         primaryColor: '#1E3A5F',
         secondaryColor: '#9C8466',
-        modulesEnabled: { poros: true, salve: true, rapha: true },
+        // No explicit module overrides; access falls back to tier defaults
+        // (Chapel/Parish: none; Cathedral/Shrine/Basilica: all). The master
+        // admin can override per-org from the master admin board.
+        modulesEnabled: {},
         createdByUserId: masterAdmin.id,
         subscriptionStartedAt: new Date(),
         subscriptionRenewsAt: new Date(Date.now() + (billingCycle === 'monthly' ? 30 : 365) * 24 * 60 * 60 * 1000),
@@ -179,7 +182,8 @@ export async function POST(
 
     // Send welcome email
     const tierLabels: Record<string, string> = {
-      starter: 'Starter',
+      chapel: 'Chapel',
+      starter: 'Chapel', // legacy tier key
       parish: 'Parish',
       shrine: 'Shrine',
       cathedral: 'Cathedral',

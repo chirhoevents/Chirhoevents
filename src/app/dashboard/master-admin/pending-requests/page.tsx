@@ -37,12 +37,13 @@ interface OnboardingRequest {
 }
 
 const tierLabels: Record<string, string> = {
-  starter: 'Starter',
+  chapel: 'Chapel',
   parish: 'Parish',
   cathedral: 'Cathedral',
   shrine: 'Shrine',
   basilica: 'Basilica',
   // Legacy tier names for backward compatibility
+  starter: 'Chapel',
   small_diocese: 'Parish',
   growing: 'Cathedral',
   conference: 'Shrine',
@@ -50,7 +51,7 @@ const tierLabels: Record<string, string> = {
 }
 
 const tierPricing: Record<string, { monthly: number; annual: number }> = {
-  starter: { monthly: 29, annual: 290 },
+  chapel: { monthly: 29, annual: 290 },
   parish: { monthly: 45, annual: 450 },
   cathedral: { monthly: 89, annual: 900 },
   shrine: { monthly: 120, annual: 1200 },
