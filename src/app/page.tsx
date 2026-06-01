@@ -364,10 +364,10 @@ export default function LandingPage() {
             All payments are processed securely via Stripe. The 1% platform fee helps us maintain and improve ChiRho Events.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 max-w-7xl mx-auto">
-            {/* Starter */}
+            {/* Chapel */}
             <Card className="border-2 border-gray-200">
               <CardHeader>
-                <CardTitle className="text-2xl">Starter</CardTitle>
+                <CardTitle className="text-2xl">Chapel</CardTitle>
                 <div className="mt-4">
                   <span className="text-4xl font-bold text-navy">$29</span>
                   <span className="text-gray-600">/mo</span>
@@ -386,7 +386,7 @@ export default function LandingPage() {
                     <li>• ChiRho platform fee: 1% of registrations</li>
                   </ul>
                 </div>
-                <Link href="/get-started?tier=starter">
+                <Link href="/get-started?tier=chapel">
                   <Button className="w-full mt-6">Get Started</Button>
                 </Link>
               </CardContent>

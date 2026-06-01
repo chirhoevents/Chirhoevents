@@ -166,8 +166,9 @@ export async function GET(request: NextRequest) {
         orgsNearLimits: 0, // Calculate based on usage limits
       },
       subscriptionBreakdown: {
-        starter: tierCounts.find((t: { subscriptionTier: string | null }) => t.subscriptionTier === 'starter')?._count.id || 0,
-        // Count both new and legacy tier names
+        // Count both new (chapel) and legacy (starter) tier names.
+        chapel: (tierCounts.find((t: { subscriptionTier: string | null }) => t.subscriptionTier === 'chapel')?._count.id || 0) +
+                (tierCounts.find((t: { subscriptionTier: string | null }) => t.subscriptionTier === 'starter')?._count.id || 0),
         parish: (tierCounts.find((t: { subscriptionTier: string | null }) => t.subscriptionTier === 'parish')?._count.id || 0) +
                 (tierCounts.find((t: { subscriptionTier: string | null }) => t.subscriptionTier === 'small_diocese')?._count.id || 0),
         cathedral: (tierCounts.find((t: { subscriptionTier: string | null }) => t.subscriptionTier === 'cathedral')?._count.id || 0) +

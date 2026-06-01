@@ -3,24 +3,7 @@ import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
-
-// Default modules configuration
-const DEFAULT_MODULES = { poros: true, salve: true, rapha: true }
-
-// Helper to properly merge modulesEnabled with defaults
-// This ensures that missing or undefined properties default to true
-// Only explicit false values will disable a module
-function getModulesEnabled(modulesEnabled: unknown): { poros: boolean; salve: boolean; rapha: boolean } {
-  if (!modulesEnabled || typeof modulesEnabled !== 'object') {
-    return { ...DEFAULT_MODULES }
-  }
-  const modules = modulesEnabled as Record<string, unknown>
-  return {
-    poros: modules.poros !== false,
-    salve: modules.salve !== false,
-    rapha: modules.rapha !== false,
-  }
-}
+import { resolveModuleAccess } from '@/lib/subscription-tiers'
 
 export async function GET(request: NextRequest) {
   try {
@@ -47,6 +30,7 @@ export async function GET(request: NextRequest) {
         primaryColor: true,
         secondaryColor: true,
         modulesEnabled: true,
+        subscriptionTier: true,
       },
     })
 
@@ -62,7 +46,10 @@ export async function GET(request: NextRequest) {
         ...organization,
         primaryColor: organization.primaryColor || '#1E3A5F',
         secondaryColor: organization.secondaryColor || '#9C8466',
-        modulesEnabled: getModulesEnabled(organization.modulesEnabled),
+        modulesEnabled: resolveModuleAccess(
+          organization.modulesEnabled,
+          organization.subscriptionTier
+        ),
       },
     })
   } catch (error) {
@@ -118,18 +105,8 @@ export async function PUT(request: NextRequest) {
       updateData.secondaryColor = data.secondaryColor
     }
 
-    if (data.modulesEnabled !== undefined) {
-      // Validate modules structure
-      const validModules = ['poros', 'salve', 'rapha']
-      const modules = data.modulesEnabled as Record<string, boolean>
-      const cleanedModules: Record<string, boolean> = {}
-
-      for (const key of validModules) {
-        cleanedModules[key] = modules[key] === true
-      }
-
-      updateData.modulesEnabled = cleanedModules
-    }
+    // Module access is controlled exclusively from the Master Admin board.
+    // Any modulesEnabled in the request body is intentionally ignored here.
 
     const organization = await prisma.organization.update({
       where: { id: organizationId },
@@ -139,7 +116,6 @@ export async function PUT(request: NextRequest) {
         logoUrl: true,
         primaryColor: true,
         secondaryColor: true,
-        modulesEnabled: true,
       },
     })
 

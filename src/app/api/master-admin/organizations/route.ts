@@ -6,21 +6,19 @@ import { generateOrgAdminOnboardingEmail } from '@/emails/org-admin-onboarding'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-// Default modules configuration
-const DEFAULT_MODULES = { poros: true, salve: true, rapha: true }
-
-// Helper to properly merge modulesEnabled with defaults
-// This ensures that missing or undefined properties default to true
-function getModulesEnabled(modulesEnabled: unknown): { poros: boolean; salve: boolean; rapha: boolean } {
-  if (!modulesEnabled || typeof modulesEnabled !== 'object') {
-    return { ...DEFAULT_MODULES }
+// Sanitize master-admin-provided module overrides at org-creation time.
+// Only explicit booleans are persisted; missing keys fall back to tier
+// defaults via resolveModuleAccess at read time.
+function sanitizeModuleOverrides(input: unknown): Record<string, boolean> {
+  if (!input || typeof input !== 'object') return {}
+  const overrides = input as Record<string, unknown>
+  const cleaned: Record<string, boolean> = {}
+  for (const key of ['poros', 'salve', 'rapha']) {
+    if (typeof overrides[key] === 'boolean') {
+      cleaned[key] = overrides[key] as boolean
+    }
   }
-  const modules = modulesEnabled as Record<string, unknown>
-  return {
-    poros: modules.poros !== false,
-    salve: modules.salve !== false,
-    rapha: modules.rapha !== false,
-  }
+  return cleaned
 }
 
 // Decode JWT payload to extract user ID when cookies aren't available
@@ -197,15 +195,15 @@ export async function POST(request: NextRequest) {
 
     // Tier pricing
     const tierPricing: Record<string, { monthly: number; annual: number; eventsLimit: number; registrationsLimit: number; storageLimit: number }> = {
-      starter: { monthly: 29, annual: 290, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
-      small_diocese: { monthly: 49, annual: 490, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
-      growing: { monthly: 89, annual: 900, eventsLimit: 10, registrationsLimit: 2000, storageLimit: 25 },
-      conference: { monthly: 120, annual: 1200, eventsLimit: 20, registrationsLimit: 4000, storageLimit: 100 },
-      enterprise: { monthly: 199, annual: 1990, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
+      chapel: { monthly: 29, annual: 290, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
+      parish: { monthly: 45, annual: 450, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
+      cathedral: { monthly: 89, annual: 900, eventsLimit: 10, registrationsLimit: 2000, storageLimit: 25 },
+      shrine: { monthly: 120, annual: 1200, eventsLimit: 20, registrationsLimit: 4000, storageLimit: 100 },
+      basilica: { monthly: 200, annual: 15000, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
       test: { monthly: 0, annual: 0, eventsLimit: 3, registrationsLimit: 100, storageLimit: 1 },
     }
 
-    const pricing = tierPricing[subscriptionTier] || tierPricing.starter
+    const pricing = tierPricing[subscriptionTier] || tierPricing.chapel
 
     // Create organization
     const organization = await prisma.organization.create({
@@ -216,7 +214,7 @@ export async function POST(request: NextRequest) {
         contactEmail,
         contactPhone,
         address: billingAddress ? { street: billingAddress } : undefined,
-        subscriptionTier: subscriptionTier || 'starter',
+        subscriptionTier: subscriptionTier || 'chapel',
         subscriptionStatus: 'active',
         status: 'active',
         billingCycle: billingCycle || 'annual',
@@ -234,7 +232,7 @@ export async function POST(request: NextRequest) {
         website,
         primaryColor: primaryColor || '#1E3A5F',
         secondaryColor: secondaryColor || '#9C8466',
-        modulesEnabled: getModulesEnabled(modulesEnabled),
+        modulesEnabled: sanitizeModuleOverrides(modulesEnabled),
         notes,
         createdByUserId: masterAdmin.id,
         subscriptionStartedAt: new Date(),

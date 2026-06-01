@@ -21,12 +21,13 @@ interface UpgradeRequestModalProps {
 }
 
 const tierLabels: Record<string, string> = {
-  starter: 'Starter',
+  chapel: 'Chapel',
   parish: 'Parish',
   cathedral: 'Cathedral',
   shrine: 'Shrine',
   basilica: 'Basilica',
   // Legacy tier names for backward compatibility
+  starter: 'Chapel',
   small_diocese: 'Parish',
   growing: 'Cathedral',
   conference: 'Shrine',
@@ -35,17 +36,18 @@ const tierLabels: Record<string, string> = {
 }
 
 const nextTierSuggestions: Record<string, string> = {
-  starter: 'Parish or Cathedral',
+  chapel: 'Parish or Cathedral',
   parish: 'Cathedral or Shrine',
   cathedral: 'Shrine',
   shrine: 'Basilica',
   basilica: 'Basilica (custom)',
   // Legacy tier names for backward compatibility
+  starter: 'Parish or Cathedral',
   small_diocese: 'Cathedral or Shrine',
   growing: 'Shrine',
   conference: 'Basilica',
   enterprise: 'Basilica (custom)',
-  test: 'Starter',
+  test: 'Chapel',
 }
 
 export default function UpgradeRequestModal({

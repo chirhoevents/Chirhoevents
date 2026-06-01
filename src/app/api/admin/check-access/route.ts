@@ -2,24 +2,7 @@ import { NextResponse, NextRequest } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
-
-// Default modules configuration
-const DEFAULT_MODULES = { poros: true, salve: true, rapha: true }
-
-// Helper to properly merge modulesEnabled with defaults
-// This ensures that missing or undefined properties default to true
-// Only explicit false values will disable a module
-function getModulesEnabled(modulesEnabled: unknown): { poros: boolean; salve: boolean; rapha: boolean } {
-  if (!modulesEnabled || typeof modulesEnabled !== 'object') {
-    return { ...DEFAULT_MODULES }
-  }
-  const modules = modulesEnabled as Record<string, unknown>
-  return {
-    poros: modules.poros !== false,
-    salve: modules.salve !== false,
-    rapha: modules.rapha !== false,
-  }
-}
+import { resolveModuleAccess } from '@/lib/subscription-tiers'
 
 // Decode JWT payload to extract user ID when cookies aren't available
 function decodeJwtPayload(token: string): { sub?: string } | null {
@@ -99,6 +82,7 @@ export async function GET(request: NextRequest) {
         name: true,
         logoUrl: true,
         modulesEnabled: true,
+        subscriptionTier: true,
         primaryColor: true,
         secondaryColor: true,
         subscriptionStatus: true,
@@ -122,7 +106,10 @@ export async function GET(request: NextRequest) {
       name: `${user.firstName} ${user.lastName}`,
       permissions: user.permissions,
       logoUrl: organization?.logoUrl || null,
-      modulesEnabled: getModulesEnabled(organization?.modulesEnabled),
+      modulesEnabled: resolveModuleAccess(
+        organization?.modulesEnabled,
+        organization?.subscriptionTier || ''
+      ),
       primaryColor: organization?.primaryColor || '#1E3A5F',
       secondaryColor: organization?.secondaryColor || '#9C8466',
       isImpersonating: isImpersonating,

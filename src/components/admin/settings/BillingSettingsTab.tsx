@@ -49,13 +49,14 @@ interface BillingData {
 
 const tierLabels: Record<string, string> = {
   // Current tier names
-  starter: 'Starter',
+  chapel: 'Chapel',
   parish: 'Parish',
   cathedral: 'Cathedral',
   shrine: 'Shrine',
   basilica: 'Basilica',
   test: 'Test (Free)',
   // Legacy tier names (for backward compatibility)
+  starter: 'Chapel',
   small_diocese: 'Parish',
   growing: 'Cathedral',
   conference: 'Shrine',

@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
 import {
   Palette,
   Upload,
@@ -15,40 +14,16 @@ import {
   Loader2,
   RotateCcw,
   Image as ImageIcon,
-  LayoutGrid,
-  Home,
-  UserCheck,
-  Stethoscope,
 } from 'lucide-react'
 
 interface BrandingData {
   logoUrl: string | null
   primaryColor: string
   secondaryColor: string
-  modulesEnabled: {
-    poros: boolean
-    salve: boolean
-    rapha: boolean
-  }
 }
 
 const DEFAULT_PRIMARY = '#1E3A5F'
 const DEFAULT_SECONDARY = '#9C8466'
-const DEFAULT_MODULES = { poros: true, salve: true, rapha: true }
-
-// Helper to properly merge modulesEnabled with defaults
-// This ensures that missing or undefined properties default to true
-function getModulesEnabled(modulesEnabled: unknown): { poros: boolean; salve: boolean; rapha: boolean } {
-  if (!modulesEnabled || typeof modulesEnabled !== 'object') {
-    return { ...DEFAULT_MODULES }
-  }
-  const modules = modulesEnabled as Record<string, unknown>
-  return {
-    poros: modules.poros !== false,
-    salve: modules.salve !== false,
-    rapha: modules.rapha !== false,
-  }
-}
 
 export default function BrandingSettingsTab() {
   const { getToken } = useAuth()
@@ -63,11 +38,6 @@ export default function BrandingSettingsTab() {
   // Form state
   const [primaryColor, setPrimaryColor] = useState(DEFAULT_PRIMARY)
   const [secondaryColor, setSecondaryColor] = useState(DEFAULT_SECONDARY)
-  const [modules, setModules] = useState({
-    poros: true,
-    salve: true,
-    rapha: true,
-  })
 
   useEffect(() => {
     fetchBranding()
@@ -85,7 +55,6 @@ export default function BrandingSettingsTab() {
       setBranding(data.organization)
       setPrimaryColor(data.organization.primaryColor || DEFAULT_PRIMARY)
       setSecondaryColor(data.organization.secondaryColor || DEFAULT_SECONDARY)
-      setModules(getModulesEnabled(data.organization.modulesEnabled))
     } catch (err) {
       console.error('Error fetching branding:', err)
       setError('Failed to load branding settings')
@@ -195,39 +164,6 @@ export default function BrandingSettingsTab() {
     } catch (err) {
       console.error('Error saving colors:', err)
       setError(err instanceof Error ? err.message : 'Failed to save colors')
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  const handleSaveModules = async () => {
-    setIsSaving(true)
-    setError(null)
-    setSuccessMessage(null)
-
-    try {
-      const token = await getToken()
-      const response = await fetch('/api/admin/settings/branding', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          modulesEnabled: modules,
-        }),
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Failed to save modules')
-      }
-
-      setSuccessMessage('Module settings saved successfully')
-      setTimeout(() => setSuccessMessage(null), 3000)
-    } catch (err) {
-      console.error('Error saving modules:', err)
-      setError(err instanceof Error ? err.message : 'Failed to save modules')
     } finally {
       setIsSaving(false)
     }
@@ -469,92 +405,6 @@ export default function BrandingSettingsTab() {
         </CardContent>
       </Card>
 
-      {/* Module Toggles */}
-      <Card className="bg-white border-[#D1D5DB]">
-        <CardHeader>
-          <CardTitle className="text-[#1E3A5F] flex items-center gap-2">
-            <LayoutGrid className="h-5 w-5" />
-            Enabled Features
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <p className="text-sm text-gray-600">
-            Choose which features your organization uses. Disabled features will be hidden
-            from the sidebar and event management.
-          </p>
-
-          <div className="space-y-4">
-            {/* Poros */}
-            <div className="flex items-start justify-between p-4 border border-gray-200 rounded-lg">
-              <div className="flex items-start gap-3">
-                <Home className="h-5 w-5 text-[#1E3A5F] mt-0.5" />
-                <div>
-                  <p className="font-medium text-[#1E3A5F]">Poros Portal (Housing & Logistics)</p>
-                  <p className="text-sm text-gray-600">
-                    Manage housing assignments, seating arrangements, meal groups, and small groups
-                  </p>
-                </div>
-              </div>
-              <Switch
-                checked={modules.poros}
-                onCheckedChange={(checked) => setModules({ ...modules, poros: checked })}
-              />
-            </div>
-
-            {/* SALVE */}
-            <div className="flex items-start justify-between p-4 border border-gray-200 rounded-lg">
-              <div className="flex items-start gap-3">
-                <UserCheck className="h-5 w-5 text-[#1E3A5F] mt-0.5" />
-                <div>
-                  <p className="font-medium text-[#1E3A5F]">SALVE Check-In System</p>
-                  <p className="text-sm text-gray-600">
-                    QR code scanning and welcome packet printing for event check-in
-                  </p>
-                </div>
-              </div>
-              <Switch
-                checked={modules.salve}
-                onCheckedChange={(checked) => setModules({ ...modules, salve: checked })}
-              />
-            </div>
-
-            {/* Rapha */}
-            <div className="flex items-start justify-between p-4 border border-gray-200 rounded-lg">
-              <div className="flex items-start gap-3">
-                <Stethoscope className="h-5 w-5 text-[#1E3A5F] mt-0.5" />
-                <div>
-                  <p className="font-medium text-[#1E3A5F]">Rapha Medical Platform</p>
-                  <p className="text-sm text-gray-600">
-                    Medical staff access to participant health information and incident tracking
-                  </p>
-                </div>
-              </div>
-              <Switch
-                checked={modules.rapha}
-                onCheckedChange={(checked) => setModules({ ...modules, rapha: checked })}
-              />
-            </div>
-          </div>
-
-          <Button
-            onClick={handleSaveModules}
-            disabled={isSaving}
-            className="bg-[#9C8466] hover:bg-[#8a7559] text-white"
-          >
-            {isSaving ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                Save Module Settings
-              </>
-            )}
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   )
 }
