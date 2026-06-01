@@ -77,7 +77,7 @@ Gothic Catholic cathedral (black & white with dark overlay)
 
 | Platform | Fee | Monthly | Total (1K people) |
 |----------|-----|---------|-------------------|
-| **ChiRho** | 3.9%* | $29-$120 | **$3,900 + monthly** ✅ |
+| **ChiRho** | 3.9%* | $39-$159 | **$3,900 + monthly** ✅ |
 | Eventbrite | 4.30% | $0 | $4,300 |
 | Cvent | 6.20%+ | $500+ | $6,200+ |
 
@@ -155,29 +155,33 @@ specifically built for Catholic events.
 
 ### **5 Tiers:**
 
-**Starter: $29/mo** (Monthly only)
+**Chapel: $39/mo** (Monthly only)
 - 3 events/year
 - 500 people max
 - 5GB storage
 - Basic registration only (no POROS, SALVE, RAPHA)
+- Basic Access Fee: $99 one-time (self-serve — no onboarding included)
 
-**Parish: $45/mo** (Monthly only)
+**Parish: $59/mo** (Monthly only)
 - 5 events/year
 - 1,000 people max
 - 10GB storage
 - Basic registration only (no POROS, SALVE, RAPHA)
+- Basic Access Fee: $199 one-time (self-serve — no onboarding included)
 
-**Cathedral: $89/mo or $900/year** ⭐ POPULAR
+**Cathedral: $109/mo or $1,080/year** ⭐ POPULAR
 - 10 events/year
 - 2,000 people max
 - 25GB storage
 - **Includes POROS, SALVE, RAPHA**
+- Setup Fee: $349 (includes onboarding & configuration)
 
-**Shrine: $120/mo or $1,200/year**
+**Shrine: $159/mo or $1,908/year**
 - 20 events/year
 - 4,000 people max
 - 100GB storage
 - **Includes POROS, SALVE, RAPHA**
+- Setup Fee: $499 (includes onboarding & configuration)
 
 **Basilica: Custom Pricing (starting at $15,000/year)**
 - Unlimited events
@@ -185,9 +189,17 @@ specifically built for Catholic events.
 - 500GB storage
 - **All features included**
 - Dedicated account manager
+- Setup Fee: Custom
 
 **Processing Fee:** 2.9% + $0.30 per ticket (Stripe) + 1% platform fee
-**Setup Fee:** $250 (one-time)
+
+### **Implementation & Consulting Packages:**
+
+- **Self-Serve — Free.** Required for Chapel tier. Documentation and video walkthroughs only — no live support.
+- **Guided Setup — $199.** One onboarding call + we configure your first event.
+- **Full Implementation — $499.** We build everything, train your team, and provide go-live support.
+
+Need ongoing help? Consulting is available at **$75/hr** (1-hour minimum).
 
 ---
 
@@ -201,7 +213,7 @@ specifically built for Catholic events.
 5. Is my data secure? (AES-256 encryption, COPPA compliant)
 6. How long does setup take? (1-2 hours)
 7. Can I import from Eventbrite? (Yes, CSV import)
-8. What about archived accounts? ($75-$250 reactivation)
+8. What about archived accounts? ($75-$499 reactivation)
 
 ---
 

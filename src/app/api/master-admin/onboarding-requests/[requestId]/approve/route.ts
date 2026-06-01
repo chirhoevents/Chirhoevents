@@ -69,6 +69,10 @@ export async function POST(
     const pricing = tierPricing[requestedTier] || tierPricing.shrine
     const billingCycle = onboardingRequest.billingCyclePreference || 'annual'
 
+    // Self-serve tiers (Chapel, Parish) charge "Basic Access Fee" instead of "Setup Fee"
+    const isSelfServeTier = requestedTier === 'starter' || requestedTier === 'parish'
+    const feeLabel = isSelfServeTier ? 'Basic Access Fee' : 'Setup Fee'
+
     // Create Stripe customer first so we can link it to the org
     let stripeCustomerId: string | undefined
     try {
@@ -103,7 +107,7 @@ export async function POST(
         registrationsLimit: pricing.registrationsLimit === -1 ? null : pricing.registrationsLimit,
         storageLimitGb: pricing.storageLimit,
         setupFeePaid: false,
-        setupFeeAmount: 250,
+        setupFeeAmount: pricing.setupFee,
         paymentMethodPreference: onboardingRequest.paymentMethodPreference || 'credit_card',
         legalEntityName: onboardingRequest.legalEntityName,
         taxId: onboardingRequest.taxId,
@@ -169,8 +173,8 @@ export async function POST(
         organizationId: organization.id,
         invoiceNumber: await getNextInvoiceNumber(),
         invoiceType: 'setup_fee',
-        amount: 250,
-        description: 'One-time setup fee for ChiRho Events platform',
+        amount: pricing.setupFee,
+        description: `One-time ${feeLabel.toLowerCase()} for ChiRho Events platform`,
         status: 'pending',
         dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
         paymentToken: setupFeePaymentToken,
@@ -181,6 +185,7 @@ export async function POST(
     const setupFeePaymentUrl = `${appUrl}/pay/invoice/${setupFeePaymentToken}`
 
     // Send welcome email
+    // Note: 'starter' is the DB enum key, but renders as "Chapel" per renamed tier.
     const tierLabels: Record<string, string> = {
       chapel: 'Chapel',
       starter: 'Chapel', // legacy tier key
@@ -238,19 +243,19 @@ export async function POST(
 
               <h3 style="color: #1E3A5F;">Next Steps:</h3>
               <ol>
-                <li><strong>Pay your setup fee:</strong> Click the button below to pay the one-time $250 setup fee. Your monthly subscription will start automatically after payment.</li>
+                <li><strong>Pay your ${feeLabel.toLowerCase()}:</strong> Click the button below to pay the one-time $${pricing.setupFee} ${feeLabel.toLowerCase()}. Your monthly subscription will start automatically after payment.</li>
                 <li><strong>Set up your password:</strong> Sign in to create your account password and access your dashboard.</li>
                 <li><strong>Connect Stripe:</strong> Set up your payment processing to accept registrations.</li>
                 <li><strong>Create your first event:</strong> Start building your event and accepting registrations!</li>
               </ol>
 
               <div style="background: #FEF3C7; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                <strong>Setup Fee:</strong> A $250 one-time setup fee is due within 30 days. After you pay, your ${tierLabels[requestedTier] || requestedTier} subscription ($${pricing.monthly}/month) will begin automatically — no further action needed.
+                <strong>${feeLabel}:</strong> A $${pricing.setupFee} one-time ${feeLabel.toLowerCase()} is due within 30 days. After you pay, your ${tierLabels[requestedTier] || requestedTier} subscription ($${pricing.monthly}/month) will begin automatically — no further action needed.${isSelfServeTier ? ' <em>Note: ' + (tierLabels[requestedTier] || requestedTier) + ' is a self-serve tier — no onboarding assistance is included. Consider our Guided Setup ($199) or Full Implementation ($499) packages if you need help.</em>' : ''}
               </div>
 
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${setupFeePaymentUrl}" class="cta-button">
-                  Pay $250 Setup Fee
+                  Pay $${pricing.setupFee} ${feeLabel}
                 </a>
               </div>
 

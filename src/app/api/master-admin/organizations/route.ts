@@ -225,7 +225,7 @@ export async function POST(request: NextRequest) {
         registrationsLimit: pricing.registrationsLimit === -1 ? null : pricing.registrationsLimit,
         storageLimitGb: pricing.storageLimit,
         setupFeePaid: setupFeeWaived || setupFeePaid || false,
-        setupFeeAmount: setupFeeWaived ? 0 : 250,
+        setupFeeAmount: setupFeeWaived ? 0 : pricing.setupFee,
         paymentMethodPreference: paymentMethod || 'credit_card',
         legalEntityName,
         taxId,

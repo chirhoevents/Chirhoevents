@@ -117,7 +117,7 @@ export async function GET(
         ...organization,
         monthlyFee: Number(organization.monthlyFee) || Number(organization.monthlyPrice) || 0,
         annualPrice: Number(organization.annualPrice) || 0,
-        setupFeeAmount: Number(organization.setupFeeAmount) || 250,
+        setupFeeAmount: Number(organization.setupFeeAmount) || 349,
         storageUsedGb: Number(organization.storageUsedGb) || 0,
       },
       payments: payments.map((p: PaymentType) => ({

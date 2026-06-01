@@ -1549,7 +1549,7 @@ export default function BillingDashboard() {
                   <div className="mt-2 space-y-2">
                     {[
                       { value: 'subscription', label: 'Subscription Payment' },
-                      { value: 'setup_fee', label: 'Setup Fee ($250)' },
+                      { value: 'setup_fee', label: 'Setup / Basic Access Fee' },
                       { value: 'overage', label: 'Overage Charge' },
                       { value: 'custom', label: 'Custom Payment' },
                     ].map((type) => (

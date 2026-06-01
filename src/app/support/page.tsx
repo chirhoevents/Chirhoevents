@@ -35,7 +35,7 @@ const faqCategories = [
     questions: [
       {
         q: "What fees does ChiRho charge?",
-        a: "ChiRho charges a 1% platform fee on all event registrations plus a monthly or annual subscription fee based on your plan. Standard Stripe processing fees (2.9% + $0.30) also apply to credit card transactions. There's also a one-time $250 setup fee."
+        a: "ChiRho charges a 1% platform fee on all event registrations plus a monthly or annual subscription fee based on your plan. Standard Stripe processing fees (2.9% + $0.30) also apply to credit card transactions. Each tier also has a one-time access or setup fee: Chapel $99, Parish $199 (Basic Access — self-serve), Cathedral $349, Shrine $499 (includes onboarding), Basilica custom."
       },
       {
         q: "Can I pay by check?",
@@ -47,7 +47,7 @@ const faqCategories = [
       },
       {
         q: "Can I cancel anytime?",
-        a: "Yes! You can cancel your subscription at any time with no penalties. Your data is archived and can be reactivated for a $75-$250 fee depending on your plan."
+        a: "Yes! You can cancel your subscription at any time with no penalties. Your data is archived and can be reactivated for a $75-$499 fee depending on your plan."
       },
       {
         q: "How do refunds work for participants?",

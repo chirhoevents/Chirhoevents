@@ -78,7 +78,8 @@ export default function EditOrganizationPage() {
     registrationsLimit: 3000,
     storageLimitGb: 25,
     setupFeePaid: false,
-    setupFeeAmount: 250,
+    setupFeeAmount: 349, // Default to Cathedral tier setup fee
+
     primaryColor: '#1E3A5F',
     secondaryColor: '#9C8466',
     // Initialized before fetch; overwritten by the API's resolved value when org loads.

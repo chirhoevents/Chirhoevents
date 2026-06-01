@@ -141,7 +141,7 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           </li>
           <li>
             <strong>Complete setup</strong>
-            <p className="ml-6 mt-1">Once approved, you&apos;ll receive an invoice for the $250 setup fee and your first subscription payment.</p>
+            <p className="ml-6 mt-1">Once approved, you&apos;ll receive an invoice for your tier&apos;s one-time access or setup fee and your first subscription payment.</p>
           </li>
           <li>
             <strong>Start creating events</strong>
@@ -176,8 +176,12 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           </table>
         </div>
         <p className="mt-4">
-          <strong>Additional fees:</strong> All plans include a one-time $250 setup fee,
-          Stripe processing (2.9% + $0.30 per transaction), and 1% ChiRho platform fee.
+          <strong>One-time access or setup fees:</strong> Chapel $99, Parish $199 (Basic Access — self-serve only),
+          Cathedral $349, Shrine $499 (includes onboarding), Basilica custom.
+        </p>
+        <p className="mt-2">
+          <strong>Additional fees:</strong> Stripe processing (2.9% + $0.30 per transaction)
+          and 1% ChiRho platform fee apply to each registration.
         </p>
       </div>
     )
@@ -191,14 +195,16 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           from the moment you are approved to your recurring monthly charges.
         </p>
 
-        <h3 className="text-xl font-semibold text-navy mt-6">Step 1 — Setup Fee</h3>
+        <h3 className="text-xl font-semibold text-navy mt-6">Step 1 — Access or Setup Fee</h3>
         <p>
           After your onboarding request is approved, you will receive an email with a link to pay
-          the one-time <strong>$250 setup fee</strong>. This is a single charge that covers account
-          configuration and onboarding support.
+          your tier&apos;s <strong>one-time access or setup fee</strong>. Chapel ($99) and Parish ($199)
+          are self-serve <em>Basic Access Fees</em> — no onboarding included. Cathedral ($349) and
+          Shrine ($499) <em>Setup Fees</em> include onboarding and configuration assistance.
+          Basilica setup is custom.
         </p>
         <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
-          <li>Click <strong>Pay $250 Setup Fee</strong> in your approval email</li>
+          <li>Click the <strong>Pay</strong> button in your approval email</li>
           <li>You are taken to a secure Stripe-hosted payment page</li>
           <li>Enter your credit or debit card details</li>
           <li>Once paid, your card is saved on file for future subscription charges</li>
@@ -283,9 +289,9 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
 
         <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mt-4">
           <p className="text-sm">
-            <strong>Example:</strong> You are on the Parish plan ($45/mo) and upgrade to Cathedral ($89/mo)
-            halfway through your billing cycle. Stripe credits you ~$22.50 for the unused Parish days and
-            charges ~$44.50 for the remaining Cathedral days. Your next full month will be billed at $89.
+            <strong>Example:</strong> You are on the Parish plan ($59/mo) and upgrade to Cathedral ($109/mo)
+            halfway through your billing cycle. Stripe credits you ~$29.50 for the unused Parish days and
+            charges ~$54.50 for the remaining Cathedral days. Your next full month will be billed at $109.
           </p>
         </div>
 

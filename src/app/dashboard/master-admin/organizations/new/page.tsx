@@ -29,6 +29,8 @@ const organizationTypes = [
   { value: 'other', label: 'Other' },
 ]
 
+// 'starter' is the DB enum value; renders as "Chapel".
+// setupFee: 0 for Basilica means "custom" — UI handles that case.
 const subscriptionTiers = [
   { value: 'chapel', label: 'Chapel', monthly: 29, annual: 290, description: 'Up to 3 events, 500 registrations' },
   { value: 'parish', label: 'Parish', monthly: 45, annual: 450, description: 'Up to 5 events, 1,000 registrations' },
@@ -397,9 +399,13 @@ export default function CreateOrganizationPage() {
 
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-gray-600">Setup Fee:</span>
+                <span className="text-sm text-gray-600">{selectedTier?.setupFeeLabel || 'Setup Fee'}:</span>
                 <span className="text-sm font-medium text-gray-900">
-                  {formData.setupFeeWaived ? '$0 (Waived)' : '$250'}
+                  {formData.setupFeeWaived
+                    ? '$0 (Waived)'
+                    : selectedTier?.value === 'basilica'
+                      ? 'Custom'
+                      : `$${selectedTier?.setupFee ?? 349}`}
                 </span>
               </div>
               <div className="space-y-2 mt-3">
@@ -606,15 +612,21 @@ export default function CreateOrganizationPage() {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-700">Setup Fee:</span>
+                <span className="text-gray-700">{selectedTier.setupFeeLabel}:</span>
                 <span className="font-medium text-gray-900">
-                  {formData.setupFeeWaived ? '$0' : '$250'}
+                  {formData.setupFeeWaived
+                    ? '$0'
+                    : selectedTier.value === 'basilica'
+                      ? 'Custom'
+                      : `$${selectedTier.setupFee}`}
                 </span>
               </div>
               <div className="border-t border-purple-200 pt-2 mt-2 flex justify-between">
                 <span className="font-semibold text-purple-900">First Payment:</span>
                 <span className="font-bold text-purple-900">
-                  ${(formData.billingCycle === 'annual' ? selectedTier.annual : selectedTier.monthly) + (formData.setupFeeWaived ? 0 : 250)}
+                  {selectedTier.value === 'basilica'
+                    ? 'Custom'
+                    : `$${(formData.billingCycle === 'annual' ? selectedTier.annual : selectedTier.monthly) + (formData.setupFeeWaived ? 0 : selectedTier.setupFee)}`}
                 </span>
               </div>
             </div>

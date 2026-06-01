@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 
-// Tier limits and pricing
+// Tier limits and pricing. 'starter' is the DB enum value; renders as "Chapel".
 const TIER_LIMITS: Record<string, { events: number; monthlyPrice: number }> = {
   chapel: { events: 3, monthlyPrice: 29 },
   parish: { events: 5, monthlyPrice: 45 },

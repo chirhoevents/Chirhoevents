@@ -91,10 +91,10 @@ export async function GET(request: NextRequest) {
     const setupFeesOwed = organizations.filter((o: OrgType) => !o.setupFeePaid).length
     const setupFeesCollected = organizations
       .filter((o: OrgType) => o.setupFeePaid)
-      .reduce((sum: number, o: OrgType) => sum + (Number(o.setupFeeAmount) || 250), 0)
+      .reduce((sum: number, o: OrgType) => sum + (Number(o.setupFeeAmount) || 349), 0)
     const setupFeesOutstanding = organizations
       .filter((o: OrgType) => !o.setupFeePaid)
-      .reduce((sum: number, o: OrgType) => sum + (Number(o.setupFeeAmount) || 250), 0)
+      .reduce((sum: number, o: OrgType) => sum + (Number(o.setupFeeAmount) || 349), 0)
 
     // Get monthly signups for the last 6 months
     const sixMonthsAgo = new Date()
