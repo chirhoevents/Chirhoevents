@@ -3,9 +3,12 @@ import { prisma } from '@/lib/prisma'
 import Stripe from 'stripe'
 import { Resend } from 'resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { logEmail, logEmailFailure } from '@/lib/email-logger'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
 const resend = new Resend(process.env.RESEND_API_KEY)
+
+const RECEIPT_EMAIL_TYPE = 'group_payment_receipt'
 
 export async function POST(req: NextRequest) {
   const userId = await getClerkUserIdFromRequest(req)
@@ -34,7 +37,7 @@ export async function POST(req: NextRequest) {
   // Verify this registration belongs to the current user
   const groupReg = await prisma.groupRegistration.findFirst({
     where: { id: paymentRecord.registrationId, clerkUserId: userId },
-    include: { event: { select: { name: true, organizationId: true } } },
+    include: { event: { select: { id: true, name: true, organizationId: true } } },
   })
 
   if (!groupReg) {
@@ -106,13 +109,30 @@ export async function POST(req: NextRequest) {
   const cardLine = card ? `${(card.brand || '').toUpperCase()} ending in ${card.last4}` : null
   const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 
-  try {
-    const { error: emailError } = await resend.emails.send({
-      from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-      reply_to: 'support@chirhoevents.com',
-      to: groupReg.groupLeaderEmail,
-      subject: `Payment Confirmed — ${groupReg.event.name}`,
-      html: `
+  // Fix #C4: Idempotency — skip the send if we've already logged a receipt for
+  // this paymentIntent. This endpoint is invoked on every visit to the Stripe
+  // success page (incl. refreshes and back-button), so without this guard a
+  // group leader would receive a duplicate receipt every time they reload.
+  const existingReceipt = await prisma.emailLog.findFirst({
+    where: {
+      registrationId: paymentRecord.registrationId,
+      registrationType: 'group',
+      emailType: RECEIPT_EMAIL_TYPE,
+      sentStatus: 'sent',
+      metadata: {
+        path: ['paymentIntentId'],
+        equals: paymentIntentId,
+      },
+    },
+    select: { id: true },
+  })
+
+  if (existingReceipt) {
+    return NextResponse.json({ status: 'succeeded', receiptUrl, emailAlreadySent: true })
+  }
+
+  const emailSubject = `Payment Confirmed — ${groupReg.event.name}`
+  const emailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
             <h1 style="color: white; margin: 0;">ChiRho Events</h1>
@@ -144,16 +164,46 @@ export async function POST(req: NextRequest) {
             <p>ChiRho Events | support@chirhoevents.com</p>
           </div>
         </div>
-      `,
+      `
+
+  const logData = {
+    organizationId: groupReg.event.organizationId,
+    eventId: groupReg.event.id,
+    registrationId: paymentRecord.registrationId,
+    registrationType: 'group' as const,
+    recipientEmail: groupReg.groupLeaderEmail,
+    recipientName: groupReg.groupLeaderName,
+    emailType: RECEIPT_EMAIL_TYPE,
+    subject: emailSubject,
+    htmlContent: emailHtml,
+    metadata: {
+      paymentIntentId,
+      amount,
+      cardBrand: card?.brand || null,
+      cardLast4: card?.last4 || null,
+      receiptUrl: receiptUrl || null,
+    },
+  }
+
+  try {
+    const { error: emailError } = await resend.emails.send({
+      from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+      reply_to: 'support@chirhoevents.com',
+      to: groupReg.groupLeaderEmail,
+      subject: emailSubject,
+      html: emailHtml,
     })
 
     if (emailError) {
-      console.error('Resend error sending receipt email:', emailError)
+      await logEmailFailure(logData, emailError.message || 'Unknown Resend error')
     } else {
-      console.log('Receipt email sent to:', groupReg.groupLeaderEmail)
+      await logEmail(logData)
     }
   } catch (emailError) {
-    console.error('Exception sending receipt email:', emailError)
+    await logEmailFailure(
+      logData,
+      emailError instanceof Error ? emailError.message : 'Unknown exception sending receipt email'
+    )
   }
 
   return NextResponse.json({ status: 'succeeded', receiptUrl })
