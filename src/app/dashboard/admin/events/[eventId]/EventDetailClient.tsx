@@ -161,6 +161,11 @@ export default function EventDetailClient({
 
   // Derived state for registration toggle
   const isRegistrationOpen = currentStatus === 'registration_open'
+  // True when the admin has manually overridden the schedule in either direction.
+  // In this state, the registrationOpenDate / registrationCloseDate are ignored
+  // by getRegistrationStatus and the "Use Scheduled Dates" escape hatch is shown.
+  const isManualOverride =
+    currentStatus === 'registration_open' || currentStatus === 'registration_closed'
 
   const handleStatusUpdate = async (newStatus: string) => {
     if (updatingStatus) return
@@ -222,13 +227,19 @@ export default function EventDetailClient({
   // Handle registration toggle - only controls registration status, independent of visibility
   const handleRegistrationToggle = (checked: boolean) => {
     if (checked) {
-      // Opening registration
+      // Opening registration (manual override — bypasses scheduled dates)
       handleStatusUpdate('registration_open')
     } else {
-      // Closing registration
+      // Closing registration (manual override — bypasses scheduled dates)
       handleStatusUpdate('registration_closed')
     }
   }
+
+  // Clears the manual registration override and returns the event to the
+  // date-based schedule (registrationOpenDate / registrationCloseDate). Used
+  // to recover from an accidental Open/Close toggle without having to edit
+  // and re-save the entire event.
+  const handleResetToSchedule = () => handleStatusUpdate('published')
 
   const handleSaveSettings = async () => {
     if (savingSettings) return
@@ -1359,19 +1370,28 @@ export default function EventDetailClient({
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">
-                    {isRegistrationOpen ? (
+                    {currentStatus === 'registration_open' && (
                       <CheckSquare className="h-5 w-5 text-green-600" />
-                    ) : (
+                    )}
+                    {currentStatus === 'registration_closed' && (
                       <Lock className="h-5 w-5 text-orange-500" />
+                    )}
+                    {!isManualOverride && (
+                      <Clock className="h-5 w-5 text-[#1E3A5F]" />
                     )}
                     <div>
                       <p className="font-medium text-[#1E3A5F]">
-                        {isRegistrationOpen ? 'Registration Open' : 'Registration Closed'}
+                        {currentStatus === 'registration_open' && 'Manually Open'}
+                        {currentStatus === 'registration_closed' && 'Manually Closed'}
+                        {!isManualOverride && 'Following Schedule'}
                       </p>
                       <p className="text-xs text-[#6B7280]">
-                        {isRegistrationOpen
-                          ? 'Participants can register for this event'
-                          : 'New registrations are not accepted'}
+                        {currentStatus === 'registration_open' &&
+                          'Manually opened — overrides your scheduled dates.'}
+                        {currentStatus === 'registration_closed' &&
+                          'Manually closed — overrides your scheduled dates.'}
+                        {!isManualOverride &&
+                          'Registration opens and closes based on the dates you have set.'}
                       </p>
                     </div>
                   </div>
@@ -1382,6 +1402,26 @@ export default function EventDetailClient({
                     disabled={updatingStatus || currentStatus === 'completed' || currentStatus === 'cancelled'}
                   />
                 </div>
+                {isManualOverride && (
+                  <div className="flex items-start justify-between gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-blue-800">
+                        Your scheduled dates are being ignored while a manual override is active.
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleResetToSchedule}
+                      disabled={updatingStatus}
+                      className="text-[#1E3A5F] border-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white flex-shrink-0"
+                    >
+                      <Clock className="h-4 w-4 mr-2" />
+                      Use Scheduled Dates
+                    </Button>
+                  </div>
+                )}
                 {!currentIsPublished && isRegistrationOpen && (
                   <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                     <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
@@ -1391,7 +1431,7 @@ export default function EventDetailClient({
                   </div>
                 )}
                 <p className="text-xs text-[#6B7280]">
-                  Control whether participants can submit new registrations. Existing registrations are not affected.
+                  Toggle to manually open or close registration. Existing registrations are not affected. Use &ldquo;Use Scheduled Dates&rdquo; to fall back to the open/close dates configured on the event.
                 </p>
               </CardContent>
             </Card>
