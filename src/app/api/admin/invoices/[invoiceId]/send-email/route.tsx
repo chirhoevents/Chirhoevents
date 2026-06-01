@@ -10,12 +10,13 @@ export const dynamic = 'force-dynamic'
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
 const tierLabels: Record<string, string> = {
-  starter: 'Chapel',
+  chapel: 'Chapel',
   parish: 'Parish',
   cathedral: 'Cathedral',
   shrine: 'Shrine',
   basilica: 'Basilica',
   // Legacy tier names for backward compatibility
+  starter: 'Chapel',
   small_diocese: 'Parish',
   growing: 'Cathedral',
   conference: 'Shrine',

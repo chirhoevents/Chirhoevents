@@ -47,7 +47,7 @@ interface DashboardStats {
     orgsNearLimits: number
   }
   subscriptionBreakdown: {
-    starter: number
+    chapel: number
     parish: number
     cathedral: number
     shrine: number
@@ -115,7 +115,7 @@ export default function MasterAdminDashboard() {
       orgsNearLimits: 0,
     },
     subscriptionBreakdown: {
-      starter: 0,
+      chapel: 0,
       parish: 0,
       cathedral: 1,
       shrine: 0,
@@ -378,8 +378,8 @@ export default function MasterAdminDashboard() {
 
           <div className="space-y-3">
             <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Chapel ($39/mo)</span>
-              <span className="text-sm font-medium text-gray-900">{displayStats.subscriptionBreakdown.starter} orgs</span>
+              <span className="text-sm text-gray-600">Chapel ($29/mo)</span>
+              <span className="text-sm font-medium text-gray-900">{displayStats.subscriptionBreakdown.chapel} orgs</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">Parish ($59/mo)</span>

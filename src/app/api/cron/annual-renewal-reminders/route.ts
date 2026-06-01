@@ -50,11 +50,12 @@ async function verifyCronAuth(request: NextRequest): Promise<boolean> {
 // Get tier display name
 function getTierName(tier: string): string {
   const tierMap: Record<string, string> = {
-    starter: 'Chapel',
+    chapel: 'Chapel',
     parish: 'Parish',
     cathedral: 'Cathedral',
     shrine: 'Shrine',
     basilica: 'Basilica',
+    starter: 'Chapel',
     small_diocese: 'Parish',
     growing: 'Cathedral',
     conference: 'Shrine',

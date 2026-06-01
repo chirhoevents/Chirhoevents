@@ -101,12 +101,13 @@ interface RevenueData {
 }
 
 const tierLabels: Record<string, string> = {
-  starter: 'Chapel',
+  chapel: 'Chapel',
   parish: 'Parish',
   cathedral: 'Cathedral',
   shrine: 'Shrine',
   basilica: 'Basilica',
   // Legacy tier names for backward compatibility
+  starter: 'Chapel',
   small_diocese: 'Parish',
   growing: 'Cathedral',
   conference: 'Shrine',
@@ -114,6 +115,7 @@ const tierLabels: Record<string, string> = {
 }
 
 const tierColors: Record<string, string> = {
+  chapel: 'bg-gray-500',
   starter: 'bg-gray-500',
   parish: 'bg-blue-500',
   cathedral: 'bg-green-500',

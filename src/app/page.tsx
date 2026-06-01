@@ -382,7 +382,7 @@ export default function LandingPage() {
                   <p className="font-semibold">Basic Access Fee: $99 one-time</p>
                   <p className="italic text-gray-500 mt-1">Self-serve only — no onboarding assistance included.</p>
                 </div>
-                <Link href="/get-started?tier=starter">
+                <Link href="/get-started?tier=chapel">
                   <Button className="w-full mt-6">Get Started</Button>
                 </Link>
               </CardContent>

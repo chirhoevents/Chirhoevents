@@ -5,9 +5,11 @@
  * Update this file to change pricing, features, or limits across the entire application.
  */
 
-// Internal tier keys are kept as their original DB enum values for backward
-// compatibility (e.g. 'starter' is the database key but renders as "Chapel").
-export type SubscriptionTierKey = 'starter' | 'parish' | 'cathedral' | 'shrine' | 'basilica' | 'test';
+export type SubscriptionTierKey = 'chapel' | 'parish' | 'cathedral' | 'shrine' | 'basilica' | 'test';
+
+// Legacy tier keys that may still appear in old data or external integrations.
+// At read time they are normalized via TIER_KEY_MIGRATION.
+export type LegacySubscriptionTierKey = 'starter' | 'small_diocese' | 'growing' | 'conference' | 'enterprise';
 
 export interface SubscriptionTier {
   key: SubscriptionTierKey;
@@ -36,11 +38,11 @@ export interface SubscriptionTier {
 }
 
 export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> = {
-  starter: {
-    key: 'starter',
+  chapel: {
+    key: 'chapel',
     name: 'Chapel',
-    description: 'Self-serve platform access for small parishes or technically capable users',
-    monthlyPrice: 39,
+    description: 'Perfect for small parishes or organizations just getting started',
+    monthlyPrice: 29,
     annualPrice: null, // Monthly only
     setupFee: 99,
     setupFeeLabel: 'Basic Access Fee',
@@ -181,10 +183,14 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
 // Helper functions
 
 /**
- * Get tier by key
+ * Get tier by key. Accepts current keys and legacy keys (normalized via TIER_KEY_MIGRATION).
  */
 export function getTier(key: string): SubscriptionTier | undefined {
-  return SUBSCRIPTION_TIERS[key as SubscriptionTierKey];
+  const direct = SUBSCRIPTION_TIERS[key as SubscriptionTierKey];
+  if (direct) return direct;
+  const migrated = TIER_KEY_MIGRATION[key];
+  if (migrated) return SUBSCRIPTION_TIERS[migrated];
+  return undefined;
 }
 
 /**
@@ -240,6 +246,48 @@ export function tierHasRapha(tierKey: string): boolean {
   return tierHasFeature(tierKey, 'rapha');
 }
 
+export type ModuleKey = 'poros' | 'salve' | 'rapha';
+export type ModuleAccess = Record<ModuleKey, boolean>;
+
+const MODULE_KEYS: ModuleKey[] = ['poros', 'salve', 'rapha'];
+
+/**
+ * Resolve the effective module access for an org.
+ *
+ * Rules (in order):
+ *   1. If the org has an explicit true/false override for a module, that wins.
+ *   2. Otherwise fall back to the tier's default for that module.
+ *
+ * Grandfathered Starter/Chapel orgs were seeded with explicit `true` values
+ * by the 20260531000001 migration, so they keep full access regardless of
+ * any future tier change. The master admin board is the single source of
+ * truth for org-level overrides.
+ */
+export function resolveModuleAccess(
+  modulesEnabled: unknown,
+  tierKey: string
+): ModuleAccess {
+  const tier = getTier(tierKey);
+  const tierDefaults: ModuleAccess = {
+    poros: tier?.features.poros ?? false,
+    salve: tier?.features.salve ?? false,
+    rapha: tier?.features.rapha ?? false,
+  };
+
+  if (!modulesEnabled || typeof modulesEnabled !== 'object') {
+    return tierDefaults;
+  }
+
+  const overrides = modulesEnabled as Record<string, unknown>;
+  const result = { ...tierDefaults };
+  for (const key of MODULE_KEYS) {
+    if (typeof overrides[key] === 'boolean') {
+      result[key] = overrides[key] as boolean;
+    }
+  }
+  return result;
+}
+
 /**
  * Get the price for a tier based on billing cycle
  */
@@ -269,8 +317,12 @@ export function getTierSetupFee(tierKey: string): number | null {
  * The 'chapel' key is accepted as input and routed to the 'starter' tier.
  */
 export const TIER_KEY_MIGRATION: Record<string, SubscriptionTierKey> = {
-  starter: 'starter',
-  chapel: 'starter',
+  starter: 'chapel',
+  chapel: 'chapel',
+  parish: 'parish',
+  cathedral: 'cathedral',
+  shrine: 'shrine',
+  basilica: 'basilica',
   small_diocese: 'parish',
   growing: 'cathedral',
   conference: 'shrine',
@@ -289,8 +341,8 @@ export function migrateOldTierKey(oldKey: string): SubscriptionTierKey {
  * Environment variable names for Stripe price IDs
  */
 export const STRIPE_PRICE_ENV_VARS: Record<SubscriptionTierKey, { monthly: string | null; annual: string | null }> = {
-  starter: {
-    monthly: 'STRIPE_PRICE_STARTER_MONTHLY',
+  chapel: {
+    monthly: 'STRIPE_PRICE_CHAPEL_MONTHLY',
     annual: null, // No annual option
   },
   parish: {
@@ -319,7 +371,7 @@ export const STRIPE_PRICE_ENV_VARS: Record<SubscriptionTierKey, { monthly: strin
  * Get suggested tier based on events per year
  */
 export function getSuggestedTierByEvents(eventsPerYear: number): SubscriptionTierKey {
-  if (eventsPerYear <= 3) return 'starter';
+  if (eventsPerYear <= 3) return 'chapel';
   if (eventsPerYear <= 5) return 'parish';
   if (eventsPerYear <= 10) return 'cathedral';
   if (eventsPerYear <= 20) return 'shrine';

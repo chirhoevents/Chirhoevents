@@ -216,7 +216,8 @@ const formatCurrency = (amount: number) => {
 
 const formatTierName = (tier: string) => {
   const tierMap: Record<string, string> = {
-    // Current tier names ('starter' DB enum renders as "Chapel")
+    // Current tier names
+    chapel: 'Chapel',
     starter: 'Chapel',
     parish: 'Parish',
     cathedral: 'Cathedral',
@@ -1092,7 +1093,7 @@ export default function BillingDashboard() {
                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
               >
                 <option value="all">All Tiers</option>
-                <option value="starter">Chapel</option>
+                <option value="chapel">Chapel</option>
                 <option value="parish">Parish</option>
                 <option value="cathedral">Cathedral</option>
                 <option value="shrine">Shrine</option>
@@ -2665,10 +2666,10 @@ export default function BillingDashboard() {
                 className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2"
               >
                 <option value="">Select a tier...</option>
-                <option value="starter">Chapel — $39/mo</option>
-                <option value="parish">Parish — $59/mo</option>
-                <option value="cathedral">Cathedral — $109/mo or $1,080/yr</option>
-                <option value="shrine">Shrine — $159/mo or $1,908/yr</option>
+                <option value="chapel">Chapel — $29/mo</option>
+                <option value="parish">Parish — $45/mo</option>
+                <option value="cathedral">Cathedral — $89/mo or $900/yr</option>
+                <option value="shrine">Shrine — $120/mo or $1,200/yr</option>
               </select>
             </div>
             <div>

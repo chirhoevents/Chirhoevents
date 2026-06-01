@@ -35,35 +35,18 @@ interface Organization {
   platformFeePercentage: number
 }
 
-// Default modules configuration
-const DEFAULT_MODULES = { poros: true, salve: true, rapha: true }
-
-// Helper to properly merge modulesEnabled with defaults
-// This ensures that missing or undefined properties default to true
-function getModulesEnabled(modulesEnabled: unknown): { poros: boolean; salve: boolean; rapha: boolean } {
-  if (!modulesEnabled || typeof modulesEnabled !== 'object') {
-    return { ...DEFAULT_MODULES }
-  }
-  const modules = modulesEnabled as Record<string, unknown>
-  return {
-    poros: modules.poros !== false,
-    salve: modules.salve !== false,
-    rapha: modules.rapha !== false,
-  }
-}
-
-// Standard tier pricing. 'starter' is the DB enum value; renders as "Chapel".
-const tierPricing: Record<string, { monthly: number; annual: number; setupFee: number; eventsLimit: number; registrationsLimit: number; storageLimit: number }> = {
-  starter: { monthly: 39, annual: 468, setupFee: 99, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
-  parish: { monthly: 59, annual: 708, setupFee: 199, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
-  cathedral: { monthly: 109, annual: 1080, setupFee: 349, eventsLimit: 10, registrationsLimit: 2000, storageLimit: 25 },
-  shrine: { monthly: 159, annual: 1908, setupFee: 499, eventsLimit: 20, registrationsLimit: 4000, storageLimit: 100 },
-  basilica: { monthly: 1250, annual: 15000, setupFee: 0, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
-  test: { monthly: 0, annual: 0, setupFee: 0, eventsLimit: 3, registrationsLimit: 100, storageLimit: 1 },
+// Standard tier pricing
+const tierPricing: Record<string, { monthly: number; annual: number; eventsLimit: number; registrationsLimit: number; storageLimit: number }> = {
+  chapel: { monthly: 29, annual: 290, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
+  parish: { monthly: 45, annual: 450, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
+  cathedral: { monthly: 89, annual: 900, eventsLimit: 10, registrationsLimit: 2000, storageLimit: 25 },
+  shrine: { monthly: 120, annual: 1200, eventsLimit: 20, registrationsLimit: 4000, storageLimit: 100 },
+  basilica: { monthly: 200, annual: 15000, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
+  test: { monthly: 0, annual: 0, eventsLimit: 3, registrationsLimit: 100, storageLimit: 1 },
 }
 
 const tierLabels: Record<string, string> = {
-  starter: 'Chapel',
+  chapel: 'Chapel',
   parish: 'Parish',
   shrine: 'Shrine',
   cathedral: 'Cathedral',
@@ -99,7 +82,8 @@ export default function EditOrganizationPage() {
 
     primaryColor: '#1E3A5F',
     secondaryColor: '#9C8466',
-    modulesEnabled: { poros: true, salve: true, rapha: true },
+    // Initialized before fetch; overwritten by the API's resolved value when org loads.
+    modulesEnabled: { poros: false, salve: false, rapha: false },
     notes: '',
     legalEntityName: '',
     website: '',
@@ -136,7 +120,7 @@ export default function EditOrganizationPage() {
             setupFeeAmount: org.setupFeeAmount,
             primaryColor: org.primaryColor,
             secondaryColor: org.secondaryColor,
-            modulesEnabled: getModulesEnabled(org.modulesEnabled),
+            modulesEnabled: org.modulesEnabled,
             notes: org.notes || '',
             legalEntityName: org.legalEntityName || '',
             website: org.website || '',

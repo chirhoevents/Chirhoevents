@@ -6,26 +6,28 @@ import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 
 // Tier limits and pricing. 'starter' is the DB enum value; renders as "Chapel".
 const TIER_LIMITS: Record<string, { events: number; monthlyPrice: number }> = {
-  starter: { events: 3, monthlyPrice: 39 },
-  parish: { events: 5, monthlyPrice: 59 },
-  cathedral: { events: 10, monthlyPrice: 109 },
-  shrine: { events: 20, monthlyPrice: 159 },
-  basilica: { events: 999, monthlyPrice: 1250 },
+  chapel: { events: 3, monthlyPrice: 29 },
+  parish: { events: 5, monthlyPrice: 45 },
+  cathedral: { events: 10, monthlyPrice: 89 },
+  shrine: { events: 20, monthlyPrice: 120 },
+  basilica: { events: 999, monthlyPrice: 200 },
   // Legacy tier names for backward compatibility
-  small_diocese: { events: 5, monthlyPrice: 59 },
-  growing: { events: 10, monthlyPrice: 109 },
-  conference: { events: 20, monthlyPrice: 159 },
-  enterprise: { events: 999, monthlyPrice: 1250 },
+  starter: { events: 3, monthlyPrice: 29 },
+  small_diocese: { events: 5, monthlyPrice: 45 },
+  growing: { events: 10, monthlyPrice: 89 },
+  conference: { events: 20, monthlyPrice: 120 },
+  enterprise: { events: 999, monthlyPrice: 200 },
   test: { events: 999, monthlyPrice: 0 },
 }
 
 const TIER_LABELS: Record<string, string> = {
-  starter: 'Chapel',
+  chapel: 'Chapel',
   parish: 'Parish',
   cathedral: 'Cathedral',
   shrine: 'Shrine',
   basilica: 'Basilica',
   // Legacy tier names for backward compatibility
+  starter: 'Chapel',
   small_diocese: 'Parish',
   growing: 'Cathedral',
   conference: 'Shrine',
@@ -34,8 +36,10 @@ const TIER_LABELS: Record<string, string> = {
 }
 
 function getUpgradeTiers(currentTier: string) {
-  const tierOrder = ['starter', 'parish', 'cathedral', 'shrine', 'basilica']
-  const currentIndex = tierOrder.indexOf(currentTier)
+  const tierOrder = ['chapel', 'parish', 'cathedral', 'shrine', 'basilica']
+  // Normalize legacy tier keys to current keys before indexing.
+  const normalizedTier = currentTier === 'starter' ? 'chapel' : currentTier
+  const currentIndex = tierOrder.indexOf(normalizedTier)
 
   if (currentIndex === -1 || currentIndex >= tierOrder.length - 1) {
     return []

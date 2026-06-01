@@ -8,11 +8,12 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const tierLabels: Record<string, string> = {
-  starter: 'Chapel',
+  chapel: 'Chapel',
   parish: 'Parish',
   cathedral: 'Cathedral',
   shrine: 'Shrine',
   basilica: 'Basilica',
+  starter: 'Chapel',
   small_diocese: 'Parish',
   growing: 'Cathedral',
   conference: 'Shrine',

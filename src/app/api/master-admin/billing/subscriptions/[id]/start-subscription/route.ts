@@ -125,7 +125,7 @@ export async function POST(
       })
 
       const tierLabels: Record<string, string> = {
-        starter: 'Chapel', parish: 'Parish', cathedral: 'Cathedral', shrine: 'Shrine', basilica: 'Basilica',
+        chapel: 'Chapel', starter: 'Chapel', parish: 'Parish', cathedral: 'Cathedral', shrine: 'Shrine', basilica: 'Basilica',
       }
       const tierLabel = tierLabels[org.subscriptionTier] || org.subscriptionTier
       const startAppUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'

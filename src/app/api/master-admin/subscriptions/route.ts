@@ -45,11 +45,14 @@ async function getClerkUserId(request: NextRequest): Promise<string | null> {
 // See STRIPE_SETUP_INSTRUCTIONS.md for details on creating these prices
 const TIER_PRICES: Record<string, { monthly: string | null; annual: string | null }> = {
   // Current tier names
-  // 'starter' is the DB enum value; renders as "Chapel".
-  // STRIPE_PRICE_STARTER_MONTHLY env var name is preserved for backward compat.
-  starter: {
-    monthly: process.env.STRIPE_PRICE_STARTER_MONTHLY || null,
+  chapel: {
+    monthly: process.env.STRIPE_PRICE_CHAPEL_MONTHLY || process.env.STRIPE_PRICE_STARTER_MONTHLY || null,
     annual: null, // Chapel is monthly only
+  },
+  // Legacy tier name kept for any orgs whose subscription_tier column is still 'starter'.
+  starter: {
+    monthly: process.env.STRIPE_PRICE_CHAPEL_MONTHLY || process.env.STRIPE_PRICE_STARTER_MONTHLY || null,
+    annual: null,
   },
   parish: {
     monthly: process.env.STRIPE_PRICE_PARISH_MONTHLY || null,

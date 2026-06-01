@@ -378,7 +378,7 @@ export async function PUT(
         })
 
         const tierLabels: Record<string, string> = {
-          starter: 'Chapel', parish: 'Parish', cathedral: 'Cathedral', shrine: 'Shrine', basilica: 'Basilica',
+          chapel: 'Chapel', starter: 'Chapel', parish: 'Parish', cathedral: 'Cathedral', shrine: 'Shrine', basilica: 'Basilica',
         }
 
         // Update the database

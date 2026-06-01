@@ -37,24 +37,25 @@ interface OnboardingRequest {
 }
 
 const tierLabels: Record<string, string> = {
-  starter: 'Chapel',
+  chapel: 'Chapel',
   parish: 'Parish',
   cathedral: 'Cathedral',
   shrine: 'Shrine',
   basilica: 'Basilica',
   // Legacy tier names for backward compatibility
+  starter: 'Chapel',
   small_diocese: 'Parish',
   growing: 'Cathedral',
   conference: 'Shrine',
   enterprise: 'Basilica',
 }
 
-const tierPricing: Record<string, { monthly: number; annual: number; setupFee: number }> = {
-  starter: { monthly: 39, annual: 468, setupFee: 99 },
-  parish: { monthly: 59, annual: 708, setupFee: 199 },
-  cathedral: { monthly: 109, annual: 1080, setupFee: 349 },
-  shrine: { monthly: 159, annual: 1908, setupFee: 499 },
-  basilica: { monthly: 1250, annual: 15000, setupFee: 0 },
+const tierPricing: Record<string, { monthly: number; annual: number }> = {
+  chapel: { monthly: 29, annual: 290 },
+  parish: { monthly: 45, annual: 450 },
+  cathedral: { monthly: 89, annual: 900 },
+  shrine: { monthly: 120, annual: 1200 },
+  basilica: { monthly: 200, annual: 2000 },
   // Legacy tier names for backward compatibility
   small_diocese: { monthly: 59, annual: 708, setupFee: 199 },
   growing: { monthly: 109, annual: 1080, setupFee: 349 },

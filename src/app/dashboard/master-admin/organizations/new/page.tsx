@@ -32,12 +32,12 @@ const organizationTypes = [
 // 'starter' is the DB enum value; renders as "Chapel".
 // setupFee: 0 for Basilica means "custom" — UI handles that case.
 const subscriptionTiers = [
-  { value: 'starter', label: 'Chapel', monthly: 39, annual: 468, setupFee: 99, setupFeeLabel: 'Basic Access Fee', description: 'Up to 3 events, 500 registrations (self-serve)' },
-  { value: 'parish', label: 'Parish', monthly: 59, annual: 708, setupFee: 199, setupFeeLabel: 'Basic Access Fee', description: 'Up to 5 events, 1,000 registrations (self-serve)' },
-  { value: 'cathedral', label: 'Cathedral', monthly: 109, annual: 1080, setupFee: 349, setupFeeLabel: 'Setup Fee', description: 'Up to 10 events, 2,000 registrations', popular: true },
-  { value: 'shrine', label: 'Shrine', monthly: 159, annual: 1908, setupFee: 499, setupFeeLabel: 'Setup Fee', description: 'Up to 20 events, 4,000 registrations' },
-  { value: 'basilica', label: 'Basilica', monthly: 1250, annual: 15000, setupFee: 0, setupFeeLabel: 'Custom Setup Fee', description: 'Unlimited events, 10,000+ registrations' },
-  { value: 'test', label: 'Test/Free Account', monthly: 0, annual: 0, setupFee: 0, setupFeeLabel: 'Setup Fee', description: 'No billing (for testing only)' },
+  { value: 'chapel', label: 'Chapel', monthly: 29, annual: 290, description: 'Up to 3 events, 500 registrations' },
+  { value: 'parish', label: 'Parish', monthly: 45, annual: 450, description: 'Up to 5 events, 1,000 registrations' },
+  { value: 'cathedral', label: 'Cathedral', monthly: 89, annual: 900, description: 'Up to 10 events, 2,000 registrations', popular: true },
+  { value: 'shrine', label: 'Shrine', monthly: 120, annual: 1200, description: 'Up to 20 events, 4,000 registrations' },
+  { value: 'basilica', label: 'Basilica', monthly: 200, annual: 15000, description: 'Unlimited events, 10,000+ registrations' },
+  { value: 'test', label: 'Test/Free Account', monthly: 0, annual: 0, description: 'No billing (for testing only)' },
 ]
 
 export default function CreateOrganizationPage() {

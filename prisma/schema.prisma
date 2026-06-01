@@ -57,7 +57,7 @@ model Organization {
   primaryColor            String?  @map("primary_color") @db.VarChar(7)
   secondaryColor          String?  @map("secondary_color") @db.VarChar(7)
   customFieldsEnabled     Json     @default("{}") @map("custom_fields_enabled") @db.JsonB
-  modulesEnabled          Json     @default("{\"poros\": true, \"salve\": true, \"rapha\": true}") @map("modules_enabled") @db.JsonB
+  modulesEnabled          Json     @default("{}") @map("modules_enabled") @db.JsonB
   checkPaymentName        String?  @map("check_payment_name") @db.Text
   checkPaymentAddress     String?  @map("check_payment_address") @db.Text
   platformFeePercentage   Decimal  @default(1.00) @map("platform_fee_percentage") @db.Decimal(5, 2)
@@ -956,7 +956,7 @@ enum OrganizationType {
 
 enum SubscriptionTier {
   // Current tier names
-  starter
+  chapel
   parish
   shrine
   cathedral
@@ -965,6 +965,7 @@ enum SubscriptionTier {
 
   // Legacy tier names (kept for backward compatibility)
   // TODO: Migrate existing data and remove these
+  starter       // @deprecated - use chapel (renamed)
   small_diocese // @deprecated - use parish
   growing       // @deprecated - use cathedral
   conference    // @deprecated - use shrine
