@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import QRCode from 'qrcode'
 import { generateGroupRegistrationConfirmationEmail, wrapEmail, emailInfoBox } from '@/lib/email-templates'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -455,7 +456,7 @@ export async function POST(request: NextRequest) {
         // Send confirmation email with QR code
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-          reply_to: 'support@chirhoevents.com',
+          reply_to: resolveReplyTo(registration.event.settings, registration.event.organization),
           to: registration.email,
           subject: `Registration Confirmed - ${registration.event.name}`,
           html: `
@@ -619,7 +620,8 @@ export async function POST(request: NextRequest) {
           include: {
             event: {
               include: {
-                organization: { select: { name: true } },
+                settings: { select: { contactEmail: true } },
+                organization: { select: { name: true, contactEmail: true } },
               },
             },
           },
@@ -675,7 +677,7 @@ export async function POST(request: NextRequest) {
 
             await resend.emails.send({
               from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-              reply_to: 'support@chirhoevents.com',
+              reply_to: resolveReplyTo(staffReg.event.settings, staffReg.event.organization),
               to: staffReg.email,
               subject: `Staff Registration Confirmed & Paid - ${staffReg.event.name}`,
               html: emailContent,
@@ -776,6 +778,7 @@ export async function POST(request: NextRequest) {
                 select: {
                   id: true,
                   name: true,
+                  contactEmail: true,
                 },
               },
             },
@@ -846,7 +849,7 @@ export async function POST(request: NextRequest) {
       // Send confirmation email
       await resend.emails.send({
         from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-        reply_to: 'support@chirhoevents.com',
+        reply_to: resolveReplyTo(registration.event.settings, registration.event.organization),
         to: registration.groupLeaderEmail,
         subject: `Payment Confirmed - ${registration.event.name}`,
         html: emailHtml,

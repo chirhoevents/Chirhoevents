@@ -4,6 +4,7 @@ import Stripe from 'stripe'
 import { Resend } from 'resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -37,7 +38,17 @@ export async function POST(req: NextRequest) {
   // Verify this registration belongs to the current user
   const groupReg = await prisma.groupRegistration.findFirst({
     where: { id: paymentRecord.registrationId, clerkUserId: userId },
-    include: { event: { select: { id: true, name: true, organizationId: true } } },
+    include: {
+      event: {
+        select: {
+          id: true,
+          name: true,
+          organizationId: true,
+          settings: { select: { contactEmail: true } },
+          organization: { select: { contactEmail: true } },
+        },
+      },
+    },
   })
 
   if (!groupReg) {
@@ -188,7 +199,7 @@ export async function POST(req: NextRequest) {
   try {
     const { error: emailError } = await resend.emails.send({
       from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-      reply_to: 'support@chirhoevents.com',
+      reply_to: resolveReplyTo(groupReg.event.settings, groupReg.event.organization),
       to: groupReg.groupLeaderEmail,
       subject: emailSubject,
       html: emailHtml,

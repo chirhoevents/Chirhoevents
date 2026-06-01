@@ -8,6 +8,7 @@ import QRCode from 'qrcode'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { generateGroupRegistrationConfirmationEmail } from '@/lib/email-templates'
 import { getRegistrationStatus } from '@/lib/registration-status'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 import {
   checkOptionCapacity,
   decrementOptionCapacity,
@@ -90,6 +91,7 @@ export async function POST(request: NextRequest) {
             stripeAccountId: true,
             stripeChargesEnabled: true,
             platformFeePercentage: true,
+            contactEmail: true,
           },
         },
       },
@@ -160,6 +162,22 @@ export async function POST(request: NextRequest) {
     if (totalParticipants === 0) {
       return NextResponse.json(
         { error: 'At least one participant is required' },
+        { status: 400 }
+      )
+    }
+
+    // Group registrations must include both an adult supervisor (chaperone OR priest)
+    // and at least one youth. Solo or adult-only signups belong in the individual
+    // registration flow — this guard prevents a "group of one" from coming through
+    // the group endpoint.
+    const hasAdultSupervisor = chaperoneCount >= 1 || priestCount >= 1
+    const hasYouth = youthCount >= 1
+    if (!hasAdultSupervisor || !hasYouth) {
+      return NextResponse.json(
+        {
+          error:
+            'Group registrations must include at least one youth and at least one chaperone or priest. If you are registering only one person, please use the individual registration option.',
+        },
         { status: 400 }
       )
     }
@@ -558,7 +576,7 @@ export async function POST(request: NextRequest) {
       try {
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-          reply_to: 'support@chirhoevents.com',
+          reply_to: resolveReplyTo(event.settings, event.organization),
           to: groupLeaderEmail,
           subject: emailSubject,
           html: emailHtml,
