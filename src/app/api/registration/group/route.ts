@@ -400,6 +400,11 @@ export async function POST(request: NextRequest) {
     const paymentBalanceStatus =
       paymentMethod === 'check' ? 'pending_check_payment' : 'unpaid'
 
+    // Fix #M3: Hoist custom answers so we can save them inside the same transaction
+    // as the registration row. Previously this ran AFTER the tx committed, so a DB
+    // blip between commit and insert left the registration with no answers.
+    const customAnswers: Array<{ questionId: string; answerText: string }> = body.customAnswers ?? []
+
     const registration = await prisma.$transaction(async (tx) => {
       // Create group registration
       const reg = await tx.groupRegistration.create({
@@ -463,22 +468,21 @@ export async function POST(request: NextRequest) {
         data: { registrationsUsed: { increment: totalParticipants } },
       })
 
+      // Save custom question answers atomically with the registration (Fix #M3).
+      if (customAnswers.length > 0) {
+        await tx.customRegistrationAnswer.createMany({
+          data: customAnswers.map(({ questionId, answerText }) => ({
+            questionId,
+            registrationId: reg.id,
+            registrationType: 'group' as const,
+            answerText,
+          })),
+          skipDuplicates: true,
+        })
+      }
+
       return reg
     })
-
-    // Save custom question answers (group-level: appliesTo = 'group' or 'both')
-    const customAnswers: Array<{ questionId: string; answerText: string }> = body.customAnswers ?? []
-    if (customAnswers.length > 0) {
-      await prisma.customRegistrationAnswer.createMany({
-        data: customAnswers.map(({ questionId, answerText }) => ({
-          questionId,
-          registrationId: registration.id,
-          registrationType: 'group' as const,
-          answerText,
-        })),
-        skipDuplicates: true,
-      })
-    }
 
     // NOTE: Capacity was already atomically decremented above (Fix #4) — no second decrement here.
 
