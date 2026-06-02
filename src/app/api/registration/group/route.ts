@@ -7,11 +7,15 @@ import { logger } from '@/lib/logger'
 import QRCode from 'qrcode'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { generateGroupRegistrationConfirmationEmail } from '@/lib/email-templates'
+import { getRegistrationStatus } from '@/lib/registration-status'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 import {
   checkOptionCapacity,
   decrementOptionCapacity,
+  incrementOptionCapacity,
   checkDayPassOptionCapacity,
   decrementDayPassOptionCapacity,
+  incrementDayPassOptionCapacity,
   type HousingType
 } from '@/lib/option-capacity'
 
@@ -87,6 +91,7 @@ export async function POST(request: NextRequest) {
             stripeAccountId: true,
             stripeChargesEnabled: true,
             platformFeePercentage: true,
+            contactEmail: true,
           },
         },
       },
@@ -103,6 +108,36 @@ export async function POST(request: NextRequest) {
     if (event.organization.status !== 'active') {
       return NextResponse.json(
         { error: 'This organization is not currently accepting registrations.' },
+        { status: 400 }
+      )
+    }
+
+    // Fix #C1: Use the same gate the public-page CTA uses, applied at the API.
+    // This honors the registration window (registrationOpenDate / registrationCloseDate),
+    // manual status overrides (registration_open / registration_closed), capacity,
+    // and the event-ended check. isPublished is intentionally NOT checked here so
+    // admins can still test registration on an unpublished event — see
+    // registration-status.ts:62-64.
+    const regStatus = getRegistrationStatus({
+      status: event.status,
+      closedMessage: event.settings?.registrationClosedMessage,
+      startDate: event.startDate,
+      endDate: event.endDate,
+      registrationOpenDate: event.registrationOpenDate,
+      registrationCloseDate: event.registrationCloseDate,
+      capacityTotal: event.capacityTotal,
+      capacityRemaining: event.capacityRemaining,
+      enableWaitlist: event.enableWaitlist,
+      settings: {
+        countdownBeforeOpen: event.settings?.countdownBeforeOpen ?? true,
+        countdownBeforeClose: event.settings?.countdownBeforeClose ?? true,
+        waitlistEnabled: event.settings?.waitlistEnabled ?? event.enableWaitlist,
+      },
+    })
+
+    if (!regStatus.allowRegistration) {
+      return NextResponse.json(
+        { error: regStatus.message || 'Registration is not currently open for this event.' },
         { status: 400 }
       )
     }
@@ -127,6 +162,22 @@ export async function POST(request: NextRequest) {
     if (totalParticipants === 0) {
       return NextResponse.json(
         { error: 'At least one participant is required' },
+        { status: 400 }
+      )
+    }
+
+    // Group registrations must include both an adult supervisor (chaperone OR priest)
+    // and at least one youth. Solo or adult-only signups belong in the individual
+    // registration flow — this guard prevents a "group of one" from coming through
+    // the group endpoint.
+    const hasAdultSupervisor = chaperoneCount >= 1 || priestCount >= 1
+    const hasYouth = youthCount >= 1
+    if (!hasAdultSupervisor || !hasYouth) {
+      return NextResponse.json(
+        {
+          error:
+            'Group registrations must include at least one youth and at least one chaperone or priest. If you are registering only one person, please use the individual registration option.',
+        },
         { status: 400 }
       )
     }
@@ -367,6 +418,11 @@ export async function POST(request: NextRequest) {
     const paymentBalanceStatus =
       paymentMethod === 'check' ? 'pending_check_payment' : 'unpaid'
 
+    // Fix #M3: Hoist custom answers so we can save them inside the same transaction
+    // as the registration row. Previously this ran AFTER the tx committed, so a DB
+    // blip between commit and insert left the registration with no answers.
+    const customAnswers: Array<{ questionId: string; answerText: string }> = body.customAnswers ?? []
+
     const registration = await prisma.$transaction(async (tx) => {
       // Create group registration
       const reg = await tx.groupRegistration.create({
@@ -430,22 +486,21 @@ export async function POST(request: NextRequest) {
         data: { registrationsUsed: { increment: totalParticipants } },
       })
 
+      // Save custom question answers atomically with the registration (Fix #M3).
+      if (customAnswers.length > 0) {
+        await tx.customRegistrationAnswer.createMany({
+          data: customAnswers.map(({ questionId, answerText }) => ({
+            questionId,
+            registrationId: reg.id,
+            registrationType: 'group' as const,
+            answerText,
+          })),
+          skipDuplicates: true,
+        })
+      }
+
       return reg
     })
-
-    // Save custom question answers (group-level: appliesTo = 'group' or 'both')
-    const customAnswers: Array<{ questionId: string; answerText: string }> = body.customAnswers ?? []
-    if (customAnswers.length > 0) {
-      await prisma.customRegistrationAnswer.createMany({
-        data: customAnswers.map(({ questionId, answerText }) => ({
-          questionId,
-          registrationId: registration.id,
-          registrationType: 'group' as const,
-          answerText,
-        })),
-        skipDuplicates: true,
-      })
-    }
 
     // NOTE: Capacity was already atomically decremented above (Fix #4) — no second decrement here.
 
@@ -521,7 +576,7 @@ export async function POST(request: NextRequest) {
       try {
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-          reply_to: 'support@chirhoevents.com',
+          reply_to: resolveReplyTo(event.settings, event.organization),
           to: groupLeaderEmail,
           subject: emailSubject,
           html: emailHtml,
@@ -631,7 +686,61 @@ export async function POST(request: NextRequest) {
       }
       logger.info({ organizationId: event.organization.id, eventId: event.id, platformFeeAmount }, 'Stripe checkout session: applying platform fee')
 
-      const checkoutSession = await stripe.checkout.sessions.create(checkoutConfig)
+      // Fix #M2: Wrap Stripe call so a checkout-creation failure doesn't leak
+      // capacity. On failure, undo every side effect (capacity decrements, registration
+      // row, payment balance, custom answers, org counter) and return 503.
+      let checkoutSession: Stripe.Checkout.Session
+      try {
+        checkoutSession = await stripe.checkout.sessions.create(checkoutConfig)
+      } catch (stripeError) {
+        logger.error(
+          { err: String(stripeError), registrationId: registration.id, eventId: event.id },
+          'Stripe checkout session creation failed - rolling back group registration'
+        )
+
+        try {
+          // Re-increment housing/day-pass capacity that was decremented earlier
+          if (body.ticketType !== 'day_pass' && housingType) {
+            await incrementOptionCapacity(
+              event.id,
+              housingType as HousingType,
+              null,
+              totalParticipants
+            )
+          }
+          if (body.ticketType === 'day_pass' && body.dayPassOptionId) {
+            await incrementDayPassOptionCapacity(body.dayPassOptionId, totalParticipants)
+          }
+
+          // Re-increment event capacity, decrement org counter, delete the registration
+          await prisma.$transaction([
+            prisma.$executeRaw`
+              UPDATE events
+              SET capacity_remaining = capacity_remaining + ${totalParticipants}
+              WHERE id = ${event.id}::uuid AND capacity_remaining IS NOT NULL
+            `,
+            prisma.organization.update({
+              where: { id: event.organizationId },
+              data: { registrationsUsed: { decrement: totalParticipants } },
+            }),
+            prisma.customRegistrationAnswer.deleteMany({
+              where: { registrationId: registration.id, registrationType: 'group' as const },
+            }),
+            prisma.paymentBalance.delete({ where: { registrationId: registration.id } }),
+            prisma.groupRegistration.delete({ where: { id: registration.id } }),
+          ])
+        } catch (rollbackError) {
+          logger.error(
+            { err: String(rollbackError), registrationId: registration.id, eventId: event.id },
+            'Failed to fully roll back group registration after Stripe failure - manual cleanup may be required'
+          )
+        }
+
+        return NextResponse.json(
+          { error: 'Payment processing is temporarily unavailable. Please try again in a moment.' },
+          { status: 503 }
+        )
+      }
 
       // Create payment record
       await prisma.payment.create({

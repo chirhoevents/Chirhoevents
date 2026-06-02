@@ -468,6 +468,18 @@ export default function GroupRegistrationPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Group registrations must include both an adult supervisor (chaperone or
+    // priest) and at least one youth. Stops solo and adult-only signups from
+    // coming through the group flow.
+    const hasAdultSupervisor = formData.chaperoneCount >= 1 || formData.priestCount >= 1
+    const hasYouth = formData.youthCount >= 1
+    if (!hasAdultSupervisor || !hasYouth) {
+      alert(
+        'Group registrations must include at least one youth and at least one chaperone or priest. If you are registering only one person, please use the individual registration option.'
+      )
+      return
+    }
+
     // Validate capacity before proceeding
     const capacityCheck = validateCapacity()
     if (!capacityCheck.valid && capacityCheck.error) {

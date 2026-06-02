@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { hasPermission } from '@/lib/permissions'
+import { resolveModuleAccess } from '@/lib/subscription-tiers'
 
 export async function GET(request: NextRequest) {
   console.log('[SALVE Portal Check-Access] Request received')
@@ -39,6 +40,25 @@ export async function GET(request: NextRequest) {
     console.log('[SALVE Portal Check-Access] Has salve permission:', hasSalvePermission, '| Custom access:', hasCustomSalveAccess)
 
     if (hasSalvePermission || hasCustomSalveAccess) {
+      // Fix #M9: Verify the org's resolved module access grants SALVE. Master admins
+      // bypass this check so support can still access the portal during impersonation.
+      if (user.role !== 'master_admin' && effectiveOrgId) {
+        const org = await prisma.organization.findUnique({
+          where: { id: effectiveOrgId },
+          select: { subscriptionTier: true, modulesEnabled: true },
+        })
+        if (org) {
+          const modules = resolveModuleAccess(org.modulesEnabled, org.subscriptionTier)
+          if (!modules.salve) {
+            console.log('[SALVE Portal Check-Access] ❌ Org tier does not include SALVE')
+            return NextResponse.json(
+              { error: 'Your organization does not have access to the SALVE Check-In module.' },
+              { status: 403 }
+            )
+          }
+        }
+      }
+
       // If eventId is provided, verify organization access
       if (eventId) {
         const event = await prisma.event.findUnique({

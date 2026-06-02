@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { hasPermission } from '@/lib/permissions'
+import { resolveModuleAccess } from '@/lib/subscription-tiers'
 
 export async function GET(request: NextRequest) {
   console.log('[Rapha Portal Check-Access] Request received')
@@ -39,6 +40,25 @@ export async function GET(request: NextRequest) {
     console.log('[Rapha Portal Check-Access] Has rapha permission:', hasRaphaPermission, '| Custom access:', hasCustomRaphaAccess)
 
     if (hasRaphaPermission || hasCustomRaphaAccess) {
+      // Fix #M9: Verify the org's resolved module access grants Rapha. Master admins
+      // bypass this check so support can still access the portal during impersonation.
+      if (user.role !== 'master_admin' && effectiveOrgId) {
+        const org = await prisma.organization.findUnique({
+          where: { id: effectiveOrgId },
+          select: { subscriptionTier: true, modulesEnabled: true },
+        })
+        if (org) {
+          const modules = resolveModuleAccess(org.modulesEnabled, org.subscriptionTier)
+          if (!modules.rapha) {
+            console.log('[Rapha Portal Check-Access] ❌ Org tier does not include Rapha')
+            return NextResponse.json(
+              { error: 'Your organization does not have access to the Rapha Medical module.' },
+              { status: 403 }
+            )
+          }
+        }
+      }
+
       // If eventId is provided, verify organization access
       if (eventId) {
         const event = await prisma.event.findUnique({
