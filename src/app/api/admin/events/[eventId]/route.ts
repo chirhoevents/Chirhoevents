@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
+import { parseDateTimeInTimezone } from '@/lib/timezone'
+
+// Treat a datetime-local string from the form as wall-clock time in the event's
+// timezone (the admin's selected IANA zone), then store the corresponding UTC
+// instant. Without this, Node interprets the naive string as UTC and the saved
+// time silently shifts by the server-to-user offset (e.g. 9 AM Eastern was being
+// stored as 9 AM UTC = 5 AM Eastern).
+const parseEventDateTime = (value: string | null | undefined, timezone: string) =>
+  value ? parseDateTimeInTimezone(value, timezone) : null
 
 export async function GET(
   request: NextRequest,
@@ -328,12 +337,14 @@ export async function PUT(
         locationAddress: data.locationAddress || null,
         capacityTotal: newCapacityTotal,
         capacityRemaining: newCapacityRemaining,
-        registrationOpenDate: data.registrationOpenDate
-          ? new Date(data.registrationOpenDate)
-          : null,
-        registrationCloseDate: data.registrationCloseDate
-          ? new Date(data.registrationCloseDate)
-          : null,
+        registrationOpenDate: parseEventDateTime(
+          data.registrationOpenDate,
+          data.timezone || 'America/New_York'
+        ),
+        registrationCloseDate: parseEventDateTime(
+          data.registrationCloseDate,
+          data.timezone || 'America/New_York'
+        ),
         status: data.status || 'draft',
         enableWaitlist: data.enableWaitlist || false,
         waitlistCapacity: data.waitlistCapacity
@@ -650,15 +661,18 @@ export async function PUT(
                   : null,
               requireFullPayment: data.depositType === 'full',
               depositPerPerson: data.depositType === 'fixed',
-              earlyBirdDeadline: data.earlyBirdDeadline
-                ? new Date(data.earlyBirdDeadline)
-                : null,
-              regularDeadline: data.regularDeadline
-                ? new Date(data.regularDeadline)
-                : null,
-              fullPaymentDeadline: data.fullPaymentDeadline
-                ? new Date(data.fullPaymentDeadline)
-                : null,
+              earlyBirdDeadline: parseEventDateTime(
+                data.earlyBirdDeadline,
+                data.timezone || 'America/New_York'
+              ),
+              regularDeadline: parseEventDateTime(
+                data.regularDeadline,
+                data.timezone || 'America/New_York'
+              ),
+              fullPaymentDeadline: parseEventDateTime(
+                data.fullPaymentDeadline,
+                data.timezone || 'America/New_York'
+              ),
               lateFeePercentage: data.lateFeePercentage
                 ? parseFloat(data.lateFeePercentage)
                 : null,
@@ -740,15 +754,18 @@ export async function PUT(
                   : null,
               requireFullPayment: data.depositType === 'full',
               depositPerPerson: data.depositType === 'fixed',
-              earlyBirdDeadline: data.earlyBirdDeadline
-                ? new Date(data.earlyBirdDeadline)
-                : null,
-              regularDeadline: data.regularDeadline
-                ? new Date(data.regularDeadline)
-                : null,
-              fullPaymentDeadline: data.fullPaymentDeadline
-                ? new Date(data.fullPaymentDeadline)
-                : null,
+              earlyBirdDeadline: parseEventDateTime(
+                data.earlyBirdDeadline,
+                data.timezone || 'America/New_York'
+              ),
+              regularDeadline: parseEventDateTime(
+                data.regularDeadline,
+                data.timezone || 'America/New_York'
+              ),
+              fullPaymentDeadline: parseEventDateTime(
+                data.fullPaymentDeadline,
+                data.timezone || 'America/New_York'
+              ),
               lateFeePercentage: data.lateFeePercentage
                 ? parseFloat(data.lateFeePercentage)
                 : null,

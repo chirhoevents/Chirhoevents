@@ -5,6 +5,15 @@ import { useParams, notFound } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
 import { Loader2 } from 'lucide-react'
 import CreateEventClient from '../../new/CreateEventClient'
+import { formatDateTimeInTimezone } from '@/lib/timezone'
+
+// Render a stored UTC timestamp as a wall-clock datetime-local string in the
+// event's IANA timezone, so the admin sees the same time they typed in. The
+// old `new Date(x).toISOString().slice(0,16)` rendered the UTC instant
+// regardless of timezone, which made saved-then-displayed values appear
+// shifted by the event's timezone offset.
+const formatForInput = (value: string | Date | null | undefined, timezone: string) =>
+  value ? formatDateTimeInTimezone(new Date(value), timezone) : ''
 
 // UUID validation regex
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -250,23 +259,15 @@ export default function EditEventPage() {
         capacityTotal: event.capacityTotal?.toString() || '1000',
 
         // Step 2: Registration Settings
-        registrationOpenDate: event.registrationOpenDate
-          ? new Date(event.registrationOpenDate).toISOString().slice(0, 16)
-          : '',
-        registrationCloseDate: event.registrationCloseDate
-          ? new Date(event.registrationCloseDate).toISOString().slice(0, 16)
-          : '',
+        // All datetime-local fields render in the event's IANA timezone so the
+        // admin sees the wall-clock time they entered, not the UTC instant.
+        registrationOpenDate: formatForInput(event.registrationOpenDate, event.timezone || 'America/New_York'),
+        registrationCloseDate: formatForInput(event.registrationCloseDate, event.timezone || 'America/New_York'),
         enableEarlyBird: !!event.pricing?.earlyBirdDeadline,
-        earlyBirdDeadline: event.pricing?.earlyBirdDeadline
-          ? new Date(event.pricing.earlyBirdDeadline).toISOString().slice(0, 16)
-          : '',
+        earlyBirdDeadline: formatForInput(event.pricing?.earlyBirdDeadline, event.timezone || 'America/New_York'),
         enableLateRegistration: !!event.pricing?.regularDeadline,
-        regularDeadline: event.pricing?.regularDeadline
-          ? new Date(event.pricing.regularDeadline).toISOString().slice(0, 16)
-          : '',
-        fullPaymentDeadline: event.pricing?.fullPaymentDeadline
-          ? new Date(event.pricing.fullPaymentDeadline).toISOString().slice(0, 16)
-          : '',
+        regularDeadline: formatForInput(event.pricing?.regularDeadline, event.timezone || 'America/New_York'),
+        fullPaymentDeadline: formatForInput(event.pricing?.fullPaymentDeadline, event.timezone || 'America/New_York'),
         enableLateFees: !!(event.pricing?.lateFeePercentage),
         lateFeePercentage: event.pricing?.lateFeePercentage?.toString() || '20',
         lateFeeAutoApply: event.pricing?.lateFeeAutoApply || false,
