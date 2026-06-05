@@ -35,7 +35,11 @@ const SINGLE_REGISTRATION = process.env.REGISTRATION_ID || null
 
 type Outcome = 'fixed' | 'already_ok' | 'no_stripe_session' | 'not_succeeded_at_stripe' | 'no_balance_row' | 'error'
 
-async function findStripePaymentIntentForRegistration(registrationId: string, existingId: string | null): Promise<string | null> {
+async function findStripePaymentIntentForRegistration(
+  registrationId: string,
+  existingId: string | null,
+  paymentCreatedAt: Date,
+): Promise<string | null> {
   // If we already have a pi_, trust it.
   if (existingId?.startsWith('pi_')) return existingId
 
@@ -51,27 +55,38 @@ async function findStripePaymentIntentForRegistration(registrationId: string, ex
     }
   }
 
-  // Stored value is NULL or garbage — search Stripe by metadata.registrationId.
+  // Stored value is NULL — list checkout sessions created around the same time
+  // and filter by metadata.registrationId. Stripe's Node SDK doesn't expose
+  // sessions.search in older versions, so we use list with a tight created
+  // window (Payment row's createdAt ± 1 day). Walks up to 5 pages of 100.
+  const oneDay = 24 * 60 * 60
+  const createdSec = Math.floor(paymentCreatedAt.getTime() / 1000)
   try {
-    const search = await stripe.checkout.sessions.search({
-      query: `metadata['registrationId']:'${registrationId}'`,
-      limit: 10,
-    })
-    // Prefer a complete session with a payment_intent attached.
-    for (const session of search.data) {
-      if (session.status === 'complete' && session.payment_intent) {
+    let startingAfter: string | undefined
+    for (let page = 0; page < 5; page++) {
+      const list = await stripe.checkout.sessions.list({
+        limit: 100,
+        created: { gte: createdSec - oneDay, lte: createdSec + oneDay },
+        ...(startingAfter ? { starting_after: startingAfter } : {}),
+      })
+      for (const session of list.data) {
+        if (session.metadata?.registrationId !== registrationId) continue
+        if (!session.payment_intent) continue
         return typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent.id
       }
+      if (!list.has_more) break
+      startingAfter = list.data[list.data.length - 1]?.id
+      if (!startingAfter) break
     }
     return null
   } catch (err: any) {
-    console.warn(`  ⚠️ stripe search failed for registration ${registrationId}: ${err.message}`)
+    console.warn(`  ⚠️ stripe list failed for registration ${registrationId}: ${err.message}`)
     return null
   }
 }
 
-async function recoverPayment(payment: { id: string; registrationId: string; registrationType: string; amount: any; stripePaymentIntentId: string | null }): Promise<Outcome> {
-  const pi = await findStripePaymentIntentForRegistration(payment.registrationId, payment.stripePaymentIntentId)
+async function recoverPayment(payment: { id: string; registrationId: string; registrationType: string; amount: any; stripePaymentIntentId: string | null; createdAt: Date }): Promise<Outcome> {
+  const pi = await findStripePaymentIntentForRegistration(payment.registrationId, payment.stripePaymentIntentId, payment.createdAt)
   if (!pi) return 'no_stripe_session'
 
   let paymentIntent: Stripe.PaymentIntent
