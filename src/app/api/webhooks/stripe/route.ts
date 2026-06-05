@@ -404,17 +404,35 @@ export async function POST(request: NextRequest) {
       if (registrationType === 'individual') {
         console.log('👤 Processing individual registration payment')
 
-        // Update payment status — match by payment intent ID (pi_...) stored at checkout creation
-        await prisma.payment.updateMany({
+        // Match the pending Payment row. The registration route stores the
+        // checkout session id (cs_...) — historically it tried to store the
+        // payment_intent, which is null at session creation, so we also accept
+        // NULL/cs_/pi_ matches by registrationId+pending. Swap in the real pi_
+        // so future lookups by payment_intent succeed.
+        const pendingPayment = await prisma.payment.findFirst({
           where: {
             registrationId: registrationId,
-            stripePaymentIntentId: session.payment_intent as string,
-          },
-          data: {
-            paymentStatus: 'succeeded',
-            processedAt: new Date(),
+            paymentStatus: 'pending',
+            OR: [
+              { stripePaymentIntentId: session.id },
+              { stripePaymentIntentId: session.payment_intent as string },
+              { stripePaymentIntentId: null },
+            ],
           },
         })
+
+        if (pendingPayment) {
+          await prisma.payment.update({
+            where: { id: pendingPayment.id },
+            data: {
+              paymentStatus: 'succeeded',
+              processedAt: new Date(),
+              stripePaymentIntentId: session.payment_intent as string,
+            },
+          })
+        } else {
+          console.error('❌ No pending Payment row found for individual registration', registrationId)
+        }
 
         // Update individual registration status
         const registration = await prisma.individualRegistration.update({
@@ -692,17 +710,36 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ received: true })
       }
 
-      // Handle GROUP registration
-      const payment = await prisma.payment.updateMany({
+      // Handle GROUP registration.
+      // Match the pending Payment row. The registration route stores the
+      // checkout session id (cs_...); historically it tried to store the
+      // payment_intent, which is null at session creation, so we also accept
+      // NULL/cs_/pi_ matches by registrationId+pending. Swap in the real pi_
+      // so future lookups by payment_intent succeed.
+      const pendingPayment = await prisma.payment.findFirst({
         where: {
           registrationId: registrationId,
-          stripePaymentIntentId: session.payment_intent as string,
-        },
-        data: {
-          paymentStatus: 'succeeded',
-          processedAt: new Date(),
+          paymentStatus: 'pending',
+          OR: [
+            { stripePaymentIntentId: session.id },
+            { stripePaymentIntentId: session.payment_intent as string },
+            { stripePaymentIntentId: null },
+          ],
         },
       })
+
+      if (pendingPayment) {
+        await prisma.payment.update({
+          where: { id: pendingPayment.id },
+          data: {
+            paymentStatus: 'succeeded',
+            processedAt: new Date(),
+            stripePaymentIntentId: session.payment_intent as string,
+          },
+        })
+      } else {
+        console.error('❌ No pending Payment row found for group registration', registrationId)
+      }
 
       // Update registration status
       await prisma.groupRegistration.update({
@@ -711,13 +748,9 @@ export async function POST(request: NextRequest) {
       })
 
       // Update payment balance
-      const paymentAmount = await prisma.payment.findFirst({
-        where: {
-          registrationId: registrationId,
-          stripePaymentIntentId: session.payment_intent as string,
-        },
-        select: { amount: true },
-      })
+      const paymentAmount = pendingPayment
+        ? { amount: pendingPayment.amount }
+        : null
 
       if (paymentAmount) {
         const balance = await prisma.paymentBalance.findUnique({
