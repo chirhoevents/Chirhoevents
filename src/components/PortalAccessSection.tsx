@@ -32,13 +32,6 @@ export function PortalAccessSection({ variant = 'full' }: PortalAccessSectionPro
             <Users className="h-3 w-3 sm:h-4 sm:w-4" />
             Group Leader Log In
           </Link>
-          <Link
-            href="/sign-in?portal=org-admin"
-            className="inline-flex items-center gap-1 text-[10px] sm:text-xs text-[#6B7280] hover:text-[#1E3A5F] hover:underline transition-colors"
-          >
-            <Building2 className="h-3 w-3" />
-            Organization Log In
-          </Link>
         </div>
       </div>
     )

@@ -66,7 +66,7 @@ export default function LandingPage() {
 
       {/* Section 1: Hero */}
       <section
-        className="relative text-white py-20 sm:py-32"
+        className="relative text-white py-12 sm:py-20"
         style={{
           backgroundImage: `url('/ChiRho Event Logos/ChiRho events BG.png')`,
           backgroundSize: 'cover',
@@ -97,14 +97,14 @@ export default function LandingPage() {
                 <span className="text-lg">Complete housing, seating, and meal assignments</span>
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link href="/get-started">
-                <Button size="lg" className="text-lg px-8 py-6">
+            <div className="flex flex-row items-center justify-center gap-3 sm:gap-4">
+              <Link href="/get-started" className="flex-1 sm:flex-initial">
+                <Button size="lg" className="w-full text-base sm:text-lg px-4 sm:px-8 py-5 sm:py-6">
                   Get Started
                 </Button>
               </Link>
-              <a href="#pricing">
-                <Button size="lg" variant="outline" className="text-lg px-8 py-6 bg-transparent border-white text-white hover:bg-white hover:text-navy">
+              <a href="#pricing" className="flex-1 sm:flex-initial">
+                <Button size="lg" variant="outline" className="w-full text-base sm:text-lg px-4 sm:px-8 py-5 sm:py-6 bg-transparent border-white text-white hover:bg-white hover:text-navy">
                   See Pricing
                 </Button>
               </a>

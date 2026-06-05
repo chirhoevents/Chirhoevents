@@ -4,6 +4,7 @@ import { SignIn } from '@clerk/nextjs'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import { Building2, Users, Stethoscope, Shield, ClipboardCheck } from 'lucide-react'
+import LoadingScreen from '@/components/LoadingScreen'
 
 function SignInContent() {
   const searchParams = useSearchParams()
@@ -107,11 +108,7 @@ function SignInContent() {
 
 export default function SignInPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1E3A5F] via-[#2A4A6F] to-[#1E3A5F]">
-        <div className="text-white">Loading...</div>
-      </div>
-    }>
+    <Suspense fallback={<LoadingScreen message="Opening portal..." />}>
       <SignInContent />
     </Suspense>
   )
