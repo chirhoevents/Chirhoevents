@@ -5,6 +5,7 @@ import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import { Resend } from 'resend'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 import {
   generateEventReminderEmail,
   generateSurveyFeedbackEmail,
@@ -425,6 +426,9 @@ export async function POST(
         organization: {
           select: { id: true, name: true, contactEmail: true },
         },
+        settings: {
+          select: { contactEmail: true },
+        },
       },
     })
 
@@ -478,7 +482,7 @@ export async function POST(
       try {
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-          reply_to: 'support@chirhoevents.com',
+          reply_to: resolveReplyTo(event.settings, event.organization),
           to: testEmail,
           subject: `[TEST] ${subject}`,
           html: emailHtml,
@@ -594,7 +598,7 @@ export async function POST(
 
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-          reply_to: 'support@chirhoevents.com',
+          reply_to: resolveReplyTo(event.settings, event.organization),
           to: group.groupLeaderEmail,
           subject,
           html: emailHtml,
@@ -653,7 +657,7 @@ export async function POST(
 
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-          reply_to: 'support@chirhoevents.com',
+          reply_to: resolveReplyTo(event.settings, event.organization),
           to: individual.email,
           subject,
           html: emailHtml,

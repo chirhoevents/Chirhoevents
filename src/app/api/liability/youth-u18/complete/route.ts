@@ -4,6 +4,7 @@ import { Resend } from 'resend'
 import { generateLiabilityFormPDF } from '@/lib/pdf/generate-liability-form-pdf'
 import { uploadLiabilityFormPDF } from '@/lib/r2/upload-pdf'
 import { generateParticipantQRCode } from '@/lib/qr-code'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
     const liabilityForm = await prisma.liabilityForm.findUnique({
       where: { parentToken: parent_token },
       include: {
-        event: true,
+        event: { include: { settings: true } },
         organization: true,
       },
     })
@@ -177,7 +178,7 @@ export async function POST(request: NextRequest) {
     try {
       await resend.emails.send({
         from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-        reply_to: 'support@chirhoevents.com',
+        reply_to: resolveReplyTo(liabilityForm.event.settings, liabilityForm.organization),
         to: liabilityForm.parentEmail!,
         subject: `✅ Form Completed - ${liabilityForm.participantFirstName} ${liabilityForm.participantLastName}`,
         html: `
@@ -244,7 +245,7 @@ export async function POST(request: NextRequest) {
       try {
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-          reply_to: 'support@chirhoevents.com',
+          reply_to: resolveReplyTo(liabilityForm.event.settings, liabilityForm.organization),
           to: groupRegistration.groupLeaderEmail,
           subject: `✅ Form Completed: ${liabilityForm.participantFirstName} ${liabilityForm.participantLastName}`,
           html: `

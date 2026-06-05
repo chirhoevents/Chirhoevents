@@ -167,12 +167,20 @@ export async function POST(req: NextRequest) {
             </div>
 
             <p>You can view your full payment history and download invoices from your group leader portal.</p>
-            <p>If you have any questions, please contact us at support@chirhoevents.com.</p>
+            <p>If you have any questions, please contact the event organizer${
+              groupReg.event.organization?.contactEmail
+                ? ` at <a href="mailto:${groupReg.event.organization.contactEmail}" style="color: #1E3A5F;">${groupReg.event.organization.contactEmail}</a>`
+                : ''
+            }.</p>
             <p>Best regards,<br><strong>ChiRho Events Team</strong></p>
           </div>
 
           <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
-            <p>ChiRho Events | support@chirhoevents.com</p>
+            <p>ChiRho Events${
+              groupReg.event.organization?.contactEmail
+                ? ` | ${groupReg.event.organization.contactEmail}`
+                : ''
+            }</p>
           </div>
         </div>
       `

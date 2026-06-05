@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { Resend } from 'resend'
 import { wrapEmail } from '@/lib/email-templates'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -39,6 +40,9 @@ export async function POST(request: NextRequest) {
                 name: true,
                 contactEmail: true,
               },
+            },
+            settings: {
+              select: { contactEmail: true },
             },
           },
         },
@@ -109,11 +113,11 @@ export async function POST(request: NextRequest) {
         </table>
         <p>The event organizers will review your housing preferences and finalize assignments before the event. You will receive a separate notification once assignments are confirmed.</p>
         <p style="font-size: 14px; color: #666;">If you have questions, please contact ${org.name} at ${org.contactEmail || 'the event organizers'}.</p>
-      `, { organizationName: org.name, preheader: `Housing preferences submitted for ${event.name}` })
+      `, { organizationName: org.name, preheader: `Housing preferences submitted for ${event.name}`, supportEmail: resolveReplyTo(event.settings, org) })
 
       await resend.emails.send({
         from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-        reply_to: 'support@chirhoevents.com',
+        reply_to: resolveReplyTo(event.settings, org),
         to: groupRegistration.groupLeaderEmail,
         subject: `Housing Preferences Submitted — ${event.name}`,
         html: leaderEmailHtml,
@@ -156,7 +160,7 @@ export async function POST(request: NextRequest) {
 
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-          reply_to: 'support@chirhoevents.com',
+          reply_to: groupRegistration.groupLeaderEmail,
           to: org.contactEmail,
           subject: `[Admin] Housing Submitted — ${groupRegistration.groupName} — ${event.name}`,
           html: adminEmailHtml,

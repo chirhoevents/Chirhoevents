@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -63,11 +64,25 @@ export async function POST(
       payment.registrationType === 'group'
         ? await prisma.groupRegistration.findUnique({
             where: { id: payment.registrationId },
-            include: { event: true },
+            include: {
+              event: {
+                include: {
+                  organization: { select: { contactEmail: true } },
+                  settings: { select: { contactEmail: true } },
+                },
+              },
+            },
           })
         : await prisma.individualRegistration.findUnique({
             where: { id: payment.registrationId },
-            include: { event: true },
+            include: {
+              event: {
+                include: {
+                  organization: { select: { contactEmail: true } },
+                  settings: { select: { contactEmail: true } },
+                },
+              },
+            },
           })
 
     if (!registration) {
@@ -159,7 +174,7 @@ export async function POST(
 
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-          reply_to: 'support@chirhoevents.com',
+          reply_to: resolveReplyTo(registration.event?.settings, registration.event?.organization),
           to: recipientEmail,
           subject: `Payment Received - ${eventName}`,
           html: `
@@ -267,8 +282,11 @@ export async function POST(
               <div style="text-align: center; padding: 20px; background-color: #f5f5f5; color: #666; font-size: 12px;">
                 <p style="margin: 0;">© ${new Date().getFullYear()} ChiRho Events. All rights reserved.</p>
                 <p style="margin: 5px 0 0 0;">
-                  Need help? Contact us at
-                  <a href="mailto:support@chirhoevents.com" style="color: #1E3A5F;">support@chirhoevents.com</a>
+                  Need help? Contact the event organizer${
+                    registration.event?.organization?.contactEmail
+                      ? ` at <a href="mailto:${registration.event.organization.contactEmail}" style="color: #1E3A5F;">${registration.event.organization.contactEmail}</a>`
+                      : ''
+                  }.
                 </p>
               </div>
             </div>

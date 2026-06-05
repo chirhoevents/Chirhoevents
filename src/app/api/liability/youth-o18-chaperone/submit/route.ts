@@ -4,6 +4,7 @@ import { Resend } from 'resend'
 import { generateParticipantQRCode } from '@/lib/qr-code'
 import { uploadCertificate } from '@/lib/r2/upload-certificate'
 import { incrementOrgStorage } from '@/lib/storage/track-storage'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
     if (access_code.startsWith('STF-')) {
       const staffRegistration = await prisma.staffRegistration.findUnique({
         where: { porosAccessCode: access_code },
-        include: { event: { include: { organization: true } } },
+        include: { event: { include: { organization: true, settings: true } } },
       })
 
       if (!staffRegistration) {
@@ -162,7 +163,7 @@ export async function POST(request: NextRequest) {
       try {
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-          reply_to: 'support@chirhoevents.com',
+          reply_to: resolveReplyTo(staffRegistration.event.settings, staffRegistration.event.organization),
           to: email,
           subject: `Liability Form Completed - ${first_name} ${last_name}`,
           html: `
@@ -198,7 +199,7 @@ export async function POST(request: NextRequest) {
       const individualRegistration = await prisma.individualRegistration.findUnique({
         where: { confirmationCode: access_code },
         include: {
-          event: true,
+          event: { include: { settings: true } },
           organization: true,
           liabilityForms: true,
         },
@@ -310,7 +311,7 @@ export async function POST(request: NextRequest) {
       try {
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-          reply_to: 'support@chirhoevents.com',
+          reply_to: resolveReplyTo(individualRegistration.event.settings, individualRegistration.organization),
           to: email,
           subject: `Liability Form Completed - ${first_name} ${last_name}`,
           html: `
@@ -363,7 +364,7 @@ export async function POST(request: NextRequest) {
     // Original group registration flow
     const groupRegistration = await prisma.groupRegistration.findUnique({
       where: { accessCode: access_code },
-      include: { event: true, organization: true },
+      include: { event: { include: { settings: true } }, organization: true },
     })
 
     if (!groupRegistration) {
@@ -509,7 +510,7 @@ export async function POST(request: NextRequest) {
     try {
       await resend.emails.send({
         from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-        reply_to: 'support@chirhoevents.com',
+        reply_to: resolveReplyTo(groupRegistration.event.settings, groupRegistration.organization),
         to: email,
         subject: `Form Completed - ${first_name} ${last_name}`,
         html: `
@@ -567,7 +568,7 @@ export async function POST(request: NextRequest) {
     try {
       await resend.emails.send({
         from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-        reply_to: 'support@chirhoevents.com',
+        reply_to: resolveReplyTo(groupRegistration.event.settings, groupRegistration.organization),
         to: groupRegistration.groupLeaderEmail,
         subject: `Form Completed: ${first_name} ${last_name}`,
         html: `

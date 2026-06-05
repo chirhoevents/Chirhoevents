@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { randomUUID } from 'crypto'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -45,6 +46,7 @@ export async function POST(request: NextRequest) {
     let liabilityForm
     let eventName: string
     let contactEmail: string
+    let replyToAddr: string = 'support@chirhoevents.com'
 
     // Check if this is an individual registration code (starts with "IND-")
     if (access_code.startsWith('IND-')) {
@@ -52,7 +54,7 @@ export async function POST(request: NextRequest) {
       const individualRegistration = await prisma.individualRegistration.findUnique({
         where: { confirmationCode: access_code },
         include: {
-          event: true,
+          event: { include: { settings: true } },
           organization: true,
           liabilityForms: true,
         },
@@ -67,6 +69,7 @@ export async function POST(request: NextRequest) {
 
       eventName = individualRegistration.event.name
       contactEmail = individualRegistration.email
+      replyToAddr = resolveReplyTo(individualRegistration.event.settings, individualRegistration.organization)
 
       // Check if a liability form already exists for this individual
       const existingForm = individualRegistration.liabilityForms[0]
@@ -115,7 +118,7 @@ export async function POST(request: NextRequest) {
       const groupRegistration = await prisma.groupRegistration.findUnique({
         where: { accessCode: access_code },
         include: {
-          event: true,
+          event: { include: { settings: true } },
           organization: true,
         },
       })
@@ -129,6 +132,7 @@ export async function POST(request: NextRequest) {
 
       eventName = groupRegistration.event.name
       contactEmail = groupRegistration.groupLeaderEmail
+      replyToAddr = resolveReplyTo(groupRegistration.event.settings, groupRegistration.organization)
 
       // Create liability form record for group participant
       liabilityForm = await prisma.liabilityForm.create({
@@ -160,7 +164,7 @@ export async function POST(request: NextRequest) {
     try {
     await resend.emails.send({
       from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-      reply_to: 'support@chirhoevents.com',
+      reply_to: replyToAddr,
       to: parent_email,
       subject: `Complete Liability Form for ${first_name} ${last_name} - ${eventName}`,
       html: `
