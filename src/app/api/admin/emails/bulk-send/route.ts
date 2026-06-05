@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { Resend } from 'resend'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -171,6 +172,8 @@ export async function POST(request: NextRequest) {
             select: {
               id: true,
               name: true,
+              organization: { select: { contactEmail: true } },
+              settings: { select: { contactEmail: true } },
             },
           },
         },
@@ -186,6 +189,8 @@ export async function POST(request: NextRequest) {
             select: {
               id: true,
               name: true,
+              organization: { select: { contactEmail: true } },
+              settings: { select: { contactEmail: true } },
             },
           },
         },
@@ -221,7 +226,7 @@ export async function POST(request: NextRequest) {
       try {
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-          reply_to: 'support@chirhoevents.com',
+          reply_to: resolveReplyTo(registration.event?.settings, registration.event?.organization),
           to: registration.groupLeaderEmail,
           subject: subject,
           html: htmlContent,

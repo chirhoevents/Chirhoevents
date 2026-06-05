@@ -7,6 +7,7 @@ import { generateIndividualConfirmationCode } from '@/lib/access-code'
 import { isAdminRole } from '@/lib/permissions'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { decrementOptionCapacity, type HousingType, type RoomType } from '@/lib/option-capacity'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 // UserRole type is handled by isAdminRole function
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
@@ -36,7 +37,11 @@ export async function POST(request: NextRequest) {
     // Verify event belongs to user's organization
     const event = await prisma.event.findUnique({
       where: { id: eventId, organizationId: organizationId },
-      include: { pricing: true },
+      include: {
+        pricing: true,
+        organization: { select: { contactEmail: true } },
+        settings: { select: { contactEmail: true } },
+      },
     })
 
     if (!event) {
@@ -197,7 +202,7 @@ export async function POST(request: NextRequest) {
         try {
           await resend.emails.send({
             from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-            reply_to: 'support@chirhoevents.com',
+            reply_to: resolveReplyTo(event.settings, event.organization),
             to: fields.email,
             subject: emailSubject,
             html: emailHtml,
@@ -407,7 +412,7 @@ export async function POST(request: NextRequest) {
         try {
           await resend.emails.send({
             from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-            reply_to: 'support@chirhoevents.com',
+            reply_to: resolveReplyTo(event.settings, event.organization),
             to: fields.groupLeaderEmail,
             subject: emailSubject,
             html: emailHtml,

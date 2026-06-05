@@ -6,6 +6,7 @@ import QRCode from 'qrcode'
 import { generateStaffPorosCode } from '@/lib/access-code'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { wrapEmail, emailInfoBox } from '@/lib/email-templates'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -55,6 +56,7 @@ export async function POST(request: NextRequest) {
             stripeAccountId: true,
             stripeChargesEnabled: true,
             platformFeePercentage: true,
+            contactEmail: true,
           },
         },
       },
@@ -309,10 +311,11 @@ export async function POST(request: NextRequest) {
         <p style="font-size: 14px; color: #666;">
           If you have any questions, please contact the event organizers.
         </p>
-      `, { organizationName: event.organization?.name || 'ChiRho Events', preheader: `Staff registration confirmed for ${event.name}` })
+      `, { organizationName: event.organization?.name || 'ChiRho Events', preheader: `Staff registration confirmed for ${event.name}`, supportEmail: resolveReplyTo(event.settings, event.organization) })
 
       await resend.emails.send({
         from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+        reply_to: resolveReplyTo(event.settings, event.organization),
         to: email,
         subject: `Staff Registration Confirmed - ${event.name}`,
         html: emailContent,

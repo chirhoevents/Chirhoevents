@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyFormsViewAccess } from '@/lib/api-auth'
 import { Resend } from 'resend'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -27,6 +28,7 @@ export async function POST(
         event: {
           include: {
             settings: true,
+            organization: { select: { contactEmail: true } },
           },
         },
       },
@@ -52,7 +54,7 @@ export async function POST(
     // Send the email
     await resend.emails.send({
       from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-      reply_to: 'support@chirhoevents.com',
+      reply_to: resolveReplyTo(registration.event.settings, registration.event.organization),
       to: registration.email,
       subject: `Complete Your Liability Form - ${registration.event.name}`,
       html: `

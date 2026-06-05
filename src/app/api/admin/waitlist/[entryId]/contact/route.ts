@@ -5,6 +5,7 @@ import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { Resend } from 'resend'
 import { generateWaitlistInvitationEmail } from '@/lib/email-templates'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 import crypto from 'crypto'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
@@ -47,6 +48,12 @@ export async function POST(
             organization: {
               select: {
                 name: true,
+                contactEmail: true,
+              },
+            },
+            settings: {
+              select: {
+                contactEmail: true,
               },
             },
           },
@@ -124,7 +131,7 @@ export async function POST(
 
       await resend.emails.send({
         from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-        reply_to: 'support@chirhoevents.com',
+        reply_to: resolveReplyTo(entry.event.settings, entry.event.organization),
         to: entry.email,
         subject: `A Spot is Available! - ${entry.event.name}`,
         html: emailHtml,
