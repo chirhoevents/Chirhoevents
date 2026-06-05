@@ -6,6 +6,7 @@ import CountdownTimer from '@/components/CountdownTimer'
 import { Card, CardContent } from '@/components/ui/card'
 import { Calendar, MapPin, Users } from 'lucide-react'
 import EventLandingClient from './EventLandingClient'
+import { PortalAccessSection } from '@/components/PortalAccessSection'
 
 interface EventPageProps {
   params: Promise<{
@@ -314,6 +315,7 @@ export default async function EventLandingPage({ params }: EventPageProps) {
                   : null
               }
             />
+            <PortalAccessSection variant="compact" />
           </CardContent>
         </Card>
 

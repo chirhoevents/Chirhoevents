@@ -8,6 +8,7 @@ import { Check, Users, FileText, Home, Clipboard, Heart, BarChart3, Mail, Phone,
 import Link from "next/link";
 import Image from "next/image";
 import { PublicNav } from "@/components/PublicNav";
+import { PortalAccessSection } from "@/components/PortalAccessSection";
 
 export default function LandingPage() {
   const [contactFormSubmitted, setContactFormSubmitted] = useState(false);
@@ -112,50 +113,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Section 2: Cost Comparison */}
+      {/* Section 2: Portal Access — helps attendees & group leaders find their portal */}
       <section className="py-16 bg-beige">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl sm:text-4xl font-bold text-center text-navy mb-12">
-            Why Organizations Choose Us
-          </h2>
-          <div className="max-w-4xl mx-auto">
-            <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-navy text-white">
-                  <tr>
-                    <th className="py-4 px-6 text-left">Platform</th>
-                    <th className="py-4 px-6 text-left">Fee</th>
-                    <th className="py-4 px-6 text-left">Monthly</th>
-                    <th className="py-4 px-6 text-left">Total (1K people)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="bg-gold-50 border-2 border-gold">
-                    <td className="py-4 px-6 font-bold text-navy">ChiRho ✅</td>
-                    <td className="py-4 px-6">3.9%*</td>
-                    <td className="py-4 px-6">$29-$120</td>
-                    <td className="py-4 px-6 font-bold text-gold-700">$3,900 + monthly</td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="py-4 px-6">Eventbrite</td>
-                    <td className="py-4 px-6">4.30%</td>
-                    <td className="py-4 px-6">$0</td>
-                    <td className="py-4 px-6">$4,300</td>
-                  </tr>
-                  <tr>
-                    <td className="py-4 px-6">Cvent</td>
-                    <td className="py-4 px-6">6.20%+</td>
-                    <td className="py-4 px-6">$500+</td>
-                    <td className="py-4 px-6">$6,200+</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div className="text-center mt-6">
-              <p className="text-2xl font-bold text-gold-700">💰 Save $400+ per event vs Eventbrite</p>
-              <p className="text-sm text-gray-500 mt-2">*3.9% = 2.9% Stripe processing + 1% ChiRho platform fee (+ $0.30/transaction)</p>
-            </div>
-          </div>
+          <PortalAccessSection variant="full" />
         </div>
       </section>
 
