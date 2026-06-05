@@ -701,7 +701,11 @@ export async function POST(request: NextRequest) {
           paymentType: 'balance',
           paymentMethod: 'card',
           paymentStatus: 'pending',
-          stripePaymentIntentId: checkoutSession.payment_intent as string,
+          // Stripe Checkout in mode='payment' does NOT create the PaymentIntent
+          // until the customer pays, so checkoutSession.payment_intent is null
+          // here. Store the session id (cs_...) and let the webhook swap it for
+          // the real pi_... on checkout.session.completed.
+          stripePaymentIntentId: checkoutSession.id,
           platformFeeAmount: platformFeeAmount / 100, // Store in dollars
         },
       })
