@@ -300,7 +300,7 @@ export default function ViewRegistrationModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden !flex flex-col">
         {/* Header */}
         <DialogHeader>
           <div className="flex items-start justify-between">
