@@ -354,17 +354,18 @@ export default function AllRegistrationsTable({
                           <Pencil className="h-4 w-4" />
                         </Button>
                       )}
-                      <Link
-                        href={`/dashboard/admin/events/${reg.eventId}/registrations/${reg.id}`}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        title="View Full Registration"
+                        asChild
                       >
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          title="View Full Registration"
+                        <Link
+                          href={`/dashboard/admin/events/${reg.eventId}/registrations/${reg.id}`}
                         >
                           <Eye className="h-4 w-4" />
-                        </Button>
-                      </Link>
+                        </Link>
+                      </Button>
                       <Button
                         size="sm"
                         variant="ghost"
