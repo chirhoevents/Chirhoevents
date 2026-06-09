@@ -677,9 +677,12 @@ export async function POST(request: NextRequest) {
         customer_email: groupLeaderEmail,
       }
 
-      // Use destination charges — org Stripe account is guaranteed by guard above
+      // Use destination charges — org Stripe account is guaranteed by guard above.
+      // on_behalf_of makes the connected account the merchant of record so Stripe's
+      // processing fees (2.9% + $0.30) are deducted from their share, not the platform's.
       checkoutConfig.payment_intent_data = {
         application_fee_amount: platformFeeAmount,
+        on_behalf_of: event.organization.stripeAccountId,
         transfer_data: {
           destination: event.organization.stripeAccountId,
         },

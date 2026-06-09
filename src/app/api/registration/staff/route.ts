@@ -211,6 +211,7 @@ export async function POST(request: NextRequest) {
         ],
         payment_intent_data: {
           application_fee_amount: platformFeeAmount,
+          on_behalf_of: event.organization.stripeAccountId,
           transfer_data: {
             destination: event.organization.stripeAccountId,
           },

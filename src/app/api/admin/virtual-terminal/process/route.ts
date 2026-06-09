@@ -225,6 +225,9 @@ export async function POST(request: Request) {
           },
           // Platform fee goes to ChiRho Events
           application_fee_amount: platformFeeAmountCents,
+          // on_behalf_of makes the connected account the merchant of record so Stripe's
+          // processing fees (2.9% + $0.30) are deducted from their share, not the platform's.
+          on_behalf_of: org.stripeAccountId,
           // Use destination charges - funds go to connected account
           transfer_data: {
             destination: org.stripeAccountId

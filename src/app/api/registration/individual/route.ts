@@ -679,9 +679,12 @@ export async function POST(request: NextRequest) {
         customer_email: email,
       }
 
-      // Fix #1 (individual): Always use destination charges — guard above ensures stripeAccountId is present
+      // Fix #1 (individual): Always use destination charges — guard above ensures stripeAccountId is present.
+      // on_behalf_of makes the connected account the merchant of record so Stripe's
+      // processing fees (2.9% + $0.30) are deducted from their share, not the platform's.
       checkoutConfig.payment_intent_data = {
         application_fee_amount: platformFeeAmount,
+        on_behalf_of: event.organization.stripeAccountId,
         transfer_data: {
           destination: event.organization.stripeAccountId,
         },
