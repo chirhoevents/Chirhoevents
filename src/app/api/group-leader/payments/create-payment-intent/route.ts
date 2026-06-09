@@ -107,8 +107,11 @@ export async function POST(req: NextRequest) {
       },
     }
 
-    // Use destination charges — org Stripe account is guaranteed by guard above
+    // Use destination charges — org Stripe account is guaranteed by guard above.
+    // on_behalf_of makes the connected account the merchant of record so Stripe's
+    // processing fees (2.9% + $0.30) are deducted from their share, not the platform's.
     paymentIntentConfig.application_fee_amount = platformFeeAmount
+    paymentIntentConfig.on_behalf_of = org.stripeAccountId
     paymentIntentConfig.transfer_data = {
       destination: org.stripeAccountId,
     }
