@@ -2235,6 +2235,7 @@ export function generateGroupRegistrationConfirmationEmail({
   groupLeaderPortalUrl,
   groupLeaderEmail,
   supportEmail,
+  receiptUrl,
 }: {
   groupName: string
   groupLeaderName: string
@@ -2255,6 +2256,7 @@ export function generateGroupRegistrationConfirmationEmail({
   groupLeaderPortalUrl: string
   groupLeaderEmail?: string
   supportEmail?: string
+  receiptUrl?: string | null
 }): string {
   // Amounts are passed in dollars (from PaymentBalance.totalAmountDue and the
   // group registration's calculated totals), not Stripe-style cents.
@@ -2276,6 +2278,7 @@ export function generateGroupRegistrationConfirmationEmail({
   ` : `
     <h2>Payment Confirmed</h2>
     <p>Your deposit of <strong>${formatCurrency(depositAmount)}</strong> has been successfully processed.</p>
+    ${receiptUrl ? `<p style="margin: 8px 0 0 0;"><a href="${receiptUrl}" style="color: #1a73e8;">View Stripe Receipt</a></p>` : ''}
   `
 
   return wrapEmail(`

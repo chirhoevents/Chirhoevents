@@ -40,6 +40,7 @@ interface Payment {
   cardLast4?: string | null
   cardBrand?: string | null
   receiptUrl?: string | null
+  stripePaymentIntentId?: string | null
   notes?: string | null
   processedAt?: string | null
   createdAt: string
@@ -92,6 +93,29 @@ export default function PaymentsModal({
   const [loading, setLoading] = useState(true)
   const [showRefundModal, setShowRefundModal] = useState(false)
   const [showRecordPaymentModal, setShowRecordPaymentModal] = useState(false)
+  const [fetchingReceiptId, setFetchingReceiptId] = useState<string | null>(null)
+
+  async function handleFetchReceipt(paymentId: string) {
+    setFetchingReceiptId(paymentId)
+    try {
+      const token = await getToken()
+      const response = await fetch(`/api/admin/payments/${paymentId}/receipt`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
+      const result = await response.json()
+      if (response.ok && result.receiptUrl) {
+        window.open(result.receiptUrl, '_blank', 'noopener,noreferrer')
+        fetchPaymentData()
+      } else {
+        alert(result.error || 'Receipt unavailable')
+      }
+    } catch (error) {
+      console.error('Failed to fetch receipt:', error)
+      alert('Failed to fetch receipt')
+    } finally {
+      setFetchingReceiptId(null)
+    }
+  }
 
   useEffect(() => {
     if (isOpen && registrationId) {
@@ -334,6 +358,20 @@ export default function PaymentsModal({
                                   <Download className="h-3 w-3" />
                                   View
                                 </a>
+                              ) : payment.paymentStatus === 'succeeded' &&
+                                payment.stripePaymentIntentId?.startsWith('pi_') ? (
+                                <button
+                                  onClick={() => handleFetchReceipt(payment.id)}
+                                  disabled={fetchingReceiptId === payment.id}
+                                  className="text-blue-600 hover:underline flex items-center gap-1 disabled:opacity-50"
+                                >
+                                  {fetchingReceiptId === payment.id ? (
+                                    <RefreshCw className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <Download className="h-3 w-3" />
+                                  )}
+                                  View
+                                </button>
                               ) : (
                                 <span className="text-gray-400">-</span>
                               )}

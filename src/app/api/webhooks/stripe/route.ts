@@ -399,6 +399,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing metadata' }, { status: 400 })
     }
 
+    // Fetch charge details (receipt URL, card info) from Stripe so the Payment
+    // row carries everything needed for the admin/group-leader receipt link
+    // and the confirmation email's "View Stripe Receipt" link.
+    let chargeReceiptUrl: string | null = null
+    let chargeStripeChargeId: string | null = null
+    let chargeCardLast4: string | null = null
+    let chargeCardBrand: string | null = null
+    if (session.payment_intent) {
+      try {
+        const pi = await stripe.paymentIntents.retrieve(
+          session.payment_intent as string,
+          { expand: ['latest_charge'] }
+        )
+        const charge = pi.latest_charge as Stripe.Charge | null
+        if (charge) {
+          chargeReceiptUrl = charge.receipt_url || null
+          chargeStripeChargeId = charge.id
+          chargeCardLast4 = charge.payment_method_details?.card?.last4 || null
+          chargeCardBrand = charge.payment_method_details?.card?.brand || null
+        }
+      } catch (chargeError) {
+        console.error('⚠️ Could not retrieve charge for receipt URL:', chargeError)
+      }
+    }
+
     try {
       // Handle INDIVIDUAL registration differently
       if (registrationType === 'individual') {
@@ -428,6 +453,10 @@ export async function POST(request: NextRequest) {
               paymentStatus: 'succeeded',
               processedAt: new Date(),
               stripePaymentIntentId: session.payment_intent as string,
+              receiptUrl: chargeReceiptUrl,
+              stripeChargeId: chargeStripeChargeId,
+              cardLast4: chargeCardLast4,
+              cardBrand: chargeCardBrand,
             },
           })
         } else {
@@ -507,6 +536,7 @@ export async function POST(request: NextRequest) {
                   <h3 style="color: #155724; margin-top: 0;">✓ Payment Confirmed</h3>
                   <p style="margin: 5px 0; color: #155724;"><strong>Status:</strong> Paid in Full</p>
                   <p style="margin: 5px 0; color: #155724;"><strong>Payment Method:</strong> Credit Card</p>
+                  ${chargeReceiptUrl ? `<p style="margin: 5px 0; color: #155724;"><a href="${chargeReceiptUrl}" style="color: #1E3A5F; font-weight: bold;">View Stripe Receipt</a></p>` : ''}
                 </div>
 
                 <div style="background-color: #F5F5F5; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
@@ -626,6 +656,10 @@ export async function POST(request: NextRequest) {
             paymentMethod: 'card',
             paymentStatus: 'succeeded',
             stripePaymentIntentId: paymentIntentId,
+            receiptUrl: chargeReceiptUrl,
+            stripeChargeId: chargeStripeChargeId,
+            cardLast4: chargeCardLast4,
+            cardBrand: chargeCardBrand,
             processedAt: new Date(),
             organizationId: session.metadata?.organizationId || '',
             eventId: session.metadata?.eventId || '',
@@ -657,6 +691,7 @@ export async function POST(request: NextRequest) {
               ${emailInfoBox(`
                 <strong>Amount Paid:</strong> $${actualAmountPaid.toFixed(2)}<br>
                 <strong>Registration Status:</strong> Confirmed &amp; Paid
+                ${chargeReceiptUrl ? `<br><a href="${chargeReceiptUrl}" style="color: #1E3A5F;">View Stripe Receipt</a>` : ''}
               `, 'success')}
 
               <h2>Registration Details</h2>
@@ -735,6 +770,10 @@ export async function POST(request: NextRequest) {
             paymentStatus: 'succeeded',
             processedAt: new Date(),
             stripePaymentIntentId: session.payment_intent as string,
+            receiptUrl: chargeReceiptUrl,
+            stripeChargeId: chargeStripeChargeId,
+            cardLast4: chargeCardLast4,
+            cardBrand: chargeCardBrand,
           },
         })
       } else {
@@ -877,6 +916,7 @@ export async function POST(request: NextRequest) {
         organizationName: registration.event.organization.name,
         porosLiabilityUrl,
         groupLeaderPortalUrl,
+        receiptUrl: chargeReceiptUrl,
       })
 
       // Send confirmation email
