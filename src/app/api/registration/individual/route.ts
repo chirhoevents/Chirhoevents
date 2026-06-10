@@ -14,6 +14,7 @@ import {
   type HousingType,
   type RoomType
 } from '@/lib/option-capacity'
+import { markWaitlistAsRegistered } from '@/lib/waitlist-utils'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -441,6 +442,11 @@ export async function POST(request: NextRequest) {
         1 // Individual registration = 1 person
       )
     }
+
+    // If this person was on the waitlist (status='contacted' after admin invite),
+    // flip their entry to 'registered' so the admin dashboard reflects reality
+    // and the conversion analytics work. No-op if they registered normally.
+    await markWaitlistAsRegistered(event.id, email)
 
     // Handle payment method
     if (paymentMethod === 'check') {
