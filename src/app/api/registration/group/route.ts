@@ -9,6 +9,7 @@ import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { generateGroupRegistrationConfirmationEmail } from '@/lib/email-templates'
 import { getRegistrationStatus } from '@/lib/registration-status'
 import { resolveReplyTo } from '@/lib/email-reply-to'
+import { calculatePlatformFeeCents } from '@/lib/stripe-fees'
 import {
   checkOptionCapacity,
   decrementOptionCapacity,
@@ -643,9 +644,10 @@ export async function POST(request: NextRequest) {
       // Credit card payment - create Stripe checkout session
       const depositAmountCents = Math.round(depositAmount * 100)
 
-      // Calculate platform fee (default 1%)
+      // Calculate platform fee — includes Stripe processing fee passthrough so the
+      // platform nets its configured margin instead of going negative on every charge.
       const platformFeePercentage = Number(event.organization.platformFeePercentage) || 1
-      const platformFeeAmount = Math.round(depositAmountCents * (platformFeePercentage / 100))
+      const platformFeeAmount = calculatePlatformFeeCents(depositAmountCents, platformFeePercentage)
 
       // Build checkout session config
       const checkoutConfig: any = {

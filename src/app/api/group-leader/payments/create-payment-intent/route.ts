@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import Stripe from 'stripe'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { calculatePlatformFeeCents } from '@/lib/stripe-fees'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -84,9 +85,10 @@ export async function POST(req: NextRequest) {
 
     const amountInCents = Math.round(amount * 100)
 
-    // Calculate platform fee (default 1%)
+    // Calculate platform fee — includes Stripe processing fee passthrough so the
+    // platform nets its configured margin instead of going negative on every charge.
     const platformFeePercentage = Number(org.platformFeePercentage) || 1
-    const platformFeeAmount = Math.round(amountInCents * (platformFeePercentage / 100))
+    const platformFeeAmount = calculatePlatformFeeCents(amountInCents, platformFeePercentage)
 
     // Build payment intent config
     const paymentIntentConfig: any = {

@@ -7,6 +7,7 @@ import { generateStaffPorosCode } from '@/lib/access-code'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { wrapEmail, emailInfoBox } from '@/lib/email-templates'
 import { resolveReplyTo } from '@/lib/email-reply-to'
+import { calculatePlatformFeeCents } from '@/lib/stripe-fees'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -191,8 +192,13 @@ export async function POST(request: NextRequest) {
         )
       }
 
+      // Platform fee includes Stripe processing fee passthrough so the platform
+      // nets its configured margin instead of going negative on every charge.
       const platformFeePercentage = Number(event.organization.platformFeePercentage || 1)
-      const platformFeeAmount = Math.round(totalAmount * 100 * platformFeePercentage / 100)
+      const platformFeeAmount = calculatePlatformFeeCents(
+        Math.round(totalAmount * 100),
+        platformFeePercentage
+      )
 
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
