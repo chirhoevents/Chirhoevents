@@ -6,6 +6,7 @@ import { Resend } from 'resend'
 import QRCode from 'qrcode'
 import { generateGroupRegistrationConfirmationEmail, wrapEmail, emailInfoBox } from '@/lib/email-templates'
 import { resolveReplyTo } from '@/lib/email-reply-to'
+import { markWaitlistAsRegistered } from '@/lib/waitlist-utils'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -600,6 +601,12 @@ export async function POST(request: NextRequest) {
           }).catch((err: any) => console.error('⚠️ Failed to increment coupon usage:', err))
         }
 
+        // Safety net: flip waitlist entry to 'registered' here too. The registration
+        // route already does this on row creation, but doing it again post-payment
+        // covers any edge cases. markWaitlistAsRegistered is idempotent.
+        await markWaitlistAsRegistered(registration.eventId, registration.email)
+          .catch((err: any) => console.error('⚠️ Failed to mark waitlist as registered:', err))
+
         return NextResponse.json({ received: true })
       }
 
@@ -890,6 +897,10 @@ export async function POST(request: NextRequest) {
 
       console.log('✅ Payment confirmed and email sent to:', registration.groupLeaderEmail)
       console.log('✅ Registration ID:', registrationId)
+
+      // Safety net: flip waitlist entry to 'registered' here too. Idempotent.
+      await markWaitlistAsRegistered(registration.eventId, registration.groupLeaderEmail)
+        .catch((err: any) => console.error('⚠️ Failed to mark waitlist as registered:', err))
     } catch (error) {
       console.error('❌ Error processing payment webhook:', error)
       console.error('Error details:', error instanceof Error ? error.message : 'Unknown error')

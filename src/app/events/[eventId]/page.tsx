@@ -314,6 +314,11 @@ export default async function EventLandingPage({ params }: EventPageProps) {
                     )}`
                   : null
               }
+              organizationContact={{
+                name: event.settings?.contactName || event.organization.name,
+                email: event.settings?.contactEmail || event.organization.contactEmail || null,
+                phone: event.settings?.contactPhone || event.organization.contactPhone || null,
+              }}
             />
             <PortalAccessSection variant="compact" />
           </CardContent>

@@ -19,6 +19,7 @@ import {
   incrementDayPassOptionCapacity,
   type HousingType
 } from '@/lib/option-capacity'
+import { markWaitlistAsRegistered } from '@/lib/waitlist-utils'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -523,6 +524,10 @@ export async function POST(request: NextRequest) {
         totalParticipants
       )
     }
+
+    // If the group leader was on the waitlist, flip their entry to 'registered'
+    // so the admin dashboard reflects reality. No-op if they registered normally.
+    await markWaitlistAsRegistered(event.id, groupLeaderEmail)
 
     // Handle payment method
     if (paymentMethod === 'check') {
