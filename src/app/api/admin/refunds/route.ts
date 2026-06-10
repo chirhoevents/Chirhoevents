@@ -138,11 +138,18 @@ export async function POST(request: NextRequest) {
           )
         }
 
-        // Create the refund in Stripe
+        // Create the refund in Stripe.
+        // reverse_transfer claws funds back from the connected account so the
+        // platform isn't on the hook for the full refund amount. Without it, a $975
+        // refund would debit ~$965 from the platform balance even though that money
+        // had already been transferred to the org. refund_application_fee also
+        // returns the proportional application fee to the connected account.
         const refund = await stripe.refunds.create({
           payment_intent: lastPayment.stripePaymentIntentId,
           amount: Math.round(refundAmount * 100), // Convert to cents
           reason: 'requested_by_customer',
+          reverse_transfer: true,
+          refund_application_fee: true,
           metadata: {
             registrationId,
             registrationType,

@@ -170,7 +170,7 @@ export default function RevenuePage() {
       })
       csvContent += '\n'
 
-      csvContent += 'PLATFORM FEES (1%)\n'
+      csvContent += 'PLATFORM FEES\n'
       csvContent += 'Total Payments Processed,Total Fees Collected,Transaction Count\n'
       csvContent += `${formatCurrency(data.platformFees?.totalPaymentsProcessed || 0)},${formatCurrency(data.platformFees?.totalCollected || 0)},${data.platformFees?.transactionCount || 0}\n\n`
 

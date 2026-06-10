@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import Stripe from 'stripe'
 import { Resend } from 'resend'
 import QRCode from 'qrcode'
+import { calculatePlatformFeeCents } from '@/lib/stripe-fees'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { generateIndividualConfirmationCode } from '@/lib/access-code'
 import { resolveReplyTo } from '@/lib/email-reply-to'
@@ -645,9 +646,10 @@ export async function POST(request: NextRequest) {
       // Credit card payment - create Stripe checkout session
       const totalAmountCents = Math.round(totalAmount * 100)
 
-      // Calculate platform fee (default 1%)
+      // Calculate platform fee — includes Stripe processing fee passthrough so the
+      // platform nets its configured margin instead of going negative on every charge.
       const platformFeePercentage = Number(event.organization.platformFeePercentage) || 1
-      const platformFeeAmount = Math.round(totalAmountCents * (platformFeePercentage / 100))
+      const platformFeeAmount = calculatePlatformFeeCents(totalAmountCents, platformFeePercentage)
 
       // Build checkout session config
       const checkoutConfig: any = {
