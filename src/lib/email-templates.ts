@@ -125,6 +125,56 @@ export function wrapEmail(content: string, options?: {
 }
 
 /**
+ * Convert plain text (e.g. from a textarea) into safe formatted HTML for an email.
+ * Preserves paragraph breaks (blank lines), single-line breaks, and simple
+ * bullet (`-`/`*`) and numbered (`1.`) lists. HTML in the input is escaped to
+ * prevent XSS. If the input already contains block-level HTML tags it is
+ * passed through unchanged so callers that pre-format their content still work.
+ */
+export function formatPlainTextForEmail(text: string | null | undefined): string {
+  if (!text) return ''
+  const trimmed = text.trim()
+  if (!trimmed) return ''
+
+  if (/<(p|div|br|ul|ol|li|h[1-6]|table|blockquote)[\s>]/i.test(trimmed)) {
+    return trimmed
+  }
+
+  const escape = (s: string) =>
+    s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+
+  return trimmed
+    .split(/\n\s*\n/)
+    .map(block => {
+      const lines = block.split('\n').map(l => l.trim()).filter(Boolean)
+      if (lines.length === 0) return ''
+
+      if (lines.every(l => /^[-*]\s+/.test(l))) {
+        const items = lines
+          .map(l => `<li style="margin-bottom: 6px;">${escape(l.replace(/^[-*]\s+/, ''))}</li>`)
+          .join('')
+        return `<ul style="margin: 0 0 16px 0; padding-left: 24px;">${items}</ul>`
+      }
+
+      if (lines.every(l => /^\d+\.\s+/.test(l))) {
+        const items = lines
+          .map(l => `<li style="margin-bottom: 6px;">${escape(l.replace(/^\d+\.\s+/, ''))}</li>`)
+          .join('')
+        return `<ol style="margin: 0 0 16px 0; padding-left: 24px;">${items}</ol>`
+      }
+
+      return `<p style="margin: 0 0 16px 0;">${lines.map(escape).join('<br>')}</p>`
+    })
+    .filter(Boolean)
+    .join('\n')
+}
+
+/**
  * Generate a styled button for emails
  */
 export function emailButton(text: string, url: string, color: 'primary' | 'secondary' | 'success' = 'primary'): string {
