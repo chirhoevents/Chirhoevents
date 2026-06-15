@@ -12,6 +12,11 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import {
+  claimPopupSlot,
+  releasePopupSlot,
+  POPUP_PRIORITY,
+} from '@/lib/popup-queue'
 
 interface OverdueInvoice {
   id: string
@@ -25,6 +30,7 @@ interface OverdueInvoice {
 }
 
 const SESSION_KEY = 'overdueInvoicesShown'
+const POPUP_NAME = 'overdueInvoices'
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -65,6 +71,8 @@ export default function OverdueInvoicesModal() {
 
         const data = await res.json()
         if (data.invoices && data.invoices.length > 0) {
+          // Highest-priority popup — preempts capacity warning, etc.
+          claimPopupSlot(POPUP_NAME, POPUP_PRIORITY.OVERDUE_INVOICES)
           setInvoices(data.invoices)
           setOpen(true)
           sessionStorage.setItem(SESSION_KEY, '1')
@@ -79,8 +87,15 @@ export default function OverdueInvoicesModal() {
 
   const totalDue = invoices.reduce((sum, inv) => sum + inv.amount, 0)
 
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next)
+    if (!next) {
+      releasePopupSlot(POPUP_NAME)
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-start gap-3">
@@ -158,7 +173,7 @@ export default function OverdueInvoicesModal() {
           </p>
           <Button
             variant="outline"
-            onClick={() => setOpen(false)}
+            onClick={() => handleOpenChange(false)}
           >
             Remind me later
           </Button>
