@@ -28,6 +28,14 @@ import { parseDateOnly } from '@/lib/utils'
 import ExportAllDataModal from '@/components/admin/ExportAllDataModal'
 import DashboardBulkEmailModal from '@/components/admin/DashboardBulkEmailModal'
 import RegistrationLimitModal from '@/components/admin/RegistrationLimitModal'
+import {
+  claimPopupSlot,
+  releasePopupSlot,
+  onPopupSlotReleased,
+  POPUP_PRIORITY,
+} from '@/lib/popup-queue'
+
+const REGISTRATION_LIMIT_POPUP_NAME = 'registrationLimit'
 
 interface DashboardStats {
   activeEvents: number
@@ -119,7 +127,7 @@ export default function DashboardClient() {
         const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000 // 24 hours
 
         if (!dismissedAt || parseInt(dismissedAt) < oneDayAgo) {
-          setShowRegistrationLimitModal(true)
+          tryShowRegistrationLimitModal()
         }
       }
     } catch (error) {
@@ -127,8 +135,33 @@ export default function DashboardClient() {
     }
   }
 
+  // Attempts to grab the popup slot — defers if a higher-priority popup
+  // (e.g. overdue invoices) is already showing, and retries when freed.
+  const tryShowRegistrationLimitModal = () => {
+    if (claimPopupSlot(REGISTRATION_LIMIT_POPUP_NAME, POPUP_PRIORITY.REGISTRATION_LIMIT)) {
+      setShowRegistrationLimitModal(true)
+    }
+  }
+
+  useEffect(() => {
+    return onPopupSlotReleased(() => {
+      // If we still need to show the modal and aren't already showing it, try again.
+      if (showRegistrationLimitModal) return
+      const dismissedAt = localStorage.getItem('registrationLimitModalDismissed')
+      const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000
+      if (dismissedAt && parseInt(dismissedAt) >= oneDayAgo) return
+      if (
+        billingUsage?.registrationsLimit &&
+        billingUsage.registrationsUsed >= billingUsage.registrationsLimit * 0.9
+      ) {
+        tryShowRegistrationLimitModal()
+      }
+    })
+  }, [billingUsage, showRegistrationLimitModal])
+
   const handleDismissRegistrationLimitModal = () => {
     localStorage.setItem('registrationLimitModalDismissed', Date.now().toString())
+    releasePopupSlot(REGISTRATION_LIMIT_POPUP_NAME)
     setShowRegistrationLimitModal(false)
   }
 
