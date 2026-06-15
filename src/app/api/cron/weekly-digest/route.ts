@@ -10,6 +10,9 @@ const resend = new Resend(process.env.RESEND_API_KEY!)
 // Secret key to verify cron requests
 const CRON_SECRET = process.env.CRON_SECRET
 
+export const dynamic = 'force-dynamic'
+export const maxDuration = 300
+
 interface OrgUser {
   id: string
   email: string
@@ -40,10 +43,13 @@ export async function GET(request: NextRequest) {
     const specificOrgId = searchParams.get('orgId')
     const isTest = searchParams.get('test') === 'true'
 
+    // Note: we intentionally do NOT filter by org status here. If an admin
+    // explicitly enabled the weekly digest, we honor that regardless of
+    // pending/trial/etc. The per-org digestSettings.enabled check below
+    // is the source of truth.
     const organizations = await prisma.organization.findMany({
       where: {
         ...(specificOrgId ? { id: specificOrgId } : {}),
-        status: 'active',
       },
       include: {
         users: {
@@ -62,6 +68,10 @@ export async function GET(request: NextRequest) {
 
     const results: { orgId: string; orgName: string; status: string; recipients: number; error?: string }[] = []
 
+    console.log(`[weekly-digest] Processing ${organizations.length} organization(s)${specificOrgId ? ` (filtered to ${specificOrgId})` : ''}`)
+
+    const todayDayOfWeek = new Date().getUTCDay() // 0=Sunday..6=Saturday
+
     for (const org of organizations) {
       try {
         const digestSettings = getDigestSettings(org.customFieldsEnabled as Record<string, any>)
@@ -71,6 +81,18 @@ export async function GET(request: NextRequest) {
             orgId: org.id,
             orgName: org.name,
             status: 'skipped',
+            recipients: 0,
+          })
+          continue
+        }
+
+        // Honor per-org day-of-week unless this is an explicit single-org trigger
+        const scheduledDay = digestSettings.dayOfWeek ?? 0
+        if (!specificOrgId && scheduledDay !== todayDayOfWeek) {
+          results.push({
+            orgId: org.id,
+            orgName: org.name,
+            status: 'not_scheduled_today',
             recipients: 0,
           })
           continue
@@ -167,12 +189,18 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
-      success: true,
+    const summary = {
       processed: results.length,
       sent: results.filter(r => r.status === 'sent').length,
       skipped: results.filter(r => r.status === 'skipped').length,
+      notScheduledToday: results.filter(r => r.status === 'not_scheduled_today').length,
       errors: results.filter(r => r.status === 'error').length,
+    }
+    console.log(`[weekly-digest] Done. ${JSON.stringify(summary)}`)
+
+    return NextResponse.json({
+      success: true,
+      ...summary,
       results,
     })
   } catch (error) {

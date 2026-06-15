@@ -174,9 +174,15 @@ export async function PUT(request: NextRequest) {
   }
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 /**
  * POST /api/admin/settings/notifications
- * Send a test digest email by directly calling the weekly digest logic
+ * Send a weekly digest email immediately.
+ *
+ * Body (all optional):
+ * - recipients: string[] — explicit email list; if omitted, uses configured recipients
+ * - asTest: boolean — prefix subject with [TEST] and log as 'weekly_digest_test' (default: true)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -190,6 +196,29 @@ export async function POST(request: NextRequest) {
     }
 
     const organizationId = await getEffectiveOrgId(user as any)
+
+    let body: { recipients?: unknown; asTest?: unknown } = {}
+    try {
+      body = await request.json()
+    } catch {
+      body = {}
+    }
+
+    const explicitRecipients = Array.isArray(body.recipients)
+      ? body.recipients.filter((r): r is string => typeof r === 'string').map(r => r.trim()).filter(Boolean)
+      : null
+
+    if (explicitRecipients) {
+      const invalid = explicitRecipients.filter(r => !EMAIL_REGEX.test(r))
+      if (invalid.length > 0) {
+        return NextResponse.json(
+          { error: `Invalid email address(es): ${invalid.join(', ')}` },
+          { status: 400 }
+        )
+      }
+    }
+
+    const asTest = body.asTest === undefined ? true : body.asTest === true
 
     const { Resend } = await import('resend')
     const { generateWeeklyDigestEmail, generateWeeklyDigestSubject } = await import('@/lib/weekly-digest')
@@ -219,12 +248,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
     }
 
-    const digestSettings = getDigestSettings(organization.customFieldsEnabled as Record<string, any>)
-    const recipients = digestSettings.recipients
+    let recipients: string[]
+    if (explicitRecipients && explicitRecipients.length > 0) {
+      recipients = Array.from(new Set(explicitRecipients))
+    } else {
+      const digestSettings = getDigestSettings(organization.customFieldsEnabled as Record<string, any>)
+      recipients = digestSettings.recipients
+    }
 
     if (recipients.length === 0) {
       return NextResponse.json(
-        { error: 'No recipients selected. Please select at least one recipient and save settings first.' },
+        { error: 'No recipients provided. Configure recipients in Settings or pass recipients in the request body.' },
         { status: 400 }
       )
     }
@@ -235,8 +269,9 @@ export async function POST(request: NextRequest) {
       organization.users[0]?.firstName || 'Admin'
     )
 
-    const subject = generateWeeklyDigestSubject(organization.name, digestData.dateRange)
-    const testSubject = `[TEST] ${subject}`
+    const baseSubject = generateWeeklyDigestSubject(organization.name, digestData.dateRange)
+    const subject = asTest ? `[TEST] ${baseSubject}` : baseSubject
+    const emailType = asTest ? 'weekly_digest_test' : 'weekly_digest_manual'
 
     let sentCount = 0
     const failures: { email: string; error: string }[] = []
@@ -253,7 +288,7 @@ export async function POST(request: NextRequest) {
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
           to: recipientEmail,
-          subject: testSubject,
+          subject,
           html: htmlContent,
         })
         sentCount++
@@ -262,13 +297,13 @@ export async function POST(request: NextRequest) {
           organizationId,
           recipientEmail,
           recipientName: recipientUser?.firstName ?? undefined,
-          emailType: 'weekly_digest_test',
-          subject: testSubject,
+          emailType,
+          subject,
           htmlContent,
         })
       } catch (emailError) {
         const message = emailError instanceof Error ? emailError.message : 'Unknown error'
-        console.error(`Failed to send test digest to ${recipientEmail}:`, emailError)
+        console.error(`Failed to send digest to ${recipientEmail}:`, emailError)
         failures.push({ email: recipientEmail, error: message })
 
         await logEmailFailure(
@@ -276,8 +311,8 @@ export async function POST(request: NextRequest) {
             organizationId,
             recipientEmail,
             recipientName: recipientUser?.firstName ?? undefined,
-            emailType: 'weekly_digest_test',
-            subject: testSubject,
+            emailType,
+            subject,
             htmlContent,
           },
           message
