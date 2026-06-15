@@ -27,6 +27,7 @@ import {
 import { hasPermission, getRoleName, type Permission, type UserRole } from '@/lib/permissions'
 import ImpersonationBanner from '@/components/admin/ImpersonationBanner'
 import SubscriptionPausedBanner from '@/components/admin/SubscriptionPausedBanner'
+import OverdueInvoicesModal from '@/components/admin/OverdueInvoicesModal'
 import { AdminProvider } from '@/contexts/AdminContext'
 import {
   DropdownMenu,
@@ -313,6 +314,9 @@ export default function AdminLayout({
           pausedAt={userInfo.pausedAt}
         />
       )}
+
+      {/* Past-Due Invoices Popup */}
+      {userInfo && <OverdueInvoicesModal />}
 
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
