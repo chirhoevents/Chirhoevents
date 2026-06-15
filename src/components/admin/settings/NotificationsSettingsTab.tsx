@@ -107,13 +107,26 @@ export default function NotificationsSettingsTab() {
         method: 'POST',
       })
 
-      if (!response.ok) throw new Error('Failed to send test digest')
-
       const result = await response.json()
-      toast.success(`Test digest sent to ${result.results?.[0]?.recipients || 0} recipient(s)`)
+
+      if (!response.ok) {
+        throw new Error(result?.error || 'Failed to send test digest')
+      }
+
+      const sent: number = result.results?.[0]?.recipients || 0
+      const failures: { email: string; error: string }[] = result.failures || []
+
+      if (sent === 0) {
+        const detail = failures[0]?.error ? `: ${failures[0].error}` : ''
+        toast.error(`Test digest failed to send${detail}`)
+      } else if (failures.length > 0) {
+        toast.success(`Test digest sent to ${sent} recipient(s) — ${failures.length} failed`)
+      } else {
+        toast.success(`Test digest sent to ${sent} recipient(s)`)
+      }
     } catch (error) {
       console.error('Error sending test digest:', error)
-      toast.error('Failed to send test digest')
+      toast.error(error instanceof Error ? error.message : 'Failed to send test digest')
     } finally {
       setSendingTest(false)
     }
