@@ -29,7 +29,7 @@ interface OverdueInvoice {
   paymentLink: string
 }
 
-const SESSION_KEY = 'overdueInvoicesShown'
+const SESSION_KEY_PREFIX = 'overdueInvoicesShown:'
 const POPUP_NAME = 'overdueInvoices'
 
 function formatCurrency(amount: number): string {
@@ -47,14 +47,17 @@ function daysOverdue(dueDate: string): number {
 }
 
 export default function OverdueInvoicesModal() {
-  const { getToken, isLoaded, isSignedIn } = useAuth()
+  const { getToken, isLoaded, isSignedIn, sessionId } = useAuth()
   const [invoices, setInvoices] = useState<OverdueInvoice[]>([])
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) return
+    if (!isLoaded || !isSignedIn || !sessionId) return
 
-    if (typeof window !== 'undefined' && sessionStorage.getItem(SESSION_KEY) === '1') {
+    // Key by Clerk session ID so each new sign-in (even same browser tab,
+    // even a different admin on the same machine) gets its own popup.
+    const storageKey = `${SESSION_KEY_PREFIX}${sessionId}`
+    if (typeof window !== 'undefined' && sessionStorage.getItem(storageKey) === '1') {
       return
     }
 
@@ -75,7 +78,7 @@ export default function OverdueInvoicesModal() {
           claimPopupSlot(POPUP_NAME, POPUP_PRIORITY.OVERDUE_INVOICES)
           setInvoices(data.invoices)
           setOpen(true)
-          sessionStorage.setItem(SESSION_KEY, '1')
+          sessionStorage.setItem(storageKey, '1')
         }
       } catch (err) {
         console.error('Failed to fetch overdue invoices:', err)
@@ -83,7 +86,7 @@ export default function OverdueInvoicesModal() {
     }
 
     fetchOverdue()
-  }, [isLoaded, isSignedIn, getToken])
+  }, [isLoaded, isSignedIn, sessionId, getToken])
 
   const totalDue = invoices.reduce((sum, inv) => sum + inv.amount, 0)
 
