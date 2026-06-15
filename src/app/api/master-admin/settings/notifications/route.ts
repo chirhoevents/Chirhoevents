@@ -326,7 +326,7 @@ export async function POST() {
                 <div class="stat-label">Active Orgs</div>
               </div>
               <div class="stat-card">
-                <div class="stat-value">$${((Number(totalRevenue._sum.amount) || 0) / 100).toLocaleString()}</div>
+                <div class="stat-value">$${(Number(totalRevenue._sum.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 <div class="stat-label">Total Revenue</div>
               </div>
             </div>

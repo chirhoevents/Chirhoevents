@@ -26,6 +26,9 @@ export interface WeeklyDigestData {
     totalRevenue: number
     pendingPayments: number
     overdueBalances: number
+    // Org's own platform invoices owed to ChiRho (past their due date)
+    overdueInvoices: number
+    overdueInvoiceAmount: number
 
     // Forms & Compliance
     formsCompletedThisWeek: number
@@ -66,19 +69,19 @@ export interface WeeklyDigestData {
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
 
 /**
- * Format currency in cents to display format
+ * Format a USD amount stored in dollars (Decimal(10,2)) for display.
  */
-function formatCurrency(amountInCents: number): string {
+function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-  }).format(amountInCents / 100)
+  }).format(amount)
 }
 
 /**
  * Generate a stat card for the email
  */
-function statCard(label: string, value: string | number, change?: { value: number; isPositive: boolean }): string {
+function statCard(label: string, value: string | number, change?: { value: number | string; isPositive: boolean }): string {
   const changeHtml = change ? `
     <span style="font-size: 12px; color: ${change.isPositive ? '#059669' : '#DC2626'}; margin-left: 8px;">
       ${change.isPositive ? '+' : ''}${change.value} this week
@@ -194,7 +197,7 @@ export function generateWeeklyDigestEmail(data: WeeklyDigestData): string {
       <tr>
         ${statCard('Registrations', data.stats.totalRegistrations, { value: data.stats.newRegistrationsThisWeek, isPositive: true })}
         <td style="width: 8px;"></td>
-        ${statCard('Revenue', formatCurrency(data.stats.totalRevenue), { value: data.stats.revenueThisWeek > 0 ? Math.round(data.stats.revenueThisWeek / 100) : 0, isPositive: true })}
+        ${statCard('Revenue', formatCurrency(data.stats.totalRevenue), { value: data.stats.revenueThisWeek > 0 ? formatCurrency(data.stats.revenueThisWeek) : 0, isPositive: true })}
         <td style="width: 8px;"></td>
         ${statCard('Forms Done', `${data.stats.formsCompletedThisWeek}`, { value: data.stats.formsCompletedThisWeek, isPositive: true })}
         <td style="width: 8px;"></td>
@@ -206,7 +209,7 @@ export function generateWeeklyDigestEmail(data: WeeklyDigestData): string {
       <tr>
         ${statCard('Registrations', data.stats.totalRegistrations, { value: data.stats.newRegistrationsThisWeek, isPositive: true })}
         <td style="width: 8px;"></td>
-        ${statCard('Revenue', formatCurrency(data.stats.totalRevenue), { value: data.stats.revenueThisWeek > 0 ? Math.round(data.stats.revenueThisWeek / 100) : 0, isPositive: true })}
+        ${statCard('Revenue', formatCurrency(data.stats.totalRevenue), { value: data.stats.revenueThisWeek > 0 ? formatCurrency(data.stats.revenueThisWeek) : 0, isPositive: true })}
         <td style="width: 8px;"></td>
         ${statCard('Active Events', data.stats.activeEvents.toString())}
       </tr>
@@ -261,7 +264,8 @@ export function generateWeeklyDigestEmail(data: WeeklyDigestData): string {
             ${emailDetailRow('Revenue This Week', formatCurrency(data.stats.revenueThisWeek))}
             ${emailDetailRow('Total Revenue', formatCurrency(data.stats.totalRevenue))}
             ${emailDetailRow('Pending Check Payments', data.stats.pendingPayments.toString())}
-            ${emailDetailRow('Overdue Balances', data.stats.overdueBalances.toString())}
+            ${emailDetailRow('Group Registration Balances Outstanding', data.stats.overdueBalances.toString())}
+            ${emailDetailRow('Past-Due ChiRho Invoices', data.stats.overdueInvoices > 0 ? `${data.stats.overdueInvoices} (${formatCurrency(data.stats.overdueInvoiceAmount)})` : '0')}
           </table>
         </td>
       </tr>
