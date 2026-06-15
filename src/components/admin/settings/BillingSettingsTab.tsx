@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Loader2, Download, CreditCard, Calendar, FileText, TrendingUp } from 'lucide-react'
+import { Loader2, Download, CreditCard, Calendar, FileText, TrendingUp, ExternalLink } from 'lucide-react'
 import UpgradeRequestModal from '@/components/admin/UpgradeRequestModal'
 
 interface BillingData {
@@ -44,6 +44,7 @@ interface BillingData {
     dueDate: string
     paidAt: string | null
     createdAt: string
+    paymentLink: string | null
   }>
 }
 
@@ -315,14 +316,28 @@ export default function BillingSettingsTab() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => window.open(`/api/admin/invoices/${invoice.id}/pdf`, '_blank')}
-                      >
-                        <Download className="h-4 w-4 mr-1" />
-                        PDF
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        {invoice.paymentLink &&
+                          invoice.status !== 'paid' &&
+                          invoice.status !== 'cancelled' && (
+                            <Button
+                              size="sm"
+                              onClick={() => window.open(invoice.paymentLink!, '_blank')}
+                              className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
+                            >
+                              <ExternalLink className="h-4 w-4 mr-1" />
+                              Pay
+                            </Button>
+                          )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => window.open(`/api/admin/invoices/${invoice.id}/pdf`, '_blank')}
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          PDF
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
