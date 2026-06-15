@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Mail, Send, Loader2, CheckCircle, AlertCircle, Calendar, Users, BellOff } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Mail, Send, Loader2, CheckCircle, AlertCircle, Calendar, Users, BellOff, Forward } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
 interface Recipient {
@@ -51,6 +52,8 @@ export default function NotificationsSettingsTab() {
   const [updateEmailSettings, setUpdateEmailSettings] = useState<UpdateEmailSettings>({
     disabled: false,
   })
+  const [adHocRecipients, setAdHocRecipients] = useState('')
+  const [sendingAdHoc, setSendingAdHoc] = useState(false)
 
   useEffect(() => {
     fetchSettings()
@@ -107,15 +110,73 @@ export default function NotificationsSettingsTab() {
         method: 'POST',
       })
 
-      if (!response.ok) throw new Error('Failed to send test digest')
-
       const result = await response.json()
-      toast.success(`Test digest sent to ${result.results?.[0]?.recipients || 0} recipient(s)`)
+
+      if (!response.ok) {
+        throw new Error(result?.error || 'Failed to send test digest')
+      }
+
+      const sent: number = result.results?.[0]?.recipients || 0
+      const failures: { email: string; error: string }[] = result.failures || []
+
+      if (sent === 0) {
+        const detail = failures[0]?.error ? `: ${failures[0].error}` : ''
+        toast.error(`Test digest failed to send${detail}`)
+      } else if (failures.length > 0) {
+        toast.success(`Test digest sent to ${sent} recipient(s) — ${failures.length} failed`)
+      } else {
+        toast.success(`Test digest sent to ${sent} recipient(s)`)
+      }
     } catch (error) {
       console.error('Error sending test digest:', error)
-      toast.error('Failed to send test digest')
+      toast.error(error instanceof Error ? error.message : 'Failed to send test digest')
     } finally {
       setSendingTest(false)
+    }
+  }
+
+  const handleSendAdHoc = async () => {
+    const emails = adHocRecipients
+      .split(/[,\s;]+/)
+      .map(e => e.trim())
+      .filter(Boolean)
+
+    if (emails.length === 0) {
+      toast.error('Enter at least one email address')
+      return
+    }
+
+    setSendingAdHoc(true)
+    try {
+      const response = await fetch('/api/admin/settings/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipients: emails, asTest: false }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result?.error || 'Failed to send digest')
+      }
+
+      const sent: number = result.results?.[0]?.recipients || 0
+      const failures: { email: string; error: string }[] = result.failures || []
+
+      if (sent === 0) {
+        const detail = failures[0]?.error ? `: ${failures[0].error}` : ''
+        toast.error(`Digest failed to send${detail}`)
+      } else if (failures.length > 0) {
+        toast.success(`Digest sent to ${sent} recipient(s) — ${failures.length} failed`)
+      } else {
+        toast.success(`Digest sent to ${sent} recipient(s)`)
+        setAdHocRecipients('')
+      }
+    } catch (error) {
+      console.error('Error sending ad-hoc digest:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to send digest')
+    } finally {
+      setSendingAdHoc(false)
     }
   }
 
@@ -298,6 +359,57 @@ export default function NotificationsSettingsTab() {
               </div>
             </>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Send Digest Now Card (ad-hoc) */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-[#1E3A5F]/10 rounded-lg">
+              <Forward className="h-5 w-5 text-[#1E3A5F]" />
+            </div>
+            <div>
+              <CardTitle>Send Digest Now</CardTitle>
+              <CardDescription>
+                Send the current week&apos;s digest immediately to specific people. Useful for one-off shares or to preview the live layout.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="ad-hoc-recipients">Recipient email(s)</Label>
+            <Input
+              id="ad-hoc-recipients"
+              placeholder="alice@example.com, bob@example.com"
+              value={adHocRecipients}
+              onChange={(e) => setAdHocRecipients(e.target.value)}
+              disabled={sendingAdHoc}
+            />
+            <p className="text-sm text-gray-500">
+              Separate multiple emails with commas. Uses the most recent 7 days of data.
+            </p>
+          </div>
+          <div className="flex justify-end">
+            <Button
+              onClick={handleSendAdHoc}
+              disabled={sendingAdHoc || adHocRecipients.trim().length === 0}
+              className="bg-[#1E3A5F] hover:bg-[#2d5a8c] text-white"
+            >
+              {sendingAdHoc ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4 mr-2" />
+                  Send Digest Now
+                </>
+              )}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

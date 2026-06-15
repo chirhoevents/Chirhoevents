@@ -13,10 +13,6 @@ interface UpdateEmailSettings {
   disabled: boolean
 }
 
-interface PaymentAmount {
-  amount: number | bigint | { toNumber?: () => number }
-}
-
 /**
  * GET /api/admin/settings/notifications
  * Get notification settings for the organization
@@ -178,9 +174,15 @@ export async function PUT(request: NextRequest) {
   }
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 /**
  * POST /api/admin/settings/notifications
- * Send a test digest email by directly calling the weekly digest logic
+ * Send a weekly digest email immediately.
+ *
+ * Body (all optional):
+ * - recipients: string[] — explicit email list; if omitted, uses configured recipients
+ * - asTest: boolean — prefix subject with [TEST] and log as 'weekly_digest_test' (default: true)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -195,13 +197,36 @@ export async function POST(request: NextRequest) {
 
     const organizationId = await getEffectiveOrgId(user as any)
 
-    // Import the Resend client and email generator
+    let body: { recipients?: unknown; asTest?: unknown } = {}
+    try {
+      body = await request.json()
+    } catch {
+      body = {}
+    }
+
+    const explicitRecipients = Array.isArray(body.recipients)
+      ? body.recipients.filter((r): r is string => typeof r === 'string').map(r => r.trim()).filter(Boolean)
+      : null
+
+    if (explicitRecipients) {
+      const invalid = explicitRecipients.filter(r => !EMAIL_REGEX.test(r))
+      if (invalid.length > 0) {
+        return NextResponse.json(
+          { error: `Invalid email address(es): ${invalid.join(', ')}` },
+          { status: 400 }
+        )
+      }
+    }
+
+    const asTest = body.asTest === undefined ? true : body.asTest === true
+
     const { Resend } = await import('resend')
     const { generateWeeklyDigestEmail, generateWeeklyDigestSubject } = await import('@/lib/weekly-digest')
+    const { buildOrganizationDigest, getDigestSettings } = await import('@/lib/weekly-digest-data')
+    const { logEmail, logEmailFailure } = await import('@/lib/email-logger')
 
     const resend = new Resend(process.env.RESEND_API_KEY)
 
-    // Get organization with settings
     const organization = await prisma.organization.findUnique({
       where: { id: organizationId },
       select: {
@@ -223,87 +248,82 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
     }
 
-    const customFields = organization.customFieldsEnabled as Record<string, unknown> | null
-    const weeklyDigest = customFields?.weeklyDigest as { enabled?: boolean; recipients?: string[] } | undefined
-
-    const recipients = weeklyDigest?.recipients || []
+    let recipients: string[]
+    if (explicitRecipients && explicitRecipients.length > 0) {
+      recipients = Array.from(new Set(explicitRecipients))
+    } else {
+      const digestSettings = getDigestSettings(organization.customFieldsEnabled as Record<string, any>)
+      recipients = digestSettings.recipients
+    }
 
     if (recipients.length === 0) {
       return NextResponse.json(
-        { error: 'No recipients selected. Please select at least one recipient and save settings first.' },
+        { error: 'No recipients provided. Configure recipients in Settings or pass recipients in the request body.' },
         { status: 400 }
       )
     }
 
-    // Calculate date range
-    const now = new Date()
-    const weekStart = new Date(now)
-    weekStart.setDate(weekStart.getDate() - 7)
+    const digestData = await buildOrganizationDigest(
+      organizationId,
+      organization.name,
+      organization.users[0]?.firstName || 'Admin'
+    )
 
-    const dateRange = {
-      start: weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      end: now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    }
-
-    // Basic stats for test email
-    const [totalRegs, revenue] = await Promise.all([
-      prisma.groupRegistration.count({ where: { organizationId } }),
-      prisma.payment.findMany({
-        where: { organizationId, paymentStatus: 'succeeded' },
-        select: { amount: true },
-      }),
-    ])
-
-    const totalRevenue = revenue.reduce((sum: number, p: PaymentAmount) => sum + Number(p.amount), 0)
-
-    const digestData = {
-      organizationName: organization.name,
-      recipientName: organization.users[0]?.firstName || 'Admin',
-      dateRange,
-      stats: {
-        newRegistrationsThisWeek: 0,
-        totalRegistrations: totalRegs,
-        newParticipantsThisWeek: 0,
-        totalParticipants: 0,
-        revenueThisWeek: 0,
-        totalRevenue: totalRevenue / 100,
-        pendingPayments: 0,
-        overdueBalances: 0,
-        formsCompletedThisWeek: 0,
-        formsTotal: 0,
-        formsPending: 0,
-        pendingCertificates: 0,
-        activeEvents: 0,
-        upcomingEventsCount: 0,
-      },
-      upcomingEvents: [],
-      actionItems: [],
-      recentActivity: [],
-      dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/dashboard/admin`,
-    }
-
-    const subject = generateWeeklyDigestSubject(organization.name, dateRange)
-    const htmlContent = generateWeeklyDigestEmail(digestData)
+    const baseSubject = generateWeeklyDigestSubject(organization.name, digestData.dateRange)
+    const subject = asTest ? `[TEST] ${baseSubject}` : baseSubject
+    const emailType = asTest ? 'weekly_digest_test' : 'weekly_digest_manual'
 
     let sentCount = 0
+    const failures: { email: string; error: string }[] = []
 
     for (const recipientEmail of recipients) {
+      const recipientUser = organization.users.find((u: { email: string; firstName: string | null }) => u.email === recipientEmail)
+      const personalizedDigest = {
+        ...digestData,
+        recipientName: recipientUser?.firstName || 'Admin',
+      }
+      const htmlContent = generateWeeklyDigestEmail(personalizedDigest)
+
       try {
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
           to: recipientEmail,
-          subject: `[TEST] ${subject}`,
+          subject,
           html: htmlContent,
         })
         sentCount++
+
+        await logEmail({
+          organizationId,
+          recipientEmail,
+          recipientName: recipientUser?.firstName ?? undefined,
+          emailType,
+          subject,
+          htmlContent,
+        })
       } catch (emailError) {
-        console.error(`Failed to send test digest to ${recipientEmail}:`, emailError)
+        const message = emailError instanceof Error ? emailError.message : 'Unknown error'
+        console.error(`Failed to send digest to ${recipientEmail}:`, emailError)
+        failures.push({ email: recipientEmail, error: message })
+
+        await logEmailFailure(
+          {
+            organizationId,
+            recipientEmail,
+            recipientName: recipientUser?.firstName ?? undefined,
+            emailType,
+            subject,
+            htmlContent,
+          },
+          message
+        )
       }
     }
 
     return NextResponse.json({
-      success: true,
-      results: [{ recipients: sentCount, status: 'sent' }],
+      success: sentCount > 0,
+      results: [{ recipients: sentCount, status: sentCount > 0 ? 'sent' : 'failed' }],
+      failures,
     })
   } catch (error) {
     console.error('Error sending test digest:', error)
