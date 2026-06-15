@@ -1359,7 +1359,7 @@ export default function GroupRegistrationPage() {
                     </div>
 
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Deposit Due Now:</span>
+                      <span className="text-gray-600">Deposit Amount:</span>
                       <span className="font-semibold text-gold">${pricing.deposit.toFixed(2)}</span>
                     </div>
 
@@ -1367,20 +1367,6 @@ export default function GroupRegistrationPage() {
                       <span className="text-gray-600">Balance Remaining:</span>
                       <span className="text-gray-900">${pricing.balance.toFixed(2)}</span>
                     </div>
-                  </div>
-
-                  <div className="bg-beige p-4 rounded-md text-sm">
-                    <p className="text-gray-600">
-                      {event?.pricing.requireFullPayment
-                        ? '✓ Full payment due now'
-                        : pricing.deposit > 0
-                          ? `✓ Pay $${pricing.deposit.toFixed(2)} deposit now`
-                          : '✓ No deposit required'}<br />
-                      {!event?.pricing.requireFullPayment && pricing.balance > 0 && (
-                        <>✓ Balance due before event<br /></>
-                      )}
-                      ✓ Secure payment via Stripe
-                    </p>
                   </div>
                 </CardContent>
               </Card>
