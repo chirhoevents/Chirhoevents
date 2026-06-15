@@ -89,7 +89,7 @@ export async function collectOrganizationStats(
     prisma.participant.count({ where: { organizationId } }),
   ])
 
-  const [paymentsThisWeek, allPayments, pendingCheckPayments, overdueBalances] = await Promise.all([
+  const [paymentsThisWeek, allPayments, pendingCheckPayments, overdueBalances, overdueInvoiceRows] = await Promise.all([
     prisma.payment.findMany({
       where: {
         organizationId,
@@ -112,10 +112,22 @@ export async function collectOrganizationStats(
         amountRemaining: { gt: 0 },
       },
     }),
+    // Platform invoices the org owes to ChiRho that are past their due date.
+    // Matches the same query the OverdueInvoicesModal uses.
+    prisma.invoice.findMany({
+      where: {
+        organizationId,
+        status: { in: ['pending', 'overdue'] },
+        dueDate: { lt: now },
+      },
+      select: { amount: true },
+    }),
   ])
 
   const revenueThisWeek = paymentsThisWeek.reduce((sum: number, p: PaymentAmount) => sum + Number(p.amount), 0)
   const totalRevenue = allPayments.reduce((sum: number, p: PaymentAmount) => sum + Number(p.amount), 0)
+  const overdueInvoices = overdueInvoiceRows.length
+  const overdueInvoiceAmount = overdueInvoiceRows.reduce((sum: number, i: PaymentAmount) => sum + Number(i.amount), 0)
 
   const [formsCompletedThisWeek, formsTotal, formsPending, pendingCerts] = await Promise.all([
     prisma.participant.count({
@@ -176,6 +188,8 @@ export async function collectOrganizationStats(
     totalRevenue,
     pendingPayments: pendingCheckPayments,
     overdueBalances,
+    overdueInvoices,
+    overdueInvoiceAmount,
     formsCompletedThisWeek,
     formsTotal,
     formsPending,
@@ -213,11 +227,21 @@ export function generateActionItems(
     })
   }
 
-  if (stats.overdueBalances > 0) {
+  if (stats.overdueInvoices > 0) {
     items.push({
       type: 'urgent',
-      title: 'Overdue Payment Balances',
-      description: 'Registrations with unpaid balances',
+      title: 'Past-Due ChiRho Invoices',
+      description: `Your organization owes ChiRho ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.overdueInvoiceAmount)} on past-due platform invoices`,
+      count: stats.overdueInvoices,
+      actionUrl: `${APP_URL}/dashboard/admin`,
+    })
+  }
+
+  if (stats.overdueBalances > 0) {
+    items.push({
+      type: 'warning',
+      title: 'Group Registration Balances Outstanding',
+      description: 'Group registrations that still owe a balance for an event',
       count: stats.overdueBalances,
       actionUrl: `${APP_URL}/dashboard/admin/registrations?filter=overdue`,
     })
@@ -322,7 +346,7 @@ export async function getRecentActivity(
     const regType = payment.registrationType === 'group' ? 'group' : 'individual'
     activity.push({
       type: 'payment',
-      description: `Payment of $${(Number(payment.amount) / 100).toFixed(2)} received (${regType})`,
+      description: `Payment of $${Number(payment.amount).toFixed(2)} received (${regType})`,
       time: formatTimeAgo(payment.createdAt),
     })
   }
