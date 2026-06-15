@@ -6,6 +6,34 @@ import { wrapEmail } from '@/lib/email-templates'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+// Escape HTML in a line and turn http(s) URLs into clickable links
+function formatLineWithLinks(line: string): string {
+  const urlRegex = /(https?:\/\/[^\s<>"]+)/g
+  let result = ''
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+
+  while ((match = urlRegex.exec(line)) !== null) {
+    result += escapeHtml(line.substring(lastIndex, match.index))
+    const url = match[0]
+    const escapedUrl = escapeHtml(url)
+    result += `<a href="${escapedUrl}" style="color: #9C8466; text-decoration: underline; word-break: break-all;">${escapedUrl}</a>`
+    lastIndex = match.index + url.length
+  }
+
+  result += escapeHtml(line.substring(lastIndex))
+  return result
+}
+
 // Decode JWT payload to extract user ID when cookies aren't available
 function decodeJwtPayload(token: string): { sub?: string } | null {
   try {
@@ -94,7 +122,7 @@ export async function POST(
     // Build the reply email HTML
     const replyHtml = wrapEmail(`
       <div style="margin-bottom: 24px;">
-        ${message.split('\n').map((line: string) => `<p style="margin: 0 0 8px 0;">${line || '&nbsp;'}</p>`).join('')}
+        ${message.split('\n').map((line: string) => `<p style="margin: 0 0 8px 0;">${formatLineWithLinks(line) || '&nbsp;'}</p>`).join('')}
       </div>
 
       <p style="margin-top: 30px;">
@@ -111,7 +139,7 @@ export async function POST(
         <p style="margin: 0 0 4px 0;"><strong>Subject:</strong> ${originalEmail.subject || '(No subject)'}</p>
         <p style="margin: 0 0 8px 0;"><strong>Date:</strong> ${new Date(originalEmail.createdAt).toLocaleString()}</p>
         <blockquote style="border-left: 3px solid #ddd; margin: 16px 0; padding-left: 16px; color: #555;">
-          ${originalEmail.htmlBody || originalEmail.textBody?.split('\n').map(l => `<p style="margin: 0 0 8px 0;">${l}</p>`).join('') || '(No content)'}
+          ${originalEmail.htmlBody || originalEmail.textBody?.split('\n').map(l => `<p style="margin: 0 0 8px 0;">${formatLineWithLinks(l) || '&nbsp;'}</p>`).join('') || '(No content)'}
         </blockquote>
       </div>
     `, { organizationName: 'ChiRho Events' })
