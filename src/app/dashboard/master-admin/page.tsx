@@ -378,7 +378,7 @@ export default function MasterAdminDashboard() {
 
           <div className="space-y-3">
             <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Chapel ($29/mo)</span>
+              <span className="text-sm text-gray-600">Chapel ($39/mo)</span>
               <span className="text-sm font-medium text-gray-900">{displayStats.subscriptionBreakdown.chapel} orgs</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-100">

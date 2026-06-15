@@ -50,13 +50,14 @@ const tierLabels: Record<string, string> = {
   enterprise: 'Basilica',
 }
 
-const tierPricing: Record<string, { monthly: number; annual: number }> = {
-  chapel: { monthly: 29, annual: 290 },
-  parish: { monthly: 45, annual: 450 },
-  cathedral: { monthly: 89, annual: 900 },
-  shrine: { monthly: 120, annual: 1200 },
-  basilica: { monthly: 200, annual: 2000 },
+const tierPricing: Record<string, { monthly: number; annual: number; setupFee: number }> = {
+  chapel: { monthly: 39, annual: 468, setupFee: 99 },
+  parish: { monthly: 59, annual: 708, setupFee: 199 },
+  cathedral: { monthly: 109, annual: 1080, setupFee: 349 },
+  shrine: { monthly: 159, annual: 1908, setupFee: 499 },
+  basilica: { monthly: 1250, annual: 15000, setupFee: 0 },
   // Legacy tier names for backward compatibility
+  starter: { monthly: 39, annual: 468, setupFee: 99 },
   small_diocese: { monthly: 59, annual: 708, setupFee: 199 },
   growing: { monthly: 109, annual: 1080, setupFee: 349 },
   conference: { monthly: 159, annual: 1908, setupFee: 499 },
@@ -297,7 +298,7 @@ export default function PendingRequestsPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-green-700">
-                        {(selectedRequest.requestedTier === 'starter' || selectedRequest.requestedTier === 'parish')
+                        {(selectedRequest.requestedTier === 'chapel' || selectedRequest.requestedTier === 'starter' || selectedRequest.requestedTier === 'parish')
                           ? 'Basic Access Fee:'
                           : 'Setup Fee:'}
                       </span>

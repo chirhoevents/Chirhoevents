@@ -41,8 +41,8 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
   chapel: {
     key: 'chapel',
     name: 'Chapel',
-    description: 'Perfect for small parishes or organizations just getting started',
-    monthlyPrice: 29,
+    description: 'Self-serve platform access for small parishes or technically capable users',
+    monthlyPrice: 39,
     annualPrice: null, // Monthly only
     setupFee: 99,
     setupFeeLabel: 'Basic Access Fee',

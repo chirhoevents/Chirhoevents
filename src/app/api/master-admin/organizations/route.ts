@@ -193,14 +193,21 @@ export async function POST(request: NextRequest) {
       sendStripeOnboarding,
     } = body
 
-    // Tier pricing
-    const tierPricing: Record<string, { monthly: number; annual: number; eventsLimit: number; registrationsLimit: number; storageLimit: number }> = {
-      chapel: { monthly: 29, annual: 290, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
-      parish: { monthly: 45, annual: 450, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
-      cathedral: { monthly: 89, annual: 900, eventsLimit: 10, registrationsLimit: 2000, storageLimit: 25 },
-      shrine: { monthly: 120, annual: 1200, eventsLimit: 20, registrationsLimit: 4000, storageLimit: 100 },
-      basilica: { monthly: 200, annual: 15000, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
-      test: { monthly: 0, annual: 0, eventsLimit: 3, registrationsLimit: 100, storageLimit: 1 },
+    // Tier pricing — keyed by current DB enum value 'chapel' (renamed from 'starter').
+    // Legacy keys map to current tiers for backward compatibility.
+    const tierPricing: Record<string, { monthly: number; annual: number; setupFee: number; eventsLimit: number; registrationsLimit: number; storageLimit: number }> = {
+      chapel: { monthly: 39, annual: 468, setupFee: 99, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
+      parish: { monthly: 59, annual: 708, setupFee: 199, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
+      cathedral: { monthly: 109, annual: 1080, setupFee: 349, eventsLimit: 10, registrationsLimit: 2000, storageLimit: 25 },
+      shrine: { monthly: 159, annual: 1908, setupFee: 499, eventsLimit: 20, registrationsLimit: 4000, storageLimit: 100 },
+      basilica: { monthly: 1250, annual: 15000, setupFee: 0, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
+      test: { monthly: 0, annual: 0, setupFee: 0, eventsLimit: 3, registrationsLimit: 100, storageLimit: 1 },
+      // Legacy tier keys (pre-rename)
+      starter: { monthly: 39, annual: 468, setupFee: 99, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
+      small_diocese: { monthly: 59, annual: 708, setupFee: 199, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
+      growing: { monthly: 109, annual: 1080, setupFee: 349, eventsLimit: 10, registrationsLimit: 2000, storageLimit: 25 },
+      conference: { monthly: 159, annual: 1908, setupFee: 499, eventsLimit: 20, registrationsLimit: 4000, storageLimit: 100 },
+      enterprise: { monthly: 1250, annual: 15000, setupFee: 0, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
     }
 
     const pricing = tierPricing[subscriptionTier] || tierPricing.chapel

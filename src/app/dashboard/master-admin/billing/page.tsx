@@ -2666,10 +2666,10 @@ export default function BillingDashboard() {
                 className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2"
               >
                 <option value="">Select a tier...</option>
-                <option value="chapel">Chapel — $29/mo</option>
-                <option value="parish">Parish — $45/mo</option>
-                <option value="cathedral">Cathedral — $89/mo or $900/yr</option>
-                <option value="shrine">Shrine — $120/mo or $1,200/yr</option>
+                <option value="chapel">Chapel — $39/mo</option>
+                <option value="parish">Parish — $59/mo</option>
+                <option value="cathedral">Cathedral — $109/mo or $1,080/yr</option>
+                <option value="shrine">Shrine — $159/mo or $1,908/yr</option>
               </select>
             </div>
             <div>
