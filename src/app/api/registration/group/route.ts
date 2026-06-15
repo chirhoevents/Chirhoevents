@@ -556,6 +556,15 @@ export async function POST(request: NextRequest) {
       const groupLeaderPortalUrl = `${appUrl}/dashboard/group-leader`
       const confirmationPageUrl = `${appUrl}/registration/confirmation/${registration.id}`
 
+      const fullPaymentDeadlineFormatted = event.pricing.fullPaymentDeadline
+        ? new Date(event.pricing.fullPaymentDeadline).toLocaleDateString('en-US', {
+            timeZone: event.timezone || 'America/New_York',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })
+        : undefined
+
       // Prepare email content using new template
       const emailSubject = `Registration Received - ${event.name}`
       const emailHtml = generateGroupRegistrationConfirmationEmail({
@@ -568,6 +577,7 @@ export async function POST(request: NextRequest) {
         totalAmount,
         depositAmount,
         balanceRemaining,
+        fullPaymentDeadline: fullPaymentDeadlineFormatted,
         paymentMethod: 'check',
         checkPayableTo: eventSettings?.checkPaymentPayableTo || event.organization.name,
         checkMailingAddress: eventSettings?.checkPaymentAddress || undefined,

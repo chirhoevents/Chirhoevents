@@ -26,6 +26,9 @@ export async function GET(
           select: {
             name: true,
             organizationId: true,
+            pricing: {
+              select: { fullPaymentDeadline: true },
+            },
             settings: {
               select: {
                 contactEmail: true,
@@ -124,6 +127,7 @@ export async function GET(
         depositPaid,
         totalAmount,
         balanceRemaining,
+        fullPaymentDeadline: registration.event.pricing?.fullPaymentDeadline ?? null,
         registrationStatus: registration.registrationStatus,
         organizationName: registration.event.organization.name,
         organizationLogoUrl: registration.event.organization.logoUrl,

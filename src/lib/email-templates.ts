@@ -2275,6 +2275,7 @@ export function generateGroupRegistrationConfirmationEmail({
   totalAmount,
   depositAmount,
   balanceRemaining,
+  fullPaymentDeadline,
   paymentMethod,
   checkPayableTo,
   checkMailingAddress,
@@ -2296,6 +2297,7 @@ export function generateGroupRegistrationConfirmationEmail({
   totalAmount: number
   depositAmount: number
   balanceRemaining: number
+  fullPaymentDeadline?: string
   paymentMethod: 'card' | 'check'
   checkPayableTo?: string
   checkMailingAddress?: string
@@ -2381,10 +2383,15 @@ export function generateGroupRegistrationConfirmationEmail({
             ${emailDetailRow('Total Amount', formatCurrency(totalAmount))}
             ${emailDetailRow('Deposit Paid', formatCurrency(depositAmount))}
             ${emailDetailRow('Balance Remaining', formatCurrency(balanceRemaining))}
+            ${balanceRemaining > 0 && fullPaymentDeadline ? emailDetailRow('Full Payment Due By', fullPaymentDeadline) : ''}
           </table>
         </td>
       </tr>
     </table>
+
+    ${balanceRemaining > 0 && fullPaymentDeadline ? emailInfoBox(`
+      <strong>Full Payment Due By ${fullPaymentDeadline}.</strong> You can make payments anytime in your Group Leader Portal.
+    `, 'warning') : ''}
 
     ${paymentSection}
 
