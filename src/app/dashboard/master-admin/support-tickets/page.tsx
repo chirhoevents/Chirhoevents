@@ -14,11 +14,12 @@ import {
   MessageSquare,
   Building2,
   User,
+  Mail,
 } from 'lucide-react'
 
 interface SupportTicket {
   id: string
-  ticketNumber: number
+  ticketNumber: number | string
   subject: string
   category: string
   priority: 'low' | 'medium' | 'high' | 'urgent'
@@ -42,6 +43,29 @@ interface SupportTicket {
     messages: number
   }
 }
+
+interface InboundTicket {
+  id: string
+  ticketNumber: number
+  subject: string
+  category: string
+  priority: 'low' | 'medium' | 'high' | 'urgent'
+  status: 'open' | 'in_progress' | 'waiting_on_customer' | 'resolved' | 'closed'
+  createdAt: string
+  updatedAt: string
+  fromEmail: string
+  fromName: string | null
+  assignedToUser?: {
+    firstName: string
+    lastName: string
+  }
+  messageCount: number
+  source: 'inbound'
+}
+
+type UnifiedTicket =
+  | (SupportTicket & { source: 'app' })
+  | InboundTicket
 
 interface StatusCounts {
   all: number
@@ -70,6 +94,7 @@ const priorityConfig = {
 export default function SupportTicketsPage() {
   const { getToken } = useAuth()
   const [tickets, setTickets] = useState<SupportTicket[]>([])
+  const [inboundTickets, setInboundTickets] = useState<InboundTicket[]>([])
   const [counts, setCounts] = useState<StatusCounts>({
     all: 0, open: 0, in_progress: 0, waiting_on_customer: 0, resolved: 0, closed: 0
   })
@@ -96,6 +121,7 @@ export default function SupportTicketsPage() {
 
       const data = await response.json()
       setTickets(data.tickets)
+      setInboundTickets(data.inboundTickets || [])
       setCounts(data.counts)
     } catch (error) {
       console.error('Error fetching tickets:', error)
@@ -104,14 +130,25 @@ export default function SupportTicketsPage() {
     }
   }
 
-  const filteredTickets = tickets.filter((ticket) => {
+  const appTickets: UnifiedTicket[] = tickets.map((t) => ({ ...t, source: 'app' as const }))
+  const allTickets: UnifiedTicket[] = [...appTickets, ...inboundTickets].sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+  )
+
+  const filteredTickets = allTickets.filter((ticket) => {
     if (!searchQuery) return true
     const query = searchQuery.toLowerCase()
-    return (
-      ticket.subject.toLowerCase().includes(query) ||
-      ticket.organization.name.toLowerCase().includes(query) ||
-      ticket.ticketNumber.toString().includes(query)
-    )
+    const subjectMatches = ticket.subject.toLowerCase().includes(query)
+    const numberMatches = ticket.ticketNumber.toString().includes(query)
+    if (ticket.source === 'inbound') {
+      return (
+        subjectMatches ||
+        numberMatches ||
+        ticket.fromEmail.toLowerCase().includes(query) ||
+        (ticket.fromName?.toLowerCase().includes(query) ?? false)
+      )
+    }
+    return subjectMatches || numberMatches || ticket.organization.name.toLowerCase().includes(query)
   })
 
   const formatDate = (dateString: string) => {
@@ -222,15 +259,19 @@ export default function SupportTicketsPage() {
           <div className="divide-y divide-gray-200">
             {filteredTickets.map((ticket) => {
               const StatusIcon = statusConfig[ticket.status].icon
+              const isInbound = ticket.source === 'inbound'
+              const href = isInbound
+                ? `/dashboard/master-admin/emails?ticket=${ticket.ticketNumber}`
+                : `/dashboard/master-admin/support-tickets/${ticket.id}`
               return (
                 <Link
-                  key={ticket.id}
-                  href={`/dashboard/master-admin/support-tickets/${ticket.id}`}
+                  key={`${ticket.source}-${ticket.id}`}
+                  href={href}
                   className="block p-4 hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className="text-sm font-mono text-gray-500">
                           #{ticket.ticketNumber}
                         </span>
@@ -241,22 +282,37 @@ export default function SupportTicketsPage() {
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${priorityConfig[ticket.priority].color}`}>
                           {priorityConfig[ticket.priority].label}
                         </span>
+                        {isInbound && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+                            <Mail className="h-3 w-3" />
+                            Email
+                          </span>
+                        )}
                       </div>
                       <h3 className="font-medium text-gray-900 truncate">
                         {ticket.subject}
                       </h3>
                       <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                        <span className="flex items-center gap-1">
-                          <Building2 className="h-4 w-4" />
-                          {ticket.organization.name}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <User className="h-4 w-4" />
-                          {ticket.submittedByUser.firstName} {ticket.submittedByUser.lastName}
-                        </span>
+                        {isInbound ? (
+                          <span className="flex items-center gap-1">
+                            <Mail className="h-4 w-4" />
+                            {ticket.fromName ? `${ticket.fromName} <${ticket.fromEmail}>` : ticket.fromEmail}
+                          </span>
+                        ) : (
+                          <>
+                            <span className="flex items-center gap-1">
+                              <Building2 className="h-4 w-4" />
+                              {ticket.organization.name}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <User className="h-4 w-4" />
+                              {ticket.submittedByUser.firstName} {ticket.submittedByUser.lastName}
+                            </span>
+                          </>
+                        )}
                         <span className="flex items-center gap-1">
                           <MessageSquare className="h-4 w-4" />
-                          {ticket._count.messages} messages
+                          {isInbound ? ticket.messageCount : ticket._count.messages} messages
                         </span>
                       </div>
                     </div>

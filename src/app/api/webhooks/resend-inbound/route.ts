@@ -6,6 +6,35 @@ import { wrapEmail, emailInfoBox } from '@/lib/email-templates'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
+// Address used as the From: on outbound replies. Choose an address that is NOT
+// configured in EmailForward so recipient "Reply" responses don't loop back
+// into the support inbox and spawn new tickets. Falls back to RESEND_FROM_EMAIL.
+function getReplyFromEmail(): string {
+  return (
+    process.env.RESEND_REPLY_FROM_EMAIL ||
+    process.env.RESEND_FROM_EMAIL ||
+    'notifications@chirhoevents.com'
+  )
+}
+
+// Pull a ticket number out of "[Ticket #123]" markers in the subject or the
+// In-Reply-To / References headers we previously embedded.
+function extractTicketNumber(...candidates: (string | string[] | null | undefined)[]): number | null {
+  const pattern = /\[Ticket\s*#(\d+)\]/i
+  for (const c of candidates) {
+    if (!c) continue
+    const values = Array.isArray(c) ? c : [c]
+    for (const v of values) {
+      const m = v?.match(pattern)
+      if (m) {
+        const n = parseInt(m[1], 10)
+        if (!Number.isNaN(n)) return n
+      }
+    }
+  }
+  return null
+}
+
 // Verify webhook signature from Resend (uses Svix)
 function verifyWebhookSignature(
   body: string,
@@ -157,7 +186,56 @@ async function handleInboundEmail(emailData: any) {
 
     console.log('[Resend Webhook] Email saved to database:', receivedEmail.id)
 
-    // 2. Find routing config for the TO address
+    // 2. If this email references an existing ticket (via [Ticket #N] in the
+    //    subject or In-Reply-To/References headers), thread it as a reply
+    //    rather than creating a new ticket. Stops the auto-reply ping-pong.
+    const referencedTicketNumber = extractTicketNumber(
+      emailData.subject,
+      emailData.in_reply_to,
+      emailData.references,
+    )
+
+    if (referencedTicketNumber) {
+      const existingTicket = await prisma.inboundSupportTicket.findUnique({
+        where: { ticketNumber: referencedTicketNumber },
+      })
+
+      if (existingTicket) {
+        const fromMatch = (emailData.from || '').match(/^(.*?)\s*<(.+?)>$/)
+        const senderEmail = fromMatch ? fromMatch[2].trim() : (emailData.from || 'unknown@unknown.com')
+
+        await prisma.inboundTicketReply.create({
+          data: {
+            ticketId: existingTicket.id,
+            fromEmail: senderEmail,
+            message: textBody || htmlBody || '(No message body)',
+            isInternal: false,
+          },
+        })
+
+        // Reopen tickets that had moved past waiting/resolved so they show up again.
+        if (
+          existingTicket.status === 'waiting_reply' ||
+          existingTicket.status === 'resolved' ||
+          existingTicket.status === 'closed'
+        ) {
+          await prisma.inboundSupportTicket.update({
+            where: { id: existingTicket.id },
+            data: { status: 'open' },
+          })
+        }
+
+        await prisma.receivedEmail.update({
+          where: { id: receivedEmail.id },
+          data: { processed: true, processedAt: new Date() },
+        })
+
+        console.log('[Resend Webhook] Reply threaded into ticket #', referencedTicketNumber)
+        return
+      }
+    }
+
+    // 3. Find routing config for the TO address
     const toAddress = (emailData.to?.[0] || '').toLowerCase()
 
     const forwardConfig = await prisma.emailForward.findFirst({
@@ -170,19 +248,22 @@ async function handleInboundEmail(emailData: any) {
       },
     })
 
-    // 3. Create support ticket if configured (or by default)
+    // 4. Only create tickets / auto-reply for addresses explicitly opted in.
+    //    Emails to anything else (events@, noreply@, outreach@…) are stored
+    //    in ReceivedEmail and viewable in the master-admin Emails inbox,
+    //    but don't generate a ticket or auto-response.
     let ticket = null
-    if (!forwardConfig || forwardConfig.createTicket) {
+    if (forwardConfig?.createTicket) {
       ticket = await createInboundTicket(emailData, receivedEmail.id, textBody, htmlBody)
       console.log('[Resend Webhook] Inbound ticket created:', ticket.ticketNumber)
 
-      // 4. Send auto-reply if configured
-      if (forwardConfig?.autoReply && forwardConfig.autoReplyText) {
+      if (forwardConfig.autoReply && forwardConfig.autoReplyText) {
         await sendAutoReply(emailData, ticket.ticketNumber, forwardConfig.autoReplyText)
-      } else if (!forwardConfig) {
-        // Default auto-reply for unconfigured addresses
+      } else if (forwardConfig.autoReply) {
         await sendDefaultAutoReply(emailData, ticket.ticketNumber)
       }
+    } else {
+      console.log('[Resend Webhook] No ticket created — address not configured for tickets:', toAddress)
     }
 
     // 5. Forward email if configured
@@ -259,7 +340,7 @@ async function sendAutoReply(emailData: any, ticketNumber: number, autoReplyTemp
     .replace(/#{ticket_number}/g, `#${ticketNumber}`)
 
   try {
-    const fromEmail = process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'
+    const fromEmail = getReplyFromEmail()
 
     await resend.emails.send({
       from: `ChiRho Events Support <${fromEmail}>`,
@@ -297,7 +378,7 @@ async function sendDefaultAutoReply(emailData: any, ticketNumber: number) {
   console.log('[Resend Webhook] Sending default auto-reply...')
 
   try {
-    const fromEmail = process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'
+    const fromEmail = getReplyFromEmail()
 
     await resend.emails.send({
       from: `ChiRho Events Support <${fromEmail}>`,
