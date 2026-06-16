@@ -653,14 +653,22 @@ export default function IndividualRegistrationPage() {
                   </CardContent>
                 </Card>
 
-                {/* Ticket Type Selection */}
+                {/* Ticket Type & Housing - only render if there's a choice to make */}
+                {((event?.settings?.allowDayPass && event.dayPassOptions && event.dayPassOptions.length > 0) || (event?.settings?.porosHousingEnabled && !event?.isOneDayEvent)) && (
                 <Card className="mb-6">
                   <CardHeader>
-                    <CardTitle>Ticket Type</CardTitle>
-                    <CardDescription>Select your registration type</CardDescription>
+                    <CardTitle>
+                      {(event?.settings?.allowDayPass && event.dayPassOptions && event.dayPassOptions.length > 0)
+                        ? (event?.settings?.porosHousingEnabled && !event?.isOneDayEvent ? 'Ticket Type & Housing' : 'Ticket Type')
+                        : 'Housing'}
+                    </CardTitle>
+                    {(event?.settings?.allowDayPass && event.dayPassOptions && event.dayPassOptions.length > 0) && (
+                      <CardDescription>Select your registration type</CardDescription>
+                    )}
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {/* Ticket Type Selection */}
+                    {/* Ticket Type Selection - only when day pass is available */}
+                    {event?.settings?.allowDayPass && event.dayPassOptions && event.dayPassOptions.length > 0 && (
                     <div className="space-y-3">
                       <label className="block text-sm font-medium text-navy mb-2">
                         Select Ticket Type *
@@ -691,34 +699,33 @@ export default function IndividualRegistrationPage() {
                           </div>
                         </div>
 
-                        {/* Day Pass Option - Only show if day pass is enabled */}
-                        {event?.settings?.allowDayPass && event.dayPassOptions && event.dayPassOptions.length > 0 && (
-                          <div
-                            className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                              formData.ticketType === 'day_pass'
-                                ? 'border-gold bg-gold/5'
-                                : 'border-gray-200 hover:border-gray-300'
-                            }`}
-                            onClick={() => setFormData({ ...formData, ticketType: 'day_pass', wantsHousing: false })}
-                          >
-                            <div className="flex items-center space-x-3">
-                              <input
-                                type="radio"
-                                name="ticketType"
-                                value="day_pass"
-                                checked={formData.ticketType === 'day_pass'}
-                                onChange={() => setFormData({ ...formData, ticketType: 'day_pass', wantsHousing: false })}
-                                className="w-4 h-4 text-gold"
-                              />
-                              <div>
-                                <p className="font-semibold text-navy">Day Pass</p>
-                                <p className="text-sm text-gray-600">Single day attendance (no housing)</p>
-                              </div>
+                        {/* Day Pass Option */}
+                        <div
+                          className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                            formData.ticketType === 'day_pass'
+                              ? 'border-gold bg-gold/5'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                          onClick={() => setFormData({ ...formData, ticketType: 'day_pass', wantsHousing: false })}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <input
+                              type="radio"
+                              name="ticketType"
+                              value="day_pass"
+                              checked={formData.ticketType === 'day_pass'}
+                              onChange={() => setFormData({ ...formData, ticketType: 'day_pass', wantsHousing: false })}
+                              className="w-4 h-4 text-gold"
+                            />
+                            <div>
+                              <p className="font-semibold text-navy">Day Pass</p>
+                              <p className="text-sm text-gray-600">Single day attendance (no housing)</p>
                             </div>
                           </div>
-                        )}
+                        </div>
                       </div>
                     </div>
+                    )}
 
                     {/* Day Pass Option Selection */}
                     {formData.ticketType === 'day_pass' && event?.dayPassOptions && event.dayPassOptions.length > 0 && (
@@ -827,6 +834,7 @@ export default function IndividualRegistrationPage() {
                     )}
                   </CardContent>
                 </Card>
+                )}
 
                 {/* Dietary & Accommodations */}
                 <Card className="mb-6">
