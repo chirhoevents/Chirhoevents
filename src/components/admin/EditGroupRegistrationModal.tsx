@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
@@ -222,7 +222,7 @@ export default function EditGroupRegistrationModal({
           })
       })
     }
-  }, [registration, isOpen])
+  }, [registration, isOpen, getToken])
 
   // Fetch event pricing if not provided as prop
   useEffect(() => {
@@ -508,7 +508,7 @@ export default function EditGroupRegistrationModal({
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const fetchAuditTrail = async () => {
+  const fetchAuditTrail = useCallback(async () => {
     if (!registration) return
 
     setLoadingAuditTrail(true)
@@ -527,14 +527,14 @@ export default function EditGroupRegistrationModal({
     } finally {
       setLoadingAuditTrail(false)
     }
-  }
+  }, [registration, getToken])
 
   // Fetch audit trail when Updates tab is activated
   useEffect(() => {
     if (activeTab === 'updates' && registration && auditTrail.length === 0) {
       fetchAuditTrail()
     }
-  }, [activeTab, registration])
+  }, [activeTab, registration, auditTrail.length, fetchAuditTrail])
 
   const difference = newTotal - originalTotal
 
