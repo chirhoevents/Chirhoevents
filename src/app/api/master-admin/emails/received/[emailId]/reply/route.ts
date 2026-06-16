@@ -144,8 +144,13 @@ export async function POST(
       </div>
     `, { organizationName: 'ChiRho Events' })
 
-    // Send the reply
-    const fromEmail = process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'
+    // Send the reply from a non-ticket-creating address so when the recipient
+    // hits "Reply", their response doesn't land back in the support inbox and
+    // spawn a new ticket.
+    const fromEmail =
+      process.env.RESEND_REPLY_FROM_EMAIL ||
+      process.env.RESEND_FROM_EMAIL ||
+      'notifications@chirhoevents.com'
 
     const result = await resend.emails.send({
       from: `ChiRho Events Support <${fromEmail}>`,
