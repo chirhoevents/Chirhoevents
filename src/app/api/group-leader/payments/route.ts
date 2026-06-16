@@ -32,6 +32,9 @@ export async function GET(request: NextRequest) {
             id: true,
             name: true,
             organizationId: true,
+            pricing: {
+              select: { fullPaymentDeadline: true },
+            },
           },
         },
       },
@@ -71,6 +74,7 @@ export async function GET(request: NextRequest) {
             lateFeesApplied: Number(paymentBalance.lateFeesApplied),
             lastPaymentDate: paymentBalance.lastPaymentDate,
             paymentStatus: paymentBalance.paymentStatus,
+            fullPaymentDeadline: groupRegistration.event.pricing?.fullPaymentDeadline ?? null,
           }
         : null,
       payments: payments.map((payment: any) => ({

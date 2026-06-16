@@ -60,6 +60,9 @@ export async function GET(request: NextRequest) {
             name: true,
             startDate: true,
             endDate: true,
+            pricing: {
+              select: { fullPaymentDeadline: true },
+            },
           }
         },
         participants: {
@@ -120,9 +123,9 @@ export async function GET(request: NextRequest) {
     const endDate = new Date(groupRegistration.event.endDate)
     const eventDates = `${startDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`
 
-    // Check if payment is overdue
-    // TODO: Calculate based on due date vs current date
-    const isOverdue = false
+    const fullPaymentDeadline = groupRegistration.event.pricing?.fullPaymentDeadline ?? null
+    const balanceRemaining = Number(paymentBalance?.amountRemaining || 0)
+    const isOverdue = !!(fullPaymentDeadline && balanceRemaining > 0 && new Date(fullPaymentDeadline) < new Date())
 
     return NextResponse.json({
       groupId: groupRegistration.id,
@@ -134,8 +137,8 @@ export async function GET(request: NextRequest) {
       payment: {
         totalAmount: Number(paymentBalance?.totalAmountDue || 0),
         paidAmount: Number(paymentBalance?.amountPaid || 0),
-        balanceRemaining: Number(paymentBalance?.amountRemaining || 0),
-        dueDate: null, // TODO: Get from event pricing
+        balanceRemaining,
+        dueDate: fullPaymentDeadline,
         status: paymentBalance?.paymentStatus || 'unpaid',
         isOverdue,
         lateFeeApplied: Number(paymentBalance?.lateFeesApplied || 0),

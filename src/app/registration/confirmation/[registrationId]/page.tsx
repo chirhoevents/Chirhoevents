@@ -20,6 +20,7 @@ interface RegistrationData {
   depositPaid?: number
   totalAmount?: number
   balanceRemaining?: number
+  fullPaymentDeadline?: string | null
   registrationStatus: string
   organizationName: string
   organizationLogoUrl?: string | null
@@ -78,6 +79,13 @@ export default function ConfirmationPage() {
   const depositPaid = registration?.depositPaid ?? urlAmountPaid ?? 0
   const totalAmount = registration?.totalAmount ?? urlAmountPaid ?? 0
   const balanceRemaining = registration?.balanceRemaining ?? (totalAmount - depositPaid)
+  const fullPaymentDeadlineFormatted = registration?.fullPaymentDeadline
+    ? new Date(registration.fullPaymentDeadline).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : null
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
 
   const handleDownloadReceipt = () => {
@@ -177,7 +185,7 @@ export default function ConfirmationPage() {
       ${balanceRemaining > 0 ? `
         <div class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
           <p class="text-sm text-blue-800">
-            <strong>Payment Due:</strong> Your balance is due before the event. Make payments anytime in your Group Leader Portal.
+            <strong>Payment Due:</strong> Your balance ${fullPaymentDeadlineFormatted ? `is due by ${fullPaymentDeadlineFormatted}` : 'is due before the event'}. Make payments anytime in your Group Leader Portal.
           </p>
         </div>
       ` : `
@@ -384,8 +392,11 @@ export default function ConfirmationPage() {
               {balanceRemaining > 0 && (
                 <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
                   <p className="text-sm text-blue-900">
-                    <strong>Payment Due:</strong> Your balance of ${balanceRemaining.toFixed(2)} is due before the event.
-                    You can make payments anytime using your access code in the Group Leader Portal.
+                    <strong>Payment Due:</strong> Your balance of ${balanceRemaining.toFixed(2)}
+                    {fullPaymentDeadlineFormatted
+                      ? ` is due by ${fullPaymentDeadlineFormatted}.`
+                      : ' is due before the event.'}
+                    {' '}You can make payments anytime using your access code in the Group Leader Portal.
                   </p>
                 </div>
               )}
