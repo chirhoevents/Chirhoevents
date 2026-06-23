@@ -31,11 +31,11 @@ const organizationTypes = [
 ]
 
 const eventRanges = [
-  { value: '1-3', label: '1-3 events', tier: 'chapel' },
-  { value: '4-5', label: '4-5 events', tier: 'parish' },
-  { value: '6-10', label: '6-10 events', tier: 'cathedral' },
-  { value: '11-25', label: '11-25 events', tier: 'shrine' },
-  { value: '25+', label: '25+ events', tier: 'basilica' },
+  { value: '1', label: '1 event', tier: 'chapel' },
+  { value: '2-3', label: '2-3 events', tier: 'parish' },
+  { value: '4-5', label: '4-5 events', tier: 'cathedral' },
+  { value: '6-10', label: '6-10 events', tier: 'shrine' },
+  { value: '10+', label: '10+ events', tier: 'basilica' },
 ]
 
 const attendeeRanges = [
@@ -611,7 +611,7 @@ export default function GetStartedPage() {
             </label>
 
             <div className="bg-[#F5F1E8] rounded-lg p-4 text-sm text-gray-700">
-              After approval, you&apos;ll receive an invoice for the $250 setup fee and your first subscription payment.
+              After approval, you&apos;ll receive an invoice for your plan&apos;s setup fee (varies by tier: $50 for Chapel/Parish, $250 for Cathedral, $400 for Shrine, custom for Basilica) and your first subscription payment. Extra one-on-one help, training, or custom setup work is available at $90/hour.
             </div>
 
             <button

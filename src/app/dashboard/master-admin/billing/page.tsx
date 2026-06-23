@@ -310,6 +310,7 @@ export default function BillingDashboard() {
     paymentType: 'subscription',
     amount: '',
     description: '',
+    hours: '',
     paymentMethod: 'check',
     paymentDate: format(new Date(), 'yyyy-MM-dd'),
     checkNumber: '',
@@ -338,10 +339,14 @@ export default function BillingDashboard() {
     invoiceType: 'subscription',
     amount: '',
     description: '',
+    hours: '',
     dueDate: format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
     periodStart: format(new Date(), 'yyyy-MM-dd'),
     periodEnd: format(new Date(new Date().setFullYear(new Date().getFullYear() + 1)), 'yyyy-MM-dd'),
   })
+
+  // Hourly rate for the "Extra Help" line item. Mirrors PLATFORM_FEES.extraHelpHourlyRate.
+  const EXTRA_HELP_HOURLY_RATE = 90
 
   // Pause subscription modal state
   const [showPauseModal, setShowPauseModal] = useState(false)
@@ -1549,7 +1554,8 @@ export default function BillingDashboard() {
                   <div className="mt-2 space-y-2">
                     {[
                       { value: 'subscription', label: 'Subscription Payment' },
-                      { value: 'setup_fee', label: 'Setup Fee ($250)' },
+                      { value: 'setup_fee', label: 'Setup Fee' },
+                      { value: 'extra_help', label: `Extra Help ($${EXTRA_HELP_HOURLY_RATE}/hr)` },
                       { value: 'overage', label: 'Overage Charge' },
                       { value: 'custom', label: 'Custom Payment' },
                     ].map((type) => (
@@ -1560,15 +1566,22 @@ export default function BillingDashboard() {
                           value={type.value}
                           checked={processPaymentForm.paymentType === type.value}
                           onChange={(e) => {
-                            let amount = processPaymentForm.amount
-                            if (e.target.value === 'setup_fee') {
-                              amount = '250'
-                            }
-                            setProcessPaymentForm({
+                            const next = {
                               ...processPaymentForm,
                               paymentType: e.target.value,
-                              amount,
-                            })
+                            }
+                            if (e.target.value === 'extra_help') {
+                              next.hours = processPaymentForm.hours || '1'
+                              next.amount = String(
+                                Number(next.hours || '0') * EXTRA_HELP_HOURLY_RATE
+                              )
+                              if (!processPaymentForm.description) {
+                                next.description = `Extra help (${next.hours} hr @ $${EXTRA_HELP_HOURLY_RATE}/hr)`
+                              }
+                            } else {
+                              next.hours = ''
+                            }
+                            setProcessPaymentForm(next)
                           }}
                           className="text-purple-600"
                         />
@@ -1577,6 +1590,37 @@ export default function BillingDashboard() {
                     ))}
                   </div>
                 </div>
+
+                {/* Hours (Extra Help only) */}
+                {processPaymentForm.paymentType === 'extra_help' && (
+                  <div>
+                    <Label htmlFor="extraHelpHours" className="text-sm font-medium text-gray-700">
+                      Hours *
+                    </Label>
+                    <Input
+                      id="extraHelpHours"
+                      type="number"
+                      step="0.25"
+                      min="0"
+                      value={processPaymentForm.hours}
+                      onChange={(e) => {
+                        const hours = e.target.value
+                        const numericHours = Number(hours || '0')
+                        setProcessPaymentForm({
+                          ...processPaymentForm,
+                          hours,
+                          amount: hours ? String(numericHours * EXTRA_HELP_HOURLY_RATE) : '',
+                          description: `Extra help (${hours || 0} hr @ $${EXTRA_HELP_HOURLY_RATE}/hr)`,
+                        })
+                      }}
+                      className="mt-1"
+                      placeholder="e.g., 2"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Billed at ${EXTRA_HELP_HOURLY_RATE}/hour for consultation, training, or custom setup work.
+                    </p>
+                  </div>
+                )}
 
                 {/* Amount */}
                 <div>
@@ -2323,24 +2367,60 @@ export default function BillingDashboard() {
               <select
                 value={createInvoiceForm.invoiceType}
                 onChange={(e) => {
-                  let amount = createInvoiceForm.amount
-                  if (e.target.value === 'setup_fee') {
-                    amount = '250'
-                  }
-                  setCreateInvoiceForm({
+                  const next = {
                     ...createInvoiceForm,
                     invoiceType: e.target.value,
-                    amount,
-                  })
+                  }
+                  if (e.target.value === 'extra_help') {
+                    next.hours = createInvoiceForm.hours || '1'
+                    next.amount = String(Number(next.hours || '0') * EXTRA_HELP_HOURLY_RATE)
+                    if (!createInvoiceForm.description) {
+                      next.description = `Extra help (${next.hours} hr @ $${EXTRA_HELP_HOURLY_RATE}/hr)`
+                    }
+                  } else {
+                    next.hours = ''
+                  }
+                  setCreateInvoiceForm(next)
                 }}
                 className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2"
               >
                 <option value="subscription">Subscription</option>
                 <option value="setup_fee">Setup Fee</option>
                 <option value="reactivation_fee">Reactivation Fee</option>
+                <option value="extra_help">Extra Help (${EXTRA_HELP_HOURLY_RATE}/hr)</option>
                 <option value="custom">Custom</option>
               </select>
             </div>
+
+            {createInvoiceForm.invoiceType === 'extra_help' && (
+              <div>
+                <Label htmlFor="invoiceExtraHelpHours" className="text-sm font-medium text-gray-700">
+                  Hours *
+                </Label>
+                <Input
+                  id="invoiceExtraHelpHours"
+                  type="number"
+                  step="0.25"
+                  min="0"
+                  value={createInvoiceForm.hours}
+                  onChange={(e) => {
+                    const hours = e.target.value
+                    const numericHours = Number(hours || '0')
+                    setCreateInvoiceForm({
+                      ...createInvoiceForm,
+                      hours,
+                      amount: hours ? String(numericHours * EXTRA_HELP_HOURLY_RATE) : '',
+                      description: `Extra help (${hours || 0} hr @ $${EXTRA_HELP_HOURLY_RATE}/hr)`,
+                    })
+                  }}
+                  className="mt-1"
+                  placeholder="e.g., 2"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Billed at ${EXTRA_HELP_HOURLY_RATE}/hour for consultation, training, or custom setup work.
+                </p>
+              </div>
+            )}
 
             <div>
               <Label htmlFor="invoiceAmount" className="text-sm font-medium text-gray-700">

@@ -20,7 +20,7 @@ const faqCategories = [
       },
       {
         q: "What subscription plan is right for me?",
-        a: "It depends on how many events you run per year and how many participants you expect. The Chapel plan ($29/mo) works for small parishes with up to 3 events and 500 people. For diocesan-level events, consider Cathedral ($89/mo) or Shrine ($120/mo) plans. Cathedral and above include POROS, SALVE, and RAPHA modules."
+        a: "It depends on how many events you run per year and how many participants you expect. The Chapel plan ($39/mo) works for small parishes with 1 event and up to 500 people. Parish ($59/mo) covers up to 3 events and 750 people. For diocesan-level events, consider Cathedral ($109/mo, 5 events / 1,250 people) or Shrine ($159/mo, 10 events / 3,000 people). Cathedral and above include POROS, SALVE, and RAPHA modules plus a 1-hour setup phone call. Basilica is custom, starting at $5,000/year."
       },
       {
         q: "How long does setup take?",
@@ -35,7 +35,7 @@ const faqCategories = [
     questions: [
       {
         q: "What fees does ChiRho charge?",
-        a: "ChiRho charges a 1% platform fee on all event registrations plus a monthly or annual subscription fee based on your plan. Standard Stripe processing fees (2.9% + $0.30) also apply to credit card transactions. There's also a one-time $250 setup fee."
+        a: "ChiRho charges a 1% platform fee on all event registrations plus a monthly or annual subscription fee based on your plan. Standard Stripe processing fees (2.9% + $0.30) also apply to credit card transactions. There's also a one-time setup fee that varies by plan: $50 for Chapel/Parish (basic access), $250 for Cathedral, $400 for Shrine, and custom for Basilica. Need extra help, training, or custom setup work? We're available at $90/hour."
       },
       {
         q: "Can I pay by check?",
@@ -47,7 +47,7 @@ const faqCategories = [
       },
       {
         q: "Can I cancel anytime?",
-        a: "Yes! You can cancel your subscription at any time with no penalties. Your data is archived and can be reactivated for a $75-$250 fee depending on your plan."
+        a: "Yes! You can cancel your subscription at any time with no penalties. Your data is archived and can be reactivated for a $75-$400 fee depending on your plan."
       },
       {
         q: "How do refunds work for participants?",

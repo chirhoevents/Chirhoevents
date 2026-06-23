@@ -19,6 +19,7 @@ import {
   AlertCircle,
   Clock
 } from 'lucide-react'
+import { getTier, SUBSCRIPTION_TIERS } from '@/lib/subscription-tiers'
 
 interface OnboardingRequest {
   id: string
@@ -36,32 +37,16 @@ interface OnboardingRequest {
   createdAt: string
 }
 
-const tierLabels: Record<string, string> = {
-  chapel: 'Chapel',
-  parish: 'Parish',
-  cathedral: 'Cathedral',
-  shrine: 'Shrine',
-  basilica: 'Basilica',
-  // Legacy tier names for backward compatibility
-  starter: 'Chapel',
-  small_diocese: 'Parish',
-  growing: 'Cathedral',
-  conference: 'Shrine',
-  enterprise: 'Basilica',
-}
+const tierLabels: Record<string, string> = Object.fromEntries(
+  Object.values(SUBSCRIPTION_TIERS).map(tier => [tier.key, tier.name])
+)
 
-const tierPricing: Record<string, { monthly: number; annual: number }> = {
-  chapel: { monthly: 29, annual: 290 },
-  parish: { monthly: 45, annual: 450 },
-  cathedral: { monthly: 89, annual: 900 },
-  shrine: { monthly: 120, annual: 1200 },
-  basilica: { monthly: 200, annual: 2000 },
-  // Legacy tier names for backward compatibility
-  small_diocese: { monthly: 45, annual: 450 },
-  growing: { monthly: 89, annual: 890 },
-  conference: { monthly: 120, annual: 1200 },
-  enterprise: { monthly: 200, annual: 2000 },
-}
+const tierPricing: Record<string, { monthly: number; annual: number }> = Object.fromEntries(
+  Object.values(SUBSCRIPTION_TIERS).map(tier => [
+    tier.key,
+    { monthly: tier.monthlyPrice, annual: tier.annualPrice ?? tier.monthlyPrice * 12 },
+  ])
+)
 
 export default function PendingRequestsPage() {
   const router = useRouter()
@@ -157,12 +142,20 @@ export default function PendingRequestsPage() {
   }
 
   const calculateRevenuePotential = (request: OnboardingRequest) => {
-    const tier = request.requestedTier || 'cathedral'
-    const pricing = tierPricing[tier] || tierPricing.cathedral
+    const tierKey = request.requestedTier || 'cathedral'
+    const tier = getTier(tierKey)
+    const pricing = tierPricing[tierKey] || tierPricing.cathedral
     const isAnnual = request.billingCyclePreference === 'annual'
     const subscriptionAmount = isAnnual ? pricing.annual : pricing.monthly * 12
-    const setupFee = 250
+    const setupFee = tier?.setupFee ?? 0
     return subscriptionAmount + setupFee
+  }
+
+  const getSetupFeeDisplay = (request: OnboardingRequest) => {
+    const tier = getTier(request.requestedTier || 'cathedral')
+    if (!tier) return '$0'
+    if (tier.setupFee === null) return 'Custom'
+    return `$${tier.setupFee}`
   }
 
   const pendingRequests = requests.filter(r => r.status === 'pending')
@@ -297,8 +290,8 @@ export default function PendingRequestsPage() {
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-green-700">Setup Fee:</span>
-                      <span className="font-medium text-green-900">$250</span>
+                      <span className="text-green-700">{tierLabels[selectedRequest.requestedTier] ? `${getTier(selectedRequest.requestedTier)?.setupFeeLabel ?? 'Setup Fee'}:` : 'Setup Fee:'}</span>
+                      <span className="font-medium text-green-900">{getSetupFeeDisplay(selectedRequest)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-green-700">
