@@ -191,11 +191,19 @@ export async function POST(request: NextRequest) {
     // Generate payment token for online payment link
     const paymentToken = generatePaymentToken()
 
+    // 'extra_help' is a UI-only invoice category for billing hourly consulting
+    // work; it persists as 'custom' in the database. The description carries
+    // the hours/rate breakdown.
+    const persistedInvoiceType: 'setup_fee' | 'subscription' | 'reactivation_fee' | 'custom' =
+      invoiceType === 'extra_help'
+        ? 'custom'
+        : (invoiceType as 'setup_fee' | 'subscription' | 'reactivation_fee' | 'custom')
+
     const invoice = await prisma.invoice.create({
       data: {
         organizationId,
         invoiceNumber: nextInvoiceNumber,
-        invoiceType: invoiceType as 'setup_fee' | 'subscription' | 'reactivation_fee' | 'custom',
+        invoiceType: persistedInvoiceType,
         amount: parseFloat(amount),
         description: description || null,
         lineItems: lineItems || null,

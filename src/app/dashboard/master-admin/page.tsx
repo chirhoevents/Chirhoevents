@@ -378,23 +378,23 @@ export default function MasterAdminDashboard() {
 
           <div className="space-y-3">
             <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Chapel ($29/mo)</span>
+              <span className="text-sm text-gray-600">Chapel ($39/mo)</span>
               <span className="text-sm font-medium text-gray-900">{displayStats.subscriptionBreakdown.chapel} orgs</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Parish ($45/mo)</span>
+              <span className="text-sm text-gray-600">Parish ($59/mo)</span>
               <span className="text-sm font-medium text-gray-900">{displayStats.subscriptionBreakdown.parish} orgs</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Cathedral ($89/mo)</span>
+              <span className="text-sm text-gray-600">Cathedral ($109/mo)</span>
               <span className="text-sm font-medium text-purple-600 font-semibold">{displayStats.subscriptionBreakdown.cathedral} orgs</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Shrine ($120/mo)</span>
+              <span className="text-sm text-gray-600">Shrine ($159/mo)</span>
               <span className="text-sm font-medium text-gray-900">{displayStats.subscriptionBreakdown.shrine} orgs</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Basilica ($200+/mo)</span>
+              <span className="text-sm text-gray-600">Basilica ($5,000+/yr)</span>
               <span className="text-sm font-medium text-gray-900">{displayStats.subscriptionBreakdown.basilica} orgs</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-100">

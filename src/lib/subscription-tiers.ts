@@ -17,6 +17,10 @@ export interface SubscriptionTier {
   description: string;
   monthlyPrice: number;
   annualPrice: number | null; // null if no annual option
+  setupFee: number | null; // null = custom (Basilica)
+  setupFeeLabel: 'Basic Access Fee' | 'Setup Fee' | 'Custom';
+  isSelfServe: boolean; // true = no onboarding call included
+  includesSetupCall: boolean; // true = includes 1-hour setup phone call
   eventsPerYear: number | null; // null = unlimited
   maxPeoplePerYear: number | null; // null = unlimited
   storageGb: number;
@@ -38,10 +42,14 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
   chapel: {
     key: 'chapel',
     name: 'Chapel',
-    description: 'Perfect for small parishes or organizations just getting started',
-    monthlyPrice: 29,
+    description: 'Self-serve access for small parishes running a single event each year',
+    monthlyPrice: 39,
     annualPrice: null, // Monthly only
-    eventsPerYear: 3,
+    setupFee: 50,
+    setupFeeLabel: 'Basic Access Fee',
+    isSelfServe: true,
+    includesSetupCall: false,
+    eventsPerYear: 1,
     maxPeoplePerYear: 500,
     storageGb: 5,
     features: {
@@ -58,11 +66,15 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
   parish: {
     key: 'parish',
     name: 'Parish',
-    description: 'Ideal for parishes and small diocesan programs',
-    monthlyPrice: 45,
+    description: 'Self-serve access for parishes running a handful of events each year',
+    monthlyPrice: 59,
     annualPrice: null, // Monthly only
-    eventsPerYear: 5,
-    maxPeoplePerYear: 1000,
+    setupFee: 50,
+    setupFeeLabel: 'Basic Access Fee',
+    isSelfServe: true,
+    includesSetupCall: false,
+    eventsPerYear: 3,
+    maxPeoplePerYear: 750,
     storageGb: 10,
     features: {
       poros: false,
@@ -79,10 +91,14 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
     key: 'cathedral',
     name: 'Cathedral',
     description: 'For growing dioceses with multiple events',
-    monthlyPrice: 89,
-    annualPrice: 900,
-    eventsPerYear: 10,
-    maxPeoplePerYear: 2000,
+    monthlyPrice: 109,
+    annualPrice: 1080,
+    setupFee: 250,
+    setupFeeLabel: 'Setup Fee',
+    isSelfServe: false,
+    includesSetupCall: true,
+    eventsPerYear: 5,
+    maxPeoplePerYear: 1250,
     storageGb: 25,
     features: {
       poros: true,
@@ -100,10 +116,14 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
     key: 'shrine',
     name: 'Shrine',
     description: 'For large conferences and multi-event organizations',
-    monthlyPrice: 120,
-    annualPrice: 1200,
-    eventsPerYear: 20,
-    maxPeoplePerYear: 4000,
+    monthlyPrice: 159,
+    annualPrice: 1908,
+    setupFee: 400,
+    setupFeeLabel: 'Setup Fee',
+    isSelfServe: false,
+    includesSetupCall: true,
+    eventsPerYear: 10,
+    maxPeoplePerYear: 3000,
     storageGb: 100,
     features: {
       poros: true,
@@ -119,11 +139,15 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
   basilica: {
     key: 'basilica',
     name: 'Basilica',
-    description: 'Custom enterprise solution for large organizations',
-    monthlyPrice: 15000, // Starting annual price shown as monthly equivalent
-    annualPrice: 15000, // Starting at $15,000/year - custom pricing
+    description: 'Fully custom enterprise solution for large organizations',
+    monthlyPrice: 5000, // Starting annual price shown as monthly equivalent
+    annualPrice: 5000, // Starting at $5,000/year - custom pricing
+    setupFee: null, // Custom
+    setupFeeLabel: 'Custom',
+    isSelfServe: false,
+    includesSetupCall: true,
     eventsPerYear: null, // Unlimited
-    maxPeoplePerYear: 10000, // 10,000+ (customizable)
+    maxPeoplePerYear: null, // Custom
     storageGb: 500,
     features: {
       poros: true,
@@ -143,6 +167,10 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
     description: 'Free testing tier for development',
     monthlyPrice: 0,
     annualPrice: 0,
+    setupFee: 0,
+    setupFeeLabel: 'Setup Fee',
+    isSelfServe: true,
+    includesSetupCall: false,
     eventsPerYear: 1,
     maxPeoplePerYear: 100,
     storageGb: 1,
@@ -339,10 +367,10 @@ export const STRIPE_PRICE_ENV_VARS: Record<SubscriptionTierKey, { monthly: strin
  * Get suggested tier based on events per year
  */
 export function getSuggestedTierByEvents(eventsPerYear: number): SubscriptionTierKey {
-  if (eventsPerYear <= 3) return 'chapel';
-  if (eventsPerYear <= 5) return 'parish';
-  if (eventsPerYear <= 10) return 'cathedral';
-  if (eventsPerYear <= 20) return 'shrine';
+  if (eventsPerYear <= 1) return 'chapel';
+  if (eventsPerYear <= 3) return 'parish';
+  if (eventsPerYear <= 5) return 'cathedral';
+  if (eventsPerYear <= 10) return 'shrine';
   return 'basilica';
 }
 
@@ -350,12 +378,15 @@ export function getSuggestedTierByEvents(eventsPerYear: number): SubscriptionTie
  * Platform fees configuration
  */
 export const PLATFORM_FEES = {
-  setupFee: 250,
+  setupFee: 250, // Legacy fallback; per-tier setupFee lives on SubscriptionTier
   reactivationFee: 150,
   platformFeePercent: 1, // 1% of registrations
   stripeProcessingPercent: 2.9,
   stripeTransactionFee: 0.30,
   eventOverageFee: 50, // Per additional event over limit
+  // Hourly rate charged for extra help: consultations, custom setup beyond
+  // what's included in the tier, training calls, etc.
+  extraHelpHourlyRate: 90,
 };
 
 /**

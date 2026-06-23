@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { generateOrgAdminOnboardingEmail } from '@/emails/org-admin-onboarding'
+import { SUBSCRIPTION_TIERS } from '@/lib/subscription-tiers'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -193,15 +194,25 @@ export async function POST(request: NextRequest) {
       sendStripeOnboarding,
     } = body
 
-    // Tier pricing
-    const tierPricing: Record<string, { monthly: number; annual: number; eventsLimit: number; registrationsLimit: number; storageLimit: number }> = {
-      chapel: { monthly: 29, annual: 290, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
-      parish: { monthly: 45, annual: 450, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
-      cathedral: { monthly: 89, annual: 900, eventsLimit: 10, registrationsLimit: 2000, storageLimit: 25 },
-      shrine: { monthly: 120, annual: 1200, eventsLimit: 20, registrationsLimit: 4000, storageLimit: 100 },
-      basilica: { monthly: 200, annual: 15000, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
-      test: { monthly: 0, annual: 0, eventsLimit: 3, registrationsLimit: 100, storageLimit: 1 },
-    }
+    // Tier pricing — derived from the centralized SUBSCRIPTION_TIERS config so
+    // every place that creates an organization stays in sync with the published
+    // pricing on the landing page.
+    const tierPricing: Record<string, { monthly: number; annual: number; setupFee: number; eventsLimit: number; registrationsLimit: number; storageLimit: number }> =
+      Object.fromEntries(
+        Object.values(SUBSCRIPTION_TIERS).map(tier => [
+          tier.key,
+          {
+            monthly: tier.monthlyPrice,
+            annual: tier.annualPrice ?? tier.monthlyPrice * 12,
+            // setupFee=null (Basilica) defaults to 0 here — master admin sets the
+            // real custom amount manually on the org.
+            setupFee: tier.setupFee ?? 0,
+            eventsLimit: tier.eventsPerYear ?? -1,
+            registrationsLimit: tier.maxPeoplePerYear ?? -1,
+            storageLimit: tier.storageGb,
+          },
+        ])
+      )
 
     const pricing = tierPricing[subscriptionTier] || tierPricing.chapel
 
@@ -225,7 +236,7 @@ export async function POST(request: NextRequest) {
         registrationsLimit: pricing.registrationsLimit === -1 ? null : pricing.registrationsLimit,
         storageLimitGb: pricing.storageLimit,
         setupFeePaid: setupFeeWaived || setupFeePaid || false,
-        setupFeeAmount: setupFeeWaived ? 0 : 250,
+        setupFeeAmount: setupFeeWaived ? 0 : pricing.setupFee,
         paymentMethodPreference: paymentMethod || 'credit_card',
         legalEntityName,
         taxId,

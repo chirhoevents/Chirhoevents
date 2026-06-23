@@ -93,12 +93,14 @@ export async function POST(request: NextRequest) {
       })
       const nextInvoiceNumber = (lastInvoice?.invoiceNumber || 1000) + 1
 
-      // Map to invoice type
+      // Map to invoice type. 'extra_help' is a UI-only category persisted as
+      // 'custom' — the description carries the hours/rate breakdown.
       const invoiceTypeMapping: Record<string, 'setup_fee' | 'subscription' | 'reactivation_fee' | 'custom'> = {
         subscription: 'subscription',
         setup_fee: 'setup_fee',
         overage: 'custom',
         custom: 'custom',
+        extra_help: 'custom',
       }
 
       invoice = await prisma.invoice.create({
