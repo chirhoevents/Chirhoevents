@@ -122,7 +122,7 @@ export function LettersTab({ eventId }: LettersTabProps) {
       })
       if (!res.ok) return
       const data = await res.json()
-      const s = data.settings ?? {}
+      const s = data.event?.settings ?? data.settings ?? {}
       setSettings({
         method: s.letterOfGoodStandingMethod ?? 'both',
         contactName: s.letterOfGoodStandingContactName ?? '',
