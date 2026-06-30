@@ -349,8 +349,8 @@ function MedicalSection({
     <SectionCard number={num} label={section.label} helpText={section.helpText}>
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm text-blue-900">
         If you have nothing to report for a question below, please check the
-        <strong className="mx-1">"I have none"</strong>
-        box rather than typing "none" or "N/A".
+        <strong className="mx-1">&ldquo;I have none&rdquo;</strong>
+        box rather than typing &ldquo;none&rdquo; or &ldquo;N/A&rdquo;.
       </div>
       <div className="space-y-4">
         <MedicalField
