@@ -5,6 +5,7 @@ import { generateParticipantQRCode } from '@/lib/qr-code'
 import { uploadCertificate } from '@/lib/r2/upload-certificate'
 import { incrementOrgStorage } from '@/lib/storage/track-storage'
 import { resolveReplyTo } from '@/lib/email-reply-to'
+import { sanitizeMedicalText } from '@/lib/medical-info'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -49,6 +50,14 @@ export async function POST(request: NextRequest) {
       signature_date,
       certify_accurate,
     } = body
+
+    // Strip "none"/"N/A"/empty placeholder text so admin views don't flag
+    // these registrations as having medical info when they really don't.
+    const cleanMedicalConditions = sanitizeMedicalText(medical_conditions) || null
+    const cleanMedications = sanitizeMedicalText(medications) || null
+    const cleanAllergies = sanitizeMedicalText(allergies) || null
+    const cleanDietary = sanitizeMedicalText(dietary_restrictions) || null
+    const cleanAda = sanitizeMedicalText(ada_accommodations) || null
 
     // Validate required fields
     if (!access_code || !first_name || !last_name || !date_of_birth || !age || !gender ||
@@ -126,11 +135,11 @@ export async function POST(request: NextRequest) {
           participantEmail: email,
           participantPhone: phone,
           tShirtSize: t_shirt_size,
-          medicalConditions: medical_conditions || null,
-          medications: medications || null,
-          allergies: allergies || null,
-          dietaryRestrictions: dietary_restrictions || null,
-          adaAccommodations: ada_accommodations || null,
+          medicalConditions: cleanMedicalConditions,
+          medications: cleanMedications,
+          allergies: cleanAllergies,
+          dietaryRestrictions: cleanDietary,
+          adaAccommodations: cleanAda,
           emergencyContact1Name: emergency_contact_1_name,
           emergencyContact1Phone: emergency_contact_1_phone,
           emergencyContact1Relation: emergency_contact_1_relation,
@@ -233,11 +242,11 @@ export async function POST(request: NextRequest) {
             participantEmail: email,
             participantPhone: phone,
             tShirtSize: t_shirt_size,
-            medicalConditions: medical_conditions || null,
-            medications: medications || null,
-            allergies: allergies || null,
-            dietaryRestrictions: dietary_restrictions || null,
-            adaAccommodations: ada_accommodations || null,
+            medicalConditions: cleanMedicalConditions,
+            medications: cleanMedications,
+            allergies: cleanAllergies,
+            dietaryRestrictions: cleanDietary,
+            adaAccommodations: cleanAda,
             emergencyContact1Name: emergency_contact_1_name,
             emergencyContact1Phone: emergency_contact_1_phone,
             emergencyContact1Relation: emergency_contact_1_relation,
@@ -273,11 +282,11 @@ export async function POST(request: NextRequest) {
             participantEmail: email,
             participantPhone: phone,
             tShirtSize: t_shirt_size,
-            medicalConditions: medical_conditions || null,
-            medications: medications || null,
-            allergies: allergies || null,
-            dietaryRestrictions: dietary_restrictions || null,
-            adaAccommodations: ada_accommodations || null,
+            medicalConditions: cleanMedicalConditions,
+            medications: cleanMedications,
+            allergies: cleanAllergies,
+            dietaryRestrictions: cleanDietary,
+            adaAccommodations: cleanAda,
             emergencyContact1Name: emergency_contact_1_name,
             emergencyContact1Phone: emergency_contact_1_phone,
             emergencyContact1Relation: emergency_contact_1_relation,
@@ -423,11 +432,11 @@ export async function POST(request: NextRequest) {
         participantEmail: email,
         participantPhone: phone,
         tShirtSize: t_shirt_size,
-        medicalConditions: medical_conditions || null,
-        medications: medications || null,
-        allergies: allergies || null,
-        dietaryRestrictions: dietary_restrictions || null,
-        adaAccommodations: ada_accommodations || null,
+        medicalConditions: cleanMedicalConditions,
+        medications: cleanMedications,
+        allergies: cleanAllergies,
+        dietaryRestrictions: cleanDietary,
+        adaAccommodations: cleanAda,
         emergencyContact1Name: emergency_contact_1_name,
         emergencyContact1Phone: emergency_contact_1_phone,
         emergencyContact1Relation: emergency_contact_1_relation,

@@ -5,6 +5,7 @@ import { generateLiabilityFormPDF } from '@/lib/pdf/generate-liability-form-pdf'
 import { uploadLiabilityFormPDF } from '@/lib/r2/upload-pdf'
 import { generateParticipantQRCode } from '@/lib/qr-code'
 import { resolveReplyTo } from '@/lib/email-reply-to'
+import { sanitizeMedicalText } from '@/lib/medical-info'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -128,11 +129,11 @@ export async function POST(request: NextRequest) {
       where: { id: liabilityForm.id },
       data: {
         participantId: participant.id,
-        medicalConditions: medical_conditions || null,
-        medications: medications || null,
-        allergies: allergies || null,
-        dietaryRestrictions: dietary_restrictions || null,
-        adaAccommodations: ada_accommodations || null,
+        medicalConditions: sanitizeMedicalText(medical_conditions) || null,
+        medications: sanitizeMedicalText(medications) || null,
+        allergies: sanitizeMedicalText(allergies) || null,
+        dietaryRestrictions: sanitizeMedicalText(dietary_restrictions) || null,
+        adaAccommodations: sanitizeMedicalText(ada_accommodations) || null,
         emergencyContact1Name: emergency_contact_1_name,
         emergencyContact1Phone: emergency_contact_1_phone,
         emergencyContact1Relation: emergency_contact_1_relation,

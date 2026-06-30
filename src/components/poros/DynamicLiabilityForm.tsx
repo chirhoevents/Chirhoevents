@@ -282,6 +282,58 @@ function CustomFieldInput({
 
 // ─── Section renderers ────────────────────────────────────────────────────────
 
+function MedicalField({
+  label,
+  fieldKey,
+  value,
+  onChange,
+  placeholder,
+  rows = 3,
+  noneLabel,
+  important = false,
+}: {
+  label: React.ReactNode
+  fieldKey: keyof DynamicFormValues
+  value: string
+  onChange: (k: string, v: string | boolean) => void
+  placeholder: string
+  rows?: number
+  noneLabel: string
+  important?: boolean
+}) {
+  const [hasNone, setHasNone] = useState(false)
+  const textareaClass = important
+    ? 'w-full px-4 py-2 border-2 border-red-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed'
+    : `${TEXTAREA} disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed`
+
+  return (
+    <div>
+      <label className="block text-sm font-semibold text-gray-700 mb-2">{label}</label>
+      <textarea
+        rows={rows}
+        value={value}
+        disabled={hasNone}
+        onChange={(e) => onChange(fieldKey as string, e.target.value)}
+        placeholder={hasNone ? 'None reported' : placeholder}
+        className={textareaClass}
+      />
+      <label className="mt-2 inline-flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+        <input
+          type="checkbox"
+          checked={hasNone}
+          onChange={(e) => {
+            const checked = e.target.checked
+            setHasNone(checked)
+            if (checked) onChange(fieldKey as string, '')
+          }}
+          className="h-4 w-4 rounded border-gray-300 text-navy"
+        />
+        <span>{noneLabel}</span>
+      </label>
+    </div>
+  )
+}
+
 function MedicalSection({
   section,
   num,
@@ -295,72 +347,62 @@ function MedicalSection({
 }) {
   return (
     <SectionCard number={num} label={section.label} helpText={section.helpText}>
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm text-blue-900">
+        If you have nothing to report for a question below, please check the
+        <strong className="mx-1">&ldquo;I have none&rdquo;</strong>
+        box rather than typing &ldquo;none&rdquo; or &ldquo;N/A&rdquo;.
+      </div>
       <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Medical Conditions
-          </label>
-          <textarea
-            rows={3}
-            value={values.medicalConditions}
-            onChange={(e) => onChange('medicalConditions', e.target.value)}
-            placeholder="List any medical conditions we should be aware of"
-            className={TEXTAREA}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Current Medications
-          </label>
-          <textarea
-            rows={3}
-            value={values.medications}
-            onChange={(e) => onChange('medications', e.target.value)}
-            placeholder="List all medications currently being taken"
-            className={TEXTAREA}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <MedicalField
+          label="Medical Conditions"
+          fieldKey="medicalConditions"
+          value={values.medicalConditions}
+          onChange={onChange}
+          placeholder="List any medical conditions we should be aware of"
+          noneLabel="I have no medical conditions"
+        />
+        <MedicalField
+          label="Current Medications"
+          fieldKey="medications"
+          value={values.medications}
+          onChange={onChange}
+          placeholder="List all medications currently being taken"
+          noneLabel="I am not taking any medications"
+        />
+        <MedicalField
+          label={
             <span className="inline-flex items-center gap-2">
               Allergies
               <span className="px-2 py-0.5 bg-red-100 text-red-800 text-xs font-bold rounded">
                 IMPORTANT
               </span>
             </span>
-          </label>
-          <textarea
-            rows={3}
-            value={values.allergies}
-            onChange={(e) => onChange('allergies', e.target.value)}
-            placeholder="List any allergies (food, medication, environmental, etc.)"
-            className="w-full px-4 py-2 border-2 border-red-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Dietary Restrictions
-          </label>
-          <textarea
-            rows={2}
-            value={values.dietaryRestrictions}
-            onChange={(e) => onChange('dietaryRestrictions', e.target.value)}
-            placeholder="Any dietary restrictions or preferences"
-            className={TEXTAREA}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            ADA Accommodations Needed
-          </label>
-          <textarea
-            rows={2}
-            value={values.adaAccommodations}
-            onChange={(e) => onChange('adaAccommodations', e.target.value)}
-            placeholder="Any accessibility accommodations needed"
-            className={TEXTAREA}
-          />
-        </div>
+          }
+          fieldKey="allergies"
+          value={values.allergies}
+          onChange={onChange}
+          placeholder="List any allergies (food, medication, environmental, etc.)"
+          noneLabel="I have no allergies"
+          important
+        />
+        <MedicalField
+          label="Dietary Restrictions"
+          fieldKey="dietaryRestrictions"
+          value={values.dietaryRestrictions}
+          onChange={onChange}
+          placeholder="Any dietary restrictions or preferences"
+          rows={2}
+          noneLabel="I have no dietary restrictions"
+        />
+        <MedicalField
+          label="ADA Accommodations Needed"
+          fieldKey="adaAccommodations"
+          value={values.adaAccommodations}
+          onChange={onChange}
+          placeholder="Any accessibility accommodations needed"
+          rows={2}
+          noneLabel="I do not need any accommodations"
+        />
       </div>
     </SectionCard>
   )
