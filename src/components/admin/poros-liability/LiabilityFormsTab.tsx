@@ -25,6 +25,7 @@ import {
   AlertTriangle,
   Printer
 } from 'lucide-react'
+import { hasAnyMedicalInfo, hasRealMedicalText } from '@/lib/medical-info'
 
 interface LiabilityFormsTabProps {
   eventId: string
@@ -613,7 +614,7 @@ function StaffMemberRow({
     }
   }
 
-  const hasMedicalInfo = member.allergies || member.medications || member.medicalConditions
+  const hasMedicalInfo = hasAnyMedicalInfo(member)
   const statusLabel =
     member.formStatus === 'not_submitted' ? 'Not Submitted' :
     member.formStatus === 'pending' ? 'Pending Review' :
@@ -714,19 +715,19 @@ function StaffMemberRow({
                   Medical Information
                 </h4>
                 <Card className="p-3 bg-red-50 border-red-200">
-                  {member.allergies && (
+                  {hasRealMedicalText(member.allergies) && (
                     <div className="mb-2">
                       <span className="font-medium">Allergies:</span>
                       <p className="text-red-700">{member.allergies}</p>
                     </div>
                   )}
-                  {member.medications && (
+                  {hasRealMedicalText(member.medications) && (
                     <div className="mb-2">
                       <span className="font-medium">Medications:</span>
                       <p className="text-red-700">{member.medications}</p>
                     </div>
                   )}
-                  {member.medicalConditions && (
+                  {hasRealMedicalText(member.medicalConditions) && (
                     <div>
                       <span className="font-medium">Conditions:</span>
                       <p className="text-red-700">{member.medicalConditions}</p>
@@ -867,7 +868,7 @@ function ParticipantRow({
     }
   }
 
-  const hasMedicalInfo = participant.allergies || participant.medications || participant.medicalConditions
+  const hasMedicalInfo = hasAnyMedicalInfo(participant)
 
   // Youth (under 18) forms don't require admin approval
   const isYouth = participant.participantType === 'youth' || (participant.age !== null && participant.age < 18)
@@ -983,19 +984,19 @@ function ParticipantRow({
                   Medical Information
                 </h4>
                 <Card className="p-3 bg-red-50 border-red-200">
-                  {participant.allergies && (
+                  {hasRealMedicalText(participant.allergies) && (
                     <div className="mb-2">
                       <span className="font-medium">Allergies:</span>
                       <p className="text-red-700">{participant.allergies}</p>
                     </div>
                   )}
-                  {participant.medications && (
+                  {hasRealMedicalText(participant.medications) && (
                     <div className="mb-2">
                       <span className="font-medium">Medications:</span>
                       <p className="text-red-700">{participant.medications}</p>
                     </div>
                   )}
-                  {participant.medicalConditions && (
+                  {hasRealMedicalText(participant.medicalConditions) && (
                     <div>
                       <span className="font-medium">Conditions:</span>
                       <p className="text-red-700">{participant.medicalConditions}</p>

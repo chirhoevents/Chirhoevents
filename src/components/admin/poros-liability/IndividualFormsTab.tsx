@@ -26,6 +26,7 @@ import {
   Trash2,
   RefreshCw
 } from 'lucide-react'
+import { hasAnyMedicalInfo, hasRealMedicalText } from '@/lib/medical-info'
 
 interface IndividualFormsTabProps {
   eventId: string
@@ -263,7 +264,7 @@ function IndividualRow({
     }
   }
 
-  const hasMedicalInfo = individual.allergies || individual.medications || individual.medicalConditions
+  const hasMedicalInfo = hasAnyMedicalInfo(individual)
   const isUnder18 = individual.age !== null && individual.age < 18
 
   // Determine status display
@@ -416,19 +417,19 @@ function IndividualRow({
                   Medical Information
                 </h4>
                 <Card className="p-3 bg-red-50 border-red-200">
-                  {individual.allergies && (
+                  {hasRealMedicalText(individual.allergies) && (
                     <div className="mb-2">
                       <span className="font-medium">Allergies:</span>
                       <p className="text-red-700">{individual.allergies}</p>
                     </div>
                   )}
-                  {individual.medications && (
+                  {hasRealMedicalText(individual.medications) && (
                     <div className="mb-2">
                       <span className="font-medium">Medications:</span>
                       <p className="text-red-700">{individual.medications}</p>
                     </div>
                   )}
-                  {individual.medicalConditions && (
+                  {hasRealMedicalText(individual.medicalConditions) && (
                     <div>
                       <span className="font-medium">Conditions:</span>
                       <p className="text-red-700">{individual.medicalConditions}</p>
