@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { CheckCircle2 } from "lucide-react";
 import {
   loadDemoState,
+  logDemoEmail,
   newId,
-  saveDemoState,
+  updateDemoState,
   type DemoEvent,
 } from "../../lib/demo-store";
 
@@ -15,49 +17,51 @@ export default function IndividualRegistration() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [age, setAge] = useState("");
+  const [gender, setGender] = useState<"M" | "F">("F");
   const [email, setEmail] = useState("");
   const [step, setStep] = useState<"form" | "pay" | "done">("form");
 
   useEffect(() => {
     const s = loadDemoState();
     setEvents(s.events);
-    const params = new URLSearchParams(window.location.search);
-    const evt = params.get("event");
-    if (evt) setEventId(evt);
-    else if (s.events[0]) setEventId(s.events[0].id);
+    const evt = new URLSearchParams(window.location.search).get("event");
+    setEventId(evt || s.events[0]?.id || "");
   }, []);
 
   const selectedEvent = events.find((e) => e.id === eventId);
   const price = selectedEvent?.pricePerPerson ?? 0;
 
-  const handlePay = () => {
-    const s = loadDemoState();
-    s.registrations.push({
-      id: newId("reg"),
-      kind: "individual",
-      eventId,
-      participants: [
-        {
-          id: newId("p"),
-          firstName,
-          lastName,
-          age: age ? Number(age) : undefined,
-          email,
-          liabilitySigned: false,
-        },
-      ],
-      amountPaid: price,
-      balanceDue: 0,
-      createdAt: new Date().toISOString(),
+  const pay = () => {
+    updateDemoState((s) => {
+      s.registrations.push({
+        id: newId("reg"),
+        kind: "individual",
+        eventId,
+        participants: [
+          {
+            id: newId("p"),
+            firstName,
+            lastName,
+            age: Number(age) || 0,
+            gender,
+            email,
+            role: "participant",
+            liabilitySigned: false,
+            checkedIn: false,
+            nametagPrinted: false,
+          },
+        ],
+        amountPaid: price,
+        balanceDue: 0,
+        createdAt: new Date().toISOString(),
+      });
     });
-    s.emails.push({
-      id: newId("em"),
-      to: email || "participant@example.com",
-      subject: `Registration confirmed: ${selectedEvent?.name}`,
-      body: `Thanks ${firstName}! This is a fake confirmation. No real email was sent.`,
-      sentAt: new Date().toISOString(),
+    logDemoEmail({
+      to: email,
+      subject: `Registration confirmed: ${selectedEvent?.name} (Demo)`,
+      body: `Thanks ${firstName}! Your registration is confirmed. This is a fake email.`,
+      category: "confirmation",
     });
-    saveDemoState(s);
     setStep("done");
   };
 
@@ -66,22 +70,22 @@ export default function IndividualRegistration() {
       <Link href="/demo" className="text-sm text-slate-600 underline">
         ← Demo home
       </Link>
-      <h1 className="text-3xl font-bold mt-4">Individual Registration</h1>
+      <h1 className="text-3xl font-bold text-[#1E3A5F] mt-4 mb-6">Individual Registration</h1>
 
       {step === "form" && (
         <form
-          className="mt-6 space-y-4 rounded-lg border border-slate-300 bg-white p-6"
           onSubmit={(e) => {
             e.preventDefault();
             setStep("pay");
           }}
+          className="bg-white rounded-lg border border-[#E1D5BA] p-6 space-y-4"
         >
           <label className="block">
             <span className="text-sm font-medium">Event</span>
             <select
-              className="mt-1 block w-full rounded border border-slate-300 px-3 py-2"
               value={eventId}
               onChange={(e) => setEventId(e.target.value)}
+              className="mt-1 block w-full rounded border border-[#E1D5BA] px-3 py-2"
               required
             >
               {events.map((e) => (
@@ -91,66 +95,39 @@ export default function IndividualRegistration() {
               ))}
             </select>
           </label>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
+            <F label="First name" value={firstName} onChange={setFirstName} required />
+            <F label="Last name" value={lastName} onChange={setLastName} required />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <F label="Age" type="number" value={age} onChange={setAge} required />
             <label className="block">
-              <span className="text-sm font-medium">First name</span>
-              <input
-                className="mt-1 block w-full rounded border border-slate-300 px-3 py-2"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                required
-              />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium">Last name</span>
-              <input
-                className="mt-1 block w-full rounded border border-slate-300 px-3 py-2"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                required
-              />
+              <span className="text-sm font-medium">Gender</span>
+              <select
+                value={gender}
+                onChange={(e) => setGender(e.target.value as "M" | "F")}
+                className="mt-1 block w-full rounded border border-[#E1D5BA] px-3 py-2"
+              >
+                <option value="F">F</option>
+                <option value="M">M</option>
+              </select>
             </label>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <label className="block">
-              <span className="text-sm font-medium">Age</span>
-              <input
-                type="number"
-                className="mt-1 block w-full rounded border border-slate-300 px-3 py-2"
-                value={age}
-                onChange={(e) => setAge(e.target.value)}
-              />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium">Email</span>
-              <input
-                type="email"
-                className="mt-1 block w-full rounded border border-slate-300 px-3 py-2"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </label>
-          </div>
-          <button className="rounded bg-slate-800 text-white px-4 py-2 hover:bg-slate-700">
-            Continue to Payment
+          <F label="Email" type="email" value={email} onChange={setEmail} required />
+          <button className="bg-[#1E3A5F] hover:bg-[#122239] text-white px-5 py-2 rounded font-medium">
+            Continue to payment
           </button>
         </form>
       )}
 
       {step === "pay" && (
-        <div className="mt-6 rounded-lg border border-slate-300 bg-white p-6">
-          <h2 className="text-lg font-semibold">Payment (Fake)</h2>
-          <p className="text-slate-700 mt-2">
-            Total due: <strong>${price}</strong>
-          </p>
-          <p className="text-sm text-slate-500 mt-1">
-            No real card is charged. This button pretends to charge and marks
-            you registered.
-          </p>
+        <div className="bg-white rounded-lg border border-[#E1D5BA] p-6">
+          <h2 className="text-lg font-semibold text-[#1E3A5F] mb-3">Payment (Demo)</h2>
+          <p className="text-slate-700 mb-2">Total due: <strong>${price}</strong></p>
+          <p className="text-xs text-slate-500 mb-4">No real card is charged.</p>
           <button
-            onClick={handlePay}
-            className="mt-4 rounded bg-emerald-600 text-white px-4 py-2 hover:bg-emerald-500"
+            onClick={pay}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded font-medium"
           >
             Pay ${price} (Demo)
           </button>
@@ -158,23 +135,33 @@ export default function IndividualRegistration() {
       )}
 
       {step === "done" && (
-        <div className="mt-6 rounded-lg border border-emerald-400 bg-emerald-50 p-6">
-          <h2 className="text-lg font-semibold text-emerald-900">
-            Registration complete
-          </h2>
-          <p className="mt-2 text-emerald-900">
-            A pretend confirmation email was logged. See it in the{" "}
-            <Link href="/demo/admin" className="underline">
-              Admin view
-            </Link>
-            . Or complete the{" "}
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6">
+          <CheckCircle2 className="h-8 w-8 text-emerald-600 mb-2" />
+          <h2 className="text-xl font-bold text-emerald-900">You&apos;re registered</h2>
+          <p className="text-emerald-800 mt-1 text-sm">
+            Fake confirmation email logged. Next:{" "}
             <Link href="/demo/liability" className="underline">
-              Liability Form
+              sign the liability waiver
             </Link>
             .
           </p>
         </div>
       )}
     </div>
+  );
+}
+
+function F({ label, value, onChange, type = "text", required = false }: any) {
+  return (
+    <label className="block">
+      <span className="text-sm font-medium">{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required={required}
+        className="mt-1 block w-full rounded border border-[#E1D5BA] px-3 py-2"
+      />
+    </label>
   );
 }
