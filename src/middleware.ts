@@ -24,6 +24,7 @@ function getClientIp(request: Request): string {
 
 const isPublicRoute = createRouteMatcher([
   '/',
+  '/demo(.*)',
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/about(.*)',
