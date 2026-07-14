@@ -92,7 +92,17 @@ export default function LiabilityForm() {
   );
 }
 
-function F({ label, value, onChange, required = false }: any) {
+function F({
+  label,
+  value,
+  onChange,
+  required = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  required?: boolean;
+}) {
   return (
     <label className="block">
       <span className="text-sm font-medium">{label}</span>

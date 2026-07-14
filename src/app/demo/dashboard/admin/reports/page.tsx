@@ -49,7 +49,15 @@ export default function AdminReports() {
   );
 }
 
-function Metric({ icon: Icon, label, value }: any) {
+function Metric({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string | number;
+}) {
   return (
     <div className="bg-white rounded-lg border border-[#E1D5BA] p-5">
       <div className="flex items-center justify-between mb-2">

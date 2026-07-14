@@ -125,7 +125,19 @@ export default function GroupRegistration() {
   );
 }
 
-function F({ label, value, onChange, type = "text", required = false }: any) {
+function F({
+  label,
+  value,
+  onChange,
+  type = "text",
+  required = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  required?: boolean;
+}) {
   return (
     <label className="block">
       <span className="text-sm font-medium">{label}</span>
