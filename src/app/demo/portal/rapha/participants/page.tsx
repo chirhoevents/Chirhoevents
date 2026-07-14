@@ -10,12 +10,17 @@ export default function RaphaParticipants() {
   const [openId, setOpenId] = useState<string | null>(null);
 
   useEffect(() => setState(loadDemoState()), []);
-  if (!state) return null;
 
-  const event = state.events.find((e) => e.id === state.currentEventId) || state.events[0];
-  const rows = state.registrations
-    .filter((r) => r.eventId === event.id)
-    .flatMap((r) => r.participants.map((p) => ({ ...p, groupName: r.groupName || "Individual" })));
+  const event = state?.events.find((e) => e.id === state.currentEventId) || state?.events[0];
+  const rows = useMemo(
+    () =>
+      state && event
+        ? state.registrations
+            .filter((r) => r.eventId === event.id)
+            .flatMap((r) => r.participants.map((p) => ({ ...p, groupName: r.groupName || "Individual" })))
+        : [],
+    [state, event],
+  );
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
@@ -23,6 +28,8 @@ export default function RaphaParticipants() {
       ? rows.filter((r) => `${r.firstName} ${r.lastName}`.toLowerCase().includes(q))
       : rows;
   }, [query, rows]);
+
+  if (!state) return null;
 
   return (
     <div>

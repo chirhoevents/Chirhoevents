@@ -13,12 +13,17 @@ export default function SalveParticipants() {
   const [query, setQuery] = useState("");
 
   useEffect(() => setState(loadDemoState()), []);
-  if (!state) return null;
 
-  const event = state.events.find((e) => e.id === state.currentEventId) || state.events[0];
-  const all = state.registrations
-    .filter((r) => r.eventId === event.id)
-    .flatMap((r) => r.participants.map((p) => ({ ...p, groupName: r.groupName || "Individual", regId: r.id })));
+  const event = state?.events.find((e) => e.id === state.currentEventId) || state?.events[0];
+  const all = useMemo(
+    () =>
+      state && event
+        ? state.registrations
+            .filter((r) => r.eventId === event.id)
+            .flatMap((r) => r.participants.map((p) => ({ ...p, groupName: r.groupName || "Individual", regId: r.id })))
+        : [],
+    [state, event],
+  );
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
@@ -29,6 +34,8 @@ export default function SalveParticipants() {
         p.groupName.toLowerCase().includes(q),
     );
   }, [query, all]);
+
+  if (!state) return null;
 
   const toggleCheckIn = (regId: string, pid: string) => {
     updateDemoState((s) => {
