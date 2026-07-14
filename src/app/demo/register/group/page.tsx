@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { CheckCircle2 } from "lucide-react";
 import {
   loadDemoState,
+  logDemoEmail,
   newId,
-  saveDemoState,
+  updateDemoState,
   type DemoEvent,
 } from "../../lib/demo-store";
 
@@ -13,6 +15,7 @@ export default function GroupRegistration() {
   const [events, setEvents] = useState<DemoEvent[]>([]);
   const [eventId, setEventId] = useState("");
   const [groupName, setGroupName] = useState("");
+  const [organization, setOrganization] = useState("");
   const [leaderName, setLeaderName] = useState("");
   const [leaderEmail, setLeaderEmail] = useState("");
   const [seats, setSeats] = useState(10);
@@ -21,40 +24,39 @@ export default function GroupRegistration() {
   useEffect(() => {
     const s = loadDemoState();
     setEvents(s.events);
-    const params = new URLSearchParams(window.location.search);
-    const evt = params.get("event");
-    if (evt) setEventId(evt);
-    else if (s.events[0]) setEventId(s.events[0].id);
+    const evt = new URLSearchParams(window.location.search).get("event");
+    setEventId(evt || s.events[0]?.id || "");
   }, []);
 
-  const selectedEvent = events.find((e) => e.id === eventId);
-  const price = selectedEvent?.pricePerPerson ?? 0;
-  const deposit = price * 1; // demo: one-seat deposit
+  const selected = events.find((e) => e.id === eventId);
+  const price = selected?.pricePerPerson ?? 0;
+  const deposit = price;
   const total = price * seats;
   const balance = total - deposit;
 
-  const handlePay = () => {
-    const s = loadDemoState();
-    s.registrations.push({
-      id: newId("reg"),
-      kind: "group",
-      eventId,
-      groupName,
-      leaderName,
-      leaderEmail,
-      participants: [],
-      amountPaid: deposit,
-      balanceDue: balance,
-      createdAt: new Date().toISOString(),
+  const pay = () => {
+    updateDemoState((s) => {
+      s.registrations.push({
+        id: newId("reg"),
+        kind: "group",
+        eventId,
+        groupName,
+        organization,
+        leaderName,
+        leaderEmail,
+        participants: [],
+        amountPaid: deposit,
+        balanceDue: balance,
+        createdAt: new Date().toISOString(),
+        accessCode: `DEMO-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+      });
     });
-    s.emails.push({
-      id: newId("em"),
-      to: leaderEmail || "leader@example.com",
-      subject: `Group reservation confirmed: ${selectedEvent?.name}`,
-      body: `${groupName} has reserved ${seats} seats. Log in to the Group Leader portal to add participants and pay the balance.`,
-      sentAt: new Date().toISOString(),
+    logDemoEmail({
+      to: leaderEmail,
+      subject: `Group reservation confirmed: ${selected?.name} (Demo)`,
+      body: `${groupName} reserved ${seats} seats. Log in to the Group Leader portal to add participants and pay the balance.`,
+      category: "confirmation",
     });
-    saveDemoState(s);
     setStep("done");
   };
 
@@ -63,114 +65,89 @@ export default function GroupRegistration() {
       <Link href="/demo" className="text-sm text-slate-600 underline">
         ← Demo home
       </Link>
-      <h1 className="text-3xl font-bold mt-4">Group Registration</h1>
-      <p className="mt-2 text-slate-700">
-        A group leader reserves seats up front, then adds participants later
-        via the Group Leader portal.
-      </p>
+      <h1 className="text-3xl font-bold text-[#1E3A5F] mt-4 mb-6">Group Registration</h1>
 
       {step === "form" && (
         <form
-          className="mt-6 space-y-4 rounded-lg border border-slate-300 bg-white p-6"
           onSubmit={(e) => {
             e.preventDefault();
             setStep("pay");
           }}
+          className="bg-white rounded-lg border border-[#E1D5BA] p-6 space-y-4"
         >
           <label className="block">
             <span className="text-sm font-medium">Event</span>
-            <select
-              className="mt-1 block w-full rounded border border-slate-300 px-3 py-2"
-              value={eventId}
-              onChange={(e) => setEventId(e.target.value)}
-              required
-            >
+            <select value={eventId} onChange={(e) => setEventId(e.target.value)} className="mt-1 block w-full rounded border border-[#E1D5BA] px-3 py-2" required>
               {events.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.name}
-                </option>
+                <option key={e.id} value={e.id}>{e.name}</option>
               ))}
             </select>
           </label>
-          <label className="block">
-            <span className="text-sm font-medium">Group / Parish name</span>
-            <input
-              className="mt-1 block w-full rounded border border-slate-300 px-3 py-2"
-              value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
-              required
-            />
-          </label>
-          <div className="grid grid-cols-2 gap-4">
-            <label className="block">
-              <span className="text-sm font-medium">Leader name</span>
-              <input
-                className="mt-1 block w-full rounded border border-slate-300 px-3 py-2"
-                value={leaderName}
-                onChange={(e) => setLeaderName(e.target.value)}
-                required
-              />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium">Leader email</span>
-              <input
-                type="email"
-                className="mt-1 block w-full rounded border border-slate-300 px-3 py-2"
-                value={leaderEmail}
-                onChange={(e) => setLeaderEmail(e.target.value)}
-                required
-              />
-            </label>
+          <F label="Group name" value={groupName} onChange={setGroupName} required />
+          <F label="Organization / Parish" value={organization} onChange={setOrganization} />
+          <div className="grid grid-cols-2 gap-3">
+            <F label="Leader name" value={leaderName} onChange={setLeaderName} required />
+            <F label="Leader email" type="email" value={leaderEmail} onChange={setLeaderEmail} required />
           </div>
-          <label className="block">
-            <span className="text-sm font-medium">Seats to reserve</span>
-            <input
-              type="number"
-              min={1}
-              className="mt-1 block w-full rounded border border-slate-300 px-3 py-2"
-              value={seats}
-              onChange={(e) => setSeats(Number(e.target.value) || 1)}
-            />
-          </label>
-          <button className="rounded bg-slate-800 text-white px-4 py-2 hover:bg-slate-700">
-            Continue to Deposit
-          </button>
+          <F label="Seats to reserve" type="number" value={String(seats)} onChange={(v: string) => setSeats(Number(v) || 1)} />
+          <button className="bg-[#1E3A5F] hover:bg-[#122239] text-white px-5 py-2 rounded font-medium">Continue</button>
         </form>
       )}
 
       {step === "pay" && (
-        <div className="mt-6 rounded-lg border border-slate-300 bg-white p-6">
-          <h2 className="text-lg font-semibold">Deposit (Fake)</h2>
-          <p className="text-slate-700 mt-2">
-            Seats: {seats} · Total: ${total} · Deposit today: <strong>${deposit}</strong> ·
-            Balance later: ${balance}
+        <div className="bg-white rounded-lg border border-[#E1D5BA] p-6">
+          <h2 className="text-lg font-semibold text-[#1E3A5F] mb-3">Deposit (Demo)</h2>
+          <p className="text-slate-700">
+            {seats} seats × ${price} = <strong>${total} total</strong>
           </p>
-          <p className="text-sm text-slate-500 mt-1">
-            No real card is charged.
+          <p className="text-slate-700">
+            Deposit today: <strong>${deposit}</strong> · Balance later: ${balance}
           </p>
           <button
-            onClick={handlePay}
-            className="mt-4 rounded bg-emerald-600 text-white px-4 py-2 hover:bg-emerald-500"
+            onClick={pay}
+            className="mt-4 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded font-medium"
           >
-            Pay Deposit ${deposit} (Demo)
+            Pay deposit ${deposit} (Demo)
           </button>
         </div>
       )}
 
       {step === "done" && (
-        <div className="mt-6 rounded-lg border border-emerald-400 bg-emerald-50 p-6">
-          <h2 className="text-lg font-semibold text-emerald-900">
-            Group reservation complete
-          </h2>
-          <p className="mt-2 text-emerald-900">
-            Next, log in to the{" "}
-            <Link href="/demo/group-leader" className="underline">
-              Group Leader Portal
-            </Link>{" "}
-            to add participants and pay the balance.
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6">
+          <CheckCircle2 className="h-8 w-8 text-emerald-600 mb-2" />
+          <h2 className="text-xl font-bold text-emerald-900">Group reserved</h2>
+          <p className="text-emerald-800 mt-1 text-sm">
+            Next: <Link href="/demo/dashboard/group-leader" className="underline">Group Leader Portal</Link> to add participants and pay the balance.
           </p>
         </div>
       )}
     </div>
+  );
+}
+
+function F({
+  label,
+  value,
+  onChange,
+  type = "text",
+  required = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  required?: boolean;
+}) {
+  return (
+    <label className="block">
+      <span className="text-sm font-medium">{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required={required}
+        className="mt-1 block w-full rounded border border-[#E1D5BA] px-3 py-2"
+      />
+    </label>
   );
 }

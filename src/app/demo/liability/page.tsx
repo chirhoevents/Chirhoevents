@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { loadDemoState, newId, saveDemoState } from "../lib/demo-store";
+import { CheckCircle2, FileText } from "lucide-react";
+import { logDemoEmail } from "../lib/demo-store";
 
 export default function LiabilityForm() {
   const [signerName, setSignerName] = useState("");
@@ -13,15 +14,12 @@ export default function LiabilityForm() {
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const s = loadDemoState();
-    s.emails.push({
-      id: newId("em"),
+    logDemoEmail({
       to: "admin@example.com",
       subject: `Liability form signed for ${participantName} (Demo)`,
       body: `Signed by ${signerName} (${relationship}). No real waiver was recorded.`,
-      sentAt: new Date().toISOString(),
+      category: "waiver",
     });
-    saveDemoState(s);
     setDone(true);
   };
 
@@ -30,41 +28,24 @@ export default function LiabilityForm() {
       <Link href="/demo" className="text-sm text-slate-600 underline">
         ← Demo home
       </Link>
-      <h1 className="text-3xl font-bold mt-4">Liability Form</h1>
-      <p className="mt-2 text-slate-700">
-        In the real site, this is signed electronically before the event.
-        Youth-under-18 forms are routed to a parent to sign.
+      <div className="flex items-center gap-3 mt-4 mb-2">
+        <FileText className="h-8 w-8 text-[#9C8466]" />
+        <h1 className="text-3xl font-bold text-[#1E3A5F]">Liability / Waiver</h1>
+      </div>
+      <p className="text-slate-600 mb-6">
+        Under-18 participants have this signed by a parent. Adults sign themselves.
       </p>
 
       {!done ? (
-        <form
-          onSubmit={submit}
-          className="mt-6 space-y-4 rounded-lg border border-slate-300 bg-white p-6"
-        >
-          <label className="block">
-            <span className="text-sm font-medium">Participant name</span>
-            <input
-              className="mt-1 block w-full rounded border border-slate-300 px-3 py-2"
-              value={participantName}
-              onChange={(e) => setParticipantName(e.target.value)}
-              required
-            />
-          </label>
-          <label className="block">
-            <span className="text-sm font-medium">Signer name</span>
-            <input
-              className="mt-1 block w-full rounded border border-slate-300 px-3 py-2"
-              value={signerName}
-              onChange={(e) => setSignerName(e.target.value)}
-              required
-            />
-          </label>
+        <form onSubmit={submit} className="bg-white rounded-lg border border-[#E1D5BA] p-6 space-y-4">
+          <F label="Participant name" value={participantName} onChange={setParticipantName} required />
+          <F label="Signer name" value={signerName} onChange={setSignerName} required />
           <label className="block">
             <span className="text-sm font-medium">Relationship</span>
             <select
-              className="mt-1 block w-full rounded border border-slate-300 px-3 py-2"
               value={relationship}
               onChange={(e) => setRelationship(e.target.value)}
+              className="mt-1 block w-full rounded border border-[#E1D5BA] px-3 py-2"
             >
               <option>Parent / Guardian</option>
               <option>Self (18+)</option>
@@ -72,13 +53,15 @@ export default function LiabilityForm() {
               <option>Clergy</option>
             </select>
           </label>
-          <div className="rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 max-h-40 overflow-y-auto">
+          <div className="rounded border border-slate-200 bg-[#F5F1E8] p-4 text-sm text-slate-700 max-h-40 overflow-y-auto">
             [Sample waiver text.] I acknowledge that participation in the event
-            involves risks and I agree to release the organizer from liability
-            for injuries sustained during the event. This is placeholder text
-            for demonstration only.
+            involves risks including but not limited to physical injury. I agree
+            to release the organizer, its staff, and volunteers from liability
+            for injuries or losses sustained during the event, and I authorize
+            emergency medical treatment if needed. This is placeholder text for
+            demonstration only.
           </div>
-          <label className="flex items-start gap-2">
+          <label className="flex items-start gap-2 text-sm">
             <input
               type="checkbox"
               checked={signed}
@@ -86,31 +69,49 @@ export default function LiabilityForm() {
               className="mt-1"
               required
             />
-            <span className="text-sm">
-              I have read and agree to the waiver above.
-            </span>
+            <span>I have read and agree to the waiver above.</span>
           </label>
           <button
             disabled={!signed}
-            className="rounded bg-slate-800 text-white px-4 py-2 hover:bg-slate-700 disabled:opacity-50"
+            className="bg-[#1E3A5F] hover:bg-[#122239] text-white px-5 py-2 rounded font-medium disabled:opacity-50"
           >
             Submit signed form (Demo)
           </button>
         </form>
       ) : (
-        <div className="mt-6 rounded-lg border border-emerald-400 bg-emerald-50 p-6">
-          <h2 className="text-lg font-semibold text-emerald-900">
-            Waiver submitted
-          </h2>
-          <p className="mt-2 text-emerald-900">
-            A fake notification email was logged for the admin. See it in the{" "}
-            <Link href="/demo/admin" className="underline">
-              Admin view
-            </Link>
-            .
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6">
+          <CheckCircle2 className="h-8 w-8 text-emerald-600 mb-2" />
+          <h2 className="text-xl font-bold text-emerald-900">Waiver submitted</h2>
+          <p className="text-emerald-800 mt-1 text-sm">
+            A fake notification was logged. See it in{" "}
+            <Link href="/demo/dashboard/admin/emails" className="underline">Admin → Emails</Link>.
           </p>
         </div>
       )}
     </div>
+  );
+}
+
+function F({
+  label,
+  value,
+  onChange,
+  required = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  required?: boolean;
+}) {
+  return (
+    <label className="block">
+      <span className="text-sm font-medium">{label}</span>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required={required}
+        className="mt-1 block w-full rounded border border-[#E1D5BA] px-3 py-2"
+      />
+    </label>
   );
 }
