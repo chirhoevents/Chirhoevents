@@ -1338,6 +1338,10 @@ model WaitlistEntry {
   overriddenAt        DateTime? @map("overridden_at") @db.Timestamptz(6)
   overrideReason      String?   @map("override_reason") @db.Text
 
+  // Seat hold: how many event.capacityRemaining spots this 'contacted' entry is holding.
+  // NULL = no reservation. Restored on expiry / move-back-to-pending / delete.
+  reservedSpots       Int?      @map("reserved_spots")
+
   // Option preferences - what type of registration/housing they want
   registrationType         RegistrationType? @map("registration_type")
   preferredTicketType      TicketType? @map("preferred_ticket_type")

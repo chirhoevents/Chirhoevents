@@ -74,6 +74,26 @@ export async function PATCH(
       updateData.notifiedAt = null
     }
 
+    // Reservation handling — when a contacted entry with a held seat is moved
+    // back to pending or marked expired, release the seat so the queue can move.
+    // When moved to registered, the seat is consumed (leave capacityRemaining as-is,
+    // but clear reservedSpots so subsequent status flips don't double-release).
+    const reservedSpots = (entry as any).reservedSpots as number | null
+    const isReleasing =
+      entry.status === 'contacted' && (status === 'pending' || status === 'expired')
+    const isConsuming = entry.status === 'contacted' && status === 'registered'
+
+    if ((isReleasing || isConsuming) && reservedSpots && reservedSpots > 0) {
+      if (isReleasing) {
+        await prisma.$executeRaw`
+          UPDATE events
+          SET capacity_remaining = capacity_remaining + ${reservedSpots}
+          WHERE id = ${entry.event.id}::uuid
+        `
+      }
+      updateData.reservedSpots = null
+    }
+
     // Update entry status
     const updatedEntry = await prisma.waitlistEntry.update({
       where: { id: entryId },
