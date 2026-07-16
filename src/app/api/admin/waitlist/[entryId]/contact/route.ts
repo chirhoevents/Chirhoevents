@@ -6,6 +6,14 @@ import { Resend } from 'resend'
 import { generateWaitlistInvitationEmail } from '@/lib/email-templates'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import { resolveReplyTo } from '@/lib/email-reply-to'
+import {
+  checkOptionCapacity,
+  decrementOptionCapacity,
+  checkDayPassOptionCapacity,
+  decrementDayPassOptionCapacity,
+  type HousingType,
+  type RoomType,
+} from '@/lib/option-capacity'
 import crypto from 'crypto'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
@@ -66,6 +74,20 @@ export async function POST(
             settings: {
               select: {
                 contactEmail: true,
+                onCampusCapacity: true,
+                onCampusRemaining: true,
+                offCampusCapacity: true,
+                offCampusRemaining: true,
+                dayPassCapacity: true,
+                dayPassRemaining: true,
+                singleRoomCapacity: true,
+                singleRoomRemaining: true,
+                doubleRoomCapacity: true,
+                doubleRoomRemaining: true,
+                tripleRoomCapacity: true,
+                tripleRoomRemaining: true,
+                quadRoomCapacity: true,
+                quadRoomRemaining: true,
               },
             },
           },
@@ -174,6 +196,80 @@ export async function POST(
       }
     }
 
+    // Option-level reservation: if the entry has a preferred housing type or
+    // day pass option, decrement that pool too so a walk-in for that specific
+    // option can't eat the seat during the 48h window.
+    // Rollback the event-level reservation if the option pool is short and
+    // override isn't set — otherwise the two reservations get out of sync.
+    let reservedHousingType: HousingType | null = null
+    let reservedRoomType: RoomType | null = null
+    let reservedDayPassOptionId: string | null = null
+
+    const preferredHousingType = (entry.preferredHousingType as HousingType | null) ?? null
+    const preferredRoomType = (entry.preferredRoomType as RoomType | null) ?? null
+    const preferredDayPassOptionId = entry.preferredDayPassOptionId ?? null
+
+    if (preferredHousingType && entry.event.settings) {
+      const optionCheck = checkOptionCapacity(
+        entry.event.settings,
+        preferredHousingType,
+        preferredRoomType,
+        spotsNeeded
+      )
+      if (!optionCheck.hasCapacity && !override) {
+        // Roll back event-level reservation so we don't leak seats.
+        if (reservationCreated) {
+          await prisma.$executeRaw`
+            UPDATE events
+            SET capacity_remaining = capacity_remaining + ${spotsNeeded}
+            WHERE id = ${entry.event.id}::uuid
+          `
+        }
+        return NextResponse.json(
+          {
+            error: optionCheck.error || 'Not enough option capacity for this waitlist entry.',
+            housingRemaining: optionCheck.housingRemaining,
+            roomRemaining: optionCheck.roomRemaining,
+            spotsNeeded,
+            canOverride: true,
+          },
+          { status: 409 }
+        )
+      }
+      // Decrement the option pool. Override path may take it negative.
+      await decrementOptionCapacity(entry.event.id, preferredHousingType, preferredRoomType, spotsNeeded)
+      reservedHousingType = preferredHousingType
+      reservedRoomType = preferredRoomType
+    }
+
+    if (preferredDayPassOptionId) {
+      const dpCheck = await checkDayPassOptionCapacity(preferredDayPassOptionId, spotsNeeded)
+      if (!dpCheck.hasCapacity && !override) {
+        if (reservationCreated) {
+          await prisma.$executeRaw`
+            UPDATE events
+            SET capacity_remaining = capacity_remaining + ${spotsNeeded}
+            WHERE id = ${entry.event.id}::uuid
+          `
+        }
+        if (reservedHousingType) {
+          const { incrementOptionCapacity } = await import('@/lib/option-capacity')
+          await incrementOptionCapacity(entry.event.id, reservedHousingType, reservedRoomType, spotsNeeded)
+        }
+        return NextResponse.json(
+          {
+            error: dpCheck.error || 'Not enough day pass capacity for this waitlist entry.',
+            dayPassRemaining: dpCheck.remaining,
+            spotsNeeded,
+            canOverride: true,
+          },
+          { status: 409 }
+        )
+      }
+      await decrementDayPassOptionCapacity(preferredDayPassOptionId, spotsNeeded)
+      reservedDayPassOptionId = preferredDayPassOptionId
+    }
+
     // Update entry status to contacted with token.
     // Only stamp override fields when the override actually mattered — an invite
     // that fit within capacity shouldn't look like a forced one, even if override:true was sent.
@@ -185,6 +281,9 @@ export async function POST(
         registrationToken,
         invitationExpires,
         ...(reservationCreated ? { reservedSpots: spotsNeeded } : {}),
+        ...(reservedHousingType ? { reservedHousingType } : {}),
+        ...(reservedRoomType ? { reservedRoomType } : {}),
+        ...(reservedDayPassOptionId ? { reservedDayPassOptionId } : {}),
         ...(capacityShort && override
           ? {
               overriddenBy: user.id,

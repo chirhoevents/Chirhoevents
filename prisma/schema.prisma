@@ -1341,6 +1341,12 @@ model WaitlistEntry {
   // Seat hold: how many event.capacityRemaining spots this 'contacted' entry is holding.
   // NULL = no reservation. Restored on expiry / move-back-to-pending / delete.
   reservedSpots       Int?      @map("reserved_spots")
+  // Which option pool the reservation drew from — the source of truth for
+  // restoration. Preferred_* fields describe intent; reserved_* describe what
+  // we actually decremented so restore is bulletproof.
+  reservedHousingType     HousingType? @map("reserved_housing_type")
+  reservedRoomType        RoomType?    @map("reserved_room_type")
+  reservedDayPassOptionId String?      @map("reserved_day_pass_option_id") @db.Uuid
 
   // Option preferences - what type of registration/housing they want
   registrationType         RegistrationType? @map("registration_type")
