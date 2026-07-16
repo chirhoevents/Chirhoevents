@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import WaitlistModal from '@/components/WaitlistModal'
+import WaitlistModal, { type WaitlistPreferenceOptions } from '@/components/WaitlistModal'
 import Link from 'next/link'
 import { CheckCircle, Clock, AlertCircle } from 'lucide-react'
 import CountdownTimer from '@/components/CountdownTimer'
@@ -31,6 +31,8 @@ interface EventLandingClientProps {
     email: string | null
     phone: string | null
   } | null
+  waitlistPreferences?: WaitlistPreferenceOptions
+  hasFullOption?: boolean
 }
 
 export default function EventLandingClient({
@@ -43,8 +45,16 @@ export default function EventLandingClient({
   earlyBirdMessage,
   eventStartTarget,
   organizationContact,
+  waitlistPreferences,
+  hasFullOption = false,
 }: EventLandingClientProps) {
   const [isWaitlistModalOpen, setIsWaitlistModalOpen] = useState(false)
+
+  // Show the waitlist affordance when either the whole event is at capacity /
+  // closed (status.allowWaitlist), OR one of the specific options is sold out
+  // even though the event overall has room. Handles the "40 on-campus left
+  // but off-campus is full" case.
+  const showWaitlistButton = status.allowWaitlist || hasFullOption
 
   return (
     <>
@@ -53,7 +63,7 @@ export default function EventLandingClient({
         <div className="mb-3">
           {status.allowRegistration ? (
             <CheckCircle className="h-12 w-12 md:h-16 md:w-16 text-green-600" />
-          ) : status.allowWaitlist ? (
+          ) : showWaitlistButton ? (
             <Clock className="h-12 w-12 md:h-16 md:w-16 text-[#9C8466]" />
           ) : (
             <AlertCircle className="h-12 w-12 md:h-16 md:w-16 text-gray-400" />
@@ -150,7 +160,7 @@ export default function EventLandingClient({
             </>
           )}
 
-          {status.allowWaitlist && (
+          {showWaitlistButton && (
             <Button
               size="lg"
               variant="outline"
@@ -161,7 +171,7 @@ export default function EventLandingClient({
             </Button>
           )}
 
-          {!status.allowRegistration && !status.allowWaitlist && (
+          {!status.allowRegistration && !showWaitlistButton && (
             <Button
               size="lg"
               disabled
@@ -222,6 +232,7 @@ export default function EventLandingClient({
         eventName={eventName}
         isOpen={isWaitlistModalOpen}
         onClose={() => setIsWaitlistModalOpen(false)}
+        preferences={waitlistPreferences}
       />
     </>
   )

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+import { releaseWaitlistOptionReservation } from '@/lib/waitlist-utils'
+import type { HousingType, RoomType } from '@/lib/option-capacity'
 
 export async function PATCH(
   request: NextRequest,
@@ -90,8 +92,18 @@ export async function PATCH(
           SET capacity_remaining = capacity_remaining + ${reservedSpots}
           WHERE id = ${entry.event.id}::uuid
         `
+        await releaseWaitlistOptionReservation({
+          eventId: entry.event.id,
+          reservedSpots,
+          reservedHousingType: ((entry as any).reservedHousingType as HousingType | null) ?? null,
+          reservedRoomType: ((entry as any).reservedRoomType as RoomType | null) ?? null,
+          reservedDayPassOptionId: (entry as any).reservedDayPassOptionId ?? null,
+        })
       }
       updateData.reservedSpots = null
+      updateData.reservedHousingType = null
+      updateData.reservedRoomType = null
+      updateData.reservedDayPassOptionId = null
     }
 
     // Update entry status

@@ -3,6 +3,7 @@ import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+import { releaseWaitlistOptionReservation } from '@/lib/waitlist-utils'
 
 export async function GET(
   request: NextRequest,
@@ -47,15 +48,22 @@ export async function GET(
 
     // Lazy sweep: flip any 'contacted' entry whose invitationExpires has
     // passed to 'expired' and release the seats it was holding back to event
-    // capacity. Race-safe: only entries that actually flip from 'contacted'
-    // count toward the release, so concurrent sweeps don't double-count.
+    // capacity and its option pool. Race-safe: only entries that actually flip
+    // from 'contacted' count toward the release, so concurrent sweeps don't
+    // double-count.
     const staleContacted = await prisma.waitlistEntry.findMany({
       where: {
         eventId,
         status: 'contacted',
         invitationExpires: { lt: new Date() },
       },
-      select: { id: true, reservedSpots: true },
+      select: {
+        id: true,
+        reservedSpots: true,
+        reservedHousingType: true,
+        reservedRoomType: true,
+        reservedDayPassOptionId: true,
+      },
     })
 
     if (staleContacted.length > 0) {
@@ -63,12 +71,23 @@ export async function GET(
       for (const stale of staleContacted) {
         const flipped = await prisma.$executeRaw`
           UPDATE waitlist_entries
-          SET status = 'expired', reserved_spots = NULL
+          SET status = 'expired',
+              reserved_spots = NULL,
+              reserved_housing_type = NULL,
+              reserved_room_type = NULL,
+              reserved_day_pass_option_id = NULL
           WHERE id = ${stale.id}::uuid
             AND status = 'contacted'
         `
         if (flipped === 1) {
           totalReleased += stale.reservedSpots ?? 0
+          await releaseWaitlistOptionReservation({
+            eventId,
+            reservedSpots: stale.reservedSpots,
+            reservedHousingType: stale.reservedHousingType as any,
+            reservedRoomType: stale.reservedRoomType as any,
+            reservedDayPassOptionId: stale.reservedDayPassOptionId,
+          })
         }
       }
       if (totalReleased > 0) {

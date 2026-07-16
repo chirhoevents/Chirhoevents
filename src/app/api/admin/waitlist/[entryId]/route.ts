@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+import { releaseWaitlistOptionReservation } from '@/lib/waitlist-utils'
+import type { HousingType, RoomType } from '@/lib/option-capacity'
 
 export async function DELETE(
   request: NextRequest,
@@ -51,7 +53,7 @@ export async function DELETE(
     }
 
     // If this entry was holding reserved seats (contacted with unused reservation),
-    // release them back to event capacity before deleting.
+    // release them back to event capacity AND the option pool before deleting.
     const reservedSpots = (entry as any).reservedSpots as number | null
     if (entry.status === 'contacted' && reservedSpots && reservedSpots > 0) {
       await prisma.$executeRaw`
@@ -59,6 +61,13 @@ export async function DELETE(
         SET capacity_remaining = capacity_remaining + ${reservedSpots}
         WHERE id = ${entry.event.id}::uuid
       `
+      await releaseWaitlistOptionReservation({
+        eventId: entry.event.id,
+        reservedSpots,
+        reservedHousingType: ((entry as any).reservedHousingType as HousingType | null) ?? null,
+        reservedRoomType: ((entry as any).reservedRoomType as RoomType | null) ?? null,
+        reservedDayPassOptionId: (entry as any).reservedDayPassOptionId ?? null,
+      })
     }
 
     // Delete the entry

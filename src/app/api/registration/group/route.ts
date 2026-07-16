@@ -147,24 +147,53 @@ export async function POST(request: NextRequest) {
     // reasons registration is closed (event_ended, not_yet_open) still block.
     // If the token has a live reservation, we also skip the capacity decrement
     // below so we don't double-count the seat.
+    // Strict match: the option (housing / day pass) the invitee tries to
+    // register for must match what they waitlisted for. Otherwise they could
+    // grab a seat a walk-in was waiting for.
     let waitlistBypass = false
     let waitlistReservedSpots = 0
+    let waitlistOptionReserved = false
+    let waitlistDayPassReserved = false
     if (waitlistToken) {
       const tokenCheck = await validateWaitlistToken(waitlistToken)
-      if (!tokenCheck.valid) {
+      if (!tokenCheck.valid || !tokenCheck.entry) {
         return NextResponse.json(
           { error: `Waitlist invitation is not valid: ${tokenCheck.error || 'unknown reason'}` },
           { status: 400 }
         )
       }
-      if (tokenCheck.entry?.eventId !== event.id) {
+      if (tokenCheck.entry.eventId !== event.id) {
         return NextResponse.json(
           { error: 'Waitlist invitation is for a different event.' },
           { status: 400 }
         )
       }
+
+      const wl = tokenCheck.entry
+      const requestedHousing = (housingType || null) as HousingType | null
+      const requestedDayPassOptionId = (body.dayPassOptionId || null) as string | null
+
+      if (wl.preferredHousingType && requestedHousing && wl.preferredHousingType !== requestedHousing) {
+        return NextResponse.json(
+          {
+            error: `Your waitlist invitation was for ${wl.preferredHousingType.replace('_', ' ')} housing, but this registration is for ${requestedHousing.replace('_', ' ')}. Please register for ${wl.preferredHousingType.replace('_', ' ')} or contact the organizer to change your option.`,
+          },
+          { status: 400 }
+        )
+      }
+      if (wl.preferredDayPassOptionId && requestedDayPassOptionId && wl.preferredDayPassOptionId !== requestedDayPassOptionId) {
+        return NextResponse.json(
+          {
+            error: 'Your waitlist invitation was for a different day pass option. Please register for the option you waitlisted for, or contact the organizer to change it.',
+          },
+          { status: 400 }
+        )
+      }
+
       waitlistBypass = true
-      waitlistReservedSpots = tokenCheck.entry?.reservedSpots ?? 0
+      waitlistReservedSpots = wl.reservedSpots ?? 0
+      waitlistOptionReserved = !!wl.reservedHousingType
+      waitlistDayPassReserved = !!wl.reservedDayPassOptionId
     }
 
     if (!regStatus.allowRegistration) {
@@ -557,8 +586,9 @@ export async function POST(request: NextRequest) {
     // NOTE: Capacity was already atomically decremented above (Fix #4) — no second decrement here.
 
     // Update option-level capacity (housing type for group registrations)
-    // Only decrement housing capacity for general admission (day pass doesn't use housing)
-    if (body.ticketType !== 'day_pass') {
+    // Only decrement housing capacity for general admission (day pass doesn't use housing).
+    // Skip if the waitlist token already reserved this option pool on Contact.
+    if (body.ticketType !== 'day_pass' && !waitlistOptionReserved) {
       await decrementOptionCapacity(
         event.id,
         housingType as HousingType,
@@ -567,8 +597,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Update day pass option capacity (if applicable)
-    if (body.ticketType === 'day_pass' && body.dayPassOptionId) {
+    // Update day pass option capacity (if applicable).
+    // Skip if the waitlist token already reserved this day pass option on Contact.
+    if (body.ticketType === 'day_pass' && body.dayPassOptionId && !waitlistDayPassReserved) {
       await decrementDayPassOptionCapacity(
         body.dayPassOptionId,
         totalParticipants
