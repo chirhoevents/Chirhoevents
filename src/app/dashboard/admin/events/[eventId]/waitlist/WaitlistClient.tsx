@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import {
   Table,
   TableBody,
@@ -119,6 +121,11 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [entryToDelete, setEntryToDelete] = useState<WaitlistEntry | null>(null)
+  const [overrideDialogOpen, setOverrideDialogOpen] = useState(false)
+  const [overrideEntry, setOverrideEntry] = useState<WaitlistEntry | null>(null)
+  const [overrideInfo, setOverrideInfo] = useState<{ capacityRemaining: number; spotsNeeded: number } | null>(null)
+  const [overrideReason, setOverrideReason] = useState('')
+  const [overrideSubmitting, setOverrideSubmitting] = useState(false)
 
   const fetchWaitlist = useCallback(async () => {
     try {
@@ -149,17 +156,42 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
     fetchWaitlist()
   }, [fetchWaitlist])
 
+  const sendContact = async (
+    entry: WaitlistEntry,
+    opts?: { override?: boolean; overrideReason?: string }
+  ) => {
+    const token = await getToken()
+    const response = await fetch(`/api/admin/waitlist/${entry.id}/contact`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(opts ?? {}),
+    })
+    return response
+  }
+
   const handleMarkContacted = async (entry: WaitlistEntry) => {
     try {
       setActionLoading(entry.id)
-      const token = await getToken()
-      const response = await fetch(`/api/admin/waitlist/${entry.id}/contact`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      })
+      const response = await sendContact(entry)
+
+      if (response.status === 409) {
+        const data = await response.json().catch(() => ({}))
+        if (data.canOverride) {
+          setOverrideEntry(entry)
+          setOverrideInfo({
+            capacityRemaining: data.capacityRemaining ?? 0,
+            spotsNeeded: data.spotsNeeded ?? entry.partySize,
+          })
+          setOverrideReason('')
+          setOverrideDialogOpen(true)
+          return
+        }
+        alert(data.error || 'Cannot send invitation.')
+        return
+      }
 
       if (!response.ok) {
         throw new Error('Failed to mark as contacted')
@@ -171,6 +203,34 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
       alert('Failed to mark as contacted. Please try again.')
     } finally {
       setActionLoading(null)
+    }
+  }
+
+  const handleConfirmOverride = async () => {
+    if (!overrideEntry) return
+    const reason = overrideReason.trim()
+    if (reason.length === 0) return
+
+    try {
+      setOverrideSubmitting(true)
+      const response = await sendContact(overrideEntry, {
+        override: true,
+        overrideReason: reason,
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to send invitation with override')
+      }
+      setOverrideDialogOpen(false)
+      setOverrideEntry(null)
+      setOverrideInfo(null)
+      setOverrideReason('')
+      await fetchWaitlist()
+    } catch (error) {
+      console.error('Error overriding capacity:', error)
+      alert(error instanceof Error ? error.message : 'Failed to override capacity.')
+    } finally {
+      setOverrideSubmitting(false)
     }
   }
 
@@ -672,6 +732,62 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
           )}
         </CardContent>
       </Card>
+
+      {/* Capacity Override Dialog */}
+      <AlertDialog open={overrideDialogOpen} onOpenChange={setOverrideDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-500" />
+              Event is Over Capacity
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Inviting <strong>{overrideEntry?.name}</strong> needs{' '}
+                  <strong>{overrideInfo?.spotsNeeded}</strong> spot
+                  {overrideInfo?.spotsNeeded === 1 ? '' : 's'}, but only{' '}
+                  <strong>{overrideInfo?.capacityRemaining}</strong> remain.
+                </p>
+                <p>
+                  You can force the invitation through, but the event will go over its
+                  configured capacity. This action is recorded.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="override-reason">Reason (required)</Label>
+            <Textarea
+              id="override-reason"
+              value={overrideReason}
+              onChange={(e) => setOverrideReason(e.target.value)}
+              placeholder="e.g. Priest added last minute at organizer's request"
+              rows={3}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={overrideSubmitting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                handleConfirmOverride()
+              }}
+              disabled={overrideSubmitting || overrideReason.trim().length === 0}
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              {overrideSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Sending
+                </>
+              ) : (
+                'Force invite anyway'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
