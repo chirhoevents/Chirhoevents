@@ -75,6 +75,7 @@ export async function POST(
         settings: {
           select: {
             contactEmail: true,
+            waitlistEnabled: true,
             onCampusCapacity: true,
             onCampusRemaining: true,
             offCampusCapacity: true,
@@ -107,7 +108,12 @@ export async function POST(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 
-    if (!event.enableWaitlist) {
+    // Waitlist can be enabled via either toggle — event.enableWaitlist (base field)
+    // or event.settings.waitlistEnabled (settings toggle). Match what
+    // registration-status.ts uses so the public "Join Waitlist" button and this
+    // API agree; otherwise the button appears but the join silently 400s.
+    const waitlistEnabled = event.settings?.waitlistEnabled ?? event.enableWaitlist
+    if (!waitlistEnabled) {
       return NextResponse.json(
         { error: 'Waitlist is not enabled for this event' },
         { status: 400 }

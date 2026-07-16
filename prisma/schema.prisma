@@ -533,6 +533,10 @@ model GroupRegistration {
   registeredAt               DateTime @default(now()) @map("registered_at") @db.Timestamptz(6)
   createdAt                  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  // Capacity override audit: set when a manual add proceeds despite insufficient capacity
+  overriddenBy               String?   @map("overridden_by") @db.Uuid
+  overriddenAt               DateTime? @map("overridden_at") @db.Timestamptz(6)
+  overrideReason             String?   @map("override_reason") @db.Text
 
   // Relations
   event          Event           @relation(fields: [eventId], references: [id])
@@ -597,6 +601,10 @@ model IndividualRegistration {
   checkedInBy               String?  @map("checked_in_by") @db.Uuid
   checkInStation            String?  @map("check_in_station") @db.VarChar(100)
   checkInNotes              String?  @map("check_in_notes") @db.Text
+  // Capacity override audit: set when a manual add proceeds despite insufficient capacity
+  overriddenBy              String?  @map("overridden_by") @db.Uuid
+  overriddenAt              DateTime? @map("overridden_at") @db.Timestamptz(6)
+  overrideReason            String?  @map("override_reason") @db.Text
 
   // Relations
   event         Event        @relation(fields: [eventId], references: [id])
@@ -1324,6 +1332,11 @@ model WaitlistEntry {
   invitationExpires   DateTime? @map("invitation_expires") @db.Timestamptz(6)
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Capacity override audit: set when an admin sends the invite despite insufficient capacity
+  overriddenBy        String?   @map("overridden_by") @db.Uuid
+  overriddenAt        DateTime? @map("overridden_at") @db.Timestamptz(6)
+  overrideReason      String?   @map("override_reason") @db.Text
 
   // Option preferences - what type of registration/housing they want
   registrationType         RegistrationType? @map("registration_type")

@@ -35,6 +35,18 @@ export async function POST(
 
     const { entryId } = await params
 
+    // Optional body: override capacity check with a reason.
+    // Body may be empty (backwards compat with existing UI calls that don't POST JSON).
+    let override = false
+    let overrideReason: string | null = null
+    try {
+      const body = await request.json()
+      override = body?.override === true
+      overrideReason = typeof body?.overrideReason === 'string' ? body.overrideReason.trim() : null
+    } catch {
+      // No JSON body — treat as no override.
+    }
+
     // Fetch waitlist entry with event and organization
     const entry = await prisma.waitlistEntry.findUnique({
       where: { id: entryId },
@@ -76,34 +88,47 @@ export async function POST(
       )
     }
 
-    // FIX 2.10: Check event capacity before sending invitation
+    // FIX 2.10: Check event capacity before sending invitation.
+    // An admin can force-invite past this with { override: true, overrideReason: "..." };
+    // the override is recorded on the entry for audit.
     const eventCapacity = await prisma.event.findUnique({
       where: { id: entry.event.id },
       select: { capacityTotal: true, capacityRemaining: true },
     })
 
-    if (
-      eventCapacity &&
+    const spotsNeeded = entry.partySize || 1
+    const capacityShort =
+      eventCapacity !== null &&
       eventCapacity.capacityTotal !== null &&
-      eventCapacity.capacityRemaining !== null
-    ) {
-      const spotsNeeded = entry.partySize || 1
-      if (eventCapacity.capacityRemaining < spotsNeeded) {
-        return NextResponse.json(
-          {
-            error: `Not enough capacity to invite this waitlist entry. Only ${eventCapacity.capacityRemaining} spot(s) remaining, but ${spotsNeeded} needed.`,
-            capacityRemaining: eventCapacity.capacityRemaining,
-          },
-          { status: 409 }
-        )
-      }
+      eventCapacity.capacityRemaining !== null &&
+      eventCapacity.capacityRemaining < spotsNeeded
+
+    if (capacityShort && !override) {
+      return NextResponse.json(
+        {
+          error: `Not enough capacity to invite this waitlist entry. Only ${eventCapacity!.capacityRemaining} spot(s) remaining, but ${spotsNeeded} needed.`,
+          capacityRemaining: eventCapacity!.capacityRemaining,
+          spotsNeeded,
+          canOverride: true,
+        },
+        { status: 409 }
+      )
+    }
+
+    if (capacityShort && override && (!overrideReason || overrideReason.length === 0)) {
+      return NextResponse.json(
+        { error: 'A reason is required when overriding capacity.' },
+        { status: 400 }
+      )
     }
 
     // Generate token and set expiration (48 hours from now)
     const registrationToken = generateRegistrationToken()
     const invitationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000) // 48 hours
 
-    // Update entry status to contacted with token
+    // Update entry status to contacted with token.
+    // Only stamp override fields when the override actually mattered — an invite
+    // that fit within capacity shouldn't look like a forced one, even if override:true was sent.
     const updatedEntry = await prisma.waitlistEntry.update({
       where: { id: entryId },
       data: {
@@ -111,8 +136,21 @@ export async function POST(
         notifiedAt: new Date(),
         registrationToken,
         invitationExpires,
+        ...(capacityShort && override
+          ? {
+              overriddenBy: user.id,
+              overriddenAt: new Date(),
+              overrideReason,
+            }
+          : {}),
       },
     })
+
+    if (capacityShort && override) {
+      console.log(
+        `[Waitlist] Capacity override used: entry=${entryId} by=${user.id} spotsNeeded=${spotsNeeded} remaining=${eventCapacity!.capacityRemaining} reason="${overrideReason}"`
+      )
+    }
 
     // Send invitation email with token URL
     const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'

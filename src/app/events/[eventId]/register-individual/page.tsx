@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -71,7 +71,9 @@ interface EventData {
 export default function IndividualRegistrationPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const eventId = params.eventId as string
+  const waitlistToken = searchParams?.get('waitlist') || ''
 
   // Queue management
   const {
@@ -289,6 +291,7 @@ export default function IndividualRegistrationPage() {
       emergencyContact2Phone: formData.emergencyContact2Phone,
       emergencyContact2Relation: formData.emergencyContact2Relation,
       couponCode: formData.couponCode,
+      ...(waitlistToken ? { waitlist: waitlistToken } : {}),
     })
 
     // Persist custom answers in sessionStorage so the review page can include them

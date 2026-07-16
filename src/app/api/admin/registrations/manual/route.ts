@@ -32,7 +32,10 @@ export async function POST(request: NextRequest) {
     const organizationId = await getEffectiveOrgId(user as any)
 
     const body = await request.json()
-    const { eventId, registrationType, ...fields } = body
+    const { eventId, registrationType, override, overrideReason, ...fields } = body
+    const overrideRequested = override === true
+    const overrideReasonTrimmed =
+      typeof overrideReason === 'string' ? overrideReason.trim() : ''
 
     // Verify event belongs to user's organization
     const event = await prisma.event.findUnique({
@@ -46,6 +49,56 @@ export async function POST(request: NextRequest) {
 
     if (!event) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+    }
+
+    // Capacity gate — shared across individual and group. Manual add previously
+    // clamped capacityRemaining at 0 and silently went over, so an admin at a full
+    // event had no signal they were oversubscribing. Now we 409 up-front and require
+    // an explicit override + reason to proceed.
+    const spotsNeeded =
+      registrationType === 'individual'
+        ? 1
+        : (parseInt(fields.youthCount) || 0) +
+          (parseInt(fields.chaperoneCount) || 0) +
+          (parseInt(fields.priestCount) || 0)
+
+    const capacityShort =
+      event.capacityTotal !== null &&
+      event.capacityRemaining !== null &&
+      event.capacityRemaining < spotsNeeded
+
+    if (capacityShort && !overrideRequested) {
+      return NextResponse.json(
+        {
+          error: `Adding this registration would exceed the event's remaining capacity. Only ${event.capacityRemaining} spot(s) left, but ${spotsNeeded} needed.`,
+          capacityRemaining: event.capacityRemaining,
+          spotsNeeded,
+          canOverride: true,
+        },
+        { status: 409 }
+      )
+    }
+
+    if (capacityShort && overrideRequested && overrideReasonTrimmed.length === 0) {
+      return NextResponse.json(
+        { error: 'A reason is required when overriding capacity.' },
+        { status: 400 }
+      )
+    }
+
+    const overrideFields =
+      capacityShort && overrideRequested
+        ? {
+            overriddenBy: user.id,
+            overriddenAt: new Date(),
+            overrideReason: overrideReasonTrimmed,
+          }
+        : {}
+
+    if (capacityShort && overrideRequested) {
+      console.log(
+        `[ManualReg] Capacity override used: event=${eventId} by=${user.id} type=${registrationType} spotsNeeded=${spotsNeeded} remaining=${event.capacityRemaining} reason="${overrideReasonTrimmed}"`
+      )
     }
 
     if (registrationType === 'individual') {
@@ -67,6 +120,7 @@ export async function POST(request: NextRequest) {
       // Create individual registration
       const registration = await prisma.individualRegistration.create({
         data: {
+          ...overrideFields,
           eventId,
           organizationId: organizationId,
           firstName: fields.firstName || 'N/A',
@@ -121,12 +175,15 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // Update event capacity if capacity tracking is enabled (individual = 1 participant)
+      // Update event capacity if capacity tracking is enabled (individual = 1 participant).
+      // When an admin overrode a capacity-short add, we allow capacityRemaining to go
+      // negative so the dashboard honestly reflects "N over capacity" instead of clamping to 0.
       if (event.capacityTotal !== null && event.capacityRemaining !== null) {
+        const next = event.capacityRemaining - 1
         await prisma.event.update({
           where: { id: eventId },
           data: {
-            capacityRemaining: Math.max(0, event.capacityRemaining - 1),
+            capacityRemaining: capacityShort && overrideRequested ? next : Math.max(0, next),
           },
         })
       }
@@ -288,6 +345,7 @@ export async function POST(request: NextRequest) {
 
       const registration = await prisma.groupRegistration.create({
         data: {
+          ...overrideFields,
           eventId,
           organizationId: organizationId,
           groupName: fields.groupName || 'Manual Group',
@@ -327,12 +385,14 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // Update event capacity if capacity tracking is enabled
+      // Update event capacity if capacity tracking is enabled.
+      // Allow negative capacityRemaining when the admin overrode a capacity-short add.
       if (event.capacityTotal !== null && event.capacityRemaining !== null) {
+        const next = event.capacityRemaining - totalParticipants
         await prisma.event.update({
           where: { id: eventId },
           data: {
-            capacityRemaining: Math.max(0, event.capacityRemaining - totalParticipants),
+            capacityRemaining: capacityShort && overrideRequested ? next : Math.max(0, next),
           },
         })
       }
