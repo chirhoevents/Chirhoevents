@@ -19,7 +19,11 @@ import {
   incrementDayPassOptionCapacity,
   type HousingType
 } from '@/lib/option-capacity'
-import { markWaitlistAsRegistered } from '@/lib/waitlist-utils'
+import {
+  markWaitlistAsRegistered,
+  markWaitlistAsRegisteredByToken,
+  validateWaitlistToken,
+} from '@/lib/waitlist-utils'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -48,6 +52,7 @@ export async function POST(request: NextRequest) {
       specialRequests = '',
       paymentMethod = 'card', // 'card' or 'check'
       couponCode = '',
+      waitlistToken = null,
     } = body
 
     if (!eventId || !groupName || !groupLeaderName || !groupLeaderEmail || !groupLeaderPhone || !alternativeContact1Name || !alternativeContact1Email || !alternativeContact1Phone) {
@@ -137,11 +142,36 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // A valid waitlist token bypasses the at_capacity/closed branches of the
+    // registration gate — that's the whole point of a waitlist invite. Other
+    // reasons registration is closed (event_ended, not_yet_open) still block.
+    let waitlistBypass = false
+    if (waitlistToken) {
+      const tokenCheck = await validateWaitlistToken(waitlistToken)
+      if (!tokenCheck.valid) {
+        return NextResponse.json(
+          { error: `Waitlist invitation is not valid: ${tokenCheck.error || 'unknown reason'}` },
+          { status: 400 }
+        )
+      }
+      if (tokenCheck.entry?.eventId !== event.id) {
+        return NextResponse.json(
+          { error: 'Waitlist invitation is for a different event.' },
+          { status: 400 }
+        )
+      }
+      waitlistBypass = true
+    }
+
     if (!regStatus.allowRegistration) {
-      return NextResponse.json(
-        { error: regStatus.message || 'Registration is not currently open for this event.' },
-        { status: 400 }
-      )
+      const bypassable =
+        waitlistBypass && (regStatus.status === 'at_capacity' || regStatus.status === 'closed')
+      if (!bypassable) {
+        return NextResponse.json(
+          { error: regStatus.message || 'Registration is not currently open for this event.' },
+          { status: 400 }
+        )
+      }
     }
 
     // Fix #1: Guard — org must have Stripe onboarding complete before accepting card payments
@@ -198,35 +228,48 @@ export async function POST(request: NextRequest) {
 
     // Fix #4: Atomic capacity check+decrement to prevent TOCTOU race conditions.
     // Do this BEFORE creating any records so we don't need to roll back on failure.
+    // Waitlist-token bypass: the admin has already approved this registration past
+    // capacity, so decrement unconditionally and let capacityRemaining go negative
+    // for honest oversubscription accounting.
     if (event.capacityTotal !== null && event.capacityRemaining !== null) {
-      const capacityResult = await prisma.$executeRaw`
-        UPDATE events
-        SET capacity_remaining = capacity_remaining - ${totalParticipants}
-        WHERE id = ${event.id}::uuid
-          AND capacity_remaining >= ${totalParticipants}
-      `
-      if (capacityResult === 0) {
-        // Re-fetch to give accurate remaining count in the error message
-        const freshEvent = await prisma.event.findUnique({
-          where: { id: event.id },
-          select: { capacityRemaining: true },
-        })
-        const spotsRemaining = freshEvent?.capacityRemaining ?? 0
-        return NextResponse.json(
-          {
-            error: spotsRemaining <= 0
-              ? 'Event is at full capacity. Please join the waitlist if available.'
-              : `Not enough spots available. Only ${spotsRemaining} spot${spotsRemaining === 1 ? '' : 's'} remaining, but ${totalParticipants} requested.`,
-            spotsRemaining,
-          },
-          { status: 400 }
-        )
+      if (waitlistBypass) {
+        await prisma.$executeRaw`
+          UPDATE events
+          SET capacity_remaining = capacity_remaining - ${totalParticipants}
+          WHERE id = ${event.id}::uuid
+        `
+      } else {
+        const capacityResult = await prisma.$executeRaw`
+          UPDATE events
+          SET capacity_remaining = capacity_remaining - ${totalParticipants}
+          WHERE id = ${event.id}::uuid
+            AND capacity_remaining >= ${totalParticipants}
+        `
+        if (capacityResult === 0) {
+          // Re-fetch to give accurate remaining count in the error message
+          const freshEvent = await prisma.event.findUnique({
+            where: { id: event.id },
+            select: { capacityRemaining: true },
+          })
+          const spotsRemaining = freshEvent?.capacityRemaining ?? 0
+          return NextResponse.json(
+            {
+              error: spotsRemaining <= 0
+                ? 'Event is at full capacity. Please join the waitlist if available.'
+                : `Not enough spots available. Only ${spotsRemaining} spot${spotsRemaining === 1 ? '' : 's'} remaining, but ${totalParticipants} requested.`,
+              spotsRemaining,
+            },
+            { status: 400 }
+          )
+        }
       }
     }
 
     // Check option-level capacity (housing type for group registrations)
-    // housingType is empty for one-day events — skip the check entirely
-    if (housingType) {
+    // housingType is empty for one-day events — skip the check entirely.
+    // Waitlist-token bypass skips option-level checks too; the person on the
+    // waitlist is usually there precisely because their option was full.
+    if (housingType && !waitlistBypass) {
       const optionCapacityCheck = checkOptionCapacity(
         event.settings,
         housingType as HousingType,
@@ -245,8 +288,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Check day pass option capacity (if applicable)
-    if (body.ticketType === 'day_pass' && body.dayPassOptionId) {
+    // Check day pass option capacity (if applicable). Waitlist bypass skips this.
+    if (body.ticketType === 'day_pass' && body.dayPassOptionId && !waitlistBypass) {
       const dayPassCapacityCheck = await checkDayPassOptionCapacity(
         body.dayPassOptionId,
         totalParticipants
@@ -526,8 +569,15 @@ export async function POST(request: NextRequest) {
     }
 
     // If the group leader was on the waitlist, flip their entry to 'registered'
-    // so the admin dashboard reflects reality. No-op if they registered normally.
-    await markWaitlistAsRegistered(event.id, groupLeaderEmail)
+    // so the admin dashboard reflects reality. When a waitlist token was used,
+    // match by token (authoritative) instead of by email (fragile — case,
+    // whitespace, or an entirely different email would leave the entry stuck
+    // in 'contacted' forever). No-op if they registered normally.
+    if (waitlistToken) {
+      await markWaitlistAsRegisteredByToken(waitlistToken)
+    } else {
+      await markWaitlistAsRegistered(event.id, groupLeaderEmail)
+    }
 
     // Handle payment method
     if (paymentMethod === 'check') {

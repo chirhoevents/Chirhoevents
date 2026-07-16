@@ -156,6 +156,8 @@ export default function InvoiceReviewPage() {
     couponCode: searchParams.get('couponCode') || '',
   }
 
+  const waitlistToken = searchParams.get('waitlist') || ''
+
   // Load event data
   useEffect(() => {
     async function loadEvent() {
@@ -348,6 +350,7 @@ export default function InvoiceReviewPage() {
         body: JSON.stringify({
           eventId,
           ...registrationData,
+          ...(waitlistToken ? { waitlistToken } : {}),
           totalParticipants,
           paymentMethod: 'card',
           customAnswers,
@@ -396,6 +399,7 @@ export default function InvoiceReviewPage() {
         body: JSON.stringify({
           eventId,
           ...registrationData,
+          ...(waitlistToken ? { waitlistToken } : {}),
           totalParticipants,
           paymentMethod: 'check',
           customAnswers,
