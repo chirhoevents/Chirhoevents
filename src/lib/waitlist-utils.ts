@@ -71,11 +71,14 @@ export async function markWaitlistAsRegisteredByToken(
       return { success: false, error: 'Token expired' }
     }
 
-    // Update to registered
+    // Update to registered. Also null out reservedSpots — the reservation has
+    // been consumed by the actual registration, so subsequent status flips
+    // shouldn't try to release it back to capacity.
     await prisma.waitlistEntry.update({
       where: { id: entry.id },
       data: {
         status: 'registered',
+        reservedSpots: null,
       },
     })
 
@@ -103,6 +106,7 @@ export async function validateWaitlistToken(token: string): Promise<{
     email: string
     partySize: number
     eventId: string
+    reservedSpots: number | null
   }
 }> {
   try {
@@ -134,6 +138,7 @@ export async function validateWaitlistToken(token: string): Promise<{
         email: entry.email,
         partySize: entry.partySize,
         eventId: entry.eventId,
+        reservedSpots: (entry as any).reservedSpots ?? null,
       },
     }
   } catch (error) {

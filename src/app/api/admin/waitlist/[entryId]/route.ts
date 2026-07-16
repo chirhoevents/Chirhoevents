@@ -50,6 +50,17 @@ export async function DELETE(
       )
     }
 
+    // If this entry was holding reserved seats (contacted with unused reservation),
+    // release them back to event capacity before deleting.
+    const reservedSpots = (entry as any).reservedSpots as number | null
+    if (entry.status === 'contacted' && reservedSpots && reservedSpots > 0) {
+      await prisma.$executeRaw`
+        UPDATE events
+        SET capacity_remaining = capacity_remaining + ${reservedSpots}
+        WHERE id = ${entry.event.id}::uuid
+      `
+    }
+
     // Delete the entry
     await prisma.waitlistEntry.delete({
       where: { id: entryId },

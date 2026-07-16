@@ -126,6 +126,54 @@ export async function POST(
     const registrationToken = generateRegistrationToken()
     const invitationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000) // 48 hours
 
+    // Reserve the seats: atomically decrement event.capacityRemaining so a
+    // walk-in can't eat the promised spot while the invitee has the token.
+    // If this entry already has a reservation (re-invite / re-send), keep it.
+    // The reservation is restored on expiry / move-back-to-pending / delete.
+    const trackCapacity =
+      eventCapacity !== null &&
+      eventCapacity.capacityTotal !== null &&
+      eventCapacity.capacityRemaining !== null
+    const alreadyReserved = (entry.reservedSpots ?? 0) > 0
+    let reservationCreated = false
+
+    if (trackCapacity && !alreadyReserved) {
+      if (capacityShort && override) {
+        // Override path — decrement unconditionally, honest oversubscription.
+        await prisma.$executeRaw`
+          UPDATE events
+          SET capacity_remaining = capacity_remaining - ${spotsNeeded}
+          WHERE id = ${entry.event.id}::uuid
+        `
+        reservationCreated = true
+      } else {
+        // Normal path — atomic conditional decrement; a concurrent registration
+        // between the soft check above and here could still lose the race.
+        const result = await prisma.$executeRaw`
+          UPDATE events
+          SET capacity_remaining = capacity_remaining - ${spotsNeeded}
+          WHERE id = ${entry.event.id}::uuid
+            AND capacity_remaining >= ${spotsNeeded}
+        `
+        if (result === 0) {
+          const fresh = await prisma.event.findUnique({
+            where: { id: entry.event.id },
+            select: { capacityRemaining: true },
+          })
+          return NextResponse.json(
+            {
+              error: `Not enough capacity to invite this waitlist entry. Only ${fresh?.capacityRemaining ?? 0} spot(s) remaining, but ${spotsNeeded} needed.`,
+              capacityRemaining: fresh?.capacityRemaining ?? 0,
+              spotsNeeded,
+              canOverride: true,
+            },
+            { status: 409 }
+          )
+        }
+        reservationCreated = true
+      }
+    }
+
     // Update entry status to contacted with token.
     // Only stamp override fields when the override actually mattered — an invite
     // that fit within capacity shouldn't look like a forced one, even if override:true was sent.
@@ -136,6 +184,7 @@ export async function POST(
         notifiedAt: new Date(),
         registrationToken,
         invitationExpires,
+        ...(reservationCreated ? { reservedSpots: spotsNeeded } : {}),
         ...(capacityShort && override
           ? {
               overriddenBy: user.id,

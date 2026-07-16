@@ -45,6 +45,43 @@ export async function GET(
       )
     }
 
+    // Lazy sweep: flip any 'contacted' entry whose invitationExpires has
+    // passed to 'expired' and release the seats it was holding back to event
+    // capacity. Race-safe: only entries that actually flip from 'contacted'
+    // count toward the release, so concurrent sweeps don't double-count.
+    const staleContacted = await prisma.waitlistEntry.findMany({
+      where: {
+        eventId,
+        status: 'contacted',
+        invitationExpires: { lt: new Date() },
+      },
+      select: { id: true, reservedSpots: true },
+    })
+
+    if (staleContacted.length > 0) {
+      let totalReleased = 0
+      for (const stale of staleContacted) {
+        const flipped = await prisma.$executeRaw`
+          UPDATE waitlist_entries
+          SET status = 'expired', reserved_spots = NULL
+          WHERE id = ${stale.id}::uuid
+            AND status = 'contacted'
+        `
+        if (flipped === 1) {
+          totalReleased += stale.reservedSpots ?? 0
+        }
+      }
+      if (totalReleased > 0) {
+        await prisma.event.update({
+          where: { id: eventId },
+          data: { capacityRemaining: { increment: totalReleased } },
+        })
+        console.log(
+          `[Waitlist] Sweep expired ${staleContacted.length} contacted invite(s), released ${totalReleased} seat(s) for event ${eventId}`
+        )
+      }
+    }
+
     // Fetch waitlist entries
     const entries = await prisma.waitlistEntry.findMany({
       where: {

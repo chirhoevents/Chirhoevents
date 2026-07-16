@@ -119,8 +119,10 @@ export async function POST(request: NextRequest) {
     // Waitlist-token bypass: a valid token from an admin invite lets this
     // registration through the capacity gates below (event + option + day pass).
     // The whole point of the waitlist invite is that the admin has approved
-    // this registration past capacity.
+    // this registration past capacity. If the token has a live reservation
+    // from Contact, we also skip the capacity decrement so we don't double-count.
     let waitlistBypass = false
+    let waitlistReservedSpots = 0
     if (waitlistToken) {
       const tokenCheck = await validateWaitlistToken(waitlistToken)
       if (!tokenCheck.valid) {
@@ -136,6 +138,7 @@ export async function POST(request: NextRequest) {
         )
       }
       waitlistBypass = true
+      waitlistReservedSpots = tokenCheck.entry?.reservedSpots ?? 0
     }
 
     // Check capacity before allowing registration
@@ -447,7 +450,10 @@ export async function POST(request: NextRequest) {
     // Update event capacity if capacity tracking is enabled (individual = 1 participant).
     // On a waitlist bypass, allow capacityRemaining to go negative so the dashboard
     // honestly reflects oversubscription instead of clamping to 0.
-    if (event.capacityTotal !== null && event.capacityRemaining !== null) {
+    // If the token had a live reservation, the seat was already decremented on
+    // Contact — skip this decrement to avoid double-counting.
+    const skipCapacityDecrement = waitlistBypass && waitlistReservedSpots > 0
+    if (event.capacityTotal !== null && event.capacityRemaining !== null && !skipCapacityDecrement) {
       const next = event.capacityRemaining - 1
       await prisma.event.update({
         where: { id: event.id },
