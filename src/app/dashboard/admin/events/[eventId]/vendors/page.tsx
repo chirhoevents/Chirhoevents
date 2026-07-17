@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
@@ -41,6 +41,8 @@ import {
   Mail,
   Plus,
   Trash2,
+  Shield,
+  Upload,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import CustomQuestionsManager from '@/components/admin/CustomQuestionsManager'
@@ -72,6 +74,8 @@ interface VendorRegistration {
   amountPaid: number
   vendorCode: string
   accessCode: string
+  safeEnvironmentCertUrl: string | null
+  safeEnvironmentCertUploadedAt: string | null
   createdAt: string
   _count?: {
     boothStaff: number
@@ -160,6 +164,45 @@ export default function VendorsManagementPage() {
     totalRevenue: vendors
       .filter((v) => v.paymentStatus === 'paid')
       .reduce((sum, v) => sum + Number(v.amountPaid || 0), 0),
+  }
+
+  const safeEnvFileInputRef = useRef<HTMLInputElement | null>(null)
+  const [uploadingCertVendorId, setUploadingCertVendorId] = useState<string | null>(null)
+
+  const triggerSafeEnvUpload = (vendorId: string) => {
+    setUploadingCertVendorId(vendorId)
+    safeEnvFileInputRef.current?.click()
+  }
+
+  const handleSafeEnvFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    const vendorId = uploadingCertVendorId
+    e.target.value = ''
+    if (!file || !vendorId) {
+      setUploadingCertVendorId(null)
+      return
+    }
+    try {
+      const token = await getToken()
+      const body = new FormData()
+      body.append('file', file)
+      const res = await fetch(`/api/admin/events/${eventId}/vendors/${vendorId}/safe-env-cert`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body,
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        alert(`Failed to upload certificate: ${data.error || res.statusText}`)
+        return
+      }
+      alert('Safe Environment certificate uploaded. The vendor has been notified.')
+      loadData()
+    } catch {
+      alert('Failed to upload certificate')
+    } finally {
+      setUploadingCertVendorId(null)
+    }
   }
 
   const openReviewModal = (vendor: VendorRegistration) => {
@@ -328,6 +371,13 @@ export default function VendorsManagementPage() {
 
   return (
     <div className="space-y-6">
+      <input
+        ref={safeEnvFileInputRef}
+        type="file"
+        accept="application/pdf,image/*"
+        className="hidden"
+        onChange={handleSafeEnvFileSelected}
+      />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -542,6 +592,33 @@ export default function VendorsManagementPage() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
+                        {vendor.status === 'approved' && (
+                          vendor.safeEnvironmentCertUrl ? (
+                            <a
+                              href={vendor.safeEnvironmentCertUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center justify-center h-8 w-8 rounded-md text-green-600 hover:bg-green-50"
+                              title={`Safe Env cert on file${vendor.safeEnvironmentCertUploadedAt ? ` (uploaded ${format(new Date(vendor.safeEnvironmentCertUploadedAt), 'MMM d')})` : ''}`}
+                            >
+                              <Shield className="h-4 w-4" />
+                            </a>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => triggerSafeEnvUpload(vendor.id)}
+                              title="Upload Safe Environment Cert on behalf of vendor"
+                              disabled={uploadingCertVendorId === vendor.id}
+                            >
+                              {uploadingCertVendorId === vendor.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Upload className="h-4 w-4" />
+                              )}
+                            </Button>
+                          )
+                        )}
                         {vendor.status === 'pending' && (
                           <Button
                             size="sm"
