@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
             include: {
               event: {
                 include: {
-                  organization: { select: { contactEmail: true } },
+                  organization: { select: { name: true, contactEmail: true } },
                   settings: { select: { contactEmail: true } },
                 },
               },
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
             include: {
               event: {
                 include: {
-                  organization: { select: { contactEmail: true } },
+                  organization: { select: { name: true, contactEmail: true } },
                   settings: { select: { contactEmail: true } },
                 },
               },
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
             include: {
               event: {
                 include: {
-                  organization: { select: { contactEmail: true } },
+                  organization: { select: { name: true, contactEmail: true } },
                   settings: { select: { contactEmail: true } },
                 },
               },
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
             include: {
               event: {
                 include: {
-                  organization: { select: { contactEmail: true } },
+                  organization: { select: { name: true, contactEmail: true } },
                   settings: { select: { contactEmail: true } },
                 },
               },
