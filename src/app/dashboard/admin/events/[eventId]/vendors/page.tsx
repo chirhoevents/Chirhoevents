@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
@@ -41,9 +41,12 @@ import {
   Mail,
   Plus,
   Trash2,
+  Shield,
+  Upload,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import CustomQuestionsManager from '@/components/admin/CustomQuestionsManager'
+import RefundModal from '@/components/admin/RefundModal'
 
 interface CustomAnswer {
   questionText: string
@@ -72,6 +75,11 @@ interface VendorRegistration {
   amountPaid: number
   vendorCode: string
   accessCode: string
+  porosAccessCode: string | null
+  liabilityFormId: string | null
+  liabilityForm?: { completed: boolean } | null
+  safeEnvironmentCertUrl: string | null
+  safeEnvironmentCertUploadedAt: string | null
   createdAt: string
   _count?: {
     boothStaff: number
@@ -160,6 +168,68 @@ export default function VendorsManagementPage() {
     totalRevenue: vendors
       .filter((v) => v.paymentStatus === 'paid')
       .reduce((sum, v) => sum + Number(v.amountPaid || 0), 0),
+  }
+
+  const safeEnvFileInputRef = useRef<HTMLInputElement | null>(null)
+  const [uploadingCertVendorId, setUploadingCertVendorId] = useState<string | null>(null)
+  const [refundVendor, setRefundVendor] = useState<VendorRegistration | null>(null)
+  const [resendingCodesId, setResendingCodesId] = useState<string | null>(null)
+
+  const handleResendCodes = async (vendorId: string) => {
+    setResendingCodesId(vendorId)
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/admin/events/${eventId}/vendors/${vendorId}/resend-codes`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        alert(`Failed to resend codes: ${data.error || res.statusText}`)
+        return
+      }
+      alert('Vendor codes emailed successfully.')
+    } catch {
+      alert('Failed to resend codes')
+    } finally {
+      setResendingCodesId(null)
+    }
+  }
+
+  const triggerSafeEnvUpload = (vendorId: string) => {
+    setUploadingCertVendorId(vendorId)
+    safeEnvFileInputRef.current?.click()
+  }
+
+  const handleSafeEnvFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    const vendorId = uploadingCertVendorId
+    e.target.value = ''
+    if (!file || !vendorId) {
+      setUploadingCertVendorId(null)
+      return
+    }
+    try {
+      const token = await getToken()
+      const body = new FormData()
+      body.append('file', file)
+      const res = await fetch(`/api/admin/events/${eventId}/vendors/${vendorId}/safe-env-cert`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body,
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        alert(`Failed to upload certificate: ${data.error || res.statusText}`)
+        return
+      }
+      alert('Safe Environment certificate uploaded. The vendor has been notified.')
+      loadData()
+    } catch {
+      alert('Failed to upload certificate')
+    } finally {
+      setUploadingCertVendorId(null)
+    }
   }
 
   const openReviewModal = (vendor: VendorRegistration) => {
@@ -328,6 +398,13 @@ export default function VendorsManagementPage() {
 
   return (
     <div className="space-y-6">
+      <input
+        ref={safeEnvFileInputRef}
+        type="file"
+        accept="application/pdf,image/*"
+        className="hidden"
+        onChange={handleSafeEnvFileSelected}
+      />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -474,13 +551,14 @@ export default function VendorsManagementPage() {
                 <TableHead>Status</TableHead>
                 <TableHead>Payment</TableHead>
                 <TableHead>Staff</TableHead>
+                <TableHead>Poros</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredVendors.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-[#6B7280]">
+                  <TableCell colSpan={8} className="text-center py-8 text-[#6B7280]">
                     No vendor applications found
                   </TableCell>
                 </TableRow>
@@ -530,6 +608,26 @@ export default function VendorsManagementPage() {
                       )}
                     </TableCell>
                     <TableCell>
+                      {vendor.status === 'approved' ? (
+                        vendor.porosAccessCode ? (
+                          vendor.liabilityForm?.completed ? (
+                            <Badge className="bg-green-500">
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Complete
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-amber-600 border-amber-300">
+                              Pending
+                            </Badge>
+                          )
+                        ) : (
+                          <span className="text-xs text-[#6B7280]">N/A</span>
+                        )
+                      ) : (
+                        <span className="text-xs text-[#6B7280]">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
                       <div className="flex gap-1">
                         <Button
                           size="sm"
@@ -542,6 +640,33 @@ export default function VendorsManagementPage() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
+                        {vendor.status === 'approved' && (
+                          vendor.safeEnvironmentCertUrl ? (
+                            <a
+                              href={vendor.safeEnvironmentCertUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center justify-center h-8 w-8 rounded-md text-green-600 hover:bg-green-50"
+                              title={`Safe Env cert on file${vendor.safeEnvironmentCertUploadedAt ? ` (uploaded ${format(new Date(vendor.safeEnvironmentCertUploadedAt), 'MMM d')})` : ''}`}
+                            >
+                              <Shield className="h-4 w-4" />
+                            </a>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => triggerSafeEnvUpload(vendor.id)}
+                              title="Upload Safe Environment Cert on behalf of vendor"
+                              disabled={uploadingCertVendorId === vendor.id}
+                            >
+                              {uploadingCertVendorId === vendor.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Upload className="h-4 w-4" />
+                              )}
+                            </Button>
+                          )
+                        )}
                         {vendor.status === 'pending' && (
                           <Button
                             size="sm"
@@ -549,6 +674,31 @@ export default function VendorsManagementPage() {
                             onClick={() => openReviewModal(vendor)}
                           >
                             Review
+                          </Button>
+                        )}
+                        {vendor.status === 'approved' && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleResendCodes(vendor.id)}
+                            disabled={resendingCodesId === vendor.id}
+                            title="Resend vendor code, portal access code, and liability code"
+                          >
+                            {resendingCodesId === vendor.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Mail className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
+                        {vendor.status === 'approved' && Number(vendor.amountPaid || 0) > 0 && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setRefundVendor(vendor)}
+                            title="Refund vendor"
+                          >
+                            <DollarSign className="h-4 w-4 text-red-600" />
                           </Button>
                         )}
                       </div>
@@ -687,6 +837,22 @@ export default function VendorsManagementPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Refund Modal */}
+      {refundVendor && (
+        <RefundModal
+          isOpen={!!refundVendor}
+          onClose={() => setRefundVendor(null)}
+          registrationId={refundVendor.id}
+          registrationType="vendor"
+          currentBalance={Number(refundVendor.invoiceTotal || 0) - Number(refundVendor.amountPaid || 0)}
+          amountPaid={Number(refundVendor.amountPaid || 0)}
+          onRefundProcessed={() => {
+            setRefundVendor(null)
+            loadData()
+          }}
+        />
+      )}
 
       {/* Detail Modal */}
       <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>

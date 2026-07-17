@@ -797,6 +797,7 @@ model LiabilityForm {
   individualRegistration IndividualRegistration? @relation(fields: [individualRegistrationId], references: [id])
   safeEnvironmentCertificates SafeEnvironmentCertificate[]
   staffRegistrations     StaffRegistration[]
+  vendorRegistrations    VendorRegistration[] @relation("VendorLiabilityForm")
   lettersOfGoodStanding  LetterOfGoodStanding[]
 
   @@index([organizationId], name: "idx_liability_org")
@@ -2619,12 +2620,23 @@ model VendorRegistration {
   // Portal Access Code
   accessCode          String   @unique @map("access_code") @db.VarChar(50)
 
+  // Liability Form (issued at approval when the event requires forms)
+  porosAccessCode     String?  @unique @map("poros_access_code") @db.VarChar(50)
+  liabilityFormId     String?  @map("liability_form_id") @db.Uuid
+
+  // Safe Environment certificate (admin-uploaded on behalf of the vendor
+  // contact, typically after they email the file to the org support address)
+  safeEnvironmentCertUrl          String?   @map("safe_environment_cert_url") @db.Text
+  safeEnvironmentCertUploadedAt   DateTime? @map("safe_environment_cert_uploaded_at") @db.Timestamptz(6)
+  safeEnvironmentCertUploadedById String?   @map("safe_environment_cert_uploaded_by_id") @db.Uuid
+
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   // Relations
   event               Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   boothStaff          StaffRegistration[]
+  liabilityForm       LiabilityForm? @relation("VendorLiabilityForm", fields: [liabilityFormId], references: [id], onDelete: SetNull)
 
   @@index([eventId], name: "idx_vendor_reg_event")
   @@index([organizationId], name: "idx_vendor_reg_org")
@@ -2665,6 +2677,12 @@ model StaffRegistration {
   // Poros Integration (liability forms)
   porosAccessCode     String?  @unique @map("poros_access_code") @db.VarChar(50)
   liabilityFormId     String?  @map("liability_form_id") @db.Uuid
+
+  // Safe Environment certificate (admin-uploaded on behalf of the staffer,
+  // typically after they email the file to the org support address)
+  safeEnvironmentCertUrl          String?   @map("safe_environment_cert_url") @db.Text
+  safeEnvironmentCertUploadedAt   DateTime? @map("safe_environment_cert_uploaded_at") @db.Timestamptz(6)
+  safeEnvironmentCertUploadedById String?   @map("safe_environment_cert_uploaded_by_id") @db.Uuid
 
   // Check-in fields (SALVE integration)
   checkedIn           Boolean  @default(false) @map("checked_in")

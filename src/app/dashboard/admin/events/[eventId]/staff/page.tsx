@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
@@ -27,9 +27,13 @@ import {
   Mail,
   FileText,
   Printer,
+  Shield,
+  Upload,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import CustomQuestionsManager from '@/components/admin/CustomQuestionsManager'
+import RefundModal from '@/components/admin/RefundModal'
+import { DollarSign } from 'lucide-react'
 
 interface CustomAnswer {
   questionText: string
@@ -51,6 +55,8 @@ interface StaffRegistration {
   paymentStatus: string
   porosAccessCode: string | null
   liabilityFormId: string | null
+  safeEnvironmentCertUrl: string | null
+  safeEnvironmentCertUploadedAt: string | null
   checkedIn: boolean
   createdAt: string
   vendorRegistration?: {
@@ -172,6 +178,48 @@ export default function StaffManagementPage() {
     a.click()
   }
 
+  const safeEnvFileInputRef = useRef<HTMLInputElement | null>(null)
+  const [uploadingCertStaffId, setUploadingCertStaffId] = useState<string | null>(null)
+  const [refundStaff, setRefundStaff] = useState<StaffRegistration | null>(null)
+
+  const triggerSafeEnvUpload = (staffId: string) => {
+    setUploadingCertStaffId(staffId)
+    safeEnvFileInputRef.current?.click()
+  }
+
+  const handleSafeEnvFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    const staffId = uploadingCertStaffId
+    // reset picker so the same file can be re-selected next time
+    e.target.value = ''
+    if (!file || !staffId) {
+      setUploadingCertStaffId(null)
+      return
+    }
+
+    try {
+      const token = await getToken()
+      const body = new FormData()
+      body.append('file', file)
+      const res = await fetch(`/api/admin/events/${eventId}/staff/${staffId}/safe-env-cert`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body,
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        alert(`Failed to upload certificate: ${data.error || res.statusText}`)
+        return
+      }
+      alert('Safe Environment certificate uploaded. The staffer has been notified.')
+      loadData()
+    } catch {
+      alert('Failed to upload certificate')
+    } finally {
+      setUploadingCertStaffId(null)
+    }
+  }
+
   const handleResendPorosCode = async (staffId: string) => {
     try {
       const token = await getToken()
@@ -205,6 +253,13 @@ export default function StaffManagementPage() {
 
   return (
     <div className="space-y-6">
+      <input
+        ref={safeEnvFileInputRef}
+        type="file"
+        accept="application/pdf,image/*"
+        className="hidden"
+        onChange={handleSafeEnvFileSelected}
+      />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -329,6 +384,21 @@ export default function StaffManagementPage() {
         </div>
       </div>
 
+      {refundStaff && (
+        <RefundModal
+          isOpen={!!refundStaff}
+          onClose={() => setRefundStaff(null)}
+          registrationId={refundStaff.id}
+          registrationType="staff"
+          currentBalance={0}
+          amountPaid={Number(refundStaff.pricePaid || 0)}
+          onRefundProcessed={() => {
+            setRefundStaff(null)
+            loadData()
+          }}
+        />
+      )}
+
       {/* Table */}
       <Card>
         <CardContent className="p-0">
@@ -424,6 +494,41 @@ export default function StaffManagementPage() {
                             title="Resend Poros Code"
                           >
                             <Mail className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {Number(staff.pricePaid || 0) > 0 && staff.paymentStatus === 'paid' && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setRefundStaff(staff)}
+                            title="Refund staffer"
+                          >
+                            <DollarSign className="h-4 w-4 text-red-600" />
+                          </Button>
+                        )}
+                        {staff.safeEnvironmentCertUrl ? (
+                          <a
+                            href={staff.safeEnvironmentCertUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center h-8 w-8 rounded-md text-green-600 hover:bg-green-50"
+                            title={`Safe Env cert on file${staff.safeEnvironmentCertUploadedAt ? ` (uploaded ${format(new Date(staff.safeEnvironmentCertUploadedAt), 'MMM d')})` : ''}`}
+                          >
+                            <Shield className="h-4 w-4" />
+                          </a>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => triggerSafeEnvUpload(staff.id)}
+                            title="Upload Safe Environment Cert on behalf of staffer"
+                            disabled={uploadingCertStaffId === staff.id}
+                          >
+                            {uploadingCertStaffId === staff.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Upload className="h-4 w-4" />
+                            )}
                           </Button>
                         )}
                       </div>

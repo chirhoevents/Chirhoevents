@@ -730,6 +730,20 @@ export async function POST(request: NextRequest) {
                   <p style="margin:8px 0 0 0;font-size:32px;font-weight:bold;letter-spacing:4px;color:#1E3A5F;">${staffReg.porosAccessCode}</p>
                 </td></tr>
               </table>
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 16px auto;">
+                <tr>
+                  <td style="background-color:#1E3A5F;border-radius:6px;text-align:center;">
+                    <a href="${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://chirhoevents.com'}/poros?code=${staffReg.porosAccessCode}" target="_blank" style="display:inline-block;padding:14px 32px;color:#ffffff;text-decoration:none;font-weight:600;font-size:16px;">
+                      Complete Liability Form
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="font-size:13px;color:#666;text-align:center;">
+                Don't have your Safe Environment certificate handy? You can email a copy to
+                <a href="mailto:${resolveReplyTo(staffReg.event.settings, staffReg.event.organization)}" style="color:#1E3A5F;">${resolveReplyTo(staffReg.event.settings, staffReg.event.organization)}</a>
+                and we'll upload it for you.
+              </p>
               ` : ''}
 
               <p>We look forward to seeing you at the event!</p>
