@@ -48,6 +48,8 @@ import { format } from 'date-fns'
 import CustomQuestionsManager from '@/components/admin/CustomQuestionsManager'
 import RefundModal from '@/components/admin/RefundModal'
 import BulkVendorEmailModal from '@/components/admin/BulkVendorEmailModal'
+import { openBadgePrintWindow } from '@/lib/badge-renderer'
+import { Printer } from 'lucide-react'
 
 interface CustomAnswer {
   questionText: string
@@ -122,6 +124,37 @@ export default function VendorsManagementPage() {
   // Detail modal state
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [detailVendor, setDetailVendor] = useState<VendorRegistration | null>(null)
+  const [editingVendor, setEditingVendor] = useState(false)
+  const [vendorEdits, setVendorEdits] = useState<Partial<VendorRegistration>>({})
+  const [savingVendor, setSavingVendor] = useState(false)
+
+  const saveVendorEdits = async () => {
+    if (!detailVendor) return
+    setSavingVendor(true)
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/admin/events/${eventId}/vendors/${detailVendor.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(vendorEdits),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        alert(`Failed to save: ${data.error || res.statusText}`)
+        return
+      }
+      const data = await res.json()
+      setDetailVendor({ ...detailVendor, ...data.vendor })
+      setVendorEdits({})
+      setEditingVendor(false)
+      loadData()
+    } finally {
+      setSavingVendor(false)
+    }
+  }
 
   useEffect(() => {
     loadData()
@@ -176,6 +209,47 @@ export default function VendorsManagementPage() {
   const [refundVendor, setRefundVendor] = useState<VendorRegistration | null>(null)
   const [resendingCodesId, setResendingCodesId] = useState<string | null>(null)
   const [bulkEmailOpen, setBulkEmailOpen] = useState(false)
+  const [printing, setPrinting] = useState(false)
+
+  const handlePrintNameTags = async () => {
+    const approvedVendors = filteredVendors.filter((v) => v.status === 'approved')
+    if (approvedVendors.length === 0) {
+      alert('No approved vendors match the current filter.')
+      return
+    }
+    setPrinting(true)
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/admin/events/${eventId}/salve/generate-name-tags`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          registrationType: 'vendor',
+          participantIds: approvedVendors.map((v) => v.id),
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        alert(`Failed to generate name tags: ${data.error || data.message || res.statusText}`)
+        return
+      }
+      const data = await res.json()
+      if (!data.nameTags || data.nameTags.length === 0) {
+        alert('No name tags were generated.')
+        return
+      }
+      const template = data.nameTags[0]?.template
+      openBadgePrintWindow(data.nameTags, template, event?.name || '', data.schedule || [])
+    } catch (err) {
+      console.error('Print name tags error:', err)
+      alert('Failed to generate name tags')
+    } finally {
+      setPrinting(false)
+    }
+  }
 
   const handleResendCodes = async (vendorId: string) => {
     setResendingCodesId(vendorId)
@@ -424,6 +498,15 @@ export default function VendorsManagementPage() {
           <Button variant="outline" onClick={() => setBulkEmailOpen(true)} title="Email approved vendors">
             <Mail className="h-4 w-4 mr-2" />
             Email Vendors
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handlePrintNameTags}
+            disabled={printing || filteredVendors.filter((v) => v.status === 'approved').length === 0}
+            title="Print name tags for approved vendors using the event's SALVE name-tag template"
+          >
+            {printing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Printer className="h-4 w-4 mr-2" />}
+            Print Name Tags
           </Button>
           <Button variant="outline" onClick={handleExportCSV}>
             <Download className="h-4 w-4 mr-2" />
@@ -868,10 +951,26 @@ export default function VendorsManagementPage() {
       )}
 
       {/* Detail Modal */}
-      <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
-        <DialogContent className="max-w-lg">
+      <Dialog
+        open={detailModalOpen}
+        onOpenChange={(o) => {
+          setDetailModalOpen(o)
+          if (!o) {
+            setEditingVendor(false)
+            setVendorEdits({})
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Vendor Details</DialogTitle>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Vendor Details</span>
+              {detailVendor && !editingVendor && (
+                <Button size="sm" variant="outline" onClick={() => setEditingVendor(true)}>
+                  Edit
+                </Button>
+              )}
+            </DialogTitle>
           </DialogHeader>
 
           {detailVendor && (
@@ -886,16 +985,83 @@ export default function VendorsManagementPage() {
                 </div>
               </div>
 
-              <div className="space-y-2 text-sm">
-                <p><strong>Contact:</strong> {detailVendor.contactFirstName} {detailVendor.contactLastName}</p>
-                <p><strong>Email:</strong> {detailVendor.email}</p>
-                <p><strong>Phone:</strong> {detailVendor.phone}</p>
-                <p><strong>Booth Type:</strong> {detailVendor.selectedTier}</p>
-                <p><strong>Description:</strong> {detailVendor.boothDescription}</p>
-                {detailVendor.additionalNeeds && (
-                  <p><strong>Additional Needs:</strong> {detailVendor.additionalNeeds}</p>
-                )}
-              </div>
+              {editingVendor ? (
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <Label>Business Name</Label>
+                    <Input
+                      value={vendorEdits.businessName ?? detailVendor.businessName}
+                      onChange={(e) => setVendorEdits((p) => ({ ...p, businessName: e.target.value }))}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label>Contact First</Label>
+                      <Input
+                        value={vendorEdits.contactFirstName ?? detailVendor.contactFirstName}
+                        onChange={(e) => setVendorEdits((p) => ({ ...p, contactFirstName: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <Label>Contact Last</Label>
+                      <Input
+                        value={vendorEdits.contactLastName ?? detailVendor.contactLastName}
+                        onChange={(e) => setVendorEdits((p) => ({ ...p, contactLastName: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Email</Label>
+                    <Input
+                      value={vendorEdits.email ?? detailVendor.email}
+                      onChange={(e) => setVendorEdits((p) => ({ ...p, email: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label>Phone</Label>
+                    <Input
+                      value={vendorEdits.phone ?? detailVendor.phone}
+                      onChange={(e) => setVendorEdits((p) => ({ ...p, phone: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label>Booth Description</Label>
+                    <Textarea
+                      rows={3}
+                      value={vendorEdits.boothDescription ?? detailVendor.boothDescription}
+                      onChange={(e) => setVendorEdits((p) => ({ ...p, boothDescription: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label>Additional Needs</Label>
+                    <Textarea
+                      rows={2}
+                      value={vendorEdits.additionalNeeds ?? detailVendor.additionalNeeds ?? ''}
+                      onChange={(e) => setVendorEdits((p) => ({ ...p, additionalNeeds: e.target.value }))}
+                    />
+                  </div>
+                  <div className="flex gap-2 justify-end pt-2">
+                    <Button variant="outline" size="sm" onClick={() => { setEditingVendor(false); setVendorEdits({}) }}>
+                      Cancel
+                    </Button>
+                    <Button size="sm" onClick={saveVendorEdits} disabled={savingVendor} className="bg-[#1E3A5F] hover:bg-[#2d4a6f]">
+                      {savingVendor ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2 text-sm">
+                  <p><strong>Contact:</strong> {detailVendor.contactFirstName} {detailVendor.contactLastName}</p>
+                  <p><strong>Email:</strong> {detailVendor.email}</p>
+                  <p><strong>Phone:</strong> {detailVendor.phone}</p>
+                  <p><strong>Booth Type:</strong> {detailVendor.selectedTier}</p>
+                  <p><strong>Description:</strong> {detailVendor.boothDescription}</p>
+                  {detailVendor.additionalNeeds && (
+                    <p><strong>Additional Needs:</strong> {detailVendor.additionalNeeds}</p>
+                  )}
+                </div>
+              )}
 
               {detailVendor.customAnswers && detailVendor.customAnswers.length > 0 && (
                 <div className="border-t pt-4 space-y-2">

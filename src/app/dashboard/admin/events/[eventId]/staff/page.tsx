@@ -36,6 +36,7 @@ import RefundModal from '@/components/admin/RefundModal'
 import StaffDetailsModal from '@/components/admin/StaffDetailsModal'
 import BulkStaffEmailModal from '@/components/admin/BulkStaffEmailModal'
 import { DollarSign, Eye } from 'lucide-react'
+import { openBadgePrintWindow } from '@/lib/badge-renderer'
 
 interface CustomAnswer {
   questionText: string
@@ -224,6 +225,46 @@ export default function StaffManagementPage() {
     }
   }
 
+  const [printing, setPrinting] = useState(false)
+  const handlePrintNameTags = async () => {
+    if (filteredStaff.length === 0) {
+      alert('No staff members match the current filter.')
+      return
+    }
+    setPrinting(true)
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/admin/events/${eventId}/salve/generate-name-tags`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          registrationType: 'staff',
+          participantIds: filteredStaff.map((s) => s.id),
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        alert(`Failed to generate name tags: ${data.error || data.message || res.statusText}`)
+        return
+      }
+      const data = await res.json()
+      if (!data.nameTags || data.nameTags.length === 0) {
+        alert('No name tags were generated.')
+        return
+      }
+      const template = data.nameTags[0]?.template
+      openBadgePrintWindow(data.nameTags, template, event?.name || '', data.schedule || [])
+    } catch (err) {
+      console.error('Print name tags error:', err)
+      alert('Failed to generate name tags')
+    } finally {
+      setPrinting(false)
+    }
+  }
+
   const handleResendPorosCode = async (staffId: string) => {
     try {
       const token = await getToken()
@@ -288,10 +329,15 @@ export default function StaffManagementPage() {
           </Button>
           <Button
             variant="outline"
-            disabled
-            title="Coming soon — staff name-tag printing is on the roadmap. Use the SALVE portal for participant name tags."
+            onClick={handlePrintNameTags}
+            disabled={printing || filteredStaff.length === 0}
+            title="Print name tags for the filtered staff list using the event's SALVE name-tag template"
           >
-            <Printer className="h-4 w-4 mr-2" />
+            {printing ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Printer className="h-4 w-4 mr-2" />
+            )}
             Print Name Tags
           </Button>
         </div>
