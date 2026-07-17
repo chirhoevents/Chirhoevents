@@ -72,6 +72,12 @@ interface WaitlistEntry {
   hasToken: boolean
   createdAt: string
   updatedAt: string
+  registrationType: 'group' | 'individual' | null
+  preferredHousingType: 'on_campus' | 'off_campus' | 'day_pass' | null
+  preferredRoomType: 'single' | 'double' | 'triple' | 'quad' | null
+  preferredTicketType: 'general_admission' | 'day_pass' | null
+  preferredDayPassOptionId: string | null
+  preferredDayPassOptionName: string | null
 }
 
 interface WaitlistSummary {
@@ -650,9 +656,36 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
-                        <Badge variant="secondary" className="bg-[#F5F1E8] text-[#1E3A5F]">
-                          {entry.partySize} {entry.partySize === 1 ? 'spot' : 'spots'}
-                        </Badge>
+                        <div className="flex flex-col items-center gap-1">
+                          <Badge variant="secondary" className="bg-[#F5F1E8] text-[#1E3A5F]">
+                            {entry.partySize} {entry.partySize === 1 ? 'spot' : 'spots'}
+                          </Badge>
+                          {(entry.preferredHousingType ||
+                            entry.preferredDayPassOptionName ||
+                            entry.preferredTicketType === 'day_pass') && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs border-[#9C8466] text-[#9C8466] whitespace-nowrap"
+                            >
+                              {entry.preferredDayPassOptionName
+                                ? entry.preferredDayPassOptionName
+                                : entry.preferredHousingType === 'on_campus'
+                                ? entry.preferredRoomType
+                                  ? `On-Campus · ${entry.preferredRoomType}`
+                                  : 'On-Campus'
+                                : entry.preferredHousingType === 'off_campus'
+                                ? 'Off-Campus'
+                                : entry.preferredHousingType === 'day_pass'
+                                ? 'Day Pass'
+                                : 'Day Pass'}
+                            </Badge>
+                          )}
+                          {entry.registrationType && (
+                            <span className="text-xs text-[#6B7280]">
+                              {entry.registrationType === 'group' ? 'Group' : 'Individual'}
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>{getStatusBadge(entry)}</TableCell>
                       <TableCell>
