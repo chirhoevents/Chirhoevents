@@ -250,7 +250,7 @@ export async function POST(request: NextRequest) {
         where: { id: registrationId },
         data: {
           pricePaid: newPaid,
-          paymentStatus: newPaid <= 0 ? 'unpaid' : 'paid',
+          paymentStatus: newPaid <= 0 ? 'pending' : 'paid',
         },
       })
     } else if (registrationType === 'vendor') {
