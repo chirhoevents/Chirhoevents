@@ -305,12 +305,17 @@ export async function POST(request: NextRequest) {
         <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto 24px auto;">
           <tr>
             <td style="background-color: #1E3A5F; border-radius: 6px; text-align: center;">
-              <a href="https://chirhoevents.com/poros?code=${porosAccessCode}" target="_blank" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 16px;">
+              <a href="${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://chirhoevents.com'}/poros?code=${porosAccessCode}" target="_blank" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 16px;">
                 Complete Liability Form
               </a>
             </td>
           </tr>
         </table>
+        <p style="font-size: 13px; color: #666; text-align: center; margin-top: -8px;">
+          Don't have your Safe Environment certificate handy? You can email a copy to
+          <a href="mailto:${resolveReplyTo(event.settings, event.organization)}" style="color: #1E3A5F;">${resolveReplyTo(event.settings, event.organization)}</a>
+          and we'll upload it for you.
+        </p>
         ` : ''}
 
         <p>We look forward to seeing you at the event!</p>

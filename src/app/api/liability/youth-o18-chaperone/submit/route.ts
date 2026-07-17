@@ -188,6 +188,16 @@ export async function POST(request: NextRequest) {
                     Download PDF Copy
                   </a>
                 </div>
+                ${participant_type === 'chaperone' && (!safe_env_cert_file || safe_env_cert_upload_later) ? `
+                <div style="background-color:#FEF3C7;border-left:4px solid #F59E0B;padding:16px;border-radius:6px;margin:20px 0;">
+                  <p style="margin:0 0 8px 0;color:#92400E;font-weight:bold;">Safe Environment Certificate Still Needed</p>
+                  <p style="margin:0;color:#78716C;font-size:14px;">
+                    Please email a copy of your Safe Environment certificate to
+                    <a href="mailto:${resolveReplyTo(staffRegistration.event.settings, staffRegistration.event.organization)}" style="color:#1E3A5F;">${resolveReplyTo(staffRegistration.event.settings, staffRegistration.event.organization)}</a>
+                    and the organization will upload it to your record.
+                  </p>
+                </div>
+                ` : ''}
                 <p style="margin-top: 30px;">Pax Christi,<br><strong>ChiRho Events Team</strong></p>
               </div>
             </div>
@@ -347,6 +357,17 @@ export async function POST(request: NextRequest) {
                     Download PDF Copy
                   </a>
                 </div>
+
+                ${participant_type === 'chaperone' && (!safe_env_cert_file || safe_env_cert_upload_later) ? `
+                <div style="background-color:#FEF3C7;border-left:4px solid #F59E0B;padding:16px;border-radius:6px;margin:20px 0;">
+                  <p style="margin:0 0 8px 0;color:#92400E;font-weight:bold;">Safe Environment Certificate Still Needed</p>
+                  <p style="margin:0;color:#78716C;font-size:14px;">
+                    Please email a copy of your Safe Environment certificate to
+                    <a href="mailto:${resolveReplyTo(individualRegistration.event.settings, individualRegistration.organization)}" style="color:#1E3A5F;">${resolveReplyTo(individualRegistration.event.settings, individualRegistration.organization)}</a>
+                    and the organization will upload it to your record.
+                  </p>
+                </div>
+                ` : ''}
 
                 <p style="margin-top: 30px;">Pax Christi,<br><strong>ChiRho Events Team</strong></p>
 
