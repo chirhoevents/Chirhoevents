@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { verifyEventAccess } from '@/lib/api-auth'
-import { wrapEmail } from '@/lib/email-templates'
+import { wrapEmail, formatPlainTextForEmail } from '@/lib/email-templates'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
@@ -72,11 +72,9 @@ export async function POST(
   const supportEmail = resolveReplyTo(event.settings, event.organization)
   const orgName = event.organization.name
 
-  // Convert plain-text message to HTML paragraphs (preserving line breaks)
-  const messageHtml = message
-    .split(/\n{2,}/)
-    .map((para) => `<p>${para.replace(/\n/g, '<br>').replace(/</g, '&lt;')}</p>`)
-    .join('\n')
+  // Convert plain-text message to safe HTML (escapes user input, keeps
+  // paragraph + list formatting). Matches the rest of the site's emails.
+  const messageHtml = formatPlainTextForEmail(message)
 
   let sent = 0
   let failed = 0

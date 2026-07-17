@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { verifyEventAccess } from '@/lib/api-auth'
-import { wrapEmail } from '@/lib/email-templates'
+import { wrapEmail, formatPlainTextForEmail } from '@/lib/email-templates'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
@@ -61,10 +61,7 @@ export async function POST(
   if (!event) return NextResponse.json({ error: 'Event not found' }, { status: 404 })
 
   const supportEmail = resolveReplyTo(event.settings, event.organization)
-  const messageHtml = message
-    .split(/\n{2,}/)
-    .map((para) => `<p>${para.replace(/\n/g, '<br>').replace(/</g, '&lt;')}</p>`)
-    .join('\n')
+  const messageHtml = formatPlainTextForEmail(message)
 
   let sent = 0
   let failed = 0

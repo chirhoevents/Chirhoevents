@@ -6,6 +6,7 @@ import { Resend } from 'resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { canAccessOrganization } from '@/lib/auth-utils'
 import { resolveReplyTo } from '@/lib/email-reply-to'
+import { wrapEmail, emailInfoBox } from '@/lib/email-templates'
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -311,80 +312,55 @@ export async function POST(request: NextRequest) {
         ? 'via cash'
         : 'manually'
 
+      const supportEmail = resolveReplyTo(registration.event?.settings, registration.event?.organization)
+      const orgName = registration.event?.organization?.name || 'ChiRho Events'
+
+      const refundBody = `
+        <h1>Refund Processed</h1>
+
+        <p>Dear ${recipientName},</p>
+
+        <p>A refund has been processed for your registration${groupName ? ` for <strong>${groupName}</strong>` : ''} to <strong>${eventName}</strong>.</p>
+
+        ${emailInfoBox(
+          `
+          <strong>Refund Details</strong>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top: 8px;">
+            <tr><td style="padding: 4px 0;">Amount:</td><td style="text-align: right; font-weight: 600;">$${refundAmount.toFixed(2)}</td></tr>
+            <tr><td style="padding: 4px 0;">Method:</td><td style="text-align: right;">${refundMethodText}</td></tr>
+            <tr><td style="padding: 4px 0;">Date:</td><td style="text-align: right;">${new Date().toLocaleDateString()}</td></tr>
+          </table>
+          `,
+          'success'
+        )}
+
+        ${
+          refundMethod === 'stripe'
+            ? `<p style="font-size: 14px; color: #666;">The refund will appear on your original payment method within 5–10 business days, depending on your bank.</p>`
+            : refundMethod === 'check'
+            ? `<p style="font-size: 14px; color: #666;">Your refund check will be mailed to the address on file within 7–10 business days.</p>`
+            : ''
+        }
+
+        ${
+          refundReason
+            ? emailInfoBox(`<strong>Reason:</strong> ${refundReason}`, 'info')
+            : ''
+        }
+
+        <p>If you have any questions about this refund, please reply to this email and the event organizer will be in touch.</p>
+      `
+
       await resend.emails.send({
         from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-        reply_to: resolveReplyTo(registration.event?.settings, registration.event?.organization),
+        reply_to: supportEmail,
         to: recipientEmail,
         subject: `Refund Processed - ${eventName}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <!-- ChiRho Events Logo Header -->
-            <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
-              <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 200px; height: auto;" />
-            </div>
-
-            <div style="padding: 30px 20px;">
-              <h1 style="color: #1E3A5F; margin-top: 0;">Refund Processed</h1>
-
-              <p>Dear ${recipientName},</p>
-
-              <p>A refund has been processed for your registration${groupName ? ` for <strong>${groupName}</strong>` : ''} to <strong>${eventName}</strong>.</p>
-
-              <div style="background-color: #F5F1E8; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <h2 style="color: #9C8466; margin-top: 0;">Refund Details</h2>
-                <table style="width: 100%; border-collapse: collapse;">
-                  <tr>
-                    <td style="padding: 8px 0; color: #666;">Refund Amount:</td>
-                    <td style="padding: 8px 0; font-weight: bold; text-align: right;">$${refundAmount.toFixed(2)}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0; color: #666;">Refund Method:</td>
-                    <td style="padding: 8px 0; text-align: right;">${refundMethodText}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0; color: #666;">Date:</td>
-                    <td style="padding: 8px 0; text-align: right;">${new Date().toLocaleDateString()}</td>
-                  </tr>
-                </table>
-              </div>
-
-              ${refundMethod === 'stripe' ? `
-                <p style="color: #666; font-size: 14px;">
-                  The refund will be processed back to your original payment method within 5-10 business days, depending on your bank.
-                </p>
-              ` : refundMethod === 'check' ? `
-                <p style="color: #666; font-size: 14px;">
-                  Your refund check will be mailed to the address on file within 7-10 business days.
-                </p>
-              ` : ''}
-
-              ${refundReason ? `
-                <div style="margin: 20px 0; padding: 15px; border-left: 4px solid #9C8466; background-color: #f9f9f9;">
-                  <p style="margin: 0; color: #666; font-size: 14px;"><strong>Reason:</strong> ${refundReason}</p>
-                </div>
-              ` : ''}
-
-              <p>If you have any questions about this refund, please don't hesitate to contact us.</p>
-
-              <p style="margin-top: 30px;">
-                Best regards,<br>
-                <strong>ChiRho Events Team</strong>
-              </p>
-            </div>
-
-            <!-- Footer -->
-            <div style="text-align: center; padding: 20px; background-color: #f5f5f5; color: #666; font-size: 12px;">
-              <p style="margin: 0;">© ${new Date().getFullYear()} ChiRho Events. All rights reserved.</p>
-              <p style="margin: 5px 0 0 0;">
-                Need help? Contact the event organizer${
-                  registration.event?.organization?.contactEmail
-                    ? ` at <a href="mailto:${registration.event.organization.contactEmail}" style="color: #1E3A5F;">${registration.event.organization.contactEmail}</a>`
-                    : ''
-                }.
-              </p>
-            </div>
-          </div>
-        `,
+        html: wrapEmail(refundBody, {
+          organizationName: orgName,
+          preheader: `A refund of $${refundAmount.toFixed(2)} has been processed for ${eventName}`,
+          supportEmail,
+        }),
       })
     } catch (emailError) {
       console.error('Failed to send refund notification email:', emailError)
