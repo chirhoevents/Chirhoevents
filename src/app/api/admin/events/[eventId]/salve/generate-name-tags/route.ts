@@ -88,7 +88,7 @@ export async function POST(
       participantIds,
       groupId,
       registrationId,          // single individual/staff registration ID
-      registrationType = 'group', // 'group' | 'individual' | 'staff'
+      registrationType = 'group', // 'group' | 'individual' | 'staff' | 'vendor'
       templateId,
       templateOverride,        // current UI template state (takes priority over DB)
     } = body
@@ -116,6 +116,8 @@ export async function POST(
       nameTags = await generateIndividualNameTags(eventId, participantIds, registrationId, templateConfig)
     } else if (registrationType === 'staff') {
       nameTags = await generateStaffNameTags(eventId, participantIds, registrationId, templateConfig)
+    } else if (registrationType === 'vendor') {
+      nameTags = await generateVendorNameTags(eventId, participantIds, registrationId, templateConfig)
     } else {
       // Default: group registrations
       nameTags = await generateGroupNameTags(eventId, participantIds, groupId, templateConfig)
@@ -370,6 +372,52 @@ async function generateStaffNameTags(
         housing: null,
         mealColor: null,
         qrCode: qrCode || null,
+        template: templateConfig,
+      }
+    })
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Vendor registrations — one badge per vendor contact using the same org
+// template as staff, with the business name in the group-name slot.
+// ---------------------------------------------------------------------------
+async function generateVendorNameTags(
+  eventId: string,
+  participantIds: string[] | undefined,
+  registrationId: string | undefined,
+  templateConfig: any
+): Promise<any[]> {
+  const ids: string[] = registrationId ? [registrationId] : participantIds ?? []
+  if (ids.length === 0) {
+    throw new Error('Either registrationId or participantIds is required for vendor registrations')
+  }
+
+  const vendors = await prisma.vendorRegistration.findMany({
+    where: { id: { in: ids }, eventId, status: 'approved' },
+    orderBy: [{ businessName: 'asc' }],
+  })
+
+  return Promise.all(
+    vendors.map(async (vendor: any) => {
+      let qrCode: string | null = null
+      try {
+        qrCode = await generateParticipantQRCode(vendor.id)
+      } catch {}
+
+      return {
+        participantId: vendor.id,
+        firstName: vendor.contactFirstName,
+        lastName: vendor.contactLastName,
+        fullName: `${vendor.contactFirstName} ${vendor.contactLastName}`,
+        groupName: vendor.businessName,
+        diocese: null,
+        participantType: 'vendor',
+        isChaperone: false,
+        isClergy: false,
+        housing: null,
+        mealColor: null,
+        qrCode,
         template: templateConfig,
       }
     })
