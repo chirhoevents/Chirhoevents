@@ -101,10 +101,14 @@ export async function GET(
       }
     }
 
-    // Fetch waitlist entries
+    // Fetch waitlist entries with day-pass option name so the admin table
+    // can show the human-readable option instead of a UUID.
     const entries = await prisma.waitlistEntry.findMany({
       where: {
         eventId,
+      },
+      include: {
+        dayPassOption: { select: { name: true } },
       },
       orderBy: [{ status: 'asc' }, { createdAt: 'asc' }],
     })
@@ -160,6 +164,7 @@ export async function GET(
         preferredRoomType: entry.preferredRoomType,
         preferredTicketType: entry.preferredTicketType,
         preferredDayPassOptionId: entry.preferredDayPassOptionId,
+        preferredDayPassOptionName: entry.dayPassOption?.name ?? null,
         createdAt: entry.createdAt,
         updatedAt: entry.updatedAt,
       })),
