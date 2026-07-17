@@ -53,7 +53,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get the registration and verify ownership
+    // Get the registration and verify ownership. Staff/vendor lookups
+    // exist so admins can refund those charges through the same audit +
+    // Stripe-fee-reversal + notification flow used for group/individual.
     const registration =
       registrationType === 'group'
         ? await prisma.groupRegistration.findUnique({
@@ -67,7 +69,8 @@ export async function POST(request: NextRequest) {
               },
             },
           })
-        : await prisma.individualRegistration.findUnique({
+        : registrationType === 'individual'
+        ? await prisma.individualRegistration.findUnique({
             where: { id: registrationId },
             include: {
               event: {
@@ -78,6 +81,31 @@ export async function POST(request: NextRequest) {
               },
             },
           })
+        : registrationType === 'staff'
+        ? await prisma.staffRegistration.findUnique({
+            where: { id: registrationId },
+            include: {
+              event: {
+                include: {
+                  organization: { select: { contactEmail: true } },
+                  settings: { select: { contactEmail: true } },
+                },
+              },
+            },
+          })
+        : registrationType === 'vendor'
+        ? await prisma.vendorRegistration.findUnique({
+            where: { id: registrationId },
+            include: {
+              event: {
+                include: {
+                  organization: { select: { contactEmail: true } },
+                  settings: { select: { contactEmail: true } },
+                },
+              },
+            },
+          })
+        : null
 
     if (!registration) {
       return NextResponse.json(
@@ -91,12 +119,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Get payment balance
-    const paymentBalance = await prisma.paymentBalance.findUnique({
-      where: {
-        registrationId: registrationId,
-      },
-    })
+    // Get payment balance (group/individual only — staff/vendor keep their
+    // paid amount on the registration row itself, not in payment_balances).
+    const paymentBalance =
+      registrationType === 'group' || registrationType === 'individual'
+        ? await prisma.paymentBalance.findUnique({
+            where: { registrationId: registrationId },
+          })
+        : null
 
     // Get the most recent successful payment with Stripe
     const lastPayment = await prisma.payment.findFirst({
@@ -110,7 +140,14 @@ export async function POST(request: NextRequest) {
     })
 
     // Validate refund amount
-    const amountPaid = paymentBalance?.amountPaid || 0
+    const amountPaid =
+      paymentBalance?.amountPaid !== undefined && paymentBalance !== null
+        ? Number(paymentBalance.amountPaid)
+        : registrationType === 'staff'
+        ? Number((registration as any).pricePaid || 0)
+        : registrationType === 'vendor'
+        ? Number((registration as any).amountPaid || 0)
+        : 0
     if (refundAmount > amountPaid) {
       return NextResponse.json(
         { error: 'Refund amount exceeds amount paid' },
@@ -192,7 +229,8 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Update payment balance
+    // Update payment balance (group/individual) OR the paid amount on
+    // the staff/vendor registration row itself.
     if (paymentBalance) {
       await prisma.paymentBalance.update({
         where: { id: paymentBalance.id },
@@ -204,6 +242,24 @@ export async function POST(request: NextRequest) {
             increment: refundAmount,
           },
           paymentStatus: 'partial', // Will need to recalculate actual status
+        },
+      })
+    } else if (registrationType === 'staff') {
+      const newPaid = Math.max(0, amountPaid - refundAmount)
+      await prisma.staffRegistration.update({
+        where: { id: registrationId },
+        data: {
+          pricePaid: newPaid,
+          paymentStatus: newPaid <= 0 ? 'unpaid' : 'paid',
+        },
+      })
+    } else if (registrationType === 'vendor') {
+      const newPaid = Math.max(0, amountPaid - refundAmount)
+      await prisma.vendorRegistration.update({
+        where: { id: registrationId },
+        data: {
+          amountPaid: newPaid,
+          paymentStatus: newPaid <= 0 ? 'unpaid' : 'partial',
         },
       })
     }
@@ -231,14 +287,21 @@ export async function POST(request: NextRequest) {
 
     // Send email notification
     try {
-      const recipientEmail = registrationType === 'group'
-        ? (registration as any).groupLeaderEmail
-        : (registration as any).email
-      const recipientName = registrationType === 'group'
-        ? (registration as any).groupLeaderName
-        : `${(registration as any).firstName} ${(registration as any).lastName}`
+      const recipientEmail = (registration as any).email
+        || (registration as any).groupLeaderEmail
+      const recipientName =
+        registrationType === 'group'
+          ? (registration as any).groupLeaderName
+          : registrationType === 'vendor'
+          ? `${(registration as any).contactFirstName} ${(registration as any).contactLastName}`
+          : `${(registration as any).firstName} ${(registration as any).lastName}`
       const eventName = registration.event?.name || 'the event'
-      const groupName = registrationType === 'group' ? (registration as any).groupName : null
+      const groupName =
+        registrationType === 'group'
+          ? (registration as any).groupName
+          : registrationType === 'vendor'
+          ? (registration as any).businessName
+          : null
 
       const refundMethodText = refundMethod === 'stripe'
         ? 'via Stripe to your original payment method'

@@ -32,6 +32,8 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import CustomQuestionsManager from '@/components/admin/CustomQuestionsManager'
+import RefundModal from '@/components/admin/RefundModal'
+import { DollarSign } from 'lucide-react'
 
 interface CustomAnswer {
   questionText: string
@@ -178,6 +180,7 @@ export default function StaffManagementPage() {
 
   const safeEnvFileInputRef = useRef<HTMLInputElement | null>(null)
   const [uploadingCertStaffId, setUploadingCertStaffId] = useState<string | null>(null)
+  const [refundStaff, setRefundStaff] = useState<StaffRegistration | null>(null)
 
   const triggerSafeEnvUpload = (staffId: string) => {
     setUploadingCertStaffId(staffId)
@@ -381,6 +384,21 @@ export default function StaffManagementPage() {
         </div>
       </div>
 
+      {refundStaff && (
+        <RefundModal
+          isOpen={!!refundStaff}
+          onClose={() => setRefundStaff(null)}
+          registrationId={refundStaff.id}
+          registrationType="staff"
+          currentBalance={0}
+          amountPaid={Number(refundStaff.pricePaid || 0)}
+          onRefundProcessed={() => {
+            setRefundStaff(null)
+            loadData()
+          }}
+        />
+      )}
+
       {/* Table */}
       <Card>
         <CardContent className="p-0">
@@ -476,6 +494,16 @@ export default function StaffManagementPage() {
                             title="Resend Poros Code"
                           >
                             <Mail className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {Number(staff.pricePaid || 0) > 0 && staff.paymentStatus === 'paid' && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setRefundStaff(staff)}
+                            title="Refund staffer"
+                          >
+                            <DollarSign className="h-4 w-4 text-red-600" />
                           </Button>
                         )}
                         {staff.safeEnvironmentCertUrl ? (

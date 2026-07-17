@@ -46,6 +46,7 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import CustomQuestionsManager from '@/components/admin/CustomQuestionsManager'
+import RefundModal from '@/components/admin/RefundModal'
 
 interface CustomAnswer {
   questionText: string
@@ -171,6 +172,29 @@ export default function VendorsManagementPage() {
 
   const safeEnvFileInputRef = useRef<HTMLInputElement | null>(null)
   const [uploadingCertVendorId, setUploadingCertVendorId] = useState<string | null>(null)
+  const [refundVendor, setRefundVendor] = useState<VendorRegistration | null>(null)
+  const [resendingCodesId, setResendingCodesId] = useState<string | null>(null)
+
+  const handleResendCodes = async (vendorId: string) => {
+    setResendingCodesId(vendorId)
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/admin/events/${eventId}/vendors/${vendorId}/resend-codes`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        alert(`Failed to resend codes: ${data.error || res.statusText}`)
+        return
+      }
+      alert('Vendor codes emailed successfully.')
+    } catch {
+      alert('Failed to resend codes')
+    } finally {
+      setResendingCodesId(null)
+    }
+  }
 
   const triggerSafeEnvUpload = (vendorId: string) => {
     setUploadingCertVendorId(vendorId)
@@ -652,6 +676,31 @@ export default function VendorsManagementPage() {
                             Review
                           </Button>
                         )}
+                        {vendor.status === 'approved' && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleResendCodes(vendor.id)}
+                            disabled={resendingCodesId === vendor.id}
+                            title="Resend vendor code, portal access code, and liability code"
+                          >
+                            {resendingCodesId === vendor.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Mail className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
+                        {vendor.status === 'approved' && Number(vendor.amountPaid || 0) > 0 && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setRefundVendor(vendor)}
+                            title="Refund vendor"
+                          >
+                            <DollarSign className="h-4 w-4 text-red-600" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -788,6 +837,22 @@ export default function VendorsManagementPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Refund Modal */}
+      {refundVendor && (
+        <RefundModal
+          isOpen={!!refundVendor}
+          onClose={() => setRefundVendor(null)}
+          registrationId={refundVendor.id}
+          registrationType="vendor"
+          currentBalance={Number(refundVendor.invoiceTotal || 0) - Number(refundVendor.amountPaid || 0)}
+          amountPaid={Number(refundVendor.amountPaid || 0)}
+          onRefundProcessed={() => {
+            setRefundVendor(null)
+            loadData()
+          }}
+        />
+      )}
 
       {/* Detail Modal */}
       <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
