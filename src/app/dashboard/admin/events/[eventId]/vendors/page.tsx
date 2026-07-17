@@ -74,6 +74,9 @@ interface VendorRegistration {
   amountPaid: number
   vendorCode: string
   accessCode: string
+  porosAccessCode: string | null
+  liabilityFormId: string | null
+  liabilityForm?: { completed: boolean } | null
   safeEnvironmentCertUrl: string | null
   safeEnvironmentCertUploadedAt: string | null
   createdAt: string
@@ -524,13 +527,14 @@ export default function VendorsManagementPage() {
                 <TableHead>Status</TableHead>
                 <TableHead>Payment</TableHead>
                 <TableHead>Staff</TableHead>
+                <TableHead>Poros</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredVendors.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-[#6B7280]">
+                  <TableCell colSpan={8} className="text-center py-8 text-[#6B7280]">
                     No vendor applications found
                   </TableCell>
                 </TableRow>
@@ -577,6 +581,26 @@ export default function VendorsManagementPage() {
                           <Users className="h-4 w-4 text-[#6B7280]" />
                           <span>{vendor._count?.boothStaff || 0}</span>
                         </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {vendor.status === 'approved' ? (
+                        vendor.porosAccessCode ? (
+                          vendor.liabilityForm?.completed ? (
+                            <Badge className="bg-green-500">
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Complete
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-amber-600 border-amber-300">
+                              Pending
+                            </Badge>
+                          )
+                        ) : (
+                          <span className="text-xs text-[#6B7280]">N/A</span>
+                        )
+                      ) : (
+                        <span className="text-xs text-[#6B7280]">-</span>
                       )}
                     </TableCell>
                     <TableCell>
