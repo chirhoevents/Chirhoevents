@@ -47,6 +47,7 @@ import {
 import { format } from 'date-fns'
 import CustomQuestionsManager from '@/components/admin/CustomQuestionsManager'
 import RefundModal from '@/components/admin/RefundModal'
+import BulkVendorEmailModal from '@/components/admin/BulkVendorEmailModal'
 
 interface CustomAnswer {
   questionText: string
@@ -174,6 +175,7 @@ export default function VendorsManagementPage() {
   const [uploadingCertVendorId, setUploadingCertVendorId] = useState<string | null>(null)
   const [refundVendor, setRefundVendor] = useState<VendorRegistration | null>(null)
   const [resendingCodesId, setResendingCodesId] = useState<string | null>(null)
+  const [bulkEmailOpen, setBulkEmailOpen] = useState(false)
 
   const handleResendCodes = async (vendorId: string) => {
     setResendingCodesId(vendorId)
@@ -419,6 +421,10 @@ export default function VendorsManagementPage() {
           <p className="text-[#6B7280]">{event?.name}</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setBulkEmailOpen(true)} title="Email approved vendors">
+            <Mail className="h-4 w-4 mr-2" />
+            Email Vendors
+          </Button>
           <Button variant="outline" onClick={handleExportCSV}>
             <Download className="h-4 w-4 mr-2" />
             Export CSV
@@ -837,6 +843,13 @@ export default function VendorsManagementPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <BulkVendorEmailModal
+        eventId={eventId}
+        open={bulkEmailOpen}
+        onClose={() => setBulkEmailOpen(false)}
+        counts={{ all: stats.total, approved: stats.approved, pending: stats.pending }}
+      />
 
       {/* Refund Modal */}
       {refundVendor && (

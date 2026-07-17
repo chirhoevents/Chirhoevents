@@ -33,7 +33,9 @@ import {
 import { format } from 'date-fns'
 import CustomQuestionsManager from '@/components/admin/CustomQuestionsManager'
 import RefundModal from '@/components/admin/RefundModal'
-import { DollarSign } from 'lucide-react'
+import StaffDetailsModal from '@/components/admin/StaffDetailsModal'
+import BulkStaffEmailModal from '@/components/admin/BulkStaffEmailModal'
+import { DollarSign, Eye } from 'lucide-react'
 
 interface CustomAnswer {
   questionText: string
@@ -181,6 +183,8 @@ export default function StaffManagementPage() {
   const safeEnvFileInputRef = useRef<HTMLInputElement | null>(null)
   const [uploadingCertStaffId, setUploadingCertStaffId] = useState<string | null>(null)
   const [refundStaff, setRefundStaff] = useState<StaffRegistration | null>(null)
+  const [detailStaffId, setDetailStaffId] = useState<string | null>(null)
+  const [bulkEmailOpen, setBulkEmailOpen] = useState(false)
 
   const triggerSafeEnvUpload = (staffId: string) => {
     setUploadingCertStaffId(staffId)
@@ -274,11 +278,19 @@ export default function StaffManagementPage() {
           <p className="text-[#6B7280]">{event?.name}</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setBulkEmailOpen(true)} title="Email all staff (with role filter)">
+            <Mail className="h-4 w-4 mr-2" />
+            Email Staff
+          </Button>
           <Button variant="outline" onClick={handleExportCSV}>
             <Download className="h-4 w-4 mr-2" />
             Export CSV
           </Button>
-          <Button variant="outline">
+          <Button
+            variant="outline"
+            disabled
+            title="Coming soon — staff name-tag printing is on the roadmap. Use the SALVE portal for participant name tags."
+          >
             <Printer className="h-4 w-4 mr-2" />
             Print Name Tags
           </Button>
@@ -384,6 +396,20 @@ export default function StaffManagementPage() {
         </div>
       </div>
 
+      <BulkStaffEmailModal
+        eventId={eventId}
+        open={bulkEmailOpen}
+        onClose={() => setBulkEmailOpen(false)}
+      />
+      {detailStaffId && (
+        <StaffDetailsModal
+          eventId={eventId}
+          staffId={detailStaffId}
+          open={!!detailStaffId}
+          onClose={() => setDetailStaffId(null)}
+          onSaved={loadData}
+        />
+      )}
       {refundStaff && (
         <RefundModal
           isOpen={!!refundStaff}
@@ -486,12 +512,20 @@ export default function StaffManagementPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setDetailStaffId(staff.id)}
+                          title="View / edit staffer details"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         {staff.porosAccessCode && staff.liabilityForm?.status !== 'approved' && (
                           <Button
                             size="sm"
                             variant="ghost"
                             onClick={() => handleResendPorosCode(staff.id)}
-                            title="Resend Poros Code"
+                            title="Resend liability form access code by email"
                           >
                             <Mail className="h-4 w-4" />
                           </Button>
