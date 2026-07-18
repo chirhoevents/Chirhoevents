@@ -191,7 +191,26 @@ export async function POST(
     if (hardDelete) {
       // Hard delete - remove from database
       if (type === 'group') {
-        // First delete related records
+        // First delete related records. Participants have their own
+        // downstream FKs (safe_environment_certificates and
+        // letters_of_good_standing) that aren't cascade-deleted, so those
+        // child rows have to be cleared before the participants themselves.
+        const participantIds = (
+          await prisma.participant.findMany({
+            where: { groupRegistrationId: registrationId },
+            select: { id: true },
+          })
+        ).map((p) => p.id)
+
+        if (participantIds.length > 0) {
+          await prisma.safeEnvironmentCertificate.deleteMany({
+            where: { participantId: { in: participantIds } },
+          })
+          await prisma.letterOfGoodStanding.deleteMany({
+            where: { participantId: { in: participantIds } },
+          })
+        }
+
         await prisma.participant.deleteMany({
           where: { groupRegistrationId: registrationId },
         })
