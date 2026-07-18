@@ -102,7 +102,7 @@ interface Payment {
   paymentMethod: string
   paymentType: string
   paymentStatus: string
-  processedAt: string
+  processedAt: string | null
   checkNumber?: string | null
   notes?: string | null
 }
@@ -512,7 +512,7 @@ export default function RegistrationDetailClient({
                                     ${payment.amount.toFixed(2)}
                                   </p>
                                   <p className="text-sm text-gray-600 mt-1">
-                                    {format(new Date(payment.processedAt), 'MMM d, yyyy')}
+                                    {payment.processedAt ? format(new Date(payment.processedAt), 'MMM d, yyyy') : 'Pending'}
                                   </p>
                                 </div>
                                 <div className="text-right">
@@ -1160,7 +1160,7 @@ export default function RegistrationDetailClient({
                                   {payment.paymentMethod} • {payment.paymentType}
                                 </p>
                                 <p className="text-xs text-gray-400">
-                                  {format(new Date(payment.processedAt), 'MMM d, yyyy')}
+                                  {payment.processedAt ? format(new Date(payment.processedAt), 'MMM d, yyyy') : 'Pending'}
                                 </p>
                               </div>
                               <Badge variant="outline" className="text-xs">
