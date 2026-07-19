@@ -86,16 +86,34 @@ export async function GET(request: NextRequest) {
           continue
         }
 
-        // Honor per-org day-of-week unless this is an explicit single-org trigger
+        // Honor per-org day-of-week unless this is an explicit single-org trigger.
+        // Catch-up fallback: if it's not the scheduled day but the last successful
+        // digest is 7+ days old (or never sent), send today so a missed week
+        // doesn't silently turn into two.
         const scheduledDay = digestSettings.dayOfWeek ?? 0
         if (!specificOrgId && scheduledDay !== todayDayOfWeek) {
-          results.push({
-            orgId: org.id,
-            orgName: org.name,
-            status: 'not_scheduled_today',
-            recipients: 0,
+          const lastDigest = await prisma.emailLog.findFirst({
+            where: {
+              organizationId: org.id,
+              emailType: 'weekly_digest',
+              sentStatus: 'sent',
+            },
+            orderBy: { sentAt: 'desc' },
+            select: { sentAt: true },
           })
-          continue
+          const daysSinceLast = lastDigest
+            ? Math.floor((Date.now() - lastDigest.sentAt.getTime()) / (1000 * 60 * 60 * 24))
+            : Number.POSITIVE_INFINITY
+          if (daysSinceLast < 7) {
+            results.push({
+              orgId: org.id,
+              orgName: org.name,
+              status: 'not_scheduled_today',
+              recipients: 0,
+            })
+            continue
+          }
+          console.log(`[weekly-digest] Catch-up send for ${org.id}: last sent ${daysSinceLast}d ago (scheduled day ${scheduledDay}, today ${todayDayOfWeek})`)
         }
 
         const recipients = digestSettings.recipients.length > 0

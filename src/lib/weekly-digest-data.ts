@@ -20,10 +20,12 @@ interface PaymentAmount {
 }
 
 interface EventWithCounts {
+  id: string
   name: string
   startDate: Date
   capacityTotal: number | null
   capacityRemaining: number | null
+  enableWaitlist: boolean
   _count: {
     groupRegistrations: number
     individualRegistrations: number
@@ -281,10 +283,12 @@ export async function getUpcomingEvents(
       startDate: { gte: now },
     },
     select: {
+      id: true,
       name: true,
       startDate: true,
       capacityTotal: true,
       capacityRemaining: true,
+      enableWaitlist: true,
       _count: {
         select: {
           groupRegistrations: true,
@@ -296,17 +300,78 @@ export async function getUpcomingEvents(
     take: 5,
   })
 
-  return events.map((event: EventWithCounts) => ({
-    name: event.name,
-    startDate: event.startDate.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
+  const waitlistCountsByEvent = new Map<string, { pending: number; contacted: number }>()
+  const waitlistEventIds = events.filter((e: EventWithCounts) => e.enableWaitlist).map((e: EventWithCounts) => e.id)
+  if (waitlistEventIds.length > 0) {
+    const grouped = await prisma.waitlistEntry.groupBy({
+      by: ['eventId', 'status'],
+      where: {
+        eventId: { in: waitlistEventIds },
+        status: { in: ['pending', 'contacted'] },
+      },
+      _count: { _all: true },
+    })
+    for (const row of grouped) {
+      const entry = waitlistCountsByEvent.get(row.eventId) || { pending: 0, contacted: 0 }
+      if (row.status === 'pending') entry.pending = row._count._all
+      if (row.status === 'contacted') entry.contacted = row._count._all
+      waitlistCountsByEvent.set(row.eventId, entry)
+    }
+  }
+
+  return events.map((event: EventWithCounts) => {
+    const counts = waitlistCountsByEvent.get(event.id)
+    return {
+      name: event.name,
+      startDate: event.startDate.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      }),
+      registrationCount: event._count.groupRegistrations + event._count.individualRegistrations,
+      spotsRemaining: event.capacityRemaining ?? undefined,
+      waitlistEnabled: event.enableWaitlist,
+      waitlistPending: counts?.pending ?? 0,
+      waitlistContacted: counts?.contacted ?? 0,
+    }
+  })
+}
+
+export async function collectWaitlistActivity(
+  organizationId: string,
+  weekStart: Date,
+  now: Date
+): Promise<WeeklyDigestData['waitlistActivity']> {
+  const [newSignups, invitesSent, converted, totalPending] = await Promise.all([
+    prisma.waitlistEntry.count({
+      where: {
+        event: { organizationId },
+        createdAt: { gte: weekStart, lte: now },
+      },
     }),
-    registrationCount: event._count.groupRegistrations + event._count.individualRegistrations,
-    spotsRemaining: event.capacityRemaining ?? undefined,
-  }))
+    prisma.waitlistEntry.count({
+      where: {
+        event: { organizationId },
+        notifiedAt: { gte: weekStart, lte: now },
+      },
+    }),
+    prisma.waitlistEntry.count({
+      where: {
+        event: { organizationId },
+        status: 'registered',
+        updatedAt: { gte: weekStart, lte: now },
+      },
+    }),
+    prisma.waitlistEntry.count({
+      where: {
+        event: { organizationId },
+        status: 'pending',
+      },
+    }),
+  ])
+
+  return { newSignups, invitesSent, converted, totalPending }
 }
 
 export async function getRecentActivity(
@@ -384,10 +449,11 @@ export async function buildOrganizationDigest(
 ): Promise<WeeklyDigestData> {
   const { weekStart, now, display } = getWeeklyDateRange()
 
-  const [stats, upcomingEvents, recentActivity] = await Promise.all([
+  const [stats, upcomingEvents, recentActivity, waitlistActivity] = await Promise.all([
     collectOrganizationStats(organizationId, weekStart, now),
     getUpcomingEvents(organizationId),
     getRecentActivity(organizationId, weekStart),
+    collectWaitlistActivity(organizationId, weekStart, now),
   ])
 
   const actionItems = generateActionItems(stats)
@@ -400,6 +466,7 @@ export async function buildOrganizationDigest(
     upcomingEvents,
     actionItems,
     recentActivity,
+    waitlistActivity,
     dashboardUrl: `${APP_URL}/dashboard/admin`,
   }
 }
