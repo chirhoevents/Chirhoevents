@@ -234,7 +234,7 @@ export default function NotificationsSettingsTab() {
               variant={settings.disabled ? 'destructive' : 'default'}
               className={settings.disabled ? '' : 'bg-green-600 text-white'}
             >
-              {settings.disabled ? 'Off' : 'On &mdash; Mondays'}
+              {settings.disabled ? 'Off' : 'On — Mondays'}
             </Badge>
           </div>
 
