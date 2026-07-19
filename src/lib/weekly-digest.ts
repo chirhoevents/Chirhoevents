@@ -362,8 +362,8 @@ export function generateWeeklyDigestEmail(data: WeeklyDigestData): string {
     </div>
 
     <p style="font-size: 14px; color: #666; text-align: center; margin-top: 32px;">
-      You're receiving this because you have weekly digest emails enabled for ${data.organizationName}.<br>
-      <a href="${APP_URL}/dashboard/admin/settings" style="color: #9C8466;">Manage email preferences</a>
+      Sent every Monday around 10 AM Eastern for ${data.organizationName}.<br>
+      To turn this off, visit <a href="${APP_URL}/dashboard/admin/settings" style="color: #9C8466;">Settings &rarr; Notifications</a>.
     </p>
   `, {
     organizationName: data.organizationName,

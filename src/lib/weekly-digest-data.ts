@@ -10,9 +10,9 @@ import { WeeklyDigestData } from './weekly-digest'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
 
 export interface DigestSettings {
-  enabled: boolean
+  // Opt-out: the digest sends by default. Only stops when disabled === true.
+  disabled: boolean
   recipients: string[]
-  dayOfWeek?: number
 }
 
 interface PaymentAmount {
@@ -33,15 +33,13 @@ interface EventWithCounts {
 }
 
 export function getDigestSettings(customFields: Record<string, any> | null): DigestSettings {
-  if (!customFields || !customFields.weeklyDigest) {
-    return { enabled: false, recipients: [] }
-  }
-
-  const settings = customFields.weeklyDigest
+  const settings = customFields?.weeklyDigest || {}
+  // Legacy: some orgs still have `enabled: false` from the old opt-in schema.
+  // Treat that as the new `disabled: true` so their preference survives.
+  const legacyDisabled = settings.enabled === false
   return {
-    enabled: settings.enabled === true,
+    disabled: settings.disabled === true || legacyDisabled,
     recipients: Array.isArray(settings.recipients) ? settings.recipients : [],
-    dayOfWeek: typeof settings.dayOfWeek === 'number' ? settings.dayOfWeek : 0,
   }
 }
 

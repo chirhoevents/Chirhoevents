@@ -196,6 +196,78 @@ export async function GET(
       0
     )
 
+    // Waitlist summary — surfaced on the event dashboard when the waitlist
+    // is enabled so the admin can see, at a glance, how many people are
+    // waiting and what options they want.
+    let waitlist: {
+      pending: number
+      contacted: number
+      headcountWaiting: number
+      byHousingType: { on_campus: number; off_campus: number; day_pass: number; unspecified: number }
+      byDayPassOption: Array<{ id: string; name: string; count: number }>
+      byRoomType: Record<string, number>
+    } | null = null
+
+    if (event.enableWaitlist) {
+      const entries = await prisma.waitlistEntry.findMany({
+        where: { eventId, status: { in: ['pending', 'contacted'] } },
+        select: {
+          status: true,
+          partySize: true,
+          preferredHousingType: true,
+          preferredRoomType: true,
+          preferredDayPassOptionId: true,
+          dayPassOption: { select: { id: true, name: true } },
+        },
+      })
+
+      const byHousingType = { on_campus: 0, off_campus: 0, day_pass: 0, unspecified: 0 }
+      const byRoomType: Record<string, number> = {}
+      const dayPassBuckets = new Map<string, { id: string; name: string; count: number }>()
+      let pending = 0
+      let contacted = 0
+      let headcountWaiting = 0
+
+      for (const entry of entries) {
+        const size = entry.partySize || 1
+        if (entry.status === 'pending') {
+          pending++
+          headcountWaiting += size
+        } else if (entry.status === 'contacted') {
+          contacted++
+        }
+
+        if (entry.preferredHousingType === 'on_campus') byHousingType.on_campus += size
+        else if (entry.preferredHousingType === 'off_campus') byHousingType.off_campus += size
+        else if (entry.preferredHousingType === 'day_pass') byHousingType.day_pass += size
+        else byHousingType.unspecified += size
+
+        if (entry.preferredRoomType) {
+          const key = entry.preferredRoomType as string
+          byRoomType[key] = (byRoomType[key] || 0) + size
+        }
+
+        if (entry.dayPassOption) {
+          const existing = dayPassBuckets.get(entry.dayPassOption.id)
+          if (existing) existing.count += size
+          else dayPassBuckets.set(entry.dayPassOption.id, {
+            id: entry.dayPassOption.id,
+            name: entry.dayPassOption.name,
+            count: size,
+          })
+        }
+      }
+
+      waitlist = {
+        pending,
+        contacted,
+        headcountWaiting,
+        byHousingType,
+        byDayPassOption: Array.from(dayPassBuckets.values()).sort((a, b) => b.count - a.count),
+        byRoomType,
+      }
+    }
+
     return NextResponse.json({
       event: {
         ...event,
@@ -209,6 +281,7 @@ export async function GET(
         totalPaid,
         balance: totalRevenue - totalPaid,
       },
+      waitlist,
       activity: {
         recentRegistrations: recentRegistrations.map((r: { id: string; type: 'group' | 'individual'; name: string; participants: number; date: Date }) => ({
           ...r,

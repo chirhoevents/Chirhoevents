@@ -43,10 +43,9 @@ export async function GET(request: NextRequest) {
     const specificOrgId = searchParams.get('orgId')
     const isTest = searchParams.get('test') === 'true'
 
-    // Note: we intentionally do NOT filter by org status here. If an admin
-    // explicitly enabled the weekly digest, we honor that regardless of
-    // pending/trial/etc. The per-org digestSettings.enabled check below
-    // is the source of truth.
+    // Note: we intentionally do NOT filter by org status here. The digest
+    // sends by default (opt-out); an admin can turn it off in Settings.
+    // We honor that regardless of pending/trial/etc.
     const organizations = await prisma.organization.findMany({
       where: {
         ...(specificOrgId ? { id: specificOrgId } : {}),
@@ -70,13 +69,20 @@ export async function GET(request: NextRequest) {
 
     console.log(`[weekly-digest] Processing ${organizations.length} organization(s)${specificOrgId ? ` (filtered to ${specificOrgId})` : ''}`)
 
+    // Send day is Monday (UTC). The cron fires daily at 15:00 UTC = 10 AM EST,
+    // but the code enforces Monday-only. Catch-up: if we somehow missed a Monday
+    // (Vercel Cron outage, deploy window, etc.), the next daily firing catches
+    // up as long as the last successful digest is 7+ days old.
+    const MONDAY = 1
     const todayDayOfWeek = new Date().getUTCDay() // 0=Sunday..6=Saturday
 
     for (const org of organizations) {
       try {
         const digestSettings = getDigestSettings(org.customFieldsEnabled as Record<string, any>)
 
-        if (!digestSettings.enabled && !specificOrgId) {
+        // Opt-out model: digest is enabled by default. Only skip when the org
+        // has explicitly turned it off.
+        if (digestSettings.disabled && !specificOrgId) {
           results.push({
             orgId: org.id,
             orgName: org.name,
@@ -86,12 +92,7 @@ export async function GET(request: NextRequest) {
           continue
         }
 
-        // Honor per-org day-of-week unless this is an explicit single-org trigger.
-        // Catch-up fallback: if it's not the scheduled day but the last successful
-        // digest is 7+ days old (or never sent), send today so a missed week
-        // doesn't silently turn into two.
-        const scheduledDay = digestSettings.dayOfWeek ?? 0
-        if (!specificOrgId && scheduledDay !== todayDayOfWeek) {
+        if (!specificOrgId && todayDayOfWeek !== MONDAY) {
           const lastDigest = await prisma.emailLog.findFirst({
             where: {
               organizationId: org.id,
@@ -113,7 +114,7 @@ export async function GET(request: NextRequest) {
             })
             continue
           }
-          console.log(`[weekly-digest] Catch-up send for ${org.id}: last sent ${daysSinceLast}d ago (scheduled day ${scheduledDay}, today ${todayDayOfWeek})`)
+          console.log(`[weekly-digest] Catch-up send for ${org.id}: last sent ${daysSinceLast}d ago (today ${todayDayOfWeek})`)
         }
 
         const recipients = digestSettings.recipients.length > 0
