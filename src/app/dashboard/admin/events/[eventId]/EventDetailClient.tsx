@@ -137,6 +137,14 @@ interface EventDetailClientProps {
       lastWeek: number
     }
   } | null
+  waitlist?: {
+    pending: number
+    contacted: number
+    headcountWaiting: number
+    byHousingType: { on_campus: number; off_campus: number; day_pass: number; unspecified: number }
+    byDayPassOption: Array<{ id: string; name: string; count: number }>
+    byRoomType: Record<string, number>
+  } | null
 }
 
 export default function EventDetailClient({
@@ -145,6 +153,7 @@ export default function EventDetailClient({
   settings,
   dayPassOptions = [],
   activity,
+  waitlist,
 }: EventDetailClientProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('overview')
@@ -952,6 +961,115 @@ export default function EventDetailClient({
               </div>
             </CardContent>
           </Card>
+
+          {waitlist && (waitlist.pending > 0 || waitlist.contacted > 0) && (
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg text-[#1E3A5F] flex items-center gap-2">
+                    <ListOrdered className="h-5 w-5" />
+                    Waitlist
+                  </CardTitle>
+                  <Link
+                    href={`/dashboard/admin/events/${event.id}/waitlist`}
+                    className="text-sm font-medium text-[#1E3A5F] hover:underline"
+                  >
+                    Manage &rarr;
+                  </Link>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                  <div className="bg-purple-50 rounded-lg p-4">
+                    <p className="text-sm text-[#6B7280]">Waiting (entries)</p>
+                    <p className="text-2xl font-bold text-[#1E3A5F]">{waitlist.pending}</p>
+                  </div>
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <p className="text-sm text-[#6B7280]">Invited (spots held)</p>
+                    <p className="text-2xl font-bold text-[#1E3A5F]">{waitlist.contacted}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-sm text-[#6B7280]">People waiting</p>
+                    <p className="text-2xl font-bold text-[#1E3A5F]">{waitlist.headcountWaiting}</p>
+                  </div>
+                </div>
+
+                <h4 className="text-sm font-medium text-[#1E3A5F] mb-3">Seats requested by option</h4>
+                <div className="space-y-2">
+                  {waitlist.byHousingType.on_campus > 0 && settings?.onCampusCapacity != null && (
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-[#1E3A5F] flex items-center gap-2">
+                        <Home className="h-4 w-4 text-[#9C8466]" />
+                        On-campus
+                      </span>
+                      <span className="text-sm font-semibold text-[#1E3A5F]">
+                        {waitlist.byHousingType.on_campus} waiting
+                        {settings.onCampusRemaining != null && settings.onCampusRemaining < waitlist.byHousingType.on_campus && (
+                          <span className="text-red-600 ml-2">
+                            (need {waitlist.byHousingType.on_campus - settings.onCampusRemaining} more)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {waitlist.byHousingType.off_campus > 0 && settings?.offCampusCapacity != null && (
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-[#1E3A5F] flex items-center gap-2">
+                        <Tent className="h-4 w-4 text-[#9C8466]" />
+                        Off-campus
+                      </span>
+                      <span className="text-sm font-semibold text-[#1E3A5F]">
+                        {waitlist.byHousingType.off_campus} waiting
+                        {settings.offCampusRemaining != null && settings.offCampusRemaining < waitlist.byHousingType.off_campus && (
+                          <span className="text-red-600 ml-2">
+                            (need {waitlist.byHousingType.off_campus - settings.offCampusRemaining} more)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {waitlist.byDayPassOption.map(opt => {
+                    const dpConfig = dayPassOptions.find(dp => dp.id === opt.id)
+                    return (
+                      <div key={opt.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <span className="text-sm text-[#1E3A5F] flex items-center gap-2">
+                          <Ticket className="h-4 w-4 text-[#9C8466]" />
+                          Day pass &mdash; {opt.name}
+                        </span>
+                        <span className="text-sm font-semibold text-[#1E3A5F]">
+                          {opt.count} waiting
+                          {dpConfig && dpConfig.remaining < opt.count && (
+                            <span className="text-red-600 ml-2">
+                              (need {opt.count - dpConfig.remaining} more)
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    )
+                  })}
+                  {waitlist.byHousingType.day_pass > 0 && waitlist.byDayPassOption.length === 0 && (
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-[#1E3A5F] flex items-center gap-2">
+                        <Ticket className="h-4 w-4 text-[#9C8466]" />
+                        Day pass (any)
+                      </span>
+                      <span className="text-sm font-semibold text-[#1E3A5F]">
+                        {waitlist.byHousingType.day_pass} waiting
+                      </span>
+                    </div>
+                  )}
+                  {waitlist.byHousingType.unspecified > 0 && (
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-[#6B7280]">No preference set</span>
+                      <span className="text-sm font-semibold text-[#1E3A5F]">
+                        {waitlist.byHousingType.unspecified} waiting
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Activity Report */}
           <Card className="bg-white border-[#D1D5DB]">

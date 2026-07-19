@@ -50,7 +50,16 @@ export interface WeeklyDigestData {
     startDate: string
     registrationCount: number
     spotsRemaining?: number
+    waitlistEnabled?: boolean
+    waitlistPending?: number
+    waitlistContacted?: number
   }>
+  waitlistActivity?: {
+    newSignups: number
+    invitesSent: number
+    converted: number
+    totalPending: number
+  }
   actionItems: Array<{
     type: 'warning' | 'info' | 'urgent'
     title: string
@@ -148,7 +157,20 @@ export function generateWeeklyDigestEmail(data: WeeklyDigestData): string {
     `
 
   const upcomingEventsHtml = data.upcomingEvents.length > 0
-    ? data.upcomingEvents.map(event => `
+    ? data.upcomingEvents.map(event => {
+        const waitlistParts: string[] = []
+        if (event.waitlistEnabled) {
+          if (event.waitlistPending && event.waitlistPending > 0) {
+            waitlistParts.push(`${event.waitlistPending} waitlisted`)
+          }
+          if (event.waitlistContacted && event.waitlistContacted > 0) {
+            waitlistParts.push(`${event.waitlistContacted} invited`)
+          }
+        }
+        const waitlistLine = waitlistParts.length > 0
+          ? `<br><span style="font-size: 12px; color: #7A5FAF;">${waitlistParts.join(' &middot; ')}</span>`
+          : ''
+        return `
         <tr>
           <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e5;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -160,12 +182,14 @@ export function generateWeeklyDigestEmail(data: WeeklyDigestData): string {
                 <td style="text-align: right;">
                   <span style="font-size: 14px; color: #1E3A5F;"><strong>${event.registrationCount}</strong> registered</span>
                   ${event.spotsRemaining !== undefined ? `<br><span style="font-size: 12px; color: ${event.spotsRemaining < 10 ? '#DC2626' : '#666'};">${event.spotsRemaining} spots left</span>` : ''}
+                  ${waitlistLine}
                 </td>
               </tr>
             </table>
           </td>
         </tr>
-      `).join('')
+      `
+      }).join('')
     : `
       <tr>
         <td style="padding: 20px; text-align: center; color: #666;">
@@ -279,6 +303,30 @@ export function generateWeeklyDigestEmail(data: WeeklyDigestData): string {
       ${upcomingEventsHtml}
     </table>
 
+    ${data.waitlistActivity && (
+      data.waitlistActivity.newSignups > 0 ||
+      data.waitlistActivity.invitesSent > 0 ||
+      data.waitlistActivity.converted > 0 ||
+      data.waitlistActivity.totalPending > 0
+    ) ? `
+    <!-- Waitlist Activity -->
+    <h2 style="color: #1E3A5F; border-bottom: 2px solid #9C8466; padding-bottom: 8px; margin-top: 32px;">
+      Waitlist Activity
+    </h2>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0; background: #f9f9f9; border-radius: 8px; padding: 20px;">
+      <tr>
+        <td>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            ${emailDetailRow('New Waitlist Signups This Week', data.waitlistActivity.newSignups.toString())}
+            ${emailDetailRow('Invitations Sent This Week', data.waitlistActivity.invitesSent.toString())}
+            ${emailDetailRow('Converted to Registrations This Week', data.waitlistActivity.converted.toString())}
+            ${emailDetailRow('Currently Pending on Waitlists', data.waitlistActivity.totalPending.toString())}
+          </table>
+        </td>
+      </tr>
+    </table>
+    ` : ''}
+
     <!-- Registration & Forms -->
     <h2 style="color: #1E3A5F; border-bottom: 2px solid #9C8466; padding-bottom: 8px; margin-top: 32px;">
       Registrations & Forms
@@ -314,8 +362,8 @@ export function generateWeeklyDigestEmail(data: WeeklyDigestData): string {
     </div>
 
     <p style="font-size: 14px; color: #666; text-align: center; margin-top: 32px;">
-      You're receiving this because you have weekly digest emails enabled for ${data.organizationName}.<br>
-      <a href="${APP_URL}/dashboard/admin/settings" style="color: #9C8466;">Manage email preferences</a>
+      Sent every Monday around 10 AM Eastern for ${data.organizationName}.<br>
+      To turn this off, visit <a href="${APP_URL}/dashboard/admin/settings" style="color: #9C8466;">Settings &rarr; Notifications</a>.
     </p>
   `, {
     organizationName: data.organizationName,

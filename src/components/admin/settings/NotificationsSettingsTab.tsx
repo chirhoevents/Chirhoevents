@@ -5,11 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
-import { Mail, Send, Loader2, CheckCircle, AlertCircle, Calendar, Users, BellOff, Forward } from 'lucide-react'
+import { Mail, Send, Loader2, CheckCircle, AlertCircle, Users, BellOff, Forward } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
 interface Recipient {
@@ -20,24 +19,13 @@ interface Recipient {
 }
 
 interface WeeklyDigestSettings {
-  enabled: boolean
+  disabled: boolean
   recipients: string[]
-  dayOfWeek: number
 }
 
 interface UpdateEmailSettings {
   disabled: boolean
 }
-
-const DAYS_OF_WEEK = [
-  { value: 0, label: 'Sunday' },
-  { value: 1, label: 'Monday' },
-  { value: 2, label: 'Tuesday' },
-  { value: 3, label: 'Wednesday' },
-  { value: 4, label: 'Thursday' },
-  { value: 5, label: 'Friday' },
-  { value: 6, label: 'Saturday' },
-]
 
 export default function NotificationsSettingsTab() {
   const [loading, setLoading] = useState(true)
@@ -45,9 +33,8 @@ export default function NotificationsSettingsTab() {
   const [sendingTest, setSendingTest] = useState(false)
   const [availableRecipients, setAvailableRecipients] = useState<Recipient[]>([])
   const [settings, setSettings] = useState<WeeklyDigestSettings>({
-    enabled: false,
+    disabled: false,
     recipients: [],
-    dayOfWeek: 0,
   })
   const [updateEmailSettings, setUpdateEmailSettings] = useState<UpdateEmailSettings>({
     disabled: false,
@@ -99,8 +86,8 @@ export default function NotificationsSettingsTab() {
   }
 
   const handleSendTest = async () => {
-    if (settings.recipients.length === 0) {
-      toast.error('Please select at least one recipient first')
+    if (settings.recipients.length === 0 && availableRecipients.length === 0) {
+      toast.error('No admin users found to send to')
       return
     }
 
@@ -223,142 +210,118 @@ export default function NotificationsSettingsTab() {
             <div>
               <CardTitle>Weekly Email Digest</CardTitle>
               <CardDescription>
-                Receive a weekly summary of registrations, revenue, tickets, and action items
+                Sends every <strong>Monday around 10 AM Eastern</strong> with the past week&apos;s registrations, revenue, waitlist activity, and action items. On by default &mdash; turn off below if you don&apos;t want it.
               </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Enable Toggle */}
+          {/* Turn Off Toggle (opt-out) */}
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
             <div className="flex items-center gap-3">
               <Switch
-                id="digest-enabled"
-                checked={settings.enabled}
+                id="digest-disabled"
+                checked={settings.disabled}
                 onCheckedChange={(checked) =>
-                  setSettings(prev => ({ ...prev, enabled: checked }))
+                  setSettings(prev => ({ ...prev, disabled: checked }))
                 }
               />
-              <Label htmlFor="digest-enabled" className="font-medium cursor-pointer">
-                Enable Weekly Digest
+              <Label htmlFor="digest-disabled" className="font-medium cursor-pointer">
+                Turn off the weekly digest
               </Label>
             </div>
             <Badge
-              variant={settings.enabled ? 'default' : 'secondary'}
-              className={settings.enabled ? 'bg-green-600 text-white' : ''}
+              variant={settings.disabled ? 'destructive' : 'default'}
+              className={settings.disabled ? '' : 'bg-green-600 text-white'}
             >
-              {settings.enabled ? 'Active' : 'Disabled'}
+              {settings.disabled ? 'Off' : 'On &mdash; Mondays'}
             </Badge>
           </div>
 
-          {settings.enabled && (
-            <>
-              {/* Day of Week Selection */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-gray-500" />
-                  <Label>Send digest on</Label>
-                </div>
-                <Select
-                  value={settings.dayOfWeek.toString()}
-                  onValueChange={(value) =>
-                    setSettings(prev => ({ ...prev, dayOfWeek: parseInt(value) }))
-                  }
-                >
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Select day" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DAYS_OF_WEEK.map(day => (
-                      <SelectItem key={day.value} value={day.value.toString()}>
-                        {day.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-sm text-gray-500">
-                  The digest will be sent early morning (around 6 AM) on the selected day
-                </p>
+          {/* Recipients Selection */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-gray-500" />
+                <Label>Recipients</Label>
               </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={selectAllRecipients}
+                  disabled={settings.disabled}
+                >
+                  Select All
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearAllRecipients}
+                  disabled={settings.disabled}
+                >
+                  Clear
+                </Button>
+              </div>
+            </div>
 
-              {/* Recipients Selection */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-gray-500" />
-                    <Label>Recipients</Label>
+            <p className="text-sm text-gray-500">
+              Leave everyone unchecked to send to all admins on your organization; check individual people to limit who gets it.
+            </p>
+
+            <div className="border rounded-lg divide-y max-h-[300px] overflow-y-auto">
+              {availableRecipients.map(recipient => (
+                <div
+                  key={recipient.id}
+                  className={`flex items-center gap-3 p-3 hover:bg-gray-50 ${settings.disabled ? 'opacity-50 pointer-events-none' : 'cursor-pointer'}`}
+                  onClick={() => !settings.disabled && toggleRecipient(recipient.email)}
+                >
+                  <Checkbox
+                    checked={settings.recipients.includes(recipient.email)}
+                    onCheckedChange={() => toggleRecipient(recipient.email)}
+                    disabled={settings.disabled}
+                  />
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">
+                      {recipient.firstName} {recipient.lastName}
+                    </p>
+                    <p className="text-sm text-gray-500">{recipient.email}</p>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={selectAllRecipients}
-                    >
-                      Select All
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={clearAllRecipients}
-                    >
-                      Clear
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="border rounded-lg divide-y max-h-[300px] overflow-y-auto">
-                  {availableRecipients.map(recipient => (
-                    <div
-                      key={recipient.id}
-                      className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer"
-                      onClick={() => toggleRecipient(recipient.email)}
-                    >
-                      <Checkbox
-                        checked={settings.recipients.includes(recipient.email)}
-                        onCheckedChange={() => toggleRecipient(recipient.email)}
-                      />
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">
-                          {recipient.firstName} {recipient.lastName}
-                        </p>
-                        <p className="text-sm text-gray-500">{recipient.email}</p>
-                      </div>
-                      {settings.recipients.includes(recipient.email) && (
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                      )}
-                    </div>
-                  ))}
-
-                  {availableRecipients.length === 0 && (
-                    <div className="p-4 text-center text-gray-500">
-                      <AlertCircle className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                      <p>No admin users found</p>
-                    </div>
+                  {settings.recipients.includes(recipient.email) && (
+                    <CheckCircle className="h-4 w-4 text-green-600" />
                   )}
                 </div>
+              ))}
 
-                {settings.recipients.length > 0 && (
-                  <p className="text-sm text-gray-600">
-                    <strong>{settings.recipients.length}</strong> recipient(s) selected
-                  </p>
-                )}
-              </div>
+              {availableRecipients.length === 0 && (
+                <div className="p-4 text-center text-gray-500">
+                  <AlertCircle className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                  <p>No admin users found</p>
+                </div>
+              )}
+            </div>
 
-              {/* What's Included Info */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-medium text-blue-900 mb-2">What&apos;s included in the digest:</h4>
-                <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• Revenue summary (weekly + total)</li>
-                  <li>• Upcoming events with registration counts</li>
-                  <li>• Registration and participant stats</li>
-                  <li>• Form completion status</li>
-                  <li>• Pending payments and overdue balances</li>
-                  <li>• Action items requiring attention</li>
-                  <li>• Recent activity (payments, registrations)</li>
-                </ul>
-              </div>
-            </>
-          )}
+            {settings.recipients.length > 0 && (
+              <p className="text-sm text-gray-600">
+                <strong>{settings.recipients.length}</strong> recipient(s) selected
+              </p>
+            )}
+          </div>
+
+          {/* What's Included Info */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="font-medium text-blue-900 mb-2">What&apos;s included in the digest:</h4>
+            <ul className="text-sm text-blue-800 space-y-1">
+              <li>• Revenue summary (weekly + total)</li>
+              <li>• Upcoming events with registration and waitlist counts</li>
+              <li>• Waitlist activity (new signups, invites, conversions)</li>
+              <li>• Registration and participant stats</li>
+              <li>• Form completion status</li>
+              <li>• Pending payments and overdue balances</li>
+              <li>• Action items requiring attention</li>
+              <li>• Recent activity (payments, registrations)</li>
+            </ul>
+          </div>
         </CardContent>
       </Card>
 
@@ -467,7 +430,7 @@ export default function NotificationsSettingsTab() {
       <div className="flex justify-between items-center">
         <Button
           onClick={handleSendTest}
-          disabled={sendingTest || !settings.enabled || settings.recipients.length === 0}
+          disabled={sendingTest || settings.disabled || (settings.recipients.length === 0 && availableRecipients.length === 0)}
           className="bg-[#1E3A5F] hover:bg-[#2d5a8c] text-white"
         >
           {sendingTest ? (

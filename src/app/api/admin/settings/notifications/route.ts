@@ -4,9 +4,9 @@ import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 
 interface WeeklyDigestSettings {
-  enabled: boolean
+  // Opt-out: the digest sends by default. Only stops when disabled === true.
+  disabled: boolean
   recipients: string[]
-  dayOfWeek: number
 }
 
 interface UpdateEmailSettings {
@@ -51,10 +51,13 @@ export async function GET(request: NextRequest) {
     }
 
     const customFields = organization.customFieldsEnabled as Record<string, any> | null
-    const weeklyDigest: WeeklyDigestSettings = customFields?.weeklyDigest || {
-      enabled: false,
-      recipients: [],
-      dayOfWeek: 0, // Sunday
+    const stored = customFields?.weeklyDigest || {}
+    // Legacy: the old opt-in schema wrote `enabled: false` when off.
+    // Preserve that as `disabled: true` under the new opt-out schema.
+    const legacyDisabled = stored.enabled === false
+    const weeklyDigest: WeeklyDigestSettings = {
+      disabled: stored.disabled === true || legacyDisabled,
+      recipients: Array.isArray(stored.recipients) ? stored.recipients : [],
     }
     const updateEmails: UpdateEmailSettings = customFields?.updateEmails || {
       disabled: false,
@@ -101,10 +104,9 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Validate settings
-    if (typeof weeklyDigest.enabled !== 'boolean') {
+    if (typeof weeklyDigest.disabled !== 'boolean') {
       return NextResponse.json(
-        { error: 'enabled must be a boolean' },
+        { error: 'disabled must be a boolean' },
         { status: 400 }
       )
     }
@@ -112,13 +114,6 @@ export async function PUT(request: NextRequest) {
     if (!Array.isArray(weeklyDigest.recipients)) {
       return NextResponse.json(
         { error: 'recipients must be an array' },
-        { status: 400 }
-      )
-    }
-
-    if (typeof weeklyDigest.dayOfWeek !== 'number' || weeklyDigest.dayOfWeek < 0 || weeklyDigest.dayOfWeek > 6) {
-      return NextResponse.json(
-        { error: 'dayOfWeek must be a number between 0 and 6' },
         { status: 400 }
       )
     }
@@ -142,13 +137,13 @@ export async function PUT(request: NextRequest) {
 
     const currentCustomFields = (organization.customFieldsEnabled as Record<string, any>) || {}
 
-    // Update with new weekly digest settings
+    // Write the new opt-out shape. Drop legacy `enabled` / `dayOfWeek` keys
+    // so the stored blob stops carrying dead fields.
     const updatedCustomFields = {
       ...currentCustomFields,
       weeklyDigest: {
-        enabled: weeklyDigest.enabled,
+        disabled: weeklyDigest.disabled,
         recipients: weeklyDigest.recipients,
-        dayOfWeek: weeklyDigest.dayOfWeek,
       },
       updateEmails: {
         disabled: updateEmails?.disabled ?? (currentCustomFields.updateEmails?.disabled ?? false),
