@@ -109,7 +109,24 @@ export default function EventRegistrationsPage() {
       }
 
       if (!response.ok) {
-        throw new Error('Failed to fetch registrations')
+        // Surface the real server error so a schema/DB mismatch (or any 500)
+        // shows up in the UI instead of a generic "Failed to load".
+        let serverMessage = ''
+        try {
+          const errBody = await response.json()
+          serverMessage = errBody?.error || errBody?.message || ''
+        } catch {
+          try {
+            serverMessage = await response.text()
+          } catch {
+            /* ignore */
+          }
+        }
+        throw new Error(
+          serverMessage
+            ? `Server returned ${response.status}: ${serverMessage}`
+            : `Server returned ${response.status} loading registrations.`
+        )
       }
 
       const data = await response.json()
@@ -121,7 +138,7 @@ export default function EventRegistrationsPage() {
       setTotalParticipants(data.totalParticipants)
     } catch (err) {
       console.error('Error fetching registrations:', err)
-      setError('Failed to load registrations')
+      setError(err instanceof Error ? err.message : 'Failed to load registrations')
     } finally {
       setLoading(false)
     }

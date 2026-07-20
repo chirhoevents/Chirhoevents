@@ -40,6 +40,37 @@ echo "Running prisma db push..."
 # poros_adoration, poros_info_items etc. are completely unaffected.
 npx prisma db push --skip-generate --accept-data-loss
 
+# Post-push schema-drift canary: verify critical recently-added columns exist
+# in the live DB after db push runs. If db push is skipped, cached, or silently
+# no-ops, the app ships expecting columns the DB doesn't have — Prisma queries
+# 500 across every endpoint that touches those tables (waitlist, registrations,
+# and their emails). This block turns that silent failure into a hard build
+# failure. Add a new check here whenever a migration adds columns that all
+# queries on a table implicitly select.
+echo "Verifying critical columns after db push..."
+cat > /tmp/schema-canary.sql << 'SQLEOF'
+DO $$
+BEGIN
+  -- Waitlist capacity-override + reservation columns (PRs #754-#757)
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='waitlist_entries' AND column_name='overridden_by') THEN
+    RAISE EXCEPTION 'Schema drift after db push: waitlist_entries.overridden_by is missing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='waitlist_entries' AND column_name='reserved_spots') THEN
+    RAISE EXCEPTION 'Schema drift after db push: waitlist_entries.reserved_spots is missing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='waitlist_entries' AND column_name='reserved_housing_type') THEN
+    RAISE EXCEPTION 'Schema drift after db push: waitlist_entries.reserved_housing_type is missing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='individual_registrations' AND column_name='overridden_by') THEN
+    RAISE EXCEPTION 'Schema drift after db push: individual_registrations.overridden_by is missing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='group_registrations' AND column_name='overridden_by') THEN
+    RAISE EXCEPTION 'Schema drift after db push: group_registrations.overridden_by is missing';
+  END IF;
+END $$;
+SQLEOF
+npx prisma db execute --file /tmp/schema-canary.sql --schema prisma/schema.prisma
+
 # Create confession/adoration/info tables AFTER Prisma push
 # These tables are managed outside of Prisma to prevent data loss during deployments
 echo "Creating confession/adoration/info tables..."
