@@ -122,6 +122,7 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
     averageWaitTime: { hours: 0, days: 0, sampleSize: 0 },
   })
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
@@ -136,13 +137,32 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
   const fetchWaitlist = useCallback(async () => {
     try {
       setLoading(true)
+      setLoadError(null)
       const token = await getToken()
       const response = await fetch(`/api/admin/events/${eventId}/waitlist`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
 
       if (!response.ok) {
-        throw new Error('Failed to fetch waitlist')
+        // Surface the actual server error instead of silently rendering an
+        // empty state — that behavior turned a DB-schema mismatch into
+        // "everything looks fine but shows 0 entries" for the admin.
+        let serverMessage = ''
+        try {
+          const errBody = await response.json()
+          serverMessage = errBody?.error || errBody?.message || ''
+        } catch {
+          try {
+            serverMessage = await response.text()
+          } catch {
+            /* ignore */
+          }
+        }
+        throw new Error(
+          serverMessage
+            ? `Server returned ${response.status}: ${serverMessage}`
+            : `Server returned ${response.status} loading the waitlist.`
+        )
       }
 
       const data = await response.json()
@@ -153,6 +173,9 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
       }
     } catch (error) {
       console.error('Error fetching waitlist:', error)
+      setLoadError(error instanceof Error ? error.message : 'Unknown error loading waitlist')
+      // Keep entries as whatever we had (probably []) so the error banner
+      // isn't drowned out by "No one on the waitlist yet".
     } finally {
       setLoading(false)
     }
@@ -595,6 +618,25 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-[#9C8466]" />
+            </div>
+          ) : loadError ? (
+            <div className="py-12 px-4">
+              <div className="mx-auto max-w-lg rounded-lg border-2 border-red-300 bg-red-50 p-6 text-center">
+                <AlertTriangle className="mx-auto mb-3 h-10 w-10 text-red-500" />
+                <p className="mb-1 font-semibold text-red-800">
+                  Could not load the waitlist
+                </p>
+                <p className="mb-4 text-sm text-red-700 break-words">{loadError}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchWaitlist}
+                  className="border-red-400 text-red-700 hover:bg-red-100"
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Try again
+                </Button>
+              </div>
             </div>
           ) : filteredEntries.length === 0 ? (
             <div className="text-center py-12">
