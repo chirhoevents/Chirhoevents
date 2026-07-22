@@ -490,7 +490,9 @@ export default function WaitlistModal({
                     ))}
                   </select>
                   <p className="text-xs text-[#6B7280] mt-1">
-                    We&apos;ll only contact you when a spot opens up for this option.
+                    {isGroup
+                      ? 'All members of the group will use this housing option — pick one for the whole group.'
+                      : "We'll only contact you when a spot opens up for this option."}
                   </p>
                 </div>
               )}
