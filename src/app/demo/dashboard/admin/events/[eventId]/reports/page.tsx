@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useParams, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,6 +18,7 @@ import {
   UserCheck,
   Settings,
 } from 'lucide-react'
+import ReportViewer, { type ReportId } from '../../../../../lib/ReportViewer'
 
 const DEMO_EVENTS: Record<string, string> = {
   'evt-summer-retreat': 'Summer Youth Retreat 2026',
@@ -24,7 +26,7 @@ const DEMO_EVENTS: Record<string, string> = {
   'evt-mens-retreat': "Men's Silent Retreat",
 }
 
-const REPORTS = [
+const REPORTS: { id: ReportId; title: string; icon: React.ComponentType<{ className?: string }>; description: string }[] = [
   { id: 'financial', title: 'Financial Report', icon: DollarSign, description: 'Revenue, refunds, payment status' },
   { id: 'registrations', title: 'Registration Report', icon: Users, description: 'Full registration list with contact info' },
   { id: 'forms', title: 'Forms Status Report', icon: FileText, description: 'Waiver completion per participant' },
@@ -38,6 +40,7 @@ export default function EventReportsPage() {
   const params = useParams()
   const eventId = params?.eventId as string
   const eventName = DEMO_EVENTS[eventId]
+  const [activeReport, setActiveReport] = useState<ReportId | null>(null)
 
   if (!eventName) notFound()
 
@@ -71,7 +74,7 @@ export default function EventReportsPage() {
             </Button>
           </Link>
           <Button
-            onClick={() => alert('Demo: Would open the Custom Report Builder wizard to build a custom CSV with the fields you choose.')}
+            onClick={() => alert('Demo: Would open the Custom Report Builder wizard.')}
             variant="outline"
             className="border-navy text-navy hover:bg-navy hover:text-white"
           >
@@ -103,9 +106,7 @@ export default function EventReportsPage() {
               <p className="text-sm text-muted-foreground mb-4">{report.description}</p>
               <div className="flex gap-2">
                 <Button
-                  onClick={() =>
-                    alert(`Demo: "${report.title}" would open a full-screen modal showing every row for ${eventName}.`)
-                  }
+                  onClick={() => setActiveReport(report.id)}
                   variant="outline"
                   size="sm"
                   className="border-navy text-navy hover:bg-navy hover:text-white flex-1"
@@ -124,6 +125,12 @@ export default function EventReportsPage() {
           </Card>
         ))}
       </div>
+
+      <ReportViewer
+        reportId={activeReport}
+        eventName={eventName}
+        onClose={() => setActiveReport(null)}
+      />
     </div>
   )
 }
