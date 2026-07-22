@@ -284,7 +284,7 @@ export default function IndividualRegistration() {
           <Card className="border-emerald-200 bg-emerald-50">
             <CardContent className="p-8 text-center">
               <CheckCircle className="w-16 h-16 text-emerald-600 mx-auto mb-3" />
-              <h2 className="text-2xl font-bold text-emerald-900 mb-2">You're registered!</h2>
+              <h2 className="text-2xl font-bold text-emerald-900 mb-2">You&apos;re registered!</h2>
               <p className="text-emerald-800 mb-1">Confirmation code: <code className="font-mono font-bold">IND-{Math.random().toString(36).slice(2, 8).toUpperCase()}</code></p>
               <p className="text-sm text-emerald-800 mt-4">
                 A demo confirmation email would have been sent to <strong>{form.email}</strong>.

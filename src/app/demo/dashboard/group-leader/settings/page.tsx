@@ -100,7 +100,7 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-3">
-            Share this code with co-leaders so they can access this group's dashboard.
+            Share this code with co-leaders so they can access this group&apos;s dashboard.
           </p>
           <div className="flex items-center gap-2">
             <code className="font-mono text-lg bg-[#F5F1E8] px-4 py-2 rounded border border-[#E1D5BA] text-navy">

@@ -256,7 +256,7 @@ export default function GroupRegistration() {
               <CheckCircle className="w-16 h-16 text-emerald-600 mx-auto mb-3" />
               <h2 className="text-2xl font-bold text-emerald-900 mb-2">Group reserved!</h2>
               <p className="text-emerald-800 mb-4">
-                You've reserved {form.seats} seats for {form.groupName}.
+                You&apos;ve reserved {form.seats} seats for {form.groupName}.
               </p>
               <div className="bg-white border border-emerald-200 rounded-lg p-4 max-w-md mx-auto mb-4">
                 <p className="text-xs text-slate-500 mb-1">Your access code</p>
