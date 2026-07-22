@@ -126,10 +126,30 @@ export default function WaitlistModal({
         }),
       })
 
-      const data = await response.json()
+      // Read the response defensively — a Prisma failure at the server
+      // returns a 500 with either a JSON body or an HTML/text error page.
+      // Read whichever it is so the user (or Juan investigating a report)
+      // sees the real reason instead of a generic "Failed to join waitlist".
+      let data: any = {}
+      let rawText = ''
+      const responseClone = response.clone()
+      try {
+        data = await response.json()
+      } catch {
+        try {
+          rawText = await responseClone.text()
+        } catch {
+          /* ignore */
+        }
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to join waitlist')
+        const serverMessage =
+          data?.error ||
+          data?.message ||
+          (rawText ? rawText.slice(0, 200) : '') ||
+          `HTTP ${response.status}`
+        throw new Error(`Could not join the waitlist: ${serverMessage}`)
       }
 
       setIsSuccess(true)
