@@ -315,9 +315,14 @@ export async function POST(
       { status: 201 }
     )
   } catch (error) {
-    console.error('Error creating waitlist entry:', error)
+    // Surface the actual Prisma / runtime message on the response so a
+    // schema-drift or config bug shows up in the modal + Vercel logs
+    // instead of a generic "Internal server error" that gives Juan nothing
+    // to debug from and leaves the attendee stuck.
+    const message = error instanceof Error ? error.message : String(error)
+    console.error('Error creating waitlist entry:', message, error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: `Internal server error: ${message}` },
       { status: 500 }
     )
   }
