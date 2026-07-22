@@ -21,6 +21,9 @@ export async function POST(
       partySize,
       notes,
       registrationType,         // 'group' or 'individual'
+      youthCount,               // int, group only — mix must sum to partySize
+      chaperoneCount,           // int, group only
+      priestCount,              // int, group only
       preferredHousingType,     // 'on_campus', 'off_campus' (for general admission)
       preferredRoomType,        // 'single', 'double', 'triple', 'quad' (for individual)
       preferredTicketType,      // 'general_admission', 'day_pass'
@@ -76,6 +79,8 @@ export async function POST(
           select: {
             contactEmail: true,
             waitlistEnabled: true,
+            groupRegistrationEnabled: true,
+            individualRegistrationEnabled: true,
             onCampusCapacity: true,
             onCampusRemaining: true,
             offCampusCapacity: true,
@@ -116,6 +121,80 @@ export async function POST(
     if (!waitlistEnabled) {
       return NextResponse.json(
         { error: 'Waitlist is not enabled for this event' },
+        { status: 400 }
+      )
+    }
+
+    // Registration-type gating: the waitlist can only accept the same
+    // registration types the event actually offers. If the event is
+    // group-only, an "individual" waitlist entry makes no sense — the
+    // person could never be invited to complete registration. Same rule
+    // in reverse for individual-only events.
+    const groupEnabled = event.settings?.groupRegistrationEnabled ?? true
+    const individualEnabled = event.settings?.individualRegistrationEnabled ?? true
+
+    if (registrationType === 'group' && !groupEnabled) {
+      return NextResponse.json(
+        { error: 'This event does not accept group registrations.' },
+        { status: 400 }
+      )
+    }
+    if (registrationType === 'individual' && !individualEnabled) {
+      return NextResponse.json(
+        { error: 'This event does not accept individual registrations.' },
+        { status: 400 }
+      )
+    }
+    if (!groupEnabled && !individualEnabled) {
+      return NextResponse.json(
+        { error: 'Registration is not available for this event.' },
+        { status: 400 }
+      )
+    }
+    // If exactly one type is offered, force the entry to use it — silently
+    // rewriting is fine here, but we require the client to send SOMETHING
+    // when a registration type is meaningful. Only reject a missing type
+    // when both options are on and it's genuinely ambiguous.
+    let effectiveRegistrationType: 'group' | 'individual' | null = null
+    if (registrationType === 'group' || registrationType === 'individual') {
+      effectiveRegistrationType = registrationType
+    } else if (groupEnabled && !individualEnabled) {
+      effectiveRegistrationType = 'group'
+    } else if (individualEnabled && !groupEnabled) {
+      effectiveRegistrationType = 'individual'
+    }
+
+    // Participant mix validation for group entries. Individual entries can
+    // ignore this — partySize is always 1 in the individual registration flow.
+    const parsedYouth = typeof youthCount === 'number' ? youthCount : parseInt(youthCount ?? '') || 0
+    const parsedChaperone = typeof chaperoneCount === 'number' ? chaperoneCount : parseInt(chaperoneCount ?? '') || 0
+    const parsedPriest = typeof priestCount === 'number' ? priestCount : parseInt(priestCount ?? '') || 0
+    const parsedPartySize = parseInt(partySize)
+
+    if (effectiveRegistrationType === 'group') {
+      const mixTotal = parsedYouth + parsedChaperone + parsedPriest
+      if (mixTotal <= 0) {
+        return NextResponse.json(
+          {
+            error:
+              'Group waitlist entries need a participant breakdown — enter how many youth, chaperones, and priests are in the group.',
+          },
+          { status: 400 }
+        )
+      }
+      if (mixTotal !== parsedPartySize) {
+        return NextResponse.json(
+          {
+            error: `Party size (${parsedPartySize}) doesn't match youth (${parsedYouth}) + chaperones (${parsedChaperone}) + priests (${parsedPriest}) = ${mixTotal}.`,
+          },
+          { status: 400 }
+        )
+      }
+    }
+
+    if (effectiveRegistrationType === 'individual' && parsedPartySize !== 1) {
+      return NextResponse.json(
+        { error: 'Individual waitlist entries can only reserve one spot at a time.' },
         { status: 400 }
       )
     }
@@ -251,10 +330,13 @@ export async function POST(
         name,
         email: email.toLowerCase(),
         phone: phone || null,
-        partySize: parseInt(partySize),
+        partySize: parsedPartySize,
         notes: notes || null,
         status: 'pending',
-        registrationType: registrationType || null,
+        registrationType: effectiveRegistrationType,
+        youthCount: effectiveRegistrationType === 'group' ? parsedYouth : null,
+        chaperoneCount: effectiveRegistrationType === 'group' ? parsedChaperone : null,
+        priestCount: effectiveRegistrationType === 'group' ? parsedPriest : null,
         preferredHousingType: preferredHousingType || null,
         preferredRoomType: preferredRoomType || null,
         preferredTicketType: preferredTicketType || null,
