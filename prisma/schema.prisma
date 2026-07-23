@@ -1356,6 +1356,12 @@ model WaitlistEntry {
   preferredHousingType     HousingType? @map("preferred_housing_type")
   preferredRoomType        RoomType? @map("preferred_room_type")
 
+  // Participant breakdown for group waitlist entries. Sum should equal
+  // partySize. NULL on individual entries (partySize=1 is the whole story).
+  youthCount     Int? @map("youth_count")
+  chaperoneCount Int? @map("chaperone_count")
+  priestCount    Int? @map("priest_count")
+
   // Relations
   event         Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
   dayPassOption DayPassOption? @relation(fields: [preferredDayPassOptionId], references: [id])

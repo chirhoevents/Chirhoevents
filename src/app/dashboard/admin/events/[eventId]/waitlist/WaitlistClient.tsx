@@ -78,6 +78,9 @@ interface WaitlistEntry {
   preferredTicketType: 'general_admission' | 'day_pass' | null
   preferredDayPassOptionId: string | null
   preferredDayPassOptionName: string | null
+  youthCount: number | null
+  chaperoneCount: number | null
+  priestCount: number | null
 }
 
 interface WaitlistSummary {
@@ -727,6 +730,20 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
                               {entry.registrationType === 'group' ? 'Group' : 'Individual'}
                             </span>
                           )}
+                          {entry.registrationType === 'group' &&
+                            (entry.youthCount !== null ||
+                              entry.chaperoneCount !== null ||
+                              entry.priestCount !== null) && (
+                              <span className="text-[10px] text-[#6B7280] whitespace-nowrap">
+                                {[
+                                  entry.youthCount ? `${entry.youthCount} youth` : null,
+                                  entry.chaperoneCount ? `${entry.chaperoneCount} chap` : null,
+                                  entry.priestCount ? `${entry.priestCount} priest` : null,
+                                ]
+                                  .filter(Boolean)
+                                  .join(' + ')}
+                              </span>
+                            )}
                         </div>
                       </TableCell>
                       <TableCell>{getStatusBadge(entry)}</TableCell>

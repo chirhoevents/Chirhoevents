@@ -341,6 +341,8 @@ export default async function EventLandingPage({ params }: EventPageProps) {
                   housingTypes: housingOffered,
                   roomTypes: roomsOffered,
                   dayPassOptions: dpOffered,
+                  groupRegistrationEnabled: s?.groupRegistrationEnabled ?? true,
+                  individualRegistrationEnabled: s?.individualRegistrationEnabled ?? true,
                 }
               })()}
               hasFullOption={(() => {
