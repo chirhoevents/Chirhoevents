@@ -106,13 +106,47 @@ export async function GET(
       ? Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60))
       : null
 
+    // What was asked for vs what's actually being offered. When the admin
+    // sends a counter-offer the two differ; the invitee page shows both
+    // side-by-side so they know what they're accepting.
+    const requested = {
+      partySize: entry.partySize,
+      youthCount: entry.youthCount,
+      chaperoneCount: entry.chaperoneCount,
+      priestCount: entry.priestCount,
+      housingType: entry.preferredHousingType,
+      roomType: entry.preferredRoomType,
+      dayPassOptionId: entry.preferredDayPassOptionId,
+    }
+    const offered = {
+      partySize: entry.reservedSpots ?? entry.partySize,
+      youthCount: entry.reservedYouthCount ?? entry.youthCount,
+      chaperoneCount: entry.reservedChaperoneCount ?? entry.chaperoneCount,
+      priestCount: entry.reservedPriestCount ?? entry.priestCount,
+      housingType: entry.reservedHousingType ?? entry.preferredHousingType,
+      roomType: entry.reservedRoomType ?? entry.preferredRoomType,
+      dayPassOptionId: entry.reservedDayPassOptionId ?? entry.preferredDayPassOptionId,
+    }
+    const isCounterOffer =
+      requested.partySize !== offered.partySize ||
+      requested.youthCount !== offered.youthCount ||
+      requested.chaperoneCount !== offered.chaperoneCount ||
+      requested.priestCount !== offered.priestCount ||
+      requested.housingType !== offered.housingType ||
+      requested.roomType !== offered.roomType ||
+      requested.dayPassOptionId !== offered.dayPassOptionId
+
     return NextResponse.json({
       valid: true,
+      isCounterOffer,
+      requested,
+      offered,
       entry: {
         id: entry.id,
         name: entry.name,
         email: entry.email,
-        partySize: entry.partySize,
+        partySize: offered.partySize,
+        registrationType: entry.registrationType,
         invitedAt: entry.notifiedAt,
         expiresAt: entry.invitationExpires,
         timeRemaining: {

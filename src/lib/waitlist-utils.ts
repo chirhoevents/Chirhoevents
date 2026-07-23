@@ -152,6 +152,9 @@ export async function validateWaitlistToken(token: string): Promise<{
     reservedHousingType: HousingType | null
     reservedRoomType: RoomType | null
     reservedDayPassOptionId: string | null
+    effectiveHousingType: HousingType | null
+    effectiveRoomType: RoomType | null
+    effectiveDayPassOptionId: string | null
   }
 }> {
   try {
@@ -175,6 +178,17 @@ export async function validateWaitlistToken(token: string): Promise<{
       return { valid: false, error: 'Invalid status', reason: 'invalid_status' }
     }
 
+    // "Effective" values represent the actual offer: reserved_* if the admin
+    // stored a reservation (normal invite OR counter-offer), otherwise the
+    // entry's preferred_* fields. Callers should match the incoming
+    // registration against these effective values, not raw preferred_*.
+    const reservedHousingType = ((entry as any).reservedHousingType as HousingType | null) ?? null
+    const reservedRoomType = ((entry as any).reservedRoomType as RoomType | null) ?? null
+    const reservedDayPassOptionId = (entry as any).reservedDayPassOptionId ?? null
+    const preferredHousingType = ((entry as any).preferredHousingType as HousingType | null) ?? null
+    const preferredRoomType = ((entry as any).preferredRoomType as RoomType | null) ?? null
+    const preferredDayPassOptionId = (entry as any).preferredDayPassOptionId ?? null
+
     return {
       valid: true,
       entry: {
@@ -184,12 +198,16 @@ export async function validateWaitlistToken(token: string): Promise<{
         partySize: entry.partySize,
         eventId: entry.eventId,
         reservedSpots: (entry as any).reservedSpots ?? null,
-        preferredHousingType: ((entry as any).preferredHousingType as HousingType | null) ?? null,
-        preferredRoomType: ((entry as any).preferredRoomType as RoomType | null) ?? null,
-        preferredDayPassOptionId: (entry as any).preferredDayPassOptionId ?? null,
-        reservedHousingType: ((entry as any).reservedHousingType as HousingType | null) ?? null,
-        reservedRoomType: ((entry as any).reservedRoomType as RoomType | null) ?? null,
-        reservedDayPassOptionId: (entry as any).reservedDayPassOptionId ?? null,
+        preferredHousingType,
+        preferredRoomType,
+        preferredDayPassOptionId,
+        reservedHousingType,
+        reservedRoomType,
+        reservedDayPassOptionId,
+        // Effective values — what the invitee is actually being offered.
+        effectiveHousingType: reservedHousingType ?? preferredHousingType,
+        effectiveRoomType: reservedRoomType ?? preferredRoomType,
+        effectiveDayPassOptionId: reservedDayPassOptionId ?? preferredDayPassOptionId,
       },
     }
   } catch (error) {

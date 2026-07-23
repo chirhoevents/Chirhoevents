@@ -173,15 +173,21 @@ export async function POST(request: NextRequest) {
       const requestedHousing = (housingType || null) as HousingType | null
       const requestedDayPassOptionId = (body.dayPassOptionId || null) as string | null
 
-      if (wl.preferredHousingType && requestedHousing && wl.preferredHousingType !== requestedHousing) {
+      // Match against effective_* values so a counter-offer (reserved_*
+      // differs from preferred_*) is the enforced contract. Falls back to
+      // preferred_* when no reservation was set (pre-reservation entries).
+      const expectedHousing = wl.effectiveHousingType
+      const expectedDayPassOptionId = wl.effectiveDayPassOptionId
+
+      if (expectedHousing && requestedHousing && expectedHousing !== requestedHousing) {
         return NextResponse.json(
           {
-            error: `Your waitlist invitation was for ${wl.preferredHousingType.replace('_', ' ')} housing, but this registration is for ${requestedHousing.replace('_', ' ')}. Please register for ${wl.preferredHousingType.replace('_', ' ')} or contact the organizer to change your option.`,
+            error: `Your waitlist invitation was for ${expectedHousing.replace('_', ' ')} housing, but this registration is for ${requestedHousing.replace('_', ' ')}. Please register for ${expectedHousing.replace('_', ' ')} or contact the organizer to change your option.`,
           },
           { status: 400 }
         )
       }
-      if (wl.preferredDayPassOptionId && requestedDayPassOptionId && wl.preferredDayPassOptionId !== requestedDayPassOptionId) {
+      if (expectedDayPassOptionId && requestedDayPassOptionId && expectedDayPassOptionId !== requestedDayPassOptionId) {
         return NextResponse.json(
           {
             error: 'Your waitlist invitation was for a different day pass option. Please register for the option you waitlisted for, or contact the organizer to change it.',

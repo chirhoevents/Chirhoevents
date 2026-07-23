@@ -137,6 +137,32 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
   const [overrideReason, setOverrideReason] = useState('')
   const [overrideSubmitting, setOverrideSubmitting] = useState(false)
 
+  // Edit-in-place and counter-offer dialog state. Both dialogs reuse the same
+  // draft shape; the endpoint differs.
+  const [preferences, setPreferences] = useState<{
+    groupRegistrationEnabled: boolean
+    individualRegistrationEnabled: boolean
+    housingTypes: Array<'on_campus' | 'off_campus' | 'day_pass'>
+    roomTypes: Array<'single' | 'double' | 'triple' | 'quad'>
+    dayPassOptions: Array<{ id: string; name: string }>
+  } | null>(null)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [offerDialogOpen, setOfferDialogOpen] = useState(false)
+  const [draftEntry, setDraftEntry] = useState<WaitlistEntry | null>(null)
+  const [draft, setDraft] = useState({
+    name: '',
+    phone: '',
+    partySize: '1',
+    youthCount: '',
+    chaperoneCount: '',
+    priestCount: '',
+    registrationType: '' as '' | 'group' | 'individual',
+    preferredHousingType: '' as '' | 'on_campus' | 'off_campus' | 'day_pass',
+    preferredDayPassOptionId: '',
+    notes: '',
+  })
+  const [draftSubmitting, setDraftSubmitting] = useState(false)
+
   const fetchWaitlist = useCallback(async () => {
     try {
       setLoading(true)
@@ -173,6 +199,9 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
       setSummary(data.summary)
       if (data.analytics) {
         setAnalytics(data.analytics)
+      }
+      if (data.preferences) {
+        setPreferences(data.preferences)
       }
     } catch (error) {
       console.error('Error fetching waitlist:', error)
@@ -235,6 +264,103 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
       alert('Failed to mark as contacted. Please try again.')
     } finally {
       setActionLoading(null)
+    }
+  }
+
+  const openEditDialog = (entry: WaitlistEntry, mode: 'edit' | 'offer') => {
+    setDraftEntry(entry)
+    setDraft({
+      name: entry.name,
+      phone: entry.phone ?? '',
+      partySize: String(entry.partySize),
+      youthCount: entry.youthCount !== null ? String(entry.youthCount) : '',
+      chaperoneCount: entry.chaperoneCount !== null ? String(entry.chaperoneCount) : '',
+      priestCount: entry.priestCount !== null ? String(entry.priestCount) : '',
+      registrationType: entry.registrationType ?? '',
+      preferredHousingType: entry.preferredHousingType ?? '',
+      preferredDayPassOptionId: entry.preferredDayPassOptionId ?? '',
+      notes: entry.notes ?? '',
+    })
+    if (mode === 'edit') setEditDialogOpen(true)
+    else setOfferDialogOpen(true)
+  }
+
+  const submitDraft = async (mode: 'edit' | 'offer') => {
+    if (!draftEntry) return
+    const isGroup = draft.registrationType === 'group'
+    const parsedYouth = parseInt(draft.youthCount) || 0
+    const parsedChaperone = parseInt(draft.chaperoneCount) || 0
+    const parsedPriest = parseInt(draft.priestCount) || 0
+    const parsedPartySize = isGroup
+      ? parsedYouth + parsedChaperone + parsedPriest
+      : parseInt(draft.partySize) || 0
+
+    if (isGroup && parsedPartySize <= 0) {
+      alert('Enter a mix of youth / chaperone / priest.')
+      return
+    }
+    if (draft.registrationType === 'individual' && parsedPartySize !== 1) {
+      alert('Individual entries hold exactly 1 spot.')
+      return
+    }
+
+    setDraftSubmitting(true)
+    try {
+      const authToken = await getToken()
+      const commonBody = {
+        partySize: parsedPartySize,
+        youthCount: isGroup ? parsedYouth : null,
+        chaperoneCount: isGroup ? parsedChaperone : null,
+        priestCount: isGroup ? parsedPriest : null,
+        registrationType: draft.registrationType || null,
+        preferredHousingType: draft.preferredHousingType || null,
+        preferredDayPassOptionId: draft.preferredDayPassOptionId || null,
+      }
+
+      let response: Response
+      if (mode === 'edit') {
+        response = await fetch(`/api/admin/waitlist/${draftEntry.id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+          },
+          body: JSON.stringify({
+            name: draft.name,
+            phone: draft.phone,
+            notes: draft.notes,
+            ...commonBody,
+          }),
+        })
+      } else {
+        response = await fetch(`/api/admin/waitlist/${draftEntry.id}/contact`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+          },
+          body: JSON.stringify({ offer: commonBody }),
+        })
+      }
+
+      if (response.status === 409 && mode === 'offer') {
+        const info = await response.json().catch(() => ({}))
+        alert(info?.error || 'Not enough capacity for this offer.')
+        return
+      }
+      if (!response.ok) {
+        const info = await response.json().catch(() => ({}))
+        throw new Error(info?.error || `Server returned ${response.status}`)
+      }
+
+      setEditDialogOpen(false)
+      setOfferDialogOpen(false)
+      setDraftEntry(null)
+      await fetchWaitlist()
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to save.')
+    } finally {
+      setDraftSubmitting(false)
     }
   }
 
@@ -774,10 +900,20 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             {entry.status === 'pending' && (
-                              <DropdownMenuItem onClick={() => handleMarkContacted(entry)}>
-                                <Mail className="h-4 w-4 mr-2" />
-                                Mark as Contacted
-                              </DropdownMenuItem>
+                              <>
+                                <DropdownMenuItem onClick={() => handleMarkContacted(entry)}>
+                                  <Mail className="h-4 w-4 mr-2" />
+                                  Send Invite (as requested)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => openEditDialog(entry, 'offer')}>
+                                  <Mail className="h-4 w-4 mr-2" />
+                                  Send Invite (adjust offer)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => openEditDialog(entry, 'edit')}>
+                                  <RefreshCw className="h-4 w-4 mr-2" />
+                                  Edit request
+                                </DropdownMenuItem>
+                              </>
                             )}
                             {entry.status === 'contacted' && (
                               <DropdownMenuItem
@@ -875,6 +1011,203 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
                 </>
               ) : (
                 'Force invite anyway'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit / Adjust-Offer Dialog — same form, two entry points */}
+      <AlertDialog
+        open={editDialogOpen || offerDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditDialogOpen(false)
+            setOfferDialogOpen(false)
+          }
+        }}
+      >
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {editDialogOpen ? 'Edit request' : 'Adjust the offer'}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="text-sm text-[#6B7280]">
+                {editDialogOpen
+                  ? 'Change what this entry is asking for. Only pending entries can be edited.'
+                  : 'Send an invite for something different than what they asked for. The reservation and match at registration will use these values.'}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="space-y-3 py-2 max-h-[60vh] overflow-y-auto">
+            {editDialogOpen && (
+              <>
+                <div>
+                  <Label>Name</Label>
+                  <Input
+                    value={draft.name}
+                    onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Phone</Label>
+                  <Input
+                    value={draft.phone}
+                    onChange={(e) => setDraft({ ...draft, phone: e.target.value })}
+                  />
+                </div>
+              </>
+            )}
+
+            {preferences?.groupRegistrationEnabled &&
+              preferences?.individualRegistrationEnabled && (
+                <div>
+                  <Label>Registration Type</Label>
+                  <select
+                    value={draft.registrationType}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        registrationType: e.target.value as '' | 'group' | 'individual',
+                      })
+                    }
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="">Select...</option>
+                    <option value="group">Group</option>
+                    <option value="individual">Individual</option>
+                  </select>
+                </div>
+              )}
+
+            {draft.registrationType === 'group' && (
+              <div className="rounded-md border border-[#D1D5DB] p-3 space-y-2">
+                <p className="text-sm font-medium text-[#1E3A5F]">Participant mix</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <Label className="text-xs">Youth</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={draft.youthCount}
+                      onChange={(e) => setDraft({ ...draft, youthCount: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Chaperones</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={draft.chaperoneCount}
+                      onChange={(e) => setDraft({ ...draft, chaperoneCount: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Priests</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={draft.priestCount}
+                      onChange={(e) => setDraft({ ...draft, priestCount: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-[#6B7280]">
+                  Total:{' '}
+                  <span className="font-medium text-[#1E3A5F]">
+                    {(parseInt(draft.youthCount) || 0) +
+                      (parseInt(draft.chaperoneCount) || 0) +
+                      (parseInt(draft.priestCount) || 0)}
+                  </span>{' '}
+                  spots
+                </p>
+              </div>
+            )}
+
+            {draft.registrationType === 'individual' && (
+              <p className="text-sm text-[#6B7280]">Individual — 1 spot.</p>
+            )}
+
+            {preferences && preferences.housingTypes.length > 1 && (
+              <div>
+                <Label>Housing</Label>
+                <select
+                  value={draft.preferredHousingType}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      preferredHousingType: e.target.value as any,
+                    })
+                  }
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Any / not set</option>
+                  {preferences.housingTypes.map((h) => (
+                    <option key={h} value={h}>
+                      {h === 'on_campus'
+                        ? 'On-Campus'
+                        : h === 'off_campus'
+                        ? 'Off-Campus'
+                        : 'Day Pass'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {preferences && preferences.dayPassOptions.length > 1 && (
+              <div>
+                <Label>Day Pass</Label>
+                <select
+                  value={draft.preferredDayPassOptionId}
+                  onChange={(e) =>
+                    setDraft({ ...draft, preferredDayPassOptionId: e.target.value })
+                  }
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Any / not set</option>
+                  {preferences.dayPassOptions.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {editDialogOpen && (
+              <div>
+                <Label>Notes</Label>
+                <Textarea
+                  value={draft.notes}
+                  onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
+                  rows={2}
+                />
+              </div>
+            )}
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={draftSubmitting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                submitDraft(editDialogOpen ? 'edit' : 'offer')
+              }}
+              disabled={draftSubmitting}
+              className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
+            >
+              {draftSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving
+                </>
+              ) : editDialogOpen ? (
+                'Save changes'
+              ) : (
+                'Send invite'
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

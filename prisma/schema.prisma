@@ -1349,6 +1349,14 @@ model WaitlistEntry {
   reservedRoomType        RoomType?    @map("reserved_room_type")
   reservedDayPassOptionId String?      @map("reserved_day_pass_option_id") @db.Uuid
 
+  // For group entries: the mix the admin actually offered. Matches
+  // youth_count/chaperone_count/priest_count on the entry when the admin
+  // sends a normal invite; can differ when the admin sends a counter-offer
+  // (e.g. entry asked for 60 total, admin offers 40).
+  reservedYouthCount      Int?         @map("reserved_youth_count")
+  reservedChaperoneCount  Int?         @map("reserved_chaperone_count")
+  reservedPriestCount     Int?         @map("reserved_priest_count")
+
   // Option preferences - what type of registration/housing they want
   registrationType         RegistrationType? @map("registration_type")
   preferredTicketType      TicketType? @map("preferred_ticket_type")

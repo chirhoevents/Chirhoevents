@@ -21,15 +21,29 @@ import { format } from 'date-fns'
 import { parseDateOnly } from '@/lib/utils'
 import LoadingScreen from '@/components/LoadingScreen'
 
+interface OfferShape {
+  partySize: number
+  youthCount: number | null
+  chaperoneCount: number | null
+  priestCount: number | null
+  housingType: 'on_campus' | 'off_campus' | 'day_pass' | null
+  roomType: 'single' | 'double' | 'triple' | 'quad' | null
+  dayPassOptionId: string | null
+}
+
 interface WaitlistData {
   valid: boolean
   error?: string
   reason?: string
+  isCounterOffer?: boolean
+  requested?: OfferShape
+  offered?: OfferShape
   entry?: {
     id: string
     name: string
     email: string
     partySize: number
+    registrationType: 'group' | 'individual' | null
     invitedAt: string
     expiresAt: string
     timeRemaining: {
@@ -49,6 +63,30 @@ interface WaitlistData {
     groupRegistrationEnabled: boolean
     individualRegistrationEnabled: boolean
   }
+}
+
+const HOUSING_LABEL: Record<'on_campus' | 'off_campus' | 'day_pass', string> = {
+  on_campus: 'On-Campus',
+  off_campus: 'Off-Campus',
+  day_pass: 'Day Pass',
+}
+
+function describeOffer(o: OfferShape | undefined, registrationType: string | null | undefined): string {
+  if (!o) return ''
+  const parts: string[] = []
+  parts.push(`${o.partySize} spot${o.partySize === 1 ? '' : 's'}`)
+  if (registrationType === 'group' && (o.youthCount || o.chaperoneCount || o.priestCount)) {
+    const mix = [
+      o.youthCount ? `${o.youthCount} youth` : null,
+      o.chaperoneCount ? `${o.chaperoneCount} chaperone${o.chaperoneCount === 1 ? '' : 's'}` : null,
+      o.priestCount ? `${o.priestCount} priest${o.priestCount === 1 ? '' : 's'}` : null,
+    ]
+      .filter(Boolean)
+      .join(' + ')
+    if (mix) parts.push(`(${mix})`)
+  }
+  if (o.housingType) parts.push(`— ${HOUSING_LABEL[o.housingType]}`)
+  return parts.join(' ')
 }
 
 export default function WaitlistRegisterPage() {
@@ -87,6 +125,34 @@ export default function WaitlistRegisterPage() {
 
     return () => clearInterval(interval)
   }, [data?.entry?.expiresAt])
+
+  const [declining, setDeclining] = useState(false)
+  const [declined, setDeclined] = useState(false)
+
+  const handleDecline = async () => {
+    if (
+      !confirm(
+        "Decline this offer and give up your spot? Your entry will move back to the waiting list, and you may not be offered another spot."
+      )
+    ) {
+      return
+    }
+    setDeclining(true)
+    try {
+      const response = await fetch(`/api/waitlist/register/${token}/decline`, {
+        method: 'POST',
+      })
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}))
+        throw new Error(body?.error || 'Could not decline the offer.')
+      }
+      setDeclined(true)
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Could not decline the offer.')
+    } finally {
+      setDeclining(false)
+    }
+  }
 
   const fetchWaitlistData = async () => {
     try {
@@ -222,7 +288,7 @@ export default function WaitlistRegisterPage() {
                 <span className="font-medium text-[#1E3A5F]">{entry?.email}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[#6B7280]">Spots requested</span>
+                <span className="text-[#6B7280]">Spots offered</span>
                 <Badge className="bg-[#F5F1E8] text-[#1E3A5F]">
                   <Users className="h-3 w-3 mr-1" />
                   {entry?.partySize} {entry?.partySize === 1 ? 'spot' : 'spots'}
@@ -231,6 +297,40 @@ export default function WaitlistRegisterPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Counter-offer comparison — only when the offer differs from
+            what was originally requested. */}
+        {data?.isCounterOffer && data.requested && data.offered && (
+          <Card className="mb-6 border-2 border-[#9C8466]">
+            <CardHeader>
+              <CardTitle className="text-[#1E3A5F] text-lg">
+                We&apos;re offering something different than you asked for
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="rounded-md bg-[#F5F1E8]/60 p-3">
+                <p className="text-xs uppercase tracking-wide text-[#6B7280] mb-1">
+                  You asked for
+                </p>
+                <p className="text-[#1E3A5F] font-medium">
+                  {describeOffer(data.requested, entry?.registrationType)}
+                </p>
+              </div>
+              <div className="rounded-md bg-white border-2 border-[#1E3A5F] p-3">
+                <p className="text-xs uppercase tracking-wide text-[#1E3A5F] mb-1">
+                  We&apos;re offering
+                </p>
+                <p className="text-[#1E3A5F] font-semibold">
+                  {describeOffer(data.offered, entry?.registrationType)}
+                </p>
+              </div>
+              <p className="text-xs text-[#6B7280]">
+                If this works, complete registration below. If it doesn&apos;t,
+                you can decline and stay on the waitlist for later.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Registration Buttons */}
         <Card>
@@ -263,6 +363,31 @@ export default function WaitlistRegisterPage() {
             <p className="text-xs text-center text-[#6B7280] mt-4">
               After completing registration, your waitlist spot will be confirmed automatically.
             </p>
+
+            <div className="border-t pt-4 mt-4">
+              {declined ? (
+                <div className="rounded-md bg-orange-50 border border-orange-200 p-3 text-sm text-orange-800 text-center">
+                  You declined this offer. Your entry is back on the waitlist —
+                  we&apos;ll email you if another spot opens up.
+                </div>
+              ) : (
+                <Button
+                  onClick={handleDecline}
+                  disabled={declining}
+                  variant="ghost"
+                  className="w-full text-[#6B7280] hover:text-red-600"
+                >
+                  {declining ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Declining
+                    </>
+                  ) : (
+                    "This offer doesn't work — decline and stay on waitlist"
+                  )}
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
 
