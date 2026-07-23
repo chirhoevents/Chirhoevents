@@ -3,6 +3,11 @@ import { createHmac, timingSafeEqual } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { wrapEmail, emailInfoBox } from '@/lib/email-templates'
+import {
+  isLikelySpamInbound,
+  renderMasterAdminNotificationHtml,
+  sendMasterAdminNotification,
+} from '@/lib/master-admin-notify'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -262,6 +267,25 @@ async function handleInboundEmail(emailData: any) {
       } else if (forwardConfig.autoReply) {
         await sendDefaultAutoReply(emailData, ticket.ticketNumber)
       }
+
+      // Notify master-admin recipients about the new ticket unless it
+      // trips the spam heuristic — the whole point of the notification
+      // is that the admin does NOT have to open the dashboard to find
+      // out about real inbound support, so junk must be filtered out
+      // before we forward it.
+      const flaggedSpam = isLikelySpamInbound({
+        subject: ticket.subject,
+        message: ticket.message,
+        fromEmail: ticket.fromEmail,
+      })
+      if (flaggedSpam) {
+        console.log(
+          '[Resend Webhook] Skipping master-admin notification for likely-spam ticket #',
+          ticket.ticketNumber,
+        )
+      } else {
+        await sendInboundTicketAdminNotification(ticket)
+      }
     } else {
       console.log('[Resend Webhook] No ticket created — address not configured for tickets:', toAddress)
     }
@@ -467,4 +491,42 @@ async function forwardEmail(emailData: any, ticket: any, forwardTo: string[]) {
   } catch (error) {
     console.error('[Resend Webhook] Error forwarding email:', error)
   }
+}
+
+async function sendInboundTicketAdminNotification(ticket: {
+  id: string
+  ticketNumber: number
+  fromName: string | null
+  fromEmail: string
+  subject: string
+  message: string
+  category: string | null
+  priority: string
+}) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
+  const senderLabel = ticket.fromName
+    ? `${ticket.fromName} <${ticket.fromEmail}>`
+    : ticket.fromEmail
+
+  await sendMasterAdminNotification({
+    subject: `[Ticket #${ticket.ticketNumber}] ${ticket.subject}`,
+    replyTo: ticket.fromEmail,
+    html: renderMasterAdminNotificationHtml({
+      title: 'New inbound support ticket',
+      intro: 'A message just came in to the support inbox.',
+      rows: [
+        { label: 'Ticket', value: `#${ticket.ticketNumber}` },
+        { label: 'From', value: senderLabel },
+        { label: 'Subject', value: ticket.subject },
+        { label: 'Category', value: ticket.category ?? 'general' },
+        { label: 'Priority', value: ticket.priority },
+      ],
+      bodyLabel: 'Message',
+      bodyText: ticket.message,
+      ctaLabel: 'Open ticket',
+      ctaUrl: `${appUrl}/dashboard/master-admin/inbound-tickets/${ticket.id}`,
+      footerNote:
+        'Replying directly to this email goes to the sender. Obvious junk is auto-skipped from these notifications and only shown in the dashboard.',
+    }),
+  })
 }
