@@ -901,53 +901,100 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
                           <DropdownMenuContent align="end">
                             {entry.status === 'pending' && (
                               <>
-                                <DropdownMenuItem onClick={() => handleMarkContacted(entry)}>
-                                  <Mail className="h-4 w-4 mr-2" />
-                                  Send Invite (as requested)
+                                <DropdownMenuItem
+                                  onClick={() => handleMarkContacted(entry)}
+                                  className="flex-col items-start gap-0 py-2"
+                                >
+                                  <div className="flex items-center font-medium">
+                                    <Mail className="h-4 w-4 mr-2" />
+                                    Email a registration invite
+                                  </div>
+                                  <span className="text-xs text-[#6B7280] pl-6">
+                                    Reserves their spots and sends the sign-up link
+                                  </span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => openEditDialog(entry, 'offer')}>
-                                  <Mail className="h-4 w-4 mr-2" />
-                                  Send Invite (adjust offer)
+                                <DropdownMenuItem
+                                  onClick={() => openEditDialog(entry, 'offer')}
+                                  className="flex-col items-start gap-0 py-2"
+                                >
+                                  <div className="flex items-center font-medium">
+                                    <Mail className="h-4 w-4 mr-2" />
+                                    Email an invite with a different offer
+                                  </div>
+                                  <span className="text-xs text-[#6B7280] pl-6">
+                                    Adjust spots or housing, then send the invite
+                                  </span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => openEditDialog(entry, 'edit')}>
-                                  <RefreshCw className="h-4 w-4 mr-2" />
-                                  Edit request
+                                <DropdownMenuItem
+                                  onClick={() => openEditDialog(entry, 'edit')}
+                                  className="flex-col items-start gap-0 py-2"
+                                >
+                                  <div className="flex items-center font-medium">
+                                    <RefreshCw className="h-4 w-4 mr-2" />
+                                    Edit their request
+                                  </div>
+                                  <span className="text-xs text-[#6B7280] pl-6">
+                                    Change name, party size, or preferences (no email sent)
+                                  </span>
                                 </DropdownMenuItem>
                               </>
                             )}
                             {entry.status === 'contacted' && (
                               <DropdownMenuItem
                                 onClick={() => handleUpdateStatus(entry.id, 'registered')}
+                                className="flex-col items-start gap-0 py-2"
                               >
-                                <UserCheck className="h-4 w-4 mr-2" />
-                                Mark as Registered
+                                <div className="flex items-center font-medium">
+                                  <UserCheck className="h-4 w-4 mr-2" />
+                                  Mark them as registered
+                                </div>
+                                <span className="text-xs text-[#6B7280] pl-6">
+                                  Use if they signed up offline; keeps the reservation
+                                </span>
                               </DropdownMenuItem>
                             )}
                             {(entry.status === 'contacted' || entry.status === 'expired') && (
                               <DropdownMenuItem
                                 onClick={() => handleUpdateStatus(entry.id, 'pending')}
+                                className="flex-col items-start gap-0 py-2"
                               >
-                                <Clock className="h-4 w-4 mr-2" />
-                                Move Back to Waiting
+                                <div className="flex items-center font-medium">
+                                  <Clock className="h-4 w-4 mr-2" />
+                                  Put them back on the waitlist
+                                </div>
+                                <span className="text-xs text-[#6B7280] pl-6">
+                                  Releases their held spots so someone else can be invited
+                                </span>
                               </DropdownMenuItem>
                             )}
                             {entry.status !== 'expired' && entry.status !== 'registered' && (
                               <DropdownMenuItem
                                 onClick={() => handleUpdateStatus(entry.id, 'expired')}
+                                className="flex-col items-start gap-0 py-2"
                               >
-                                <UserX className="h-4 w-4 mr-2" />
-                                Mark as Expired
+                                <div className="flex items-center font-medium">
+                                  <UserX className="h-4 w-4 mr-2" />
+                                  Mark this invitation as expired
+                                </div>
+                                <span className="text-xs text-[#6B7280] pl-6">
+                                  Their invite is no longer valid; releases the spots
+                                </span>
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuItem
-                              className="text-red-600"
+                              className="text-red-600 flex-col items-start gap-0 py-2"
                               onClick={() => {
                                 setEntryToDelete(entry)
                                 setDeleteDialogOpen(true)
                               }}
                             >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Remove from Waitlist
+                              <div className="flex items-center font-medium">
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete this entry
+                              </div>
+                              <span className="text-xs text-red-500/80 pl-6">
+                                Permanently removes them from the waitlist
+                              </span>
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
