@@ -36,7 +36,7 @@ export default function MasterAdminDashboard() {
       <div>
         <h1 className="text-2xl font-bold text-navy mb-1">Platform Dashboard</h1>
         <p className="text-muted-foreground">
-          Welcome back. Here's what's happening across the ChiRho platform today.
+          Welcome back. Here&apos;s what&apos;s happening across the ChiRho platform today.
         </p>
       </div>
 
