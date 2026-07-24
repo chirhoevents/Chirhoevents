@@ -1309,28 +1309,41 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
               </>
             )}
 
-            {preferences?.groupRegistrationEnabled &&
-              preferences?.individualRegistrationEnabled && (
-                <div>
-                  <Label>Registration Type</Label>
-                  <select
-                    value={draft.registrationType}
-                    onChange={(e) =>
-                      setDraft({
-                        ...draft,
-                        registrationType: e.target.value as '' | 'group' | 'individual',
-                      })
-                    }
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="">Select...</option>
+            {/* Registration type: shown whenever it isn't already locked to
+                a single value by the event. If preferences hasn't loaded
+                yet, still show the picker so the admin can set it. */}
+            {(!preferences ||
+              (preferences.groupRegistrationEnabled &&
+                preferences.individualRegistrationEnabled) ||
+              !draft.registrationType) && (
+              <div>
+                <Label>Registration Type</Label>
+                <select
+                  value={draft.registrationType}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      registrationType: e.target.value as '' | 'group' | 'individual',
+                    })
+                  }
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Select...</option>
+                  {(preferences?.groupRegistrationEnabled ?? true) && (
                     <option value="group">Group</option>
+                  )}
+                  {(preferences?.individualRegistrationEnabled ?? true) && (
                     <option value="individual">Individual</option>
-                  </select>
-                </div>
-              )}
+                  )}
+                </select>
+              </div>
+            )}
 
-            {draft.registrationType === 'group' && (
+            {/* Party size — always available. For group entries we show the
+                mix breakdown; for anything else, a simple total. This means
+                the dialog is never empty even when preferences hasn't loaded
+                or the event has no configurable options. */}
+            {draft.registrationType === 'group' ? (
               <div className="rounded-md border border-[#D1D5DB] p-3 space-y-2">
                 <p className="text-sm font-medium text-[#1E3A5F]">Participant mix</p>
                 <div className="grid grid-cols-3 gap-2">
@@ -1372,13 +1385,34 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
                   spots
                 </p>
               </div>
+            ) : draft.registrationType === 'individual' ? (
+              <div className="rounded-md border border-[#D1D5DB] bg-[#F5F1E8]/50 p-3">
+                <p className="text-sm text-[#6B7280]">
+                  Individual registration — this reserves 1 spot.
+                </p>
+              </div>
+            ) : (
+              <div>
+                <Label>Party size (spots to reserve)</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={draft.partySize}
+                  onChange={(e) => setDraft({ ...draft, partySize: e.target.value })}
+                />
+                <p className="text-xs text-[#6B7280] mt-1">
+                  Set the registration type above to break this into youth /
+                  chaperone / priest counts.
+                </p>
+              </div>
             )}
 
-            {draft.registrationType === 'individual' && (
-              <p className="text-sm text-[#6B7280]">Individual — 1 spot.</p>
-            )}
-
-            {preferences && preferences.housingTypes.length > 1 && (
+            {/* Housing — show whenever the event has any housing option, OR
+                whenever the entry currently has one so the admin can change
+                or clear it. */}
+            {((preferences && preferences.housingTypes.length > 0) ||
+              draft.preferredHousingType) && (
               <div>
                 <Label>Housing</Label>
                 <select
@@ -1391,8 +1425,8 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
                   }
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
-                  <option value="">Any / not set</option>
-                  {preferences.housingTypes.map((h) => (
+                  <option value="">No preference</option>
+                  {(preferences?.housingTypes ?? []).map((h) => (
                     <option key={h} value={h}>
                       {h === 'on_campus'
                         ? 'On-Campus'
@@ -1401,11 +1435,22 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
                         : 'Day Pass'}
                     </option>
                   ))}
+                  {/* Preserve an existing selection even if it's not
+                      currently in the event's offered list. */}
+                  {draft.preferredHousingType &&
+                    !(preferences?.housingTypes ?? []).includes(draft.preferredHousingType as any) && (
+                      <option value={draft.preferredHousingType}>
+                        {draft.preferredHousingType}
+                      </option>
+                    )}
                 </select>
               </div>
             )}
 
-            {preferences && preferences.dayPassOptions.length > 1 && (
+            {/* Day Pass — show whenever the event has any day pass option, OR
+                the entry has one already selected. */}
+            {((preferences && preferences.dayPassOptions.length > 0) ||
+              draft.preferredDayPassOptionId) && (
               <div>
                 <Label>Day Pass</Label>
                 <select
@@ -1415,8 +1460,8 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
                   }
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
-                  <option value="">Any / not set</option>
-                  {preferences.dayPassOptions.map((o) => (
+                  <option value="">No specific day pass</option>
+                  {(preferences?.dayPassOptions ?? []).map((o) => (
                     <option key={o.id} value={o.id}>
                       {o.name}
                     </option>
