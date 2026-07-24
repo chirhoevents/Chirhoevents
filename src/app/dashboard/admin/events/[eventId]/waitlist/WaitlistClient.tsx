@@ -54,6 +54,10 @@ import {
   TrendingUp,
   Hourglass,
   BarChart3,
+  ExternalLink,
+  ArrowRight,
+  MailOpen,
+  Pencil,
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -107,6 +111,35 @@ interface WaitlistClientProps {
   eventName: string
 }
 
+function describeRequest(e: WaitlistEntry): string {
+  const parts: string[] = []
+  parts.push(`${e.partySize} spot${e.partySize === 1 ? '' : 's'}`)
+  if (e.registrationType === 'group' && (e.youthCount || e.chaperoneCount || e.priestCount)) {
+    const mix = [
+      e.youthCount ? `${e.youthCount} youth` : null,
+      e.chaperoneCount ? `${e.chaperoneCount} chaperone${e.chaperoneCount === 1 ? '' : 's'}` : null,
+      e.priestCount ? `${e.priestCount} priest${e.priestCount === 1 ? '' : 's'}` : null,
+    ]
+      .filter(Boolean)
+      .join(' + ')
+    if (mix) parts.push(`(${mix})`)
+  } else if (e.registrationType) {
+    parts.push(`(${e.registrationType})`)
+  }
+  if (e.preferredDayPassOptionName) {
+    parts.push(`— ${e.preferredDayPassOptionName}`)
+  } else if (e.preferredHousingType) {
+    const label =
+      e.preferredHousingType === 'on_campus'
+        ? 'On-Campus'
+        : e.preferredHousingType === 'off_campus'
+        ? 'Off-Campus'
+        : 'Day Pass'
+    parts.push(`— ${label}${e.preferredRoomType ? ` · ${e.preferredRoomType}` : ''}`)
+  }
+  return parts.join(' ')
+}
+
 export default function WaitlistClient({ eventId, eventName }: WaitlistClientProps) {
   const router = useRouter()
   const { getToken } = useAuth()
@@ -136,6 +169,11 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
   const [overrideInfo, setOverrideInfo] = useState<{ capacityRemaining: number; spotsNeeded: number } | null>(null)
   const [overrideReason, setOverrideReason] = useState('')
   const [overrideSubmitting, setOverrideSubmitting] = useState(false)
+
+  // Entry Manager dialog — the single view where an admin sees an entry's
+  // full state and takes any action on it. Consolidates the old dropdown.
+  const [manageEntry, setManageEntry] = useState<WaitlistEntry | null>(null)
+  const [manageMode, setManageMode] = useState<'view' | 'edit' | 'offer'>('view')
 
   // Edit-in-place and counter-offer dialog state. Both dialogs reuse the same
   // draft shape; the endpoint differs.
@@ -265,6 +303,11 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
     } finally {
       setActionLoading(null)
     }
+  }
+
+  const openManage = (entry: WaitlistEntry) => {
+    setManageEntry(entry)
+    setManageMode('view')
   }
 
   const openEditDialog = (entry: WaitlistEntry, mode: 'edit' | 'offer') => {
@@ -884,120 +927,22 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
                         </div>
                       </TableCell>
                       <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={actionLoading === entry.id}
-                            >
-                              {actionLoading === entry.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <MoreHorizontal className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {entry.status === 'pending' && (
-                              <>
-                                <DropdownMenuItem
-                                  onClick={() => handleMarkContacted(entry)}
-                                  className="flex-col items-start gap-0 py-2"
-                                >
-                                  <div className="flex items-center font-medium">
-                                    <Mail className="h-4 w-4 mr-2" />
-                                    Email a registration invite
-                                  </div>
-                                  <span className="text-xs text-[#6B7280] pl-6">
-                                    Reserves their spots and sends the sign-up link
-                                  </span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => openEditDialog(entry, 'offer')}
-                                  className="flex-col items-start gap-0 py-2"
-                                >
-                                  <div className="flex items-center font-medium">
-                                    <Mail className="h-4 w-4 mr-2" />
-                                    Email an invite with a different offer
-                                  </div>
-                                  <span className="text-xs text-[#6B7280] pl-6">
-                                    Adjust spots or housing, then send the invite
-                                  </span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => openEditDialog(entry, 'edit')}
-                                  className="flex-col items-start gap-0 py-2"
-                                >
-                                  <div className="flex items-center font-medium">
-                                    <RefreshCw className="h-4 w-4 mr-2" />
-                                    Edit their request
-                                  </div>
-                                  <span className="text-xs text-[#6B7280] pl-6">
-                                    Change name, party size, or preferences (no email sent)
-                                  </span>
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                            {entry.status === 'contacted' && (
-                              <DropdownMenuItem
-                                onClick={() => handleUpdateStatus(entry.id, 'registered')}
-                                className="flex-col items-start gap-0 py-2"
-                              >
-                                <div className="flex items-center font-medium">
-                                  <UserCheck className="h-4 w-4 mr-2" />
-                                  Mark them as registered
-                                </div>
-                                <span className="text-xs text-[#6B7280] pl-6">
-                                  Use if they signed up offline; keeps the reservation
-                                </span>
-                              </DropdownMenuItem>
-                            )}
-                            {(entry.status === 'contacted' || entry.status === 'expired') && (
-                              <DropdownMenuItem
-                                onClick={() => handleUpdateStatus(entry.id, 'pending')}
-                                className="flex-col items-start gap-0 py-2"
-                              >
-                                <div className="flex items-center font-medium">
-                                  <Clock className="h-4 w-4 mr-2" />
-                                  Put them back on the waitlist
-                                </div>
-                                <span className="text-xs text-[#6B7280] pl-6">
-                                  Releases their held spots so someone else can be invited
-                                </span>
-                              </DropdownMenuItem>
-                            )}
-                            {entry.status !== 'expired' && entry.status !== 'registered' && (
-                              <DropdownMenuItem
-                                onClick={() => handleUpdateStatus(entry.id, 'expired')}
-                                className="flex-col items-start gap-0 py-2"
-                              >
-                                <div className="flex items-center font-medium">
-                                  <UserX className="h-4 w-4 mr-2" />
-                                  Mark this invitation as expired
-                                </div>
-                                <span className="text-xs text-[#6B7280] pl-6">
-                                  Their invite is no longer valid; releases the spots
-                                </span>
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem
-                              className="text-red-600 flex-col items-start gap-0 py-2"
-                              onClick={() => {
-                                setEntryToDelete(entry)
-                                setDeleteDialogOpen(true)
-                              }}
-                            >
-                              <div className="flex items-center font-medium">
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete this entry
-                              </div>
-                              <span className="text-xs text-red-500/80 pl-6">
-                                Permanently removes them from the waitlist
-                              </span>
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openManage(entry)}
+                          disabled={actionLoading === entry.id}
+                          className="border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
+                        >
+                          {actionLoading === entry.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <ExternalLink className="h-4 w-4 mr-1" />
+                              Manage
+                            </>
+                          )}
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1061,6 +1006,262 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Entry Manager Dialog — the single view for one waitlist entry.
+          Shows status, contact, request/reservation, and every action. */}
+      <AlertDialog
+        open={!!manageEntry}
+        onOpenChange={(open) => {
+          if (!open) setManageEntry(null)
+        }}
+      >
+        <AlertDialogContent className="max-w-2xl">
+          {manageEntry && (() => {
+            const e = manageEntry
+            const statusLabel = {
+              pending: 'Waiting',
+              contacted: 'Invited',
+              registered: 'Registered',
+              expired: 'Expired',
+            }[e.status]
+            const statusClass = {
+              pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+              contacted: 'bg-blue-100 text-blue-800 border-blue-200',
+              registered: 'bg-green-100 text-green-800 border-green-200',
+              expired: 'bg-gray-100 text-gray-800 border-gray-200',
+            }[e.status]
+            const expiresInfo =
+              e.status === 'contacted' && e.invitationExpires
+                ? getInvitationTimeRemaining(e.invitationExpires)
+                : null
+            const summary = describeRequest(e)
+            return (
+              <>
+                <AlertDialogHeader>
+                  <div className="flex items-center justify-between">
+                    <AlertDialogTitle className="text-xl">
+                      {e.name}
+                    </AlertDialogTitle>
+                    <Badge variant="outline" className={statusClass}>
+                      {statusLabel}
+                    </Badge>
+                  </div>
+                  <AlertDialogDescription asChild>
+                    <div className="text-sm text-[#6B7280]">
+                      #{e.position} on the waitlist · Joined{' '}
+                      {format(new Date(e.createdAt), 'MMM d, yyyy')}
+                    </div>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+                  {/* Contact */}
+                  <div className="rounded-md border border-[#D1D5DB] p-3">
+                    <p className="text-xs uppercase tracking-wide text-[#6B7280] mb-2">
+                      Contact
+                    </p>
+                    <div className="space-y-1 text-sm">
+                      <p className="text-[#1E3A5F]">
+                        <Mail className="inline h-3 w-3 mr-1" />
+                        {e.email}
+                      </p>
+                      {e.phone && (
+                        <p className="text-[#1E3A5F]">
+                          <Phone className="inline h-3 w-3 mr-1" />
+                          {e.phone}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* What they asked for */}
+                  <div className="rounded-md border border-[#D1D5DB] p-3">
+                    <p className="text-xs uppercase tracking-wide text-[#6B7280] mb-2">
+                      Their request
+                    </p>
+                    <p className="text-sm text-[#1E3A5F] font-medium">{summary}</p>
+                    {e.notes && (
+                      <p className="mt-2 text-xs text-[#6B7280] italic">
+                        Notes: {e.notes}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Current reservation (contacted only) */}
+                  {e.status === 'contacted' && (
+                    <div className="rounded-md border-2 border-blue-200 bg-blue-50 p-3">
+                      <p className="text-xs uppercase tracking-wide text-blue-800 mb-2">
+                        Current invitation
+                      </p>
+                      <p className="text-sm text-blue-900">
+                        Invite sent{' '}
+                        {e.notifiedAt
+                          ? format(new Date(e.notifiedAt), 'MMM d, h:mm a')
+                          : 'recently'}
+                        {expiresInfo && !expiresInfo.expired && (
+                          <>
+                            {' '}· expires in{' '}
+                            <span
+                              className={
+                                expiresInfo.urgent ? 'font-bold text-red-700' : 'font-medium'
+                              }
+                            >
+                              {expiresInfo.text}
+                            </span>
+                          </>
+                        )}
+                        {expiresInfo?.expired && (
+                          <span className="font-medium text-orange-700"> · expired</span>
+                        )}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="space-y-2">
+                    {e.status === 'pending' && (
+                      <>
+                        <p className="text-xs uppercase tracking-wide text-[#6B7280]">
+                          Send an invitation
+                        </p>
+                        <Button
+                          className="w-full justify-start bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
+                          onClick={() => {
+                            setManageEntry(null)
+                            handleMarkContacted(e)
+                          }}
+                        >
+                          <Mail className="h-4 w-4 mr-2" />
+                          Email invite — as they requested
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start border-[#9C8466] text-[#9C8466] hover:bg-[#9C8466] hover:text-white"
+                          onClick={() => {
+                            setManageEntry(null)
+                            openEditDialog(e, 'offer')
+                          }}
+                        >
+                          <MailOpen className="h-4 w-4 mr-2" />
+                          Email invite — with a different offer
+                        </Button>
+                        <div className="h-2" />
+                        <p className="text-xs uppercase tracking-wide text-[#6B7280]">
+                          Manage this request
+                        </p>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start"
+                          onClick={() => {
+                            setManageEntry(null)
+                            openEditDialog(e, 'edit')
+                          }}
+                        >
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Edit their request (no email sent)
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start"
+                          onClick={() => {
+                            setManageEntry(null)
+                            handleUpdateStatus(e.id, 'expired')
+                          }}
+                        >
+                          <UserX className="h-4 w-4 mr-2" />
+                          Mark as expired (remove from queue)
+                        </Button>
+                      </>
+                    )}
+
+                    {e.status === 'contacted' && (
+                      <>
+                        <p className="text-xs uppercase tracking-wide text-[#6B7280]">
+                          Update status
+                        </p>
+                        <Button
+                          className="w-full justify-start bg-green-600 hover:bg-green-700 text-white"
+                          onClick={() => {
+                            setManageEntry(null)
+                            handleUpdateStatus(e.id, 'registered')
+                          }}
+                        >
+                          <UserCheck className="h-4 w-4 mr-2" />
+                          Mark them as registered
+                          <span className="ml-2 text-xs opacity-80">
+                            (if they signed up offline)
+                          </span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start"
+                          onClick={() => {
+                            setManageEntry(null)
+                            handleUpdateStatus(e.id, 'pending')
+                          }}
+                        >
+                          <Clock className="h-4 w-4 mr-2" />
+                          Put back on waitlist (release held spots)
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start"
+                          onClick={() => {
+                            setManageEntry(null)
+                            handleUpdateStatus(e.id, 'expired')
+                          }}
+                        >
+                          <UserX className="h-4 w-4 mr-2" />
+                          Mark invitation as expired
+                        </Button>
+                      </>
+                    )}
+
+                    {(e.status === 'expired' || e.status === 'registered') && (
+                      <>
+                        <p className="text-xs uppercase tracking-wide text-[#6B7280]">
+                          Update status
+                        </p>
+                        {e.status === 'expired' && (
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start"
+                            onClick={() => {
+                              setManageEntry(null)
+                              handleUpdateStatus(e.id, 'pending')
+                            }}
+                          >
+                            <Clock className="h-4 w-4 mr-2" />
+                            Put back on waitlist
+                          </Button>
+                        )}
+                      </>
+                    )}
+
+                    <div className="h-2" />
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start border-red-300 text-red-600 hover:bg-red-50"
+                      onClick={() => {
+                        setManageEntry(null)
+                        setEntryToDelete(e)
+                        setDeleteDialogOpen(true)
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete this entry permanently
+                    </Button>
+                  </div>
+                </div>
+
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Close</AlertDialogCancel>
+                </AlertDialogFooter>
+              </>
+            )
+          })()}
         </AlertDialogContent>
       </AlertDialog>
 
