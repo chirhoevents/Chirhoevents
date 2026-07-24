@@ -25,13 +25,31 @@ export async function GET(
 
     const { eventId } = await params
 
-    // Verify event belongs to user's organization
+    // Verify event belongs to user's organization + pull the settings that
+    // the admin waitlist UI needs for edit / adjust-offer dialogs.
     const event = await prisma.event.findUnique({
       where: { id: eventId },
       select: {
         id: true,
         name: true,
         organizationId: true,
+        settings: {
+          select: {
+            groupRegistrationEnabled: true,
+            individualRegistrationEnabled: true,
+            onCampusCapacity: true,
+            offCampusCapacity: true,
+            dayPassCapacity: true,
+            singleRoomCapacity: true,
+            doubleRoomCapacity: true,
+            tripleRoomCapacity: true,
+            quadRoomCapacity: true,
+          },
+        },
+        dayPassOptions: {
+          where: { isActive: true },
+          select: { id: true, name: true },
+        },
       },
     })
 
@@ -142,10 +160,30 @@ export async function GET(
     // Total spots converted (party sizes of registered entries)
     const spotsConverted = registeredEntries.reduce((sum: number, e: any) => sum + e.partySize, 0)
 
+    // Build the preferences payload the admin waitlist UI uses to render
+    // edit / adjust-offer dialogs. Same shape logic as the public modal.
+    const s = event.settings
+    const housingOffered: Array<'on_campus' | 'off_campus' | 'day_pass'> = []
+    if (s?.onCampusCapacity !== null && s?.onCampusCapacity !== undefined) housingOffered.push('on_campus')
+    if (s?.offCampusCapacity !== null && s?.offCampusCapacity !== undefined) housingOffered.push('off_campus')
+    if (s?.dayPassCapacity !== null && s?.dayPassCapacity !== undefined) housingOffered.push('day_pass')
+    const roomsOffered: Array<'single' | 'double' | 'triple' | 'quad'> = []
+    if (s?.singleRoomCapacity !== null && s?.singleRoomCapacity !== undefined) roomsOffered.push('single')
+    if (s?.doubleRoomCapacity !== null && s?.doubleRoomCapacity !== undefined) roomsOffered.push('double')
+    if (s?.tripleRoomCapacity !== null && s?.tripleRoomCapacity !== undefined) roomsOffered.push('triple')
+    if (s?.quadRoomCapacity !== null && s?.quadRoomCapacity !== undefined) roomsOffered.push('quad')
+
     return NextResponse.json({
       event: {
         id: event.id,
         name: event.name,
+      },
+      preferences: {
+        groupRegistrationEnabled: s?.groupRegistrationEnabled ?? true,
+        individualRegistrationEnabled: s?.individualRegistrationEnabled ?? true,
+        housingTypes: housingOffered,
+        roomTypes: roomsOffered,
+        dayPassOptions: event.dayPassOptions ?? [],
       },
       entries: entries.map((entry: any, index: number) => ({
         id: entry.id,

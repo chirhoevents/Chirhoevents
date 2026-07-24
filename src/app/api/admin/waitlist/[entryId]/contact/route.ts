@@ -43,14 +43,29 @@ export async function POST(
 
     const { entryId } = await params
 
-    // Optional body: override capacity check with a reason.
-    // Body may be empty (backwards compat with existing UI calls that don't POST JSON).
+    // Optional body: override capacity check with a reason, and/or a
+    // counter-offer that differs from the entry's request. If no offer is
+    // provided, the invite matches what they asked for. If provided, we
+    // reserve based on the offer values instead — that's what the invitee
+    // will see, and what the registration flow enforces.
     let override = false
     let overrideReason: string | null = null
+    let offer: {
+      partySize?: number
+      youthCount?: number
+      chaperoneCount?: number
+      priestCount?: number
+      preferredHousingType?: HousingType | null
+      preferredRoomType?: RoomType | null
+      preferredDayPassOptionId?: string | null
+    } | null = null
     try {
       const body = await request.json()
       override = body?.override === true
       overrideReason = typeof body?.overrideReason === 'string' ? body.overrideReason.trim() : null
+      if (body?.offer && typeof body.offer === 'object') {
+        offer = body.offer
+      }
     } catch {
       // No JSON body — treat as no override.
     }
@@ -118,7 +133,33 @@ export async function POST(
       select: { capacityTotal: true, capacityRemaining: true },
     })
 
-    const spotsNeeded = entry.partySize || 1
+    // If admin sent a counter-offer, use the offer values as the "needed"
+    // amounts and as the reserved amounts. Otherwise use the entry's request.
+    const offeredPartySize = offer?.partySize !== undefined ? Number(offer.partySize) : entry.partySize
+    if (offer && (isNaN(offeredPartySize) || offeredPartySize < 1 || offeredPartySize > 100)) {
+      return NextResponse.json(
+        { error: 'Counter-offer party size must be between 1 and 100.' },
+        { status: 400 }
+      )
+    }
+    const offeredYouth = offer?.youthCount !== undefined ? Number(offer.youthCount) : (entry.youthCount ?? 0)
+    const offeredChaperone = offer?.chaperoneCount !== undefined ? Number(offer.chaperoneCount) : (entry.chaperoneCount ?? 0)
+    const offeredPriest = offer?.priestCount !== undefined ? Number(offer.priestCount) : (entry.priestCount ?? 0)
+
+    // If the entry is a group, the offered mix must sum to the offered party size.
+    if (entry.registrationType === 'group' && offer) {
+      const mixTotal = offeredYouth + offeredChaperone + offeredPriest
+      if (mixTotal !== offeredPartySize) {
+        return NextResponse.json(
+          {
+            error: `Offered party size (${offeredPartySize}) doesn't match youth (${offeredYouth}) + chaperones (${offeredChaperone}) + priests (${offeredPriest}) = ${mixTotal}.`,
+          },
+          { status: 400 }
+        )
+      }
+    }
+
+    const spotsNeeded = offeredPartySize || 1
     const capacityShort =
       eventCapacity !== null &&
       eventCapacity.capacityTotal !== null &&
@@ -205,9 +246,21 @@ export async function POST(
     let reservedRoomType: RoomType | null = null
     let reservedDayPassOptionId: string | null = null
 
-    const preferredHousingType = (entry.preferredHousingType as HousingType | null) ?? null
-    const preferredRoomType = (entry.preferredRoomType as RoomType | null) ?? null
-    const preferredDayPassOptionId = entry.preferredDayPassOptionId ?? null
+    // Counter-offer overrides — reserve for the OFFERED options (if any),
+    // otherwise for what the entry asked for. Falls back to entry values
+    // for anything the offer didn't touch.
+    const preferredHousingType: HousingType | null =
+      offer && 'preferredHousingType' in offer
+        ? ((offer.preferredHousingType as HousingType | null) ?? null)
+        : ((entry.preferredHousingType as HousingType | null) ?? null)
+    const preferredRoomType: RoomType | null =
+      offer && 'preferredRoomType' in offer
+        ? ((offer.preferredRoomType as RoomType | null) ?? null)
+        : ((entry.preferredRoomType as RoomType | null) ?? null)
+    const preferredDayPassOptionId: string | null =
+      offer && 'preferredDayPassOptionId' in offer
+        ? (offer.preferredDayPassOptionId ?? null)
+        : (entry.preferredDayPassOptionId ?? null)
 
     if (preferredHousingType && entry.event.settings) {
       const optionCheck = checkOptionCapacity(
@@ -273,6 +326,9 @@ export async function POST(
     // Update entry status to contacted with token.
     // Only stamp override fields when the override actually mattered — an invite
     // that fit within capacity shouldn't look like a forced one, even if override:true was sent.
+    // Always store the reserved-mix values for group entries so the invitee
+    // page and the registration match know what was actually offered.
+    const isGroup = entry.registrationType === 'group'
     const updatedEntry = await prisma.waitlistEntry.update({
       where: { id: entryId },
       data: {
@@ -284,6 +340,13 @@ export async function POST(
         ...(reservedHousingType ? { reservedHousingType } : {}),
         ...(reservedRoomType ? { reservedRoomType } : {}),
         ...(reservedDayPassOptionId ? { reservedDayPassOptionId } : {}),
+        ...(isGroup
+          ? {
+              reservedYouthCount: offeredYouth,
+              reservedChaperoneCount: offeredChaperone,
+              reservedPriestCount: offeredPriest,
+            }
+          : {}),
         ...(capacityShort && override
           ? {
               overriddenBy: user.id,

@@ -146,23 +146,29 @@ export async function POST(request: NextRequest) {
       const requestedRoom = ((body.roomType || null) as RoomType | null) ?? null
       const requestedDayPassOptionId = (body.dayPassOptionId || null) as string | null
 
-      if (wl.preferredHousingType && requestedHousing && wl.preferredHousingType !== requestedHousing) {
+      // Match against effective_* values so a counter-offer wins over the
+      // original request. Falls back to preferred_* if no reservation was set.
+      const expectedHousing = wl.effectiveHousingType
+      const expectedRoom = wl.effectiveRoomType
+      const expectedDayPassOptionId = wl.effectiveDayPassOptionId
+
+      if (expectedHousing && requestedHousing && expectedHousing !== requestedHousing) {
         return NextResponse.json(
           {
-            error: `Your waitlist invitation was for ${wl.preferredHousingType.replace('_', ' ')} housing, but this registration is for ${requestedHousing.replace('_', ' ')}. Please register for ${wl.preferredHousingType.replace('_', ' ')} or contact the organizer to change your option.`,
+            error: `Your waitlist invitation was for ${expectedHousing.replace('_', ' ')} housing, but this registration is for ${requestedHousing.replace('_', ' ')}. Please register for ${expectedHousing.replace('_', ' ')} or contact the organizer to change your option.`,
           },
           { status: 400 }
         )
       }
-      if (wl.preferredRoomType && requestedRoom && wl.preferredRoomType !== requestedRoom) {
+      if (expectedRoom && requestedRoom && expectedRoom !== requestedRoom) {
         return NextResponse.json(
           {
-            error: `Your waitlist invitation was for a ${wl.preferredRoomType} room, but this registration is for a ${requestedRoom} room. Please register for the room type you waitlisted for, or contact the organizer.`,
+            error: `Your waitlist invitation was for a ${expectedRoom} room, but this registration is for a ${requestedRoom} room. Please register for the room type you waitlisted for, or contact the organizer.`,
           },
           { status: 400 }
         )
       }
-      if (wl.preferredDayPassOptionId && requestedDayPassOptionId && wl.preferredDayPassOptionId !== requestedDayPassOptionId) {
+      if (expectedDayPassOptionId && requestedDayPassOptionId && expectedDayPassOptionId !== requestedDayPassOptionId) {
         return NextResponse.json(
           {
             error: 'Your waitlist invitation was for a different day pass option. Please register for the option you waitlisted for, or contact the organizer to change it.',
