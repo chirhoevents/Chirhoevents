@@ -29,6 +29,25 @@ type Portal = {
 
 const portals: Portal[] = [
   {
+    href: "/demo/dashboard/master-admin",
+    title: "Master Admin Portal",
+    icon: Shield,
+    color: "#0C1726",
+    audience: "ChiRho platform team",
+    description:
+      "The platform-level portal — used by the ChiRho company itself to manage every customer organization on the platform. See MRR, review new onboarding requests, run the support queue, and manage pricing tiers.",
+    features: [
+      "Every customer organization at a glance",
+      "MRR and ARR analytics with per-tier breakdown",
+      "Approve or reject new organization requests",
+      "Cross-org support ticket queue",
+      "Send platform-wide email announcements",
+      "Manage pricing tiers and feature flags",
+      "Platform billing and invoice management",
+    ],
+    status: "ready",
+  },
+  {
     href: "/demo/dashboard/admin",
     title: "Organization Admin Portal",
     icon: Building2,
@@ -67,7 +86,7 @@ const portals: Portal[] = [
       "Safe environment certificate uploads for chaperones",
       "Certificates of completion after event",
     ],
-    status: "coming-soon",
+    status: "ready",
   },
   {
     href: "/demo/portal/salve",
@@ -84,7 +103,7 @@ const portals: Portal[] = [
       "Welcome packet handoff tracking",
       "Arrival status by group at a glance",
     ],
-    status: "coming-soon",
+    status: "ready",
   },
   {
     href: "/demo/portal/rapha",
@@ -100,7 +119,7 @@ const portals: Portal[] = [
       "Incident history with resolution notes",
       "End-of-event medical report exports",
     ],
-    status: "coming-soon",
+    status: "ready",
   },
   {
     href: "/demo/portal/poros",
@@ -119,7 +138,7 @@ const portals: Portal[] = [
       "Seating charts",
       "Staff and volunteer roster",
     ],
-    status: "coming-soon",
+    status: "ready",
   },
   {
     href: "/demo/vendor-portal",
@@ -135,7 +154,7 @@ const portals: Portal[] = [
       "Pay booth fee once approved",
       "Update business information",
     ],
-    status: "coming-soon",
+    status: "ready",
   },
   {
     href: "/demo/events",
@@ -151,7 +170,7 @@ const portals: Portal[] = [
       "Group registration flow (reserve seats, deposit, get access code)",
       "Deposit-plus-balance payment structure",
     ],
-    status: "coming-soon",
+    status: "ready",
   },
   {
     href: "/demo/liability",
@@ -167,7 +186,7 @@ const portals: Portal[] = [
       "Chaperone waiver variant",
       "Clergy waiver variant",
     ],
-    status: "coming-soon",
+    status: "ready",
   },
 ];
 
