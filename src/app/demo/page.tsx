@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import {
+  Shield,
   Building2,
   Users,
   Store,
   Stethoscope,
   ClipboardCheck,
-  Shield,
   FileText,
   ExternalLink,
   Sparkles,
@@ -28,25 +28,6 @@ type Portal = {
 };
 
 const portals: Portal[] = [
-  {
-    href: "/demo/dashboard/master-admin",
-    title: "Master Admin Portal",
-    icon: Shield,
-    color: "#0C1726",
-    audience: "ChiRho platform team",
-    description:
-      "The platform-level portal — used by the ChiRho company itself to manage every customer organization on the platform. See MRR, review new onboarding requests, run the support queue, and manage pricing tiers.",
-    features: [
-      "Every customer organization at a glance",
-      "MRR and ARR analytics with per-tier breakdown",
-      "Approve or reject new organization requests",
-      "Cross-org support ticket queue",
-      "Send platform-wide email announcements",
-      "Manage pricing tiers and feature flags",
-      "Platform billing and invoice management",
-    ],
-    status: "ready",
-  },
   {
     href: "/demo/dashboard/admin",
     title: "Organization Admin Portal",
@@ -122,21 +103,20 @@ const portals: Portal[] = [
     status: "ready",
   },
   {
-    href: "/demo/portal/poros",
-    title: "Poros Portal",
-    icon: Home,
+    href: "/demo/poros",
+    title: "Poros Liability Platform",
+    icon: FileText,
     color: "#1E3A5F",
-    audience: "Housing and logistics coordinators",
+    audience: "Participants, chaperones, and clergy",
     description:
-      "The full logistics engine for large events. Assigns housing across buildings and rooms, manages meal groups, small groups, adoration and confession scheduling, ADA accommodations, seating, and staff.",
+      "The public-facing liability platform every participant uses to complete their waivers before an event. Enter your access code, pick your role (Youth Under 18, Youth 18+/Chaperone, or Clergy), and complete the appropriate form. In the demo, use one of the sample codes provided on the landing page.",
     features: [
-      "Housing: rooms, buildings, group and individual assignments",
-      "Meal groups and dietary accommodations",
-      "Small groups / breakout assignments",
-      "Adoration and confession scheduling",
-      "ADA and accessibility accommodations",
-      "Seating charts",
-      "Staff and volunteer roster",
+      "Access-code entry with confirmation screen",
+      "Automatic role detection for individual and staff codes",
+      "Youth Under 18 waiver (parent-email sent for signature)",
+      "Youth 18+ / Chaperone waiver (self-completion)",
+      "Clergy & Religious waiver (with role picker)",
+      "Simulated liability form numbers to preview the exact form",
     ],
     status: "ready",
   },
