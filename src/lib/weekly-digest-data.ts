@@ -34,11 +34,13 @@ interface EventWithCounts {
 
 export function getDigestSettings(customFields: Record<string, any> | null): DigestSettings {
   const settings = customFields?.weeklyDigest || {}
-  // Legacy: some orgs still have `enabled: false` from the old opt-in schema.
-  // Treat that as the new `disabled: true` so their preference survives.
-  const legacyDisabled = settings.enabled === false
+  // Opt-out only: the digest sends unless the org explicitly turned it off
+  // under the new schema. Legacy `enabled: false` records are ignored on
+  // purpose — under the old opt-in schema that was just the default, not an
+  // active "I don't want this" signal. An org that actually wants the digest
+  // off will re-toggle it in Settings under the new UI.
   return {
-    disabled: settings.disabled === true || legacyDisabled,
+    disabled: settings.disabled === true,
     recipients: Array.isArray(settings.recipients) ? settings.recipients : [],
   }
 }

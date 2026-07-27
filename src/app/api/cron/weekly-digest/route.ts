@@ -83,6 +83,7 @@ export async function GET(request: NextRequest) {
         // Opt-out model: digest is enabled by default. Only skip when the org
         // has explicitly turned it off.
         if (digestSettings.disabled && !specificOrgId) {
+          console.log(`[weekly-digest] Skip ${org.id} (${org.name}): disabled in settings`)
           results.push({
             orgId: org.id,
             orgName: org.name,
@@ -106,6 +107,7 @@ export async function GET(request: NextRequest) {
             ? Math.floor((Date.now() - lastDigest.sentAt.getTime()) / (1000 * 60 * 60 * 24))
             : Number.POSITIVE_INFINITY
           if (daysSinceLast < 7) {
+            console.log(`[weekly-digest] Skip ${org.id} (${org.name}): not Monday (day=${todayDayOfWeek}) and last sent ${daysSinceLast}d ago`)
             results.push({
               orgId: org.id,
               orgName: org.name,
@@ -114,7 +116,7 @@ export async function GET(request: NextRequest) {
             })
             continue
           }
-          console.log(`[weekly-digest] Catch-up send for ${org.id}: last sent ${daysSinceLast}d ago (today ${todayDayOfWeek})`)
+          console.log(`[weekly-digest] Catch-up send for ${org.id} (${org.name}): last sent ${daysSinceLast}d ago (today ${todayDayOfWeek})`)
         }
 
         const recipients = digestSettings.recipients.length > 0
@@ -122,6 +124,7 @@ export async function GET(request: NextRequest) {
           : org.users.map((u: OrgUser) => u.email)
 
         if (recipients.length === 0) {
+          console.log(`[weekly-digest] Skip ${org.id} (${org.name}): no recipients (0 admins on org, none configured)`)
           results.push({
             orgId: org.id,
             orgName: org.name,
@@ -130,6 +133,8 @@ export async function GET(request: NextRequest) {
           })
           continue
         }
+
+        console.log(`[weekly-digest] Sending ${org.id} (${org.name}) to ${recipients.length} recipient(s)`)
 
         const digestData = await buildOrganizationDigest(
           org.id,
