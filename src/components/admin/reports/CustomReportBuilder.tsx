@@ -205,7 +205,8 @@ const DATA_SOURCES: Record<string, { label: string; description: string; registr
       { value: 'contactEmail', label: 'Contact Email', category: 'Contact' },
       { value: 'amount', label: 'Payment Amount', category: 'Payment' },
       { value: 'paymentMethod', label: 'Payment Method', category: 'Payment' },
-      { value: 'status', label: 'Payment Status', category: 'Payment' },
+      { value: 'paymentType', label: 'Payment Type', category: 'Payment' },
+      { value: 'paymentStatus', label: 'Payment Status', category: 'Payment' },
       { value: 'stripePaymentIntentId', label: 'Stripe Payment ID', category: 'Payment' },
       { value: 'checkNumber', label: 'Check Number', category: 'Payment' },
       { value: 'totalAmountDue', label: 'Total Amount Due', category: 'Balance' },
@@ -494,11 +495,14 @@ const FILTER_OPTIONS: Record<string, { value: string; label: string; type: 'sele
       { value: 'cash', label: 'Cash' },
       { value: 'other', label: 'Other' },
     ]},
-    { value: 'status', label: 'Payment Status', type: 'multiselect', options: [
+    { value: 'paymentStatus', label: 'Payment Status', type: 'multiselect', options: [
       { value: 'pending', label: 'Pending' },
+      { value: 'processing', label: 'Processing' },
       { value: 'succeeded', label: 'Succeeded' },
       { value: 'failed', label: 'Failed' },
+      { value: 'cancelled', label: 'Cancelled' },
       { value: 'refunded', label: 'Refunded' },
+      { value: 'expired', label: 'Expired' },
     ]},
     { value: 'dateRange', label: 'Date Range', type: 'daterange' },
   ],
@@ -649,7 +653,7 @@ const GROUPING_OPTIONS: Record<string, { value: string; label: string }[]> = {
     { value: 'none', label: 'No Grouping' },
     { value: 'registrationType', label: 'By Registration Type' },
     { value: 'paymentMethod', label: 'By Payment Method' },
-    { value: 'status', label: 'By Status' },
+    { value: 'paymentStatus', label: 'By Status' },
   ],
   checkins: [
     { value: 'none', label: 'No Grouping' },
@@ -1218,11 +1222,55 @@ export function CustomReportBuilder({
     `
   }
 
+  // Field name suffixes that mean the value is money and should render as USD.
+  // Kept as a whole-suffix regex so `totalParticipants` / `youthCount` / `age` /
+  // `roomNumber` / `checkNumber` don't get formatted as currency.
+  const CURRENCY_SUFFIX = /(amount|paid|due|remaining|revenue|price|fee|total|refunded|discountApplied)$/i
+  // Enum-ish lowercase values we want to display in Title Case with spaces
+  // instead of raw `snake_case` (paymentStatus, paymentMethod, paymentType, etc).
+  const ENUMISH_FIELD_SUFFIX = /(status|method|type|reason|gender)$/i
+  const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}|$)/
+
+  const humanizeEnum = (value: string): string =>
+    value
+      .split(/[_\s]+/)
+      .filter(Boolean)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ')
+
   const getNestedValue = (obj: any, path: string): string => {
     const value = path.split('.').reduce((acc, part) => acc?.[part], obj)
-    if (value === null || value === undefined) return '-'
+    if (value === null || value === undefined || value === '') return '-'
     if (typeof value === 'boolean') return value ? 'Yes' : 'No'
-    if (value instanceof Date) return value.toLocaleString()
+
+    const lastKey = path.split('.').pop() || ''
+
+    // Currency: money-suffixed numeric fields render as USD
+    if (typeof value === 'number' && CURRENCY_SUFFIX.test(lastKey)) {
+      return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+    }
+
+    // Dates: real Date objects and ISO date strings render as short local datetime.
+    // Values that fall on UTC midnight (typically date-only columns like dateOfBirth
+    // that Prisma still returns as DateTime) render as date-only instead of
+    // "12:00 AM" noise.
+    const renderDate = (d: Date): string => {
+      const isMidnightUtc =
+        d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0
+      if (isMidnightUtc) return d.toLocaleDateString('en-US', { timeZone: 'UTC' })
+      return d.toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })
+    }
+    if (value instanceof Date) return renderDate(value)
+    if (typeof value === 'string' && ISO_DATE_PATTERN.test(value)) {
+      const d = new Date(value)
+      if (!isNaN(d.getTime())) return renderDate(d)
+    }
+
+    // Enum-ish strings: `paid_full` → `Paid Full`, `bank_transfer` → `Bank Transfer`
+    if (typeof value === 'string' && ENUMISH_FIELD_SUFFIX.test(lastKey) && /^[a-z0-9_]+$/.test(value)) {
+      return humanizeEnum(value)
+    }
+
     if (typeof value === 'object') return JSON.stringify(value)
     return String(value)
   }
