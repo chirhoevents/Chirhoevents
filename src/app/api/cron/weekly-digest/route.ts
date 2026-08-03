@@ -69,8 +69,10 @@ export async function GET(request: NextRequest) {
 
     console.log(`[weekly-digest] Processing ${organizations.length} organization(s)${specificOrgId ? ` (filtered to ${specificOrgId})` : ''}`)
 
-    // Send day is Monday (UTC). The cron fires daily at 15:00 UTC = 10 AM EST,
-    // but the code enforces Monday-only. Catch-up: if we somehow missed a Monday
+    // Send day is Monday (UTC). The cron fires daily at 14:00 UTC — that's
+    // 10 AM Eastern during EDT (Mar–Nov) and 9 AM Eastern during EST
+    // (Nov–Mar). We accept the winter hour drift rather than run two crons.
+    // The code enforces Monday-only; catch-up: if we somehow missed a Monday
     // (Vercel Cron outage, deploy window, etc.), the next daily firing catches
     // up as long as the last successful digest is 7+ days old.
     const MONDAY = 1
