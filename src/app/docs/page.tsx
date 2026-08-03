@@ -2340,55 +2340,347 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
     content: (
       <div className="space-y-4">
         <p>
-          The waitlist system allows interested participants to join a queue when your event reaches
-          capacity. When spots open up, you can invite people from the waitlist to complete their registration.
+          The waitlist lets people put their name down when an event (or a specific
+          option, like on-campus housing) is sold out. When spots open up, you invite
+          people off the waitlist and the system holds their seats until they either
+          register or the invitation expires.
         </p>
 
-        <h3 className="text-xl font-semibold text-navy mt-6">Enabling the Waitlist</h3>
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 my-4">
+          <p className="text-sm">
+            <strong>Big picture:</strong> the waitlist form mirrors your registration
+            form. If you accept group registrations, the waitlist accepts groups
+            (with youth/chaperone/priest counts). If you accept individuals, it
+            accepts individuals. If your event has housing or day-pass options,
+            waitlisters pick which one they want &mdash; and they&apos;ll only be
+            invited when a spot in that specific option opens up.
+          </p>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">1. Enabling the Waitlist</h3>
         <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
           <li>Go to your event&apos;s <strong>Edit</strong> page</li>
           <li>Navigate to <strong>Step 6: Landing Page</strong></li>
-          <li>Find the <strong>Waitlist Settings</strong> section</li>
-          <li>Toggle <strong>Enable Waitlist</strong> on</li>
-          <li>Optionally set a maximum waitlist capacity (leave blank for unlimited)</li>
-          <li>Save your changes</li>
+          <li>Find <strong>Waitlist Settings</strong> and toggle <strong>Enable Waitlist</strong> on</li>
+          <li>Optionally set a <strong>maximum waitlist capacity</strong> (blank = unlimited)</li>
+          <li>Save. That&apos;s it &mdash; the &quot;Join Waitlist&quot; button will appear
+            on the public event page as soon as it&apos;s useful (see &quot;When the
+            button shows&quot; below).</li>
         </ol>
 
-        <h3 className="text-xl font-semibold text-navy mt-6">How the Queue Works</h3>
+        <h3 className="text-xl font-semibold text-navy mt-6">
+          2. When the &quot;Join Waitlist&quot; button shows
+        </h3>
+        <p>The public event page shows the Join Waitlist button in any of these cases:</p>
         <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
-          <li>When event is full, visitors see a &quot;Join Waitlist&quot; button instead of &quot;Register&quot;</li>
-          <li>People provide: name, email, phone, party size, and any preferences</li>
-          <li>They receive a confirmation email with their position in the queue</li>
-          <li>Queue position is first-come, first-served based on join time</li>
+          <li>The whole event is at capacity (0 spots left)</li>
+          <li>Registration has closed by date (past the registration close date)</li>
+          <li>Registration was manually closed by an admin</li>
+          <li>
+            <strong>A specific option is sold out</strong> &mdash; e.g. off-campus
+            housing is full even though on-campus still has room. People wanting the
+            sold-out option can waitlist for that option specifically.
+          </li>
         </ul>
 
-        <h3 className="text-xl font-semibold text-navy mt-6">Managing the Waitlist (Admin)</h3>
-        <p>Access waitlist management from <strong>Event Dashboard &gt; Waitlist</strong>:</p>
-        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
-          <li><strong>View Queue:</strong> See all entries sorted by position with contact info and preferences</li>
-          <li><strong>Contact Person:</strong> Send an invitation email to register (48-hour expiration)</li>
-          <li><strong>Update Status:</strong> Mark entries as pending, contacted, registered, or expired</li>
-          <li><strong>Analytics:</strong> View conversion rates, average wait times, and spots filled</li>
+        <h3 className="text-xl font-semibold text-navy mt-6">
+          3. What the join form asks for
+        </h3>
+        <p>The form only asks what your event actually accepts:</p>
+
+        <h4 className="text-lg font-medium text-navy mt-4">Everyone provides</h4>
+        <ul className="list-disc list-inside space-y-1 text-gray-600 mt-2">
+          <li>Full name, email, phone (optional)</li>
+          <li>Notes (optional &mdash; anything special they want you to know)</li>
         </ul>
 
-        <h3 className="text-xl font-semibold text-navy mt-6">Inviting from Waitlist</h3>
-        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
-          <li>Click <strong>Contact</strong> next to a waitlist entry</li>
-          <li>System generates a secure registration link (valid for 48 hours)</li>
-          <li>Invitation email is sent automatically</li>
-          <li>Entry status changes to &quot;Contacted&quot;</li>
-          <li>When they complete registration, status becomes &quot;Registered&quot;</li>
-          <li>If 48 hours pass without registration, status becomes &quot;Expired&quot;</li>
-        </ol>
+        <h4 className="text-lg font-medium text-navy mt-4">
+          If your event accepts both group and individual
+        </h4>
+        <p className="text-gray-600 mt-2">
+          They pick which one they&apos;re signing up for. If your event only accepts
+          one of the two, that&apos;s selected automatically and they don&apos;t see
+          a picker.
+        </p>
+
+        <h4 className="text-lg font-medium text-navy mt-4">If they pick Group</h4>
+        <p className="text-gray-600 mt-2">
+          They enter the mix: <strong>youth count + chaperone count + priest count</strong>.
+          The party size is calculated from the sum, not typed separately. This matches
+          the group registration form exactly.
+        </p>
+
+        <h4 className="text-lg font-medium text-navy mt-4">If they pick Individual</h4>
+        <p className="text-gray-600 mt-2">
+          Party size is fixed at 1 &mdash; that&apos;s what individual registration is.
+        </p>
+
+        <h4 className="text-lg font-medium text-navy mt-4">
+          If your event has housing / day-pass options
+        </h4>
+        <ul className="list-disc list-inside space-y-1 text-gray-600 mt-2">
+          <li>
+            <strong>Multiple housing types</strong> (e.g. on-campus + off-campus): they
+            pick one. Groups pick <em>one</em> housing type for the whole group &mdash;
+            not a mix.
+          </li>
+          <li>
+            <strong>Multiple day-pass options</strong> (e.g. Friday pass, Saturday pass):
+            they pick which one they want.
+          </li>
+          <li>
+            You&apos;ll only invite them when a spot opens up for the option they chose.
+          </li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">
+          4. What happens after they join
+        </h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Their entry is created with status <strong>Waiting</strong></li>
+          <li>They get a confirmation email with their position in the queue</li>
+          <li>Position is first-come, first-served by join time</li>
+          <li>Same email address can only be on the waitlist once per event</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">
+          5. Managing the waitlist (Admin)
+        </h3>
+        <p>
+          Open <strong>Event Dashboard &gt; Waitlist</strong>. Every entry has a{' '}
+          <strong>Manage</strong> button that opens a full detail dialog for that
+          person. Every action lives inside that dialog &mdash; there&apos;s no
+          hidden menu.
+        </p>
+
+        <p>Inside the Manage dialog you&apos;ll see:</p>
+        <ul className="list-disc list-inside space-y-1 text-gray-600 mt-2">
+          <li>Their name, position in the queue, when they joined</li>
+          <li>Current status badge (Waiting / Invited / Registered / Expired)</li>
+          <li>Their contact info (email, phone)</li>
+          <li>
+            Their request in plain English &mdash; e.g. &quot;10 spots (8 youth + 2
+            chaperones) &mdash; On-Campus&quot;
+          </li>
+          <li>
+            If invited: when the invite was sent and how much time is left before it
+            expires (with red styling under 6 hours)
+          </li>
+          <li>The action buttons for their current status (below)</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">
+          6. What each button does
+        </h3>
+
+        <div className="rounded-lg border border-gray-200 divide-y divide-gray-200 mt-3">
+          <div className="p-4">
+            <p className="font-semibold text-navy">Email invite &mdash; as they requested</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Available on <strong>Waiting</strong> entries. Sends an email with a
+              secure registration link that&apos;s valid for 48 hours, and{' '}
+              <strong>reserves the seats they asked for</strong> (both event-level and
+              the specific option pool, like on-campus housing). A walk-in registration
+              can&apos;t eat those seats during the 48 hours. Flips status to Invited.
+            </p>
+          </div>
+
+          <div className="p-4">
+            <p className="font-semibold text-navy">Email invite &mdash; with a different offer</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Available on <strong>Waiting</strong> entries. Opens a form where you
+              can change what you&apos;re actually offering &mdash; smaller party size,
+              a different housing type, a different day-pass. Sends the invite, reserves
+              seats for the offered values, and the invitee sees a &quot;You asked for
+              X &mdash; we&apos;re offering Y&quot; comparison on their invite page.
+              They can accept and register, or decline and stay on the waitlist.
+            </p>
+          </div>
+
+          <div className="p-4">
+            <p className="font-semibold text-navy">Edit their request</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Available on <strong>Waiting</strong> entries only. Changes the
+              entry&apos;s details in place: name, phone, party size, group mix,
+              option preferences, notes. <strong>No email is sent</strong>. Use this
+              to fix a typo or update a request the person changed their mind about.
+            </p>
+          </div>
+
+          <div className="p-4">
+            <p className="font-semibold text-navy">Mark them as registered</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Available on <strong>Invited</strong> entries. Use this if they
+              registered offline (walk-up, phone-in, etc.) so the waitlist
+              conversion analytics stay accurate. The reservation stays consumed
+              &mdash; the seat is theirs.
+            </p>
+          </div>
+
+          <div className="p-4">
+            <p className="font-semibold text-navy">Put back on waitlist</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Available on <strong>Invited</strong> or <strong>Expired</strong>
+              {' '}entries. Flips them back to Waiting and{' '}
+              <strong>releases their held seats</strong> back to the event and option
+              pools so someone else can be invited. Use if they need more time or
+              you want to re-send the invite fresh.
+            </p>
+          </div>
+
+          <div className="p-4">
+            <p className="font-semibold text-navy">Mark invitation as expired</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Available on <strong>Waiting</strong> or <strong>Invited</strong>
+              {' '}entries. Marks their invite as no longer valid and{' '}
+              <strong>releases the held seats</strong>. Use if you know they&apos;re
+              not going to respond. The system also does this automatically for
+              invites that pass their 48-hour expiration &mdash; see &quot;Auto-expire&quot;
+              below.
+            </p>
+          </div>
+
+          <div className="p-4">
+            <p className="font-semibold text-navy text-red-600">Delete this entry permanently</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Removes the entry entirely from the waitlist. If they were holding
+              seats, those seats are released back to the pools first. Use for spam,
+              duplicates, or when someone explicitly asks to be taken off.
+            </p>
+          </div>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">
+          7. What the invitee sees
+        </h3>
+        <p>When you send an invite, they receive an email with a link that opens their invitation page:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>A countdown showing how much time is left before the invite expires</li>
+          <li>Event details (date, location)</li>
+          <li>What&apos;s being offered (party size, options)</li>
+          <li>
+            If you sent a counter-offer: a side-by-side comparison of what they asked
+            for vs what you&apos;re offering
+          </li>
+          <li>
+            Registration buttons (Group and/or Individual, based on what your event
+            accepts and what they were invited for)
+          </li>
+          <li>
+            A <strong>&quot;This offer doesn&apos;t work &mdash; decline and stay on
+            waitlist&quot;</strong> button that releases the seats and puts them back
+            on the queue without registering
+          </li>
+        </ul>
+        <p className="text-gray-600 mt-2">
+          At registration time, the system enforces that the invitee registers for
+          exactly what was offered &mdash; they can&apos;t use a group-of-10 on-campus
+          invite to register 20 people off-campus. If they try, they see an error
+          asking them to register for the offered option or contact you to adjust it.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">
+          8. Capacity holds & auto-expire
+        </h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>
+            <strong>Seats are held on invite.</strong> When you click Email invite,
+            the seats they need are immediately decremented from the event&apos;s
+            remaining capacity (and from the specific option pool). A walk-in
+            registration during those 48 hours won&apos;t eat the promised seats.
+          </li>
+          <li>
+            <strong>Seats are released if the invite expires</strong> &mdash; and
+            the entry flips to Expired &mdash; the next time an admin loads the
+            waitlist page. No manual cleanup needed.
+          </li>
+          <li>
+            <strong>Seats are also released</strong> when you move an entry back to
+            Waiting, mark it Expired, delete it, or when the invitee clicks Decline.
+          </li>
+          <li>
+            <strong>Seats stay consumed</strong> when the invitee completes
+            registration or you mark them as Registered offline &mdash; that&apos;s
+            the whole point of the hold.
+          </li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">
+          9. Overriding capacity
+        </h3>
+        <p>
+          If the event is over capacity but you still want to invite someone off
+          the waitlist (or make a special manual add), you can override. The system
+          will show a confirmation dialog telling you exactly how many seats short
+          you are and require a written reason. The action is recorded on the entry
+          for auditing &mdash; who did it, when, and why. The event&apos;s remaining
+          capacity is allowed to go negative so your dashboard honestly reflects
+          how far over you went (rather than silently clamping to zero).
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">
+          10. Group vs Individual &mdash; the rules
+        </h3>
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+          <ul className="list-disc list-inside space-y-2 text-sm">
+            <li>
+              If your event only accepts group registrations, the waitlist{' '}
+              <strong>only accepts group entries</strong>. Someone trying to submit
+              as individual is blocked.
+            </li>
+            <li>
+              If your event only accepts individual registrations, the waitlist{' '}
+              <strong>only accepts individual entries</strong>. Groups are blocked.
+            </li>
+            <li>
+              If both are accepted, the person picks. Their choice determines what
+              fields they fill in and what registration flow their invite links to.
+            </li>
+            <li>
+              An entry can&apos;t change registration type after it&apos;s been invited &mdash;
+              move it back to Waiting first if you need to change it.
+            </li>
+          </ul>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">
+          11. Analytics
+        </h3>
+        <p>The waitlist page shows real-time cards at the top:</p>
+        <ul className="list-disc list-inside space-y-1 text-gray-600 mt-2">
+          <li><strong>Total entries</strong> &mdash; everyone on the queue</li>
+          <li><strong>Waiting / Contacted / Registered / Expired</strong> counts by status</li>
+          <li><strong>Spots requested</strong> &mdash; total headcount across all waiting entries</li>
+          <li>
+            <strong>Conversion rate</strong> &mdash; how many invitations actually
+            became registrations
+          </li>
+          <li>
+            <strong>Average wait time</strong> &mdash; how long people typically sit
+            on the queue before being invited
+          </li>
+        </ul>
 
         <h3 className="text-xl font-semibold text-navy mt-6">Recommendations</h3>
         <div className="bg-green-50 border-l-4 border-green-400 p-4">
           <ul className="list-disc list-inside space-y-2 text-sm">
-            <li>Enable waitlist before your event fills up so the button is ready</li>
-            <li>Check waitlist regularly and invite people promptly when spots open</li>
-            <li>Consider party size when inviting (invite people whose party size matches available spots)</li>
-            <li>Expired invitations can be re-sent if the person is still interested</li>
-            <li>Use the analytics to track your conversion rate and optimize timing</li>
+            <li>Turn the waitlist on <em>before</em> the event fills up so the button is ready</li>
+            <li>
+              When a group cancels, use &quot;Email invite &mdash; with a different
+              offer&quot; to make partial offers to bigger groups on the waitlist
+              (e.g. offer 10 spots to a group of 15 &mdash; they can accept the 10
+              or decline and wait for more)
+            </li>
+            <li>
+              Check the queue after big cancellations &mdash; the auto-expire sweep
+              only runs when you load the page, so a quick visit clears out stale
+              invites and frees up their held seats
+            </li>
+            <li>Use the reason field when overriding capacity &mdash; future you will thank present you</li>
+            <li>
+              Watch the conversion rate. If it&apos;s low, invitations may be sitting
+              too long &mdash; try shorter batches or a follow-up before expiry
+            </li>
           </ul>
         </div>
       </div>
