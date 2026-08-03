@@ -237,6 +237,23 @@ export default function AdminLayout({
     checkAccess()
   }, [isLoaded, authChecked, router])  // Removed getToken to prevent infinite re-renders
 
+  // Weekly-digest safety net: on the first admin dashboard load per browser
+  // session, ping /api/cron/weekly-digest/ensure. That endpoint no-ops
+  // unless today is Monday AND the org's last successful digest is 6+
+  // days old — so it fires the missed digest if Vercel Cron didn't. Fire
+  // and forget; failure is silent because the regular cron will retry.
+  useEffect(() => {
+    if (!userInfo) return
+    if (typeof window === 'undefined') return
+    const key = `digest-ensured-${userInfo.organizationId}-${new Date().toISOString().slice(0, 10)}`
+    if (sessionStorage.getItem(key)) return
+    sessionStorage.setItem(key, '1')
+    void fetch('/api/cron/weekly-digest/ensure', { method: 'POST' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => data && console.log('[digest ensure]', data))
+      .catch(err => console.warn('[digest ensure] failed silently', err))
+  }, [userInfo])
+
   // Filter navigation based on user permissions and enabled modules
   const navigation = useMemo(() => {
     if (!userInfo) return []
