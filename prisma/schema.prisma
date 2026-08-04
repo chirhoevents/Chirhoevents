@@ -746,6 +746,7 @@ model LiabilityForm {
   participantPreferredName  String?  @map("participant_preferred_name") @db.VarChar(255)
   participantAge            Int?     @map("participant_age")
   participantGender         Gender?  @map("participant_gender")
+  dateOfBirth               DateTime? @map("date_of_birth") @db.Date
   participantEmail          String?  @map("participant_email") @db.VarChar(255)
   participantPhone          String?  @map("participant_phone") @db.VarChar(20)
   tShirtSize                String?  @map("t_shirt_size") @db.VarChar(10)
