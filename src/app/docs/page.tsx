@@ -625,6 +625,84 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           <strong>To complete a form:</strong> Click the unique link provided by your group leader
           or access the Poros portal directly. Fill out all required fields and sign electronically.
         </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-8">How the Youth Under 18 Form Works (Two-Part Flow)</h3>
+        <p>
+          The Youth Under 18 form is split across two people. The youth (or whoever is registering
+          them) fills out <strong>Part 1</strong> with basic info, and a parent or guardian fills
+          out <strong>Part 2</strong> with medical, emergency, insurance, and signature information.
+        </p>
+
+        <div className="mt-4 space-y-4">
+          <div className="border-l-4 border-gold pl-4">
+            <h4 className="font-semibold text-navy">Part 1 — Youth Info + Parent Email</h4>
+            <p className="text-sm text-gray-600 mt-1">
+              Includes first &amp; last name, preferred name, date of birth, age (12–17), gender,
+              t-shirt size, and the parent/guardian email address. As soon as Part 1 is submitted,
+              a form record is <strong>saved to the database</strong> (marked incomplete) and an
+              email is sent to the parent with a secure link to finish the form.
+            </p>
+          </div>
+          <div className="border-l-4 border-gold pl-4">
+            <h4 className="font-semibold text-navy">Part 2 — Parent Portion</h4>
+            <p className="text-sm text-gray-600 mt-1">
+              Medical conditions, medications, allergies, dietary restrictions, ADA accommodations,
+              up to two emergency contacts, insurance details, and the parent&apos;s electronic
+              signature. Part 2 is <strong>not saved on the server until the parent hits submit</strong> —
+              anything they type into the form only lives in their browser until then. When they
+              submit, the same form record is updated to <em>completed</em>, a Participant record is
+              created, and confirmation emails go to both the parent and the group leader.
+            </p>
+          </div>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">What Happens If the Parent Never Finishes</h3>
+        <p>
+          The Part 1 record stays in the database — <strong>nothing is auto-deleted</strong>, even
+          after the link expires. That means the youth&apos;s info is not lost if the parent
+          doesn&apos;t respond right away, and the form can always be revived.
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>
+            <strong>Parent link expires after 7 days</strong> from the moment Part 1 was submitted.
+            After that, opening the link shows a &quot;This link has expired — please contact your
+            group leader to resend the form&quot; message.
+          </li>
+          <li>
+            <strong>Wrong or mistyped email addresses aren&apos;t detected automatically.</strong>{" "}
+            If the email address was invalid or landed in someone else&apos;s inbox, nothing in the
+            app will surface a bounce — the form simply stays in the incomplete state until someone
+            resends it.
+          </li>
+          <li>
+            <strong>Nothing shows up on check-in until Part 2 is done.</strong> The participant
+            won&apos;t have a QR code, medical info, or a signed liability form until the parent
+            submits Part 2.
+          </li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Resending the Parent Link</h3>
+        <p>
+          As a group leader, you can send a fresh email at any time from the{" "}
+          <strong>Liability Forms</strong> tab of your leader portal:
+        </p>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Find the participant with the outstanding form</li>
+          <li>Click <strong>Resend Email</strong> and enter the correct parent email address</li>
+          <li>The parent receives a new link that&apos;s valid for <strong>30 days</strong></li>
+        </ol>
+        <p className="mt-2 text-sm text-gray-500">
+          You can also send bulk reminders from the same tab to everyone whose Youth Under 18
+          form is still incomplete.
+        </p>
+
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mt-6">
+          <p className="text-sm">
+            <strong>Good to know:</strong> Because the form record is preserved, resending after
+            fixing a typo in the parent&apos;s email doesn&apos;t create a duplicate — the parent
+            just gets a working link to the same form that was already started.
+          </p>
+        </div>
       </div>
     )
   },
@@ -2097,12 +2175,17 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           If you&apos;re under 18, a parent or guardian must also complete parts of your form:
         </p>
         <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
-          <li>You fill out your personal information</li>
-          <li>Your parent/guardian receives an email to complete their section</li>
-          <li>They provide consent for medical treatment, photo release, etc.</li>
-          <li>They sign electronically</li>
-          <li>Once both sections are complete, your form is submitted</li>
+          <li>You fill out your personal information (Part 1) and enter your parent&apos;s email</li>
+          <li>Your info is saved right away — an email goes to your parent with a secure link that&apos;s valid for 7 days</li>
+          <li>Your parent/guardian opens the link and fills out medical info, emergency contacts, insurance, and consents (Part 2)</li>
+          <li>They sign electronically and hit submit — only then is Part 2 saved</li>
+          <li>Once both sections are complete, your form is submitted and confirmation emails are sent to your parent and your group leader</li>
         </ol>
+        <p className="mt-2 text-sm text-gray-600">
+          <strong>If your parent doesn&apos;t get the email or the link expires:</strong> your Part 1
+          info is safe — nothing gets deleted. Just contact your group leader and they can send a
+          fresh link (valid for 30 days) to the correct email address.
+        </p>
 
         <h3 className="text-xl font-semibold text-navy mt-6">For Adults (18+)</h3>
         <p>
@@ -2131,7 +2214,8 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           <li><strong>Can&apos;t find form link?</strong> - Check spam folder or contact your group leader</li>
           <li><strong>Form won&apos;t submit?</strong> - Ensure all required fields are filled</li>
           <li><strong>Need to make changes?</strong> - Contact the event organizer</li>
-          <li><strong>Parent email not received?</strong> - Verify email address and resend</li>
+          <li><strong>Parent email not received?</strong> - Check spam first, then ask your group leader to resend to the correct address. Your Part 1 info is already saved, so nothing is lost.</li>
+          <li><strong>Parent link expired?</strong> - The link is valid for 7 days after Part 1 is submitted. Your group leader can send a new one (valid for 30 days) from their portal.</li>
         </ul>
 
         <div className="bg-beige p-4 rounded-lg mt-6">
