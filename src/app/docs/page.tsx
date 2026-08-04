@@ -67,6 +67,7 @@ const docSections = [
       { id: "portal-settings", title: "Portal Settings & Linked Events" },
       { id: "safe-environment", title: "Safe Environment Requirements" },
       { id: "checkin-process", title: "Check-In Process" },
+      { id: "waitlist-group", title: "Joining the Waitlist as a Group" },
     ]
   },
   {
@@ -78,6 +79,7 @@ const docSections = [
       { id: "payment-options", title: "Payment Options" },
       { id: "completing-forms", title: "Completing Liability Forms" },
       { id: "event-checkin", title: "What to Expect at Check-In" },
+      { id: "waitlist-individual", title: "Joining the Waitlist as an Individual" },
     ]
   },
   {
@@ -3774,6 +3776,315 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
             Have suggestions for vendor features? Contact the event organizers with your
             feedback—we&apos;re always looking to improve!
           </p>
+        </div>
+      </div>
+    )
+  },
+
+  "waitlist-group": {
+    title: "Joining the Waitlist as a Group",
+    content: (
+      <div className="space-y-4">
+        <p>
+          If a Catholic event you want to bring your group to has filled up (or the
+          housing option your group needs is sold out), you don&apos;t have to give up.
+          Most events have a waitlist &mdash; you put your name down, and if a spot
+          opens up big enough for your group, you get first crack at it.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">1. When to use the waitlist</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>The event page shows &quot;Event is at full capacity&quot; and you see a{' '}
+            <strong>Join Waitlist</strong> button instead of Register</li>
+          <li>The event still has spots but the housing option you need
+            (e.g. on-campus) is sold out</li>
+          <li>Registration has closed by date but the organizer is still holding a queue</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">2. What the join form asks you</h3>
+        <p>Click <strong>Join Waitlist</strong> on the event page. The form asks:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Your <strong>full name</strong>, <strong>email</strong>, and phone (optional)</li>
+          <li>
+            <strong>Registration Type: Group</strong> &mdash; if the event only accepts
+            groups, this is already selected for you. If both group and individual are
+            offered, pick Group.
+          </li>
+          <li>
+            <strong>Your participant mix</strong> &mdash; how many youth, how many
+            chaperones, and how many priests. The total party size is calculated from
+            the sum. This is the same breakdown you&apos;d enter on the actual
+            group-registration form.
+          </li>
+          <li>
+            <strong>Housing preference</strong> &mdash; if the event offers multiple
+            housing types (like on-campus and off-campus), pick <em>one</em> for the
+            whole group. Groups can&apos;t split members across housing types on the
+            waitlist &mdash; if some need on-campus and some need off-campus, submit
+            two waitlist entries.
+          </li>
+          <li>
+            <strong>Day-pass option</strong> &mdash; if the event has multiple
+            day-pass tickets (Friday, Saturday, etc.), pick which one your group needs.
+          </li>
+          <li>
+            <strong>Notes</strong> &mdash; anything the organizer should know
+            (dietary needs, mobility considerations, etc.)
+          </li>
+        </ul>
+
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 my-4">
+          <p className="text-sm">
+            <strong>Be honest with the numbers.</strong> The organizer decides who
+            to invite off the waitlist partly based on the size and mix. If you
+            waitlist for 20 spots and then only actually need 10, you&apos;ve been
+            holding a bigger reservation than you needed &mdash; and someone else
+            might have gotten a chance. Update the count if it changes; you can ask
+            the organizer to adjust your entry.
+          </p>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">3. What happens after you submit</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>You&apos;ll see a confirmation on-screen and get an email with your
+            position in the queue (e.g. &quot;You&apos;re #3&quot;)</li>
+          <li>Position is first-come, first-served by the time you joined</li>
+          <li>The organizer sees your entry with all the info you provided</li>
+          <li>You wait &mdash; there&apos;s no action required from you until
+            (and if) spots open up</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">4. When you get invited</h3>
+        <p>
+          If spots open up matching what you asked for, you&apos;ll get an email
+          titled &quot;A Spot is Available!&quot; with a secure link. Clicking it
+          opens your <strong>invitation page</strong> which shows:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>A countdown &mdash; you have <strong>48 hours</strong> to register
+            before the invitation expires</li>
+          <li>Event details (date, location, organizer)</li>
+          <li>The number of spots being offered and the option (housing / day-pass)</li>
+          <li>A big <strong>Register as a Group</strong> button that takes you to
+            the standard group-registration flow with the waitlist bypass already
+            applied &mdash; even if the event is technically at capacity, your
+            invitation lets you through</li>
+          <li>
+            A <strong>&quot;This offer doesn&apos;t work &mdash; decline and stay
+            on waitlist&quot;</strong> button at the bottom
+          </li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">5. Counter-offers &mdash; when the offer differs from what you asked</h3>
+        <p>
+          Sometimes the organizer can&apos;t give you exactly what you requested.
+          Maybe you asked for 20 on-campus spots but only 12 opened up &mdash; they
+          can send you an invite for 12 on-campus, or for 20 off-campus. In that
+          case, your invitation page shows a side-by-side comparison:
+        </p>
+        <div className="bg-beige border-2 border-tan rounded-lg p-4 my-3 text-sm">
+          <p className="mb-2 uppercase tracking-wide text-xs text-gray-500">You asked for</p>
+          <p className="font-medium text-navy mb-3">20 spots (16 youth + 4 chaperones) &mdash; On-Campus</p>
+          <p className="mb-2 uppercase tracking-wide text-xs text-navy">We&apos;re offering</p>
+          <p className="font-semibold text-navy">12 spots (10 youth + 2 chaperones) &mdash; On-Campus</p>
+        </div>
+        <p>
+          You have two choices:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>
+            <strong>Accept</strong> by clicking Register as a Group. You&apos;ll go
+            through the normal registration flow, but the offer is now the contract &mdash;
+            you can only register for exactly what was offered (12 people, on-campus).
+            The system will block you if you try to register for anything different.
+          </li>
+          <li>
+            <strong>Decline</strong> by clicking &quot;This offer doesn&apos;t work.&quot;
+            Your entry goes back on the waitlist and the seats are released for someone
+            else. You keep your original spot in the queue &mdash; you&apos;re not sent
+            to the back of the line for declining.
+          </li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">6. If your invitation expires</h3>
+        <p>
+          If you don&apos;t register within 48 hours, the invitation expires
+          automatically. Your seats are released back to the event. Your entry gets
+          marked <strong>Expired</strong> and you won&apos;t be automatically
+          re-invited &mdash; but you can email the organizer to be put back on the
+          queue if you&apos;re still interested. If the event is still filling up,
+          they can often re-invite you.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Tips</h3>
+        <div className="bg-green-50 border-l-4 border-green-400 p-4">
+          <ul className="list-disc list-inside space-y-2 text-sm">
+            <li>
+              Check your inbox (and spam folder!) for a few days after joining &mdash;
+              spots can open up on short notice
+            </li>
+            <li>
+              Reply to the organizer within the 48-hour window even if you&apos;re
+              waiting on a decision; they can extend or re-send in most cases
+            </li>
+            <li>
+              Only put down the mix you can actually bring &mdash; over-asking hurts
+              your odds and takes seats from other groups
+            </li>
+            <li>
+              A counter-offer isn&apos;t a rejection &mdash; take it as &quot;this
+              is what we can do right now&quot; and decide honestly whether it works
+            </li>
+          </ul>
+        </div>
+      </div>
+    )
+  },
+
+  "waitlist-individual": {
+    title: "Joining the Waitlist as an Individual",
+    content: (
+      <div className="space-y-4">
+        <p>
+          If an event you want to attend is full &mdash; or the specific housing or
+          day-pass option you need is sold out &mdash; joining the waitlist puts your
+          name down for the next available spot. When one opens up matching what you
+          asked for, you get an email with a link to register.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">1. When to use the waitlist</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>The event page shows a <strong>Join Waitlist</strong> button instead of Register</li>
+          <li>The event has open spots but the specific housing type you need
+            (like on-campus, single room) is full</li>
+          <li>The specific day-pass you want (Saturday only, VIP pass, etc.) is sold out
+            even though the event isn&apos;t</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">2. What the join form asks you</h3>
+        <p>Click <strong>Join Waitlist</strong> on the event page. The form asks:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Your <strong>full name</strong>, <strong>email</strong>, and phone (optional)</li>
+          <li>
+            <strong>Registration Type: Individual</strong> &mdash; if the event only
+            accepts individuals, this is set for you. If both are offered, pick
+            Individual. (Party size is automatically 1 &mdash; that&apos;s what
+            individual registration is.)
+          </li>
+          <li>
+            <strong>Ticket type</strong> &mdash; if the event offers both general
+            admission (with housing) and day-pass tickets, pick which one you want
+          </li>
+          <li>
+            <strong>Housing preference</strong> &mdash; if the event has multiple
+            housing options (on-campus, off-campus), pick the one you want. If you
+            pick on-campus, you can also pick your <strong>room type</strong>
+            (single, double, triple, quad) if the event tracks those separately.
+          </li>
+          <li>
+            <strong>Day-pass option</strong> &mdash; if you picked day-pass and the
+            event has multiple options (Friday, Saturday, etc.), pick which one
+          </li>
+          <li>
+            <strong>Notes</strong> &mdash; dietary needs, accessibility, or anything
+            else the organizer should know
+          </li>
+        </ul>
+
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 my-4">
+          <p className="text-sm">
+            <strong>Be specific.</strong> The organizer will only invite you when a
+            spot opens for the <em>exact</em> option you picked. If you waitlist for
+            an on-campus single room, you won&apos;t be invited when a bed opens in
+            a quad room &mdash; even though technically both are on-campus. If
+            you&apos;re flexible, you can leave a note saying so, or submit multiple
+            waitlist entries with different preferences.
+          </p>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">3. What happens after you submit</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>You&apos;ll see a confirmation on-screen and get an email with your
+            position in the queue</li>
+          <li>Position is first-come, first-served by the time you joined</li>
+          <li>You wait &mdash; nothing further to do until spots open up</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">4. When you get invited</h3>
+        <p>
+          If a matching spot opens up, you&apos;ll get an email titled
+          &quot;A Spot is Available!&quot; with a secure link. Clicking it opens
+          your <strong>invitation page</strong> which shows:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>A countdown &mdash; you have <strong>48 hours</strong> to register</li>
+          <li>The option being offered (housing type, room type, or day-pass)</li>
+          <li>A big <strong>Register as Individual</strong> button that takes you
+            straight into the normal individual-registration flow &mdash; the invitation
+            lets you register even if the event is technically at capacity</li>
+          <li>A <strong>&quot;This offer doesn&apos;t work &mdash; decline and stay
+            on waitlist&quot;</strong> button at the bottom</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">5. Counter-offers &mdash; a different option than you asked for</h3>
+        <p>
+          Sometimes the option you originally asked for still isn&apos;t available,
+          but a similar one is. The organizer can send you an invitation for the
+          alternative &mdash; e.g. you waitlisted for on-campus, they&apos;re
+          offering off-campus. In that case, your invitation page shows a
+          comparison:
+        </p>
+        <div className="bg-beige border-2 border-tan rounded-lg p-4 my-3 text-sm">
+          <p className="mb-2 uppercase tracking-wide text-xs text-gray-500">You asked for</p>
+          <p className="font-medium text-navy mb-3">1 spot &mdash; On-Campus (single room)</p>
+          <p className="mb-2 uppercase tracking-wide text-xs text-navy">We&apos;re offering</p>
+          <p className="font-semibold text-navy">1 spot &mdash; Off-Campus</p>
+        </div>
+        <p>You have two choices:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>
+            <strong>Accept</strong> by clicking Register. You&apos;ll register for
+            exactly what was offered &mdash; the system won&apos;t let you change
+            the option at registration time. If you accepted an off-campus invite,
+            trying to register on-campus at the last step will show an error.
+          </li>
+          <li>
+            <strong>Decline</strong> by clicking &quot;This offer doesn&apos;t work.&quot;
+            Your entry goes back on the waitlist, the spot is released for someone
+            else, and you keep your position &mdash; you&apos;re not moved to the
+            back of the line for declining. You&apos;ll be considered again the next
+            time a matching spot opens up.
+          </li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">6. If your invitation expires</h3>
+        <p>
+          After 48 hours without registering, the invitation expires automatically.
+          The spot is released to someone else and your entry is marked{' '}
+          <strong>Expired</strong>. You won&apos;t be automatically re-invited, but
+          if you&apos;re still interested you can email the organizer directly and
+          ask to be put back on the queue.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Tips</h3>
+        <div className="bg-green-50 border-l-4 border-green-400 p-4">
+          <ul className="list-disc list-inside space-y-2 text-sm">
+            <li>Check your email (including spam) for a few days after joining</li>
+            <li>
+              If you&apos;re flexible, mention it in the notes &mdash; the organizer
+              can send you a counter-offer for a different option and you can
+              accept it
+            </li>
+            <li>
+              Register right away when you get an invitation &mdash; 48 hours goes
+              faster than you think, and once it expires the spot goes to someone else
+            </li>
+            <li>
+              Only decline if the offer really doesn&apos;t work &mdash; you keep
+              your queue position, but there&apos;s no guarantee another spot will
+              open before the event
+            </li>
+          </ul>
         </div>
       </div>
     )
