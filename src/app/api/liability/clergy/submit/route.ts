@@ -339,7 +339,7 @@ export async function POST(request: NextRequest) {
               <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
 
               <p style="color: #666; font-size: 12px; text-align: center;">
-                © 2025 ChiRho Events. All rights reserved.
+                © ${new Date().getFullYear()} ChiRho Events. All rights reserved.
               </p>
             </div>
           </div>
@@ -381,7 +381,7 @@ export async function POST(request: NextRequest) {
               </div>
 
               <p style="font-size: 14px; color: #666;">
-                You can view all forms in your group leader portal (coming soon).
+                You can view all forms in your <a href="https://chirhoevents.com/dashboard/group-leader" style="color: #1E3A5F; text-decoration: underline;">group leader portal</a>.
               </p>
 
               <p style="margin-top: 30px;">Pax Christi,<br><strong>ChiRho Events Team</strong></p>
@@ -389,7 +389,7 @@ export async function POST(request: NextRequest) {
               <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
 
               <p style="color: #666; font-size: 12px; text-align: center;">
-                © 2025 ChiRho Events. All rights reserved.
+                © ${new Date().getFullYear()} ChiRho Events. All rights reserved.
               </p>
             </div>
           </div>
