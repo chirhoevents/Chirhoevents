@@ -278,6 +278,7 @@ async function executeParticipantsReport(eventId: string, config: any) {
       },
       liabilityForms: {
         select: {
+          dateOfBirth: true,
           allergies: true,
           medications: true,
           medicalConditions: true,
@@ -330,10 +331,14 @@ async function executeParticipantsReport(eventId: string, config: any) {
     } : null
 
     const groupAnswers = cqQuestions.length > 0 ? (cqAnswers.get(p.groupRegistration.id) || {}) : {}
+    const form = p.liabilityForms?.[0] || null
 
     return {
       ...p,
-      liabilityForm: p.liabilityForms?.[0] || null,
+      // Surface DOB collected on the liability form so the "Date of Birth"
+      // report column populates. Participant itself doesn't store it.
+      dateOfBirth: form?.dateOfBirth || null,
+      liabilityForm: form,
       roomAssignment,
       liabilityForms: undefined,
       ...groupAnswers,
@@ -841,6 +846,30 @@ async function executeCheckinsReport(eventId: string, config: any) {
 // ============================================
 // MEDICAL REPORT (Liability Forms)
 // ============================================
+
+// Freeform "allergies" text → per-allergen booleans. Cafeteria / meal
+// planners need per-allergen counts, but the DB only stores one text field.
+// Word-boundary keyword matching handles common phrasings; the NONE_PATTERN
+// short-circuits explicit "none"/"n/a" entries so they don't false-positive
+// on stray substrings.
+const ALLERGY_PATTERNS: Record<string, RegExp> = {
+  peanuts: /\bpeanuts?\b/i,
+  treeNuts: /\btree.?nuts?\b|\balmonds?\b|\bcashews?\b|\bpecans?\b|\bwalnuts?\b|\bhazelnuts?\b|\bpistachios?\b|\bmacadamias?\b|\bbrazil.?nuts?\b/i,
+  shellfish: /\bshellfish\b|\bshrimps?\b|\blobsters?\b|\bcrabs?\b|\bcrawfish\b|\bprawns?\b/i,
+  dairy: /\bdairy\b|\bmilk\b|\blactose\b|\bcheese\b|\bbutter\b|\bcream\b|\byogurts?\b|\bcasein\b|\bwhey\b/i,
+  eggs: /\beggs?\b/i,
+  wheat: /\bwheat\b|\bgluten\b/i,
+  soy: /\bsoy(?:beans?|milk)?\b/i,
+}
+const NONE_PATTERN = /^\s*(n\/?a|none|no|nope|-+|null)\s*\.?\s*$/i
+
+function detectAllergen(text: string | null | undefined, category: keyof typeof ALLERGY_PATTERNS): boolean {
+  if (!text) return false
+  const trimmed = text.trim()
+  if (!trimmed || NONE_PATTERN.test(trimmed)) return false
+  return ALLERGY_PATTERNS[category].test(trimmed)
+}
+
 async function executeMedicalReport(eventId: string, config: any) {
   const where: any = {
     participant: { groupRegistration: { eventId } },
@@ -867,22 +896,33 @@ async function executeMedicalReport(eventId: string, config: any) {
     },
   })
 
-  let results = forms
-
   type FormType = { allergies?: string | null; medications?: string | null; medicalConditions?: string | null; dietaryRestrictions?: string | null; participant?: { participantType?: string } | null }
+
+  // Derive per-allergen booleans from the freeform allergies text so the
+  // report columns (Peanut Allergy, Dairy Allergy, …) populate.
+  let results: any[] = forms.map((f: any) => ({
+    ...f,
+    allergiesPeanuts: detectAllergen(f.allergies, 'peanuts'),
+    allergiesTreeNuts: detectAllergen(f.allergies, 'treeNuts'),
+    allergiesShellfish: detectAllergen(f.allergies, 'shellfish'),
+    allergiesDairy: detectAllergen(f.allergies, 'dairy'),
+    allergiesEggs: detectAllergen(f.allergies, 'eggs'),
+    allergiesWheat: detectAllergen(f.allergies, 'wheat'),
+    allergiesSoy: detectAllergen(f.allergies, 'soy'),
+  }))
 
   // Apply medical filters
   if (config.filters?.hasAllergies) {
-    results = results.filter((f: FormType) => f.allergies && f.allergies.trim() !== '')
+    results = results.filter((f: FormType) => f.allergies && f.allergies.trim() !== '' && !NONE_PATTERN.test(f.allergies.trim()))
   }
   if (config.filters?.hasMedications) {
-    results = results.filter((f: FormType) => f.medications && f.medications.trim() !== '')
+    results = results.filter((f: FormType) => f.medications && f.medications.trim() !== '' && !NONE_PATTERN.test(f.medications.trim()))
   }
   if (config.filters?.hasMedicalConditions) {
-    results = results.filter((f: FormType) => f.medicalConditions && f.medicalConditions.trim() !== '')
+    results = results.filter((f: FormType) => f.medicalConditions && f.medicalConditions.trim() !== '' && !NONE_PATTERN.test(f.medicalConditions.trim()))
   }
   if (config.filters?.hasDietaryRestrictions) {
-    results = results.filter((f: FormType) => f.dietaryRestrictions && f.dietaryRestrictions.trim() !== '')
+    results = results.filter((f: FormType) => f.dietaryRestrictions && f.dietaryRestrictions.trim() !== '' && !NONE_PATTERN.test(f.dietaryRestrictions.trim()))
   }
   if (config.filters?.participantType?.length > 0) {
     results = results.filter((f: FormType) => config.filters.participantType.includes(f.participant?.participantType))
