@@ -196,6 +196,7 @@ export async function PATCH(
               select: {
                 groupRegistrationEnabled: true,
                 individualRegistrationEnabled: true,
+                groupSpotLimit: true,
               },
             },
           },
@@ -282,6 +283,28 @@ export async function PATCH(
         return NextResponse.json(
           {
             error: `Party size (${parsedPartySize}) doesn't match youth (${parsedYouth}) + chaperones (${parsedChaperone}) + priests (${parsedPriest}) = ${mixTotal}.`,
+          },
+          { status: 400 }
+        )
+      }
+      // Same guard the group registration API enforces — the waitlist would
+      // otherwise accept groups that can never actually complete registration.
+      const hasAdultSupervisor = parsedChaperone >= 1 || parsedPriest >= 1
+      const hasYouth = parsedYouth >= 1
+      if (!hasAdultSupervisor || !hasYouth) {
+        return NextResponse.json(
+          {
+            error:
+              'Group entries need at least one youth AND at least one chaperone or priest. For a single person, change the registration type to individual.',
+          },
+          { status: 400 }
+        )
+      }
+      const groupSpotLimit = entry.event.settings?.groupSpotLimit ?? null
+      if (groupSpotLimit !== null && parsedPartySize > groupSpotLimit) {
+        return NextResponse.json(
+          {
+            error: `This event limits each group to ${groupSpotLimit} participant${groupSpotLimit === 1 ? '' : 's'}. This entry is ${parsedPartySize}.`,
           },
           { status: 400 }
         )
