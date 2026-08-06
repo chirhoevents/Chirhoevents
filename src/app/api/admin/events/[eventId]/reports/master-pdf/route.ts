@@ -1,10 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { PDFDocument } from 'pdf-lib'
 import { prisma } from '@/lib/prisma'
 import { verifyFinancialReportAccess } from '@/lib/api-auth'
 import {
   generateMasterEventReportPDF,
+  generateLiabilityAppendixCoverPDF,
   MasterEventReportData,
 } from '@/lib/reports/generate-master-report-pdf'
+import { generateLiabilityFormPDF } from '@/lib/pdf/generate-liability-form-pdf'
+
+// Master report is a serious PDF: many DB queries + per-form PDF renders +
+// pdf-lib merge. Keep it on the Node runtime, and don't hand it back before
+// it's actually ready.
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+// Give the render up to 5 minutes for very large events (hundreds of
+// signed liability forms). Vercel Pro tier tops out at 300s.
+export const maxDuration = 300
 
 /**
  * Master Event Report PDF endpoint.
@@ -98,8 +110,17 @@ export async function POST(
         include: {
           approvedBy: { select: { firstName: true, lastName: true } },
           groupRegistration: { select: { groupName: true } },
+          // Hydrate everything generateLiabilityFormPDF needs to render a
+          // completed form. Non-completed forms carry the same shape but
+          // just won't be rendered into the appendix below.
+          event: true,
+          organization: true,
+          safeEnvironmentCertificates: true,
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [
+          { participantLastName: 'asc' },
+          { participantFirstName: 'asc' },
+        ],
       }),
       prisma.checkInLog.findMany({
         where: { eventId },
@@ -450,9 +471,50 @@ export async function POST(
       })),
     }
 
-    const pdfBuffer = await generateMasterEventReportPDF(data, event.name)
+    const masterBuffer = await generateMasterEventReportPDF(data, event.name)
 
-    return new NextResponse(new Uint8Array(pdfBuffer), {
+    // Appendix: append the actual signed liability form PDFs so this file is a
+    // legally-usable archive of everyone's waivers, not just a status table.
+    // Only completed forms are rendered — draft / abandoned forms have empty
+    // signature blocks and would just add blank pages.
+    const completedForms = liabilityForms.filter((f: any) => f.completed)
+
+    let combinedBuffer: Buffer = masterBuffer
+    if (completedForms.length > 0) {
+      const merged = await PDFDocument.load(masterBuffer)
+
+      // Divider cover page so readers can see the transition from the
+      // event report to the form appendix.
+      const coverBytes = await generateLiabilityAppendixCoverPDF(
+        completedForms.length,
+        event.name
+      )
+      const coverDoc = await PDFDocument.load(coverBytes)
+      const coverPages = await merged.copyPages(coverDoc, coverDoc.getPageIndices())
+      coverPages.forEach(p => merged.addPage(p))
+
+      // Sequential render — generateLiabilityFormPDF shares a PDFKit
+      // reconciler that throws when called in parallel (see the existing
+      // print-all/groups endpoint for the same constraint). Fail one form,
+      // log and continue, so a single broken form doesn't kill the archive.
+      for (const form of completedForms) {
+        try {
+          const formBuffer = await generateLiabilityFormPDF(form as any)
+          const formDoc = await PDFDocument.load(formBuffer)
+          const pages = await merged.copyPages(formDoc, formDoc.getPageIndices())
+          pages.forEach(p => merged.addPage(p))
+        } catch (formErr: any) {
+          console.error(
+            `[Master Report PDF] Skipping form ${form.id} for ${form.participantFirstName} ${form.participantLastName}:`,
+            formErr?.message || formErr
+          )
+        }
+      }
+
+      combinedBuffer = Buffer.from(await merged.save())
+    }
+
+    return new NextResponse(new Uint8Array(combinedBuffer), {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="${event.name.replace(/\s+/g, '_')}_master_report.pdf"`,

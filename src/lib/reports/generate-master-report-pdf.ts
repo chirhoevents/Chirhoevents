@@ -1170,6 +1170,54 @@ function drawCouponsSection(ctx: DrawCtx, redemptions: MasterEventReportData['co
   )
 }
 
+/**
+ * Rendered as the last page of the master body, right before the caller
+ * appends the signed liability form PDFs. Gives the reader a clear "the
+ * signed originals start below" break in the flow.
+ */
+export async function generateLiabilityAppendixCoverPDF(
+  formCount: number,
+  eventName: string
+): Promise<Buffer> {
+  const PDFDocument = await makePDFDoc()
+
+  return new Promise<Buffer>((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({
+        size: 'LETTER',
+        layout: 'landscape',
+        margins: { top: 36, bottom: 40, left: 36, right: 36 },
+      })
+      const chunks: Buffer[] = []
+      doc.on('data', (c: Buffer) => chunks.push(c))
+      doc.on('end', () => resolve(Buffer.concat(chunks)))
+      doc.on('error', reject)
+
+      const W = doc.page.width - 72
+      const centerY = Math.round(doc.page.height * 0.36)
+
+      doc.font('Helvetica-Bold').fontSize(11).fillColor(TAN)
+        .text('APPENDIX', 36, centerY - 40, { width: W, align: 'center', characterSpacing: 3 })
+      doc.font('Helvetica-Bold').fontSize(28).fillColor(NAVY)
+        .text('Signed Liability Forms', 36, centerY, { width: W, align: 'center' })
+      doc.font('Helvetica').fontSize(12).fillColor(GRAY)
+        .text(
+          `${formCount} completed liability form${formCount === 1 ? '' : 's'} from ${eventName}`,
+          36, centerY + 48, { width: W, align: 'center' }
+        )
+      doc.font('Helvetica').fontSize(10).fillColor(GRAY)
+        .text(
+          'Each form follows in participant order. Retain this section per your organization\'s record-keeping policy.',
+          36, centerY + 78, { width: W, align: 'center' }
+        )
+
+      doc.end()
+    } catch (err) {
+      reject(err)
+    }
+  })
+}
+
 function drawEmailHistorySection(ctx: DrawCtx, emails: MasterEventReportData['emailHistory']) {
   sectionTitle(ctx, `Email History  (${emails.length})`, 'Every email the system sent related to this event. Body text is not included; use the admin email inspector for full content.')
 
