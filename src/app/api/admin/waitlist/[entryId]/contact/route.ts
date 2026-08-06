@@ -89,6 +89,7 @@ export async function POST(
             settings: {
               select: {
                 contactEmail: true,
+                groupSpotLimit: true,
                 onCampusCapacity: true,
                 onCampusRemaining: true,
                 offCampusCapacity: true,
@@ -153,6 +154,27 @@ export async function POST(
         return NextResponse.json(
           {
             error: `Offered party size (${offeredPartySize}) doesn't match youth (${offeredYouth}) + chaperones (${offeredChaperone}) + priests (${offeredPriest}) = ${mixTotal}.`,
+          },
+          { status: 400 }
+        )
+      }
+      // Guard: same rule as group registration — no solo or adult-only groups.
+      const hasAdultSupervisor = offeredChaperone >= 1 || offeredPriest >= 1
+      const hasYouth = offeredYouth >= 1
+      if (!hasAdultSupervisor || !hasYouth) {
+        return NextResponse.json(
+          {
+            error:
+              'Counter-offer must include at least one youth AND at least one chaperone or priest. To invite a single person, edit the entry to individual first.',
+          },
+          { status: 400 }
+        )
+      }
+      const groupSpotLimit = (entry.event.settings as any)?.groupSpotLimit ?? null
+      if (groupSpotLimit !== null && offeredPartySize > groupSpotLimit) {
+        return NextResponse.json(
+          {
+            error: `This event limits each group to ${groupSpotLimit} participant${groupSpotLimit === 1 ? '' : 's'}. Your offer is ${offeredPartySize}.`,
           },
           { status: 400 }
         )

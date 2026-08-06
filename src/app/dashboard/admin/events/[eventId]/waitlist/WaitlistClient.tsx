@@ -338,9 +338,21 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
       ? parsedYouth + parsedChaperone + parsedPriest
       : parseInt(draft.partySize) || 0
 
-    if (isGroup && parsedPartySize <= 0) {
-      alert('Enter a mix of youth / chaperone / priest.')
-      return
+    if (isGroup) {
+      if (parsedPartySize <= 0) {
+        alert('Enter a mix of youth / chaperone / priest.')
+        return
+      }
+      if (parsedYouth < 1) {
+        alert('A group needs at least one youth.')
+        return
+      }
+      if (parsedChaperone < 1 && parsedPriest < 1) {
+        alert(
+          'A group needs at least one chaperone or priest. For a single person, change the registration type to individual.'
+        )
+        return
+      }
     }
     if (draft.registrationType === 'individual' && parsedPartySize !== 1) {
       alert('Individual entries hold exactly 1 spot.')

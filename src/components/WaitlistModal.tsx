@@ -139,11 +139,24 @@ export default function WaitlistModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Client-side guard for the group mix — the API validates this too,
-    // but catching it here means the admin doesn't have to round-trip.
-    if (isGroup && mixTotal <= 0) {
-      setError('Enter how many youth, chaperones, and priests are in the group.')
-      return
+    // Client-side guards for the group mix — mirrors the API + the actual
+    // group registration validation. Catching here means the user doesn't
+    // have to round-trip only to be told they need a chaperone.
+    if (isGroup) {
+      if (mixTotal <= 0) {
+        setError('Enter how many youth, chaperones, and priests are in the group.')
+        return
+      }
+      if (parsedYouth < 1) {
+        setError('A group needs at least one youth participant.')
+        return
+      }
+      if (parsedChaperone < 1 && parsedPriest < 1) {
+        setError(
+          'A group needs at least one chaperone or priest. For a single person, choose Individual instead.'
+        )
+        return
+      }
     }
 
     setIsSubmitting(true)

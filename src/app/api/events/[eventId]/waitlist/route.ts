@@ -81,6 +81,7 @@ export async function POST(
             waitlistEnabled: true,
             groupRegistrationEnabled: true,
             individualRegistrationEnabled: true,
+            groupSpotLimit: true,
             onCampusCapacity: true,
             onCampusRemaining: true,
             offCampusCapacity: true,
@@ -186,6 +187,32 @@ export async function POST(
         return NextResponse.json(
           {
             error: `Party size (${parsedPartySize}) doesn't match youth (${parsedYouth}) + chaperones (${parsedChaperone}) + priests (${parsedPriest}) = ${mixTotal}.`,
+          },
+          { status: 400 }
+        )
+      }
+      // Match the group registration API's guard exactly — otherwise the
+      // waitlist accepts entries that could never actually complete
+      // registration (like "1 youth, 0 chaperones, 0 priests"). See
+      // src/app/api/registration/group/route.ts:244-254.
+      const hasAdultSupervisor = parsedChaperone >= 1 || parsedPriest >= 1
+      const hasYouth = parsedYouth >= 1
+      if (!hasAdultSupervisor || !hasYouth) {
+        return NextResponse.json(
+          {
+            error:
+              'Group waitlist entries need at least one youth AND at least one chaperone or priest. For a single person, use the individual waitlist option instead.',
+          },
+          { status: 400 }
+        )
+      }
+      // Honor the event's per-group spot limit so someone can't waitlist for
+      // more than a single group could actually register for.
+      const groupSpotLimit = event.settings?.groupSpotLimit ?? null
+      if (groupSpotLimit !== null && parsedPartySize > groupSpotLimit) {
+        return NextResponse.json(
+          {
+            error: `This event limits each group to ${groupSpotLimit} participant${groupSpotLimit === 1 ? '' : 's'}. Your waitlist request is for ${parsedPartySize}.`,
           },
           { status: 400 }
         )
