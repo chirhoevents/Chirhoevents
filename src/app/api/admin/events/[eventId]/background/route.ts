@@ -46,10 +46,10 @@ export async function POST(
       )
     }
 
-    // Validate file size (5MB max for backgrounds)
-    if (file.size > 5 * 1024 * 1024) {
+    // Validate file size (4MB max — matches server body limit)
+    if (file.size > 4 * 1024 * 1024) {
       return NextResponse.json(
-        { error: 'File size must be less than 5MB' },
+        { error: 'File size must be less than 4MB. Try compressing the image first.' },
         { status: 400 }
       )
     }
