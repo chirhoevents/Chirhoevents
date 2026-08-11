@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -117,13 +117,7 @@ export default function PaymentsModal({
     }
   }
 
-  useEffect(() => {
-    if (isOpen && registrationId) {
-      fetchPaymentData()
-    }
-  }, [isOpen, registrationId, registrationType])
-
-  async function fetchPaymentData() {
+  const fetchPaymentData = useCallback(async () => {
     setLoading(true)
     try {
       const token = await getToken()
@@ -141,7 +135,13 @@ export default function PaymentsModal({
     } finally {
       setLoading(false)
     }
-  }
+  }, [registrationId, registrationType, getToken])
+
+  useEffect(() => {
+    if (isOpen && registrationId) {
+      fetchPaymentData()
+    }
+  }, [isOpen, registrationId, fetchPaymentData])
 
   function handleRefundProcessed() {
     fetchPaymentData()

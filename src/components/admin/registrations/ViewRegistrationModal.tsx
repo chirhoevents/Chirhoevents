@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
@@ -225,13 +225,7 @@ export default function ViewRegistrationModal({
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('details')
 
-  useEffect(() => {
-    if (isOpen && registrationId) {
-      fetchRegistrationDetails()
-    }
-  }, [isOpen, registrationId, registrationType])
-
-  async function fetchRegistrationDetails() {
+  const fetchRegistrationDetails = useCallback(async () => {
     setLoading(true)
     try {
       const token = await getToken()
@@ -249,7 +243,13 @@ export default function ViewRegistrationModal({
     } finally {
       setLoading(false)
     }
-  }
+  }, [registrationId, registrationType, getToken])
+
+  useEffect(() => {
+    if (isOpen && registrationId) {
+      fetchRegistrationDetails()
+    }
+  }, [isOpen, registrationId, fetchRegistrationDetails])
 
   function copyToClipboard(text: string) {
     navigator.clipboard.writeText(text)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -197,7 +197,7 @@ export default function EditIndividualRegistrationModal({
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const fetchAuditTrail = async () => {
+  const fetchAuditTrail = useCallback(async () => {
     if (!registration) return
 
     setLoadingAuditTrail(true)
@@ -216,9 +216,9 @@ export default function EditIndividualRegistrationModal({
     } finally {
       setLoadingAuditTrail(false)
     }
-  }
+  }, [registration, getToken])
 
-  const fetchEventPricing = async () => {
+  const fetchEventPricing = useCallback(async () => {
     if (!eventId) return
 
     try {
@@ -234,21 +234,21 @@ export default function EditIndividualRegistrationModal({
     } catch (error) {
       console.error('Error fetching event pricing:', error)
     }
-  }
+  }, [eventId, getToken])
 
   // Fetch event pricing when modal opens
   useEffect(() => {
     if (isOpen && eventId) {
       fetchEventPricing()
     }
-  }, [isOpen, eventId])
+  }, [isOpen, eventId, fetchEventPricing])
 
   // Fetch audit trail when Updates tab is activated
   useEffect(() => {
     if (activeTab === 'updates' && registration && auditTrail.length === 0) {
       fetchAuditTrail()
     }
-  }, [activeTab, registration])
+  }, [activeTab, registration, auditTrail.length, fetchAuditTrail])
 
   if (!registration) return null
 
