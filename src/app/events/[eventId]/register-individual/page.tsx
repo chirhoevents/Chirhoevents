@@ -321,7 +321,9 @@ export default function IndividualRegistrationPage() {
   }
 
   // Check if registration is not open
-  if (event && event.isRegistrationOpen === false) {
+  // Same waitlist-token bypass as the group page: a valid invitation is the
+  // point of the whole waitlist mechanic — don't block it at the client gate.
+  if (event && event.isRegistrationOpen === false && !waitlistToken) {
     const now = new Date()
     const openDate = event.registrationOpenDate ? new Date(event.registrationOpenDate) : null
     const closeDate = event.registrationCloseDate ? new Date(event.registrationCloseDate) : null
