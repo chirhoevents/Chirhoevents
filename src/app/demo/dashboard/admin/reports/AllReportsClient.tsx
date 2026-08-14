@@ -19,6 +19,7 @@ import {
   Shield,
   UserCheck,
 } from 'lucide-react'
+import ReportViewer, { type ReportId } from '../../../lib/ReportViewer'
 
 interface Event {
   id: string
@@ -35,7 +36,7 @@ const DEMO_EVENTS: Event[] = [
   { id: 'evt-summer-2025', name: 'Summer Youth Retreat 2025', startDate: '2025-07-15', endDate: '2025-07-18', status: 'completed' },
 ]
 
-const REPORTS = [
+const REPORTS: { id: ReportId; title: string; icon: React.ComponentType<{ className?: string }>; description: string }[] = [
   { id: 'financial', title: 'Financial Report', icon: DollarSign, description: 'Revenue, refunds, payment status, and outstanding balances' },
   { id: 'registrations', title: 'Registration Report', icon: Users, description: 'Full registration list with contact info and roster' },
   { id: 'forms', title: 'Forms Status Report', icon: FileText, description: 'Waiver completion progress per participant' },
@@ -48,15 +49,16 @@ const REPORTS = [
 export default function AllReportsClient() {
   const events = DEMO_EVENTS
   const [selectedEventId, setSelectedEventId] = useState<string>('all')
+  const [activeReport, setActiveReport] = useState<ReportId | null>(null)
 
   const selectedEvent = events.find((e) => e.id === selectedEventId)
+  const eventName = selectedEventId === 'all' ? 'All Events' : selectedEvent?.name || ''
 
   const formatDate = (dateString: string) =>
     new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
   return (
     <div className="space-y-6">
-      {/* Event Filter Card */}
       <Card className="bg-white border-[#D1D5DB]">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg text-[#1E3A5F] flex items-center gap-2">
@@ -107,7 +109,6 @@ export default function AllReportsClient() {
         </CardContent>
       </Card>
 
-      {/* Selected Event Info */}
       {selectedEventId !== 'all' && selectedEvent && (
         <div className="bg-[#1E3A5F] text-white rounded-lg px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -122,7 +123,6 @@ export default function AllReportsClient() {
         </div>
       )}
 
-      {/* Action Buttons */}
       <div className="flex justify-end gap-2">
         {selectedEventId !== 'all' && (
           <>
@@ -135,7 +135,7 @@ export default function AllReportsClient() {
               Custom Report Builder
             </Button>
             <Button
-              onClick={() => alert('Demo: Export All Data would generate a full CSV of every registration, payment, form, and housing assignment for this event.')}
+              onClick={() => alert('Demo: Would generate one CSV with every report combined for this event.')}
               className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
             >
               <Download className="h-4 w-4 mr-2" />
@@ -145,7 +145,6 @@ export default function AllReportsClient() {
         )}
       </div>
 
-      {/* Report Cards Grid */}
       {selectedEventId === 'all' ? (
         <Card className="bg-[#F5F1E8] border-[#D1D5DB]">
           <CardContent className="py-12 text-center">
@@ -177,7 +176,7 @@ export default function AllReportsClient() {
                 <p className="text-sm text-[#6B7280] mb-4">{report.description}</p>
                 <div className="flex gap-2">
                   <Button
-                    onClick={() => alert(`Demo: "${report.title}" would open a modal showing full data for ${selectedEvent?.name}, with view, filter, and CSV export.`)}
+                    onClick={() => setActiveReport(report.id)}
                     variant="outline"
                     size="sm"
                     className="border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white flex-1"
@@ -197,6 +196,12 @@ export default function AllReportsClient() {
           ))}
         </div>
       )}
+
+      <ReportViewer
+        reportId={activeReport}
+        eventName={eventName}
+        onClose={() => setActiveReport(null)}
+      />
     </div>
   )
 }

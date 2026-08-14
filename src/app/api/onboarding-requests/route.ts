@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import {
+  renderMasterAdminNotificationHtml,
+  sendMasterAdminNotification,
+} from '@/lib/master-admin-notify'
 
 export async function POST(request: NextRequest) {
   try {
@@ -83,7 +87,37 @@ export async function POST(request: NextRequest) {
     })
 
     // TODO: Send confirmation email to applicant
-    // TODO: Send notification email to Master Admin
+
+    // Notify master-admin recipients so join-the-app requests don't sit
+    // unread until someone remembers to open the dashboard.
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
+    const contactName = `${contactFirstName ?? ''} ${contactLastName ?? ''}`.trim() || 'Unknown'
+    await sendMasterAdminNotification({
+      subject: `New organization request: ${organizationName}`,
+      replyTo: contactEmail || undefined,
+      html: renderMasterAdminNotificationHtml({
+        title: 'New organization request',
+        intro: `${organizationName} just applied to join ChiRho Events.`,
+        rows: [
+          { label: 'Organization', value: String(organizationName ?? '—') },
+          { label: 'Type', value: String(organizationType ?? '—') },
+          { label: 'Website', value: String(website ?? '—') },
+          { label: 'Contact', value: `${contactName}${contactEmail ? ` <${contactEmail}>` : ''}` },
+          { label: 'Phone', value: String(contactPhone ?? '—') },
+          { label: 'Job title', value: String(contactJobTitle ?? '—') },
+          { label: 'Requested tier', value: String(requestedTier ?? '—') },
+          { label: 'Billing cycle', value: String(billingCycle ?? '—') },
+          { label: 'Payment method', value: String(paymentMethod ?? '—') },
+          { label: 'Events per year', value: String(eventsPerYear ?? '—') },
+          { label: 'Attendees per year', value: String(attendeesPerYear ?? '—') },
+          { label: 'How they heard', value: String(howDidYouHear ?? '—') + (howDidYouHear === 'other' && howDidYouHearOther ? ` (${howDidYouHearOther})` : '') },
+        ],
+        bodyLabel: 'Additional notes',
+        bodyText: additionalNotes || null,
+        ctaLabel: 'Review request',
+        ctaUrl: `${appUrl}/dashboard/master-admin/onboarding-requests/${onboardingRequest.id}`,
+      }),
+    })
 
     return NextResponse.json({
       success: true,

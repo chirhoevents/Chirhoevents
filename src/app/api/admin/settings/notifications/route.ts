@@ -52,11 +52,10 @@ export async function GET(request: NextRequest) {
 
     const customFields = organization.customFieldsEnabled as Record<string, any> | null
     const stored = customFields?.weeklyDigest || {}
-    // Legacy: the old opt-in schema wrote `enabled: false` when off.
-    // Preserve that as `disabled: true` under the new opt-out schema.
-    const legacyDisabled = stored.enabled === false
+    // Opt-out only: honor the new `disabled` flag. Legacy `enabled: false` is
+    // ignored on purpose (old opt-in default, not a real opt-out signal).
     const weeklyDigest: WeeklyDigestSettings = {
-      disabled: stored.disabled === true || legacyDisabled,
+      disabled: stored.disabled === true,
       recipients: Array.isArray(stored.recipients) ? stored.recipients : [],
     }
     const updateEmails: UpdateEmailSettings = customFields?.updateEmails || {

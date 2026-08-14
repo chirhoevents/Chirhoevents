@@ -278,6 +278,7 @@ async function executeParticipantsReport(eventId: string, config: any) {
       },
       liabilityForms: {
         select: {
+          dateOfBirth: true,
           allergies: true,
           medications: true,
           medicalConditions: true,
@@ -330,10 +331,14 @@ async function executeParticipantsReport(eventId: string, config: any) {
     } : null
 
     const groupAnswers = cqQuestions.length > 0 ? (cqAnswers.get(p.groupRegistration.id) || {}) : {}
+    const form = p.liabilityForms?.[0] || null
 
     return {
       ...p,
-      liabilityForm: p.liabilityForms?.[0] || null,
+      // Surface DOB collected on the liability form so the "Date of Birth"
+      // report column populates. Participant itself doesn't store it.
+      dateOfBirth: form?.dateOfBirth || null,
+      liabilityForm: form,
       roomAssignment,
       liabilityForms: undefined,
       ...groupAnswers,
@@ -559,8 +564,8 @@ async function executeFinancialReport(eventId: string, config: any) {
   if (config.filters?.paymentMethod?.length > 0) {
     paymentWhere.paymentMethod = { in: config.filters.paymentMethod }
   }
-  if (config.filters?.status?.length > 0) {
-    paymentWhere.status = { in: config.filters.status }
+  if (config.filters?.paymentStatus?.length > 0) {
+    paymentWhere.paymentStatus = { in: config.filters.paymentStatus }
   }
   if (config.filters?.dateRange?.start) {
     paymentWhere.createdAt = { ...paymentWhere.createdAt, gte: new Date(config.filters.dateRange.start) }
@@ -574,12 +579,14 @@ async function executeFinancialReport(eventId: string, config: any) {
     orderBy: getSortOrder(config.sortBy, config.sortDirection) || { createdAt: 'desc' },
   })
 
-  // Get registration names for context
-  type PaymentType = { registrationType: string; registrationId: string }
-  const groupRegIds = payments.filter((p: PaymentType) => p.registrationType === 'group').map((p: PaymentType) => p.registrationId)
-  const indRegIds = payments.filter((p: PaymentType) => p.registrationType === 'individual').map((p: PaymentType) => p.registrationId)
+  // Look up registration name/email context for each payment (group, individual, vendor, staff)
+  type PaymentRef = { registrationType: string; registrationId: string }
+  const groupRegIds = payments.filter((p: PaymentRef) => p.registrationType === 'group').map((p: PaymentRef) => p.registrationId)
+  const indRegIds = payments.filter((p: PaymentRef) => p.registrationType === 'individual').map((p: PaymentRef) => p.registrationId)
+  const vendorRegIds = payments.filter((p: PaymentRef) => p.registrationType === 'vendor').map((p: PaymentRef) => p.registrationId)
+  const staffRegIds = payments.filter((p: PaymentRef) => p.registrationType === 'staff').map((p: PaymentRef) => p.registrationId)
 
-  const [groupRegs, indRegs] = await Promise.all([
+  const [groupRegs, indRegs, vendorRegs, staffRegs, balances, refunds] = await Promise.all([
     prisma.groupRegistration.findMany({
       where: { id: { in: groupRegIds } },
       select: { id: true, groupName: true, groupLeaderEmail: true },
@@ -588,10 +595,101 @@ async function executeFinancialReport(eventId: string, config: any) {
       where: { id: { in: indRegIds } },
       select: { id: true, firstName: true, lastName: true, email: true },
     }),
+    prisma.vendorRegistration.findMany({
+      where: { id: { in: vendorRegIds } },
+      select: { id: true, businessName: true, email: true },
+    }),
+    prisma.staffRegistration.findMany({
+      where: { id: { in: staffRegIds } },
+      select: { id: true, firstName: true, lastName: true, email: true },
+    }),
+    // Balances are keyed by (registrationId, registrationType); load all for this event
+    // and index by a composite key so we can look up the right balance for each payment row.
+    prisma.paymentBalance.findMany({
+      where: {
+        eventId,
+        registrationId: {
+          in: [...groupRegIds, ...indRegIds, ...vendorRegIds, ...staffRegIds],
+        },
+      },
+      select: {
+        registrationId: true,
+        registrationType: true,
+        totalAmountDue: true,
+        amountPaid: true,
+        amountRemaining: true,
+        lastPaymentDate: true,
+        paymentStatus: true,
+      },
+    }),
+    prisma.refund.findMany({
+      where: {
+        registrationId: {
+          in: [...groupRegIds, ...indRegIds, ...vendorRegIds, ...staffRegIds],
+        },
+      },
+      select: {
+        registrationId: true,
+        registrationType: true,
+        refundAmount: true,
+        refundReason: true,
+        processedAt: true,
+        status: true,
+      },
+      orderBy: { processedAt: 'desc' },
+    }),
   ])
 
   const groupMap = new Map(groupRegs.map((g: { id: string }) => [g.id, g]))
   const indMap = new Map(indRegs.map((i: { id: string }) => [i.id, i]))
+  const vendorMap = new Map(vendorRegs.map((v: { id: string }) => [v.id, v]))
+  const staffMap = new Map(staffRegs.map((s: { id: string }) => [s.id, s]))
+
+  const balanceKey = (regId: string, regType: string) => `${regType}:${regId}`
+  type BalanceRow = {
+    registrationId: string
+    registrationType: string
+    totalAmountDue: number | { toNumber(): number }
+    amountPaid: number | { toNumber(): number }
+    amountRemaining: number | { toNumber(): number }
+    lastPaymentDate: Date | null
+    paymentStatus: string
+  }
+  const balanceMap = new Map<string, BalanceRow>(
+    balances.map((b: BalanceRow) => [balanceKey(b.registrationId, b.registrationType), b])
+  )
+
+  // Aggregate refunds by (registrationType, registrationId). Multiple refunds per registration
+  // are summed for total refunded, and the most recent refund's reason/date are surfaced
+  // so a single row still has meaningful values.
+  type RefundRow = {
+    registrationId: string
+    registrationType: string
+    refundAmount: number | { toNumber(): number }
+    refundReason: string
+    processedAt: Date
+    status: string
+  }
+  const refundAggMap = new Map<string, { totalAmount: number; latestReason: string; latestDate: Date; count: number }>()
+  for (const r of refunds as RefundRow[]) {
+    // Skip cancelled/failed refunds — only completed/pending refunds affect the money moved.
+    if (r.status === 'cancelled' || r.status === 'failed') continue
+    const key = balanceKey(r.registrationId, r.registrationType)
+    const existing = refundAggMap.get(key)
+    const amount = Number(r.refundAmount)
+    if (existing) {
+      existing.totalAmount += amount
+      existing.count += 1
+      // refunds are pre-sorted by processedAt desc, so the first one we saw is the latest
+    } else {
+      refundAggMap.set(key, {
+        totalAmount: amount,
+        latestReason: r.refundReason,
+        latestDate: r.processedAt,
+        count: 1,
+      })
+    }
+  }
 
   let results = payments.map((p: typeof payments[number]) => {
     let registrationName = 'Unknown'
@@ -605,13 +703,31 @@ async function executeFinancialReport(eventId: string, config: any) {
       const ind = indMap.get(p.registrationId) as { firstName?: string; lastName?: string; email?: string } | undefined
       registrationName = ind ? `${ind.firstName} ${ind.lastName}` : 'Unknown Individual'
       contactEmail = ind?.email || ''
+    } else if (p.registrationType === 'vendor') {
+      const v = vendorMap.get(p.registrationId) as { businessName?: string; email?: string } | undefined
+      registrationName = v?.businessName || 'Unknown Vendor'
+      contactEmail = v?.email || ''
+    } else if (p.registrationType === 'staff') {
+      const s = staffMap.get(p.registrationId) as { firstName?: string; lastName?: string; email?: string } | undefined
+      registrationName = s ? `${s.firstName} ${s.lastName}` : 'Unknown Staff'
+      contactEmail = s?.email || ''
     }
+
+    const balance = balanceMap.get(balanceKey(p.registrationId, p.registrationType))
+    const refundAgg = refundAggMap.get(balanceKey(p.registrationId, p.registrationType))
 
     return {
       ...p,
       registrationName,
       contactEmail,
       amount: Number(p.amount),
+      totalAmountDue: balance ? Number(balance.totalAmountDue) : null,
+      amountPaid: balance ? Number(balance.amountPaid) : null,
+      amountRemaining: balance ? Number(balance.amountRemaining) : null,
+      lastPaymentDate: balance?.lastPaymentDate || null,
+      refundAmount: refundAgg ? refundAgg.totalAmount : null,
+      refundReason: refundAgg?.latestReason || null,
+      refundDate: refundAgg?.latestDate || null,
     }
   })
 
@@ -730,6 +846,30 @@ async function executeCheckinsReport(eventId: string, config: any) {
 // ============================================
 // MEDICAL REPORT (Liability Forms)
 // ============================================
+
+// Freeform "allergies" text → per-allergen booleans. Cafeteria / meal
+// planners need per-allergen counts, but the DB only stores one text field.
+// Word-boundary keyword matching handles common phrasings; the NONE_PATTERN
+// short-circuits explicit "none"/"n/a" entries so they don't false-positive
+// on stray substrings.
+const ALLERGY_PATTERNS: Record<string, RegExp> = {
+  peanuts: /\bpeanuts?\b/i,
+  treeNuts: /\btree.?nuts?\b|\balmonds?\b|\bcashews?\b|\bpecans?\b|\bwalnuts?\b|\bhazelnuts?\b|\bpistachios?\b|\bmacadamias?\b|\bbrazil.?nuts?\b/i,
+  shellfish: /\bshellfish\b|\bshrimps?\b|\blobsters?\b|\bcrabs?\b|\bcrawfish\b|\bprawns?\b/i,
+  dairy: /\bdairy\b|\bmilk\b|\blactose\b|\bcheese\b|\bbutter\b|\bcream\b|\byogurts?\b|\bcasein\b|\bwhey\b/i,
+  eggs: /\beggs?\b/i,
+  wheat: /\bwheat\b|\bgluten\b/i,
+  soy: /\bsoy(?:beans?|milk)?\b/i,
+}
+const NONE_PATTERN = /^\s*(n\/?a|none|no|nope|-+|null)\s*\.?\s*$/i
+
+function detectAllergen(text: string | null | undefined, category: keyof typeof ALLERGY_PATTERNS): boolean {
+  if (!text) return false
+  const trimmed = text.trim()
+  if (!trimmed || NONE_PATTERN.test(trimmed)) return false
+  return ALLERGY_PATTERNS[category].test(trimmed)
+}
+
 async function executeMedicalReport(eventId: string, config: any) {
   const where: any = {
     participant: { groupRegistration: { eventId } },
@@ -756,22 +896,33 @@ async function executeMedicalReport(eventId: string, config: any) {
     },
   })
 
-  let results = forms
-
   type FormType = { allergies?: string | null; medications?: string | null; medicalConditions?: string | null; dietaryRestrictions?: string | null; participant?: { participantType?: string } | null }
+
+  // Derive per-allergen booleans from the freeform allergies text so the
+  // report columns (Peanut Allergy, Dairy Allergy, …) populate.
+  let results: any[] = forms.map((f: any) => ({
+    ...f,
+    allergiesPeanuts: detectAllergen(f.allergies, 'peanuts'),
+    allergiesTreeNuts: detectAllergen(f.allergies, 'treeNuts'),
+    allergiesShellfish: detectAllergen(f.allergies, 'shellfish'),
+    allergiesDairy: detectAllergen(f.allergies, 'dairy'),
+    allergiesEggs: detectAllergen(f.allergies, 'eggs'),
+    allergiesWheat: detectAllergen(f.allergies, 'wheat'),
+    allergiesSoy: detectAllergen(f.allergies, 'soy'),
+  }))
 
   // Apply medical filters
   if (config.filters?.hasAllergies) {
-    results = results.filter((f: FormType) => f.allergies && f.allergies.trim() !== '')
+    results = results.filter((f: FormType) => f.allergies && f.allergies.trim() !== '' && !NONE_PATTERN.test(f.allergies.trim()))
   }
   if (config.filters?.hasMedications) {
-    results = results.filter((f: FormType) => f.medications && f.medications.trim() !== '')
+    results = results.filter((f: FormType) => f.medications && f.medications.trim() !== '' && !NONE_PATTERN.test(f.medications.trim()))
   }
   if (config.filters?.hasMedicalConditions) {
-    results = results.filter((f: FormType) => f.medicalConditions && f.medicalConditions.trim() !== '')
+    results = results.filter((f: FormType) => f.medicalConditions && f.medicalConditions.trim() !== '' && !NONE_PATTERN.test(f.medicalConditions.trim()))
   }
   if (config.filters?.hasDietaryRestrictions) {
-    results = results.filter((f: FormType) => f.dietaryRestrictions && f.dietaryRestrictions.trim() !== '')
+    results = results.filter((f: FormType) => f.dietaryRestrictions && f.dietaryRestrictions.trim() !== '' && !NONE_PATTERN.test(f.dietaryRestrictions.trim()))
   }
   if (config.filters?.participantType?.length > 0) {
     results = results.filter((f: FormType) => config.filters.participantType.includes(f.participant?.participantType))

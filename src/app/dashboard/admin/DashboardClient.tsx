@@ -36,6 +36,7 @@ import {
 } from '@/lib/popup-queue'
 
 const REGISTRATION_LIMIT_POPUP_NAME = 'registrationLimit'
+const SELECTED_YEAR_STORAGE_KEY = 'dashboardSelectedYear'
 
 interface DashboardStats {
   activeEvents: number
@@ -90,14 +91,25 @@ export default function DashboardClient() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString())
+  // Gate the fetch until we've hydrated the year from localStorage, so a stored
+  // preference doesn't trigger a wasted fetch for the current-year default first.
+  const [yearHydrated, setYearHydrated] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
   const [showBulkEmailModal, setShowBulkEmailModal] = useState(false)
   const [showRegistrationLimitModal, setShowRegistrationLimitModal] = useState(false)
   const [billingUsage, setBillingUsage] = useState<BillingUsage | null>(null)
 
   useEffect(() => {
+    const stored = localStorage.getItem(SELECTED_YEAR_STORAGE_KEY)
+    if (stored) setSelectedYear(stored)
+    setYearHydrated(true)
+  }, [])
+
+  useEffect(() => {
+    if (!yearHydrated) return
+    localStorage.setItem(SELECTED_YEAR_STORAGE_KEY, selectedYear)
     fetchDashboardData(selectedYear)
-  }, [selectedYear])
+  }, [selectedYear, yearHydrated])
 
   useEffect(() => {
     fetchBillingUsage()

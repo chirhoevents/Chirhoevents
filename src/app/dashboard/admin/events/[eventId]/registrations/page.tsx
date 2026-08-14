@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, notFound } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
 import { Loader2 } from 'lucide-react'
@@ -79,19 +79,7 @@ export default function EventRegistrationsPage() {
   const [error, setError] = useState<string | null>(null)
   const [viewFilter, setViewFilter] = useState<'active' | 'cancelled'>('active')
 
-  useEffect(() => {
-    // Validate eventId is a valid UUID
-    if (!eventId || !UUID_REGEX.test(eventId)) {
-      setError('Invalid event ID')
-      setLoading(false)
-      return
-    }
-
-    fetchRegistrations()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventId, viewFilter])
-
-  const fetchRegistrations = async () => {
+  const fetchRegistrations = useCallback(async () => {
     try {
       setLoading(true)
       const token = await getToken()
@@ -152,7 +140,18 @@ export default function EventRegistrationsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [eventId, getToken])
+
+  useEffect(() => {
+    // Validate eventId is a valid UUID
+    if (!eventId || !UUID_REGEX.test(eventId)) {
+      setError('Invalid event ID')
+      setLoading(false)
+      return
+    }
+
+    fetchRegistrations()
+  }, [eventId, fetchRegistrations])
 
   if (loading) {
     return (
