@@ -2212,15 +2212,31 @@ export function generateWaitlistConfirmationEmail({
 }
 
 /**
- * Generate waitlist invitation email when a spot opens up
+ * Generate waitlist invitation email when a spot opens up.
+ *
+ * The offered fields describe what's actually being reserved — for a
+ * normal invite they match what the person requested; for a counter-offer
+ * they differ, in which case the email highlights the change so the
+ * invitee isn't surprised when the registration form only accepts the
+ * offered amount / option.
  */
 export function generateWaitlistInvitationEmail({
   name,
   eventName,
-  partySize,
+  partySize, // kept for backward compat; treated as offeredPartySize when the specific ones aren't set
   organizationName,
   registrationUrl,
   expiresIn,
+  offeredPartySize,
+  offeredYouth,
+  offeredChaperones,
+  offeredPriests,
+  offeredHousingLabel,
+  offeredDayPassName,
+  requestedPartySize,
+  requestedHousingLabel,
+  requestedDayPassName,
+  isCounterOffer,
 }: {
   name: string
   eventName: string
@@ -2228,7 +2244,90 @@ export function generateWaitlistInvitationEmail({
   organizationName: string
   registrationUrl: string
   expiresIn?: string
+  offeredPartySize?: number
+  offeredYouth?: number | null
+  offeredChaperones?: number | null
+  offeredPriests?: number | null
+  offeredHousingLabel?: string | null
+  offeredDayPassName?: string | null
+  requestedPartySize?: number
+  requestedHousingLabel?: string | null
+  requestedDayPassName?: string | null
+  isCounterOffer?: boolean
 }): string {
+  const spots = offeredPartySize ?? partySize
+
+  // Describe the offer in plain English — mix if we have it, plus option
+  // ("On-Campus", a day-pass name, etc.). Falls back gracefully when the
+  // extra fields aren't provided (older call sites).
+  const describeOffer = (): string => {
+    const parts: string[] = []
+    parts.push(`${spots} spot${spots === 1 ? '' : 's'}`)
+    const hasMix =
+      (offeredYouth ?? 0) > 0 ||
+      (offeredChaperones ?? 0) > 0 ||
+      (offeredPriests ?? 0) > 0
+    if (hasMix) {
+      const mix = [
+        offeredYouth ? `${offeredYouth} youth` : null,
+        offeredChaperones
+          ? `${offeredChaperones} chaperone${offeredChaperones === 1 ? '' : 's'}`
+          : null,
+        offeredPriests
+          ? `${offeredPriests} priest${offeredPriests === 1 ? '' : 's'}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' + ')
+      parts.push(`(${mix})`)
+    }
+    if (offeredDayPassName) {
+      parts.push(`— ${offeredDayPassName}`)
+    } else if (offeredHousingLabel) {
+      parts.push(`— ${offeredHousingLabel}`)
+    }
+    return parts.join(' ')
+  }
+
+  const describeRequest = (): string => {
+    if (!isCounterOffer) return ''
+    const parts: string[] = []
+    if (requestedPartySize !== undefined) {
+      parts.push(`${requestedPartySize} spot${requestedPartySize === 1 ? '' : 's'}`)
+    }
+    if (requestedDayPassName) {
+      parts.push(`— ${requestedDayPassName}`)
+    } else if (requestedHousingLabel) {
+      parts.push(`— ${requestedHousingLabel}`)
+    }
+    return parts.join(' ')
+  }
+
+  const offerSummary = describeOffer()
+  const requestSummary = describeRequest()
+
+  const counterOfferBlock = isCounterOffer && requestSummary
+    ? emailInfoBox(`
+        <strong>We're offering something a little different than what you asked for.</strong><br><br>
+        <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">You asked for</div>
+        <div style="font-weight: 500; margin-bottom: 12px;">${requestSummary}</div>
+        <div style="font-size: 12px; color: #1E3A5F; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">We're offering</div>
+        <div style="font-weight: 600; color: #1E3A5F;">${offerSummary}</div>
+        <p style="margin: 12px 0 0 0; font-size: 13px; color: #666;">
+          If this works, tap Register below and complete your registration for these exact numbers.
+          If it doesn't work, open the link and tap "This offer doesn't work" — you'll go back on the waitlist without losing your place.
+        </p>
+      `, 'warning')
+    : ''
+
+  const primaryOfferBlock = !counterOfferBlock
+    ? emailInfoBox(`
+        <strong>You've been invited to register!</strong><br>
+        We have <strong>${offerSummary}</strong> reserved for you.
+        ${expiresIn ? ` Please complete your registration within ${expiresIn}.` : ''}
+      `, 'success')
+    : ''
+
   return wrapEmail(`
     <h1>A Spot is Available!</h1>
 
@@ -2236,11 +2335,8 @@ export function generateWaitlistInvitationEmail({
 
     <p>Great news! A spot has opened up for <strong>${eventName}</strong>, and you're next in line!</p>
 
-    ${emailInfoBox(`
-      <strong>You have been invited to register!</strong><br>
-      ${partySize > 1 ? `We have ${partySize} spots reserved for you.` : 'Your spot is reserved.'}
-      ${expiresIn ? ` Please complete your registration within ${expiresIn}.` : ''}
-    `, 'success')}
+    ${counterOfferBlock}
+    ${primaryOfferBlock}
 
     <div style="text-align: center; margin: 30px 0;">
       ${emailButton('Register Now', registrationUrl, 'primary')}
@@ -2248,9 +2344,9 @@ export function generateWaitlistInvitationEmail({
 
     <h2>Important Notes</h2>
     <ul>
-      <li><strong>Don't wait</strong> - this invitation is time-sensitive</li>
-      <li><strong>Complete your registration</strong> to secure your spot</li>
-      <li>If you no longer wish to attend, simply ignore this email and the spot will go to the next person</li>
+      <li><strong>Don't wait</strong> — this invitation is time-sensitive.</li>
+      <li>Your registration must be for <strong>exactly ${offerSummary}</strong>. If the numbers or option don't work, reply to the organizer or decline via the registration page.</li>
+      <li>If you no longer wish to attend, simply ignore this email and the spot will go to the next person.</li>
     </ul>
 
     ${expiresIn ? emailInfoBox(`
@@ -2262,7 +2358,7 @@ export function generateWaitlistInvitationEmail({
     <p style="font-size: 14px; color: #666;">
       — ${organizationName}
     </p>
-  `, { organizationName, preheader: `A spot opened up for ${eventName} - Register now!` })
+  `, { organizationName, preheader: `${offerSummary} reserved for ${eventName} — register within ${expiresIn ?? '48 hours'}` })
 }
 
 export function generateGroupRegistrationConfirmationEmail({

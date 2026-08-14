@@ -385,10 +385,51 @@ export async function POST(
       )
     }
 
-    // Send invitation email with token URL
+    // Send invitation email with token URL. Feed BOTH what was reserved
+    // (offered) and what the person originally requested — the template
+    // shows a comparison when they differ (counter-offer case) so the
+    // invitee isn't surprised at the registration form.
     const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
     const registrationUrl = `${APP_URL}/waitlist/register/${registrationToken}`
     let emailSent = false
+
+    // Resolve day-pass option names for the email copy (offered + requested).
+    const dayPassIdsToLookup = Array.from(
+      new Set(
+        [reservedDayPassOptionId, entry.preferredDayPassOptionId].filter(
+          (v): v is string => !!v
+        )
+      )
+    )
+    const dayPassNameById = new Map<string, string>()
+    if (dayPassIdsToLookup.length > 0) {
+      const dpOptions = await prisma.dayPassOption.findMany({
+        where: { id: { in: dayPassIdsToLookup } },
+        select: { id: true, name: true },
+      })
+      for (const dp of dpOptions) dayPassNameById.set(dp.id, dp.name)
+    }
+
+    const housingLabel = (h: HousingType | null): string | null =>
+      h === 'on_campus'
+        ? 'On-Campus'
+        : h === 'off_campus'
+        ? 'Off-Campus'
+        : h === 'day_pass'
+        ? 'Day Pass'
+        : null
+
+    // If admin used the counter-offer path the reserved values differ from
+    // preferred — surface that in the email.
+    const isCounterOffer =
+      spotsNeeded !== entry.partySize ||
+      offeredYouth !== (entry.youthCount ?? 0) ||
+      offeredChaperone !== (entry.chaperoneCount ?? 0) ||
+      offeredPriest !== (entry.priestCount ?? 0) ||
+      (reservedHousingType ?? null) !==
+        ((entry.preferredHousingType as HousingType | null) ?? null) ||
+      (reservedDayPassOptionId ?? null) !==
+        (entry.preferredDayPassOptionId ?? null)
 
     try {
       const emailHtml = generateWaitlistInvitationEmail({
@@ -398,6 +439,24 @@ export async function POST(
         organizationName: entry.event.organization.name,
         registrationUrl,
         expiresIn: '48 hours',
+        offeredPartySize: spotsNeeded,
+        offeredYouth: entry.registrationType === 'group' ? offeredYouth : null,
+        offeredChaperones:
+          entry.registrationType === 'group' ? offeredChaperone : null,
+        offeredPriests:
+          entry.registrationType === 'group' ? offeredPriest : null,
+        offeredHousingLabel: housingLabel(reservedHousingType),
+        offeredDayPassName: reservedDayPassOptionId
+          ? dayPassNameById.get(reservedDayPassOptionId) ?? null
+          : null,
+        requestedPartySize: entry.partySize,
+        requestedHousingLabel: housingLabel(
+          (entry.preferredHousingType as HousingType | null) ?? null
+        ),
+        requestedDayPassName: entry.preferredDayPassOptionId
+          ? dayPassNameById.get(entry.preferredDayPassOptionId) ?? null
+          : null,
+        isCounterOffer,
       })
 
       await resend.emails.send({

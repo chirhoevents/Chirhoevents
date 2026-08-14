@@ -56,9 +56,11 @@ export async function GET() {
     // Get the effective org ID (handles impersonation)
     const organizationId = await getEffectiveOrgId(user as any)
 
-    // Get all group leaders across all events for this organization
+    // Get all group leaders across all events for this organization.
+    // Filter out cancelled registrations so we don't email people who
+    // aren't coming — that's the exact reason cancelled entries exist.
     const groupRegistrations = await prisma.groupRegistration.findMany({
-      where: { organizationId: organizationId },
+      where: { organizationId: organizationId, cancelledAt: null } as any,
       include: {
         event: {
           select: {
@@ -74,9 +76,9 @@ export async function GET() {
       ],
     })
 
-    // Also get individual registrations
+    // Also get individual registrations (cancelled excluded, same reason).
     const individualRegistrations = await prisma.individualRegistration.findMany({
-      where: { organizationId: organizationId },
+      where: { organizationId: organizationId, cancelledAt: null } as any,
       include: {
         event: {
           select: {
@@ -165,8 +167,10 @@ export async function POST(request: NextRequest) {
     let groupRegistrations: any[] = []
 
     if (recipientType === 'all_group_leaders') {
+      // Cancelled registrations don't get bulk emails — filter them out here
+      // so the admin doesn't accidentally spam people who aren't coming.
       groupRegistrations = await prisma.groupRegistration.findMany({
-        where: { organizationId: organizationId },
+        where: { organizationId: organizationId, cancelledAt: null } as any,
         include: {
           event: {
             select: {
@@ -179,11 +183,15 @@ export async function POST(request: NextRequest) {
         },
       })
     } else if (selectedRecipients && selectedRecipients.length > 0) {
+      // Even if the admin explicitly selected a cancelled registration in
+      // the UI, guard against re-emailing them — the intent of cancel is
+      // "don't include this person anymore."
       groupRegistrations = await prisma.groupRegistration.findMany({
         where: {
           organizationId: organizationId,
           id: { in: selectedRecipients },
-        },
+          cancelledAt: null,
+        } as any,
         include: {
           event: {
             select: {
