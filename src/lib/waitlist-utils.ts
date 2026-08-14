@@ -146,6 +146,9 @@ export async function validateWaitlistToken(token: string): Promise<{
     partySize: number
     eventId: string
     reservedSpots: number | null
+    reservedYouthCount: number | null
+    reservedChaperoneCount: number | null
+    reservedPriestCount: number | null
     preferredHousingType: HousingType | null
     preferredRoomType: RoomType | null
     preferredDayPassOptionId: string | null
@@ -198,6 +201,9 @@ export async function validateWaitlistToken(token: string): Promise<{
         partySize: entry.partySize,
         eventId: entry.eventId,
         reservedSpots: (entry as any).reservedSpots ?? null,
+        reservedYouthCount: (entry as any).reservedYouthCount ?? null,
+        reservedChaperoneCount: (entry as any).reservedChaperoneCount ?? null,
+        reservedPriestCount: (entry as any).reservedPriestCount ?? null,
         preferredHousingType,
         preferredRoomType,
         preferredDayPassOptionId,

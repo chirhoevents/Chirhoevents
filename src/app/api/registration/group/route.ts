@@ -196,6 +196,40 @@ export async function POST(request: NextRequest) {
         )
       }
 
+      // Party-size + mix enforcement. An invitee got seats reserved for
+      // a specific total (and, for group entries with a mix, a specific
+      // youth/chaperone/priest split). Without this check, one invited
+      // group could register more people than they were offered and eat
+      // seats reserved for other invited groups.
+      const invitedTotal = (youthCount || 0) + (chaperoneCount || 0) + (priestCount || 0)
+      const offeredTotal = wl.reservedSpots ?? 0
+      if (offeredTotal > 0 && invitedTotal !== offeredTotal) {
+        return NextResponse.json(
+          {
+            error: `Your waitlist invitation was for ${offeredTotal} spot${offeredTotal === 1 ? '' : 's'}, but this registration is for ${invitedTotal}. Please register for exactly ${offeredTotal}, or contact the organizer to change your invitation.`,
+          },
+          { status: 400 }
+        )
+      }
+      if (
+        wl.reservedYouthCount !== null &&
+        wl.reservedChaperoneCount !== null &&
+        wl.reservedPriestCount !== null
+      ) {
+        if (
+          youthCount !== wl.reservedYouthCount ||
+          chaperoneCount !== wl.reservedChaperoneCount ||
+          priestCount !== wl.reservedPriestCount
+        ) {
+          return NextResponse.json(
+            {
+              error: `Your waitlist invitation was for ${wl.reservedYouthCount} youth + ${wl.reservedChaperoneCount} chaperone${wl.reservedChaperoneCount === 1 ? '' : 's'} + ${wl.reservedPriestCount} priest${wl.reservedPriestCount === 1 ? '' : 's'}. Please register for the exact mix, or contact the organizer to change your invitation.`,
+            },
+            { status: 400 }
+          )
+        }
+      }
+
       waitlistBypass = true
       waitlistReservedSpots = wl.reservedSpots ?? 0
       waitlistOptionReserved = !!wl.reservedHousingType
