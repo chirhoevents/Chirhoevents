@@ -537,6 +537,12 @@ model GroupRegistration {
   overriddenBy               String?   @map("overridden_by") @db.Uuid
   overriddenAt               DateTime? @map("overridden_at") @db.Timestamptz(6)
   overrideReason             String?   @map("override_reason") @db.Text
+  // Cancellation (soft-delete). cancelledAt IS NULL = active registration.
+  // Cancelled rows are kept for payment / liability form / audit history but
+  // are excluded from bulk email, default registration lists, and reports.
+  cancelledAt                DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelledByUserId          String?   @map("cancelled_by_user_id") @db.Uuid
+  cancellationReason         String?   @map("cancellation_reason") @db.Text
 
   // Relations
   event          Event           @relation(fields: [eventId], references: [id])
@@ -605,6 +611,10 @@ model IndividualRegistration {
   overriddenBy              String?  @map("overridden_by") @db.Uuid
   overriddenAt              DateTime? @map("overridden_at") @db.Timestamptz(6)
   overrideReason            String?  @map("override_reason") @db.Text
+  // Cancellation (soft-delete). cancelledAt IS NULL = active registration.
+  cancelledAt               DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelledByUserId         String?   @map("cancelled_by_user_id") @db.Uuid
+  cancellationReason        String?   @map("cancellation_reason") @db.Text
 
   // Relations
   event         Event        @relation(fields: [eventId], references: [id])

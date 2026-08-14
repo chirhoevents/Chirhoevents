@@ -25,11 +25,23 @@ export async function GET(
 
     console.log('[GET Event Registrations] Fetching registrations for event:', event?.name)
 
+    // Cancellation filter: default is Active-only. UI can pass
+    // ?include=cancelled to also include soft-cancelled rows in the same
+    // response (so the "Cancelled" tab can render them), or ?include=all.
+    const includeParam = request.nextUrl.searchParams.get('include') || 'active'
+    const cancelledWhere =
+      includeParam === 'cancelled'
+        ? { cancelledAt: { not: null } as any }
+        : includeParam === 'all'
+        ? {}
+        : { cancelledAt: null as any }
+
     // Fetch registrations with payment data - filter by organizationId for security
     const groupRegistrations = await prisma.groupRegistration.findMany({
       where: {
         eventId: eventId,
         organizationId: effectiveOrgId,
+        ...cancelledWhere,
       },
       include: {
         participants: {
@@ -48,6 +60,7 @@ export async function GET(
       where: {
         eventId: eventId,
         organizationId: effectiveOrgId,
+        ...cancelledWhere,
       },
       include: {
         liabilityForms: {
@@ -126,6 +139,8 @@ export async function GET(
         paymentStatus: payment?.paymentStatus || 'pending',
         formsCompleted: completedForms,
         formsTotal: headcount,
+        cancelledAt: reg.cancelledAt ? reg.cancelledAt.toISOString() : null,
+        cancellationReason: reg.cancellationReason,
       }
     })
 
@@ -177,6 +192,8 @@ export async function GET(
         paymentStatus: payment?.paymentStatus || 'pending',
         formStatus,
         confirmationCode: reg.confirmationCode,
+        cancelledAt: reg.cancelledAt ? reg.cancelledAt.toISOString() : null,
+        cancellationReason: reg.cancellationReason,
       }
     })
 
