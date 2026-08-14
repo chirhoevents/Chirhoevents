@@ -545,8 +545,10 @@ export default function GroupRegistrationPage() {
     )
   }
 
-  // Check if registration is not open
-  if (event && event.isRegistrationOpen === false) {
+  // Check if registration is not open — but skip this gate when the visitor
+  // is arriving with a valid waitlist token. Their invitation IS the bypass;
+  // the API-level token check still enforces validity + expiry + option match.
+  if (event && event.isRegistrationOpen === false && !waitlistToken) {
     const now = new Date()
     const openDate = event.registrationOpenDate ? new Date(event.registrationOpenDate) : null
     const closeDate = event.registrationCloseDate ? new Date(event.registrationCloseDate) : null
