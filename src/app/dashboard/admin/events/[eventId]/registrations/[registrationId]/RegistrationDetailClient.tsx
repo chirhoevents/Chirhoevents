@@ -265,7 +265,13 @@ export default function RegistrationDetailClient({
           body: JSON.stringify({
             type: registration.type,
             reason: cancelReason || 'Cancelled by admin',
-            hardDelete: true,
+            // Soft cancel: mark the row as cancelled, restore capacity, keep
+            // payments / liability forms / participants intact. The row still
+            // shows up in the "Cancelled" tab but is excluded from bulk email
+            // and the default Active list. Set hardDelete: true only when the
+            // admin explicitly wants to wipe every trace — currently not
+            // exposed in the UI.
+            hardDelete: false,
           }),
         }
       )
