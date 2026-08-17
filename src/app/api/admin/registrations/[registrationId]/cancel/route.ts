@@ -192,7 +192,20 @@ export async function POST(
       // Hard delete - remove from database. Use this rarely; the default
       // soft-cancel keeps payment / liability / participant history.
       if (type === 'group') {
-        // First delete related records
+        // Clean up child rows in FK order — SafeEnvironmentCertificate
+        // has a required FK to Participant, so it must go first or the
+        // participant delete crashes with P2003 (as seen in production
+        // when hardDelete was accidentally being sent from the UI).
+        const groupParticipants = await prisma.participant.findMany({
+          where: { groupRegistrationId: registrationId },
+          select: { id: true },
+        })
+        const participantIds = groupParticipants.map((p) => p.id)
+        if (participantIds.length > 0) {
+          await prisma.safeEnvironmentCertificate.deleteMany({
+            where: { participantId: { in: participantIds } },
+          })
+        }
         await prisma.participant.deleteMany({
           where: { groupRegistrationId: registrationId },
         })
