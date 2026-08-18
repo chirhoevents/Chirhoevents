@@ -8,10 +8,14 @@ echo "Running pre-migration cleanup..."
 
 # Create a temp SQL file for the pre-prisma cleanup
 cat > /tmp/pre-cleanup.sql << 'SQLEOF'
--- Drop orphaned waitlist constraint if it exists
+-- Drop orphaned unique constraint / index left behind by an old schema.
+-- Idempotent — safe to keep running. DO NOT re-add the DROP COLUMN for
+-- registration_token here: the column IS in the current schema (used by
+-- waitlist invite tokens). Dropping it every deploy silently invalidated
+-- every outstanding waitlist invitation (all tokens wiped, links 404),
+-- which is exactly the bug Catherine hit with Maria Sousa on Aug 18.
 ALTER TABLE "waitlist_entries" DROP CONSTRAINT IF EXISTS "waitlist_entries_registration_token_key";
 DROP INDEX IF EXISTS "waitlist_entries_registration_token_key";
-ALTER TABLE "waitlist_entries" DROP COLUMN IF EXISTS "registration_token";
 
 -- Add salve_packet_settings column to event_settings if it doesn't exist
 DO $$
