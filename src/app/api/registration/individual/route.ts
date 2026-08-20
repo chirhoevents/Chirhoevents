@@ -633,7 +633,7 @@ export async function POST(request: NextRequest) {
                 <h3 style="color: #92400E; margin-top: 0;">📋 Liability Form Required</h3>
                 <p style="color: #92400E; margin-bottom: 15px;">
                   ${body.age && body.age < 18
-                    ? 'Since you are under 18, a parent or guardian must complete and sign your liability form.'
+                    ? 'Since you are under 18, click below to enter your parent or guardian\'s email address. They will then receive their own separate email with a link to complete and sign the liability form on your behalf.'
                     : 'Please complete your liability form before the event.'}
                 </p>
                 <div style="text-align: center;">

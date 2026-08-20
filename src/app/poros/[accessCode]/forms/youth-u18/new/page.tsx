@@ -23,6 +23,8 @@ export default function YouthU18InitialForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
+  const [emailSent, setEmailSent] = useState(true)
+  const [parentLink, setParentLink] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -59,6 +61,9 @@ export default function YouthU18InitialForm() {
         throw new Error(errorData.error || 'Failed to send form to parent')
       }
 
+      const data = await response.json()
+      setEmailSent(data.email_sent !== false)
+      setParentLink(data.parent_link || null)
       setSubmitted(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit form. Please try again.')
@@ -93,21 +98,39 @@ export default function YouthU18InitialForm() {
                 </svg>
               </div>
 
-              <h1 className="text-3xl font-bold text-navy mb-3">✅ Email Sent!</h1>
-              <p className="text-lg text-gray-700 mb-6">
-                We&apos;ve sent an email to <strong>{formData.parentEmail}</strong> with a link to complete your form.
-              </p>
+              {emailSent ? (
+                <>
+                  <h1 className="text-3xl font-bold text-navy mb-3">✅ Step 1 Complete — Step 2 Is On Its Way</h1>
+                  <p className="text-lg text-gray-700 mb-6">
+                    We&apos;ve sent an email to <strong>{formData.parentEmail}</strong> to finish your liability form.
+                    Your registration isn&apos;t complete until they do.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h1 className="text-3xl font-bold text-navy mb-3">Form Saved — Email Didn&apos;t Send</h1>
+                  <p className="text-lg text-gray-700 mb-6">
+                    We saved your info, but the email to <strong>{formData.parentEmail}</strong> failed to send.
+                    Please share this link with your parent/guardian directly:
+                  </p>
+                  {parentLink && (
+                    <p className="bg-gray-100 rounded-lg p-3 mb-6 text-sm break-all text-navy font-medium">
+                      {parentLink}
+                    </p>
+                  )}
+                </>
+              )}
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8 text-left">
                 <h3 className="font-semibold text-navy mb-3">What happens next?</h3>
                 <ol className="space-y-2 text-gray-700">
                   <li className="flex items-start">
                     <span className="font-bold text-blue-600 mr-2">1.</span>
-                    <span>Your parent clicks the link in the email</span>
+                    <span>Your parent {emailSent ? 'clicks the link in the email' : 'opens the link above'}</span>
                   </li>
                   <li className="flex items-start">
                     <span className="font-bold text-blue-600 mr-2">2.</span>
-                    <span>They complete medical info, emergency contacts, and sign</span>
+                    <span>They complete insurance, allergies/medical info, emergency contacts, and sign the waiver</span>
                   </li>
                   <li className="flex items-start">
                     <span className="font-bold text-blue-600 mr-2">3.</span>
@@ -116,9 +139,11 @@ export default function YouthU18InitialForm() {
                 </ol>
               </div>
 
-              <p className="text-sm text-gray-600 mb-6">
-                Your parent should receive the email within a few minutes. If they don&apos;t see it, ask them to check their spam folder.
-              </p>
+              {emailSent && (
+                <p className="text-sm text-gray-600 mb-6">
+                  Your parent should receive the email within a few minutes. If they don&apos;t see it, ask them to check their spam folder.
+                </p>
+              )}
 
               <button
                 onClick={() => router.push(`/poros/${accessCode}`)}
@@ -162,16 +187,19 @@ export default function YouthU18InitialForm() {
           </button>
 
           <div className="bg-white rounded-lg shadow-lg p-8">
+            <p className="text-sm font-semibold text-amber-700 uppercase tracking-wide mb-1">Step 1 of 2</p>
             <h1 className="text-3xl font-bold text-navy mb-2">Youth Under 18 Liability Form</h1>
-            <p className="text-gray-600 mb-6">Fill out your basic information below</p>
+            <p className="text-gray-600 mb-6">This page only covers your basic information — it is not the complete form.</p>
 
-            <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-8">
+            <div className="bg-amber-50 border-l-4 border-amber-500 p-4 mb-8">
               <div className="flex items-start">
-                <svg className="h-5 w-5 text-blue-600 mt-0.5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="h-5 w-5 text-amber-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                 </svg>
-                <p className="text-sm text-blue-800">
-                  Your parent/guardian will receive an email to complete the medical and consent sections of this form
+                <p className="text-sm text-amber-900">
+                  <strong>This form is not finished after you submit this page.</strong> Submitting only sends a
+                  link to your parent/guardian — they still need to complete the insurance, allergies/medical,
+                  emergency contact, and waiver/signature sections before your registration is complete.
                 </p>
               </div>
             </div>
@@ -299,7 +327,8 @@ export default function YouthU18InitialForm() {
                   placeholder="parent@example.com"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  They will receive an email with a link to complete the form
+                  They will receive an email with a link to finish the form — including insurance,
+                  allergies/medical info, and the signed waiver.
                 </p>
               </div>
 
@@ -314,7 +343,7 @@ export default function YouthU18InitialForm() {
                 disabled={loading}
                 className="w-full bg-navy text-white py-3 px-6 rounded-lg text-lg font-semibold hover:bg-navy/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Sending...' : 'Send to Parent'}
+                {loading ? 'Sending...' : 'Submit & Email Parent for Step 2'}
               </button>
             </form>
           </div>
