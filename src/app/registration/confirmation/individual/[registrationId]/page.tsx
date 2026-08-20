@@ -12,6 +12,7 @@ interface RegistrationData {
   firstName: string
   lastName: string
   email: string
+  age?: number | null
   qrCode: string
   housingType: string
   roomType?: string
@@ -90,6 +91,7 @@ export default function IndividualConfirmationPage() {
 
   const isPending = registration.paymentStatus === 'pending_check_payment' ||
                     registration.registrationStatus === 'pending_payment'
+  const isMinor = registration.age != null && registration.age < 18
 
   return (
     <div className="min-h-screen bg-beige py-12">
@@ -271,10 +273,18 @@ export default function IndividualConfirmationPage() {
                     </span>
                     <div>
                       <p className="font-semibold text-navy">Complete Your Liability Form</p>
-                      <p className="text-gray-600">
-                        You&apos;ll receive a separate email with instructions to complete your liability form.
-                        This is required before the event.
-                      </p>
+                      {isMinor ? (
+                        <p className="text-gray-600">
+                          Since you&apos;re under 18, the confirmation email includes a link where you&apos;ll enter your
+                          parent or guardian&apos;s email address. They&apos;ll then receive their own separate email
+                          with a link to complete and sign the liability form on your behalf. This is required before the event.
+                        </p>
+                      ) : (
+                        <p className="text-gray-600">
+                          You&apos;ll receive a separate email with instructions to complete your liability form.
+                          This is required before the event.
+                        </p>
+                      )}
                     </div>
                   </li>
                 )}
