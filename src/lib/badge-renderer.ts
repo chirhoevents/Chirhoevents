@@ -195,7 +195,7 @@ function fitScheduleToHeight(
   schedule: ScheduleEntry[],
   availableHeightPx: number,
   sizing: ScheduleSizing,
-  minScale = 0.55,
+  minScale = 0.1,
   maxScale = 1.8
 ): { scale: number; days: Map<string, ScheduleEntry[]>; hiddenCount: number } {
   const days = new Map<string, ScheduleEntry[]>()
@@ -205,13 +205,23 @@ function fitScheduleToHeight(
   }
   if (schedule.length === 0) return { scale: 1, days, hiddenCount: 0 }
 
-  // Scales both ways: a packed schedule shrinks to fit, a sparse one grows to
-  // fill the available space instead of leaving it small with blank space below.
+  // Scales both ways: a packed schedule shrinks to fit (this is a conference —
+  // it must fit, so the floor here is a near-zero sanity check, not a "give up
+  // and truncate" point), a sparse one grows to fill the available space
+  // instead of leaving it small with blank space below.
   const naturalHeight = days.size * sizing.dayHeaderPx + schedule.length * sizing.rowPx
-  const scale = Math.min(maxScale, Math.max(minScale, availableHeightPx / naturalHeight))
+  const rawScale = availableHeightPx / naturalHeight
 
-  // Even at the smallest readable size a very packed schedule may still not
-  // fit — trim entries so nothing gets cut off mid-row, and note what's left off.
+  // If shrinking alone gets everything to fit, stop here and don't trim —
+  // trimming based on unrounded per-row estimates against rounded rendered
+  // font sizes can disagree by a hair over dozens of rows and drop an entry
+  // that actually would have fit. Only fall through to trimming once even
+  // the near-zero floor genuinely isn't enough (a truly pathological count).
+  if (rawScale >= minScale) {
+    return { scale: Math.min(maxScale, rawScale), days, hiddenCount: 0 }
+  }
+
+  const scale = minScale
   const scaledDayHeaderPx = sizing.dayHeaderPx * scale
   const scaledRowPx = sizing.rowPx * scale
   const trimmed = new Map<string, ScheduleEntry[]>()
@@ -244,7 +254,7 @@ function renderScheduleBody(
   sizing: ScheduleSizing,
   colors: { headerColor: string; timeColor: string; locColor: string },
   empty: { message: string; paddingTop: string },
-  minScale = 0.55
+  minScale = 0.1
 ): string {
   const { scale, days, hiddenCount } = fitScheduleToHeight(schedule, availableHeightPx, sizing, minScale)
 
@@ -252,12 +262,15 @@ function renderScheduleBody(
     return `<div style="color:#aaa;text-align:center;padding-top:${empty.paddingTop};font-size:${sizing.titleFont}px;">${empty.message}</div>`
   }
 
-  const headerFont = Math.max(6, Math.round(sizing.headerFont * scale))
-  const timeFont = Math.max(5, Math.round(sizing.timeFont * scale))
-  const titleFont = Math.max(6, Math.round(sizing.titleFont * scale))
-  const timeWidth = Math.max(24, Math.round(sizing.timeWidth * scale))
-  const rowGap = Math.max(1, Math.round(sizing.rowGap * scale))
-  const dayGap = Math.max(2, Math.round(sizing.dayGap * scale))
+  // Floors track the same near-zero minScale above (not a higher "still
+  // legible" floor) so what's rendered always matches what fitScheduleToHeight
+  // budgeted for — a mismatch there is what would actually cause clipping.
+  const headerFont = Math.max(3, Math.round(sizing.headerFont * scale))
+  const timeFont = Math.max(3, Math.round(sizing.timeFont * scale))
+  const titleFont = Math.max(3, Math.round(sizing.titleFont * scale))
+  const timeWidth = Math.max(14, Math.round(sizing.timeWidth * scale))
+  const rowGap = Math.max(0, Math.round(sizing.rowGap * scale))
+  const dayGap = Math.max(1, Math.round(sizing.dayGap * scale))
 
   const dayBlocks = Array.from(days.entries()).map(([day, entries]) => {
     const rows = entries.map((e) => {
