@@ -53,6 +53,7 @@ const MEAL_COLOR_HEX: Record<string, string> = {
 }
 
 const SIZE_OPTIONS = [
+  { value: 'postcard_4up', label: 'Postcard Fold 4.25×5.5" (4/sheet)' },
   { value: 'duo_4x6', label: 'Fold-Over 4×6" (color, 2 pages)' },
   { value: 'thermal_4x12', label: 'Thermal 4×12"' },
   { value: 'badge_4x6', label: 'Standard 4×6"' },
@@ -251,7 +252,7 @@ export function ReprintBadgeModal({
       // For layouts with a back panel, we need the schedule.
       // Use the cached schedule from a prior reprint, or fetch it now.
       let schedule = cachedSchedule
-      if (!schedule.length && (effectiveTemplate.size === 'thermal_4x12' || effectiveTemplate.size === 'duo_4x6')) {
+      if (!schedule.length && (effectiveTemplate.size === 'thermal_4x12' || effectiveTemplate.size === 'duo_4x6' || effectiveTemplate.size === 'postcard_4up')) {
         try {
           const headers = await authHeaders()
           const res = await fetch(`/api/admin/events/${eventId}/salve/schedule`, { headers })

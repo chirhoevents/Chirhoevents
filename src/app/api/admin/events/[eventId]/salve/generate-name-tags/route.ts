@@ -144,7 +144,7 @@ export async function POST(
     // Schedule data — only fetched when the template uses a back-panel layout
     // -----------------------------------------------------------------------
     let schedule: any[] = []
-    if (templateConfig.size === 'thermal_4x12' || templateConfig.size === 'duo_4x6') {
+    if (templateConfig.size === 'thermal_4x12' || templateConfig.size === 'duo_4x6' || templateConfig.size === 'postcard_4up') {
       try {
         schedule = await prisma.porosScheduleEntry.findMany({
           where: { eventId },
