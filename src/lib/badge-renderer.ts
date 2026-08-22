@@ -524,43 +524,58 @@ function renderThermal4x12Badge(
 }
 
 // ---------------------------------------------------------------------------
-// Postcard front/back badge — 4.25"×5.5" cards, 2 badges (4 cards: front,
-// back, front, back) per Letter sheet in a 2×2 grid, matching the standard
-// Avery-style blank postcard template (e.g. Avery 8387 / 5389). Each card
-// prints full-size and single-sided; the sheet's built-in perforation
-// separates them into 4 individual cards, and each front/back pair is then
-// paired up in a badge holder. The front/back/front/back print order
-// mirrors the same sequence a continuous thermal fanfold roll would
-// produce — just pre-cut into 2 badges per sheet instead of one long strip.
+// Postcard front/back badge — 4.25"×5.5" cards, 2 badges (4 cards) per
+// Letter sheet in a 2×2 grid, matching the standard Avery-style blank
+// postcard template (e.g. Avery 8387 / 5389). Front card sits directly
+// above its matching back/schedule card in the same column; the sheet's
+// built-in perforation separates all four cards, and each front/back pair
+// is then glued or taped together back-to-back into one two-sided badge.
+// The back is printed rotated 180° — same trick the thermal roll uses —
+// so flipping it up-and-over (top-to-bottom, like turning a page) to place
+// it behind the front card makes the schedule read right-side up.
+// Every edge of every card is a cut line, so content stays well inset
+// from all four edges rather than just the seam between columns.
 // ---------------------------------------------------------------------------
+
+const POSTCARD_SAFE_INSET = '0.28in'
 
 function renderPostcardFrontCard(tag: NameTagData, t: BadgeTemplate, header: string): string {
   const { bg, text, accent } = effectiveColors(t)
   const hasBanner = t.showHeaderBanner && !!t.headerBannerUrl
 
   const headerSection = hasBanner
-    ? `<div style="width:4.25in;height:1.8in;flex-shrink:0;"><img src="${t.headerBannerUrl}" style="width:100%;height:100%;object-fit:cover;" alt="" /></div>`
+    ? `<div style="width:4.25in;height:1.5in;flex-shrink:0;"><img src="${t.headerBannerUrl}" style="width:100%;height:100%;object-fit:cover;" alt="" /></div>`
     : `<div style="
-         height:1.8in;flex-shrink:0;display:flex;flex-direction:column;
+         height:1.5in;flex-shrink:0;display:flex;flex-direction:column;
          justify-content:center;align-items:center;
          background:${t.thermalMode ? '#eee' : `linear-gradient(135deg,${accent} 0%,${text} 100%)`};
          color:${t.thermalMode ? '#000' : 'white'};
        ">
-         ${t.showLogo && t.logoUrl ? `<img src="${t.logoUrl}" style="max-height:50px;max-width:80%;margin-bottom:8px;" alt="" />` : ''}
-         ${t.showConferenceHeader && header ? `<div style="font-size:18px;font-weight:bold;text-align:center;padding:0 16px;">${escapeHtml(header)}</div>` : ''}
+         ${t.showLogo && t.logoUrl ? `<img src="${t.logoUrl}" style="max-height:44px;max-width:80%;margin-bottom:8px;" alt="" />` : ''}
+         ${t.showConferenceHeader && header ? `<div style="font-size:17px;font-weight:bold;text-align:center;padding:0 16px;">${escapeHtml(header)}</div>` : ''}
        </div>`
 
   const labelStyle = t.thermalMode
-    ? `display:inline-block;border:1.5px solid #000;color:#000;background:none;padding:5px 14px;border-radius:6px;font-size:12px;font-weight:600;margin-top:6px;`
-    : `display:inline-block;background-color:${accent};color:white;padding:5px 14px;border-radius:6px;font-size:12px;font-weight:600;margin-top:6px;`
+    ? `display:inline-block;border:2px solid #000;color:#000;background:none;padding:6px 18px;border-radius:6px;font-size:14px;font-weight:700;margin-top:10px;`
+    : `display:inline-block;background-color:${accent};color:white;padding:6px 18px;border-radius:6px;font-size:14px;font-weight:700;margin-top:10px;`
 
-  const mealSection = (() => {
+  const mealBand = (() => {
     if (!t.showMealColor || !tag.mealColor) return ''
     if (t.thermalMode) {
-      const mealPx = mealLabelFontPx(tag.mealColor.name, 11, 7, 12)
-      return `<div style="text-align:center;font-size:${mealPx}px;font-weight:600;padding:3px 8px;border-top:1px solid #ccc;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Meal: ${escapeHtml(tag.mealColor.name)}</div>`
+      const mealPx = mealLabelFontPx(tag.mealColor.name, 16, 10, 12)
+      return `<div style="
+        text-align:center;font-size:${mealPx}px;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;
+        border-top:2px solid #000;border-bottom:2px solid #000;padding:8px ${POSTCARD_SAFE_INSET};
+        margin:10px 0 0;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+      ">Meal: ${escapeHtml(tag.mealColor.name)}</div>`
     }
-    return `<div style="position:absolute;bottom:0;left:0;right:0;height:12px;background-color:${tag.mealColor.hex};"></div>`
+    const mealPx = parseInt(fitFontSize(tag.mealColor.name, 24, 14, 10))
+    return `<div style="
+      background-color:${tag.mealColor.hex};color:#fff;text-align:center;font-weight:800;
+      font-size:${mealPx}px;letter-spacing:0.06em;text-transform:uppercase;
+      padding:12px ${POSTCARD_SAFE_INSET};margin:12px 0 0;box-sizing:border-box;
+      text-shadow:0 1px 2px rgba(0,0,0,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    ">${escapeHtml(tag.mealColor.name)}</div>`
   })()
 
   return `
@@ -570,17 +585,17 @@ function renderPostcardFrontCard(tag: NameTagData, t: BadgeTemplate, header: str
       position:relative;overflow:hidden;
     ">
       ${headerSection}
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:10px 20px;min-width:0;overflow:hidden;">
-        ${t.showName ? `<div style="font-size:${fitFontSize(`${tag.firstName} ${tag.lastName}`, 30, 16, 16)};font-weight:bold;word-break:break-word;max-width:100%;">${escapeHtml(tag.firstName)} ${escapeHtml(tag.lastName)}</div>` : ''}
-        ${t.showGroup ? `<div style="font-size:${fitFontSize(tag.groupName, 16, 10, 22)};color:#666;margin-top:4px;word-break:break-word;max-width:100%;">${escapeHtml(tag.groupName)}</div>` : ''}
-        ${t.showDiocese && tag.diocese ? `<div style="font-size:12px;color:#888;word-break:break-word;max-width:100%;">${escapeHtml(tag.diocese)}</div>` : ''}
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:14px ${POSTCARD_SAFE_INSET} 0;min-width:0;overflow:hidden;">
+        ${t.showName ? `<div style="font-size:${fitFontSize(`${tag.firstName} ${tag.lastName}`, 40, 22, 14)};font-weight:bold;line-height:1.15;word-break:break-word;max-width:100%;">${escapeHtml(tag.firstName)} ${escapeHtml(tag.lastName)}</div>` : ''}
+        ${t.showGroup ? `<div style="font-size:${fitFontSize(tag.groupName, 20, 13, 20)};color:#666;margin-top:6px;word-break:break-word;max-width:100%;">${escapeHtml(tag.groupName)}</div>` : ''}
+        ${t.showDiocese && tag.diocese ? `<div style="font-size:14px;color:#888;margin-top:2px;word-break:break-word;max-width:100%;">${escapeHtml(tag.diocese)}</div>` : ''}
         ${t.showParticipantType ? `<div style="${labelStyle}">${participantLabel(tag)}</div>` : ''}
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:flex-end;padding:6px 16px 12px;flex-shrink:0;">
-        ${t.showHousing && tag.housing ? `<div style="font-size:10px;text-align:left;flex:1;word-break:break-word;"><strong>Housing:</strong> ${escapeHtml(tag.housing.fullLocation)}</div>` : '<div></div>'}
-        ${t.showQrCode && tag.qrCode ? `<img src="${tag.qrCode}" style="width:48px;height:48px;flex-shrink:0;" alt="" />` : ''}
+      ${mealBand}
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;padding:14px ${POSTCARD_SAFE_INSET} 0.3in;flex-shrink:0;gap:12px;">
+        ${t.showHousing && tag.housing ? `<div style="font-size:13px;text-align:left;flex:1;word-break:break-word;line-height:1.4;"><strong>Housing:</strong> ${escapeHtml(tag.housing.fullLocation)}</div>` : '<div></div>'}
+        ${t.showQrCode && tag.qrCode ? `<img src="${tag.qrCode}" style="width:60px;height:60px;flex-shrink:0;" alt="" />` : ''}
       </div>
-      ${mealSection}
     </div>`
 }
 
@@ -593,41 +608,44 @@ function renderPostcardBackCard(schedule: ScheduleEntry[], t: BadgeTemplate): st
     locColor: useColor ? '#888888' : '#555555',
   }
 
-  // ~5.5in tall card minus its own top/bottom padding (16px each)
+  // ~5.5in tall card minus its own top/bottom padding (0.28in each = ~27px)
   const body = renderScheduleBody(
     schedule,
-    496,
-    { dayHeaderPx: 26, rowPx: 15, headerFont: 10, timeFont: 9, titleFont: 10, timeWidth: 56, rowGap: 3, dayGap: 9 },
+    474,
+    { dayHeaderPx: 27, rowPx: 16, headerFont: 11, timeFont: 10, titleFont: 11, timeWidth: 60, rowGap: 3, dayGap: 9 },
     colors,
     { message: 'No schedule available', paddingTop: '35%' }
   )
 
   return `<div style="
     width:4.25in;height:5.5in;background:#fff;color:#111;
-    padding:16px 18px;box-sizing:border-box;overflow:hidden;
+    padding:${POSTCARD_SAFE_INSET};box-sizing:border-box;overflow:hidden;
     font-family:Arial,Helvetica,sans-serif;
   ">${body}</div>`
 }
 
 function renderPostcardPage(tags: NameTagData[], t: BadgeTemplate, header: string, schedule: ScheduleEntry[]): string {
-  const cells: string[] = []
-  for (const tag of tags) {
+  const blankCell = '<div style="width:4.25in;height:5.5in;background:#fff;"></div>'
+  const frontCells: string[] = []
+  const backCells: string[] = []
+
+  for (const tag of tags.slice(0, 2)) {
     const frontTemplate = tag.mealColor ? { ...t, showMealColor: true } : t
-    cells.push(renderPostcardFrontCard(tag, frontTemplate, header))
-    cells.push(
-      t.showBackPanel !== false
-        ? renderPostcardBackCard(schedule, t)
-        : `<div style="width:4.25in;height:5.5in;background:#fff;"></div>`
-    )
+    frontCells.push(renderPostcardFrontCard(tag, frontTemplate, header))
+
+    const backContent = t.showBackPanel !== false
+      ? renderPostcardBackCard(schedule, t)
+      : `<div style="width:4.25in;height:5.5in;background:#fff;"></div>`
+    backCells.push(`<div style="width:4.25in;height:5.5in;overflow:hidden;transform:rotate(180deg);transform-origin:center center;">${backContent}</div>`)
   }
-  const blanks = Array(Math.max(0, 4 - cells.length))
-    .fill('<div style="width:4.25in;height:5.5in;"></div>')
-    .join('')
+  while (frontCells.length < 2) frontCells.push(blankCell)
+  while (backCells.length < 2) backCells.push(blankCell)
+
   return `<div style="
     width:8.5in;height:11in;display:grid;
     grid-template-columns:4.25in 4.25in;grid-template-rows:5.5in 5.5in;
     page-break-after:always;
-  ">${cells.join('')}${blanks}</div>`
+  ">${frontCells.join('')}${backCells.join('')}</div>`
 }
 
 // ---------------------------------------------------------------------------
@@ -810,9 +828,10 @@ export function generatePreviewHTML(
     case 'postcard_4up': {
       const frontTemplate = tag.mealColor ? { ...template, showMealColor: true } : template
       const front = renderPostcardFrontCard(tag, frontTemplate, header)
-      const back = template.showBackPanel !== false
+      const backContent = template.showBackPanel !== false
         ? renderPostcardBackCard(schedule, template)
         : `<div style="width:4.25in;height:5.5in;background:#fff;"></div>`
+      const back = `<div style="width:4.25in;height:5.5in;overflow:hidden;transform:rotate(180deg);transform-origin:center center;">${backContent}</div>`
       inner = `${front}${back}`
       break
     }
