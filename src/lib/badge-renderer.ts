@@ -359,7 +359,7 @@ function renderStandardBadge(tag: NameTagData, t: BadgeTemplate, header: string)
 // 4×6 badge layout  (one per page)
 // ---------------------------------------------------------------------------
 
-function render4x6Badge(tag: NameTagData, t: BadgeTemplate, header: string): string {
+function render4x6Badge(tag: NameTagData, t: BadgeTemplate, header: string, showBorder = true): string {
   const { bg, text, accent } = effectiveColors(t)
   const has4x6Banner = t.showHeaderBanner && !!t.headerBannerUrl
 
@@ -394,6 +394,7 @@ function render4x6Badge(tag: NameTagData, t: BadgeTemplate, header: string): str
   return `
     <div style="
       width:4in;height:6in;background-color:${bg};color:${text};
+      ${showBorder ? `box-shadow:inset 0 0 0 3px ${accent};` : ''}
       page-break-after:always;position:relative;overflow:hidden;
       display:flex;flex-direction:column;
     ">
@@ -510,6 +511,7 @@ function renderScheduleBackPage(schedule: ScheduleEntry[], t: BadgeTemplate): st
 
   return `<div style="
     width:4in;height:6in;background:#fff;color:#111;
+    box-shadow:inset 0 0 0 3px ${accent};
     padding:18px 20px;box-sizing:border-box;
     font-family:Arial,Helvetica,sans-serif;
     page-break-after:always;overflow:hidden;
@@ -538,11 +540,13 @@ function renderThermal4x12Badge(
   header: string,
   schedule: ScheduleEntry[]
 ): string {
-  const { bg } = effectiveColors(t)
+  const { bg, accent } = effectiveColors(t)
   // Always show meal color on thermal 4×12 when the group has one assigned —
   // the template toggle is for design preview; the operational badge should always include it.
   const frontTemplate = tag.mealColor ? { ...t, showMealColor: true } : t
-  const frontPanel = render4x6Badge(tag, frontTemplate, header)
+  // showBorder=false — the whole strip gets one border below instead of the
+  // front panel getting its own (which would draw a line right at the fold).
+  const frontPanel = render4x6Badge(tag, frontTemplate, header, false)
     .replace(/page-break-after:\s*always;/, '')
 
   const backContent = t.showBackPanel !== false
@@ -552,6 +556,7 @@ function renderThermal4x12Badge(
   return `
     <div style="
       width:4in;height:12in;background-color:${bg};
+      box-shadow:inset 0 0 0 3px ${accent};
       page-break-after:always;position:relative;overflow:hidden;
     ">
       <!-- Front panel (top 6 inches) -->
@@ -641,6 +646,7 @@ function renderPostcardFrontCard(tag: NameTagData, t: BadgeTemplate, header: str
   return `
     <div style="
       width:4.25in;height:5.5in;background-color:${bg};color:${text};
+      box-shadow:inset 0 0 0 3px ${accent};
       box-sizing:border-box;display:flex;flex-direction:column;
       position:relative;overflow:hidden;
     ">
@@ -683,6 +689,7 @@ function renderPostcardBackCard(schedule: ScheduleEntry[], t: BadgeTemplate, rot
   // mismatches in Chromium's print pipeline.
   return `<div style="
     width:4.25in;height:5.5in;background:#fff;color:#111;
+    box-shadow:inset 0 0 0 3px ${accent};
     padding:${POSTCARD_SAFE_INSET};box-sizing:border-box;overflow:hidden;
     font-family:Arial,Helvetica,sans-serif;
     ${rotate ? 'transform:rotate(180deg);transform-origin:center center;' : ''}
