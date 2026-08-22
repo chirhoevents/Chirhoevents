@@ -622,7 +622,7 @@ export function generateBadgesHTML(
   <meta charset="utf-8" />
   <title>Name Tags — Postcard Fold Badges</title>
   <style>
-    @page { size: letter; margin: 0; }
+    @page { size: letter portrait; margin: 0; }
     * { box-sizing: border-box; }
     body { margin: 0; padding: 0; font-family: ${ff}; }
   </style>
@@ -663,7 +663,7 @@ export function generateBadgesHTML(
   <meta charset="utf-8" />
   <title>Name Tags — Business Cards</title>
   <style>
-    @page { size: letter; margin: 0.5in; }
+    @page { size: letter portrait; margin: 0.5in; }
     * { box-sizing: border-box; }
     body { margin: 0; padding: 0; font-family: ${ff}; }
     .cards-grid {
@@ -688,7 +688,7 @@ export function generateBadgesHTML(
   <meta charset="utf-8" />
   <title>Name Tags</title>
   <style>
-    @page { size: letter; margin: 0.5in; }
+    @page { size: letter portrait; margin: 0.5in; }
     * { box-sizing: border-box; }
     body { margin: 0; padding: 0; font-family: ${ff}; }
     .name-tags-container { display: flex; flex-wrap: wrap; gap: 0.25in; }
