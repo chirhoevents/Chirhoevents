@@ -111,6 +111,119 @@ function effectiveColors(t: BadgeTemplate) {
 }
 
 // ---------------------------------------------------------------------------
+// Schedule auto-fit — shrinks (and, as a last resort, trims) the back-panel
+// schedule so it always fits its available height instead of getting clipped
+// or bleeding past the printable area, no matter how many entries there are.
+// ---------------------------------------------------------------------------
+
+interface ScheduleSizing {
+  dayHeaderPx: number // estimated vertical cost of one day header block (incl. spacing) at scale 1
+  rowPx: number        // estimated vertical cost of one schedule row (incl. spacing) at scale 1
+  headerFont: number
+  timeFont: number
+  titleFont: number
+  timeWidth: number
+  rowGap: number
+  dayGap: number
+}
+
+function fitScheduleToHeight(
+  schedule: ScheduleEntry[],
+  availableHeightPx: number,
+  sizing: ScheduleSizing,
+  minScale = 0.55
+): { scale: number; days: Map<string, ScheduleEntry[]>; hiddenCount: number } {
+  const days = new Map<string, ScheduleEntry[]>()
+  for (const entry of schedule) {
+    if (!days.has(entry.day)) days.set(entry.day, [])
+    days.get(entry.day)!.push(entry)
+  }
+  if (schedule.length === 0) return { scale: 1, days, hiddenCount: 0 }
+
+  const naturalHeight = days.size * sizing.dayHeaderPx + schedule.length * sizing.rowPx
+  const scale = naturalHeight <= availableHeightPx
+    ? 1
+    : Math.max(minScale, availableHeightPx / naturalHeight)
+
+  // Even at the smallest readable size a very packed schedule may still not
+  // fit — trim entries so nothing gets cut off mid-row, and note what's left off.
+  const scaledDayHeaderPx = sizing.dayHeaderPx * scale
+  const scaledRowPx = sizing.rowPx * scale
+  const trimmed = new Map<string, ScheduleEntry[]>()
+  let used = 0
+  let hiddenCount = 0
+  for (const [day, entries] of days) {
+    if (used + scaledDayHeaderPx > availableHeightPx) {
+      hiddenCount += entries.length
+      continue
+    }
+    used += scaledDayHeaderPx
+    const kept: ScheduleEntry[] = []
+    for (const entry of entries) {
+      if (used + scaledRowPx > availableHeightPx) {
+        hiddenCount += entries.length - kept.length
+        break
+      }
+      kept.push(entry)
+      used += scaledRowPx
+    }
+    trimmed.set(day, kept)
+  }
+
+  return { scale, days: trimmed, hiddenCount }
+}
+
+function renderScheduleBody(
+  schedule: ScheduleEntry[],
+  availableHeightPx: number,
+  sizing: ScheduleSizing,
+  colors: { headerColor: string; timeColor: string; locColor: string },
+  empty: { message: string; paddingTop: string },
+  minScale = 0.55
+): string {
+  const { scale, days, hiddenCount } = fitScheduleToHeight(schedule, availableHeightPx, sizing, minScale)
+
+  if (days.size === 0) {
+    return `<div style="color:#aaa;text-align:center;padding-top:${empty.paddingTop};font-size:${sizing.titleFont}px;">${empty.message}</div>`
+  }
+
+  const headerFont = Math.max(6, Math.round(sizing.headerFont * scale))
+  const timeFont = Math.max(5, Math.round(sizing.timeFont * scale))
+  const titleFont = Math.max(6, Math.round(sizing.titleFont * scale))
+  const timeWidth = Math.max(24, Math.round(sizing.timeWidth * scale))
+  const rowGap = Math.max(1, Math.round(sizing.rowGap * scale))
+  const dayGap = Math.max(2, Math.round(sizing.dayGap * scale))
+
+  const dayBlocks = Array.from(days.entries()).map(([day, entries]) => {
+    const rows = entries.map((e) => {
+      const timeRange = e.endTime ? `${e.startTime}–${e.endTime}` : e.startTime
+      const loc = e.location ? `<span style="color:${colors.locColor};"> · ${escapeHtml(e.location)}</span>` : ''
+      return `<div style="display:flex;gap:4px;margin-bottom:${rowGap}px;align-items:baseline;line-height:1.25;">
+        <span style="font-size:${timeFont}px;white-space:nowrap;min-width:${timeWidth}px;color:${colors.timeColor};flex-shrink:0;">${escapeHtml(timeRange)}</span>
+        <span style="font-size:${titleFont}px;flex:1;word-break:break-word;">${escapeHtml(e.title)}${loc}</span>
+      </div>`
+    }).join('')
+
+    return `<div style="margin-bottom:${dayGap}px;">
+      <div style="font-size:${headerFont}px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid ${colors.headerColor};margin-bottom:2px;padding-bottom:1px;color:${colors.headerColor};">${escapeHtml(day)}</div>
+      ${rows}
+    </div>`
+  }).join('')
+
+  const hiddenNote = hiddenCount > 0
+    ? `<div style="font-size:${Math.max(6, timeFont)}px;color:#999;font-style:italic;text-align:center;margin-top:2px;">+ ${hiddenCount} more — see full schedule</div>`
+    : ''
+
+  return dayBlocks + hiddenNote
+}
+
+// Scale the "Meal: {name}" text-label so an unusually long meal color name
+// (a custom name, not just Blue/Red/etc.) never overflows its strip.
+function mealLabelFontPx(name: string, maxPx: number, minPx: number, optimalChars = 10): number {
+  return parseInt(fitFontSize(`Meal: ${name}`, maxPx, minPx, optimalChars))
+}
+
+// ---------------------------------------------------------------------------
 // Standard small/medium/large layout  (multiple per US-Letter page)
 // ---------------------------------------------------------------------------
 
@@ -130,7 +243,8 @@ function renderStandardBadge(tag: NameTagData, t: BadgeTemplate, header: string)
   const mealSection = (() => {
     if (!t.showMealColor || !tag.mealColor) return ''
     if (t.thermalMode) {
-      return `<div style="position:absolute;bottom:0;left:0;right:0;text-align:center;font-size:9px;font-weight:600;padding:2px 0;border-top:1px solid #ccc;">Meal: ${escapeHtml(tag.mealColor.name)}</div>`
+      const mealPx = mealLabelFontPx(tag.mealColor.name, 9, 6, 10)
+      return `<div style="position:absolute;bottom:0;left:0;right:0;text-align:center;font-size:${mealPx}px;font-weight:600;padding:2px 4px;border-top:1px solid #ccc;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Meal: ${escapeHtml(tag.mealColor.name)}</div>`
     }
     return `<div style="position:absolute;bottom:0;left:0;right:0;height:8px;border-radius:0 0 7px 7px;background-color:${tag.mealColor.hex};"></div>`
   })()
@@ -207,10 +321,12 @@ function render4x6Badge(tag: NameTagData, t: BadgeTemplate, header: string): str
   const mealSection = (() => {
     if (!t.showMealColor || !tag.mealColor) return ''
     if (t.thermalMode) {
-      return `<div style="text-align:center;font-size:14px;font-weight:600;padding:4px 0;border-top:1px solid #ccc;margin-top:4px;">Meal: ${escapeHtml(tag.mealColor.name)}</div>`
+      const mealPx = mealLabelFontPx(tag.mealColor.name, 14, 8, 14)
+      return `<div style="text-align:center;font-size:${mealPx}px;font-weight:600;padding:4px 8px;border-top:1px solid #ccc;margin-top:4px;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Meal: ${escapeHtml(tag.mealColor.name)}</div>`
     }
-    return `<div style="position:absolute;bottom:0;left:0;right:0;height:18px;background-color:${tag.mealColor.hex};display:flex;align-items:center;justify-content:center;">
-      <span style="font-size:10px;font-weight:700;color:white;text-shadow:0 1px 2px rgba(0,0,0,0.4);letter-spacing:0.06em;text-transform:uppercase;">${escapeHtml(tag.mealColor.name)}</span>
+    const namePx = parseInt(fitFontSize(tag.mealColor.name, 10, 6, 14))
+    return `<div style="position:absolute;bottom:0;left:0;right:0;height:18px;background-color:${tag.mealColor.hex};display:flex;align-items:center;justify-content:center;padding:0 8px;box-sizing:border-box;overflow:hidden;">
+      <span style="font-size:${namePx}px;font-weight:700;color:white;text-shadow:0 1px 2px rgba(0,0,0,0.4);letter-spacing:0.06em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(tag.mealColor.name)}</span>
     </div>`
   })()
 
@@ -291,41 +407,26 @@ function renderBusinessCard(tag: NameTagData, t: BadgeTemplate): string {
 function renderScheduleBack(schedule: ScheduleEntry[], t: BadgeTemplate): string {
   const { text } = effectiveColors(t)
   const useColor = !t.thermalMode && t.backPanelColorMode !== 'bw'
-  const headerColor = useColor ? '#555555' : '#000000'
-  const timeColor = useColor ? '#666666' : '#333333'
-  const locColor = useColor ? '#888888' : '#555555'
-
-  // Group entries by day preserving insertion order
-  const days = new Map<string, ScheduleEntry[]>()
-  for (const entry of schedule) {
-    if (!days.has(entry.day)) days.set(entry.day, [])
-    days.get(entry.day)!.push(entry)
+  const colors = {
+    headerColor: useColor ? '#555555' : '#000000',
+    timeColor: useColor ? '#666666' : '#333333',
+    locColor: useColor ? '#888888' : '#555555',
   }
 
-  const dayBlocks = Array.from(days.entries()).map(([day, entries]) => {
-    const rows = entries.map((e) => {
-      const timeRange = e.endTime ? `${e.startTime}–${e.endTime}` : e.startTime
-      const loc = e.location ? `<span style="color:${locColor};"> · ${escapeHtml(e.location)}</span>` : ''
-      return `<div style="display:flex;gap:4px;margin-bottom:2px;align-items:baseline;line-height:1.3;">
-        <span style="font-size:7px;white-space:nowrap;min-width:52px;color:${timeColor};flex-shrink:0;">${escapeHtml(timeRange)}</span>
-        <span style="font-size:8px;flex:1;word-break:break-word;">${escapeHtml(e.title)}${loc}</span>
-      </div>`
-    }).join('')
+  // ~6in tall panel minus its own top/bottom padding (10px + 8px)
+  const body = renderScheduleBody(
+    schedule,
+    558,
+    { dayHeaderPx: 22, rowPx: 13, headerFont: 8, timeFont: 7, titleFont: 8, timeWidth: 52, rowGap: 2, dayGap: 7 },
+    colors,
+    { message: 'No schedule available', paddingTop: '40%' }
+  )
 
-    return `<div style="margin-bottom:7px;">
-      <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid ${headerColor};margin-bottom:3px;padding-bottom:1px;color:${headerColor};">${escapeHtml(day)}</div>
-      ${rows}
-    </div>`
-  }).join('')
-
-  // No overflow:hidden — let full schedule render; the @page size constrains the print area
   return `<div style="
     width:4in;background:#fff;color:${text};
     padding:10px 12px 8px;box-sizing:border-box;
     font-family:Arial,Helvetica,sans-serif;
-  ">
-    ${dayBlocks || `<div style="color:#aaa;text-align:center;padding-top:40%;font-size:10px;">No schedule available</div>`}
-  </div>`
+  ">${body}</div>`
 }
 
 // ---------------------------------------------------------------------------
@@ -336,40 +437,27 @@ function renderScheduleBack(schedule: ScheduleEntry[], t: BadgeTemplate): string
 
 function renderScheduleBackPage(schedule: ScheduleEntry[], t: BadgeTemplate): string {
   const useColor = !t.thermalMode && t.backPanelColorMode !== 'bw'
-  const headerColor = useColor ? '#555555' : '#000000'
-  const timeColor = useColor ? '#666666' : '#333333'
-  const locColor = useColor ? '#888888' : '#555555'
-
-  const days = new Map<string, ScheduleEntry[]>()
-  for (const entry of schedule) {
-    if (!days.has(entry.day)) days.set(entry.day, [])
-    days.get(entry.day)!.push(entry)
+  const colors = {
+    headerColor: useColor ? '#555555' : '#000000',
+    timeColor: useColor ? '#666666' : '#333333',
+    locColor: useColor ? '#888888' : '#555555',
   }
 
-  const dayBlocks = Array.from(days.entries()).map(([day, entries]) => {
-    const rows = entries.map((e) => {
-      const timeRange = e.endTime ? `${e.startTime}–${e.endTime}` : e.startTime
-      const loc = e.location ? `<span style="color:${locColor};"> · ${escapeHtml(e.location)}</span>` : ''
-      return `<div style="display:flex;gap:6px;margin-bottom:3px;align-items:baseline;line-height:1.35;">
-        <span style="font-size:9px;white-space:nowrap;min-width:60px;color:${timeColor};flex-shrink:0;">${escapeHtml(timeRange)}</span>
-        <span style="font-size:10px;flex:1;word-break:break-word;">${escapeHtml(e.title)}${loc}</span>
-      </div>`
-    }).join('')
-
-    return `<div style="margin-bottom:10px;">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid ${headerColor};margin-bottom:4px;padding-bottom:2px;color:${headerColor};">${escapeHtml(day)}</div>
-      ${rows}
-    </div>`
-  }).join('')
+  // ~6in tall page minus its own top/bottom padding (18px each)
+  const body = renderScheduleBody(
+    schedule,
+    540,
+    { dayHeaderPx: 30, rowPx: 17, headerFont: 10, timeFont: 9, titleFont: 10, timeWidth: 60, rowGap: 3, dayGap: 10 },
+    colors,
+    { message: 'No schedule available', paddingTop: '40%' }
+  )
 
   return `<div style="
     width:4in;height:6in;background:#fff;color:#111;
     padding:18px 20px;box-sizing:border-box;
     font-family:Arial,Helvetica,sans-serif;
     page-break-after:always;overflow:hidden;
-  ">
-    ${dayBlocks || `<div style="color:#aaa;text-align:center;padding-top:40%;font-size:12px;">No schedule available</div>`}
-  </div>`
+  ">${body}</div>`
 }
 
 function renderDuo4x6Badge(
@@ -451,7 +539,8 @@ function renderPostcardFront(tag: NameTagData, t: BadgeTemplate, header: string)
   const mealSection = (() => {
     if (!t.showMealColor || !tag.mealColor) return ''
     if (t.thermalMode) {
-      return `<div style="text-align:center;font-size:8px;font-weight:600;padding:2px 0;border-top:1px solid #ccc;">Meal: ${escapeHtml(tag.mealColor.name)}</div>`
+      const mealPx = mealLabelFontPx(tag.mealColor.name, 8, 6, 12)
+      return `<div style="text-align:center;font-size:${mealPx}px;font-weight:600;padding:2px 4px;border-top:1px solid #ccc;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Meal: ${escapeHtml(tag.mealColor.name)}</div>`
     }
     return `<div style="position:absolute;bottom:0;left:0;right:0;height:6px;background-color:${tag.mealColor.hex};"></div>`
   })()
@@ -484,39 +573,26 @@ function renderPostcardFront(tag: NameTagData, t: BadgeTemplate, header: string)
 
 function renderPostcardBack(schedule: ScheduleEntry[], t: BadgeTemplate): string {
   const useColor = !t.thermalMode && t.backPanelColorMode !== 'bw'
-  const headerColor = useColor ? '#555555' : '#000000'
-  const timeColor = useColor ? '#666666' : '#333333'
-  const locColor = useColor ? '#888888' : '#555555'
-
-  const days = new Map<string, ScheduleEntry[]>()
-  for (const entry of schedule) {
-    if (!days.has(entry.day)) days.set(entry.day, [])
-    days.get(entry.day)!.push(entry)
+  const colors = {
+    headerColor: useColor ? '#555555' : '#000000',
+    timeColor: useColor ? '#666666' : '#333333',
+    locColor: useColor ? '#888888' : '#555555',
   }
 
-  const dayBlocks = Array.from(days.entries()).map(([day, entries]) => {
-    const rows = entries.map((e) => {
-      const timeRange = e.endTime ? `${e.startTime}–${e.endTime}` : e.startTime
-      const loc = e.location ? `<span style="color:${locColor};"> · ${escapeHtml(e.location)}</span>` : ''
-      return `<div style="display:flex;gap:4px;margin-bottom:1px;align-items:baseline;line-height:1.25;">
-        <span style="font-size:6px;white-space:nowrap;min-width:40px;color:${timeColor};flex-shrink:0;">${escapeHtml(timeRange)}</span>
-        <span style="font-size:7px;flex:1;word-break:break-word;">${escapeHtml(e.title)}${loc}</span>
-      </div>`
-    }).join('')
-
-    return `<div style="margin-bottom:4px;">
-      <div style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid ${headerColor};margin-bottom:2px;padding-bottom:1px;color:${headerColor};">${escapeHtml(day)}</div>
-      ${rows}
-    </div>`
-  }).join('')
+  // ~2.75in tall panel minus its own top/bottom padding (8px each)
+  const body = renderScheduleBody(
+    schedule,
+    248,
+    { dayHeaderPx: 16, rowPx: 10, headerFont: 7, timeFont: 6, titleFont: 7, timeWidth: 40, rowGap: 1, dayGap: 4 },
+    colors,
+    { message: 'No schedule available', paddingTop: '30%' }
+  )
 
   return `<div style="
     width:4.25in;height:2.75in;background:#fff;color:#111;
     padding:8px 10px;box-sizing:border-box;overflow:hidden;
     font-family:Arial,Helvetica,sans-serif;
-  ">
-    ${dayBlocks || `<div style="color:#aaa;text-align:center;padding-top:30%;font-size:9px;">No schedule available</div>`}
-  </div>`
+  ">${body}</div>`
 }
 
 function renderPostcardCard(tag: NameTagData, t: BadgeTemplate, header: string, schedule: ScheduleEntry[]): string {
