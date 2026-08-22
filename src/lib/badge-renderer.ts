@@ -131,7 +131,8 @@ function fitScheduleToHeight(
   schedule: ScheduleEntry[],
   availableHeightPx: number,
   sizing: ScheduleSizing,
-  minScale = 0.55
+  minScale = 0.55,
+  maxScale = 1.8
 ): { scale: number; days: Map<string, ScheduleEntry[]>; hiddenCount: number } {
   const days = new Map<string, ScheduleEntry[]>()
   for (const entry of schedule) {
@@ -140,10 +141,10 @@ function fitScheduleToHeight(
   }
   if (schedule.length === 0) return { scale: 1, days, hiddenCount: 0 }
 
+  // Scales both ways: a packed schedule shrinks to fit, a sparse one grows to
+  // fill the available space instead of leaving it small with blank space below.
   const naturalHeight = days.size * sizing.dayHeaderPx + schedule.length * sizing.rowPx
-  const scale = naturalHeight <= availableHeightPx
-    ? 1
-    : Math.max(minScale, availableHeightPx / naturalHeight)
+  const scale = Math.min(maxScale, Math.max(minScale, availableHeightPx / naturalHeight))
 
   // Even at the smallest readable size a very packed schedule may still not
   // fit — trim entries so nothing gets cut off mid-row, and note what's left off.
