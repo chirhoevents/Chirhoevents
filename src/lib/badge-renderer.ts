@@ -592,7 +592,14 @@ function renderThermal4x12Badge(
 // from all four edges rather than just the seam between columns.
 // ---------------------------------------------------------------------------
 
-const POSTCARD_SAFE_INSET = '0.28in'
+// Every edge of every quadrant on this sheet is a page edge for at least one
+// row/column, and most office/MFP printers can't image all the way to the
+// physical paper edge (unlike a photo/label printer) — anything closer than
+// this to an edge risks getting clipped by the printer's own hardware
+// margin even though the on-screen preview shows it intact. Keep this
+// generous rather than tight.
+const POSTCARD_SAFE_INSET = '0.35in'
+const POSTCARD_SAFE_INSET_PX = 34 // 0.35in @ 96px/in, rounded
 
 function renderPostcardFrontCard(tag: NameTagData, t: BadgeTemplate, header: string): string {
   const { bg, text, accent } = effectiveColors(t)
@@ -645,14 +652,14 @@ function renderPostcardFrontCard(tag: NameTagData, t: BadgeTemplate, header: str
         ${t.showParticipantType ? `<div style="${labelStyle}">${participantLabel(tag)}</div>` : ''}
       </div>
       ${mealBand}
-      <div style="display:flex;justify-content:space-between;align-items:flex-end;padding:14px ${POSTCARD_SAFE_INSET} 0.3in;flex-shrink:0;gap:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;padding:14px ${POSTCARD_SAFE_INSET} ${POSTCARD_SAFE_INSET};flex-shrink:0;gap:12px;">
         ${t.showHousing && tag.housing ? `<div style="font-size:13px;text-align:left;flex:1;word-break:break-word;line-height:1.4;"><strong>Housing:</strong> ${escapeHtml(tag.housing.fullLocation)}</div>` : '<div></div>'}
         ${t.showQrCode && tag.qrCode ? `<img src="${tag.qrCode}" style="width:60px;height:60px;flex-shrink:0;" alt="" />` : ''}
       </div>
     </div>`
 }
 
-function renderPostcardBackCard(schedule: ScheduleEntry[], t: BadgeTemplate): string {
+function renderPostcardBackCard(schedule: ScheduleEntry[], t: BadgeTemplate, rotate = false): string {
   const { accent } = effectiveColors(t)
   const useColor = !t.thermalMode && t.backPanelColorMode !== 'bw'
   const colors = {
@@ -661,19 +668,24 @@ function renderPostcardBackCard(schedule: ScheduleEntry[], t: BadgeTemplate): st
     locColor: useColor ? '#888888' : '#555555',
   }
 
-  // ~5.5in tall card minus its own top/bottom padding (0.28in each = ~27px)
+  // ~5.5in tall card minus its own top/bottom padding (0.35in each)
   const body = renderScheduleBody(
     schedule,
-    474,
+    528 - POSTCARD_SAFE_INSET_PX * 2,
     { dayHeaderPx: 27, rowPx: 16, headerFont: 11, timeFont: 10, titleFont: 11, timeWidth: 60, rowGap: 3, dayGap: 9 },
     colors,
     { message: 'No schedule available', paddingTop: '35%' }
   )
 
+  // Rotation is baked directly into this same box (rather than wrapping it
+  // in a second overflow:hidden element) since nesting overflow:hidden with
+  // a rotate transform is a known source of print-vs-screen rendering
+  // mismatches in Chromium's print pipeline.
   return `<div style="
     width:4.25in;height:5.5in;background:#fff;color:#111;
     padding:${POSTCARD_SAFE_INSET};box-sizing:border-box;overflow:hidden;
     font-family:Arial,Helvetica,sans-serif;
+    ${rotate ? 'transform:rotate(180deg);transform-origin:center center;' : ''}
   ">${body}</div>`
 }
 
@@ -686,10 +698,11 @@ function renderPostcardPage(tags: NameTagData[], t: BadgeTemplate, header: strin
     const frontTemplate = tag.mealColor ? { ...t, showMealColor: true } : t
     frontCells.push(renderPostcardFrontCard(tag, frontTemplate, header))
 
-    const backContent = t.showBackPanel !== false
-      ? renderPostcardBackCard(schedule, t)
-      : `<div style="width:4.25in;height:5.5in;background:#fff;"></div>`
-    backCells.push(`<div style="width:4.25in;height:5.5in;overflow:hidden;transform:rotate(180deg);transform-origin:center center;">${backContent}</div>`)
+    backCells.push(
+      t.showBackPanel !== false
+        ? renderPostcardBackCard(schedule, t, true)
+        : `<div style="width:4.25in;height:5.5in;background:#fff;transform:rotate(180deg);"></div>`
+    )
   }
   while (frontCells.length < 2) frontCells.push(blankCell)
   while (backCells.length < 2) backCells.push(blankCell)
@@ -881,10 +894,9 @@ export function generatePreviewHTML(
     case 'postcard_4up': {
       const frontTemplate = tag.mealColor ? { ...template, showMealColor: true } : template
       const front = renderPostcardFrontCard(tag, frontTemplate, header)
-      const backContent = template.showBackPanel !== false
-        ? renderPostcardBackCard(schedule, template)
-        : `<div style="width:4.25in;height:5.5in;background:#fff;"></div>`
-      const back = `<div style="width:4.25in;height:5.5in;overflow:hidden;transform:rotate(180deg);transform-origin:center center;">${backContent}</div>`
+      const back = template.showBackPanel !== false
+        ? renderPostcardBackCard(schedule, template, true)
+        : `<div style="width:4.25in;height:5.5in;background:#fff;transform:rotate(180deg);"></div>`
       inner = `${front}${back}`
       break
     }
