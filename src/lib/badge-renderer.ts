@@ -610,18 +610,27 @@ function renderThermal4x12Badge(
 // from all four edges rather than just the seam between columns.
 // ---------------------------------------------------------------------------
 
-// Every edge of every quadrant on this sheet is a page edge for at least one
-// row/column, and most office/MFP printers can't image all the way to the
-// physical paper edge (unlike a photo/label printer) — anything closer than
-// this to an edge risks getting clipped by the printer's own hardware
-// margin even though the on-screen preview shows it intact. Keep this
-// generous rather than tight.
-const POSTCARD_SAFE_INSET = '0.35in'
-const POSTCARD_SAFE_INSET_PX = 34 // 0.35in @ 96px/in, rounded
+// Only the edges between two cards on this sheet are actual cut lines — the
+// outer edges of the whole page aren't cut against anything, so they don't
+// need the same protective buffer. SEAM is the generous inset used on a
+// card's cut-facing sides; EDGE is a light touch used on its page-facing
+// sides, just enough to survive normal printer hardware margin.
+const POSTCARD_SEAM_INSET = '0.35in'
+const POSTCARD_SEAM_INSET_PX = 34 // 0.35in @ 96px/in, rounded
+const POSTCARD_EDGE_INSET = '0.12in'
+const POSTCARD_EDGE_INSET_PX = 12 // 0.12in @ 96px/in, rounded
 
-function renderPostcardFrontCard(tag: NameTagData, t: BadgeTemplate, header: string): string {
+type PostcardColumn = 'left' | 'right'
+
+function renderPostcardFrontCard(tag: NameTagData, t: BadgeTemplate, header: string, column: PostcardColumn = 'left'): string {
   const { bg, text, accent } = effectiveColors(t)
   const hasBanner = t.showHeaderBanner && !!t.headerBannerUrl
+
+  // Front cards sit in the top row: top edge is the page's true top edge
+  // (light touch), bottom edge is the seam shared with the back card below
+  // (generous). Left/right depend on which column this card is in.
+  const padLeft = column === 'left' ? POSTCARD_EDGE_INSET : POSTCARD_SEAM_INSET
+  const padRight = column === 'left' ? POSTCARD_SEAM_INSET : POSTCARD_EDGE_INSET
 
   const headerSection = hasBanner
     ? `<div style="width:4.25in;height:1.5in;flex-shrink:0;"><img src="${t.headerBannerUrl}" style="width:100%;height:100%;object-fit:cover;" alt="" /></div>`
@@ -643,7 +652,7 @@ function renderPostcardFrontCard(tag: NameTagData, t: BadgeTemplate, header: str
       const mealPx = mealLabelFontPx(tag.mealColor.name, 16, 10, 12)
       return `<div style="
         text-align:center;font-size:${mealPx}px;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;
-        border-top:2px solid #000;border-bottom:2px solid #000;padding:8px ${POSTCARD_SAFE_INSET};
+        border-top:2px solid #000;border-bottom:2px solid #000;padding:8px ${padRight} 8px ${padLeft};
         margin:10px 0 0;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
       ">Meal: ${escapeHtml(tag.mealColor.name)}</div>`
     }
@@ -651,7 +660,7 @@ function renderPostcardFrontCard(tag: NameTagData, t: BadgeTemplate, header: str
     return `<div style="
       background-color:${tag.mealColor.hex};color:#fff;text-align:center;font-weight:800;
       font-size:${mealPx}px;letter-spacing:0.06em;text-transform:uppercase;
-      padding:12px ${POSTCARD_SAFE_INSET};margin:12px 0 0;box-sizing:border-box;
+      padding:12px ${padRight} 12px ${padLeft};margin:12px 0 0;box-sizing:border-box;
       text-shadow:0 1px 2px rgba(0,0,0,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
     ">${escapeHtml(tag.mealColor.name)}</div>`
   })()
@@ -664,21 +673,21 @@ function renderPostcardFrontCard(tag: NameTagData, t: BadgeTemplate, header: str
       position:relative;overflow:hidden;
     ">
       ${headerSection}
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:14px ${POSTCARD_SAFE_INSET} 0;min-width:0;overflow:hidden;">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:14px ${padRight} 0 ${padLeft};min-width:0;overflow:hidden;">
         ${t.showName ? `<div style="font-size:${fitFontSize(`${tag.firstName} ${tag.lastName}`, 40, 22, 14)};font-weight:bold;line-height:1.15;word-break:break-word;max-width:100%;">${escapeHtml(tag.firstName)} ${escapeHtml(tag.lastName)}</div>` : ''}
         ${t.showGroup ? `<div style="font-size:${fitFontSize(tag.groupName, 20, 13, 20)};color:#666;margin-top:6px;word-break:break-word;max-width:100%;">${escapeHtml(tag.groupName)}</div>` : ''}
         ${t.showDiocese && tag.diocese ? `<div style="font-size:14px;color:#888;margin-top:2px;word-break:break-word;max-width:100%;">${escapeHtml(tag.diocese)}</div>` : ''}
         ${t.showParticipantType ? `<div style="${labelStyle}">${participantLabel(tag)}</div>` : ''}
       </div>
       ${mealBand}
-      <div style="display:flex;justify-content:space-between;align-items:flex-end;padding:14px ${POSTCARD_SAFE_INSET} ${POSTCARD_SAFE_INSET};flex-shrink:0;gap:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;padding:14px ${padRight} ${POSTCARD_SEAM_INSET} ${padLeft};flex-shrink:0;gap:12px;">
         ${t.showHousing && tag.housing ? `<div style="font-size:13px;text-align:left;flex:1;word-break:break-word;line-height:1.4;"><strong>Housing:</strong> ${escapeHtml(tag.housing.fullLocation)}</div>` : '<div></div>'}
         ${t.showQrCode && tag.qrCode ? `<img src="${tag.qrCode}" style="width:60px;height:60px;flex-shrink:0;" alt="" />` : ''}
       </div>
     </div>`
 }
 
-function renderPostcardBackCard(schedule: ScheduleEntry[], t: BadgeTemplate, rotate = false): string {
+function renderPostcardBackCard(schedule: ScheduleEntry[], t: BadgeTemplate, rotate = false, column: PostcardColumn = 'left'): string {
   const { accent } = effectiveColors(t)
   const useColor = !t.thermalMode && t.backPanelColorMode !== 'bw'
   const colors = {
@@ -687,10 +696,22 @@ function renderPostcardBackCard(schedule: ScheduleEntry[], t: BadgeTemplate, rot
     locColor: useColor ? '#888888' : '#555555',
   }
 
-  // ~5.5in tall card minus its own top/bottom padding (0.35in each)
+  // Back cards sit in the bottom row and print rotated 180°. In PHYSICAL
+  // (post-rotation) space their top edge is the seam shared with the front
+  // card above, and their bottom edge is the page's true bottom edge — the
+  // opposite of the front card. Because rotate(180deg) flips both axes,
+  // achieving that physically means swapping top/bottom AND left/right here
+  // in this pre-rotation CSS: local top/bottom are the physical bottom/top,
+  // and local left/right are the physical right/left.
+  const padTop = POSTCARD_EDGE_INSET   // → physical bottom (page edge)
+  const padBottom = POSTCARD_SEAM_INSET // → physical top (seam with front)
+  const padLeft = column === 'left' ? POSTCARD_SEAM_INSET : POSTCARD_EDGE_INSET   // → physical right
+  const padRight = column === 'left' ? POSTCARD_EDGE_INSET : POSTCARD_SEAM_INSET  // → physical left
+
+  // ~5.5in tall card minus its own top/bottom padding (edge + seam insets)
   const body = renderScheduleBody(
     schedule,
-    528 - POSTCARD_SAFE_INSET_PX * 2,
+    528 - POSTCARD_EDGE_INSET_PX - POSTCARD_SEAM_INSET_PX,
     { dayHeaderPx: 27, rowPx: 16, headerFont: 11, timeFont: 10, titleFont: 11, timeWidth: 60, rowGap: 3, dayGap: 9 },
     colors,
     { message: 'No schedule available', paddingTop: '35%' }
@@ -703,7 +724,7 @@ function renderPostcardBackCard(schedule: ScheduleEntry[], t: BadgeTemplate, rot
   return `<div style="
     width:4.25in;height:5.5in;background:#fff;color:#111;
     box-shadow:inset 0 0 0 3px #fff;
-    padding:${POSTCARD_SAFE_INSET};box-sizing:border-box;overflow:hidden;
+    padding:${padTop} ${padRight} ${padBottom} ${padLeft};box-sizing:border-box;overflow:hidden;
     font-family:Arial,Helvetica,sans-serif;
     ${rotate ? 'transform:rotate(180deg);transform-origin:center center;' : ''}
   ">${body}</div>`
@@ -714,16 +735,17 @@ function renderPostcardPage(tags: NameTagData[], t: BadgeTemplate, header: strin
   const frontCells: string[] = []
   const backCells: string[] = []
 
-  for (const tag of tags.slice(0, 2)) {
+  tags.slice(0, 2).forEach((tag, i) => {
+    const column: PostcardColumn = i === 0 ? 'left' : 'right'
     const frontTemplate = tag.mealColor ? { ...t, showMealColor: true } : t
-    frontCells.push(renderPostcardFrontCard(tag, frontTemplate, header))
+    frontCells.push(renderPostcardFrontCard(tag, frontTemplate, header, column))
 
     backCells.push(
       t.showBackPanel !== false
-        ? renderPostcardBackCard(schedule, t, true)
+        ? renderPostcardBackCard(schedule, t, true, column)
         : `<div style="width:4.25in;height:5.5in;background:#fff;transform:rotate(180deg);"></div>`
     )
-  }
+  })
   while (frontCells.length < 2) frontCells.push(blankCell)
   while (backCells.length < 2) backCells.push(blankCell)
 
