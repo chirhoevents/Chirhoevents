@@ -66,7 +66,7 @@ function previewCaption(size: string): string {
     case 'business_card': return 'Business Card: 3.5" × 2" — 10 per Letter page'
     case 'thermal_4x12': return 'Thermal Roll: 4" × 12" fanfold — tear off, fold in half at the dashed line'
     case 'duo_4x6': return 'Fold-Over Badge: two separate 4" × 6" pages (front, then back) — insert both into a two-pocket badge holder'
-    case 'postcard_4up': return 'Postcard Badge: 4.25" × 5.5" front + back cards, 2 badges per Letter sheet (Avery 8387 layout) — separate along the perforation, pair front with back in a badge holder'
+    case 'postcard_4up': return 'Postcard Badge: 4.25" × 5.5" front + back cards, 2 badges per Letter sheet (Avery 8387 layout) — separate along the perforation, then glue/tape front to back (back prints upside-down so it reads correctly once flipped)'
     default: return 'Standard: 3.5" × 2.25"'
   }
 }
