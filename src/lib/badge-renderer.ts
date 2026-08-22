@@ -5,7 +5,7 @@
 // openBadgePrintWindow for in-browser printing.
 
 export interface BadgeTemplate {
-  size: 'small' | 'standard' | 'large' | 'badge_4x6' | 'business_card' | 'thermal_4x12'
+  size: 'small' | 'standard' | 'large' | 'badge_4x6' | 'business_card' | 'thermal_4x12' | 'duo_4x6' | 'postcard_4up'
   showName: boolean
   showGroup: boolean
   showParticipantType: boolean
@@ -328,6 +328,66 @@ function renderScheduleBack(schedule: ScheduleEntry[], t: BadgeTemplate): string
   </div>`
 }
 
+// ---------------------------------------------------------------------------
+// Duo 4×6 layout — front card + back card as two SEPARATE pages, full color.
+// Meant for a fold-over plastic badge holder (front pocket / back pocket)
+// printed on a normal color printer, instead of one continuous thermal strip.
+// ---------------------------------------------------------------------------
+
+function renderScheduleBackPage(schedule: ScheduleEntry[], t: BadgeTemplate): string {
+  const useColor = !t.thermalMode && t.backPanelColorMode !== 'bw'
+  const headerColor = useColor ? '#555555' : '#000000'
+  const timeColor = useColor ? '#666666' : '#333333'
+  const locColor = useColor ? '#888888' : '#555555'
+
+  const days = new Map<string, ScheduleEntry[]>()
+  for (const entry of schedule) {
+    if (!days.has(entry.day)) days.set(entry.day, [])
+    days.get(entry.day)!.push(entry)
+  }
+
+  const dayBlocks = Array.from(days.entries()).map(([day, entries]) => {
+    const rows = entries.map((e) => {
+      const timeRange = e.endTime ? `${e.startTime}–${e.endTime}` : e.startTime
+      const loc = e.location ? `<span style="color:${locColor};"> · ${escapeHtml(e.location)}</span>` : ''
+      return `<div style="display:flex;gap:6px;margin-bottom:3px;align-items:baseline;line-height:1.35;">
+        <span style="font-size:9px;white-space:nowrap;min-width:60px;color:${timeColor};flex-shrink:0;">${escapeHtml(timeRange)}</span>
+        <span style="font-size:10px;flex:1;word-break:break-word;">${escapeHtml(e.title)}${loc}</span>
+      </div>`
+    }).join('')
+
+    return `<div style="margin-bottom:10px;">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid ${headerColor};margin-bottom:4px;padding-bottom:2px;color:${headerColor};">${escapeHtml(day)}</div>
+      ${rows}
+    </div>`
+  }).join('')
+
+  return `<div style="
+    width:4in;height:6in;background:#fff;color:#111;
+    padding:18px 20px;box-sizing:border-box;
+    font-family:Arial,Helvetica,sans-serif;
+    page-break-after:always;overflow:hidden;
+  ">
+    ${dayBlocks || `<div style="color:#aaa;text-align:center;padding-top:40%;font-size:12px;">No schedule available</div>`}
+  </div>`
+}
+
+function renderDuo4x6Badge(
+  tag: NameTagData,
+  t: BadgeTemplate,
+  header: string,
+  schedule: ScheduleEntry[]
+): string {
+  // Always show meal color on the front card when the group has one assigned —
+  // the template toggle is for design preview; the operational badge should always include it.
+  const frontTemplate = tag.mealColor ? { ...t, showMealColor: true } : t
+  const front = render4x6Badge(tag, frontTemplate, header)
+  const back = t.showBackPanel !== false
+    ? renderScheduleBackPage(schedule, t)
+    : `<div style="width:4in;height:6in;background:#fff;page-break-after:always;"></div>`
+  return `${front}\n${back}`
+}
+
 function renderThermal4x12Badge(
   tag: NameTagData,
   t: BadgeTemplate,
@@ -375,6 +435,120 @@ function renderThermal4x12Badge(
 }
 
 // ---------------------------------------------------------------------------
+// Postcard fold badge — 4.25"×5.5" card, 4 per Letter sheet (2×2 grid),
+// laid out to match the standard Avery-style blank postcard template
+// (e.g. Avery 8387 / 5389). Each card folds in half at 2.75" to become a
+// front/back badge, printed single-sided on any color or B&W laser printer.
+// ---------------------------------------------------------------------------
+
+function renderPostcardFront(tag: NameTagData, t: BadgeTemplate, header: string): string {
+  const { bg, text, accent } = effectiveColors(t)
+
+  const labelStyle = t.thermalMode
+    ? `display:inline-block;border:1.5px solid #000;color:#000;background:none;padding:3px 12px;border-radius:5px;font-size:10px;font-weight:600;margin-top:5px;`
+    : `display:inline-block;background-color:${accent};color:white;padding:3px 12px;border-radius:5px;font-size:10px;font-weight:600;margin-top:5px;`
+
+  const mealSection = (() => {
+    if (!t.showMealColor || !tag.mealColor) return ''
+    if (t.thermalMode) {
+      return `<div style="text-align:center;font-size:8px;font-weight:600;padding:2px 0;border-top:1px solid #ccc;">Meal: ${escapeHtml(tag.mealColor.name)}</div>`
+    }
+    return `<div style="position:absolute;bottom:0;left:0;right:0;height:6px;background-color:${tag.mealColor.hex};"></div>`
+  })()
+
+  const headerBar = t.showConferenceHeader && header
+    ? `<div style="text-align:center;font-size:8px;font-weight:700;padding:3px;flex-shrink:0;background-color:${t.thermalMode ? '#eee' : accent};color:${t.thermalMode ? '#000' : 'white'};">${escapeHtml(header)}</div>`
+    : ''
+
+  return `
+    <div style="
+      width:4.25in;height:2.75in;background-color:${bg};color:${text};
+      box-sizing:border-box;display:flex;flex-direction:column;
+      position:relative;overflow:hidden;
+    ">
+      ${headerBar}
+      ${t.showLogo && t.logoUrl ? `<div style="text-align:center;padding:3px 0;flex-shrink:0;"><img src="${t.logoUrl}" style="max-height:24px;max-width:60%;" alt="" /></div>` : ''}
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2px 14px;min-width:0;overflow:hidden;">
+        ${t.showName ? `<div style="font-size:${fitFontSize(`${tag.firstName} ${tag.lastName}`, 22, 12, 18)};font-weight:bold;word-break:break-word;max-width:100%;">${escapeHtml(tag.firstName)} ${escapeHtml(tag.lastName)}</div>` : ''}
+        ${t.showGroup ? `<div style="font-size:${fitFontSize(tag.groupName, 12, 8, 24)};color:#666;margin-top:2px;word-break:break-word;max-width:100%;">${escapeHtml(tag.groupName)}</div>` : ''}
+        ${t.showDiocese && tag.diocese ? `<div style="font-size:9px;color:#888;word-break:break-word;max-width:100%;">${escapeHtml(tag.diocese)}</div>` : ''}
+        ${t.showParticipantType ? `<div style="${labelStyle}">${participantLabel(tag)}</div>` : ''}
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;padding:3px 10px 6px;flex-shrink:0;">
+        ${t.showHousing && tag.housing ? `<div style="font-size:7px;text-align:left;flex:1;word-break:break-word;"><strong>Housing:</strong> ${escapeHtml(tag.housing.fullLocation)}</div>` : '<div></div>'}
+        ${t.showQrCode && tag.qrCode ? `<img src="${tag.qrCode}" style="width:32px;height:32px;flex-shrink:0;" alt="" />` : ''}
+      </div>
+      ${mealSection}
+    </div>`
+}
+
+function renderPostcardBack(schedule: ScheduleEntry[], t: BadgeTemplate): string {
+  const useColor = !t.thermalMode && t.backPanelColorMode !== 'bw'
+  const headerColor = useColor ? '#555555' : '#000000'
+  const timeColor = useColor ? '#666666' : '#333333'
+  const locColor = useColor ? '#888888' : '#555555'
+
+  const days = new Map<string, ScheduleEntry[]>()
+  for (const entry of schedule) {
+    if (!days.has(entry.day)) days.set(entry.day, [])
+    days.get(entry.day)!.push(entry)
+  }
+
+  const dayBlocks = Array.from(days.entries()).map(([day, entries]) => {
+    const rows = entries.map((e) => {
+      const timeRange = e.endTime ? `${e.startTime}–${e.endTime}` : e.startTime
+      const loc = e.location ? `<span style="color:${locColor};"> · ${escapeHtml(e.location)}</span>` : ''
+      return `<div style="display:flex;gap:4px;margin-bottom:1px;align-items:baseline;line-height:1.25;">
+        <span style="font-size:6px;white-space:nowrap;min-width:40px;color:${timeColor};flex-shrink:0;">${escapeHtml(timeRange)}</span>
+        <span style="font-size:7px;flex:1;word-break:break-word;">${escapeHtml(e.title)}${loc}</span>
+      </div>`
+    }).join('')
+
+    return `<div style="margin-bottom:4px;">
+      <div style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid ${headerColor};margin-bottom:2px;padding-bottom:1px;color:${headerColor};">${escapeHtml(day)}</div>
+      ${rows}
+    </div>`
+  }).join('')
+
+  return `<div style="
+    width:4.25in;height:2.75in;background:#fff;color:#111;
+    padding:8px 10px;box-sizing:border-box;overflow:hidden;
+    font-family:Arial,Helvetica,sans-serif;
+  ">
+    ${dayBlocks || `<div style="color:#aaa;text-align:center;padding-top:30%;font-size:9px;">No schedule available</div>`}
+  </div>`
+}
+
+function renderPostcardCard(tag: NameTagData, t: BadgeTemplate, header: string, schedule: ScheduleEntry[]): string {
+  const frontTemplate = tag.mealColor ? { ...t, showMealColor: true } : t
+  const frontPanel = renderPostcardFront(tag, frontTemplate, header)
+  const backContent = t.showBackPanel !== false
+    ? renderPostcardBack(schedule, t)
+    : `<div style="width:4.25in;height:2.75in;background:#fff;"></div>`
+
+  return `
+    <div style="width:4.25in;height:5.5in;position:relative;overflow:hidden;">
+      <div style="width:4.25in;height:2.75in;overflow:hidden;">${frontPanel}</div>
+      <div style="position:absolute;top:2.75in;left:0;right:0;border-top:1px dashed #bbb;z-index:10;pointer-events:none;">
+        <span style="position:absolute;left:50%;transform:translateX(-50%) translateY(-50%);background:#fff;padding:0 5px;font-size:6px;color:#bbb;white-space:nowrap;">FOLD HERE</span>
+      </div>
+      <div style="width:4.25in;height:2.75in;overflow:hidden;transform:rotate(180deg);transform-origin:center center;">${backContent}</div>
+    </div>`
+}
+
+function renderPostcardPage(tags: NameTagData[], t: BadgeTemplate, header: string, schedule: ScheduleEntry[]): string {
+  const cells = tags.map((tag) => renderPostcardCard(tag, t, header, schedule)).join('')
+  const blanks = Array(Math.max(0, 4 - tags.length))
+    .fill('<div style="width:4.25in;height:5.5in;"></div>')
+    .join('')
+  return `<div style="
+    width:8.5in;height:11in;display:grid;
+    grid-template-columns:4.25in 4.25in;grid-template-rows:5.5in 5.5in;
+    page-break-after:always;
+  ">${cells}${blanks}</div>`
+}
+
+// ---------------------------------------------------------------------------
 // Size dimension helper
 // ---------------------------------------------------------------------------
 
@@ -413,6 +587,44 @@ export function generateBadgesHTML(
     * { box-sizing: border-box; }
     body { margin: 0; padding: 0; font-family: ${ff}; }
     .badge:last-child { page-break-after: auto !important; }
+  </style>
+</head>
+<body>${badges}</body>
+</html>`
+  }
+
+  if (template.size === 'duo_4x6') {
+    const badges = nameTags.map((tag) => renderDuo4x6Badge(tag, template, header, schedule)).join('\n')
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Name Tags — Fold-Over Badges</title>
+  <style>
+    @page { size: 4in 6in; margin: 0; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 0; font-family: ${ff}; }
+  </style>
+</head>
+<body>${badges}</body>
+</html>`
+  }
+
+  if (template.size === 'postcard_4up') {
+    const pages: string[] = []
+    for (let i = 0; i < nameTags.length; i += 4) {
+      pages.push(renderPostcardPage(nameTags.slice(i, i + 4), template, header, schedule))
+    }
+    const badges = pages.join('\n')
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Name Tags — Postcard Fold Badges</title>
+  <style>
+    @page { size: letter; margin: 0; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 0; font-family: ${ff}; }
   </style>
 </head>
 <body>${badges}</body>

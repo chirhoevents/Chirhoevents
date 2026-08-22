@@ -46,7 +46,7 @@ import { toast } from '@/lib/toast'
 import { openBadgePrintWindow } from '@/lib/badge-renderer'
 
 interface NameTagTemplate {
-  size: 'standard' | 'large' | 'small' | 'badge_4x6' | 'business_card' | 'thermal_4x12'
+  size: 'standard' | 'large' | 'small' | 'badge_4x6' | 'business_card' | 'thermal_4x12' | 'duo_4x6' | 'postcard_4up'
   showName: boolean
   showGroup: boolean
   showParticipantType: boolean
@@ -585,6 +585,8 @@ export default function NameTagDesignerPage() {
                   <Select value={template.size} onValueChange={(value) => updateTemplate('size', value)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="postcard_4up">Postcard Fold Badge (4.25&quot; × 5.5&quot;, 4 per sheet — Avery 8387)</SelectItem>
+                      <SelectItem value="duo_4x6">Fold-Over Badge (4&quot; × 6&quot; front + back, color, 2 pages)</SelectItem>
                       <SelectItem value="thermal_4x12">Thermal Roll (4&quot; × 12&quot; fanfold)</SelectItem>
                       <SelectItem value="badge_4x6">Badge (4&quot; × 6&quot;, 1 per page)</SelectItem>
                       <SelectItem value="standard">Standard (3.5&quot; × 2.25&quot;)</SelectItem>
@@ -636,8 +638,8 @@ export default function NameTagDesignerPage() {
                   )}
                 </div>
 
-                {/* Header Banner — 4x6 / thermal only */}
-                {(template.size === 'badge_4x6' || template.size === 'thermal_4x12') && (
+                {/* Header Banner — 4x6 / thermal / duo only */}
+                {(template.size === 'badge_4x6' || template.size === 'thermal_4x12' || template.size === 'duo_4x6') && (
                   <div className="space-y-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
                     <div className="flex items-center gap-2">
                       <Checkbox id="showHeaderBanner" checked={template.showHeaderBanner} onCheckedChange={(checked) => updateTemplate('showHeaderBanner', checked)} />
@@ -669,8 +671,8 @@ export default function NameTagDesignerPage() {
                   </div>
                 )}
 
-                {/* Back Panel — thermal only */}
-                {template.size === 'thermal_4x12' && (
+                {/* Back Panel — thermal / duo / postcard only */}
+                {(template.size === 'thermal_4x12' || template.size === 'duo_4x6' || template.size === 'postcard_4up') && (
                   <div className="space-y-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
                     <div className="flex items-center justify-between">
                       <Label className="font-medium text-indigo-800">Back Panel (Schedule)</Label>
@@ -857,6 +859,149 @@ export default function NameTagDesignerPage() {
                   </div>
                 </div>
               )
+
+              if (template.size === 'postcard_4up') {
+                const dayMap = new Map<string, typeof scheduleEntries>()
+                for (const e of scheduleEntries) {
+                  if (!dayMap.has(e.day)) dayMap.set(e.day, [])
+                  dayMap.get(e.day)!.push(e)
+                }
+                const dayColor = (!template.thermalMode && template.backPanelColorMode !== 'bw') ? '#555' : '#000'
+
+                return (
+                  <div className="flex flex-col items-center gap-3">
+                    <div style={{ width: 170, height: 220, border: '1px solid #ccc', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
+                      {/* Front half */}
+                      <div style={{ width: 170, height: 110, background: pBg, color: pText, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                        {template.showConferenceHeader && (
+                          <div style={{ ...headerStyle, fontSize: 7, fontWeight: 700, textAlign: 'center', padding: '3px', flexShrink: 0 }}>
+                            {template.conferenceHeaderText || eventName || 'CONFERENCE'}
+                          </div>
+                        )}
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2px 8px', textAlign: 'center' }}>
+                          {template.showName && <div style={{ fontWeight: 700, fontSize: 12, lineHeight: 1.2 }}>John Doe</div>}
+                          {template.showGroup && <div style={{ fontSize: 8, opacity: 0.7, marginTop: 1 }}>St. Mary&apos;s Parish</div>}
+                          {template.showParticipantType && <span style={{ ...typeBadgeStyle, fontSize: 7, padding: '1px 5px' }}>Youth</span>}
+                        </div>
+                      </div>
+                      {/* Fold line */}
+                      <div style={{ width: 170, borderTop: '1px dashed #aaa', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9f9f9' }}>
+                        <span style={{ fontSize: 6, color: '#aaa', letterSpacing: 1 }}>✂ FOLD HERE ✂</span>
+                      </div>
+                      {/* Back half */}
+                      <div style={{ width: 170, height: 109, background: '#f8f8f8', overflow: 'hidden' }}>
+                        {template.showBackPanel ? (() => {
+                          if (scheduleCount === null) {
+                            return <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: 7 }}>Loading…</div>
+                          }
+                          if (scheduleCount === 0) {
+                            return <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: 7, textAlign: 'center', padding: 6 }}>No schedule yet</div>
+                          }
+                          return (
+                            <div style={{ transform: 'rotate(180deg)', padding: '5px 6px', overflow: 'hidden', width: '100%', boxSizing: 'border-box' }}>
+                              {Array.from(dayMap.entries()).slice(0, 1).map(([day, entries]) => (
+                                <div key={day}>
+                                  <div style={{ fontWeight: 700, fontSize: 6, textTransform: 'uppercase', borderBottom: `1px solid ${dayColor}`, marginBottom: 2, color: dayColor }}>{day}</div>
+                                  {entries.slice(0, 3).map((e: any, i: number) => (
+                                    <div key={i} style={{ display: 'flex', gap: 3, lineHeight: 1.2 }}>
+                                      <span style={{ fontSize: 5, color: '#666', minWidth: 28, flexShrink: 0 }}>{e.startTime}</span>
+                                      <span style={{ fontSize: 6, flex: 1 }}>{e.title}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        })() : (
+                          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 7 }}>Back panel disabled</div>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground text-center">Postcard Fold Badge: 4.25&quot; × 5.5&quot;, folds in half at the dashed line — 4 print per Letter sheet (Avery 8387 layout)</p>
+                  </div>
+                )
+              }
+
+              if (template.size === 'duo_4x6') {
+                const dayMap = new Map<string, typeof scheduleEntries>()
+                for (const e of scheduleEntries) {
+                  if (!dayMap.has(e.day)) dayMap.set(e.day, [])
+                  dayMap.get(e.day)!.push(e)
+                }
+                const useColor = !template.thermalMode && template.backPanelColorMode !== 'bw'
+                const dayColor = useColor ? '#555' : '#000'
+
+                return (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="flex gap-4 items-start">
+                      {/* Front card */}
+                      <div className="flex flex-col items-center gap-1">
+                        <div style={{ width: 160, height: 240, background: pBg, color: pText, border: '1px solid #ccc', borderRadius: 6, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                          {template.showHeaderBanner && template.headerBannerUrl ? (
+                            <img src={template.headerBannerUrl} style={{ width: '100%', height: 100, objectFit: 'cover', flexShrink: 0 }} alt="" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                          ) : (
+                            <div style={{ ...headerStyle, height: 100, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                              {template.showLogo && template.logoUrl && (
+                                <img src={template.logoUrl} style={{ maxHeight: 30, maxWidth: '80%' }} alt="" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                              )}
+                              {template.showConferenceHeader && (
+                                <div style={{ fontSize: '11px', fontWeight: 700, textAlign: 'center', padding: '0 8px' }}>{template.conferenceHeaderText || eventName || 'CONFERENCE'}</div>
+                              )}
+                            </div>
+                          )}
+                          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6px', textAlign: 'center' }}>
+                            {template.showName && <div style={{ fontWeight: 700, fontSize: 14, lineHeight: 1.2 }}>John Doe</div>}
+                            {template.showGroup && <div style={{ fontSize: 9, opacity: 0.7, marginTop: 2 }}>St. Mary&apos;s Parish</div>}
+                            {template.showDiocese && <div style={{ fontSize: 8, opacity: 0.6 }}>Diocese of Sample</div>}
+                            {template.showParticipantType && <span style={typeBadgeStyle}>Youth</span>}
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '4px 6px' }}>
+                            {template.showHousing && <div style={{ fontSize: 7, opacity: 0.7, flex: 1 }}><strong>Housing:</strong><br />Bldg A 101</div>}
+                            {template.showQrCode && <QRBox size={28} />}
+                          </div>
+                          <MealSection compact />
+                        </div>
+                        <span className="text-[10px] text-muted-foreground">Front — page 1</span>
+                      </div>
+
+                      {/* Back card */}
+                      <div className="flex flex-col items-center gap-1">
+                        <div style={{ width: 160, height: 240, background: '#fff', border: '1px solid #ccc', borderRadius: 6, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                          {template.showBackPanel ? (() => {
+                            if (scheduleCount === null) {
+                              return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: 8 }}>Loading…</div>
+                            }
+                            if (scheduleCount === 0) {
+                              return <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: 8, textAlign: 'center', padding: 8, lineHeight: 1.6 }}>No schedule entries yet.<br /><span style={{ fontSize: 7 }}>Add entries in Poros.</span></div>
+                            }
+                            return (
+                              <div style={{ padding: '8px 9px', overflowY: 'auto', width: '100%', boxSizing: 'border-box' }}>
+                                {Array.from(dayMap.entries()).map(([day, entries]) => (
+                                  <div key={day} style={{ marginBottom: 6 }}>
+                                    <div style={{ fontWeight: 700, fontSize: 8, textTransform: 'uppercase', borderBottom: `1px solid ${dayColor}`, marginBottom: 3, paddingBottom: 1, color: dayColor }}>{day}</div>
+                                    {entries.map((e: any, i: number) => (
+                                      <div key={i} style={{ display: 'flex', gap: 4, marginBottom: 2, lineHeight: 1.3, alignItems: 'baseline' }}>
+                                        <span style={{ fontSize: 7, color: '#666', minWidth: 42, flexShrink: 0, whiteSpace: 'nowrap' }}>{e.endTime ? `${e.startTime}–${e.endTime}` : e.startTime}</span>
+                                        <span style={{ fontSize: 8, flex: 1, wordBreak: 'break-word' }}>{e.title}{e.location ? ` · ${e.location}` : ''}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ))}
+                              </div>
+                            )
+                          })() : (
+                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 9, textAlign: 'center', padding: 8 }}>
+                              Back panel disabled
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground">Back — page 2</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1 text-center">Fold-Over Badge: two separate 4&quot; × 6&quot; pages, printed in color on a regular printer, inserted front &amp; back into a two-pocket badge holder</p>
+                  </div>
+                )
+              }
 
               if (template.size === 'thermal_4x12') {
                 return (
