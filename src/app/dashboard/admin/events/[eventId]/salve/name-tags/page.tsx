@@ -868,7 +868,7 @@ export default function NameTagDesignerPage() {
                 fullName: 'John Doe',
                 groupName: "St. Mary's Parish",
                 diocese: 'Diocese of Sample',
-                participantType: 'youth',
+                participantType: 'youth_u18',
                 isChaperone: false,
                 isClergy: false,
                 housing: { building: 'Building A', room: '101', bed: null, fullLocation: 'Bldg A 101' },

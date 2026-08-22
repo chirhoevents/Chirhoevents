@@ -78,11 +78,75 @@ function fontFamilyCSS(fontFamily: string): string {
 }
 
 function participantLabel(tag: NameTagData): string {
+  switch (tag.participantType) {
+    case 'youth_u18': return 'Youth'
+    case 'youth_o18': return 'Youth (18+)'
+    case 'chaperone': return 'Chaperone'
+    case 'priest': return 'Priest'
+    case 'deacon': return 'Deacon'
+    case 'seminarian': return 'Seminarian'
+    case 'religious_sister': return 'Sister'
+    case 'religious_brother': return 'Brother'
+    case 'staff': return 'Staff'
+    case 'individual': return 'Individual'
+    case 'vendor': return 'Vendor'
+  }
+  // Fallback for any value not covered above — trust the coarser flags.
   if (tag.isClergy) return 'Clergy'
   if (tag.isChaperone) return 'Chaperone'
-  if (tag.participantType === 'staff') return 'Staff'
-  if (tag.participantType === 'individual') return 'Individual'
   return 'Youth'
+}
+
+// A minor (under 18) is the ONLY category that should read as a minor —
+// every other participant type (18+ youth, chaperones, clergy, religious,
+// staff, individuals) is an adult. This mirrors the org's own liability-form
+// grouping, which already buckets "youth_o18" with chaperones as "Adults &
+// Chaperones (18+)" rather than with under-18 youth.
+function isMinorParticipant(tag: NameTagData): boolean {
+  if (tag.participantType === 'youth_u18') return true
+  if (tag.participantType) return false // any other known/recognized type is an adult
+  return !tag.isClergy && !tag.isChaperone // no participantType at all — fall back to flags
+}
+
+// Distinct, high-contrast colors per role so adults and minors — and
+// different adult roles — are identifiable at a glance from across a room
+// (e.g. checking who's using which restroom), not just by reading small text.
+function participantColor(tag: NameTagData): string {
+  switch (tag.participantType) {
+    case 'youth_u18': return '#2563eb'         // blue — minor
+    case 'youth_o18':
+    case 'chaperone': return '#dc2626'         // red — adult chaperone
+    case 'priest':
+    case 'deacon':
+    case 'seminarian': return '#7c3aed'        // purple — clergy
+    case 'religious_sister':
+    case 'religious_brother': return '#0d9488' // teal — religious
+    case 'staff': return '#1e3a5f'             // navy — staff
+    case 'individual': return '#78716c'        // neutral — individual registrant
+    case 'vendor': return '#b45309'            // amber — vendor
+  }
+  if (tag.isClergy) return '#7c3aed'
+  if (tag.isChaperone) return '#dc2626'
+  return '#2563eb'
+}
+
+// Shared participant-type badge style. In color mode it fills with the
+// role's distinct color; in thermal/B&W mode color isn't available, so
+// adults get a solid filled black badge and minors get a hollow outline —
+// the adult/minor distinction still reads even on a black & white printer.
+function labelStyleFor(
+  tag: NameTagData,
+  t: BadgeTemplate,
+  opts: { fontPx: number; padY: number; padX: number; radius: number; marginTop: number; borderPx: number }
+): string {
+  const { fontPx, padY, padX, radius, marginTop, borderPx } = opts
+  const base = `display:inline-block;padding:${padY}px ${padX}px;border-radius:${radius}px;font-size:${fontPx}px;font-weight:700;margin-top:${marginTop}px;`
+  if (t.thermalMode) {
+    return isMinorParticipant(tag)
+      ? `${base}border:${borderPx}px solid #000;color:#000;background:none;`
+      : `${base}background:#000;color:#fff;`
+  }
+  return `${base}background-color:${participantColor(tag)};color:white;`
 }
 
 // Scale font size down when text is long so it always fits within its container.
@@ -237,9 +301,7 @@ function renderStandardBadge(tag: NameTagData, t: BadgeTemplate, header: string)
   }
   const f = fonts[t.fontSize] || fonts.medium
 
-  const labelStyle = t.thermalMode
-    ? `display:inline-block;border:1px solid #000;color:#000;background:none;padding:2px 8px;border-radius:4px;font-size:10px;margin-top:4px;`
-    : `display:inline-block;background-color:${accent};color:white;padding:2px 8px;border-radius:4px;font-size:10px;margin-top:4px;`
+  const labelStyle = labelStyleFor(tag, t, { fontPx: 10, padY: 2, padX: 8, radius: 4, marginTop: 4, borderPx: 1 })
 
   const mealSection = (() => {
     if (!t.showMealColor || !tag.mealColor) return ''
@@ -297,7 +359,7 @@ function renderStandardBadge(tag: NameTagData, t: BadgeTemplate, header: string)
 // 4×6 badge layout  (one per page)
 // ---------------------------------------------------------------------------
 
-function render4x6Badge(tag: NameTagData, t: BadgeTemplate, header: string): string {
+function render4x6Badge(tag: NameTagData, t: BadgeTemplate, header: string, showBorder = true): string {
   const { bg, text, accent } = effectiveColors(t)
   const has4x6Banner = t.showHeaderBanner && !!t.headerBannerUrl
 
@@ -315,9 +377,7 @@ function render4x6Badge(tag: NameTagData, t: BadgeTemplate, header: string): str
          ${t.showConferenceHeader && header ? `<div style="font-size:28px;font-weight:bold;text-align:center;padding:0 20px;">${escapeHtml(header)}</div>` : ''}
        </div>`
 
-  const labelStyle = t.thermalMode
-    ? `display:inline-block;border:2px solid #000;color:#000;background:none;padding:8px 20px;border-radius:6px;font-size:16px;font-weight:600;margin-top:8px;`
-    : `display:inline-block;background-color:${accent};color:white;padding:8px 20px;border-radius:6px;font-size:16px;font-weight:600;margin-top:8px;`
+  const labelStyle = labelStyleFor(tag, t, { fontPx: 16, padY: 8, padX: 20, radius: 6, marginTop: 8, borderPx: 2 })
 
   const mealSection = (() => {
     if (!t.showMealColor || !tag.mealColor) return ''
@@ -334,6 +394,7 @@ function render4x6Badge(tag: NameTagData, t: BadgeTemplate, header: string): str
   return `
     <div style="
       width:4in;height:6in;background-color:${bg};color:${text};
+      ${showBorder ? `box-shadow:inset 0 0 0 3px ${accent};` : ''}
       page-break-after:always;position:relative;overflow:hidden;
       display:flex;flex-direction:column;
     ">
@@ -371,7 +432,7 @@ function render4x6Badge(tag: NameTagData, t: BadgeTemplate, header: string): str
 // ---------------------------------------------------------------------------
 
 function renderBusinessCard(tag: NameTagData, t: BadgeTemplate): string {
-  const { bg, text, accent } = effectiveColors(t)
+  const { bg, text } = effectiveColors(t)
 
   return `
     <div style="
@@ -386,13 +447,7 @@ function renderBusinessCard(tag: NameTagData, t: BadgeTemplate): string {
       ${t.showGroup ? `
         <div style="font-size:11px;color:#666;margin-top:4px;">${escapeHtml(tag.groupName)}</div>
       ` : ''}
-      ${t.showParticipantType ? `
-        <div style="
-          margin-top:4px;font-size:9px;
-          display:inline-block;padding:1px 6px;border-radius:3px;
-          ${t.thermalMode ? 'border:1px solid #000;' : `background-color:${accent};color:white;`}
-        ">${participantLabel(tag)}</div>
-      ` : ''}
+      ${t.showParticipantType ? `<div style="${labelStyleFor(tag, t, { fontPx: 9, padY: 1, padX: 6, radius: 3, marginTop: 4, borderPx: 1 })}">${participantLabel(tag)}</div>` : ''}
       ${tag.customNote ? `<div style="font-size:7px;font-style:italic;color:#888;margin-top:2px;">${escapeHtml(tag.customNote)}</div>` : ''}
       ${t.showQrCode && tag.qrCode ? `
         <img src="${tag.qrCode}" style="width:36px;height:36px;margin-top:6px;" alt="" />
@@ -456,6 +511,7 @@ function renderScheduleBackPage(schedule: ScheduleEntry[], t: BadgeTemplate): st
 
   return `<div style="
     width:4in;height:6in;background:#fff;color:#111;
+    box-shadow:inset 0 0 0 3px ${accent};
     padding:18px 20px;box-sizing:border-box;
     font-family:Arial,Helvetica,sans-serif;
     page-break-after:always;overflow:hidden;
@@ -484,11 +540,13 @@ function renderThermal4x12Badge(
   header: string,
   schedule: ScheduleEntry[]
 ): string {
-  const { bg } = effectiveColors(t)
+  const { bg, accent } = effectiveColors(t)
   // Always show meal color on thermal 4×12 when the group has one assigned —
   // the template toggle is for design preview; the operational badge should always include it.
   const frontTemplate = tag.mealColor ? { ...t, showMealColor: true } : t
-  const frontPanel = render4x6Badge(tag, frontTemplate, header)
+  // showBorder=false — the whole strip gets one border below instead of the
+  // front panel getting its own (which would draw a line right at the fold).
+  const frontPanel = render4x6Badge(tag, frontTemplate, header, false)
     .replace(/page-break-after:\s*always;/, '')
 
   const backContent = t.showBackPanel !== false
@@ -498,6 +556,7 @@ function renderThermal4x12Badge(
   return `
     <div style="
       width:4in;height:12in;background-color:${bg};
+      box-shadow:inset 0 0 0 3px ${accent};
       page-break-after:always;position:relative;overflow:hidden;
     ">
       <!-- Front panel (top 6 inches) -->
@@ -538,7 +597,14 @@ function renderThermal4x12Badge(
 // from all four edges rather than just the seam between columns.
 // ---------------------------------------------------------------------------
 
-const POSTCARD_SAFE_INSET = '0.28in'
+// Every edge of every quadrant on this sheet is a page edge for at least one
+// row/column, and most office/MFP printers can't image all the way to the
+// physical paper edge (unlike a photo/label printer) — anything closer than
+// this to an edge risks getting clipped by the printer's own hardware
+// margin even though the on-screen preview shows it intact. Keep this
+// generous rather than tight.
+const POSTCARD_SAFE_INSET = '0.35in'
+const POSTCARD_SAFE_INSET_PX = 34 // 0.35in @ 96px/in, rounded
 
 function renderPostcardFrontCard(tag: NameTagData, t: BadgeTemplate, header: string): string {
   const { bg, text, accent } = effectiveColors(t)
@@ -556,9 +622,7 @@ function renderPostcardFrontCard(tag: NameTagData, t: BadgeTemplate, header: str
          ${t.showConferenceHeader && header ? `<div style="font-size:17px;font-weight:bold;text-align:center;padding:0 16px;">${escapeHtml(header)}</div>` : ''}
        </div>`
 
-  const labelStyle = t.thermalMode
-    ? `display:inline-block;border:2px solid #000;color:#000;background:none;padding:6px 18px;border-radius:6px;font-size:14px;font-weight:700;margin-top:10px;`
-    : `display:inline-block;background-color:${accent};color:white;padding:6px 18px;border-radius:6px;font-size:14px;font-weight:700;margin-top:10px;`
+  const labelStyle = labelStyleFor(tag, t, { fontPx: 14, padY: 6, padX: 18, radius: 6, marginTop: 10, borderPx: 2 })
 
   const mealBand = (() => {
     if (!t.showMealColor || !tag.mealColor) return ''
@@ -582,6 +646,7 @@ function renderPostcardFrontCard(tag: NameTagData, t: BadgeTemplate, header: str
   return `
     <div style="
       width:4.25in;height:5.5in;background-color:${bg};color:${text};
+      box-shadow:inset 0 0 0 3px ${accent};
       box-sizing:border-box;display:flex;flex-direction:column;
       position:relative;overflow:hidden;
     ">
@@ -593,14 +658,14 @@ function renderPostcardFrontCard(tag: NameTagData, t: BadgeTemplate, header: str
         ${t.showParticipantType ? `<div style="${labelStyle}">${participantLabel(tag)}</div>` : ''}
       </div>
       ${mealBand}
-      <div style="display:flex;justify-content:space-between;align-items:flex-end;padding:14px ${POSTCARD_SAFE_INSET} 0.3in;flex-shrink:0;gap:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;padding:14px ${POSTCARD_SAFE_INSET} ${POSTCARD_SAFE_INSET};flex-shrink:0;gap:12px;">
         ${t.showHousing && tag.housing ? `<div style="font-size:13px;text-align:left;flex:1;word-break:break-word;line-height:1.4;"><strong>Housing:</strong> ${escapeHtml(tag.housing.fullLocation)}</div>` : '<div></div>'}
         ${t.showQrCode && tag.qrCode ? `<img src="${tag.qrCode}" style="width:60px;height:60px;flex-shrink:0;" alt="" />` : ''}
       </div>
     </div>`
 }
 
-function renderPostcardBackCard(schedule: ScheduleEntry[], t: BadgeTemplate): string {
+function renderPostcardBackCard(schedule: ScheduleEntry[], t: BadgeTemplate, rotate = false): string {
   const { accent } = effectiveColors(t)
   const useColor = !t.thermalMode && t.backPanelColorMode !== 'bw'
   const colors = {
@@ -609,19 +674,25 @@ function renderPostcardBackCard(schedule: ScheduleEntry[], t: BadgeTemplate): st
     locColor: useColor ? '#888888' : '#555555',
   }
 
-  // ~5.5in tall card minus its own top/bottom padding (0.28in each = ~27px)
+  // ~5.5in tall card minus its own top/bottom padding (0.35in each)
   const body = renderScheduleBody(
     schedule,
-    474,
+    528 - POSTCARD_SAFE_INSET_PX * 2,
     { dayHeaderPx: 27, rowPx: 16, headerFont: 11, timeFont: 10, titleFont: 11, timeWidth: 60, rowGap: 3, dayGap: 9 },
     colors,
     { message: 'No schedule available', paddingTop: '35%' }
   )
 
+  // Rotation is baked directly into this same box (rather than wrapping it
+  // in a second overflow:hidden element) since nesting overflow:hidden with
+  // a rotate transform is a known source of print-vs-screen rendering
+  // mismatches in Chromium's print pipeline.
   return `<div style="
     width:4.25in;height:5.5in;background:#fff;color:#111;
+    box-shadow:inset 0 0 0 3px ${accent};
     padding:${POSTCARD_SAFE_INSET};box-sizing:border-box;overflow:hidden;
     font-family:Arial,Helvetica,sans-serif;
+    ${rotate ? 'transform:rotate(180deg);transform-origin:center center;' : ''}
   ">${body}</div>`
 }
 
@@ -634,10 +705,11 @@ function renderPostcardPage(tags: NameTagData[], t: BadgeTemplate, header: strin
     const frontTemplate = tag.mealColor ? { ...t, showMealColor: true } : t
     frontCells.push(renderPostcardFrontCard(tag, frontTemplate, header))
 
-    const backContent = t.showBackPanel !== false
-      ? renderPostcardBackCard(schedule, t)
-      : `<div style="width:4.25in;height:5.5in;background:#fff;"></div>`
-    backCells.push(`<div style="width:4.25in;height:5.5in;overflow:hidden;transform:rotate(180deg);transform-origin:center center;">${backContent}</div>`)
+    backCells.push(
+      t.showBackPanel !== false
+        ? renderPostcardBackCard(schedule, t, true)
+        : `<div style="width:4.25in;height:5.5in;background:#fff;transform:rotate(180deg);"></div>`
+    )
   }
   while (frontCells.length < 2) frontCells.push(blankCell)
   while (backCells.length < 2) backCells.push(blankCell)
@@ -829,10 +901,9 @@ export function generatePreviewHTML(
     case 'postcard_4up': {
       const frontTemplate = tag.mealColor ? { ...template, showMealColor: true } : template
       const front = renderPostcardFrontCard(tag, frontTemplate, header)
-      const backContent = template.showBackPanel !== false
-        ? renderPostcardBackCard(schedule, template)
-        : `<div style="width:4.25in;height:5.5in;background:#fff;"></div>`
-      const back = `<div style="width:4.25in;height:5.5in;overflow:hidden;transform:rotate(180deg);transform-origin:center center;">${backContent}</div>`
+      const back = template.showBackPanel !== false
+        ? renderPostcardBackCard(schedule, template, true)
+        : `<div style="width:4.25in;height:5.5in;background:#fff;transform:rotate(180deg);"></div>`
       inner = `${front}${back}`
       break
     }
