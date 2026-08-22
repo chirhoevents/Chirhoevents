@@ -78,11 +78,75 @@ function fontFamilyCSS(fontFamily: string): string {
 }
 
 function participantLabel(tag: NameTagData): string {
+  switch (tag.participantType) {
+    case 'youth_u18': return 'Youth'
+    case 'youth_o18': return 'Youth (18+)'
+    case 'chaperone': return 'Chaperone'
+    case 'priest': return 'Priest'
+    case 'deacon': return 'Deacon'
+    case 'seminarian': return 'Seminarian'
+    case 'religious_sister': return 'Sister'
+    case 'religious_brother': return 'Brother'
+    case 'staff': return 'Staff'
+    case 'individual': return 'Individual'
+    case 'vendor': return 'Vendor'
+  }
+  // Fallback for any value not covered above — trust the coarser flags.
   if (tag.isClergy) return 'Clergy'
   if (tag.isChaperone) return 'Chaperone'
-  if (tag.participantType === 'staff') return 'Staff'
-  if (tag.participantType === 'individual') return 'Individual'
   return 'Youth'
+}
+
+// A minor (under 18) is the ONLY category that should read as a minor —
+// every other participant type (18+ youth, chaperones, clergy, religious,
+// staff, individuals) is an adult. This mirrors the org's own liability-form
+// grouping, which already buckets "youth_o18" with chaperones as "Adults &
+// Chaperones (18+)" rather than with under-18 youth.
+function isMinorParticipant(tag: NameTagData): boolean {
+  if (tag.participantType === 'youth_u18') return true
+  if (tag.participantType) return false // any other known/recognized type is an adult
+  return !tag.isClergy && !tag.isChaperone // no participantType at all — fall back to flags
+}
+
+// Distinct, high-contrast colors per role so adults and minors — and
+// different adult roles — are identifiable at a glance from across a room
+// (e.g. checking who's using which restroom), not just by reading small text.
+function participantColor(tag: NameTagData): string {
+  switch (tag.participantType) {
+    case 'youth_u18': return '#2563eb'         // blue — minor
+    case 'youth_o18':
+    case 'chaperone': return '#dc2626'         // red — adult chaperone
+    case 'priest':
+    case 'deacon':
+    case 'seminarian': return '#7c3aed'        // purple — clergy
+    case 'religious_sister':
+    case 'religious_brother': return '#0d9488' // teal — religious
+    case 'staff': return '#1e3a5f'             // navy — staff
+    case 'individual': return '#78716c'        // neutral — individual registrant
+    case 'vendor': return '#b45309'            // amber — vendor
+  }
+  if (tag.isClergy) return '#7c3aed'
+  if (tag.isChaperone) return '#dc2626'
+  return '#2563eb'
+}
+
+// Shared participant-type badge style. In color mode it fills with the
+// role's distinct color; in thermal/B&W mode color isn't available, so
+// adults get a solid filled black badge and minors get a hollow outline —
+// the adult/minor distinction still reads even on a black & white printer.
+function labelStyleFor(
+  tag: NameTagData,
+  t: BadgeTemplate,
+  opts: { fontPx: number; padY: number; padX: number; radius: number; marginTop: number; borderPx: number }
+): string {
+  const { fontPx, padY, padX, radius, marginTop, borderPx } = opts
+  const base = `display:inline-block;padding:${padY}px ${padX}px;border-radius:${radius}px;font-size:${fontPx}px;font-weight:700;margin-top:${marginTop}px;`
+  if (t.thermalMode) {
+    return isMinorParticipant(tag)
+      ? `${base}border:${borderPx}px solid #000;color:#000;background:none;`
+      : `${base}background:#000;color:#fff;`
+  }
+  return `${base}background-color:${participantColor(tag)};color:white;`
 }
 
 // Scale font size down when text is long so it always fits within its container.
@@ -237,9 +301,7 @@ function renderStandardBadge(tag: NameTagData, t: BadgeTemplate, header: string)
   }
   const f = fonts[t.fontSize] || fonts.medium
 
-  const labelStyle = t.thermalMode
-    ? `display:inline-block;border:1px solid #000;color:#000;background:none;padding:2px 8px;border-radius:4px;font-size:10px;margin-top:4px;`
-    : `display:inline-block;background-color:${accent};color:white;padding:2px 8px;border-radius:4px;font-size:10px;margin-top:4px;`
+  const labelStyle = labelStyleFor(tag, t, { fontPx: 10, padY: 2, padX: 8, radius: 4, marginTop: 4, borderPx: 1 })
 
   const mealSection = (() => {
     if (!t.showMealColor || !tag.mealColor) return ''
@@ -315,9 +377,7 @@ function render4x6Badge(tag: NameTagData, t: BadgeTemplate, header: string): str
          ${t.showConferenceHeader && header ? `<div style="font-size:28px;font-weight:bold;text-align:center;padding:0 20px;">${escapeHtml(header)}</div>` : ''}
        </div>`
 
-  const labelStyle = t.thermalMode
-    ? `display:inline-block;border:2px solid #000;color:#000;background:none;padding:8px 20px;border-radius:6px;font-size:16px;font-weight:600;margin-top:8px;`
-    : `display:inline-block;background-color:${accent};color:white;padding:8px 20px;border-radius:6px;font-size:16px;font-weight:600;margin-top:8px;`
+  const labelStyle = labelStyleFor(tag, t, { fontPx: 16, padY: 8, padX: 20, radius: 6, marginTop: 8, borderPx: 2 })
 
   const mealSection = (() => {
     if (!t.showMealColor || !tag.mealColor) return ''
@@ -371,7 +431,7 @@ function render4x6Badge(tag: NameTagData, t: BadgeTemplate, header: string): str
 // ---------------------------------------------------------------------------
 
 function renderBusinessCard(tag: NameTagData, t: BadgeTemplate): string {
-  const { bg, text, accent } = effectiveColors(t)
+  const { bg, text } = effectiveColors(t)
 
   return `
     <div style="
@@ -386,13 +446,7 @@ function renderBusinessCard(tag: NameTagData, t: BadgeTemplate): string {
       ${t.showGroup ? `
         <div style="font-size:11px;color:#666;margin-top:4px;">${escapeHtml(tag.groupName)}</div>
       ` : ''}
-      ${t.showParticipantType ? `
-        <div style="
-          margin-top:4px;font-size:9px;
-          display:inline-block;padding:1px 6px;border-radius:3px;
-          ${t.thermalMode ? 'border:1px solid #000;' : `background-color:${accent};color:white;`}
-        ">${participantLabel(tag)}</div>
-      ` : ''}
+      ${t.showParticipantType ? `<div style="${labelStyleFor(tag, t, { fontPx: 9, padY: 1, padX: 6, radius: 3, marginTop: 4, borderPx: 1 })}">${participantLabel(tag)}</div>` : ''}
       ${tag.customNote ? `<div style="font-size:7px;font-style:italic;color:#888;margin-top:2px;">${escapeHtml(tag.customNote)}</div>` : ''}
       ${t.showQrCode && tag.qrCode ? `
         <img src="${tag.qrCode}" style="width:36px;height:36px;margin-top:6px;" alt="" />
@@ -556,9 +610,7 @@ function renderPostcardFrontCard(tag: NameTagData, t: BadgeTemplate, header: str
          ${t.showConferenceHeader && header ? `<div style="font-size:17px;font-weight:bold;text-align:center;padding:0 16px;">${escapeHtml(header)}</div>` : ''}
        </div>`
 
-  const labelStyle = t.thermalMode
-    ? `display:inline-block;border:2px solid #000;color:#000;background:none;padding:6px 18px;border-radius:6px;font-size:14px;font-weight:700;margin-top:10px;`
-    : `display:inline-block;background-color:${accent};color:white;padding:6px 18px;border-radius:6px;font-size:14px;font-weight:700;margin-top:10px;`
+  const labelStyle = labelStyleFor(tag, t, { fontPx: 14, padY: 6, padX: 18, radius: 6, marginTop: 10, borderPx: 2 })
 
   const mealBand = (() => {
     if (!t.showMealColor || !tag.mealColor) return ''
