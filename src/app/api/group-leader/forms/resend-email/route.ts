@@ -87,6 +87,32 @@ export async function POST(req: NextRequest) {
           signatureData: {},
         },
       })
+    } else {
+      // Persist a corrected email (e.g. fixing a typo) and refresh an expired token
+      // so a correction actually sticks instead of only affecting this one send.
+      const tokenExpired = !liabilityForm.parentToken ||
+        (liabilityForm.parentTokenExpiresAt !== null && liabilityForm.parentTokenExpiresAt < new Date())
+
+      liabilityForm = await prisma.liabilityForm.update({
+        where: { id: liabilityForm.id },
+        data: {
+          parentEmail,
+          ...(tokenExpired
+            ? {
+                parentToken: crypto.randomUUID(),
+                parentTokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+              }
+            : {}),
+        },
+      })
+    }
+
+    // Keep the roster's parent email in sync with what we actually sent to
+    if (participant.parentEmail !== parentEmail) {
+      await prisma.participant.update({
+        where: { id: participant.id },
+        data: { parentEmail },
+      })
     }
 
     // Send email to parent

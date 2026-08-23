@@ -10,12 +10,13 @@ import {
   Mail,
   CheckCircle,
   AlertCircle,
+  Clock,
   Eye,
   Trash2,
   RefreshCw
 } from 'lucide-react'
 
-type FormStatus = 'completed' | 'pending'
+type FormStatus = 'completed' | 'pending_parent' | 'not_started'
 type ParticipantType = 'youth_u18' | 'youth_o18' | 'chaperone' | 'priest'
 
 interface ParticipantForm {
@@ -37,9 +38,12 @@ export default function LiabilityFormsPage() {
   const [forms, setForms] = useState<ParticipantForm[]>([])
   const [filteredForms, setFilteredForms] = useState<ParticipantForm[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeFilter, setActiveFilter] = useState<'all' | 'completed' | 'pending'>('all')
+  const [activeFilter, setActiveFilter] = useState<'all' | 'completed' | 'pending_parent' | 'not_started'>('all')
   const [selectedForm, setSelectedForm] = useState<ParticipantForm | null>(null)
   const [downloading, setDownloading] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [draftEmail, setDraftEmail] = useState('')
+  const [sendingEmail, setSendingEmail] = useState(false)
 
   useEffect(() => {
     fetchForms()
@@ -73,10 +77,8 @@ export default function LiabilityFormsPage() {
   const filterForms = () => {
     if (activeFilter === 'all') {
       setFilteredForms(forms)
-    } else if (activeFilter === 'completed') {
-      setFilteredForms(forms.filter(f => f.formStatus === 'completed'))
     } else {
-      setFilteredForms(forms.filter(f => f.formStatus === 'pending'))
+      setFilteredForms(forms.filter(f => f.formStatus === activeFilter))
     }
   }
 
@@ -153,6 +155,36 @@ export default function LiabilityFormsPage() {
     }
   }
 
+  const startEditEmail = (participantId: string, currentEmail: string | null) => {
+    setEditingId(participantId)
+    setDraftEmail(currentEmail || '')
+  }
+
+  const submitEditedEmail = async (participantId: string) => {
+    const email = draftEmail.trim()
+    if (!email) return
+
+    setSendingEmail(true)
+    try {
+      const response = await fetch('/api/group-leader/forms/resend-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ participantId, parentEmail: email })
+      })
+      if (response.ok) {
+        setEditingId(null)
+        fetchForms()
+      } else {
+        alert('Failed to send email')
+      }
+    } catch (error) {
+      console.error('Error sending email:', error)
+      alert('Error sending email')
+    } finally {
+      setSendingEmail(false)
+    }
+  }
+
   const handleDeleteForm = async (participantId: string, participantName: string) => {
     if (!confirm(`Are you sure you want to delete ${participantName}'s form? This cannot be undone and they will need to fill out the form again.`)) {
       return
@@ -177,7 +209,7 @@ export default function LiabilityFormsPage() {
 
   const handleBulkEmailReminders = async () => {
     try {
-      const pendingForms = forms.filter(f => f.formStatus === 'pending')
+      const pendingForms = forms.filter(f => f.formStatus === 'pending_parent' || f.formStatus === 'not_started')
       const response = await fetch('/api/group-leader/forms/bulk-email-reminders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -194,7 +226,9 @@ export default function LiabilityFormsPage() {
   }
 
   const completedCount = forms.filter(f => f.formStatus === 'completed').length
-  const pendingCount = forms.filter(f => f.formStatus === 'pending').length
+  const pendingParentCount = forms.filter(f => f.formStatus === 'pending_parent').length
+  const notStartedCount = forms.filter(f => f.formStatus === 'not_started').length
+  const pendingCount = pendingParentCount + notStartedCount
   const totalCount = forms.length
   const completionPercentage = totalCount > 0 ? (completedCount / totalCount) * 100 : 0
 
@@ -290,14 +324,24 @@ export default function LiabilityFormsPage() {
           Completed ({completedCount})
         </button>
         <button
-          onClick={() => setActiveFilter('pending')}
+          onClick={() => setActiveFilter('pending_parent')}
           className={`px-4 py-2 font-medium transition-colors ${
-            activeFilter === 'pending'
+            activeFilter === 'pending_parent'
               ? 'text-[#9C8466] border-b-2 border-[#9C8466]'
               : 'text-[#6B7280] hover:text-[#1E3A5F]'
           }`}
         >
-          Pending ({pendingCount})
+          Waiting on Parent ({pendingParentCount})
+        </button>
+        <button
+          onClick={() => setActiveFilter('not_started')}
+          className={`px-4 py-2 font-medium transition-colors ${
+            activeFilter === 'not_started'
+              ? 'text-[#9C8466] border-b-2 border-[#9C8466]'
+              : 'text-[#6B7280] hover:text-[#1E3A5F]'
+          }`}
+        >
+          Not Started ({notStartedCount})
         </button>
       </div>
 
@@ -345,6 +389,11 @@ export default function LiabilityFormsPage() {
                           <span className="text-[#6B7280] italic">Form not started</span>
                         )}
                       </div>
+                      {form.participantType === 'youth_u18' && form.parentEmail && (
+                        <div className="text-xs text-[#6B7280] mt-0.5">
+                          Parent: {form.parentEmail}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[#6B7280]">
                       {form.age || '-'}
@@ -367,10 +416,15 @@ export default function LiabilityFormsPage() {
                           <CheckCircle className="h-3 w-3 mr-1" />
                           Complete
                         </span>
-                      ) : (
+                      ) : form.formStatus === 'pending_parent' ? (
                         <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-800">
+                          <Clock className="h-3 w-3 mr-1" />
+                          Waiting on Parent
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
                           <AlertCircle className="h-3 w-3 mr-1" />
-                          Pending
+                          Not Started
                         </span>
                       )}
                     </td>
@@ -408,14 +462,42 @@ export default function LiabilityFormsPage() {
                             </button>
                           </>
                         )}
-                        {form.formStatus === 'pending' && form.participantType === 'youth_u18' && form.parentEmail && (
-                          <button
-                            onClick={() => handleResendEmail(form.id, form.parentEmail!)}
-                            className="text-[#3B82F6] hover:text-[#2563EB]"
-                            title="Resend Parent Email"
-                          >
-                            <RefreshCw className="h-4 w-4" />
-                          </button>
+                        {form.formStatus !== 'completed' && form.participantType === 'youth_u18' && !form.id.startsWith('pending-') && (
+                          editingId === form.id ? (
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="email"
+                                value={draftEmail}
+                                onChange={(e) => setDraftEmail(e.target.value)}
+                                placeholder="parent@example.com"
+                                className="text-xs border border-[#D1D5DB] rounded px-2 py-1 w-40"
+                                autoFocus
+                              />
+                              <button
+                                onClick={() => submitEditedEmail(form.id)}
+                                disabled={sendingEmail || !draftEmail.trim()}
+                                className="text-[#10B981] hover:text-[#059669] disabled:opacity-50"
+                                title="Send"
+                              >
+                                <Mail className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => setEditingId(null)}
+                                className="text-[#6B7280] hover:text-[#1F2937]"
+                                title="Cancel"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => startEditEmail(form.id, form.parentEmail ?? null)}
+                              className="text-[#3B82F6] hover:text-[#2563EB]"
+                              title={form.parentEmail ? 'Edit Parent Email & Resend' : 'Send to Parent'}
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                            </button>
+                          )
                         )}
                       </div>
                     </td>
