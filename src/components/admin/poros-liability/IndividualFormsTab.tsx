@@ -202,9 +202,11 @@ function IndividualRow({
   const { getToken } = useAuth()
   const [showDetails, setShowDetails] = useState(false)
   const [processing, setProcessing] = useState(false)
+  const [editingEmail, setEditingEmail] = useState(false)
+  const [draftParentEmail, setDraftParentEmail] = useState(individual.parentEmail || '')
 
-  async function handleResendEmail() {
-    if (!confirm(`Resend liability form email to ${individual.firstName} ${individual.lastName}?`)) {
+  async function handleResendEmail(overrideParentEmail?: string) {
+    if (!overrideParentEmail && !confirm(`Resend liability form email to ${individual.firstName} ${individual.lastName}?`)) {
       return
     }
 
@@ -215,15 +217,21 @@ function IndividualRow({
         `/api/admin/events/${eventId}/poros-liability/individuals/${individual.registrationId}/resend`,
         {
           method: 'POST',
-          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(overrideParentEmail ? { parentEmail: overrideParentEmail } : {}),
         }
       )
 
+      const data = await response.json().catch(() => ({}))
       if (response.ok) {
-        alert('Email sent successfully!')
+        alert(data.message || 'Email sent successfully!')
+        setEditingEmail(false)
+        onUpdate()
       } else {
-        const error = await response.json()
-        alert(`Failed to send email: ${error.error}`)
+        alert(`Failed to send email: ${data.error || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Resend error:', error)
@@ -318,6 +326,12 @@ function IndividualRow({
                 <Mail className="w-3 h-3" />
                 {individual.email}
               </div>
+              {isUnder18 && individual.parentEmail && (
+                <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                  <Mail className="w-3 h-3" />
+                  Parent: {individual.parentEmail}
+                </div>
+              )}
             </div>
 
             {/* Medical Alerts */}
@@ -363,16 +377,60 @@ function IndividualRow({
             </Button>
           )}
 
-          {(individual.formStatus === 'not_started' || individual.formStatus === 'pending') && (
+          {individual.formStatus === 'not_started' && (
             <Button
               size="sm"
               variant="outline"
-              onClick={handleResendEmail}
+              onClick={() => handleResendEmail()}
               disabled={processing}
               title="Resend Form Email"
             >
               <RefreshCw className={`w-4 h-4 ${processing ? 'animate-spin' : ''}`} />
             </Button>
+          )}
+
+          {individual.formStatus === 'pending' && (
+            editingEmail ? (
+              <div className="flex items-center gap-1">
+                <Input
+                  type="email"
+                  value={draftParentEmail}
+                  onChange={(e) => setDraftParentEmail(e.target.value)}
+                  placeholder="parent@example.com"
+                  className="h-8 w-48 text-xs"
+                />
+                <Button
+                  size="sm"
+                  onClick={() => handleResendEmail(draftParentEmail.trim())}
+                  disabled={processing || !draftParentEmail.trim()}
+                  title="Save Email & Resend to Parent"
+                >
+                  <RefreshCw className={`w-4 h-4 ${processing ? 'animate-spin' : ''}`} />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setEditingEmail(false)
+                    setDraftParentEmail(individual.parentEmail || '')
+                  }}
+                  disabled={processing}
+                  title="Cancel"
+                >
+                  ✕
+                </Button>
+              </div>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setEditingEmail(true)}
+                disabled={processing}
+                title="Edit Parent Email & Resend"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </Button>
+            )
           )}
 
           {individual.formId && (

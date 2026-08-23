@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
 
     let liabilityForm
     let eventName: string
+    let eventStartDate: Date | null = null
     let contactEmail: string
     let replyToAddr: string = 'support@chirhoevents.com'
 
@@ -68,6 +69,7 @@ export async function POST(request: NextRequest) {
       }
 
       eventName = individualRegistration.event.name
+      eventStartDate = individualRegistration.event.startDate
       contactEmail = individualRegistration.email
       replyToAddr = resolveReplyTo(individualRegistration.event.settings, individualRegistration.organization)
 
@@ -133,6 +135,7 @@ export async function POST(request: NextRequest) {
       }
 
       eventName = groupRegistration.event.name
+      eventStartDate = groupRegistration.event.startDate
       contactEmail = groupRegistration.groupLeaderEmail
       replyToAddr = resolveReplyTo(groupRegistration.event.settings, groupRegistration.organization)
 
@@ -162,6 +165,10 @@ export async function POST(request: NextRequest) {
 
     // Send email to parent
     const parentLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/poros/parent/${parentToken}`
+    const deadlineText = eventStartDate
+      ? `before ${eventStartDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}`
+      : 'before the event'
+    const preheader = `${first_name} can't attend ${eventName} until you complete this form.`
 
     let emailSent = true
     try {
@@ -169,20 +176,35 @@ export async function POST(request: NextRequest) {
       from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
       reply_to: replyToAddr,
       to: parent_email,
-      subject: `Complete Liability Form for ${first_name} ${last_name} - ${eventName}`,
+      subject: `ACTION REQUIRED: Complete ${first_name} ${last_name}'s liability form for ${eventName}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <!-- Preheader text shown in inbox preview, hidden in the email body -->
+          <div style="display: none; max-height: 0; overflow: hidden; font-size: 1px; line-height: 1px; color: #ffffff;">
+            ${preheader}
+          </div>
+
           <!-- ChiRho Events Logo Header -->
           <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
             <img src="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/Poros logo.png" alt="ChiRho Events" style="max-width: 250px; height: auto;" />
           </div>
 
+          <div style="background-color: #B91C1C; padding: 12px 20px; text-align: center;">
+            <p style="color: #ffffff; margin: 0; font-weight: bold; font-size: 14px; letter-spacing: 0.5px;">
+              ⚠️ ACTION REQUIRED — REGISTRATION IS NOT COMPLETE
+            </p>
+          </div>
+
           <div style="padding: 30px 20px;">
-            <h1 style="color: #1E3A5F; margin-top: 0;">Complete Liability Form</h1>
+            <h1 style="color: #1E3A5F; margin-top: 0;">Complete ${first_name}'s Liability Form</h1>
 
             <p>Hi,</p>
 
-            <p><strong>${first_name} ${last_name}</strong> has started registration for <strong>${eventName}</strong> and needs you to complete their liability form.</p>
+            <p>
+              <strong>${first_name} ${last_name}</strong> has started registration for <strong>${eventName}</strong>,
+              but <strong>they cannot attend until you complete and sign this liability form ${deadlineText}</strong>.
+              No one else can do this step for you — as their parent/guardian, only you can complete it.
+            </p>
 
             <p>This form includes:</p>
             <ul>
@@ -193,8 +215,8 @@ export async function POST(request: NextRequest) {
             </ul>
 
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${parentLink}" style="display: inline-block; padding: 15px 30px; background-color: #1E3A5F; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
-                Complete Form
+              <a href="${parentLink}" style="display: inline-block; padding: 15px 30px; background-color: #B91C1C; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                Complete Form Now (Takes ~5 Minutes)
               </a>
             </div>
 
@@ -205,7 +227,7 @@ export async function POST(request: NextRequest) {
 
             <div style="background-color: #FFF3CD; padding: 15px; border-left: 4px solid #FFC107; margin: 20px 0;">
               <p style="color: #856404; margin: 0; font-size: 14px;">
-                This link expires in 7 days.
+                This link expires in 7 days. If it expires before you complete the form, contact ${contactEmail} for a new one.
               </p>
             </div>
 

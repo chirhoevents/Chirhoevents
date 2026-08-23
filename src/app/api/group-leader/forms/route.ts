@@ -23,8 +23,7 @@ export async function GET(request: NextRequest) {
         participants: {
           include: {
             liabilityForms: {
-              where: { completed: true },
-              orderBy: { completedAt: 'desc' },
+              orderBy: { createdAt: 'desc' },
               take: 1,
             },
           },
@@ -47,6 +46,16 @@ export async function GET(request: NextRequest) {
     groupRegistration.participants.forEach((participant: any) => {
       const latestForm = participant.liabilityForms[0]
 
+      // Distinguish "never started" from "step 1 done, waiting on parent to finish step 2"
+      let formStatus: 'not_started' | 'pending_parent' | 'completed'
+      if (participant.liabilityFormCompleted) {
+        formStatus = 'completed'
+      } else if (latestForm && !latestForm.completed && latestForm.parentToken) {
+        formStatus = 'pending_parent'
+      } else {
+        formStatus = 'not_started'
+      }
+
       forms.push({
         id: participant.id,
         firstName: participant.firstName,
@@ -54,10 +63,10 @@ export async function GET(request: NextRequest) {
         age: participant.age,
         gender: participant.gender,
         participantType: participant.participantType,
-        formStatus: participant.liabilityFormCompleted ? 'completed' : 'pending',
+        formStatus,
         formId: latestForm?.id,
         pdfUrl: latestForm?.pdfUrl,
-        parentEmail: participant.parentEmail,
+        parentEmail: latestForm?.parentEmail || participant.parentEmail,
         completedAt: latestForm?.completedAt,
       })
     })
@@ -77,7 +86,7 @@ export async function GET(request: NextRequest) {
         age: null,
         gender: null,
         participantType: null,
-        formStatus: 'pending',
+        formStatus: 'not_started',
         formId: null,
         pdfUrl: null,
         parentEmail: null,
