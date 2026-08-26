@@ -277,6 +277,36 @@ export default function LiabilityFormsPage() {
         </div>
       </div>
 
+      {/* Waiting on Parent Callout */}
+      {pendingParentCount > 0 && (
+        <Card className="p-5 bg-amber-50 border-2 border-amber-300">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-6 w-6 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-amber-900">
+                {pendingParentCount} teen{pendingParentCount === 1 ? '' : 's'} waiting on a parent
+              </h3>
+              <p className="text-sm text-amber-800 mt-1">
+                {forms
+                  .filter(f => f.formStatus === 'pending_parent')
+                  .map(f => `${f.firstName} ${f.lastName}`)
+                  .join(', ')}{' '}
+                {pendingParentCount === 1 ? 'has' : 'have'} finished their part, but a parent/guardian still
+                needs to complete and sign the form before they can attend. A personal nudge (text or call)
+                usually works faster than another email.
+              </p>
+              <Button
+                size="sm"
+                onClick={() => setActiveFilter('pending_parent')}
+                className="mt-3 bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                View These Teens
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Progress Card */}
       <Card className="p-6 bg-white border-[#D1D5DB]">
         <div className="flex items-center justify-between mb-4">

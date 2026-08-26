@@ -39,6 +39,7 @@ interface Stats {
   approvedForms: number
   pendingForms: number
   deniedForms: number
+  pendingParentForms: number
   totalCertificates: number
   verifiedCertificates: number
   pendingCertificates: number
@@ -161,7 +162,7 @@ export default function PorosLiabilityClient({
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card className="p-6 bg-white border-[#D1D5DB]">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -194,6 +195,18 @@ export default function PorosLiabilityClient({
             <div>
               <div className="text-sm text-gray-600">Pending Review</div>
               <div className="text-2xl font-bold text-yellow-600">{stats?.pendingForms || 0}</div>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6 bg-white border-[#D1D5DB]">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+              <Clock className="w-6 h-6 text-orange-600" />
+            </div>
+            <div>
+              <div className="text-sm text-gray-600">Waiting on Parent</div>
+              <div className="text-2xl font-bold text-orange-600">{stats?.pendingParentForms || 0}</div>
             </div>
           </div>
         </Card>
