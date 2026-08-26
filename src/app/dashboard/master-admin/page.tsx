@@ -386,11 +386,11 @@ export default function MasterAdminDashboard() {
               <span className="text-sm font-medium text-gray-900">{displayStats.subscriptionBreakdown.parish} orgs</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Cathedral ($200/mo)</span>
+              <span className="text-sm text-gray-600">Cathedral ($150/mo)</span>
               <span className="text-sm font-medium text-purple-600 font-semibold">{displayStats.subscriptionBreakdown.cathedral} orgs</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Shrine ($270/mo)</span>
+              <span className="text-sm text-gray-600">Shrine ($200/mo)</span>
               <span className="text-sm font-medium text-gray-900">{displayStats.subscriptionBreakdown.shrine} orgs</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-100">
