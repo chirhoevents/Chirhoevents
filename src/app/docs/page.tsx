@@ -173,7 +173,7 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
               <tr><td className="border p-3">Chapel</td><td className="border p-3">$39/mo</td><td className="border p-3">1</td><td className="border p-3">500</td></tr>
               <tr><td className="border p-3">Parish</td><td className="border p-3">$59/mo</td><td className="border p-3">3</td><td className="border p-3">750</td></tr>
               <tr><td className="border p-3">Cathedral</td><td className="border p-3">$109/mo</td><td className="border p-3">5</td><td className="border p-3">1,250</td></tr>
-              <tr><td className="border p-3">Shrine</td><td className="border p-3">$159/mo</td><td className="border p-3">10</td><td className="border p-3">3,000</td></tr>
+              <tr><td className="border p-3">Shrine</td><td className="border p-3">$189/mo</td><td className="border p-3">10</td><td className="border p-3">3,000</td></tr>
               <tr><td className="border p-3">Basilica</td><td className="border p-3">Starting at $5,000/yr</td><td className="border p-3">Unlimited</td><td className="border p-3">Custom</td></tr>
             </tbody>
           </table>
