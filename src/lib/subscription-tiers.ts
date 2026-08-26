@@ -117,7 +117,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
     name: 'Shrine',
     description: 'For large conferences and multi-event organizations',
     monthlyPrice: 159,
-    annualPrice: 1908,
+    annualPrice: 1590, // 2 months free vs. paying monthly ($159 x 10), matching Cathedral's annual discount
     setupFee: 400,
     setupFeeLabel: 'Setup Fee',
     isSelfServe: false,
