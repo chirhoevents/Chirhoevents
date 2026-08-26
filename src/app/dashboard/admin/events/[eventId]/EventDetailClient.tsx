@@ -44,6 +44,7 @@ import {
   TrendingDown,
   Minus,
   CreditCard,
+  ClipboardList,
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -496,6 +497,7 @@ export default function EventDetailClient({
           {settings?.vendorRegistrationEnabled && (
             <TabsTrigger value="vendors">Vendors</TabsTrigger>
           )}
+          <TabsTrigger value="surveys">Surveys</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>        </TabsList>
 
@@ -1398,6 +1400,25 @@ export default function EventDetailClient({
         )}
 
         {/* Reports Tab */}
+        <TabsContent value="surveys">
+          <Card className="bg-white border-[#D1D5DB]">
+            <CardContent className="p-8 text-center">
+              <ClipboardList className="h-16 w-16 text-[#9C8466] mx-auto mb-4" />
+              <h3 className="font-semibold text-[#1E3A5F] mb-2">
+                Post-Event Surveys
+              </h3>
+              <p className="text-[#6B7280] mb-4">
+                Send a survey to participants and/or group leaders after the event
+              </p>
+              <Link href={`/dashboard/admin/events/${event.id}/surveys`}>
+                <Button className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
+                  Manage Surveys
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="reports">
           <Card className="bg-white border-[#D1D5DB]">
             <CardContent className="p-8 text-center">
