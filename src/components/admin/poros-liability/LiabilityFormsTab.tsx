@@ -26,7 +26,8 @@ import {
   Printer,
   Mail,
   Trash2,
-  RefreshCw
+  RefreshCw,
+  Send
 } from 'lucide-react'
 import { hasAnyMedicalInfo, hasRealMedicalText } from '@/lib/medical-info'
 
@@ -123,6 +124,7 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
   const [staffExpanded, setStaffExpanded] = useState(false)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   const [printingGroups, setPrintingGroups] = useState<Set<string>>(new Set())
+  const [remindingGroups, setRemindingGroups] = useState<Set<string>>(new Set())
   const [downloadingBlank, setDownloadingBlank] = useState<string | null>(null)
   const [filters, setFilters] = useState({
     status: 'all',
@@ -206,6 +208,37 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
       alert('Failed to generate PDF packet')
     } finally {
       setPrintingGroups(prev => { const s = new Set(prev); s.delete(group.id); return s })
+    }
+  }
+
+  async function handleRemindLeader(e: React.MouseEvent, group: Group) {
+    e.stopPropagation()
+    if (group.pendingParentCount === 0) return
+    if (!confirm(
+      `Email ${group.groupName}'s group leader listing the ${group.pendingParentCount} teen${group.pendingParentCount === 1 ? '' : 's'} still waiting on a parent?`
+    )) {
+      return
+    }
+    setRemindingGroups(prev => new Set(prev).add(group.id))
+    try {
+      const token = await getToken()
+      const res = await fetch(
+        `/api/admin/events/${eventId}/poros-liability/groups/${group.id}/remind-leader`,
+        {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      )
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        alert(data.message || 'Reminder sent!')
+      } else {
+        alert(`Failed to send reminder: ${data.error || 'Unknown error'}`)
+      }
+    } catch {
+      alert('Failed to send reminder')
+    } finally {
+      setRemindingGroups(prev => { const s = new Set(prev); s.delete(group.id); return s })
     }
   }
 
@@ -485,6 +518,25 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
                         {group.totalSpots > 0 ? Math.round((group.submittedCount / group.totalSpots) * 100) : 0}%
                       </div>
                     </div>
+
+                    {/* Remind Group Leader */}
+                    {group.pendingParentCount > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => handleRemindLeader(e, group)}
+                        disabled={remindingGroups.has(group.id)}
+                        title={`Email the group leader listing the ${group.pendingParentCount} teen(s) waiting on a parent`}
+                        className="hidden sm:flex items-center gap-1.5 text-xs border-orange-300 text-orange-700 hover:bg-orange-50"
+                      >
+                        {remindingGroups.has(group.id) ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Send className="w-3.5 h-3.5" />
+                        )}
+                        {remindingGroups.has(group.id) ? 'Sending…' : `Remind Leader (${group.pendingParentCount})`}
+                      </Button>
+                    )}
 
                     {/* Print All Forms */}
                     {group.submittedCount > 0 && (

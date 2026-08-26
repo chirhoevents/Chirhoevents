@@ -49,6 +49,17 @@ export async function GET(
       },
     })
 
+    // Youth-under-18 forms where step 1 is done but the parent hasn't finished
+    // step 2 yet — spans both group participants and individual registrations.
+    const pendingParentForms = await prisma.liabilityForm.count({
+      where: {
+        eventId,
+        completed: false,
+        formType: 'youth_u18',
+        parentToken: { not: null },
+      },
+    })
+
     // Get safe environment certificates stats - group participants
     const groupTotalCerts = await prisma.safeEnvironmentCertificate.count({
       where: {
@@ -112,6 +123,7 @@ export async function GET(
       approvedForms,
       pendingForms,
       deniedForms,
+      pendingParentForms,
       totalCertificates: groupTotalCerts,
       verifiedCertificates: groupVerifiedCerts,
       pendingCertificates: groupPendingCerts,
