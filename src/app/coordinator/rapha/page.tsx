@@ -21,6 +21,9 @@ interface Event {
     groupRegistrations: number
     individualRegistrations: number
   }
+  stats?: {
+    totalRegistrations: number
+  }
 }
 
 /**
@@ -85,7 +88,7 @@ export default function RaphaCoordinatorPage() {
   }
 
   function EventCard({ event }: { event: Event }) {
-    const totalRegistrations = event.totalRegistrations ?? (event._count ? event._count.groupRegistrations + event._count.individualRegistrations : 0)
+    const totalRegistrations = event.totalRegistrations ?? event.stats?.totalRegistrations ?? (event._count ? event._count.groupRegistrations + event._count.individualRegistrations : 0)
 
     return (
       <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-red-500">

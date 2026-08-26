@@ -21,6 +21,9 @@ interface Event {
     groupRegistrations: number
     individualRegistrations: number
   }
+  stats?: {
+    totalRegistrations: number
+  }
 }
 
 // NOTE: Auth is handled by the layout with proper retry logic.
@@ -77,7 +80,7 @@ export default function PorosSelectEventPage() {
   }
 
   function EventCard({ event }: { event: Event }) {
-    const totalRegistrations = event.totalRegistrations ?? (event._count ? event._count.groupRegistrations + event._count.individualRegistrations : 0)
+    const totalRegistrations = event.totalRegistrations ?? event.stats?.totalRegistrations ?? (event._count ? event._count.groupRegistrations + event._count.individualRegistrations : 0)
 
     return (
       <Card className="hover:shadow-lg transition-shadow">
