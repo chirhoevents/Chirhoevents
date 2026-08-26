@@ -20,7 +20,7 @@ const faqCategories = [
       },
       {
         q: "What subscription plan is right for me?",
-        a: "It depends on how many events you run per year and how many participants you expect. The Chapel plan ($39/mo) works for small parishes with 1 event and up to 500 people. Parish ($59/mo) covers up to 3 events and 750 people. For diocesan-level events, consider Cathedral ($109/mo, 5 events / 1,250 people) or Shrine ($159/mo, 10 events / 3,000 people). Cathedral and above include POROS, SALVE, and RAPHA modules plus a 1-hour setup phone call. Basilica is custom, starting at $5,000/year."
+        a: "It depends on how many events you run per year and how many participants you expect. The Chapel plan ($39/mo) works for small parishes with 1 event and up to 500 people. Parish ($59/mo) covers up to 3 events and 750 people. For diocesan-level events, consider Cathedral ($150/mo, 5 events / 1,250 people) or Shrine ($200/mo, 10 events / 3,000 people). Cathedral and above include POROS, SALVE, and RAPHA modules plus a 1-hour setup phone call. Basilica is custom, starting at $5,000/year."
       },
       {
         q: "How long does setup take?",
