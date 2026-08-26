@@ -1719,6 +1719,58 @@ export function generateSurveyFeedbackEmail({
 }
 
 /**
+ * Post-event Survey invite / reminder email (native in-app survey, delivered
+ * via a per-recipient tokenized link — distinct from generateSurveyFeedbackEmail
+ * above, which just points at an external survey URL).
+ */
+export function generateSurveyInviteEmail({
+  recipientName,
+  eventName,
+  surveyTitle,
+  surveyUrl,
+  isReminder,
+  isAnonymous,
+  isGroupLeader,
+  customMessage,
+  organizationName,
+  supportEmail,
+}: {
+  recipientName: string
+  eventName: string
+  surveyTitle: string
+  surveyUrl: string
+  isReminder?: boolean
+  isAnonymous?: boolean
+  isGroupLeader?: boolean
+  customMessage?: string
+  organizationName: string
+  supportEmail?: string
+}): string {
+  const heading = isReminder ? "Quick Reminder — We'd Love Your Feedback" : 'Share Your Feedback'
+
+  return wrapEmail(`
+    <h1 style="color: #1E3A5F; margin-top: 0;">${heading}</h1>
+
+    <p>Dear ${recipientName},</p>
+
+    <p>${isGroupLeader
+      ? `Thank you for leading your group at <strong>${eventName}</strong>! We'd love to hear how it went — on behalf of yourself and your group.`
+      : `Thank you for being part of <strong>${eventName}</strong>! We hope it was a meaningful experience.`
+    }</p>
+
+    <p>${isReminder ? "We haven't heard from you yet — could you t" : 'Could you t'}ake a few minutes to complete "<strong>${surveyTitle}</strong>"?${isAnonymous ? ' Your responses are anonymous.' : ''}</p>
+
+    ${starLink('Take the Survey', surveyUrl, true)}
+
+    ${customMessage ? `<p>${customMessage}</p>` : ''}
+
+    <p>Thank you for taking a few minutes to share your thoughts. It means a lot to us.</p>
+
+    <p style="font-size: 14px; color: #666;">— ${organizationName}</p>
+  `, { organizationName, supportEmail, preheader: `${surveyTitle} — ${eventName}` })
+}
+
+/**
  * Registration Open announcement email
  */
 export function generateRegistrationOpenEmail({
