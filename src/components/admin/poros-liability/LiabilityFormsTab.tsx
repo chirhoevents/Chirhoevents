@@ -23,7 +23,10 @@ import {
   FileText,
   Loader2,
   AlertTriangle,
-  Printer
+  Printer,
+  Mail,
+  Trash2,
+  RefreshCw
 } from 'lucide-react'
 import { hasAnyMedicalInfo, hasRealMedicalText } from '@/lib/medical-info'
 
@@ -41,6 +44,7 @@ interface Participant {
   participantType: string | null
   formStatus: string
   formId: string | null
+  parentEmail: string | null
   pdfUrl: string | null
   allergies: string | null
   medications: string | null
@@ -64,6 +68,7 @@ interface Group {
   approvedCount: number
   pendingCount: number
   deniedCount: number
+  pendingParentCount: number
   youthCount: number
   youthSubmittedCount: number
   chaperoneCount: number
@@ -266,6 +271,7 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
               <SelectContent>
                 <SelectItem value="all">All Forms</SelectItem>
                 <SelectItem value="pending">Pending Review</SelectItem>
+                <SelectItem value="pending_parent">Waiting on Parent</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="denied">Denied</SelectItem>
               </SelectContent>
@@ -455,6 +461,12 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
                         <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full flex items-center gap-1">
                           <XCircle className="w-3 h-3" />
                           {group.deniedCount}
+                        </span>
+                      )}
+                      {group.pendingParentCount > 0 && (
+                        <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full flex items-center gap-1" title="Waiting on Parent">
+                          <Clock className="w-3 h-3" />
+                          {group.pendingParentCount}
                         </span>
                       )}
                     </div>
@@ -802,6 +814,77 @@ function ParticipantRow({
   const { getToken } = useAuth()
   const [showDetails, setShowDetails] = useState(false)
   const [processing, setProcessing] = useState(false)
+  const [editingEmail, setEditingEmail] = useState(false)
+  const [draftParentEmail, setDraftParentEmail] = useState(participant.parentEmail || '')
+
+  async function handleResendToParent(overrideParentEmail?: string) {
+    if (!participant.formId) return
+    if (!overrideParentEmail && !confirm(`Resend liability form email to ${participant.firstName} ${participant.lastName}'s parent?`)) {
+      return
+    }
+
+    setProcessing(true)
+    try {
+      const token = await getToken()
+      const response = await fetch(
+        `/api/admin/events/${eventId}/poros-liability/forms/${participant.formId}/resend`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(overrideParentEmail ? { parentEmail: overrideParentEmail } : {}),
+        }
+      )
+
+      const data = await response.json().catch(() => ({}))
+      if (response.ok) {
+        alert(data.message || 'Email sent successfully!')
+        setEditingEmail(false)
+        onUpdate()
+      } else {
+        alert(`Failed to send email: ${data.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Resend error:', error)
+      alert('Failed to send email')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  async function handleDeleteForm() {
+    if (!participant.formId) return
+    if (!confirm(`Delete the in-progress liability form for ${participant.firstName} ${participant.lastName}? This will let them start over from scratch.`)) {
+      return
+    }
+
+    setProcessing(true)
+    try {
+      const token = await getToken()
+      const response = await fetch(
+        `/api/admin/events/${eventId}/poros-liability/forms/${participant.formId}`,
+        {
+          method: 'DELETE',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      )
+
+      const data = await response.json().catch(() => ({}))
+      if (response.ok) {
+        alert(data.message || 'Form deleted successfully!')
+        onUpdate()
+      } else {
+        alert(`Failed to delete: ${data.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Delete error:', error)
+      alert('Failed to delete form')
+    } finally {
+      setProcessing(false)
+    }
+  }
 
   async function handleApprove() {
     if (!confirm(`Approve liability form for ${participant.firstName} ${participant.lastName}?`)) {
@@ -879,7 +962,11 @@ function ParticipantRow({
         <div className="flex-1">
           <div className="flex items-center gap-3">
             {/* Status Icon */}
-            {isYouth ? (
+            {participant.formStatus === 'pending_parent' ? (
+              <span title="Waiting on Parent">
+                <Clock className="w-5 h-5 text-orange-500" />
+              </span>
+            ) : isYouth ? (
               <span title="Youth - No approval required">
                 <CheckCircle className="w-5 h-5 text-green-600" />
               </span>
@@ -900,7 +987,15 @@ function ParticipantRow({
                 Age: {participant.age || 'N/A'} |{' '}
                 {participant.gender || 'N/A'} |{' '}
                 {participant.participantType?.replace('_', ' ')}
+                {participant.formStatus === 'pending_parent' && (
+                  <span className="ml-2 text-orange-600 font-medium">Waiting on Parent</span>
+                )}
               </div>
+              {participant.formStatus === 'pending_parent' && participant.parentEmail && (
+                <div className="text-xs text-gray-500 mt-0.5">
+                  Parent: {participant.parentEmail}
+                </div>
+              )}
             </div>
 
             {/* Medical Alerts */}
@@ -931,7 +1026,7 @@ function ParticipantRow({
             <Eye className="w-4 h-4" />
           </Button>
 
-          {participant.formId && (
+          {participant.formId && participant.formStatus !== 'pending_parent' && (
             <Button
               size="sm"
               variant="ghost"
@@ -966,7 +1061,65 @@ function ParticipantRow({
               </Button>
             </>
           )}
-          {isYouth && (
+
+          {participant.formStatus === 'pending_parent' && (
+            editingEmail ? (
+              <div className="flex items-center gap-1">
+                <Input
+                  type="email"
+                  value={draftParentEmail}
+                  onChange={(e) => setDraftParentEmail(e.target.value)}
+                  placeholder="parent@example.com"
+                  className="h-8 w-48 text-xs"
+                  autoFocus
+                />
+                <Button
+                  size="sm"
+                  onClick={() => handleResendToParent(draftParentEmail.trim())}
+                  disabled={processing || !draftParentEmail.trim()}
+                  title="Send"
+                >
+                  <Mail className="w-4 h-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setEditingEmail(false)
+                    setDraftParentEmail(participant.parentEmail || '')
+                  }}
+                  disabled={processing}
+                  title="Cancel"
+                >
+                  ✕
+                </Button>
+              </div>
+            ) : (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setEditingEmail(true)}
+                  disabled={processing}
+                  title={participant.parentEmail ? 'Edit Parent Email & Resend' : 'Send to Parent'}
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  onClick={handleDeleteForm}
+                  disabled={processing}
+                  title="Delete Form (Allow Restart)"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </>
+            )
+          )}
+
+          {isYouth && participant.formStatus !== 'pending_parent' && (
             <span className="text-xs text-gray-500 px-2">No approval needed</span>
           )}
         </div>
@@ -1034,7 +1187,7 @@ function ParticipantRow({
             </div>
 
             {/* Approval Status */}
-            {participant.formStatus !== 'pending' && (
+            {participant.formStatus !== 'pending' && participant.formStatus !== 'pending_parent' && (
               <div className="col-span-full pt-3 border-t">
                 <div className="flex items-center gap-2">
                   <span className="text-gray-600">Status:</span>
