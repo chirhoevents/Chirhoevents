@@ -228,7 +228,7 @@ export default function SurveysListClient({ eventId, eventName }: SurveysListCli
             <Button
               onClick={handleCreate}
               disabled={creating || !title.trim()}
-              className="bg-[#1E3A5F] hover:bg-[#2d4a6f]"
+              className="bg-[#1E3A5F] hover:bg-[#2d4a6f] text-white"
             >
               {creating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Create Survey

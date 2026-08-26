@@ -594,7 +594,7 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
               <Trash2 className="h-4 w-4 mr-2" />
               Delete Survey
             </Button>
-            <Button onClick={handleSaveSettings} disabled={savingSettings || !title.trim()} className="bg-[#1E3A5F] hover:bg-[#2d4a6f]">
+            <Button onClick={handleSaveSettings} disabled={savingSettings || !title.trim()} className="bg-[#1E3A5F] hover:bg-[#2d4a6f] text-white">
               {savingSettings ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
               Save Settings
             </Button>
@@ -637,7 +637,7 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
               <Button
                 onClick={handleAddRecipient}
                 disabled={addingRecipient || !addEmail.trim() || survey.questions.length === 0}
-                className="bg-[#1E3A5F] hover:bg-[#2d4a6f] whitespace-nowrap"
+                className="bg-[#1E3A5F] hover:bg-[#2d4a6f] text-white whitespace-nowrap"
               >
                 {addingRecipient ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
                 Send Link
@@ -721,7 +721,7 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg text-[#1E3A5F]">Questions</CardTitle>
-            <Button size="sm" onClick={openAddModal}>
+            <Button size="sm" onClick={openAddModal} className="bg-[#1E3A5F] hover:bg-[#2d4a6f] text-white">
               <Plus className="h-4 w-4 mr-1" />
               Add Question
             </Button>
@@ -892,7 +892,7 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
             <Button
               onClick={handleSaveQuestion}
               disabled={savingQuestion || !qForm.questionText.trim()}
-              className="bg-[#1E3A5F] hover:bg-[#2d4a6f]"
+              className="bg-[#1E3A5F] hover:bg-[#2d4a6f] text-white"
             >
               {savingQuestion ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {editingQuestion ? 'Update Question' : 'Add Question'}
@@ -935,7 +935,7 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
             <Button variant="outline" onClick={() => setSendModalOpen(false)}>
               Close
             </Button>
-            <Button onClick={handleSend} disabled={sending} className="bg-[#1E3A5F] hover:bg-[#2d4a6f]">
+            <Button onClick={handleSend} disabled={sending} className="bg-[#1E3A5F] hover:bg-[#2d4a6f] text-white">
               {sending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
               Send
             </Button>
