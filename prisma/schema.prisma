@@ -1352,6 +1352,9 @@ enum SurveyQuestionType {
 enum SurveyRecipientType {
   participant
   group_leader
+  // Manually added by an admin: a vendor, staff member, test send, or
+  // anyone else not pulled from an existing registration record.
+  manual
 }
 
 model Survey {
@@ -1370,6 +1373,10 @@ model Survey {
   // work), but the results views must never join recipient identity back
   // onto answers when this is true.
   isAnonymous        Boolean  @default(false) @map("is_anonymous")
+  // Non-personalized link anyone can use (vendors, flyers, QR codes, a
+  // quick "just grab a link"). Submissions via this token aren't tied to
+  // a SurveyRecipient, so they're always anonymous and never remindable.
+  publicToken        String?  @unique @map("public_token") @db.VarChar(255)
   closesAt           DateTime? @map("closes_at") @db.Timestamptz(6)
   createdBy          String   @map("created_by") @db.Uuid
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -1425,6 +1432,9 @@ model SurveyRecipient {
   remindersSentCount       Int      @default(0) @map("reminders_sent_count")
   lastReminderAt           DateTime? @map("last_reminder_at") @db.Timestamptz(6)
   respondedAt              DateTime? @map("responded_at") @db.Timestamptz(6)
+  // A "send test" recipient -- gets a real working link, but is excluded
+  // from recipient/response counts and the results dashboard.
+  isTest                   Boolean  @default(false) @map("is_test")
   createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   // Relations

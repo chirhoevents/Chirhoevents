@@ -250,10 +250,20 @@ export default function SurveyResultsClient({ eventId, eventName, surveyId }: Su
               <div key={r.id} className="border rounded-lg p-3">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <p className="font-medium text-sm text-[#1E3A5F]">{r.recipientName || 'Unknown'}</p>
-                    {r.recipientType && (
+                    <p className="font-medium text-sm text-[#1E3A5F]">
+                      {r.recipientName || (r.recipientType ? 'Unknown' : 'Public Link')}
+                    </p>
+                    {r.recipientType ? (
                       <Badge variant="outline" className="text-xs">
-                        {r.recipientType === 'group_leader' ? 'Group Leader' : 'Participant'}
+                        {r.recipientType === 'group_leader'
+                          ? 'Group Leader'
+                          : r.recipientType === 'manual'
+                            ? 'Manually Added'
+                            : 'Participant'}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-xs">
+                        Public Link
                       </Badge>
                     )}
                   </div>

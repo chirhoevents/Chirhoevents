@@ -13,23 +13,33 @@ export async function POST(
       include: { survey: { include: { questions: true } } },
     })
 
-    if (!recipient) {
+    // Not a personal link -- fall back to the survey's public (shared)
+    // link. Public-link submissions aren't tied to a recipient, so there's
+    // no "already responded" check -- it's meant to be used by many people.
+    const survey =
+      recipient?.survey ||
+      (await prisma.survey.findUnique({
+        where: { publicToken: token },
+        include: { questions: true },
+      }))
+
+    if (!survey) {
       return NextResponse.json({ error: 'This survey link is invalid.' }, { status: 404 })
     }
 
-    if (recipient.tokenExpiresAt && recipient.tokenExpiresAt < new Date()) {
+    if (recipient?.tokenExpiresAt && recipient.tokenExpiresAt < new Date()) {
       return NextResponse.json({ error: 'This survey link has expired.' }, { status: 410 })
     }
 
-    if (recipient.survey.status === 'closed') {
+    if (survey.status === 'closed') {
       return NextResponse.json({ error: 'This survey is now closed.' }, { status: 410 })
     }
 
-    if (recipient.survey.closesAt && recipient.survey.closesAt < new Date()) {
+    if (survey.closesAt && survey.closesAt < new Date()) {
       return NextResponse.json({ error: 'This survey is now closed.' }, { status: 410 })
     }
 
-    if (recipient.respondedAt) {
+    if (recipient?.respondedAt) {
       return NextResponse.json({ error: 'You have already submitted this survey.' }, { status: 409 })
     }
 
@@ -38,7 +48,7 @@ export async function POST(
 
     const answersByQuestion = new Map(answers.map(a => [a.questionId, a.value]))
 
-    for (const question of recipient.survey.questions) {
+    for (const question of survey.questions) {
       const value = answersByQuestion.get(question.id)
       const isBlank =
         value === undefined ||
@@ -53,7 +63,7 @@ export async function POST(
       }
     }
 
-    const answerRows = recipient.survey.questions
+    const answerRows = survey.questions
       .map(question => {
         const value = answersByQuestion.get(question.id)
         if (value === undefined || value === null) return null
@@ -72,19 +82,23 @@ export async function POST(
       })
       .filter((a): a is { questionId: string; answerText: string } => a !== null)
 
-    await prisma.$transaction([
-      prisma.surveyResponse.create({
-        data: {
-          surveyId: recipient.surveyId,
-          recipientId: recipient.id,
-          answers: { createMany: { data: answerRows } },
-        },
-      }),
-      prisma.surveyRecipient.update({
-        where: { id: recipient.id },
-        data: { respondedAt: new Date() },
-      }),
-    ])
+    const responseData = {
+      surveyId: survey.id,
+      recipientId: recipient?.id || null,
+      answers: { createMany: { data: answerRows } },
+    }
+
+    if (recipient) {
+      await prisma.$transaction([
+        prisma.surveyResponse.create({ data: responseData }),
+        prisma.surveyRecipient.update({
+          where: { id: recipient.id },
+          data: { respondedAt: new Date() },
+        }),
+      ])
+    } else {
+      await prisma.surveyResponse.create({ data: responseData })
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

@@ -23,7 +23,12 @@ export async function GET(
       where: { id: surveyId, eventId },
       include: {
         questions: { orderBy: { displayOrder: 'asc' } },
-        _count: { select: { recipients: true, responses: true } },
+        _count: {
+          select: {
+            recipients: { where: { isTest: false } },
+            responses: { where: { OR: [{ recipientId: null }, { recipient: { isTest: false } }] } },
+          },
+        },
       },
     })
 
@@ -32,7 +37,7 @@ export async function GET(
     }
 
     const respondedCount = await prisma.surveyRecipient.count({
-      where: { surveyId, respondedAt: { not: null } },
+      where: { surveyId, respondedAt: { not: null }, isTest: false },
     })
 
     return NextResponse.json({ survey, respondedCount })

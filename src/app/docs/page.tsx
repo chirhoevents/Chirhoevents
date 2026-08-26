@@ -35,6 +35,7 @@ const docSections = [
       { id: "coupon-codes", title: "Coupon & Discount Codes" },
       { id: "manage-registrations", title: "Managing Registrations & Payments" },
       { id: "email-participants", title: "Emailing Participants" },
+      { id: "surveys", title: "Post-Event Surveys" },
       { id: "virtual-terminal", title: "Virtual Terminal (Phone Payments)" },
       { id: "staff-volunteer", title: "Staff & Volunteer Registration" },
       { id: "liability-individual", title: "Liability Forms for Individuals" },
@@ -3042,6 +3043,98 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           <p className="text-sm">
             <strong>Note:</strong> Emails are sent from your organization&apos;s configured email address
             and include automatic unsubscribe links for compliance.
+          </p>
+        </div>
+      </div>
+    )
+  },
+
+  "surveys": {
+    title: "Post-Event Surveys",
+    content: (
+      <div className="space-y-4">
+        <p>
+          Build a post-conference or post-retreat survey right inside ChiRho and send it out
+          after the event with a click — no external form tool required. Surveys support
+          multiple choice, multi-select, rating scale, yes/no, and short-answer questions, and
+          can go to participants, group leaders, or both.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Creating a Survey</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Go to <strong>Events → [Your Event] → Surveys</strong></li>
+          <li>Click <strong>New Survey</strong> and give it a title</li>
+          <li>Add as many questions as you want — there is no limit on question count</li>
+          <li>For each question, choose a type and mark it required or optional</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Question Types</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Multiple Choice</strong> — pick one option from a list</li>
+          <li><strong>Multi-Select</strong> — pick any number of options</li>
+          <li><strong>Rating Scale</strong> — a numeric scale (e.g. 1–5 or 1–10) with optional labels like &quot;Poor&quot; to &quot;Excellent&quot;</li>
+          <li><strong>Yes/No</strong></li>
+          <li><strong>Short Answer</strong> — a free-text response</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Choosing Your Audience</h3>
+        <p>
+          Every survey has two independent audience toggles, and you can turn on either one or
+          both:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Send to Participants</strong> — anyone with an email on file (participants, or their parent&apos;s email if the participant is a minor without their own)</li>
+          <li><strong>Send to Group Leaders</strong> — the primary contact for each group</li>
+        </ul>
+        <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mt-4">
+          <p className="text-sm">
+            <strong>Events with minors:</strong> Turn off &quot;Send to Participants&quot; and use
+            &quot;Send to Group Leaders&quot; only so the group leader answers on behalf of their
+            group instead of the survey going directly to a minor.
+          </p>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Anonymous Responses</h3>
+        <p>
+          Turn on <strong>Anonymous</strong> in a survey&apos;s settings to keep the results view
+          from ever showing who submitted which response. Delivery is still tracked behind the
+          scenes so reminders keep working, but names and emails are never joined to answers
+          once anonymous mode is on.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Sending the Survey</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Add at least one question, then click <strong>Send Survey</strong></li>
+          <li>Optionally add a custom note that appears in the email</li>
+          <li>ChiRho emails a personal, one-time survey link to everyone in your chosen audience</li>
+          <li>Click <strong>Send to New Registrants</strong> any time after that to reach people who registered since the last send — everyone who already has a link is skipped</li>
+          <li>Click <strong>Send Reminders</strong> to email only the people who haven&apos;t responded yet</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Reaching People Outside Registration</h3>
+        <p>
+          Not every recipient has to come from a registration record. Each survey&apos;s page has a
+          &quot;Reach People Outside Registration&quot; section with three tools:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Add a Recipient</strong> — type any name and email (a vendor, a staff member, anyone) and send them a real tracked link</li>
+          <li><strong>Send Yourself a Test</strong> — get a working preview link instantly, even while the survey is still a draft; test submissions never count toward your results</li>
+          <li><strong>Public Link</strong> — a shareable link anyone can use to respond, good for flyers or QR codes. Public-link responses are always anonymous and can&apos;t be reminded, since they aren&apos;t tied to a specific person</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Reviewing Results</h3>
+        <p>Click <strong>View Results</strong> on any survey to see:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Recipients, sent count, responses, and response rate</li>
+          <li>A breakdown for every question — bar charts for multiple choice/multi-select, an average and distribution for rating scales, and the full list of answers for short-answer questions</li>
+          <li>A per-respondent view showing who answered what — hidden automatically for anonymous surveys</li>
+        </ul>
+
+        <div className="bg-beige p-4 rounded-lg mt-6">
+          <p className="text-sm">
+            <strong>💡 Pro Tip:</strong> Send yourself a test first to check the questions read
+            well on a phone, then send the real survey a day or two after the event while it&apos;s
+            still fresh in people&apos;s minds.
           </p>
         </div>
       </div>

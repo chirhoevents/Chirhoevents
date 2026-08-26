@@ -23,7 +23,13 @@ export async function GET(
       where: { eventId },
       orderBy: { createdAt: 'desc' },
       include: {
-        _count: { select: { questions: true, recipients: true, responses: true } },
+        _count: {
+          select: {
+            questions: true,
+            recipients: { where: { isTest: false } },
+            responses: { where: { OR: [{ recipientId: null }, { recipient: { isTest: false } }] } },
+          },
+        },
       },
     })
 
