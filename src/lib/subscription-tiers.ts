@@ -91,8 +91,8 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
     key: 'cathedral',
     name: 'Cathedral',
     description: 'For growing dioceses with multiple events',
-    monthlyPrice: 109,
-    annualPrice: 1080,
+    monthlyPrice: 200,
+    annualPrice: 2000, // $1.60/participant (1,250 cap) x 12mo equivalent, ~2 months free vs. monthly
     setupFee: 250,
     setupFeeLabel: 'Setup Fee',
     isSelfServe: false,
@@ -116,8 +116,8 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
     key: 'shrine',
     name: 'Shrine',
     description: 'For large conferences and multi-event organizations',
-    monthlyPrice: 189,
-    annualPrice: 1908, // ~2 months free vs. paying monthly, matching Cathedral's annual discount
+    monthlyPrice: 270,
+    annualPrice: 2700, // $0.90/participant (3,000 cap), cheaper per person than Cathedral's $1.60 to reward scale; ~2 months free vs. monthly
     setupFee: 400,
     setupFeeLabel: 'Setup Fee',
     isSelfServe: false,
