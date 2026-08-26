@@ -43,9 +43,11 @@ export async function GET(
               // Submitted forms, subject to the approval-status filter
               { completed: true, ...(status !== 'all' && status !== 'pending_parent' ? { formStatus: status } : {}) },
               // Youth-under-18 forms where step 1 is done but the parent hasn't
-              // finished step 2 yet — these never had an approval status to filter on
+              // finished step 2 yet — these never had an approval status to filter on.
+              // Keyed on formType, not participantType: the self-service Poros flow
+              // (api/liability/youth-u18/initiate) never sets participantType.
               ...(status === 'all' || status === 'pending_parent'
-                ? [{ completed: false, participantType: 'youth_u18' as const, parentToken: { not: null } }]
+                ? [{ completed: false, formType: 'youth_u18' as const, parentToken: { not: null } }]
                 : []),
             ],
           },
