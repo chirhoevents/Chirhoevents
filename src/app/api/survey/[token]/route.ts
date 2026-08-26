@@ -17,33 +17,44 @@ export async function GET(
       },
     })
 
-    if (!recipient) {
+    // Not a personal link -- check whether it's a survey's public (shared)
+    // link instead. Those aren't tied to any one respondent.
+    const survey =
+      recipient?.survey ||
+      (await prisma.survey.findUnique({
+        where: { publicToken: token },
+        include: { questions: { orderBy: { displayOrder: 'asc' } }, event: { select: { name: true } } },
+      }))
+
+    if (!survey) {
       return NextResponse.json({ error: 'This survey link is invalid.' }, { status: 404 })
     }
 
-    if (recipient.tokenExpiresAt && recipient.tokenExpiresAt < new Date()) {
+    if (recipient?.tokenExpiresAt && recipient.tokenExpiresAt < new Date()) {
       return NextResponse.json({ error: 'This survey link has expired.' }, { status: 410 })
     }
 
-    if (recipient.survey.status === 'closed') {
+    if (survey.status === 'closed') {
       return NextResponse.json({ error: 'This survey is now closed.' }, { status: 410 })
     }
 
-    if (recipient.survey.closesAt && recipient.survey.closesAt < new Date()) {
+    if (survey.closesAt && survey.closesAt < new Date()) {
       return NextResponse.json({ error: 'This survey is now closed.' }, { status: 410 })
     }
 
     return NextResponse.json({
       survey: {
-        id: recipient.survey.id,
-        title: recipient.survey.title,
-        description: recipient.survey.description,
-        isAnonymous: recipient.survey.isAnonymous,
-        eventName: recipient.survey.event.name,
+        id: survey.id,
+        title: survey.title,
+        description: survey.description,
+        // The public link is always anonymous -- there's no recipient to
+        // link a response back to.
+        isAnonymous: survey.isAnonymous || !recipient,
+        eventName: survey.event.name,
       },
-      recipientName: recipient.name,
-      alreadyResponded: !!recipient.respondedAt,
-      questions: recipient.survey.questions.map(q => ({
+      recipientName: recipient?.name || null,
+      alreadyResponded: !!recipient?.respondedAt,
+      questions: survey.questions.map(q => ({
         id: q.id,
         questionText: q.questionText,
         questionType: q.questionType,

@@ -29,6 +29,12 @@ import {
   BellRing,
   BarChart3,
   Save,
+  UserPlus,
+  FlaskConical,
+  Link2,
+  Copy,
+  Check,
+  X,
 } from 'lucide-react'
 
 type QuestionType = 'text' | 'yes_no' | 'multiple_choice' | 'multi_select' | 'scale'
@@ -55,6 +61,7 @@ interface Survey {
   sendToGroupLeaders: boolean
   isAnonymous: boolean
   closesAt: string | null
+  publicToken: string | null
   questions: SurveyQuestion[]
   _count: { recipients: number; responses: number }
 }
@@ -118,6 +125,18 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
   const [customMessage, setCustomMessage] = useState('')
   const [sendResult, setSendResult] = useState<string | null>(null)
 
+  // Reach people outside registration: manual recipient, test send, public link
+  const [addName, setAddName] = useState('')
+  const [addEmail, setAddEmail] = useState('')
+  const [addingRecipient, setAddingRecipient] = useState(false)
+  const [addResult, setAddResult] = useState<string | null>(null)
+  const [testEmail, setTestEmail] = useState('')
+  const [sendingTest, setSendingTest] = useState(false)
+  const [testResult, setTestResult] = useState<string | null>(null)
+  const [publicLink, setPublicLink] = useState<string | null>(null)
+  const [publicLinkLoading, setPublicLinkLoading] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
+
   const authHeaders = useCallback(
     async (extra: Record<string, string> = {}) => {
       const token = await getToken()
@@ -139,6 +158,11 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
       setSendToGroupLeaders(data.survey.sendToGroupLeaders)
       setIsAnonymous(data.survey.isAnonymous)
       setClosesAt(data.survey.closesAt ? data.survey.closesAt.slice(0, 10) : '')
+      setPublicLink(
+        data.survey.publicToken
+          ? `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/survey/${data.survey.publicToken}`
+          : null
+      )
     } catch (err) {
       console.error('Error loading survey:', err)
     } finally {
@@ -335,6 +359,101 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
     }
   }
 
+  const handleAddRecipient = async () => {
+    if (!addEmail.trim()) return
+    setAddingRecipient(true)
+    setAddResult(null)
+    try {
+      const headers = await authHeaders({ 'Content-Type': 'application/json' })
+      const res = await fetch(`/api/admin/events/${eventId}/surveys/${surveyId}/recipients`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ name: addName || undefined, email: addEmail }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to add recipient')
+      setAddResult(`Sent a survey link to ${addEmail}.`)
+      setAddName('')
+      setAddEmail('')
+      await loadSurvey()
+    } catch (err) {
+      setAddResult(err instanceof Error ? err.message : 'Failed to add recipient')
+    } finally {
+      setAddingRecipient(false)
+    }
+  }
+
+  const handleSendTest = async () => {
+    if (!testEmail.trim()) return
+    setSendingTest(true)
+    setTestResult(null)
+    try {
+      const headers = await authHeaders({ 'Content-Type': 'application/json' })
+      const res = await fetch(`/api/admin/events/${eventId}/surveys/${surveyId}/test-send`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ email: testEmail }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to send test')
+      setTestResult(`Test sent to ${testEmail}. It won't count toward your results.`)
+    } catch (err) {
+      setTestResult(err instanceof Error ? err.message : 'Failed to send test')
+    } finally {
+      setSendingTest(false)
+    }
+  }
+
+  const handleGetPublicLink = async (regenerate = false) => {
+    setPublicLinkLoading(true)
+    try {
+      const headers = await authHeaders({ 'Content-Type': 'application/json' })
+      const res = await fetch(`/api/admin/events/${eventId}/surveys/${surveyId}/public-link`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ regenerate }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to create public link')
+      setPublicLink(data.url)
+      if (survey?.status === 'draft') await loadSurvey()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to create public link')
+    } finally {
+      setPublicLinkLoading(false)
+    }
+  }
+
+  const handleRevokePublicLink = async () => {
+    if (!confirm('Revoke this link? Anyone who has it will no longer be able to respond.')) return
+    setPublicLinkLoading(true)
+    try {
+      const headers = await authHeaders()
+      const res = await fetch(`/api/admin/events/${eventId}/surveys/${surveyId}/public-link`, {
+        method: 'DELETE',
+        headers,
+      })
+      if (!res.ok) throw new Error('Failed to revoke link')
+      setPublicLink(null)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to revoke link')
+    } finally {
+      setPublicLinkLoading(false)
+    }
+  }
+
+  const handleCopyLink = async () => {
+    if (!publicLink) return
+    try {
+      await navigator.clipboard.writeText(publicLink)
+      setLinkCopied(true)
+      setTimeout(() => setLinkCopied(false), 2000)
+    } catch {
+      // Clipboard API unavailable (e.g. insecure context) -- the link is
+      // still shown in the input for manual copy.
+    }
+  }
+
   const addOption = () => setQForm(prev => ({ ...prev, options: [...prev.options, ''] }))
   const updateOption = (index: number, value: string) =>
     setQForm(prev => ({ ...prev, options: prev.options.map((o, i) => (i === index ? value : o)) }))
@@ -479,6 +598,120 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
               {savingSettings ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
               Save Settings
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Reach people outside registration */}
+      <Card className="bg-white border-[#D1D5DB]">
+        <CardHeader>
+          <CardTitle className="text-lg text-[#1E3A5F]">Reach People Outside Registration</CardTitle>
+          <p className="text-sm text-[#6B7280]">
+            Send to a vendor or anyone else by email, preview the survey yourself, or grab a
+            link anyone can use.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {survey.questions.length === 0 && (
+            <p className="text-sm text-[#6B7280] italic">Add at least one question above to enable sending.</p>
+          )}
+
+          {/* Add a one-off recipient */}
+          <div>
+            <Label className="flex items-center gap-2 mb-2">
+              <UserPlus className="h-4 w-4" /> Add a Recipient
+            </Label>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                placeholder="Name (optional)"
+                value={addName}
+                onChange={e => setAddName(e.target.value)}
+                className="sm:max-w-[180px]"
+              />
+              <Input
+                placeholder="email@example.com"
+                type="email"
+                value={addEmail}
+                onChange={e => setAddEmail(e.target.value)}
+              />
+              <Button
+                onClick={handleAddRecipient}
+                disabled={addingRecipient || !addEmail.trim() || survey.questions.length === 0}
+                className="bg-[#1E3A5F] hover:bg-[#2d4a6f] whitespace-nowrap"
+              >
+                {addingRecipient ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+                Send Link
+              </Button>
+            </div>
+            {addResult && <p className="text-xs text-[#6B7280] mt-1">{addResult}</p>}
+          </div>
+
+          {/* Send a test */}
+          <div>
+            <Label className="flex items-center gap-2 mb-2">
+              <FlaskConical className="h-4 w-4" /> Send Yourself a Test
+            </Label>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                placeholder="your@email.com"
+                type="email"
+                value={testEmail}
+                onChange={e => setTestEmail(e.target.value)}
+              />
+              <Button
+                variant="outline"
+                onClick={handleSendTest}
+                disabled={sendingTest || !testEmail.trim() || survey.questions.length === 0}
+                className="whitespace-nowrap"
+              >
+                {sendingTest ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FlaskConical className="h-4 w-4 mr-2" />}
+                Send Test
+              </Button>
+            </div>
+            <p className="text-xs text-[#6B7280] mt-1">
+              {testResult || "Works even in draft. Test submissions never count toward your results."}
+            </p>
+          </div>
+
+          {/* Public shareable link */}
+          <div>
+            <Label className="flex items-center gap-2 mb-2">
+              <Link2 className="h-4 w-4" /> Public Link
+            </Label>
+            {publicLink ? (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Input readOnly value={publicLink} className="font-mono text-xs" />
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={handleCopyLink} className="whitespace-nowrap">
+                    {linkCopied ? <Check className="h-4 w-4 mr-2 text-green-600" /> : <Copy className="h-4 w-4 mr-2" />}
+                    {linkCopied ? 'Copied' : 'Copy'}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={handleRevokePublicLink}
+                    disabled={publicLinkLoading}
+                    className="text-red-600 hover:text-red-700 whitespace-nowrap"
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Revoke
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={() => handleGetPublicLink(false)}
+                disabled={publicLinkLoading || survey.questions.length === 0}
+              >
+                {publicLinkLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Link2 className="h-4 w-4 mr-2" />}
+                Create Public Link
+              </Button>
+            )}
+            <p className="text-xs text-[#6B7280] mt-1">
+              Anyone with this link can respond -- good for flyers, QR codes, or a vendor you
+              don&apos;t want to add one by one. Responses from it are always anonymous and can&apos;t be
+              reminded.
+            </p>
           </div>
         </CardContent>
       </Card>

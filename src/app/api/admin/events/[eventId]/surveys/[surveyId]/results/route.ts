@@ -44,12 +44,15 @@ export async function GET(
       return NextResponse.json({ error: 'Survey not found' }, { status: 404 })
     }
 
+    // Test sends are excluded from every stat below so a preview send never
+    // skews real response data; public-link responses (recipientId null)
+    // are always included since they're real respondents, just anonymous.
     const [recipientCount, sentCount, respondedCount, responses] = await Promise.all([
-      prisma.surveyRecipient.count({ where: { surveyId } }),
-      prisma.surveyRecipient.count({ where: { surveyId, sentAt: { not: null } } }),
-      prisma.surveyRecipient.count({ where: { surveyId, respondedAt: { not: null } } }),
+      prisma.surveyRecipient.count({ where: { surveyId, isTest: false } }),
+      prisma.surveyRecipient.count({ where: { surveyId, sentAt: { not: null }, isTest: false } }),
+      prisma.surveyRecipient.count({ where: { surveyId, respondedAt: { not: null }, isTest: false } }),
       prisma.surveyResponse.findMany({
-        where: { surveyId },
+        where: { surveyId, OR: [{ recipientId: null }, { recipient: { isTest: false } }] },
         include: {
           answers: true,
           // Never select recipient identity fields when the survey is
