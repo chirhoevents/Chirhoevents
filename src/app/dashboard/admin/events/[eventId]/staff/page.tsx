@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
@@ -27,9 +27,16 @@ import {
   Mail,
   FileText,
   Printer,
+  Shield,
+  Upload,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import CustomQuestionsManager from '@/components/admin/CustomQuestionsManager'
+import RefundModal from '@/components/admin/RefundModal'
+import StaffDetailsModal from '@/components/admin/StaffDetailsModal'
+import BulkStaffEmailModal from '@/components/admin/BulkStaffEmailModal'
+import { DollarSign, Eye } from 'lucide-react'
+import { openBadgePrintWindow } from '@/lib/badge-renderer'
 
 interface CustomAnswer {
   questionText: string
@@ -51,6 +58,8 @@ interface StaffRegistration {
   paymentStatus: string
   porosAccessCode: string | null
   liabilityFormId: string | null
+  safeEnvironmentCertUrl: string | null
+  safeEnvironmentCertUploadedAt: string | null
   checkedIn: boolean
   createdAt: string
   vendorRegistration?: {
@@ -172,6 +181,90 @@ export default function StaffManagementPage() {
     a.click()
   }
 
+  const safeEnvFileInputRef = useRef<HTMLInputElement | null>(null)
+  const [uploadingCertStaffId, setUploadingCertStaffId] = useState<string | null>(null)
+  const [refundStaff, setRefundStaff] = useState<StaffRegistration | null>(null)
+  const [detailStaffId, setDetailStaffId] = useState<string | null>(null)
+  const [bulkEmailOpen, setBulkEmailOpen] = useState(false)
+
+  const triggerSafeEnvUpload = (staffId: string) => {
+    setUploadingCertStaffId(staffId)
+    safeEnvFileInputRef.current?.click()
+  }
+
+  const handleSafeEnvFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    const staffId = uploadingCertStaffId
+    // reset picker so the same file can be re-selected next time
+    e.target.value = ''
+    if (!file || !staffId) {
+      setUploadingCertStaffId(null)
+      return
+    }
+
+    try {
+      const token = await getToken()
+      const body = new FormData()
+      body.append('file', file)
+      const res = await fetch(`/api/admin/events/${eventId}/staff/${staffId}/safe-env-cert`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body,
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        alert(`Failed to upload certificate: ${data.error || res.statusText}`)
+        return
+      }
+      alert('Safe Environment certificate uploaded. The staffer has been notified.')
+      loadData()
+    } catch {
+      alert('Failed to upload certificate')
+    } finally {
+      setUploadingCertStaffId(null)
+    }
+  }
+
+  const [printing, setPrinting] = useState(false)
+  const handlePrintNameTags = async () => {
+    if (filteredStaff.length === 0) {
+      alert('No staff members match the current filter.')
+      return
+    }
+    setPrinting(true)
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/admin/events/${eventId}/salve/generate-name-tags`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          registrationType: 'staff',
+          participantIds: filteredStaff.map((s) => s.id),
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        alert(`Failed to generate name tags: ${data.error || data.message || res.statusText}`)
+        return
+      }
+      const data = await res.json()
+      if (!data.nameTags || data.nameTags.length === 0) {
+        alert('No name tags were generated.')
+        return
+      }
+      const template = data.nameTags[0]?.template
+      openBadgePrintWindow(data.nameTags, template, event?.name || '', data.schedule || [])
+    } catch (err) {
+      console.error('Print name tags error:', err)
+      alert('Failed to generate name tags')
+    } finally {
+      setPrinting(false)
+    }
+  }
+
   const handleResendPorosCode = async (staffId: string) => {
     try {
       const token = await getToken()
@@ -205,6 +298,13 @@ export default function StaffManagementPage() {
 
   return (
     <div className="space-y-6">
+      <input
+        ref={safeEnvFileInputRef}
+        type="file"
+        accept="application/pdf,image/*"
+        className="hidden"
+        onChange={handleSafeEnvFileSelected}
+      />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -219,12 +319,25 @@ export default function StaffManagementPage() {
           <p className="text-[#6B7280]">{event?.name}</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setBulkEmailOpen(true)} title="Email all staff (with role filter)">
+            <Mail className="h-4 w-4 mr-2" />
+            Email Staff
+          </Button>
           <Button variant="outline" onClick={handleExportCSV}>
             <Download className="h-4 w-4 mr-2" />
             Export CSV
           </Button>
-          <Button variant="outline">
-            <Printer className="h-4 w-4 mr-2" />
+          <Button
+            variant="outline"
+            onClick={handlePrintNameTags}
+            disabled={printing || filteredStaff.length === 0}
+            title="Print name tags for the filtered staff list using the event's SALVE name-tag template"
+          >
+            {printing ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Printer className="h-4 w-4 mr-2" />
+            )}
             Print Name Tags
           </Button>
         </div>
@@ -329,6 +442,35 @@ export default function StaffManagementPage() {
         </div>
       </div>
 
+      <BulkStaffEmailModal
+        eventId={eventId}
+        open={bulkEmailOpen}
+        onClose={() => setBulkEmailOpen(false)}
+      />
+      {detailStaffId && (
+        <StaffDetailsModal
+          eventId={eventId}
+          staffId={detailStaffId}
+          open={!!detailStaffId}
+          onClose={() => setDetailStaffId(null)}
+          onSaved={loadData}
+        />
+      )}
+      {refundStaff && (
+        <RefundModal
+          isOpen={!!refundStaff}
+          onClose={() => setRefundStaff(null)}
+          registrationId={refundStaff.id}
+          registrationType="staff"
+          currentBalance={0}
+          amountPaid={Number(refundStaff.pricePaid || 0)}
+          onRefundProcessed={() => {
+            setRefundStaff(null)
+            loadData()
+          }}
+        />
+      )}
+
       {/* Table */}
       <Card>
         <CardContent className="p-0">
@@ -416,14 +558,57 @@ export default function StaffManagementPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setDetailStaffId(staff.id)}
+                          title="View / edit staffer details"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         {staff.porosAccessCode && staff.liabilityForm?.status !== 'approved' && (
                           <Button
                             size="sm"
                             variant="ghost"
                             onClick={() => handleResendPorosCode(staff.id)}
-                            title="Resend Poros Code"
+                            title="Resend liability form access code by email"
                           >
                             <Mail className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {Number(staff.pricePaid || 0) > 0 && staff.paymentStatus === 'paid' && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setRefundStaff(staff)}
+                            title="Refund staffer"
+                          >
+                            <DollarSign className="h-4 w-4 text-red-600" />
+                          </Button>
+                        )}
+                        {staff.safeEnvironmentCertUrl ? (
+                          <a
+                            href={staff.safeEnvironmentCertUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center h-8 w-8 rounded-md text-green-600 hover:bg-green-50"
+                            title={`Safe Env cert on file${staff.safeEnvironmentCertUploadedAt ? ` (uploaded ${format(new Date(staff.safeEnvironmentCertUploadedAt), 'MMM d')})` : ''}`}
+                          >
+                            <Shield className="h-4 w-4" />
+                          </a>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => triggerSafeEnvUpload(staff.id)}
+                            title="Upload Safe Environment Cert on behalf of staffer"
+                            disabled={uploadingCertStaffId === staff.id}
+                          >
+                            {uploadingCertStaffId === staff.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Upload className="h-4 w-4" />
+                            )}
                           </Button>
                         )}
                       </div>

@@ -7,13 +7,23 @@ import { logger } from '@/lib/logger'
 import QRCode from 'qrcode'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { generateGroupRegistrationConfirmationEmail } from '@/lib/email-templates'
+import { getRegistrationStatus } from '@/lib/registration-status'
+import { resolveReplyTo } from '@/lib/email-reply-to'
+import { calculatePlatformFeeCents } from '@/lib/stripe-fees'
 import {
   checkOptionCapacity,
   decrementOptionCapacity,
+  incrementOptionCapacity,
   checkDayPassOptionCapacity,
   decrementDayPassOptionCapacity,
+  incrementDayPassOptionCapacity,
   type HousingType
 } from '@/lib/option-capacity'
+import {
+  markWaitlistAsRegistered,
+  markWaitlistAsRegisteredByToken,
+  validateWaitlistToken,
+} from '@/lib/waitlist-utils'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -42,6 +52,7 @@ export async function POST(request: NextRequest) {
       specialRequests = '',
       paymentMethod = 'card', // 'card' or 'check'
       couponCode = '',
+      waitlistToken = null,
     } = body
 
     if (!eventId || !groupName || !groupLeaderName || !groupLeaderEmail || !groupLeaderPhone || !alternativeContact1Name || !alternativeContact1Email || !alternativeContact1Phone) {
@@ -87,6 +98,7 @@ export async function POST(request: NextRequest) {
             stripeAccountId: true,
             stripeChargesEnabled: true,
             platformFeePercentage: true,
+            contactEmail: true,
           },
         },
       },
@@ -105,6 +117,134 @@ export async function POST(request: NextRequest) {
         { error: 'This organization is not currently accepting registrations.' },
         { status: 400 }
       )
+    }
+
+    // Fix #C1: Use the same gate the public-page CTA uses, applied at the API.
+    // This honors the registration window (registrationOpenDate / registrationCloseDate),
+    // manual status overrides (registration_open / registration_closed), capacity,
+    // and the event-ended check. isPublished is intentionally NOT checked here so
+    // admins can still test registration on an unpublished event — see
+    // registration-status.ts:62-64.
+    const regStatus = getRegistrationStatus({
+      status: event.status,
+      closedMessage: event.settings?.registrationClosedMessage,
+      startDate: event.startDate,
+      endDate: event.endDate,
+      registrationOpenDate: event.registrationOpenDate,
+      registrationCloseDate: event.registrationCloseDate,
+      capacityTotal: event.capacityTotal,
+      capacityRemaining: event.capacityRemaining,
+      enableWaitlist: event.enableWaitlist,
+      settings: {
+        countdownBeforeOpen: event.settings?.countdownBeforeOpen ?? true,
+        countdownBeforeClose: event.settings?.countdownBeforeClose ?? true,
+        waitlistEnabled: event.settings?.waitlistEnabled ?? event.enableWaitlist,
+      },
+    })
+
+    // A valid waitlist token bypasses the at_capacity/closed branches of the
+    // registration gate — that's the whole point of a waitlist invite. Other
+    // reasons registration is closed (event_ended, not_yet_open) still block.
+    // If the token has a live reservation, we also skip the capacity decrement
+    // below so we don't double-count the seat.
+    // Strict match: the option (housing / day pass) the invitee tries to
+    // register for must match what they waitlisted for. Otherwise they could
+    // grab a seat a walk-in was waiting for.
+    let waitlistBypass = false
+    let waitlistReservedSpots = 0
+    let waitlistOptionReserved = false
+    let waitlistDayPassReserved = false
+    if (waitlistToken) {
+      const tokenCheck = await validateWaitlistToken(waitlistToken)
+      if (!tokenCheck.valid || !tokenCheck.entry) {
+        return NextResponse.json(
+          { error: `Waitlist invitation is not valid: ${tokenCheck.error || 'unknown reason'}` },
+          { status: 400 }
+        )
+      }
+      if (tokenCheck.entry.eventId !== event.id) {
+        return NextResponse.json(
+          { error: 'Waitlist invitation is for a different event.' },
+          { status: 400 }
+        )
+      }
+
+      const wl = tokenCheck.entry
+      const requestedHousing = (housingType || null) as HousingType | null
+      const requestedDayPassOptionId = (body.dayPassOptionId || null) as string | null
+
+      // Match against effective_* values so a counter-offer (reserved_*
+      // differs from preferred_*) is the enforced contract. Falls back to
+      // preferred_* when no reservation was set (pre-reservation entries).
+      const expectedHousing = wl.effectiveHousingType
+      const expectedDayPassOptionId = wl.effectiveDayPassOptionId
+
+      if (expectedHousing && requestedHousing && expectedHousing !== requestedHousing) {
+        return NextResponse.json(
+          {
+            error: `Your waitlist invitation was for ${expectedHousing.replace('_', ' ')} housing, but this registration is for ${requestedHousing.replace('_', ' ')}. Please register for ${expectedHousing.replace('_', ' ')} or contact the organizer to change your option.`,
+          },
+          { status: 400 }
+        )
+      }
+      if (expectedDayPassOptionId && requestedDayPassOptionId && expectedDayPassOptionId !== requestedDayPassOptionId) {
+        return NextResponse.json(
+          {
+            error: 'Your waitlist invitation was for a different day pass option. Please register for the option you waitlisted for, or contact the organizer to change it.',
+          },
+          { status: 400 }
+        )
+      }
+
+      // Party-size + mix enforcement. An invitee got seats reserved for
+      // a specific total (and, for group entries with a mix, a specific
+      // youth/chaperone/priest split). Without this check, one invited
+      // group could register more people than they were offered and eat
+      // seats reserved for other invited groups.
+      const invitedTotal = (youthCount || 0) + (chaperoneCount || 0) + (priestCount || 0)
+      const offeredTotal = wl.reservedSpots ?? 0
+      if (offeredTotal > 0 && invitedTotal !== offeredTotal) {
+        return NextResponse.json(
+          {
+            error: `Your waitlist invitation was for ${offeredTotal} spot${offeredTotal === 1 ? '' : 's'}, but this registration is for ${invitedTotal}. Please register for exactly ${offeredTotal}, or contact the organizer to change your invitation.`,
+          },
+          { status: 400 }
+        )
+      }
+      if (
+        wl.reservedYouthCount !== null &&
+        wl.reservedChaperoneCount !== null &&
+        wl.reservedPriestCount !== null
+      ) {
+        if (
+          youthCount !== wl.reservedYouthCount ||
+          chaperoneCount !== wl.reservedChaperoneCount ||
+          priestCount !== wl.reservedPriestCount
+        ) {
+          return NextResponse.json(
+            {
+              error: `Your waitlist invitation was for ${wl.reservedYouthCount} youth + ${wl.reservedChaperoneCount} chaperone${wl.reservedChaperoneCount === 1 ? '' : 's'} + ${wl.reservedPriestCount} priest${wl.reservedPriestCount === 1 ? '' : 's'}. Please register for the exact mix, or contact the organizer to change your invitation.`,
+            },
+            { status: 400 }
+          )
+        }
+      }
+
+      waitlistBypass = true
+      waitlistReservedSpots = wl.reservedSpots ?? 0
+      waitlistOptionReserved = !!wl.reservedHousingType
+      waitlistDayPassReserved = !!wl.reservedDayPassOptionId
+    }
+
+    if (!regStatus.allowRegistration) {
+      const bypassable =
+        waitlistBypass && (regStatus.status === 'at_capacity' || regStatus.status === 'closed')
+      if (!bypassable) {
+        return NextResponse.json(
+          { error: regStatus.message || 'Registration is not currently open for this event.' },
+          { status: 400 }
+        )
+      }
     }
 
     // Fix #1: Guard — org must have Stripe onboarding complete before accepting card payments
@@ -131,6 +271,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Group registrations must include both an adult supervisor (chaperone OR priest)
+    // and at least one youth. Solo or adult-only signups belong in the individual
+    // registration flow — this guard prevents a "group of one" from coming through
+    // the group endpoint.
+    const hasAdultSupervisor = chaperoneCount >= 1 || priestCount >= 1
+    const hasYouth = youthCount >= 1
+    if (!hasAdultSupervisor || !hasYouth) {
+      return NextResponse.json(
+        {
+          error:
+            'Group registrations must include at least one youth and at least one chaperone or priest. If you are registering only one person, please use the individual registration option.',
+        },
+        { status: 400 }
+      )
+    }
+
     // Enforce per-group spot limit if configured
     const groupSpotLimit = event.settings?.groupSpotLimit ?? null
     if (groupSpotLimit !== null && totalParticipants > groupSpotLimit) {
@@ -145,35 +301,51 @@ export async function POST(request: NextRequest) {
 
     // Fix #4: Atomic capacity check+decrement to prevent TOCTOU race conditions.
     // Do this BEFORE creating any records so we don't need to roll back on failure.
-    if (event.capacityTotal !== null && event.capacityRemaining !== null) {
-      const capacityResult = await prisma.$executeRaw`
-        UPDATE events
-        SET capacity_remaining = capacity_remaining - ${totalParticipants}
-        WHERE id = ${event.id}::uuid
-          AND capacity_remaining >= ${totalParticipants}
-      `
-      if (capacityResult === 0) {
-        // Re-fetch to give accurate remaining count in the error message
-        const freshEvent = await prisma.event.findUnique({
-          where: { id: event.id },
-          select: { capacityRemaining: true },
-        })
-        const spotsRemaining = freshEvent?.capacityRemaining ?? 0
-        return NextResponse.json(
-          {
-            error: spotsRemaining <= 0
-              ? 'Event is at full capacity. Please join the waitlist if available.'
-              : `Not enough spots available. Only ${spotsRemaining} spot${spotsRemaining === 1 ? '' : 's'} remaining, but ${totalParticipants} requested.`,
-            spotsRemaining,
-          },
-          { status: 400 }
-        )
+    // Waitlist-token bypass: the admin has already approved this registration past
+    // capacity, so decrement unconditionally and let capacityRemaining go negative
+    // for honest oversubscription accounting.
+    // Reservation: if the token had a live seat hold, the seat was already
+    // decremented on Contact — skip decrement here to avoid double-counting.
+    const skipCapacityDecrement = waitlistBypass && waitlistReservedSpots > 0
+    if (event.capacityTotal !== null && event.capacityRemaining !== null && !skipCapacityDecrement) {
+      if (waitlistBypass) {
+        await prisma.$executeRaw`
+          UPDATE events
+          SET capacity_remaining = capacity_remaining - ${totalParticipants}
+          WHERE id = ${event.id}::uuid
+        `
+      } else {
+        const capacityResult = await prisma.$executeRaw`
+          UPDATE events
+          SET capacity_remaining = capacity_remaining - ${totalParticipants}
+          WHERE id = ${event.id}::uuid
+            AND capacity_remaining >= ${totalParticipants}
+        `
+        if (capacityResult === 0) {
+          // Re-fetch to give accurate remaining count in the error message
+          const freshEvent = await prisma.event.findUnique({
+            where: { id: event.id },
+            select: { capacityRemaining: true },
+          })
+          const spotsRemaining = freshEvent?.capacityRemaining ?? 0
+          return NextResponse.json(
+            {
+              error: spotsRemaining <= 0
+                ? 'Event is at full capacity. Please join the waitlist if available.'
+                : `Not enough spots available. Only ${spotsRemaining} spot${spotsRemaining === 1 ? '' : 's'} remaining, but ${totalParticipants} requested.`,
+              spotsRemaining,
+            },
+            { status: 400 }
+          )
+        }
       }
     }
 
     // Check option-level capacity (housing type for group registrations)
-    // housingType is empty for one-day events — skip the check entirely
-    if (housingType) {
+    // housingType is empty for one-day events — skip the check entirely.
+    // Waitlist-token bypass skips option-level checks too; the person on the
+    // waitlist is usually there precisely because their option was full.
+    if (housingType && !waitlistBypass) {
       const optionCapacityCheck = checkOptionCapacity(
         event.settings,
         housingType as HousingType,
@@ -192,8 +364,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Check day pass option capacity (if applicable)
-    if (body.ticketType === 'day_pass' && body.dayPassOptionId) {
+    // Check day pass option capacity (if applicable). Waitlist bypass skips this.
+    if (body.ticketType === 'day_pass' && body.dayPassOptionId && !waitlistBypass) {
       const dayPassCapacityCheck = await checkDayPassOptionCapacity(
         body.dayPassOptionId,
         totalParticipants
@@ -367,6 +539,11 @@ export async function POST(request: NextRequest) {
     const paymentBalanceStatus =
       paymentMethod === 'check' ? 'pending_check_payment' : 'unpaid'
 
+    // Fix #M3: Hoist custom answers so we can save them inside the same transaction
+    // as the registration row. Previously this ran AFTER the tx committed, so a DB
+    // blip between commit and insert left the registration with no answers.
+    const customAnswers: Array<{ questionId: string; answerText: string }> = body.customAnswers ?? []
+
     const registration = await prisma.$transaction(async (tx) => {
       // Create group registration
       const reg = await tx.groupRegistration.create({
@@ -430,28 +607,28 @@ export async function POST(request: NextRequest) {
         data: { registrationsUsed: { increment: totalParticipants } },
       })
 
+      // Save custom question answers atomically with the registration (Fix #M3).
+      if (customAnswers.length > 0) {
+        await tx.customRegistrationAnswer.createMany({
+          data: customAnswers.map(({ questionId, answerText }) => ({
+            questionId,
+            registrationId: reg.id,
+            registrationType: 'group' as const,
+            answerText,
+          })),
+          skipDuplicates: true,
+        })
+      }
+
       return reg
     })
-
-    // Save custom question answers (group-level: appliesTo = 'group' or 'both')
-    const customAnswers: Array<{ questionId: string; answerText: string }> = body.customAnswers ?? []
-    if (customAnswers.length > 0) {
-      await prisma.customRegistrationAnswer.createMany({
-        data: customAnswers.map(({ questionId, answerText }) => ({
-          questionId,
-          registrationId: registration.id,
-          registrationType: 'group' as const,
-          answerText,
-        })),
-        skipDuplicates: true,
-      })
-    }
 
     // NOTE: Capacity was already atomically decremented above (Fix #4) — no second decrement here.
 
     // Update option-level capacity (housing type for group registrations)
-    // Only decrement housing capacity for general admission (day pass doesn't use housing)
-    if (body.ticketType !== 'day_pass') {
+    // Only decrement housing capacity for general admission (day pass doesn't use housing).
+    // Skip if the waitlist token already reserved this option pool on Contact.
+    if (body.ticketType !== 'day_pass' && !waitlistOptionReserved) {
       await decrementOptionCapacity(
         event.id,
         housingType as HousingType,
@@ -460,12 +637,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Update day pass option capacity (if applicable)
-    if (body.ticketType === 'day_pass' && body.dayPassOptionId) {
+    // Update day pass option capacity (if applicable).
+    // Skip if the waitlist token already reserved this day pass option on Contact.
+    if (body.ticketType === 'day_pass' && body.dayPassOptionId && !waitlistDayPassReserved) {
       await decrementDayPassOptionCapacity(
         body.dayPassOptionId,
         totalParticipants
       )
+    }
+
+    // If the group leader was on the waitlist, flip their entry to 'registered'
+    // so the admin dashboard reflects reality. When a waitlist token was used,
+    // match by token (authoritative) instead of by email (fragile — case,
+    // whitespace, or an entirely different email would leave the entry stuck
+    // in 'contacted' forever). No-op if they registered normally.
+    if (waitlistToken) {
+      await markWaitlistAsRegisteredByToken(waitlistToken)
+    } else {
+      await markWaitlistAsRegistered(event.id, groupLeaderEmail)
     }
 
     // Handle payment method
@@ -495,6 +684,15 @@ export async function POST(request: NextRequest) {
       const groupLeaderPortalUrl = `${appUrl}/dashboard/group-leader`
       const confirmationPageUrl = `${appUrl}/registration/confirmation/${registration.id}`
 
+      const fullPaymentDeadlineFormatted = event.pricing.fullPaymentDeadline
+        ? new Date(event.pricing.fullPaymentDeadline).toLocaleDateString('en-US', {
+            timeZone: event.timezone || 'America/New_York',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })
+        : undefined
+
       // Prepare email content using new template
       const emailSubject = `Registration Received - ${event.name}`
       const emailHtml = generateGroupRegistrationConfirmationEmail({
@@ -507,6 +705,7 @@ export async function POST(request: NextRequest) {
         totalAmount,
         depositAmount,
         balanceRemaining,
+        fullPaymentDeadline: fullPaymentDeadlineFormatted,
         paymentMethod: 'check',
         checkPayableTo: eventSettings?.checkPaymentPayableTo || event.organization.name,
         checkMailingAddress: eventSettings?.checkPaymentAddress || undefined,
@@ -521,7 +720,7 @@ export async function POST(request: NextRequest) {
       try {
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-          reply_to: 'support@chirhoevents.com',
+          reply_to: resolveReplyTo(event.settings, event.organization),
           to: groupLeaderEmail,
           subject: emailSubject,
           html: emailHtml,
@@ -588,9 +787,10 @@ export async function POST(request: NextRequest) {
       // Credit card payment - create Stripe checkout session
       const depositAmountCents = Math.round(depositAmount * 100)
 
-      // Calculate platform fee (default 1%)
+      // Calculate platform fee — includes Stripe processing fee passthrough so the
+      // platform nets its configured margin instead of going negative on every charge.
       const platformFeePercentage = Number(event.organization.platformFeePercentage) || 1
-      const platformFeeAmount = Math.round(depositAmountCents * (platformFeePercentage / 100))
+      const platformFeeAmount = calculatePlatformFeeCents(depositAmountCents, platformFeePercentage)
 
       // Build checkout session config
       const checkoutConfig: any = {
@@ -622,16 +822,73 @@ export async function POST(request: NextRequest) {
         customer_email: groupLeaderEmail,
       }
 
-      // Use destination charges — org Stripe account is guaranteed by guard above
+      // Use destination charges — org Stripe account is guaranteed by guard above.
+      // on_behalf_of makes the connected account the merchant of record so Stripe's
+      // processing fees (2.9% + $0.30) are deducted from their share, not the platform's.
       checkoutConfig.payment_intent_data = {
         application_fee_amount: platformFeeAmount,
+        on_behalf_of: event.organization.stripeAccountId,
         transfer_data: {
           destination: event.organization.stripeAccountId,
         },
       }
       logger.info({ organizationId: event.organization.id, eventId: event.id, platformFeeAmount }, 'Stripe checkout session: applying platform fee')
 
-      const checkoutSession = await stripe.checkout.sessions.create(checkoutConfig)
+      // Fix #M2: Wrap Stripe call so a checkout-creation failure doesn't leak
+      // capacity. On failure, undo every side effect (capacity decrements, registration
+      // row, payment balance, custom answers, org counter) and return 503.
+      let checkoutSession: Stripe.Checkout.Session
+      try {
+        checkoutSession = await stripe.checkout.sessions.create(checkoutConfig)
+      } catch (stripeError) {
+        logger.error(
+          { err: String(stripeError), registrationId: registration.id, eventId: event.id },
+          'Stripe checkout session creation failed - rolling back group registration'
+        )
+
+        try {
+          // Re-increment housing/day-pass capacity that was decremented earlier
+          if (body.ticketType !== 'day_pass' && housingType) {
+            await incrementOptionCapacity(
+              event.id,
+              housingType as HousingType,
+              null,
+              totalParticipants
+            )
+          }
+          if (body.ticketType === 'day_pass' && body.dayPassOptionId) {
+            await incrementDayPassOptionCapacity(body.dayPassOptionId, totalParticipants)
+          }
+
+          // Re-increment event capacity, decrement org counter, delete the registration
+          await prisma.$transaction([
+            prisma.$executeRaw`
+              UPDATE events
+              SET capacity_remaining = capacity_remaining + ${totalParticipants}
+              WHERE id = ${event.id}::uuid AND capacity_remaining IS NOT NULL
+            `,
+            prisma.organization.update({
+              where: { id: event.organizationId },
+              data: { registrationsUsed: { decrement: totalParticipants } },
+            }),
+            prisma.customRegistrationAnswer.deleteMany({
+              where: { registrationId: registration.id, registrationType: 'group' as const },
+            }),
+            prisma.paymentBalance.delete({ where: { registrationId: registration.id } }),
+            prisma.groupRegistration.delete({ where: { id: registration.id } }),
+          ])
+        } catch (rollbackError) {
+          logger.error(
+            { err: String(rollbackError), registrationId: registration.id, eventId: event.id },
+            'Failed to fully roll back group registration after Stripe failure - manual cleanup may be required'
+          )
+        }
+
+        return NextResponse.json(
+          { error: 'Payment processing is temporarily unavailable. Please try again in a moment.' },
+          { status: 503 }
+        )
+      }
 
       // Create payment record
       await prisma.payment.create({
@@ -644,7 +901,11 @@ export async function POST(request: NextRequest) {
           paymentType: 'deposit',
           paymentMethod: 'card',
           paymentStatus: 'pending',
-          stripePaymentIntentId: checkoutSession.payment_intent as string,
+          // Stripe Checkout in mode='payment' does NOT create the PaymentIntent
+          // until the customer pays, so checkoutSession.payment_intent is null
+          // here. Store the session id (cs_...) and let the webhook swap it for
+          // the real pi_... on checkout.session.completed.
+          stripePaymentIntentId: checkoutSession.id,
           platformFeeAmount: platformFeeAmount / 100, // Store in dollars
         },
       })

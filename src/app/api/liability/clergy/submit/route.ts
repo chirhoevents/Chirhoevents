@@ -4,6 +4,8 @@ import { Resend } from 'resend'
 import { generateLiabilityFormPDF } from '@/lib/pdf/generate-liability-form-pdf'
 import { uploadLiabilityFormPDF } from '@/lib/r2/upload-pdf'
 import { generateParticipantQRCode } from '@/lib/qr-code'
+import { resolveReplyTo } from '@/lib/email-reply-to'
+import { sanitizeMedicalText } from '@/lib/medical-info'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -83,7 +85,7 @@ export async function POST(request: NextRequest) {
     if (access_code.startsWith('STF-')) {
       const staffRegistration = await prisma.staffRegistration.findUnique({
         where: { porosAccessCode: access_code },
-        include: { event: { include: { organization: true } } },
+        include: { event: { include: { organization: true, settings: true } } },
       })
 
       if (!staffRegistration) {
@@ -112,6 +114,7 @@ export async function POST(request: NextRequest) {
           participantLastName: last_name,
           participantPreferredName: preferred_name || null,
           participantAge: age,
+          dateOfBirth: date_of_birth ? new Date(date_of_birth) : null,
           participantEmail: email,
           participantPhone: phone,
           tShirtSize: t_shirt_size,
@@ -120,11 +123,11 @@ export async function POST(request: NextRequest) {
           currentAssignment: current_assignment || null,
           facultyInformation: faculty_information || null,
           needsHousing: needs_housing || false,
-          medicalConditions: medical_conditions || null,
-          medications: medications || null,
-          allergies: allergies || null,
-          dietaryRestrictions: dietary_restrictions || null,
-          adaAccommodations: ada_accommodations || null,
+          medicalConditions: sanitizeMedicalText(medical_conditions) || null,
+          medications: sanitizeMedicalText(medications) || null,
+          allergies: sanitizeMedicalText(allergies) || null,
+          dietaryRestrictions: sanitizeMedicalText(dietary_restrictions) || null,
+          adaAccommodations: sanitizeMedicalText(ada_accommodations) || null,
           emergencyContact1Name: emergency_contact_1_name,
           emergencyContact1Phone: emergency_contact_1_phone,
           emergencyContact1Relation: emergency_contact_1_relation,
@@ -153,7 +156,7 @@ export async function POST(request: NextRequest) {
       try {
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-          reply_to: 'support@chirhoevents.com',
+          reply_to: resolveReplyTo(staffRegistration.event.settings, staffRegistration.event.organization),
           to: email,
           subject: `Form Completed - ${greeting} ${last_name}`,
           html: `
@@ -182,7 +185,7 @@ export async function POST(request: NextRequest) {
     // Find group registration by access code
     const groupRegistration = await prisma.groupRegistration.findUnique({
       where: { accessCode: access_code },
-      include: { event: true, organization: true },
+      include: { event: { include: { settings: true } }, organization: true },
     })
 
     if (!groupRegistration) {
@@ -236,6 +239,7 @@ export async function POST(request: NextRequest) {
         participantLastName: last_name,
         participantPreferredName: preferred_name || null,
         participantAge: age,
+        dateOfBirth: date_of_birth ? new Date(date_of_birth) : null,
         participantEmail: email,
         participantPhone: phone,
         tShirtSize: t_shirt_size,
@@ -244,11 +248,11 @@ export async function POST(request: NextRequest) {
         currentAssignment: current_assignment || null,
         facultyInformation: faculty_information || null,
         needsHousing: needs_housing || false,
-        medicalConditions: medical_conditions || null,
-        medications: medications || null,
-        allergies: allergies || null,
-        dietaryRestrictions: dietary_restrictions || null,
-        adaAccommodations: ada_accommodations || null,
+        medicalConditions: sanitizeMedicalText(medical_conditions) || null,
+        medications: sanitizeMedicalText(medications) || null,
+        allergies: sanitizeMedicalText(allergies) || null,
+        dietaryRestrictions: sanitizeMedicalText(dietary_restrictions) || null,
+        adaAccommodations: sanitizeMedicalText(ada_accommodations) || null,
         emergencyContact1Name: emergency_contact_1_name,
         emergencyContact1Phone: emergency_contact_1_phone,
         emergencyContact1Relation: emergency_contact_1_relation,
@@ -298,7 +302,7 @@ export async function POST(request: NextRequest) {
     try {
       await resend.emails.send({
         from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-        reply_to: 'support@chirhoevents.com',
+        reply_to: resolveReplyTo(groupRegistration.event.settings, groupRegistration.organization),
         to: email,
         subject: `✅ Form Completed - ${greeting} ${last_name}`,
         html: `
@@ -337,7 +341,7 @@ export async function POST(request: NextRequest) {
               <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
 
               <p style="color: #666; font-size: 12px; text-align: center;">
-                © 2025 ChiRho Events. All rights reserved.
+                © ${new Date().getFullYear()} ChiRho Events. All rights reserved.
               </p>
             </div>
           </div>
@@ -354,7 +358,7 @@ export async function POST(request: NextRequest) {
     try {
       await resend.emails.send({
         from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-        reply_to: 'support@chirhoevents.com',
+        reply_to: resolveReplyTo(groupRegistration.event.settings, groupRegistration.organization),
         to: groupRegistration.groupLeaderEmail,
         subject: `✅ Form Completed: ${greeting} ${last_name}`,
         html: `
@@ -379,7 +383,7 @@ export async function POST(request: NextRequest) {
               </div>
 
               <p style="font-size: 14px; color: #666;">
-                You can view all forms in your group leader portal (coming soon).
+                You can view all forms in your <a href="https://chirhoevents.com/dashboard/group-leader" style="color: #1E3A5F; text-decoration: underline;">group leader portal</a>.
               </p>
 
               <p style="margin-top: 30px;">Pax Christi,<br><strong>ChiRho Events Team</strong></p>
@@ -387,7 +391,7 @@ export async function POST(request: NextRequest) {
               <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
 
               <p style="color: #666; font-size: 12px; text-align: center;">
-                © 2025 ChiRho Events. All rights reserved.
+                © ${new Date().getFullYear()} ChiRho Events. All rights reserved.
               </p>
             </div>
           </div>

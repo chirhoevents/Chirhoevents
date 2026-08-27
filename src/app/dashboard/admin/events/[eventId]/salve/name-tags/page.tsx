@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, CSSProperties } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
@@ -43,10 +43,36 @@ import {
   ExternalLink,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
-import { openBadgePrintWindow } from '@/lib/badge-renderer'
+import { openBadgePrintWindow, generatePreviewHTML, previewNaturalSize } from '@/lib/badge-renderer'
+
+// A small mock QR-code-looking pattern (data URI) used only for the live preview,
+// so the preview never depends on generating a real QR code for placeholder data.
+const MOCK_QR_DATA_URI = (() => {
+  const filled = new Set([0, 1, 5, 6, 4, 9, 15, 20, 21, 24, 23, 19, 14, 12, 7, 18, 16, 2, 22, 11])
+  let rects = ''
+  for (let i = 0; i < 25; i++) {
+    if (!filled.has(i)) continue
+    rects += `<rect x="${i % 5}" y="${Math.floor(i / 5)}" width="1" height="1"/>`
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 5 5"><rect width="5" height="5" fill="white"/><g fill="black">${rects}</g></svg>`
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
+})()
+
+function previewCaption(size: string): string {
+  switch (size) {
+    case 'small': return 'Small: 2.5" × 1.5"'
+    case 'large': return 'Large: 4" × 3"'
+    case 'badge_4x6': return 'Badge: 4" × 6" — 1 per page'
+    case 'business_card': return 'Business Card: 3.5" × 2" — 10 per Letter page'
+    case 'thermal_4x12': return 'Thermal Roll: 4" × 12" fanfold — tear off, fold in half at the dashed line'
+    case 'duo_4x6': return 'Fold-Over Badge: two separate 4" × 6" pages (front, then back) — insert both into a two-pocket badge holder'
+    case 'postcard_4up': return 'Postcard Badge: 4.25" × 5.5" front + back cards, 2 badges per Letter sheet (Avery 8387 layout) — separate along the perforation, then glue/tape front to back (back prints upside-down so it reads correctly once flipped)'
+    default: return 'Standard: 3.5" × 2.25"'
+  }
+}
 
 interface NameTagTemplate {
-  size: 'standard' | 'large' | 'small' | 'badge_4x6' | 'business_card' | 'thermal_4x12'
+  size: 'standard' | 'large' | 'small' | 'badge_4x6' | 'business_card' | 'thermal_4x12' | 'duo_4x6' | 'postcard_4up'
   showName: boolean
   showGroup: boolean
   showParticipantType: boolean
@@ -185,7 +211,9 @@ export default function NameTagDesignerPage() {
       if (templateRes.ok) {
         const templateData = await templateRes.json()
         if (templateData.template) {
-          setTemplate(templateData.template)
+          // Merge over defaults so a template saved before a field existed
+          // (e.g. backPanelColorMode) doesn't leave that control blank.
+          setTemplate({ ...DEFAULT_TEMPLATE, ...templateData.template })
         }
         if (templateData.savedAt) {
           setTemplateSavedAt(templateData.savedAt)
@@ -585,6 +613,8 @@ export default function NameTagDesignerPage() {
                   <Select value={template.size} onValueChange={(value) => updateTemplate('size', value)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="postcard_4up">Postcard Badge (4.25&quot; × 5.5&quot; front + back, 2 badges per sheet — Avery 8387)</SelectItem>
+                      <SelectItem value="duo_4x6">Fold-Over Badge (4&quot; × 6&quot; front + back, color, 2 pages)</SelectItem>
                       <SelectItem value="thermal_4x12">Thermal Roll (4&quot; × 12&quot; fanfold)</SelectItem>
                       <SelectItem value="badge_4x6">Badge (4&quot; × 6&quot;, 1 per page)</SelectItem>
                       <SelectItem value="standard">Standard (3.5&quot; × 2.25&quot;)</SelectItem>
@@ -636,8 +666,8 @@ export default function NameTagDesignerPage() {
                   )}
                 </div>
 
-                {/* Header Banner — 4x6 / thermal only */}
-                {(template.size === 'badge_4x6' || template.size === 'thermal_4x12') && (
+                {/* Header Banner — 4x6 / thermal / duo only */}
+                {(template.size === 'badge_4x6' || template.size === 'thermal_4x12' || template.size === 'duo_4x6' || template.size === 'postcard_4up') && (
                   <div className="space-y-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
                     <div className="flex items-center gap-2">
                       <Checkbox id="showHeaderBanner" checked={template.showHeaderBanner} onCheckedChange={(checked) => updateTemplate('showHeaderBanner', checked)} />
@@ -669,8 +699,8 @@ export default function NameTagDesignerPage() {
                   </div>
                 )}
 
-                {/* Back Panel — thermal only */}
-                {template.size === 'thermal_4x12' && (
+                {/* Back Panel — thermal / duo / postcard only */}
+                {(template.size === 'thermal_4x12' || template.size === 'duo_4x6' || template.size === 'postcard_4up') && (
                   <div className="space-y-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
                     <div className="flex items-center justify-between">
                       <Label className="font-medium text-indigo-800">Back Panel (Schedule)</Label>
@@ -826,196 +856,51 @@ export default function NameTagDesignerPage() {
           </CardHeader>
           <CardContent>
             {(() => {
-              // Mirror badge-renderer.ts effectiveColors()
-              const pBg = template.thermalMode ? '#FFFFFF' : template.backgroundColor
-              const pText = template.thermalMode ? '#000000' : template.textColor
-              const pAccent = template.thermalMode ? '#444444' : template.accentColor
+              const naturalSize = previewNaturalSize(template.size)
+              const scale = Math.min(230 / naturalSize.width, 460 / naturalSize.height, 1)
+              const displayWidth = Math.round(naturalSize.width * scale)
+              const displayHeight = Math.round(naturalSize.height * scale)
 
-              const typeBadgeStyle: CSSProperties = template.thermalMode
-                ? { border: '1px solid #000', color: '#000', background: 'none', fontSize: '8px', padding: '1px 6px', borderRadius: '3px', marginTop: '4px', display: 'inline-block' }
-                : { backgroundColor: pAccent, color: 'white', fontSize: '8px', padding: '1px 6px', borderRadius: '3px', marginTop: '4px', display: 'inline-block' }
-
-              const headerStyle: CSSProperties = template.thermalMode
-                ? { background: '#e0e0e0', color: '#000' }
-                : { background: `linear-gradient(135deg, ${pAccent} 0%, ${pText} 100%)`, color: 'white' }
-
-              const MealSection = ({ compact = false }: { compact?: boolean }) => {
-                if (!template.showMealColor) return null
-                if (template.thermalMode) {
-                  return <div style={{ borderTop: '1px solid #ccc', textAlign: 'center', fontSize: compact ? '7px' : '9px', padding: '2px 0', color: '#000' }}>Meal: Blue</div>
-                }
-                return <div style={{ height: compact ? '4px' : '6px', background: '#3498db', flexShrink: 0 }} />
+              const previewTag = {
+                participantId: 'preview',
+                firstName: 'John',
+                lastName: 'Doe',
+                fullName: 'John Doe',
+                groupName: "St. Mary's Parish",
+                diocese: 'Diocese of Sample',
+                participantType: 'youth_u18',
+                isChaperone: false,
+                isClergy: false,
+                housing: { building: 'Building A', room: '101', bed: null, fullLocation: 'Bldg A 101' },
+                mealColor: { name: 'Blue', hex: '#3498db' },
+                qrCode: MOCK_QR_DATA_URI,
+                walkUp: false,
+                customNote: null,
               }
 
-              const QRBox = ({ size }: { size: number }) => (
-                <div style={{ width: size, height: size, background: '#fff', border: '1px solid #ccc', borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  {/* Mini QR grid approximation */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '1px', width: size - 6, height: size - 6 }}>
-                    {Array.from({ length: 25 }).map((_, i) => (
-                      <div key={i} style={{ background: [0,1,5,6,4,9,15,20,21,24,23,19,14,12,7,18,16,2,22,11].includes(i) ? (template.thermalMode ? '#000' : '#1E3A5F') : 'transparent' }} />
-                    ))}
-                  </div>
-                </div>
-              )
-
-              if (template.size === 'thermal_4x12') {
-                return (
-                  <div className="flex flex-col items-center">
-                    {/* Front panel */}
-                    <div style={{ width: 160, height: 200, background: pBg, color: pText, border: '1px solid #ccc', borderRadius: '6px 6px 0 0', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-                      {template.showHeaderBanner && template.headerBannerUrl ? (
-                        <img src={template.headerBannerUrl} style={{ width: '100%', height: 90, objectFit: 'cover', flexShrink: 0 }} alt="" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                      ) : (
-                        <div style={{ ...headerStyle, height: 90, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                          {template.showLogo && template.logoUrl && (
-                            <img src={template.logoUrl} style={{ maxHeight: 30, maxWidth: '80%' }} alt="" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                          )}
-                          {template.showConferenceHeader && (
-                            <div style={{ fontSize: '11px', fontWeight: 700, textAlign: 'center', padding: '0 8px' }}>{template.conferenceHeaderText || eventName || 'CONFERENCE'}</div>
-                          )}
-                        </div>
-                      )}
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6px', textAlign: 'center' }}>
-                        {template.showName && <div style={{ fontWeight: 700, fontSize: 14, lineHeight: 1.2 }}>John Doe</div>}
-                        {template.showGroup && <div style={{ fontSize: 9, opacity: 0.7, marginTop: 2 }}>St. Mary&apos;s Parish</div>}
-                        {template.showDiocese && <div style={{ fontSize: 8, opacity: 0.6 }}>Diocese of Sample</div>}
-                        {template.showParticipantType && <span style={typeBadgeStyle}>Youth</span>}
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '4px 6px' }}>
-                        {template.showHousing && <div style={{ fontSize: 7, opacity: 0.7, flex: 1 }}><strong>Housing:</strong><br />Bldg A 101</div>}
-                        {template.showQrCode && <QRBox size={28} />}
-                      </div>
-                      <MealSection compact />
-                    </div>
-                    {/* Fold indicator */}
-                    <div style={{ width: 160, borderTop: '1px dashed #aaa', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px 0', background: '#f9f9f9' }}>
-                      <span style={{ fontSize: 7, color: '#aaa', letterSpacing: 2 }}>✂ FOLD HERE ✂</span>
-                    </div>
-                    {/* Back panel */}
-                    <div style={{ width: 160, height: 200, background: '#f8f8f8', border: '1px solid #ccc', borderRadius: '0 0 6px 6px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                      {template.showBackPanel ? (() => {
-                        if (scheduleCount === null) {
-                          return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: 8 }}>Loading…</div>
-                        }
-                        if (scheduleCount === 0) {
-                          return <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: 8, textAlign: 'center', padding: 8, lineHeight: 1.6 }}>No schedule entries yet.<br /><span style={{ fontSize: 7 }}>Add entries in Poros.</span></div>
-                        }
-                        // Build real schedule preview grouped by day, rotated 180° like the real back panel
-                        const dayMap = new Map<string, typeof scheduleEntries>()
-                        for (const e of scheduleEntries) {
-                          if (!dayMap.has(e.day)) dayMap.set(e.day, [])
-                          dayMap.get(e.day)!.push(e)
-                        }
-                        const dayColor = template.thermalMode ? '#000' : '#555'
-                        return (
-                          <div style={{ transform: 'rotate(180deg)', padding: '6px 7px', overflowY: 'auto', maxHeight: 200, width: '100%', boxSizing: 'border-box' }}>
-                            {Array.from(dayMap.entries()).map(([day, entries]) => (
-                              <div key={day} style={{ marginBottom: 5 }}>
-                                <div style={{ fontWeight: 700, fontSize: 7, textTransform: 'uppercase', borderBottom: `1px solid ${dayColor}`, marginBottom: 2, paddingBottom: 1, color: dayColor }}>{day}</div>
-                                {entries.map((e: any, i: number) => (
-                                  <div key={i} style={{ display: 'flex', gap: 3, marginBottom: 1, lineHeight: 1.3, alignItems: 'baseline' }}>
-                                    <span style={{ fontSize: 6, color: '#666', minWidth: 38, flexShrink: 0, whiteSpace: 'nowrap' }}>{e.endTime ? `${e.startTime}–${e.endTime}` : e.startTime}</span>
-                                    <span style={{ fontSize: 7, flex: 1, wordBreak: 'break-word' }}>{e.title}{e.location ? ` · ${e.location}` : ''}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            ))}
-                          </div>
-                        )
-                      })() : (
-                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 9, textAlign: 'center', padding: 8 }}>
-                          Back panel disabled
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2 text-center">Thermal Roll: 4&quot; × 12&quot; fanfold</p>
-                  </div>
-                )
-              }
-
-              if (template.size === 'business_card') {
-                return (
-                  <div className="flex flex-col items-center gap-3">
-                    <div style={{ width: 210, height: 120, background: pBg, color: pText, border: '1px solid #ccc', borderRadius: 4, padding: '8px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
-                      {template.showLogo && template.logoUrl && (
-                        <img src={template.logoUrl} style={{ maxHeight: 20, maxWidth: '70%', marginBottom: 3 }} alt="" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                      )}
-                      {template.showName && <div style={{ fontWeight: 700, fontSize: 14, lineHeight: 1.2 }}>John Doe</div>}
-                      {template.showGroup && <div style={{ fontSize: 9, opacity: 0.7, marginTop: 2 }}>St. Mary&apos;s Parish</div>}
-                      {template.showParticipantType && <span style={typeBadgeStyle}>Youth</span>}
-                      {template.showQrCode && <QRBox size={22} />}
-                    </div>
-                    <p className="text-xs text-muted-foreground">Business Card: 3.5&quot; × 2&quot; — 10 per Letter page</p>
-                  </div>
-                )
-              }
-
-              if (template.size === 'badge_4x6') {
-                return (
-                  <div className="flex flex-col items-center gap-3">
-                    <div style={{ width: 200, height: 300, background: pBg, color: pText, border: '1px solid #ccc', borderRadius: 6, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-                      {template.showHeaderBanner && template.headerBannerUrl ? (
-                        <img src={template.headerBannerUrl} style={{ width: '100%', height: 125, objectFit: 'cover', flexShrink: 0 }} alt="" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                      ) : (
-                        <div style={{ ...headerStyle, height: 125, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                          {template.showLogo && template.logoUrl && (
-                            <img src={template.logoUrl} style={{ maxHeight: 40, maxWidth: '80%' }} alt="" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                          )}
-                          {template.showConferenceHeader && (
-                            <div style={{ fontSize: 13, fontWeight: 700, textAlign: 'center', padding: '0 12px' }}>{template.conferenceHeaderText || eventName || 'CONFERENCE'}</div>
-                          )}
-                        </div>
-                      )}
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px', textAlign: 'center' }}>
-                        {template.showName && <><div style={{ fontWeight: 700, fontSize: 20, lineHeight: 1.1 }}>John</div><div style={{ fontWeight: 700, fontSize: 17, lineHeight: 1.1, marginBottom: 6 }}>Doe</div></>}
-                        {template.showGroup && <div style={{ fontSize: 11, opacity: 0.7 }}>St. Mary&apos;s Parish</div>}
-                        {template.showDiocese && <div style={{ fontSize: 9, opacity: 0.6 }}>Diocese of Sample</div>}
-                        {template.showParticipantType && <span style={{ ...typeBadgeStyle, fontSize: '10px', marginTop: 6, padding: '3px 10px' }}>Youth</span>}
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '6px 10px' }}>
-                        {template.showHousing ? <div style={{ fontSize: 8, opacity: 0.7, lineHeight: 1.4, flex: 1 }}><strong>Housing:</strong><br />Building A 101</div> : <div />}
-                        {template.showQrCode && <QRBox size={35} />}
-                      </div>
-                      <MealSection />
-                    </div>
-                    <p className="text-xs text-muted-foreground">Badge: 4&quot; × 6&quot; — 1 per page</p>
-                  </div>
-                )
-              }
-
-              // small / standard / large
-              const w = template.size === 'small' ? 180 : template.size === 'large' ? 280 : 240
-              const h = template.size === 'small' ? 108 : template.size === 'large' ? 186 : 162
-              const namePx = template.fontSize === 'small' ? 12 : template.fontSize === 'large' ? 18 : 15
-              const detailPx = template.fontSize === 'small' ? 8 : template.fontSize === 'large' ? 12 : 10
-              const sizeLabel = template.size === 'small' ? 'Small: 2.5" × 1.5"' : template.size === 'large' ? 'Large: 4" × 3"' : 'Standard: 3.5" × 2.25"'
+              // Renders with the exact same functions used for the real print
+              // output, so this always matches what will actually print.
+              const previewHtml = generatePreviewHTML(previewTag, template, eventName, scheduleEntries)
 
               return (
                 <div className="flex flex-col items-center gap-3">
-                  <div style={{ width: w, height: h, background: pBg, color: pText, border: '1px solid #ccc', borderRadius: 6, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-                    {template.showConferenceHeader && (
-                      <div style={{ background: template.thermalMode ? '#e0e0e0' : pAccent, color: template.thermalMode ? '#000' : 'white', textAlign: 'center', fontSize: 8, fontWeight: 600, padding: '3px 0', flexShrink: 0 }}>
-                        {template.conferenceHeaderText || eventName || 'CONFERENCE'}
-                      </div>
-                    )}
-                    {template.showLogo && template.logoUrl && (
-                      <div style={{ textAlign: 'center', padding: '3px 0', flexShrink: 0 }}>
-                        <img src={template.logoUrl} style={{ maxHeight: 22, maxWidth: '80%' }} alt="" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                      </div>
-                    )}
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6px', textAlign: 'center' }}>
-                      {template.showName && <div style={{ fontWeight: 700, fontSize: namePx, lineHeight: 1.2 }}>John Doe</div>}
-                      {template.showGroup && <div style={{ fontSize: detailPx, opacity: 0.7, marginTop: 2 }}>St. Mary&apos;s Parish</div>}
-                      {template.showDiocese && <div style={{ fontSize: detailPx - 1, opacity: 0.6 }}>Diocese of Sample</div>}
-                      {template.showParticipantType && <span style={typeBadgeStyle}>Youth</span>}
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '3px 6px', flexShrink: 0 }}>
-                      {template.showHousing ? <div style={{ fontSize: 7, opacity: 0.7, flex: 1 }}><strong>Housing:</strong> Bldg A 101</div> : <div />}
-                      {template.showQrCode && <QRBox size={22} />}
-                    </div>
-                    <MealSection compact />
+                  <div style={{ width: displayWidth, height: displayHeight, overflow: 'hidden', position: 'relative' }}>
+                    <iframe
+                      srcDoc={previewHtml}
+                      title="Badge preview"
+                      scrolling="no"
+                      style={{
+                        width: naturalSize.width,
+                        height: naturalSize.height,
+                        border: '1px solid #ccc',
+                        borderRadius: 6,
+                        transform: `scale(${scale})`,
+                        transformOrigin: 'top left',
+                        pointerEvents: 'none',
+                      }}
+                    />
                   </div>
-                  <p className="text-xs text-muted-foreground">{sizeLabel}</p>
+                  <p className="text-xs text-muted-foreground text-center">{previewCaption(template.size)}</p>
                 </div>
               )
             })()}

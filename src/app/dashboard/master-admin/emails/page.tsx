@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@clerk/nextjs'
+import { useSearchParams } from 'next/navigation'
 import {
   Mail,
   Inbox,
@@ -16,7 +17,6 @@ import {
   Eye,
   X,
   Ticket,
-  ExternalLink,
   Reply,
   Loader2,
   PenSquare,
@@ -70,6 +70,8 @@ interface SentCounts {
 
 export default function EmailsPage() {
   const { getToken } = useAuth()
+  const searchParamsHook = useSearchParams()
+  const ticketQuery = searchParamsHook?.get('ticket')
   const [activeTab, setActiveTab] = useState<'received' | 'sent'>('received')
   const [receivedEmails, setReceivedEmails] = useState<ReceivedEmail[]>([])
   const [sentEmails, setSentEmails] = useState<SentEmail[]>([])
@@ -77,6 +79,7 @@ export default function EmailsPage() {
   const [sentCounts, setSentCounts] = useState<SentCounts>({ total: 0, sent: 0, failed: 0, bounced: 0 })
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchTrigger, setSearchTrigger] = useState(0)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [selectedEmail, setSelectedEmail] = useState<ReceivedEmail | SentEmail | null>(null)
@@ -88,8 +91,20 @@ export default function EmailsPage() {
   const [confirmDeleteEmail, setConfirmDeleteEmail] = useState<ReceivedEmail | SentEmail | null>(null)
 
   useEffect(() => {
+    // When linked from Support Tickets with ?ticket=N, prefill the search and
+    // immediately run a fetch so the deep-linked ticket surfaces on landing.
+    if (ticketQuery) {
+      setSearchQuery((q) => q || `Ticket #${ticketQuery}`)
+      setPage(1)
+      setSearchTrigger((t) => t + 1)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticketQuery])
+
+  useEffect(() => {
     fetchEmails()
-  }, [activeTab, page])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, page, searchTrigger])
 
   const fetchEmails = async () => {
     setLoading(true)
@@ -131,7 +146,7 @@ export default function EmailsPage() {
 
   const handleSearch = () => {
     setPage(1)
-    fetchEmails()
+    setSearchTrigger((t) => t + 1)
   }
 
   const formatDate = (dateString: string) => {
@@ -453,14 +468,12 @@ export default function EmailsPage() {
                         )}
                       </span>
                       {email.inboundTicket && (
-                        <Link
-                          href={`/dashboard/master-admin/support-tickets/${email.inboundTicket.id}`}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 hover:bg-purple-200"
-                          onClick={(e) => e.stopPropagation()}
+                        <span
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800"
                         >
                           <Ticket className="h-3 w-3" />
                           Ticket #{email.inboundTicket.ticketNumber}
-                        </Link>
+                        </span>
                       )}
                     </div>
                     <p className="font-medium text-gray-900 truncate">
@@ -702,14 +715,10 @@ export default function EmailsPage() {
                     {selectedEmail.inboundTicket && (
                       <div className="flex items-center gap-2 text-sm">
                         <span className="font-medium text-gray-700 w-20">Ticket:</span>
-                        <Link
-                          href={`/dashboard/master-admin/support-tickets/${selectedEmail.inboundTicket.id}`}
-                          className="inline-flex items-center gap-1 text-purple-600 hover:text-purple-800"
-                        >
+                        <span className="inline-flex items-center gap-1 text-purple-600">
                           <Ticket className="h-4 w-4" />
                           #{selectedEmail.inboundTicket.ticketNumber}
-                          <ExternalLink className="h-3 w-3" />
-                        </Link>
+                        </span>
                       </div>
                     )}
                   </>

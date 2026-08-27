@@ -44,6 +44,7 @@ import {
   TrendingDown,
   Minus,
   CreditCard,
+  ClipboardList,
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -137,6 +138,14 @@ interface EventDetailClientProps {
       lastWeek: number
     }
   } | null
+  waitlist?: {
+    pending: number
+    contacted: number
+    headcountWaiting: number
+    byHousingType: { on_campus: number; off_campus: number; day_pass: number; unspecified: number }
+    byDayPassOption: Array<{ id: string; name: string; count: number }>
+    byRoomType: Record<string, number>
+  } | null
 }
 
 export default function EventDetailClient({
@@ -145,6 +154,7 @@ export default function EventDetailClient({
   settings,
   dayPassOptions = [],
   activity,
+  waitlist,
 }: EventDetailClientProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('overview')
@@ -161,6 +171,11 @@ export default function EventDetailClient({
 
   // Derived state for registration toggle
   const isRegistrationOpen = currentStatus === 'registration_open'
+  // True when the admin has manually overridden the schedule in either direction.
+  // In this state, the registrationOpenDate / registrationCloseDate are ignored
+  // by getRegistrationStatus and the "Use Scheduled Dates" escape hatch is shown.
+  const isManualOverride =
+    currentStatus === 'registration_open' || currentStatus === 'registration_closed'
 
   const handleStatusUpdate = async (newStatus: string) => {
     if (updatingStatus) return
@@ -222,13 +237,19 @@ export default function EventDetailClient({
   // Handle registration toggle - only controls registration status, independent of visibility
   const handleRegistrationToggle = (checked: boolean) => {
     if (checked) {
-      // Opening registration
+      // Opening registration (manual override — bypasses scheduled dates)
       handleStatusUpdate('registration_open')
     } else {
-      // Closing registration
+      // Closing registration (manual override — bypasses scheduled dates)
       handleStatusUpdate('registration_closed')
     }
   }
+
+  // Clears the manual registration override and returns the event to the
+  // date-based schedule (registrationOpenDate / registrationCloseDate). Used
+  // to recover from an accidental Open/Close toggle without having to edit
+  // and re-save the entire event.
+  const handleResetToSchedule = () => handleStatusUpdate('published')
 
   const handleSaveSettings = async () => {
     if (savingSettings) return
@@ -476,6 +497,7 @@ export default function EventDetailClient({
           {settings?.vendorRegistrationEnabled && (
             <TabsTrigger value="vendors">Vendors</TabsTrigger>
           )}
+          <TabsTrigger value="surveys">Surveys</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>        </TabsList>
 
@@ -942,6 +964,115 @@ export default function EventDetailClient({
             </CardContent>
           </Card>
 
+          {waitlist && (waitlist.pending > 0 || waitlist.contacted > 0) && (
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg text-[#1E3A5F] flex items-center gap-2">
+                    <ListOrdered className="h-5 w-5" />
+                    Waitlist
+                  </CardTitle>
+                  <Link
+                    href={`/dashboard/admin/events/${event.id}/waitlist`}
+                    className="text-sm font-medium text-[#1E3A5F] hover:underline"
+                  >
+                    Manage &rarr;
+                  </Link>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                  <div className="bg-purple-50 rounded-lg p-4">
+                    <p className="text-sm text-[#6B7280]">Waiting (entries)</p>
+                    <p className="text-2xl font-bold text-[#1E3A5F]">{waitlist.pending}</p>
+                  </div>
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <p className="text-sm text-[#6B7280]">Invited (spots held)</p>
+                    <p className="text-2xl font-bold text-[#1E3A5F]">{waitlist.contacted}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-sm text-[#6B7280]">People waiting</p>
+                    <p className="text-2xl font-bold text-[#1E3A5F]">{waitlist.headcountWaiting}</p>
+                  </div>
+                </div>
+
+                <h4 className="text-sm font-medium text-[#1E3A5F] mb-3">Seats requested by option</h4>
+                <div className="space-y-2">
+                  {waitlist.byHousingType.on_campus > 0 && settings?.onCampusCapacity != null && (
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-[#1E3A5F] flex items-center gap-2">
+                        <Home className="h-4 w-4 text-[#9C8466]" />
+                        On-campus
+                      </span>
+                      <span className="text-sm font-semibold text-[#1E3A5F]">
+                        {waitlist.byHousingType.on_campus} waiting
+                        {settings.onCampusRemaining != null && settings.onCampusRemaining < waitlist.byHousingType.on_campus && (
+                          <span className="text-red-600 ml-2">
+                            (need {waitlist.byHousingType.on_campus - settings.onCampusRemaining} more)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {waitlist.byHousingType.off_campus > 0 && settings?.offCampusCapacity != null && (
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-[#1E3A5F] flex items-center gap-2">
+                        <Tent className="h-4 w-4 text-[#9C8466]" />
+                        Off-campus
+                      </span>
+                      <span className="text-sm font-semibold text-[#1E3A5F]">
+                        {waitlist.byHousingType.off_campus} waiting
+                        {settings.offCampusRemaining != null && settings.offCampusRemaining < waitlist.byHousingType.off_campus && (
+                          <span className="text-red-600 ml-2">
+                            (need {waitlist.byHousingType.off_campus - settings.offCampusRemaining} more)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {waitlist.byDayPassOption.map(opt => {
+                    const dpConfig = dayPassOptions.find(dp => dp.id === opt.id)
+                    return (
+                      <div key={opt.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <span className="text-sm text-[#1E3A5F] flex items-center gap-2">
+                          <Ticket className="h-4 w-4 text-[#9C8466]" />
+                          Day pass &mdash; {opt.name}
+                        </span>
+                        <span className="text-sm font-semibold text-[#1E3A5F]">
+                          {opt.count} waiting
+                          {dpConfig && dpConfig.remaining < opt.count && (
+                            <span className="text-red-600 ml-2">
+                              (need {opt.count - dpConfig.remaining} more)
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    )
+                  })}
+                  {waitlist.byHousingType.day_pass > 0 && waitlist.byDayPassOption.length === 0 && (
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-[#1E3A5F] flex items-center gap-2">
+                        <Ticket className="h-4 w-4 text-[#9C8466]" />
+                        Day pass (any)
+                      </span>
+                      <span className="text-sm font-semibold text-[#1E3A5F]">
+                        {waitlist.byHousingType.day_pass} waiting
+                      </span>
+                    </div>
+                  )}
+                  {waitlist.byHousingType.unspecified > 0 && (
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-[#6B7280]">No preference set</span>
+                      <span className="text-sm font-semibold text-[#1E3A5F]">
+                        {waitlist.byHousingType.unspecified} waiting
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Activity Report */}
           <Card className="bg-white border-[#D1D5DB]">
             <CardHeader>
@@ -1269,6 +1400,25 @@ export default function EventDetailClient({
         )}
 
         {/* Reports Tab */}
+        <TabsContent value="surveys">
+          <Card className="bg-white border-[#D1D5DB]">
+            <CardContent className="p-8 text-center">
+              <ClipboardList className="h-16 w-16 text-[#9C8466] mx-auto mb-4" />
+              <h3 className="font-semibold text-[#1E3A5F] mb-2">
+                Post-Event Surveys
+              </h3>
+              <p className="text-[#6B7280] mb-4">
+                Send a survey to participants and/or group leaders after the event
+              </p>
+              <Link href={`/dashboard/admin/events/${event.id}/surveys`}>
+                <Button className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
+                  Manage Surveys
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="reports">
           <Card className="bg-white border-[#D1D5DB]">
             <CardContent className="p-8 text-center">
@@ -1359,19 +1509,28 @@ export default function EventDetailClient({
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">
-                    {isRegistrationOpen ? (
+                    {currentStatus === 'registration_open' && (
                       <CheckSquare className="h-5 w-5 text-green-600" />
-                    ) : (
+                    )}
+                    {currentStatus === 'registration_closed' && (
                       <Lock className="h-5 w-5 text-orange-500" />
+                    )}
+                    {!isManualOverride && (
+                      <Clock className="h-5 w-5 text-[#1E3A5F]" />
                     )}
                     <div>
                       <p className="font-medium text-[#1E3A5F]">
-                        {isRegistrationOpen ? 'Registration Open' : 'Registration Closed'}
+                        {currentStatus === 'registration_open' && 'Manually Open'}
+                        {currentStatus === 'registration_closed' && 'Manually Closed'}
+                        {!isManualOverride && 'Following Schedule'}
                       </p>
                       <p className="text-xs text-[#6B7280]">
-                        {isRegistrationOpen
-                          ? 'Participants can register for this event'
-                          : 'New registrations are not accepted'}
+                        {currentStatus === 'registration_open' &&
+                          'Manually opened — overrides your scheduled dates.'}
+                        {currentStatus === 'registration_closed' &&
+                          'Manually closed — overrides your scheduled dates.'}
+                        {!isManualOverride &&
+                          'Registration opens and closes based on the dates you have set.'}
                       </p>
                     </div>
                   </div>
@@ -1382,6 +1541,26 @@ export default function EventDetailClient({
                     disabled={updatingStatus || currentStatus === 'completed' || currentStatus === 'cancelled'}
                   />
                 </div>
+                {isManualOverride && (
+                  <div className="flex items-start justify-between gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-blue-800">
+                        Your scheduled dates are being ignored while a manual override is active.
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleResetToSchedule}
+                      disabled={updatingStatus}
+                      className="text-[#1E3A5F] border-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white flex-shrink-0"
+                    >
+                      <Clock className="h-4 w-4 mr-2" />
+                      Use Scheduled Dates
+                    </Button>
+                  </div>
+                )}
                 {!currentIsPublished && isRegistrationOpen && (
                   <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                     <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
@@ -1391,7 +1570,7 @@ export default function EventDetailClient({
                   </div>
                 )}
                 <p className="text-xs text-[#6B7280]">
-                  Control whether participants can submit new registrations. Existing registrations are not affected.
+                  Toggle to manually open or close registration. Existing registrations are not affected. Use &ldquo;Use Scheduled Dates&rdquo; to fall back to the open/close dates configured on the event.
                 </p>
               </CardContent>
             </Card>

@@ -205,7 +205,8 @@ const DATA_SOURCES: Record<string, { label: string; description: string; registr
       { value: 'contactEmail', label: 'Contact Email', category: 'Contact' },
       { value: 'amount', label: 'Payment Amount', category: 'Payment' },
       { value: 'paymentMethod', label: 'Payment Method', category: 'Payment' },
-      { value: 'status', label: 'Payment Status', category: 'Payment' },
+      { value: 'paymentType', label: 'Payment Type', category: 'Payment' },
+      { value: 'paymentStatus', label: 'Payment Status', category: 'Payment' },
       { value: 'stripePaymentIntentId', label: 'Stripe Payment ID', category: 'Payment' },
       { value: 'checkNumber', label: 'Check Number', category: 'Payment' },
       { value: 'totalAmountDue', label: 'Total Amount Due', category: 'Balance' },
@@ -494,11 +495,14 @@ const FILTER_OPTIONS: Record<string, { value: string; label: string; type: 'sele
       { value: 'cash', label: 'Cash' },
       { value: 'other', label: 'Other' },
     ]},
-    { value: 'status', label: 'Payment Status', type: 'multiselect', options: [
+    { value: 'paymentStatus', label: 'Payment Status', type: 'multiselect', options: [
       { value: 'pending', label: 'Pending' },
+      { value: 'processing', label: 'Processing' },
       { value: 'succeeded', label: 'Succeeded' },
       { value: 'failed', label: 'Failed' },
+      { value: 'cancelled', label: 'Cancelled' },
       { value: 'refunded', label: 'Refunded' },
+      { value: 'expired', label: 'Expired' },
     ]},
     { value: 'dateRange', label: 'Date Range', type: 'daterange' },
   ],
@@ -649,7 +653,7 @@ const GROUPING_OPTIONS: Record<string, { value: string; label: string }[]> = {
     { value: 'none', label: 'No Grouping' },
     { value: 'registrationType', label: 'By Registration Type' },
     { value: 'paymentMethod', label: 'By Payment Method' },
-    { value: 'status', label: 'By Status' },
+    { value: 'paymentStatus', label: 'By Status' },
   ],
   checkins: [
     { value: 'none', label: 'No Grouping' },
@@ -1140,6 +1144,13 @@ export function CustomReportBuilder({
       return field?.label || f
     })
 
+    // Auto-scale font by column count so wide reports (medical / roster with
+    // 20+ columns) don't blow out horizontally when printed. Landscape letter
+    // fits ~10 columns comfortably at 10pt.
+    const columnCount = selectedFields.length
+    const bodyFontSize = columnCount > 18 ? 6 : columnCount > 14 ? 7 : columnCount > 10 ? 8 : 10
+    const cellPad = columnCount > 14 ? '3px 4px' : '4px 6px'
+
     if (reportData?.grouped && Array.isArray(reportData.data)) {
       // Grouped data
       tableHTML = reportData.data.map((group: any) => {
@@ -1153,22 +1164,22 @@ export function CustomReportBuilder({
           groupHeaderExtra += `<span style="font-weight: normal; color: #888; font-size: 13px; margin-left: 8px;">${group.parishName}</span>`
         }
         return `
-          <div style="margin-bottom: 30px; page-break-inside: avoid;">
-            <h3 style="border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 12px;">
+          <div class="report-group">
+            <h3>
               ${group.groupKey || group.groupName || 'Group'}
               ${groupHeaderExtra}
-              <span style="font-weight: normal; color: #666; font-size: 14px; margin-left: 10px;">(${items.length} records)</span>
+              <span class="record-count">(${items.length} records)</span>
             </h3>
-            <table style="width: 100%; border-collapse: collapse; font-size: 10pt;">
+            <table>
               <thead>
-                <tr style="background-color: #e5e7eb;">
-                  ${fieldLabels.map(label => `<th style="border: 1px solid #333; padding: 6px 8px; text-align: left;">${label}</th>`).join('')}
+                <tr>
+                  ${fieldLabels.map(label => `<th>${label}</th>`).join('')}
                 </tr>
               </thead>
               <tbody>
                 ${items.map((item: any, i: number) => `
-                  <tr style="background-color: ${i % 2 === 0 ? '#fff' : '#f9fafb'};">
-                    ${selectedFields.map(field => `<td style="border: 1px solid #333; padding: 6px 8px;">${getCellHTML(item, field)}</td>`).join('')}
+                  <tr class="${i % 2 === 0 ? 'row-even' : 'row-odd'}">
+                    ${selectedFields.map(field => `<td>${getCellHTML(item, field)}</td>`).join('')}
                   </tr>
                 `).join('')}
               </tbody>
@@ -1180,16 +1191,16 @@ export function CustomReportBuilder({
       // Flat data
       const items = Array.isArray(reportData?.data) ? reportData.data : (reportData?.data?.items || [])
       tableHTML = `
-        <table style="width: 100%; border-collapse: collapse; font-size: 10pt;">
+        <table>
           <thead>
-            <tr style="background-color: #e5e7eb;">
-              ${fieldLabels.map(label => `<th style="border: 1px solid #333; padding: 6px 8px; text-align: left;">${label}</th>`).join('')}
+            <tr>
+              ${fieldLabels.map(label => `<th>${label}</th>`).join('')}
             </tr>
           </thead>
           <tbody>
             ${items.map((item: any, i: number) => `
-              <tr style="background-color: ${i % 2 === 0 ? '#fff' : '#f9fafb'};">
-                ${selectedFields.map(field => `<td style="border: 1px solid #333; padding: 6px 8px;">${getCellHTML(item, field)}</td>`).join('')}
+              <tr class="${i % 2 === 0 ? 'row-even' : 'row-odd'}">
+                ${selectedFields.map(field => `<td>${getCellHTML(item, field)}</td>`).join('')}
               </tr>
             `).join('')}
           </tbody>
@@ -1197,16 +1208,59 @@ export function CustomReportBuilder({
       `
     }
 
+    // Print stylesheet: table-header-group repeats headers on each page,
+    // page-break-inside:avoid keeps rows intact, table-layout:fixed + word-wrap
+    // makes wide tables fit page width instead of overflowing the paper.
     return `
       <!DOCTYPE html>
       <html>
       <head>
         <title>${reportTitle} - ${eventName}</title>
         <style>
-          @page { size: landscape; margin: 0.5in; }
-          body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
-          h1 { font-size: 24px; margin-bottom: 8px; }
-          .subtitle { color: #666; margin-bottom: 20px; font-size: 14px; }
+          @page { size: landscape; margin: 0.4in; }
+          * { box-sizing: border-box; }
+          body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 16px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          h1 { font-size: 20px; margin: 0 0 4px; }
+          .subtitle { color: #666; margin-bottom: 16px; font-size: 12px; }
+          .report-group { margin-bottom: 24px; page-break-inside: auto; }
+          .report-group h3 {
+            border-bottom: 2px solid #333;
+            padding-bottom: 6px;
+            margin: 16px 0 8px;
+            font-size: 13px;
+            page-break-after: avoid;
+          }
+          .record-count { font-weight: normal; color: #666; font-size: 12px; margin-left: 10px; }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: ${bodyFontSize}pt;
+            table-layout: fixed;
+            page-break-inside: auto;
+          }
+          thead { display: table-header-group; }
+          tfoot { display: table-footer-group; }
+          tr { page-break-inside: avoid; page-break-after: auto; }
+          th, td {
+            border: 1px solid #999;
+            padding: ${cellPad};
+            text-align: left;
+            vertical-align: top;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+          }
+          th { background-color: #e5e7eb; font-weight: bold; }
+          .row-odd { background-color: #f9fafb; }
+          @media print {
+            body { padding: 0; }
+          }
         </style>
       </head>
       <body>
@@ -1218,11 +1272,55 @@ export function CustomReportBuilder({
     `
   }
 
+  // Field name suffixes that mean the value is money and should render as USD.
+  // Kept as a whole-suffix regex so `totalParticipants` / `youthCount` / `age` /
+  // `roomNumber` / `checkNumber` don't get formatted as currency.
+  const CURRENCY_SUFFIX = /(amount|paid|due|remaining|revenue|price|fee|total|refunded|discountApplied)$/i
+  // Enum-ish lowercase values we want to display in Title Case with spaces
+  // instead of raw `snake_case` (paymentStatus, paymentMethod, paymentType, etc).
+  const ENUMISH_FIELD_SUFFIX = /(status|method|type|reason|gender)$/i
+  const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}|$)/
+
+  const humanizeEnum = (value: string): string =>
+    value
+      .split(/[_\s]+/)
+      .filter(Boolean)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ')
+
   const getNestedValue = (obj: any, path: string): string => {
     const value = path.split('.').reduce((acc, part) => acc?.[part], obj)
-    if (value === null || value === undefined) return '-'
+    if (value === null || value === undefined || value === '') return '-'
     if (typeof value === 'boolean') return value ? 'Yes' : 'No'
-    if (value instanceof Date) return value.toLocaleString()
+
+    const lastKey = path.split('.').pop() || ''
+
+    // Currency: money-suffixed numeric fields render as USD
+    if (typeof value === 'number' && CURRENCY_SUFFIX.test(lastKey)) {
+      return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+    }
+
+    // Dates: real Date objects and ISO date strings render as short local datetime.
+    // Values that fall on UTC midnight (typically date-only columns like dateOfBirth
+    // that Prisma still returns as DateTime) render as date-only instead of
+    // "12:00 AM" noise.
+    const renderDate = (d: Date): string => {
+      const isMidnightUtc =
+        d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0
+      if (isMidnightUtc) return d.toLocaleDateString('en-US', { timeZone: 'UTC' })
+      return d.toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })
+    }
+    if (value instanceof Date) return renderDate(value)
+    if (typeof value === 'string' && ISO_DATE_PATTERN.test(value)) {
+      const d = new Date(value)
+      if (!isNaN(d.getTime())) return renderDate(d)
+    }
+
+    // Enum-ish strings: `paid_full` → `Paid Full`, `bank_transfer` → `Bank Transfer`
+    if (typeof value === 'string' && ENUMISH_FIELD_SUFFIX.test(lastKey) && /^[a-z0-9_]+$/.test(value)) {
+      return humanizeEnum(value)
+    }
+
     if (typeof value === 'object') return JSON.stringify(value)
     return String(value)
   }

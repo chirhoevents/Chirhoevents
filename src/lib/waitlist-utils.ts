@@ -1,4 +1,40 @@
 import { prisma } from '@/lib/prisma'
+import {
+  incrementOptionCapacity,
+  incrementDayPassOptionCapacity,
+  type HousingType,
+  type RoomType,
+} from '@/lib/option-capacity'
+
+/**
+ * Release the option-level reservation held by a waitlist entry (if any) back
+ * to its pools. Idempotent — no-op when the entry has no option reservation.
+ * Does NOT touch event.capacityRemaining; the callers handle that separately
+ * (some paths — like status → registered — consume the event seat rather than
+ * releasing it, while option pools follow the same rule).
+ */
+export async function releaseWaitlistOptionReservation(entry: {
+  eventId: string
+  reservedSpots: number | null
+  reservedHousingType: HousingType | null
+  reservedRoomType: RoomType | null
+  reservedDayPassOptionId: string | null
+}): Promise<void> {
+  const spots = entry.reservedSpots ?? 0
+  if (spots <= 0) return
+
+  if (entry.reservedHousingType) {
+    await incrementOptionCapacity(
+      entry.eventId,
+      entry.reservedHousingType,
+      entry.reservedRoomType,
+      spots
+    )
+  }
+  if (entry.reservedDayPassOptionId) {
+    await incrementDayPassOptionCapacity(entry.reservedDayPassOptionId, spots)
+  }
+}
 
 /**
  * Mark a waitlist entry as registered after successful registration
@@ -71,11 +107,17 @@ export async function markWaitlistAsRegisteredByToken(
       return { success: false, error: 'Token expired' }
     }
 
-    // Update to registered
+    // Update to registered. Also null out all reservation fields — the
+    // reservation has been consumed by the actual registration, so subsequent
+    // status flips shouldn't try to release it back to capacity.
     await prisma.waitlistEntry.update({
       where: { id: entry.id },
       data: {
         status: 'registered',
+        reservedSpots: null,
+        reservedHousingType: null,
+        reservedRoomType: null,
+        reservedDayPassOptionId: null,
       },
     })
 
@@ -103,6 +145,19 @@ export async function validateWaitlistToken(token: string): Promise<{
     email: string
     partySize: number
     eventId: string
+    reservedSpots: number | null
+    reservedYouthCount: number | null
+    reservedChaperoneCount: number | null
+    reservedPriestCount: number | null
+    preferredHousingType: HousingType | null
+    preferredRoomType: RoomType | null
+    preferredDayPassOptionId: string | null
+    reservedHousingType: HousingType | null
+    reservedRoomType: RoomType | null
+    reservedDayPassOptionId: string | null
+    effectiveHousingType: HousingType | null
+    effectiveRoomType: RoomType | null
+    effectiveDayPassOptionId: string | null
   }
 }> {
   try {
@@ -126,6 +181,17 @@ export async function validateWaitlistToken(token: string): Promise<{
       return { valid: false, error: 'Invalid status', reason: 'invalid_status' }
     }
 
+    // "Effective" values represent the actual offer: reserved_* if the admin
+    // stored a reservation (normal invite OR counter-offer), otherwise the
+    // entry's preferred_* fields. Callers should match the incoming
+    // registration against these effective values, not raw preferred_*.
+    const reservedHousingType = ((entry as any).reservedHousingType as HousingType | null) ?? null
+    const reservedRoomType = ((entry as any).reservedRoomType as RoomType | null) ?? null
+    const reservedDayPassOptionId = (entry as any).reservedDayPassOptionId ?? null
+    const preferredHousingType = ((entry as any).preferredHousingType as HousingType | null) ?? null
+    const preferredRoomType = ((entry as any).preferredRoomType as RoomType | null) ?? null
+    const preferredDayPassOptionId = (entry as any).preferredDayPassOptionId ?? null
+
     return {
       valid: true,
       entry: {
@@ -134,6 +200,20 @@ export async function validateWaitlistToken(token: string): Promise<{
         email: entry.email,
         partySize: entry.partySize,
         eventId: entry.eventId,
+        reservedSpots: (entry as any).reservedSpots ?? null,
+        reservedYouthCount: (entry as any).reservedYouthCount ?? null,
+        reservedChaperoneCount: (entry as any).reservedChaperoneCount ?? null,
+        reservedPriestCount: (entry as any).reservedPriestCount ?? null,
+        preferredHousingType,
+        preferredRoomType,
+        preferredDayPassOptionId,
+        reservedHousingType,
+        reservedRoomType,
+        reservedDayPassOptionId,
+        // Effective values — what the invitee is actually being offered.
+        effectiveHousingType: reservedHousingType ?? preferredHousingType,
+        effectiveRoomType: reservedRoomType ?? preferredRoomType,
+        effectiveDayPassOptionId: reservedDayPassOptionId ?? preferredDayPassOptionId,
       },
     }
   } catch (error) {

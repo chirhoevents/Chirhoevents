@@ -19,6 +19,7 @@ import {
   AlertCircle,
   Clock
 } from 'lucide-react'
+import { getTier, SUBSCRIPTION_TIERS } from '@/lib/subscription-tiers'
 
 interface OnboardingRequest {
   id: string
@@ -36,33 +37,16 @@ interface OnboardingRequest {
   createdAt: string
 }
 
-const tierLabels: Record<string, string> = {
-  chapel: 'Chapel',
-  parish: 'Parish',
-  cathedral: 'Cathedral',
-  shrine: 'Shrine',
-  basilica: 'Basilica',
-  // Legacy tier names for backward compatibility
-  starter: 'Chapel',
-  small_diocese: 'Parish',
-  growing: 'Cathedral',
-  conference: 'Shrine',
-  enterprise: 'Basilica',
-}
+const tierLabels: Record<string, string> = Object.fromEntries(
+  Object.values(SUBSCRIPTION_TIERS).map(tier => [tier.key, tier.name])
+)
 
-const tierPricing: Record<string, { monthly: number; annual: number; setupFee: number }> = {
-  chapel: { monthly: 39, annual: 468, setupFee: 99 },
-  parish: { monthly: 59, annual: 708, setupFee: 199 },
-  cathedral: { monthly: 109, annual: 1080, setupFee: 349 },
-  shrine: { monthly: 159, annual: 1908, setupFee: 499 },
-  basilica: { monthly: 1250, annual: 15000, setupFee: 0 },
-  // Legacy tier names for backward compatibility
-  starter: { monthly: 39, annual: 468, setupFee: 99 },
-  small_diocese: { monthly: 59, annual: 708, setupFee: 199 },
-  growing: { monthly: 109, annual: 1080, setupFee: 349 },
-  conference: { monthly: 159, annual: 1908, setupFee: 499 },
-  enterprise: { monthly: 1250, annual: 15000, setupFee: 0 },
-}
+const tierPricing: Record<string, { monthly: number; annual: number }> = Object.fromEntries(
+  Object.values(SUBSCRIPTION_TIERS).map(tier => [
+    tier.key,
+    { monthly: tier.monthlyPrice, annual: tier.annualPrice ?? tier.monthlyPrice * 12 },
+  ])
+)
 
 export default function PendingRequestsPage() {
   const router = useRouter()
@@ -158,11 +142,20 @@ export default function PendingRequestsPage() {
   }
 
   const calculateRevenuePotential = (request: OnboardingRequest) => {
-    const tier = request.requestedTier || 'cathedral'
-    const pricing = tierPricing[tier] || tierPricing.cathedral
+    const tierKey = request.requestedTier || 'cathedral'
+    const tier = getTier(tierKey)
+    const pricing = tierPricing[tierKey] || tierPricing.cathedral
     const isAnnual = request.billingCyclePreference === 'annual'
     const subscriptionAmount = isAnnual ? pricing.annual : pricing.monthly * 12
-    return subscriptionAmount + pricing.setupFee
+    const setupFee = tier?.setupFee ?? 0
+    return subscriptionAmount + setupFee
+  }
+
+  const getSetupFeeDisplay = (request: OnboardingRequest) => {
+    const tier = getTier(request.requestedTier || 'cathedral')
+    if (!tier) return '$0'
+    if (tier.setupFee === null) return 'Custom'
+    return `$${tier.setupFee}`
   }
 
   const pendingRequests = requests.filter(r => r.status === 'pending')
@@ -297,16 +290,8 @@ export default function PendingRequestsPage() {
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-green-700">
-                        {(selectedRequest.requestedTier === 'chapel' || selectedRequest.requestedTier === 'starter' || selectedRequest.requestedTier === 'parish')
-                          ? 'Basic Access Fee:'
-                          : 'Setup Fee:'}
-                      </span>
-                      <span className="font-medium text-green-900">
-                        {selectedRequest.requestedTier === 'basilica' || selectedRequest.requestedTier === 'enterprise'
-                          ? 'Custom'
-                          : formatCurrency(tierPricing[selectedRequest.requestedTier]?.setupFee || 349)}
-                      </span>
+                      <span className="text-green-700">{tierLabels[selectedRequest.requestedTier] ? `${getTier(selectedRequest.requestedTier)?.setupFeeLabel ?? 'Setup Fee'}:` : 'Setup Fee:'}</span>
+                      <span className="font-medium text-green-900">{getSetupFeeDisplay(selectedRequest)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-green-700">

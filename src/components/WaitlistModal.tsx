@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -14,11 +14,42 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Loader2, CheckCircle } from 'lucide-react'
 
+type HousingType = 'on_campus' | 'off_campus' | 'day_pass'
+type RoomType = 'single' | 'double' | 'triple' | 'quad'
+type TicketType = 'general_admission' | 'day_pass'
+
+export interface WaitlistPreferenceOptions {
+  offerGeneralAdmission: boolean
+  offerDayPass: boolean
+  housingTypes: HousingType[]        // 'general_admission' housing options offered
+  roomTypes: RoomType[]              // room types offered (for on_campus)
+  dayPassOptions: Array<{ id: string; name: string }>
+  // Which registration modes the event actually accepts. Waitlist entries
+  // that couldn't be invited to complete registration make no sense — if
+  // the event is group-only, the modal should only allow group entries.
+  groupRegistrationEnabled: boolean
+  individualRegistrationEnabled: boolean
+}
+
 interface WaitlistModalProps {
   eventId: string
   eventName: string
   isOpen: boolean
   onClose: () => void
+  preferences?: WaitlistPreferenceOptions
+}
+
+const HOUSING_LABEL: Record<HousingType, string> = {
+  on_campus: 'On Campus',
+  off_campus: 'Off Campus',
+  day_pass: 'Day Pass',
+}
+
+const ROOM_LABEL: Record<RoomType, string> = {
+  single: 'Single Room',
+  double: 'Double Room',
+  triple: 'Triple Room',
+  quad: 'Quad Room',
 }
 
 export default function WaitlistModal({
@@ -26,20 +57,108 @@ export default function WaitlistModal({
   eventName,
   isOpen,
   onClose,
+  preferences,
 }: WaitlistModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const bothTicketTypes =
+    !!preferences && preferences.offerGeneralAdmission && preferences.offerDayPass
+  const showTicketType = bothTicketTypes
+  const defaultTicketType: TicketType = preferences?.offerGeneralAdmission
+    ? 'general_admission'
+    : preferences?.offerDayPass
+    ? 'day_pass'
+    : 'general_admission'
+
+  // Registration-type gating. If exactly one is enabled, the modal locks
+  // to it; if both are enabled, the user picks. If preferences aren't
+  // provided (older callers), assume both are on (backwards compat).
+  const groupEnabled = preferences?.groupRegistrationEnabled ?? true
+  const individualEnabled = preferences?.individualRegistrationEnabled ?? true
+  const defaultRegistrationType: 'group' | 'individual' | '' = groupEnabled && !individualEnabled
+    ? 'group'
+    : individualEnabled && !groupEnabled
+    ? 'individual'
+    : ''
+  const bothRegistrationTypes = groupEnabled && individualEnabled
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
     partySize: '1',
     notes: '',
+    registrationType: defaultRegistrationType as '' | 'group' | 'individual',
+    youthCount: '',
+    chaperoneCount: '',
+    priestCount: '',
+    preferredTicketType: defaultTicketType,
+    preferredHousingType: '' as '' | HousingType,
+    preferredRoomType: '' as '' | RoomType,
+    preferredDayPassOptionId: '',
   })
+
+  useEffect(() => {
+    if (isOpen) {
+      setFormData((prev) => ({
+        ...prev,
+        preferredTicketType: defaultTicketType,
+        registrationType: defaultRegistrationType,
+      }))
+    }
+    // defaults only change when preferences change; safe to omit
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen])
+
+  const housingTypes = preferences?.housingTypes ?? []
+  const roomTypes = preferences?.roomTypes ?? []
+  const dayPassOptions = preferences?.dayPassOptions ?? []
+
+  const isGroup = formData.registrationType === 'group'
+  const isIndividual = formData.registrationType === 'individual'
+
+  const showHousing =
+    formData.preferredTicketType === 'general_admission' && housingTypes.length > 1
+  const showRoom =
+    formData.preferredTicketType === 'general_admission' &&
+    formData.preferredHousingType === 'on_campus' &&
+    roomTypes.length > 1 &&
+    isIndividual // room type is only meaningful for individual registration
+  const showDayPass =
+    formData.preferredTicketType === 'day_pass' && dayPassOptions.length > 1
+
+  // Group party-size is derived from the mix; individual is always 1.
+  const parsedYouth = parseInt(formData.youthCount) || 0
+  const parsedChaperone = parseInt(formData.chaperoneCount) || 0
+  const parsedPriest = parseInt(formData.priestCount) || 0
+  const mixTotal = parsedYouth + parsedChaperone + parsedPriest
+  const effectivePartySize = isGroup ? mixTotal : isIndividual ? 1 : parseInt(formData.partySize) || 0
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Client-side guards for the group mix — mirrors the API + the actual
+    // group registration validation. Catching here means the user doesn't
+    // have to round-trip only to be told they need a chaperone.
+    if (isGroup) {
+      if (mixTotal <= 0) {
+        setError('Enter how many youth, chaperones, and priests are in the group.')
+        return
+      }
+      if (parsedYouth < 1) {
+        setError('A group needs at least one youth participant.')
+        return
+      }
+      if (parsedChaperone < 1 && parsedPriest < 1) {
+        setError(
+          'A group needs at least one chaperone or priest. For a single person, choose Individual instead.'
+        )
+        return
+      }
+    }
+
     setIsSubmitting(true)
     setError(null)
 
@@ -53,15 +172,43 @@ export default function WaitlistModal({
           name: formData.name,
           email: formData.email,
           phone: formData.phone || null,
-          partySize: parseInt(formData.partySize),
+          partySize: effectivePartySize,
           notes: formData.notes || null,
+          registrationType: formData.registrationType || null,
+          youthCount: isGroup ? parsedYouth : null,
+          chaperoneCount: isGroup ? parsedChaperone : null,
+          priestCount: isGroup ? parsedPriest : null,
+          preferredTicketType: preferences ? formData.preferredTicketType : null,
+          preferredHousingType: formData.preferredHousingType || null,
+          preferredRoomType: isIndividual ? formData.preferredRoomType || null : null,
+          preferredDayPassOptionId: formData.preferredDayPassOptionId || null,
         }),
       })
 
-      const data = await response.json()
+      // Read the response defensively — a Prisma failure at the server
+      // returns a 500 with either a JSON body or an HTML/text error page.
+      // Read whichever it is so the user (or Juan investigating a report)
+      // sees the real reason instead of a generic "Failed to join waitlist".
+      let data: any = {}
+      let rawText = ''
+      const responseClone = response.clone()
+      try {
+        data = await response.json()
+      } catch {
+        try {
+          rawText = await responseClone.text()
+        } catch {
+          /* ignore */
+        }
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to join waitlist')
+        const serverMessage =
+          data?.error ||
+          data?.message ||
+          (rawText ? rawText.slice(0, 200) : '') ||
+          `HTTP ${response.status}`
+        throw new Error(`Could not join the waitlist: ${serverMessage}`)
       }
 
       setIsSuccess(true)
@@ -73,6 +220,14 @@ export default function WaitlistModal({
         phone: '',
         partySize: '1',
         notes: '',
+        registrationType: defaultRegistrationType,
+        youthCount: '',
+        chaperoneCount: '',
+        priestCount: '',
+        preferredTicketType: defaultTicketType,
+        preferredHousingType: '',
+        preferredRoomType: '',
+        preferredDayPassOptionId: '',
       })
 
       // Close modal after 3 seconds
@@ -95,9 +250,12 @@ export default function WaitlistModal({
     }
   }
 
+  const selectClass =
+    'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50'
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         {isSuccess ? (
           <div className="text-center py-8">
             <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
@@ -174,27 +332,238 @@ export default function WaitlistModal({
                 />
               </div>
 
-              <div>
-                <Label htmlFor="partySize" className="text-[#1E3A5F] font-medium">
-                  Party Size <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="partySize"
-                  type="number"
-                  min="1"
-                  max="100"
-                  required
-                  value={formData.partySize}
-                  onChange={(e) =>
-                    setFormData({ ...formData, partySize: e.target.value })
-                  }
-                  className="mt-1"
-                  disabled={isSubmitting}
-                />
-                <p className="text-xs text-[#6B7280] mt-1">
-                  How many people need spots?
-                </p>
-              </div>
+              {bothRegistrationTypes && (
+                <div>
+                  <Label htmlFor="registrationType" className="text-[#1E3A5F] font-medium">
+                    Registration Type <span className="text-red-500">*</span>
+                  </Label>
+                  <select
+                    id="registrationType"
+                    className={`${selectClass} mt-1`}
+                    required
+                    value={formData.registrationType}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        registrationType: e.target.value as '' | 'group' | 'individual',
+                        // Reset dependent fields when switching type
+                        youthCount: '',
+                        chaperoneCount: '',
+                        priestCount: '',
+                        partySize: '1',
+                      })
+                    }
+                    disabled={isSubmitting}
+                  >
+                    <option value="">Select...</option>
+                    <option value="group">Group</option>
+                    <option value="individual">Individual</option>
+                  </select>
+                </div>
+              )}
+
+              {!bothRegistrationTypes && formData.registrationType && (
+                <div className="rounded-md border border-[#F5F1E8] bg-[#F5F1E8]/50 px-3 py-2 text-sm text-[#6B7280]">
+                  This event only accepts{' '}
+                  <span className="font-medium text-[#1E3A5F]">
+                    {formData.registrationType === 'group' ? 'group' : 'individual'}
+                  </span>{' '}
+                  registrations.
+                </div>
+              )}
+
+              {isIndividual && (
+                <div>
+                  <Label className="text-[#1E3A5F] font-medium">Party Size</Label>
+                  <p className="mt-1 text-sm text-[#6B7280]">
+                    Individual registrations reserve 1 spot.
+                  </p>
+                </div>
+              )}
+
+              {isGroup && (
+                <div className="space-y-3 rounded-md border border-[#D1D5DB] p-3">
+                  <p className="text-sm font-medium text-[#1E3A5F]">
+                    How many people in the group?
+                  </p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label htmlFor="youthCount" className="text-xs text-[#6B7280]">
+                        Youth
+                      </Label>
+                      <Input
+                        id="youthCount"
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={formData.youthCount}
+                        onChange={(e) =>
+                          setFormData({ ...formData, youthCount: e.target.value })
+                        }
+                        className="mt-1"
+                        placeholder="0"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="chaperoneCount" className="text-xs text-[#6B7280]">
+                        Chaperones
+                      </Label>
+                      <Input
+                        id="chaperoneCount"
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={formData.chaperoneCount}
+                        onChange={(e) =>
+                          setFormData({ ...formData, chaperoneCount: e.target.value })
+                        }
+                        className="mt-1"
+                        placeholder="0"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="priestCount" className="text-xs text-[#6B7280]">
+                        Priests
+                      </Label>
+                      <Input
+                        id="priestCount"
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={formData.priestCount}
+                        onChange={(e) =>
+                          setFormData({ ...formData, priestCount: e.target.value })
+                        }
+                        className="mt-1"
+                        placeholder="0"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-[#6B7280]">
+                    Total: <span className="font-medium text-[#1E3A5F]">{mixTotal}</span> spot
+                    {mixTotal === 1 ? '' : 's'}
+                  </p>
+                </div>
+              )}
+
+              {showTicketType && (
+                <div>
+                  <Label htmlFor="ticketType" className="text-[#1E3A5F] font-medium">
+                    Ticket Type <span className="text-red-500">*</span>
+                  </Label>
+                  <select
+                    id="ticketType"
+                    className={`${selectClass} mt-1`}
+                    value={formData.preferredTicketType}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        preferredTicketType: e.target.value as TicketType,
+                        // Reset dependent selections when ticket type changes
+                        preferredHousingType: '',
+                        preferredRoomType: '',
+                        preferredDayPassOptionId: '',
+                      })
+                    }
+                    disabled={isSubmitting}
+                  >
+                    <option value="general_admission">General Admission (with housing)</option>
+                    <option value="day_pass">Day Pass</option>
+                  </select>
+                </div>
+              )}
+
+              {showHousing && (
+                <div>
+                  <Label htmlFor="housingType" className="text-[#1E3A5F] font-medium">
+                    Preferred Housing <span className="text-red-500">*</span>
+                  </Label>
+                  <select
+                    id="housingType"
+                    className={`${selectClass} mt-1`}
+                    required
+                    value={formData.preferredHousingType}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        preferredHousingType: e.target.value as '' | HousingType,
+                        preferredRoomType: '',
+                      })
+                    }
+                    disabled={isSubmitting}
+                  >
+                    <option value="">Select housing...</option>
+                    {housingTypes.map((h) => (
+                      <option key={h} value={h}>
+                        {HOUSING_LABEL[h]}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-[#6B7280] mt-1">
+                    {isGroup
+                      ? 'All members of the group will use this housing option — pick one for the whole group.'
+                      : "We'll only contact you when a spot opens up for this option."}
+                  </p>
+                </div>
+              )}
+
+              {showRoom && (
+                <div>
+                  <Label htmlFor="roomType" className="text-[#1E3A5F] font-medium">
+                    Preferred Room Type
+                  </Label>
+                  <select
+                    id="roomType"
+                    className={`${selectClass} mt-1`}
+                    value={formData.preferredRoomType}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        preferredRoomType: e.target.value as '' | RoomType,
+                      })
+                    }
+                    disabled={isSubmitting}
+                  >
+                    <option value="">No preference</option>
+                    {roomTypes.map((r) => (
+                      <option key={r} value={r}>
+                        {ROOM_LABEL[r]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {showDayPass && (
+                <div>
+                  <Label htmlFor="dayPassOption" className="text-[#1E3A5F] font-medium">
+                    Preferred Day Pass <span className="text-red-500">*</span>
+                  </Label>
+                  <select
+                    id="dayPassOption"
+                    className={`${selectClass} mt-1`}
+                    required
+                    value={formData.preferredDayPassOptionId}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        preferredDayPassOptionId: e.target.value,
+                      })
+                    }
+                    disabled={isSubmitting}
+                  >
+                    <option value="">Select day pass...</option>
+                    {dayPassOptions.map((opt) => (
+                      <option key={opt.id} value={opt.id}>
+                        {opt.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div>
                 <Label htmlFor="notes" className="text-[#1E3A5F] font-medium">

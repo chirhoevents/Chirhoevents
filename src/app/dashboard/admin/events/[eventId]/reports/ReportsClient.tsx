@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Download, Settings } from 'lucide-react'
+import { Download, Settings, FileText } from 'lucide-react'
 import ReportCard from '@/components/admin/reports/ReportCard'
 import FinancialReportModal from '@/components/admin/reports/FinancialReportModal'
 import RegistrationReportModal from '@/components/admin/reports/RegistrationReportModal'
@@ -41,6 +41,7 @@ export default function ReportsClient({
 
   const [activeModal, setActiveModal] = useState<string | null>(null)
   const [isExporting, setIsExporting] = useState(false)
+  const [isExportingMaster, setIsExportingMaster] = useState(false)
   const [showCustomBuilder, setShowCustomBuilder] = useState(false)
   const [showGroupDetailBuilder, setShowGroupDetailBuilder] = useState(false)
 
@@ -73,10 +74,44 @@ export default function ReportsClient({
     }
   }
 
+  // Master PDF: single archival document with every section (registrations,
+  // participants, waitlist, vendors, staff, payments, refunds, balances,
+  // liability form statuses, check-ins, medical incidents, coupons, email
+  // history). Restricted to users who can view financial reports because it
+  // exposes Stripe payment IDs, check numbers, and refund amounts.
+  const handleExportMasterPDF = async () => {
+    setIsExportingMaster(true)
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}/reports/master-pdf`, {
+        method: 'POST',
+      })
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '')
+        throw new Error(text || 'Failed to generate master report')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${eventName.replace(/\s+/g, '_')}_master_report.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error: any) {
+      console.error('Error generating master report:', error)
+      alert(`Failed to generate master report: ${error?.message || error}`)
+    } finally {
+      setIsExportingMaster(false)
+    }
+  }
+
   return (
     <>
       {/* Action Buttons */}
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-end gap-2 flex-wrap">
         <Button
           onClick={() => setShowCustomBuilder(true)}
           variant="outline"
@@ -88,11 +123,23 @@ export default function ReportsClient({
         <Button
           onClick={handleExportAll}
           disabled={isExporting}
-          className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
+          variant="outline"
+          className="border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
         >
           <Download className="h-4 w-4 mr-2" />
-          {isExporting ? 'Exporting...' : 'Export All Data'}
+          {isExporting ? 'Exporting...' : 'Export All (CSV)'}
         </Button>
+        {canViewFinancialReports && (
+          <Button
+            onClick={handleExportMasterPDF}
+            disabled={isExportingMaster}
+            className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
+            title="Full archival PDF: every registration, payment, refund, liability form status, check-in, and email"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            {isExportingMaster ? 'Building PDF...' : 'Master Event Report (PDF)'}
+          </Button>
+        )}
       </div>
 
       {/* Report Cards Grid */}

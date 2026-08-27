@@ -3,8 +3,10 @@ import { prisma } from '@/lib/prisma'
 import Stripe from 'stripe'
 import { Resend } from 'resend'
 import QRCode from 'qrcode'
+import { calculatePlatformFeeCents } from '@/lib/stripe-fees'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { generateIndividualConfirmationCode } from '@/lib/access-code'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 import {
   checkOptionCapacity,
   decrementOptionCapacity,
@@ -13,6 +15,11 @@ import {
   type HousingType,
   type RoomType
 } from '@/lib/option-capacity'
+import {
+  markWaitlistAsRegistered,
+  markWaitlistAsRegisteredByToken,
+  validateWaitlistToken,
+} from '@/lib/waitlist-utils'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -37,6 +44,7 @@ export async function POST(request: NextRequest) {
       emergencyContact1Relation,
       paymentMethod = 'card', // 'card' or 'check'
       couponCode = '',
+      waitlistToken = null,
     } = body
 
     if (!eventId || !firstName || !lastName || !email || !phone || !housingType ||
@@ -108,8 +116,75 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Waitlist-token bypass: a valid token from an admin invite lets this
+    // registration through the capacity gates below (event + option + day pass).
+    // The whole point of the waitlist invite is that the admin has approved
+    // this registration past capacity. If the token has a live reservation
+    // from Contact, we also skip the capacity decrement so we don't double-count.
+    // Strict match: option (housing/room/day pass) must match what was reserved.
+    let waitlistBypass = false
+    let waitlistReservedSpots = 0
+    let waitlistOptionReserved = false
+    let waitlistDayPassReserved = false
+    if (waitlistToken) {
+      const tokenCheck = await validateWaitlistToken(waitlistToken)
+      if (!tokenCheck.valid || !tokenCheck.entry) {
+        return NextResponse.json(
+          { error: `Waitlist invitation is not valid: ${tokenCheck.error || 'unknown reason'}` },
+          { status: 400 }
+        )
+      }
+      if (tokenCheck.entry.eventId !== event.id) {
+        return NextResponse.json(
+          { error: 'Waitlist invitation is for a different event.' },
+          { status: 400 }
+        )
+      }
+
+      const wl = tokenCheck.entry
+      const requestedHousing = (housingType || null) as HousingType | null
+      const requestedRoom = ((body.roomType || null) as RoomType | null) ?? null
+      const requestedDayPassOptionId = (body.dayPassOptionId || null) as string | null
+
+      // Match against effective_* values so a counter-offer wins over the
+      // original request. Falls back to preferred_* if no reservation was set.
+      const expectedHousing = wl.effectiveHousingType
+      const expectedRoom = wl.effectiveRoomType
+      const expectedDayPassOptionId = wl.effectiveDayPassOptionId
+
+      if (expectedHousing && requestedHousing && expectedHousing !== requestedHousing) {
+        return NextResponse.json(
+          {
+            error: `Your waitlist invitation was for ${expectedHousing.replace('_', ' ')} housing, but this registration is for ${requestedHousing.replace('_', ' ')}. Please register for ${expectedHousing.replace('_', ' ')} or contact the organizer to change your option.`,
+          },
+          { status: 400 }
+        )
+      }
+      if (expectedRoom && requestedRoom && expectedRoom !== requestedRoom) {
+        return NextResponse.json(
+          {
+            error: `Your waitlist invitation was for a ${expectedRoom} room, but this registration is for a ${requestedRoom} room. Please register for the room type you waitlisted for, or contact the organizer.`,
+          },
+          { status: 400 }
+        )
+      }
+      if (expectedDayPassOptionId && requestedDayPassOptionId && expectedDayPassOptionId !== requestedDayPassOptionId) {
+        return NextResponse.json(
+          {
+            error: 'Your waitlist invitation was for a different day pass option. Please register for the option you waitlisted for, or contact the organizer to change it.',
+          },
+          { status: 400 }
+        )
+      }
+
+      waitlistBypass = true
+      waitlistReservedSpots = wl.reservedSpots ?? 0
+      waitlistOptionReserved = !!wl.reservedHousingType
+      waitlistDayPassReserved = !!wl.reservedDayPassOptionId
+    }
+
     // Check capacity before allowing registration
-    if (event.capacityTotal !== null && event.capacityRemaining !== null) {
+    if (!waitlistBypass && event.capacityTotal !== null && event.capacityRemaining !== null) {
       if (event.capacityRemaining <= 0) {
         return NextResponse.json(
           { error: 'Event is at full capacity. Please join the waitlist if available.' },
@@ -119,26 +194,28 @@ export async function POST(request: NextRequest) {
     }
 
     // Check option-level capacity (housing type and room type)
-    const optionCapacityCheck = checkOptionCapacity(
-      event.settings,
-      housingType as HousingType,
-      (body.roomType || null) as RoomType | null,
-      1 // Individual registration = 1 person
-    )
-
-    if (!optionCapacityCheck.hasCapacity) {
-      return NextResponse.json(
-        {
-          error: optionCapacityCheck.error,
-          housingRemaining: optionCapacityCheck.housingRemaining,
-          roomRemaining: optionCapacityCheck.roomRemaining,
-        },
-        { status: 400 }
+    if (!waitlistBypass) {
+      const optionCapacityCheck = checkOptionCapacity(
+        event.settings,
+        housingType as HousingType,
+        (body.roomType || null) as RoomType | null,
+        1 // Individual registration = 1 person
       )
+
+      if (!optionCapacityCheck.hasCapacity) {
+        return NextResponse.json(
+          {
+            error: optionCapacityCheck.error,
+            housingRemaining: optionCapacityCheck.housingRemaining,
+            roomRemaining: optionCapacityCheck.roomRemaining,
+          },
+          { status: 400 }
+        )
+      }
     }
 
     // Check day pass option capacity (if applicable)
-    if (body.ticketType === 'day_pass' && body.dayPassOptionId) {
+    if (!waitlistBypass && body.ticketType === 'day_pass' && body.dayPassOptionId) {
       const dayPassCapacityCheck = await checkDayPassOptionCapacity(
         body.dayPassOptionId,
         1 // Individual registration = 1 person
@@ -412,19 +489,26 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Update event capacity if capacity tracking is enabled (individual = 1 participant)
-    if (event.capacityTotal !== null && event.capacityRemaining !== null) {
+    // Update event capacity if capacity tracking is enabled (individual = 1 participant).
+    // On a waitlist bypass, allow capacityRemaining to go negative so the dashboard
+    // honestly reflects oversubscription instead of clamping to 0.
+    // If the token had a live reservation, the seat was already decremented on
+    // Contact — skip this decrement to avoid double-counting.
+    const skipCapacityDecrement = waitlistBypass && waitlistReservedSpots > 0
+    if (event.capacityTotal !== null && event.capacityRemaining !== null && !skipCapacityDecrement) {
+      const next = event.capacityRemaining - 1
       await prisma.event.update({
         where: { id: event.id },
         data: {
-          capacityRemaining: Math.max(0, event.capacityRemaining - 1),
+          capacityRemaining: waitlistBypass ? next : Math.max(0, next),
         },
       })
     }
 
-    // Update option-level capacity (housing type and room type)
-    // Only decrement housing capacity for general admission (day pass doesn't use housing)
-    if (body.ticketType !== 'day_pass') {
+    // Update option-level capacity (housing type and room type).
+    // Only decrement housing capacity for general admission (day pass doesn't use housing).
+    // Skip if the waitlist token already reserved this option pool on Contact.
+    if (body.ticketType !== 'day_pass' && !waitlistOptionReserved) {
       await decrementOptionCapacity(
         event.id,
         housingType as HousingType,
@@ -433,12 +517,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Update day pass option capacity (if applicable)
-    if (body.ticketType === 'day_pass' && body.dayPassOptionId) {
+    // Update day pass option capacity (if applicable).
+    // Skip if the waitlist token already reserved this day pass option on Contact.
+    if (body.ticketType === 'day_pass' && body.dayPassOptionId && !waitlistDayPassReserved) {
       await decrementDayPassOptionCapacity(
         body.dayPassOptionId,
         1 // Individual registration = 1 person
       )
+    }
+
+    // If this person was on the waitlist (status='contacted' after admin invite),
+    // flip their entry to 'registered' so the admin dashboard reflects reality
+    // and the conversion analytics work. When a waitlist token was used, match
+    // by token instead of email — email matching is fragile (case/whitespace/
+    // different address at registration time) and would leave the entry stuck
+    // in 'contacted' forever. No-op if they registered normally.
+    if (waitlistToken) {
+      await markWaitlistAsRegisteredByToken(waitlistToken)
+    } else {
+      await markWaitlistAsRegistered(event.id, email)
     }
 
     // Handle payment method
@@ -536,7 +633,7 @@ export async function POST(request: NextRequest) {
                 <h3 style="color: #92400E; margin-top: 0;">📋 Liability Form Required</h3>
                 <p style="color: #92400E; margin-bottom: 15px;">
                   ${body.age && body.age < 18
-                    ? 'Since you are under 18, a parent or guardian must complete and sign your liability form.'
+                    ? 'Since you are under 18, click below to enter your parent or guardian\'s email address. They will then receive their own separate email with a link to complete and sign the liability form on your behalf.'
                     : 'Please complete your liability form before the event.'}
                 </p>
                 <div style="text-align: center;">
@@ -581,7 +678,7 @@ export async function POST(request: NextRequest) {
       try {
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-          reply_to: 'support@chirhoevents.com',
+          reply_to: resolveReplyTo(event.settings, event.organization),
           to: email,
           subject: emailSubject,
           html: emailHtml,
@@ -644,9 +741,10 @@ export async function POST(request: NextRequest) {
       // Credit card payment - create Stripe checkout session
       const totalAmountCents = Math.round(totalAmount * 100)
 
-      // Calculate platform fee (default 1%)
+      // Calculate platform fee — includes Stripe processing fee passthrough so the
+      // platform nets its configured margin instead of going negative on every charge.
       const platformFeePercentage = Number(event.organization.platformFeePercentage) || 1
-      const platformFeeAmount = Math.round(totalAmountCents * (platformFeePercentage / 100))
+      const platformFeeAmount = calculatePlatformFeeCents(totalAmountCents, platformFeePercentage)
 
       // Build checkout session config
       const checkoutConfig: any = {
@@ -678,9 +776,12 @@ export async function POST(request: NextRequest) {
         customer_email: email,
       }
 
-      // Fix #1 (individual): Always use destination charges — guard above ensures stripeAccountId is present
+      // Fix #1 (individual): Always use destination charges — guard above ensures stripeAccountId is present.
+      // on_behalf_of makes the connected account the merchant of record so Stripe's
+      // processing fees (2.9% + $0.30) are deducted from their share, not the platform's.
       checkoutConfig.payment_intent_data = {
         application_fee_amount: platformFeeAmount,
+        on_behalf_of: event.organization.stripeAccountId,
         transfer_data: {
           destination: event.organization.stripeAccountId,
         },
@@ -700,7 +801,11 @@ export async function POST(request: NextRequest) {
           paymentType: 'balance',
           paymentMethod: 'card',
           paymentStatus: 'pending',
-          stripePaymentIntentId: checkoutSession.payment_intent as string,
+          // Stripe Checkout in mode='payment' does NOT create the PaymentIntent
+          // until the customer pays, so checkoutSession.payment_intent is null
+          // here. Store the session id (cs_...) and let the webhook swap it for
+          // the real pi_... on checkout.session.completed.
+          stripePaymentIntentId: checkoutSession.id,
           platformFeeAmount: platformFeeAmount / 100, // Store in dollars
         },
       })

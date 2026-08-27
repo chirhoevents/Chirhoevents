@@ -1,0 +1,1521 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import {
+  Calendar,
+  Users,
+  DollarSign,
+  MapPin,
+  Edit,
+  Copy,
+  Trash2,
+  ExternalLink,
+  FileText,
+  Home,
+  CheckSquare,
+  Activity,
+  BarChart3,
+  UserPlus,
+  Settings,
+  Mail,
+  Key,
+  ListOrdered,
+  Ticket,
+  Eye,
+  EyeOff,
+  Globe,
+  Lock,
+  Info,
+  AlertCircle,
+  Clock,
+  RefreshCw,
+  Tent,
+  Coffee,
+  Package,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  CreditCard,
+} from 'lucide-react'
+import Link from 'next/link'
+import { format } from 'date-fns'
+import { parseDateOnly } from '@/lib/utils'
+import SendReminderEmailModal from '@/components/admin/SendReminderEmailModal'
+
+interface EventDetailClientProps {
+  event: {
+    id: string
+    name: string
+    slug: string
+    description: string | null
+    startDate: string
+    endDate: string
+    status: string
+    isPublished: boolean
+    locationName: string | null
+    locationAddress: any
+    capacityTotal: number | null
+    capacityRemaining: number | null
+  }
+  stats: {
+    totalRegistrations: number
+    totalParticipants: number
+    totalRevenue: number
+    totalPaid: number
+    balance: number
+  }
+  settings: {
+    id?: string
+    groupRegistrationEnabled?: boolean
+    individualRegistrationEnabled?: boolean
+    waitlistEnabled?: boolean
+    registrationClosedMessage?: string | null
+    porosHousingEnabled?: boolean
+    salveCheckinEnabled?: boolean
+    raphaMedicalEnabled?: boolean
+    staffRegistrationEnabled?: boolean
+    vendorRegistrationEnabled?: boolean
+    couponsEnabled?: boolean
+    groupSpotLimit?: number | null
+    // Capacity fields
+    onCampusCapacity?: number | null
+    onCampusRemaining?: number | null
+    offCampusCapacity?: number | null
+    offCampusRemaining?: number | null
+    dayPassCapacity?: number | null
+    dayPassRemaining?: number | null
+    singleRoomCapacity?: number | null
+    singleRoomRemaining?: number | null
+    doubleRoomCapacity?: number | null
+    doubleRoomRemaining?: number | null
+    tripleRoomCapacity?: number | null
+    tripleRoomRemaining?: number | null
+    quadRoomCapacity?: number | null
+    quadRoomRemaining?: number | null
+    // Add-ons
+    addOn1Enabled?: boolean
+    addOn1Title?: string | null
+    addOn2Enabled?: boolean
+    addOn2Title?: string | null
+    addOn3Enabled?: boolean
+    addOn3Title?: string | null
+    addOn4Enabled?: boolean
+    addOn4Title?: string | null
+  } | null
+  dayPassOptions?: {
+    id: string
+    name: string
+    capacity: number
+    remaining: number
+  }[]
+  activity?: {
+    recentRegistrations: {
+      id: string
+      type: 'group' | 'individual'
+      name: string
+      participants: number
+      date: string
+    }[]
+    recentPayments: {
+      id: string
+      amount: number
+      method: string
+      date: string
+      name: string
+    }[]
+    trends: {
+      today: number
+      thisWeek: number
+      lastWeek: number
+    }
+  } | null
+}
+
+export default function EventDetailClient({
+  event,
+  stats,
+  settings,
+  dayPassOptions = [],
+  activity,
+}: EventDetailClientProps) {
+  const router = useRouter()
+  const [activeTab, setActiveTab] = useState('overview')
+  const [updatingStatus, setUpdatingStatus] = useState(false)
+  const [updatingPublish, setUpdatingPublish] = useState(false)
+  const [currentStatus, setCurrentStatus] = useState(event.status)
+  const [currentIsPublished, setCurrentIsPublished] = useState(event.isPublished)
+  const [waitlistEnabled, setWaitlistEnabled] = useState(settings?.waitlistEnabled ?? false)
+  const [closedMessage, setClosedMessage] = useState(settings?.registrationClosedMessage ?? '')
+  const [savingSettings, setSavingSettings] = useState(false)
+  const [reminderModalOpen, setReminderModalOpen] = useState(false)
+  const [recalculatingCapacity, setRecalculatingCapacity] = useState(false)
+  const [capacityRemaining, setCapacityRemaining] = useState(event.capacityRemaining)
+
+  // Derived state for registration toggle
+  const isRegistrationOpen = currentStatus === 'registration_open'
+  // True when the admin has manually overridden the schedule in either direction.
+  // In this state, the registrationOpenDate / registrationCloseDate are ignored
+  // by getRegistrationStatus and the "Use Scheduled Dates" escape hatch is shown.
+  const isManualOverride =
+    currentStatus === 'registration_open' || currentStatus === 'registration_closed'
+
+  const handleStatusUpdate = async (newStatus: string) => {
+    if (updatingStatus) return
+
+    const previousStatus = currentStatus
+    setCurrentStatus(newStatus) // Optimistic update
+
+    // DEMO: pretend to save; keep the optimistic UI update
+    setUpdatingStatus(true)
+    setTimeout(() => setUpdatingStatus(false), 300)
+    void previousStatus
+  }
+
+  // Handle publish toggle - only controls visibility (isPublished field), independent of registration status
+  const handlePublishToggle = async (checked: boolean) => {
+    if (updatingPublish) return
+
+    const previousPublished = currentIsPublished
+    setCurrentIsPublished(checked) // Optimistic update
+
+    // DEMO: pretend to save; keep the optimistic UI update
+    setUpdatingPublish(true)
+    setTimeout(() => setUpdatingPublish(false), 300)
+    void previousPublished
+  }
+
+  // Handle registration toggle - only controls registration status, independent of visibility
+  const handleRegistrationToggle = (checked: boolean) => {
+    if (checked) {
+      // Opening registration (manual override — bypasses scheduled dates)
+      handleStatusUpdate('registration_open')
+    } else {
+      // Closing registration (manual override — bypasses scheduled dates)
+      handleStatusUpdate('registration_closed')
+    }
+  }
+
+  // Clears the manual registration override and returns the event to the
+  // date-based schedule (registrationOpenDate / registrationCloseDate). Used
+  // to recover from an accidental Open/Close toggle without having to edit
+  // and re-save the entire event.
+  const handleResetToSchedule = () => handleStatusUpdate('published')
+
+  const handleSaveSettings = async () => {
+    if (savingSettings) return
+
+    // DEMO: pretend to save
+    setSavingSettings(true)
+    setTimeout(() => {
+      setSavingSettings(false)
+      alert('Demo: Settings would be saved to the real database.')
+    }, 300)
+  }
+
+  const handleRecalculateCapacity = async () => {
+    if (recalculatingCapacity) return
+
+    // DEMO: pretend to recalculate
+    setRecalculatingCapacity(true)
+    setTimeout(() => {
+      setRecalculatingCapacity(false)
+      alert('Demo: Capacity would be recalculated against actual registrations.')
+    }, 300)
+  }
+
+  const getStatusBadge = (status: string) => {
+    const statusConfig: Record<
+      string,
+      { label: string; className: string }
+    > = {
+      draft: { label: 'Draft', className: 'bg-gray-500' },
+      published: { label: 'Published', className: 'bg-blue-500' },
+      registration_open: { label: 'Registration Open', className: 'bg-green-500' },
+      registration_closed: { label: 'Registration Closed', className: 'bg-yellow-500' },
+      in_progress: { label: 'In Progress', className: 'bg-purple-500' },
+      completed: { label: 'Completed', className: 'bg-blue-500' },
+      cancelled: { label: 'Cancelled', className: 'bg-red-500' },
+    }
+
+    const config = statusConfig[status] || statusConfig.draft
+    return (
+      <Badge className={`${config.className} text-white`}>{config.label}</Badge>
+    )
+  }
+
+  // Helper to get status description
+  const getStatusDescription = (status: string) => {
+    switch (status) {
+      case 'draft':
+        return 'This event is in draft mode and not visible to the public.'
+      case 'published':
+        return 'This event is published and visible to the public, but registration is not yet open.'
+      case 'registration_open':
+        return 'This event is live! Registration is open and participants can sign up.'
+      case 'registration_closed':
+        return 'This event is visible but registration is currently closed.'
+      case 'in_progress':
+        return 'This event is currently in progress.'
+      case 'completed':
+        return 'This event has been completed.'
+      case 'cancelled':
+        return 'This event has been cancelled.'
+      default:
+        return ''
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-2xl font-bold text-[#1E3A5F]">{event.name}</h1>
+              {getStatusBadge(currentStatus)}
+            </div>
+            <div className="flex items-center gap-4 text-sm text-[#6B7280]">
+              <div className="flex items-center gap-1">
+                <Calendar className="h-4 w-4" />
+                {format(parseDateOnly(event.startDate), 'MMM d')} -{' '}
+                {format(parseDateOnly(event.endDate), 'MMM d, yyyy')}
+              </div>
+              {event.locationName && (
+                <div className="flex items-center gap-1">
+                  <MapPin className="h-4 w-4" />
+                  {event.locationName}
+                </div>
+              )}
+              {event.capacityTotal && (
+                <div className="flex items-center gap-1">
+                  <Users className="h-4 w-4" />
+                  {capacityRemaining}/{event.capacityTotal} spots available
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Link href={`/demo/events/${event.slug}`} target="_blank">
+              <Button variant="outline" size="sm">
+                <ExternalLink className="h-4 w-4 mr-2" />
+                View Public Page
+              </Button>
+            </Link>
+            <Button variant="outline" size="sm" onClick={() => router.push(`/demo/dashboard/admin/events/${event.id}/duplicate`)}>
+              <Copy className="h-4 w-4 mr-2" />
+              Duplicate
+            </Button>
+            <Link href={`/demo/dashboard/admin/events/${event.id}/edit`}>
+              <Button
+                size="sm"
+                className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Event
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card className="bg-white border-[#D1D5DB]">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-[#6B7280]">Registrations</p>
+                <p className="text-2xl font-bold text-[#1E3A5F]">
+                  {stats.totalRegistrations}
+                </p>
+              </div>
+              <Users className="h-6 w-6 text-[#9C8466]" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white border-[#D1D5DB]">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-[#6B7280]">Participants</p>
+                <p className="text-2xl font-bold text-[#1E3A5F]">
+                  {stats.totalParticipants}
+                </p>
+              </div>
+              <Users className="h-6 w-6 text-[#9C8466]" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white border-[#D1D5DB]">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-[#6B7280]">Total Revenue</p>
+                <p className="text-2xl font-bold text-[#1E3A5F]">
+                  ${stats.totalRevenue.toLocaleString()}
+                </p>
+              </div>
+              <DollarSign className="h-6 w-6 text-[#9C8466]" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white border-[#D1D5DB]">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-[#6B7280]">Paid</p>
+                <p className="text-2xl font-bold text-green-600">
+                  ${stats.totalPaid.toLocaleString()}
+                </p>
+              </div>
+              <DollarSign className="h-6 w-6 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white border-[#D1D5DB]">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-[#6B7280]">Balance Due</p>
+                <p className="text-2xl font-bold text-orange-600">
+                  ${stats.balance.toLocaleString()}
+                </p>
+              </div>
+              <DollarSign className="h-6 w-6 text-orange-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="bg-white border border-[#D1D5DB]">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="registrations">Registrations</TabsTrigger>
+          {waitlistEnabled && (
+            <TabsTrigger value="waitlist">Waitlist</TabsTrigger>
+          )}
+          {settings?.porosHousingEnabled && (
+            <TabsTrigger value="poros">Poros Portal</TabsTrigger>
+          )}
+          {settings?.salveCheckinEnabled && (
+            <TabsTrigger value="salve">SALVE Check-In</TabsTrigger>
+          )}
+          {settings?.raphaMedicalEnabled && (
+            <TabsTrigger value="rapha">Rapha Medical</TabsTrigger>
+          )}
+          {settings?.staffRegistrationEnabled && (
+            <TabsTrigger value="staff">Staff</TabsTrigger>
+          )}
+          {settings?.vendorRegistrationEnabled && (
+            <TabsTrigger value="vendors">Vendors</TabsTrigger>
+          )}
+          <TabsTrigger value="reports">Reports</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>        </TabsList>
+
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Event Information */}
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardHeader>
+                <CardTitle className="text-lg text-[#1E3A5F]">
+                  Event Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {event.description && (
+                  <div>
+                    <p className="text-sm font-medium text-[#1E3A5F]">
+                      Description
+                    </p>
+                    <p className="text-sm text-[#6B7280] mt-1">
+                      {event.description}
+                    </p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm font-medium text-[#1E3A5F]">Dates</p>
+                  <p className="text-sm text-[#6B7280] mt-1">
+                    {format(parseDateOnly(event.startDate), 'MMMM d, yyyy')} -{' '}
+                    {format(parseDateOnly(event.endDate), 'MMMM d, yyyy')}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-[#1E3A5F]">Location</p>
+                  <p className="text-sm text-[#6B7280] mt-1">
+                    {event.locationName || 'Not specified'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-[#1E3A5F]">Capacity</p>
+                  <p className="text-sm text-[#6B7280] mt-1">
+                    {event.capacityTotal
+                      ? `${event.capacityTotal} total`
+                      : 'Unlimited'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-[#1E3A5F]">
+                    Public URL
+                  </p>
+                  <Link
+                    href={`/demo/events/${event.slug}`}
+                    target="_blank"
+                    className="text-sm text-[#9C8466] hover:underline mt-1 flex items-center gap-1"
+                  >
+                    /events/{event.slug}
+                    <ExternalLink className="h-3 w-3" />
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Quick Links */}
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardHeader>
+                <CardTitle className="text-lg text-[#1E3A5F]">
+                  Quick Links
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Link href={`/demo/dashboard/admin/events/${event.id}/registrations`}>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
+                  >
+                    <Users className="h-4 w-4 mr-2" />
+                    View All Registrations
+                  </Button>
+                </Link>
+                <Link href={`/demo/dashboard/admin/events/${event.id}/access-codes`}>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
+                  >
+                    <Key className="h-4 w-4 mr-2" />
+                    Manage Access Codes
+                  </Button>
+                </Link>
+                <Link href={`/demo/dashboard/admin/events/${event.id}/queue`}>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
+                  >
+                    <Clock className="h-4 w-4 mr-2" />
+                    Queue Settings
+                  </Button>
+                </Link>
+                {waitlistEnabled && (
+                  <Link href={`/demo/dashboard/admin/events/${event.id}/waitlist`}>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
+                    >
+                      <ListOrdered className="h-4 w-4 mr-2" />
+                      Manage Waitlist
+                    </Button>
+                  </Link>
+                )}
+                {settings?.couponsEnabled && (
+                  <Link href={`/demo/dashboard/admin/events/${event.id}/coupons`}>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
+                    >
+                      <Ticket className="h-4 w-4 mr-2" />
+                      Manage Coupons
+                    </Button>
+                  </Link>
+                )}
+                {settings?.porosHousingEnabled && (
+                  <Link href={`/demo/dashboard/admin/events/${event.id}/poros`}>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
+                    >
+                      <Home className="h-4 w-4 mr-2" />
+                      Open Poros Portal
+                    </Button>
+                  </Link>
+                )}
+                {settings?.salveCheckinEnabled && (
+                  <Link href={`/demo/dashboard/admin/events/${event.id}/salve`}>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
+                    >
+                      <CheckSquare className="h-4 w-4 mr-2" />
+                      Open SALVE Check-In
+                    </Button>
+                  </Link>
+                )}
+                {settings?.raphaMedicalEnabled && (
+                  <Link href={`/demo/dashboard/admin/events/${event.id}/rapha`}>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
+                    >
+                      <Activity className="h-4 w-4 mr-2" />
+                      Open Rapha Medical
+                    </Button>
+                  </Link>
+                )}
+                <Link href={`/demo/dashboard/admin/events/${event.id}/reports`}>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
+                  >
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    View Reports
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Capacity Stats */}
+          <Card className="bg-white border-[#D1D5DB]">
+            <CardHeader>
+              <CardTitle className="text-lg text-[#1E3A5F] flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Capacity Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Overall Event Capacity */}
+                {event.capacityTotal && (() => {
+                  // Use stats.totalParticipants (computed from actual registrations) for
+                  // display so the number reflects reality even if the cached
+                  // capacityRemaining counter has drifted from cancellations/edits.
+                  const spotsTaken = Math.min(stats.totalParticipants, event.capacityTotal)
+                  const fillRatio = spotsTaken / event.capacityTotal
+                  return (
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Users className="h-4 w-4 text-[#9C8466]" />
+                        <span className="text-sm font-medium text-[#1E3A5F]">Total Spots</span>
+                      </div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-2xl font-bold text-[#1E3A5F]">
+                          {spotsTaken}/{event.capacityTotal}
+                        </span>
+                        {spotsTaken >= event.capacityTotal && (
+                          <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">SOLD OUT</span>
+                        )}
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full transition-all ${
+                            fillRatio >= 1 ? 'bg-red-500' :
+                            fillRatio >= 0.8 ? 'bg-amber-500' :
+                            'bg-green-500'
+                          }`}
+                          style={{ width: `${Math.min(fillRatio * 100, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Group Spot Limit */}
+                {settings?.groupSpotLimit && (
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Users className="h-4 w-4 text-[#1E3A5F]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">Per-Group Limit</span>
+                    </div>
+                    <span className="text-2xl font-bold text-[#1E3A5F]">{settings.groupSpotLimit}</span>
+                    <p className="text-xs text-blue-700 mt-1">max participants per group</p>
+                  </div>
+                )}
+
+                {/* On-Campus Housing */}
+                {settings?.onCampusCapacity && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Home className="h-4 w-4 text-[#9C8466]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">On-Campus</span>
+                    </div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-2xl font-bold text-[#1E3A5F]">
+                        {settings.onCampusCapacity - (settings.onCampusRemaining ?? 0)}/{settings.onCampusCapacity}
+                      </span>
+                      {settings.onCampusRemaining === 0 && (
+                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">SOLD OUT</span>
+                      )}
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all ${
+                          settings.onCampusRemaining === 0 ? 'bg-red-500' :
+                          ((settings.onCampusCapacity - (settings.onCampusRemaining ?? 0)) / settings.onCampusCapacity) >= 0.8 ? 'bg-amber-500' :
+                          'bg-green-500'
+                        }`}
+                        style={{ width: `${Math.min(((settings.onCampusCapacity - (settings.onCampusRemaining ?? 0)) / settings.onCampusCapacity) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Off-Campus Housing */}
+                {settings?.offCampusCapacity && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Tent className="h-4 w-4 text-[#9C8466]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">Off-Campus</span>
+                    </div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-2xl font-bold text-[#1E3A5F]">
+                        {settings.offCampusCapacity - (settings.offCampusRemaining ?? 0)}/{settings.offCampusCapacity}
+                      </span>
+                      {settings.offCampusRemaining === 0 && (
+                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">SOLD OUT</span>
+                      )}
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all ${
+                          settings.offCampusRemaining === 0 ? 'bg-red-500' :
+                          ((settings.offCampusCapacity - (settings.offCampusRemaining ?? 0)) / settings.offCampusCapacity) >= 0.8 ? 'bg-amber-500' :
+                          'bg-green-500'
+                        }`}
+                        style={{ width: `${Math.min(((settings.offCampusCapacity - (settings.offCampusRemaining ?? 0)) / settings.offCampusCapacity) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Room Types */}
+                {settings?.singleRoomCapacity && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Home className="h-4 w-4 text-[#9C8466]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">Single Rooms</span>
+                    </div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-2xl font-bold text-[#1E3A5F]">
+                        {settings.singleRoomCapacity - (settings.singleRoomRemaining ?? 0)}/{settings.singleRoomCapacity}
+                      </span>
+                      {settings.singleRoomRemaining === 0 && (
+                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">SOLD OUT</span>
+                      )}
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all ${
+                          settings.singleRoomRemaining === 0 ? 'bg-red-500' :
+                          ((settings.singleRoomCapacity - (settings.singleRoomRemaining ?? 0)) / settings.singleRoomCapacity) >= 0.8 ? 'bg-amber-500' :
+                          'bg-green-500'
+                        }`}
+                        style={{ width: `${Math.min(((settings.singleRoomCapacity - (settings.singleRoomRemaining ?? 0)) / settings.singleRoomCapacity) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {settings?.doubleRoomCapacity && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Home className="h-4 w-4 text-[#9C8466]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">Double Rooms</span>
+                    </div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-2xl font-bold text-[#1E3A5F]">
+                        {settings.doubleRoomCapacity - (settings.doubleRoomRemaining ?? 0)}/{settings.doubleRoomCapacity}
+                      </span>
+                      {settings.doubleRoomRemaining === 0 && (
+                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">SOLD OUT</span>
+                      )}
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all ${
+                          settings.doubleRoomRemaining === 0 ? 'bg-red-500' :
+                          ((settings.doubleRoomCapacity - (settings.doubleRoomRemaining ?? 0)) / settings.doubleRoomCapacity) >= 0.8 ? 'bg-amber-500' :
+                          'bg-green-500'
+                        }`}
+                        style={{ width: `${Math.min(((settings.doubleRoomCapacity - (settings.doubleRoomRemaining ?? 0)) / settings.doubleRoomCapacity) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {settings?.tripleRoomCapacity && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Home className="h-4 w-4 text-[#9C8466]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">Triple Rooms</span>
+                    </div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-2xl font-bold text-[#1E3A5F]">
+                        {settings.tripleRoomCapacity - (settings.tripleRoomRemaining ?? 0)}/{settings.tripleRoomCapacity}
+                      </span>
+                      {settings.tripleRoomRemaining === 0 && (
+                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">SOLD OUT</span>
+                      )}
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all ${
+                          settings.tripleRoomRemaining === 0 ? 'bg-red-500' :
+                          ((settings.tripleRoomCapacity - (settings.tripleRoomRemaining ?? 0)) / settings.tripleRoomCapacity) >= 0.8 ? 'bg-amber-500' :
+                          'bg-green-500'
+                        }`}
+                        style={{ width: `${Math.min(((settings.tripleRoomCapacity - (settings.tripleRoomRemaining ?? 0)) / settings.tripleRoomCapacity) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {settings?.quadRoomCapacity && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Home className="h-4 w-4 text-[#9C8466]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">Quad Rooms</span>
+                    </div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-2xl font-bold text-[#1E3A5F]">
+                        {settings.quadRoomCapacity - (settings.quadRoomRemaining ?? 0)}/{settings.quadRoomCapacity}
+                      </span>
+                      {settings.quadRoomRemaining === 0 && (
+                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">SOLD OUT</span>
+                      )}
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all ${
+                          settings.quadRoomRemaining === 0 ? 'bg-red-500' :
+                          ((settings.quadRoomCapacity - (settings.quadRoomRemaining ?? 0)) / settings.quadRoomCapacity) >= 0.8 ? 'bg-amber-500' :
+                          'bg-green-500'
+                        }`}
+                        style={{ width: `${Math.min(((settings.quadRoomCapacity - (settings.quadRoomRemaining ?? 0)) / settings.quadRoomCapacity) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Day Passes */}
+                {dayPassOptions.map((dp) => dp.capacity > 0 && (
+                  <div key={dp.id} className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Coffee className="h-4 w-4 text-[#9C8466]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">{dp.name}</span>
+                    </div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-2xl font-bold text-[#1E3A5F]">
+                        {dp.capacity - dp.remaining}/{dp.capacity}
+                      </span>
+                      {dp.remaining === 0 && (
+                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">SOLD OUT</span>
+                      )}
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all ${
+                          dp.remaining === 0 ? 'bg-red-500' :
+                          ((dp.capacity - dp.remaining) / dp.capacity) >= 0.8 ? 'bg-amber-500' :
+                          'bg-green-500'
+                        }`}
+                        style={{ width: `${Math.min(((dp.capacity - dp.remaining) / dp.capacity) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+
+                {/* Add-ons */}
+                {settings?.addOn1Enabled && settings?.addOn1Title && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Package className="h-4 w-4 text-[#9C8466]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">{settings.addOn1Title}</span>
+                    </div>
+                    <span className="text-sm text-gray-500">Unlimited</span>
+                  </div>
+                )}
+                {settings?.addOn2Enabled && settings?.addOn2Title && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Package className="h-4 w-4 text-[#9C8466]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">{settings.addOn2Title}</span>
+                    </div>
+                    <span className="text-sm text-gray-500">Unlimited</span>
+                  </div>
+                )}
+                {settings?.addOn3Enabled && settings?.addOn3Title && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Package className="h-4 w-4 text-[#9C8466]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">{settings.addOn3Title}</span>
+                    </div>
+                    <span className="text-sm text-gray-500">Unlimited</span>
+                  </div>
+                )}
+                {settings?.addOn4Enabled && settings?.addOn4Title && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Package className="h-4 w-4 text-[#9C8466]" />
+                      <span className="text-sm font-medium text-[#1E3A5F]">{settings.addOn4Title}</span>
+                    </div>
+                    <span className="text-sm text-gray-500">Unlimited</span>
+                  </div>
+                )}
+
+                {/* Empty State */}
+                {!event.capacityTotal && !settings?.onCampusCapacity && !settings?.offCampusCapacity &&
+                 !settings?.singleRoomCapacity && !settings?.doubleRoomCapacity &&
+                 !settings?.tripleRoomCapacity && !settings?.quadRoomCapacity &&
+                 dayPassOptions.filter(dp => dp.capacity > 0).length === 0 && (
+                  <div className="col-span-full text-center py-8">
+                    <BarChart3 className="h-12 w-12 text-[#9C8466] mx-auto mb-3" />
+                    <p className="text-[#6B7280]">No capacity limits configured for this event</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Activity Report */}
+          <Card className="bg-white border-[#D1D5DB]">
+            <CardHeader>
+              <CardTitle className="text-lg text-[#1E3A5F] flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Activity Report
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Registration Trends */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-[#1E3A5F] flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4" />
+                    Registration Trends
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-[#6B7280]">Today</span>
+                      <span className="text-lg font-bold text-[#1E3A5F]">{activity?.trends.today || 0}</span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-[#6B7280]">This Week</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg font-bold text-[#1E3A5F]">{activity?.trends.thisWeek || 0}</span>
+                        {activity && activity.trends.thisWeek > activity.trends.lastWeek && (
+                          <TrendingUp className="h-4 w-4 text-green-500" />
+                        )}
+                        {activity && activity.trends.thisWeek < activity.trends.lastWeek && (
+                          <TrendingDown className="h-4 w-4 text-red-500" />
+                        )}
+                        {activity && activity.trends.thisWeek === activity.trends.lastWeek && (
+                          <Minus className="h-4 w-4 text-gray-400" />
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-[#6B7280]">Last Week</span>
+                      <span className="text-lg font-bold text-[#1E3A5F]">{activity?.trends.lastWeek || 0}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Recent Registrations */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-[#1E3A5F] flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Recent Registrations
+                  </h4>
+                  {activity?.recentRegistrations && activity.recentRegistrations.length > 0 ? (
+                    <div className="space-y-2">
+                      {activity.recentRegistrations.map((reg) => (
+                        <div key={reg.id} className="p-2 bg-gray-50 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-[#1E3A5F] truncate">{reg.name}</p>
+                              <p className="text-xs text-[#6B7280]">
+                                {reg.type === 'group' ? `${reg.participants} participants` : 'Individual'}
+                              </p>
+                            </div>
+                            <span className="text-xs text-[#9C8466] whitespace-nowrap ml-2">
+                              {format(new Date(reg.date), 'MMM d, h:mm a')}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <Users className="h-8 w-8 text-[#9C8466] mx-auto mb-2" />
+                      <p className="text-sm text-[#6B7280]">No recent registrations</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Recent Payments */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-[#1E3A5F] flex items-center gap-2">
+                    <CreditCard className="h-4 w-4" />
+                    Recent Payments
+                  </h4>
+                  {activity?.recentPayments && activity.recentPayments.length > 0 ? (
+                    <div className="space-y-2">
+                      {activity.recentPayments.map((payment) => (
+                        <div key={payment.id} className="p-2 bg-gray-50 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-[#1E3A5F] truncate">{payment.name}</p>
+                              <p className="text-xs text-[#6B7280] capitalize">{payment.method}</p>
+                            </div>
+                            <div className="text-right ml-2">
+                              <p className="text-sm font-bold text-green-600">${payment.amount.toLocaleString()}</p>
+                              <p className="text-xs text-[#9C8466]">
+                                {payment.date ? format(new Date(payment.date), 'MMM d') : 'N/A'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <CreditCard className="h-8 w-8 text-[#9C8466] mx-auto mb-2" />
+                      <p className="text-sm text-[#6B7280]">No recent payments</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Registrations Tab */}
+        <TabsContent value="registrations">
+          <Card className="bg-white border-[#D1D5DB]">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg text-[#1E3A5F]">
+                  Registrations Management
+                </CardTitle>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
+                    onClick={() => setReminderModalOpen(true)}
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    Send Reminder Emails
+                  </Button>
+                  <Link href={`/demo/dashboard/admin/events/${event.id}/registrations/new`}>
+                    <Button
+                      size="sm"
+                      className="bg-[#9C8466] hover:bg-[#8a7559] text-white"
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Manual Registration
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-8 text-center">
+              <Users className="h-16 w-16 text-[#9C8466] mx-auto mb-4" />
+              <p className="text-[#6B7280] mb-4">
+                View and manage all registrations for this event
+              </p>
+              <div className="flex justify-center gap-3">
+                <Link href={`/demo/dashboard/admin/events/${event.id}/registrations`}>
+                  <Button className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
+                    View All Registrations
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Send Reminder Email Modal */}
+          <SendReminderEmailModal
+            open={reminderModalOpen}
+            onOpenChange={setReminderModalOpen}
+            eventId={event.id}
+            eventName={event.name}
+            groupRegistrationEnabled={settings?.groupRegistrationEnabled ?? true}
+            individualRegistrationEnabled={settings?.individualRegistrationEnabled ?? true}
+          />
+        </TabsContent>
+
+        {/* Waitlist Tab */}
+        {waitlistEnabled && (
+          <TabsContent value="waitlist">
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardContent className="p-8 text-center">
+                <ListOrdered className="h-16 w-16 text-[#9C8466] mx-auto mb-4" />
+                <h3 className="font-semibold text-[#1E3A5F] mb-2">
+                  Waitlist Management
+                </h3>
+                <p className="text-[#6B7280] mb-4">
+                  View and manage people waiting for spots to open up
+                </p>
+                <Link href={`/demo/dashboard/admin/events/${event.id}/waitlist`}>
+                  <Button className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
+                    Manage Waitlist
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {/* Poros Tab */}
+        {settings?.porosHousingEnabled && (
+          <TabsContent value="poros">
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardContent className="p-8 text-center">
+                <Home className="h-16 w-16 text-[#9C8466] mx-auto mb-4" />
+                <h3 className="font-semibold text-[#1E3A5F] mb-2">
+                  Poros Portal
+                </h3>
+                <p className="text-[#6B7280] mb-4">
+                  Manage housing assignments, rooms, and seating
+                </p>
+                <Link href={`/demo/dashboard/admin/events/${event.id}/poros`}>
+                  <Button className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
+                    Open Poros Portal
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {/* SALVE Tab */}
+        {settings?.salveCheckinEnabled && (
+          <TabsContent value="salve">
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardContent className="p-8 text-center">
+                <CheckSquare className="h-16 w-16 text-[#9C8466] mx-auto mb-4" />
+                <h3 className="font-semibold text-[#1E3A5F] mb-2">
+                  SALVE Check-In
+                </h3>
+                <p className="text-[#6B7280] mb-4">
+                  QR code scanning and digital check-in management
+                </p>
+                <Link href={`/demo/dashboard/admin/events/${event.id}/salve`}>
+                  <Button className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
+                    Open SALVE Check-In
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {/* Rapha Tab */}
+        {settings?.raphaMedicalEnabled && (
+          <TabsContent value="rapha">
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardContent className="p-8 text-center">
+                <Activity className="h-16 w-16 text-[#9C8466] mx-auto mb-4" />
+                <h3 className="font-semibold text-[#1E3A5F] mb-2">
+                  Rapha Medical
+                </h3>
+                <p className="text-[#6B7280] mb-4">
+                  Medical incident tracking and first aid management
+                </p>
+                <Link href={`/demo/dashboard/admin/events/${event.id}/rapha`}>
+                  <Button className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
+                    Open Rapha Medical
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {/* Staff Tab */}
+        {settings?.staffRegistrationEnabled && (
+          <TabsContent value="staff">
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardContent className="p-8 text-center">
+                <Users className="h-16 w-16 text-[#9C8466] mx-auto mb-4" />
+                <h3 className="font-semibold text-[#1E3A5F] mb-2">
+                  Staff & Volunteer Management
+                </h3>
+                <p className="text-[#6B7280] mb-4">
+                  View and manage staff and volunteer registrations
+                </p>
+                <div className="flex gap-4 justify-center">
+                  <Link href={`/demo/dashboard/admin/events/${event.id}/staff`}>
+                    <Button className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
+                      Manage Staff
+                    </Button>
+                  </Link>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const url = `${window.location.origin}/events/${event.slug}/register-staff`
+                      navigator.clipboard.writeText(url)
+                      alert('Staff registration link copied!')
+                    }}
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy Registration Link
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {/* Vendors Tab */}
+        {settings?.vendorRegistrationEnabled && (
+          <TabsContent value="vendors">
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardContent className="p-8 text-center">
+                <UserPlus className="h-16 w-16 text-[#9C8466] mx-auto mb-4" />
+                <h3 className="font-semibold text-[#1E3A5F] mb-2">
+                  Vendor Management
+                </h3>
+                <p className="text-[#6B7280] mb-4">
+                  Review applications, approve vendors, and manage invoices
+                </p>
+                <div className="flex gap-4 justify-center">
+                  <Link href={`/demo/dashboard/admin/events/${event.id}/vendors`}>
+                    <Button className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
+                      Manage Vendors
+                    </Button>
+                  </Link>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const url = `${window.location.origin}/events/${event.slug}/register-vendor`
+                      navigator.clipboard.writeText(url)
+                      alert('Vendor registration link copied!')
+                    }}
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy Registration Link
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {/* Reports Tab */}
+        <TabsContent value="reports">
+          <Card className="bg-white border-[#D1D5DB]">
+            <CardContent className="p-8 text-center">
+              <BarChart3 className="h-16 w-16 text-[#9C8466] mx-auto mb-4" />
+              <h3 className="font-semibold text-[#1E3A5F] mb-2">
+                Event Reports & Analytics
+              </h3>
+              <p className="text-[#6B7280] mb-4">
+                View detailed reports and export data
+              </p>
+              <Link href={`/demo/dashboard/admin/events/${event.id}/reports`}>
+                <Button className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
+                  View Reports
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Settings Tab */}
+        <TabsContent value="settings" className="space-y-6">
+          {/* Current Status Overview */}
+          <Card className="bg-white border-[#D1D5DB]">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg text-[#1E3A5F]">
+                  Current Status
+                </CardTitle>
+                {getStatusBadge(currentStatus)}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-[#6B7280]">
+                {getStatusDescription(currentStatus)}
+              </p>
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Event Visibility */}
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardHeader>
+                <CardTitle className="text-lg text-[#1E3A5F] flex items-center gap-2">
+                  <Globe className="h-5 w-5" />
+                  Event Visibility
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    {currentIsPublished ? (
+                      <Eye className="h-5 w-5 text-green-600" />
+                    ) : (
+                      <EyeOff className="h-5 w-5 text-gray-500" />
+                    )}
+                    <div>
+                      <p className="font-medium text-[#1E3A5F]">
+                        {currentIsPublished ? 'Published' : 'Unpublished'}
+                      </p>
+                      <p className="text-xs text-[#6B7280]">
+                        {currentIsPublished
+                          ? 'Visible on public events page'
+                          : 'Not visible on public events page'}
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="publish-toggle"
+                    checked={currentIsPublished}
+                    onCheckedChange={handlePublishToggle}
+                    disabled={updatingPublish || currentStatus === 'completed' || currentStatus === 'cancelled'}
+                  />
+                </div>
+                <p className="text-xs text-[#6B7280]">
+                  When published, the event will appear on the public <Link href="/demo/events" className="text-[#9C8466] hover:underline">/events</Link> page and can be accessed via its direct link.
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Registration Status */}
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardHeader>
+                <CardTitle className="text-lg text-[#1E3A5F] flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Registration Status
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    {currentStatus === 'registration_open' && (
+                      <CheckSquare className="h-5 w-5 text-green-600" />
+                    )}
+                    {currentStatus === 'registration_closed' && (
+                      <Lock className="h-5 w-5 text-orange-500" />
+                    )}
+                    {!isManualOverride && (
+                      <Clock className="h-5 w-5 text-[#1E3A5F]" />
+                    )}
+                    <div>
+                      <p className="font-medium text-[#1E3A5F]">
+                        {currentStatus === 'registration_open' && 'Manually Open'}
+                        {currentStatus === 'registration_closed' && 'Manually Closed'}
+                        {!isManualOverride && 'Following Schedule'}
+                      </p>
+                      <p className="text-xs text-[#6B7280]">
+                        {currentStatus === 'registration_open' &&
+                          'Manually opened — overrides your scheduled dates.'}
+                        {currentStatus === 'registration_closed' &&
+                          'Manually closed — overrides your scheduled dates.'}
+                        {!isManualOverride &&
+                          'Registration opens and closes based on the dates you have set.'}
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="registration-toggle"
+                    checked={isRegistrationOpen}
+                    onCheckedChange={handleRegistrationToggle}
+                    disabled={updatingStatus || currentStatus === 'completed' || currentStatus === 'cancelled'}
+                  />
+                </div>
+                {isManualOverride && (
+                  <div className="flex items-start justify-between gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-blue-800">
+                        Your scheduled dates are being ignored while a manual override is active.
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleResetToSchedule}
+                      disabled={updatingStatus}
+                      className="text-[#1E3A5F] border-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white flex-shrink-0"
+                    >
+                      <Clock className="h-4 w-4 mr-2" />
+                      Use Scheduled Dates
+                    </Button>
+                  </div>
+                )}
+                {!currentIsPublished && isRegistrationOpen && (
+                  <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-amber-700">
+                      Registration is open but the event is not published. Users with a direct link can register, but the event will not appear on the public events page.
+                    </p>
+                  </div>
+                )}
+                <p className="text-xs text-[#6B7280]">
+                  Toggle to manually open or close registration. Existing registrations are not affected. Use &ldquo;Use Scheduled Dates&rdquo; to fall back to the open/close dates configured on the event.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Capacity & Waitlist */}
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardHeader>
+                <CardTitle className="text-lg text-[#1E3A5F]">
+                  Capacity & Waitlist
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-sm font-medium text-[#1E3A5F] mb-2">
+                    Event Capacity
+                  </p>
+                  <p className="text-sm text-[#6B7280]">
+                    {event.capacityTotal
+                      ? `${event.capacityTotal} total capacity`
+                      : 'No capacity limit set'}
+                  </p>
+                  {event.capacityTotal && (
+                    <p className="text-sm text-[#6B7280] mt-1">
+                      {capacityRemaining} spots remaining
+                    </p>
+                  )}
+                  {event.capacityTotal && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 text-[#1E3A5F] border-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
+                      onClick={handleRecalculateCapacity}
+                      disabled={recalculatingCapacity}
+                    >
+                      <RefreshCw className={`h-4 w-4 mr-2 ${recalculatingCapacity ? 'animate-spin' : ''}`} />
+                      {recalculatingCapacity ? 'Recalculating...' : 'Recalculate Capacity'}
+                    </Button>
+                  )}
+                  <p className="text-xs text-[#6B7280] mt-2">
+                    Use this if capacity is out of sync with actual registrations
+                  </p>
+                </div>
+                <div className="pt-4 border-t border-gray-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <Label htmlFor="waitlist-toggle" className="text-sm font-medium text-[#1E3A5F]">
+                        Enable Waitlist
+                      </Label>
+                      <p className="text-xs text-[#6B7280] mt-1">
+                        Allow participants to join when event is full or closed
+                      </p>
+                    </div>
+                    <Switch
+                      id="waitlist-toggle"
+                      checked={waitlistEnabled}
+                      onCheckedChange={setWaitlistEnabled}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Closed Message */}
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardHeader>
+                <CardTitle className="text-lg text-[#1E3A5F]">
+                  Closed Registration Message
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="closed-message" className="text-sm text-[#6B7280]">
+                    Custom message to display when registration is closed
+                  </Label>
+                  <Textarea
+                    id="closed-message"
+                    value={closedMessage}
+                    onChange={(e) => setClosedMessage(e.target.value)}
+                    placeholder="Enter a custom message (leave blank for default)"
+                    className="mt-2 min-h-[80px]"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Status Reference Guide */}
+          <Card className="bg-white border-[#D1D5DB]">
+            <CardHeader>
+              <CardTitle className="text-lg text-[#1E3A5F] flex items-center gap-2">
+                <Info className="h-5 w-5" />
+                Toggle Reference Guide
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-[#6B7280]">
+                Visibility and registration are controlled independently, allowing you to test registration before making the event public.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-2 pr-4 font-medium text-[#1E3A5F]">Setting</th>
+                      <th className="text-left py-2 pr-4 font-medium text-[#1E3A5F]">Effect</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-[#6B7280]">
+                    <tr className="border-b border-gray-100">
+                      <td className="py-2 pr-4 font-medium">Published: ON</td>
+                      <td className="py-2">Event appears on public /events page</td>
+                    </tr>
+                    <tr className="border-b border-gray-100">
+                      <td className="py-2 pr-4 font-medium">Published: OFF</td>
+                      <td className="py-2">Event hidden from public /events page (but direct links still work)</td>
+                    </tr>
+                    <tr className="border-b border-gray-100">
+                      <td className="py-2 pr-4 font-medium">Registration: OPEN</td>
+                      <td className="py-2">Users can submit new registrations</td>
+                    </tr>
+                    <tr className="border-b border-gray-100">
+                      <td className="py-2 pr-4 font-medium">Registration: CLOSED</td>
+                      <td className="py-2">New registrations blocked (existing ones unaffected)</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Tip:</strong> You can have registration open while unpublished for testing, then publish when ready to go live.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Save Settings Button */}
+          <div className="flex justify-end">
+            <Button
+              onClick={handleSaveSettings}
+              disabled={savingSettings}
+              className="bg-[#9C8466] hover:bg-[#8a7559] text-white"
+            >
+              {savingSettings ? 'Saving...' : 'Save Settings'}
+            </Button>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}

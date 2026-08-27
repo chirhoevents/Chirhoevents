@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+import { releaseWaitlistOptionReservation } from '@/lib/waitlist-utils'
+import type { HousingType, RoomType } from '@/lib/option-capacity'
 
 export async function PATCH(
   request: NextRequest,
@@ -72,6 +74,36 @@ export async function PATCH(
     // Clear notifiedAt if moving back to pending
     if (status === 'pending') {
       updateData.notifiedAt = null
+    }
+
+    // Reservation handling — when a contacted entry with a held seat is moved
+    // back to pending or marked expired, release the seat so the queue can move.
+    // When moved to registered, the seat is consumed (leave capacityRemaining as-is,
+    // but clear reservedSpots so subsequent status flips don't double-release).
+    const reservedSpots = (entry as any).reservedSpots as number | null
+    const isReleasing =
+      entry.status === 'contacted' && (status === 'pending' || status === 'expired')
+    const isConsuming = entry.status === 'contacted' && status === 'registered'
+
+    if ((isReleasing || isConsuming) && reservedSpots && reservedSpots > 0) {
+      if (isReleasing) {
+        await prisma.$executeRaw`
+          UPDATE events
+          SET capacity_remaining = capacity_remaining + ${reservedSpots}
+          WHERE id = ${entry.event.id}::uuid
+        `
+        await releaseWaitlistOptionReservation({
+          eventId: entry.event.id,
+          reservedSpots,
+          reservedHousingType: ((entry as any).reservedHousingType as HousingType | null) ?? null,
+          reservedRoomType: ((entry as any).reservedRoomType as RoomType | null) ?? null,
+          reservedDayPassOptionId: (entry as any).reservedDayPassOptionId ?? null,
+        })
+      }
+      updateData.reservedSpots = null
+      updateData.reservedHousingType = null
+      updateData.reservedRoomType = null
+      updateData.reservedDayPassOptionId = null
     }
 
     // Update entry status

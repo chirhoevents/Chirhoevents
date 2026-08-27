@@ -31,12 +31,12 @@ const organizationTypes = [
 
 // setupFee: 0 for Basilica means "custom" — UI handles that case.
 const subscriptionTiers = [
-  { value: 'chapel', label: 'Chapel', monthly: 39, annual: 468, setupFee: 99, setupFeeLabel: 'Basic Access Fee', description: 'Up to 3 events, 500 registrations (self-serve)' },
-  { value: 'parish', label: 'Parish', monthly: 59, annual: 708, setupFee: 199, setupFeeLabel: 'Basic Access Fee', description: 'Up to 5 events, 1,000 registrations (self-serve)' },
-  { value: 'cathedral', label: 'Cathedral', monthly: 109, annual: 1080, setupFee: 349, setupFeeLabel: 'Setup Fee', description: 'Up to 10 events, 2,000 registrations', popular: true },
-  { value: 'shrine', label: 'Shrine', monthly: 159, annual: 1908, setupFee: 499, setupFeeLabel: 'Setup Fee', description: 'Up to 20 events, 4,000 registrations' },
-  { value: 'basilica', label: 'Basilica', monthly: 1250, annual: 15000, setupFee: 0, setupFeeLabel: 'Custom Setup Fee', description: 'Unlimited events, 10,000+ registrations' },
-  { value: 'test', label: 'Test/Free Account', monthly: 0, annual: 0, setupFee: 0, setupFeeLabel: 'Setup Fee', description: 'No billing (for testing only)' },
+  { value: 'chapel', label: 'Chapel', monthly: 39, annual: 39 * 12, setupFee: 50, description: '1 event, up to 500 people' },
+  { value: 'parish', label: 'Parish', monthly: 59, annual: 59 * 12, setupFee: 50, description: 'Up to 3 events, 750 people' },
+  { value: 'cathedral', label: 'Cathedral', monthly: 150, annual: 1500, setupFee: 250, description: 'Up to 5 events, 1,250 people (1-hr setup call)', popular: true },
+  { value: 'shrine', label: 'Shrine', monthly: 200, annual: 2000, setupFee: 400, description: 'Up to 10 events, 3,000 people (1-hr setup call)' },
+  { value: 'basilica', label: 'Basilica', monthly: 5000, annual: 5000, setupFee: null as number | null, description: 'Custom — unlimited events, custom people cap' },
+  { value: 'test', label: 'Test/Free Account', monthly: 0, annual: 0, setupFee: 0, description: 'No billing (for testing only)' },
 ]
 
 export default function CreateOrganizationPage() {
@@ -402,9 +402,9 @@ export default function CreateOrganizationPage() {
                 <span className="text-sm font-medium text-gray-900">
                   {formData.setupFeeWaived
                     ? '$0 (Waived)'
-                    : selectedTier?.value === 'basilica'
+                    : selectedTier?.setupFee === null
                       ? 'Custom'
-                      : `$${selectedTier?.setupFee ?? 349}`}
+                      : `$${selectedTier?.setupFee ?? 0}`}
                 </span>
               </div>
               <div className="space-y-2 mt-3">
@@ -615,7 +615,7 @@ export default function CreateOrganizationPage() {
                 <span className="font-medium text-gray-900">
                   {formData.setupFeeWaived
                     ? '$0'
-                    : selectedTier.value === 'basilica'
+                    : selectedTier.setupFee === null
                       ? 'Custom'
                       : `$${selectedTier.setupFee}`}
                 </span>
@@ -623,9 +623,8 @@ export default function CreateOrganizationPage() {
               <div className="border-t border-purple-200 pt-2 mt-2 flex justify-between">
                 <span className="font-semibold text-purple-900">First Payment:</span>
                 <span className="font-bold text-purple-900">
-                  {selectedTier.value === 'basilica'
-                    ? 'Custom'
-                    : `$${(formData.billingCycle === 'annual' ? selectedTier.annual : selectedTier.monthly) + (formData.setupFeeWaived ? 0 : selectedTier.setupFee)}`}
+                  ${(formData.billingCycle === 'annual' ? selectedTier.annual : selectedTier.monthly) + (formData.setupFeeWaived || selectedTier.setupFee === null ? 0 : selectedTier.setupFee)}
+                  {selectedTier.setupFee === null && !formData.setupFeeWaived ? ' + custom setup' : ''}
                 </span>
               </div>
             </div>

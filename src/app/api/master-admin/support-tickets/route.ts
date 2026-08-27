@@ -150,7 +150,66 @@ export async function GET(request: NextRequest) {
       statusCounts[c.status as keyof typeof statusCounts] = c._count.status
     })
 
-    return NextResponse.json({ tickets, counts: statusCounts })
+    // Also surface inbound (email-originated) support tickets in the same view
+    // so master admins see all conversations in one place. These come from the
+    // inbound webhook (InboundSupportTicket) instead of the in-app form.
+    const inboundWhere: Record<string, unknown> = {}
+    if (status && status !== 'all') {
+      // Map app-side "waiting_on_customer" filter onto the inbound enum value.
+      inboundWhere.status = status === 'waiting_on_customer' ? 'waiting_reply' : status
+    }
+    if (priority && priority !== 'all') {
+      // App side has "medium/high/urgent/low"; inbound uses low/normal/high/urgent.
+      const priorityMap: Record<string, string> = { medium: 'normal' }
+      inboundWhere.priority = priorityMap[priority] || priority
+    }
+
+    const inboundTicketsRaw = await prisma.inboundSupportTicket.findMany({
+      where: inboundWhere,
+      include: {
+        assignedToUser: {
+          select: { firstName: true, lastName: true },
+        },
+        _count: { select: { replies: true } },
+      },
+      orderBy: [
+        { priority: 'desc' },
+        { updatedAt: 'desc' },
+      ],
+    })
+
+    type InboundRaw = typeof inboundTicketsRaw[number]
+
+    const inboundTickets = inboundTicketsRaw.map((t: InboundRaw) => ({
+      id: t.id,
+      ticketNumber: t.ticketNumber,
+      subject: t.subject,
+      category: t.category || 'general',
+      priority: t.priority === 'normal' ? 'medium' : t.priority,
+      status: t.status === 'waiting_reply' ? 'waiting_on_customer' : t.status,
+      createdAt: t.createdAt,
+      updatedAt: t.updatedAt,
+      fromEmail: t.fromEmail,
+      fromName: t.fromName,
+      assignedToUser: t.assignedToUser,
+      messageCount: t._count.replies + 1,
+      source: 'inbound' as const,
+    }))
+
+    const inboundCounts = await prisma.inboundSupportTicket.groupBy({
+      by: ['status'],
+      _count: { status: true },
+    })
+    type InboundCountType = typeof inboundCounts[number]
+    inboundCounts.forEach((c: InboundCountType) => {
+      const uiKey = (c.status === 'waiting_reply' ? 'waiting_on_customer' : c.status) as keyof typeof statusCounts
+      if (uiKey in statusCounts) {
+        statusCounts[uiKey] += c._count.status
+      }
+    })
+    statusCounts.all += inboundTickets.length
+
+    return NextResponse.json({ tickets, inboundTickets, counts: statusCounts })
   } catch (error) {
     console.error('List tickets error:', error)
     return NextResponse.json(

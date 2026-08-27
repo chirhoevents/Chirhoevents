@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
+import { parseDateTimeInTimezone } from '@/lib/timezone'
+
+// Treat a datetime-local string from the form as wall-clock time in the event's
+// timezone (the admin's selected IANA zone), then store the corresponding UTC
+// instant. Without this, Node interprets the naive string as UTC and the saved
+// time silently shifts by the server-to-user offset (e.g. 9 AM Eastern was being
+// stored as 9 AM UTC = 5 AM Eastern).
+const parseEventDateTime = (value: string | null | undefined, timezone: string) =>
+  value ? parseDateTimeInTimezone(value, timezone) : null
 
 export async function GET(
   request: NextRequest,
@@ -187,6 +196,78 @@ export async function GET(
       0
     )
 
+    // Waitlist summary — surfaced on the event dashboard when the waitlist
+    // is enabled so the admin can see, at a glance, how many people are
+    // waiting and what options they want.
+    let waitlist: {
+      pending: number
+      contacted: number
+      headcountWaiting: number
+      byHousingType: { on_campus: number; off_campus: number; day_pass: number; unspecified: number }
+      byDayPassOption: Array<{ id: string; name: string; count: number }>
+      byRoomType: Record<string, number>
+    } | null = null
+
+    if (event.enableWaitlist) {
+      const entries = await prisma.waitlistEntry.findMany({
+        where: { eventId, status: { in: ['pending', 'contacted'] } },
+        select: {
+          status: true,
+          partySize: true,
+          preferredHousingType: true,
+          preferredRoomType: true,
+          preferredDayPassOptionId: true,
+          dayPassOption: { select: { id: true, name: true } },
+        },
+      })
+
+      const byHousingType = { on_campus: 0, off_campus: 0, day_pass: 0, unspecified: 0 }
+      const byRoomType: Record<string, number> = {}
+      const dayPassBuckets = new Map<string, { id: string; name: string; count: number }>()
+      let pending = 0
+      let contacted = 0
+      let headcountWaiting = 0
+
+      for (const entry of entries) {
+        const size = entry.partySize || 1
+        if (entry.status === 'pending') {
+          pending++
+          headcountWaiting += size
+        } else if (entry.status === 'contacted') {
+          contacted++
+        }
+
+        if (entry.preferredHousingType === 'on_campus') byHousingType.on_campus += size
+        else if (entry.preferredHousingType === 'off_campus') byHousingType.off_campus += size
+        else if (entry.preferredHousingType === 'day_pass') byHousingType.day_pass += size
+        else byHousingType.unspecified += size
+
+        if (entry.preferredRoomType) {
+          const key = entry.preferredRoomType as string
+          byRoomType[key] = (byRoomType[key] || 0) + size
+        }
+
+        if (entry.dayPassOption) {
+          const existing = dayPassBuckets.get(entry.dayPassOption.id)
+          if (existing) existing.count += size
+          else dayPassBuckets.set(entry.dayPassOption.id, {
+            id: entry.dayPassOption.id,
+            name: entry.dayPassOption.name,
+            count: size,
+          })
+        }
+      }
+
+      waitlist = {
+        pending,
+        contacted,
+        headcountWaiting,
+        byHousingType,
+        byDayPassOption: Array.from(dayPassBuckets.values()).sort((a, b) => b.count - a.count),
+        byRoomType,
+      }
+    }
+
     return NextResponse.json({
       event: {
         ...event,
@@ -200,6 +281,7 @@ export async function GET(
         totalPaid,
         balance: totalRevenue - totalPaid,
       },
+      waitlist,
       activity: {
         recentRegistrations: recentRegistrations.map((r: { id: string; type: 'group' | 'individual'; name: string; participants: number; date: Date }) => ({
           ...r,
@@ -328,12 +410,14 @@ export async function PUT(
         locationAddress: data.locationAddress || null,
         capacityTotal: newCapacityTotal,
         capacityRemaining: newCapacityRemaining,
-        registrationOpenDate: data.registrationOpenDate
-          ? new Date(data.registrationOpenDate)
-          : null,
-        registrationCloseDate: data.registrationCloseDate
-          ? new Date(data.registrationCloseDate)
-          : null,
+        registrationOpenDate: parseEventDateTime(
+          data.registrationOpenDate,
+          data.timezone || 'America/New_York'
+        ),
+        registrationCloseDate: parseEventDateTime(
+          data.registrationCloseDate,
+          data.timezone || 'America/New_York'
+        ),
         status: data.status || 'draft',
         enableWaitlist: data.enableWaitlist || false,
         waitlistCapacity: data.waitlistCapacity
@@ -650,15 +734,18 @@ export async function PUT(
                   : null,
               requireFullPayment: data.depositType === 'full',
               depositPerPerson: data.depositType === 'fixed',
-              earlyBirdDeadline: data.earlyBirdDeadline
-                ? new Date(data.earlyBirdDeadline)
-                : null,
-              regularDeadline: data.regularDeadline
-                ? new Date(data.regularDeadline)
-                : null,
-              fullPaymentDeadline: data.fullPaymentDeadline
-                ? new Date(data.fullPaymentDeadline)
-                : null,
+              earlyBirdDeadline: parseEventDateTime(
+                data.earlyBirdDeadline,
+                data.timezone || 'America/New_York'
+              ),
+              regularDeadline: parseEventDateTime(
+                data.regularDeadline,
+                data.timezone || 'America/New_York'
+              ),
+              fullPaymentDeadline: parseEventDateTime(
+                data.fullPaymentDeadline,
+                data.timezone || 'America/New_York'
+              ),
               lateFeePercentage: data.lateFeePercentage
                 ? parseFloat(data.lateFeePercentage)
                 : null,
@@ -740,15 +827,18 @@ export async function PUT(
                   : null,
               requireFullPayment: data.depositType === 'full',
               depositPerPerson: data.depositType === 'fixed',
-              earlyBirdDeadline: data.earlyBirdDeadline
-                ? new Date(data.earlyBirdDeadline)
-                : null,
-              regularDeadline: data.regularDeadline
-                ? new Date(data.regularDeadline)
-                : null,
-              fullPaymentDeadline: data.fullPaymentDeadline
-                ? new Date(data.fullPaymentDeadline)
-                : null,
+              earlyBirdDeadline: parseEventDateTime(
+                data.earlyBirdDeadline,
+                data.timezone || 'America/New_York'
+              ),
+              regularDeadline: parseEventDateTime(
+                data.regularDeadline,
+                data.timezone || 'America/New_York'
+              ),
+              fullPaymentDeadline: parseEventDateTime(
+                data.fullPaymentDeadline,
+                data.timezone || 'America/New_York'
+              ),
               lateFeePercentage: data.lateFeePercentage
                 ? parseFloat(data.lateFeePercentage)
                 : null,

@@ -3,6 +3,14 @@ import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+import { parseDateTimeInTimezone } from '@/lib/timezone'
+
+// Treat a datetime-local string from the form as wall-clock time in the event's
+// timezone (the admin's selected IANA zone), then store the corresponding UTC
+// instant. Without this, Node interprets the naive string as UTC and the saved
+// time silently shifts by the server-to-user offset.
+const parseEventDateTime = (value: string | null | undefined, timezone: string) =>
+  value ? parseDateTimeInTimezone(value, timezone) : null
 
 export async function POST(request: NextRequest) {
   try {
@@ -90,12 +98,14 @@ export async function POST(request: NextRequest) {
         locationAddress: data.locationAddress || null,
         capacityTotal: parseInt(data.capacityTotal) || null,
         capacityRemaining: parseInt(data.capacityTotal) || null,
-        registrationOpenDate: data.registrationOpenDate
-          ? new Date(data.registrationOpenDate)
-          : null,
-        registrationCloseDate: data.registrationCloseDate
-          ? new Date(data.registrationCloseDate)
-          : null,
+        registrationOpenDate: parseEventDateTime(
+          data.registrationOpenDate,
+          data.timezone || 'America/New_York'
+        ),
+        registrationCloseDate: parseEventDateTime(
+          data.registrationCloseDate,
+          data.timezone || 'America/New_York'
+        ),
         status: data.status || 'draft',
         enableWaitlist: data.enableWaitlist || false,
         waitlistCapacity: data.waitlistCapacity
@@ -274,12 +284,14 @@ export async function POST(request: NextRequest) {
                 : null,
             requireFullPayment: data.depositType === 'full',
             depositPerPerson: data.depositType === 'fixed',
-            earlyBirdDeadline: data.earlyBirdDeadline
-              ? new Date(data.earlyBirdDeadline)
-              : null,
-            regularDeadline: data.regularDeadline
-              ? new Date(data.regularDeadline)
-              : null,
+            earlyBirdDeadline: parseEventDateTime(
+              data.earlyBirdDeadline,
+              data.timezone || 'America/New_York'
+            ),
+            regularDeadline: parseEventDateTime(
+              data.regularDeadline,
+              data.timezone || 'America/New_York'
+            ),
             fullPaymentDeadline: data.fullPaymentDeadline
               ? new Date(data.fullPaymentDeadline)
               : null,

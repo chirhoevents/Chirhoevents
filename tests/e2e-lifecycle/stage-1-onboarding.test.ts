@@ -114,7 +114,7 @@ import { makeOrg, makeUser } from '../org-isolation/helpers/mock-factories'
 //   - modulesEnabled: { poros, salve, rapha } (toggle on/off per module)
 //
 // Notifications tab (/api/admin/settings/notifications):
-//   - weeklyDigest: { enabled, recipients (userId list), dayOfWeek }
+//   - weeklyDigest: { disabled, recipients (email list) } — sends Monday ~10am Eastern by default
 //
 // Billing tab (/api/admin/settings/billing):
 //   - Read-only display of tier, status, billing cycle, usage, invoices
@@ -512,16 +512,15 @@ describe('1.3 — Organization Settings: field coverage', () => {
     expect(orgAdminSettingsFields).not.toContain('checkPaymentAddress')
   })
 
-  it('should allow weekly digest notifications to be toggled and configured', async () => {
-    // NotificationsSettingsTab: weeklyDigest { enabled, recipients, dayOfWeek }
+  it('should allow weekly digest notifications to be turned off and configured', async () => {
+    // NotificationsSettingsTab: weeklyDigest { disabled, recipients }
+    // The digest sends by default (opt-out) every Monday around 10 AM Eastern.
     const weeklyDigestSettings = {
-      enabled: true,
+      disabled: false,
       recipients: ['user-001', 'user-002'],
-      dayOfWeek: 1,  // Monday
     }
 
-    expect(weeklyDigestSettings.enabled).toBe(true)
-    expect(weeklyDigestSettings.dayOfWeek).toBe(1)
+    expect(weeklyDigestSettings.disabled).toBe(false)
     expect(weeklyDigestSettings.recipients.length).toBe(2)
   })
 

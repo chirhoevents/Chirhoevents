@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import QRCode from 'qrcode'
 import { generateGroupRegistrationConfirmationEmail, wrapEmail, emailInfoBox } from '@/lib/email-templates'
+import { resolveReplyTo } from '@/lib/email-reply-to'
+import { markWaitlistAsRegistered } from '@/lib/waitlist-utils'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -398,22 +400,69 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing metadata' }, { status: 400 })
     }
 
+    // Fetch charge details (receipt URL, card info) from Stripe so the Payment
+    // row carries everything needed for the admin/group-leader receipt link
+    // and the confirmation email's "View Stripe Receipt" link.
+    let chargeReceiptUrl: string | null = null
+    let chargeStripeChargeId: string | null = null
+    let chargeCardLast4: string | null = null
+    let chargeCardBrand: string | null = null
+    if (session.payment_intent) {
+      try {
+        const pi = await stripe.paymentIntents.retrieve(
+          session.payment_intent as string,
+          { expand: ['latest_charge'] }
+        )
+        const charge = pi.latest_charge as Stripe.Charge | null
+        if (charge) {
+          chargeReceiptUrl = charge.receipt_url || null
+          chargeStripeChargeId = charge.id
+          chargeCardLast4 = charge.payment_method_details?.card?.last4 || null
+          chargeCardBrand = charge.payment_method_details?.card?.brand || null
+        }
+      } catch (chargeError) {
+        console.error('⚠️ Could not retrieve charge for receipt URL:', chargeError)
+      }
+    }
+
     try {
       // Handle INDIVIDUAL registration differently
       if (registrationType === 'individual') {
         console.log('👤 Processing individual registration payment')
 
-        // Update payment status — match by payment intent ID (pi_...) stored at checkout creation
-        await prisma.payment.updateMany({
+        // Match the pending Payment row. The registration route stores the
+        // checkout session id (cs_...) — historically it tried to store the
+        // payment_intent, which is null at session creation, so we also accept
+        // NULL/cs_/pi_ matches by registrationId+pending. Swap in the real pi_
+        // so future lookups by payment_intent succeed.
+        const pendingPayment = await prisma.payment.findFirst({
           where: {
             registrationId: registrationId,
-            stripePaymentIntentId: session.payment_intent as string,
-          },
-          data: {
-            paymentStatus: 'succeeded',
-            processedAt: new Date(),
+            paymentStatus: 'pending',
+            OR: [
+              { stripePaymentIntentId: session.id },
+              { stripePaymentIntentId: session.payment_intent as string },
+              { stripePaymentIntentId: null },
+            ],
           },
         })
+
+        if (pendingPayment) {
+          await prisma.payment.update({
+            where: { id: pendingPayment.id },
+            data: {
+              paymentStatus: 'succeeded',
+              processedAt: new Date(),
+              stripePaymentIntentId: session.payment_intent as string,
+              receiptUrl: chargeReceiptUrl,
+              stripeChargeId: chargeStripeChargeId,
+              cardLast4: chargeCardLast4,
+              cardBrand: chargeCardBrand,
+            },
+          })
+        } else {
+          console.error('❌ No pending Payment row found for individual registration', registrationId)
+        }
 
         // Update individual registration status
         const registration = await prisma.individualRegistration.update({
@@ -455,7 +504,7 @@ export async function POST(request: NextRequest) {
         // Send confirmation email with QR code
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-          reply_to: 'support@chirhoevents.com',
+          reply_to: resolveReplyTo(registration.event.settings, registration.event.organization),
           to: registration.email,
           subject: `Registration Confirmed - ${registration.event.name}`,
           html: `
@@ -488,6 +537,7 @@ export async function POST(request: NextRequest) {
                   <h3 style="color: #155724; margin-top: 0;">✓ Payment Confirmed</h3>
                   <p style="margin: 5px 0; color: #155724;"><strong>Status:</strong> Paid in Full</p>
                   <p style="margin: 5px 0; color: #155724;"><strong>Payment Method:</strong> Credit Card</p>
+                  ${chargeReceiptUrl ? `<p style="margin: 5px 0; color: #155724;"><a href="${chargeReceiptUrl}" style="color: #1E3A5F; font-weight: bold;">View Stripe Receipt</a></p>` : ''}
                 </div>
 
                 <div style="background-color: #F5F5F5; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
@@ -527,7 +577,7 @@ export async function POST(request: NextRequest) {
                   <h3 style="color: #92400E; margin-top: 0;">📋 Liability Form Required</h3>
                   <p style="color: #92400E; margin-bottom: 15px;">
                     ${registration.age && registration.age < 18
-                      ? 'Since you are under 18, a parent or guardian must complete and sign your liability form.'
+                      ? 'Since you are under 18, click below to enter your parent or guardian\'s email address. They will then receive their own separate email with a link to complete and sign the liability form on your behalf.'
                       : 'Please complete your liability form before the event.'}
                   </p>
                   <div style="text-align: center;">
@@ -581,6 +631,12 @@ export async function POST(request: NextRequest) {
           }).catch((err: any) => console.error('⚠️ Failed to increment coupon usage:', err))
         }
 
+        // Safety net: flip waitlist entry to 'registered' here too. The registration
+        // route already does this on row creation, but doing it again post-payment
+        // covers any edge cases. markWaitlistAsRegistered is idempotent.
+        await markWaitlistAsRegistered(registration.eventId, registration.email)
+          .catch((err: any) => console.error('⚠️ Failed to mark waitlist as registered:', err))
+
         return NextResponse.json({ received: true })
       }
 
@@ -607,6 +663,10 @@ export async function POST(request: NextRequest) {
             paymentMethod: 'card',
             paymentStatus: 'succeeded',
             stripePaymentIntentId: paymentIntentId,
+            receiptUrl: chargeReceiptUrl,
+            stripeChargeId: chargeStripeChargeId,
+            cardLast4: chargeCardLast4,
+            cardBrand: chargeCardBrand,
             processedAt: new Date(),
             organizationId: session.metadata?.organizationId || '',
             eventId: session.metadata?.eventId || '',
@@ -619,7 +679,8 @@ export async function POST(request: NextRequest) {
           include: {
             event: {
               include: {
-                organization: { select: { name: true } },
+                settings: { select: { contactEmail: true } },
+                organization: { select: { name: true, contactEmail: true } },
               },
             },
           },
@@ -637,6 +698,7 @@ export async function POST(request: NextRequest) {
               ${emailInfoBox(`
                 <strong>Amount Paid:</strong> $${actualAmountPaid.toFixed(2)}<br>
                 <strong>Registration Status:</strong> Confirmed &amp; Paid
+                ${chargeReceiptUrl ? `<br><a href="${chargeReceiptUrl}" style="color: #1E3A5F;">View Stripe Receipt</a>` : ''}
               `, 'success')}
 
               <h2>Registration Details</h2>
@@ -668,6 +730,20 @@ export async function POST(request: NextRequest) {
                   <p style="margin:8px 0 0 0;font-size:32px;font-weight:bold;letter-spacing:4px;color:#1E3A5F;">${staffReg.porosAccessCode}</p>
                 </td></tr>
               </table>
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 16px auto;">
+                <tr>
+                  <td style="background-color:#1E3A5F;border-radius:6px;text-align:center;">
+                    <a href="${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://chirhoevents.com'}/poros?code=${staffReg.porosAccessCode}" target="_blank" style="display:inline-block;padding:14px 32px;color:#ffffff;text-decoration:none;font-weight:600;font-size:16px;">
+                      Complete Liability Form
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="font-size:13px;color:#666;text-align:center;">
+                Don't have your Safe Environment certificate handy? You can email a copy to
+                <a href="mailto:${resolveReplyTo(staffReg.event.settings, staffReg.event.organization)}" style="color:#1E3A5F;">${resolveReplyTo(staffReg.event.settings, staffReg.event.organization)}</a>
+                and we'll upload it for you.
+              </p>
               ` : ''}
 
               <p>We look forward to seeing you at the event!</p>
@@ -675,7 +751,7 @@ export async function POST(request: NextRequest) {
 
             await resend.emails.send({
               from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-              reply_to: 'support@chirhoevents.com',
+              reply_to: resolveReplyTo(staffReg.event.settings, staffReg.event.organization),
               to: staffReg.email,
               subject: `Staff Registration Confirmed & Paid - ${staffReg.event.name}`,
               html: emailContent,
@@ -690,17 +766,40 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ received: true })
       }
 
-      // Handle GROUP registration
-      const payment = await prisma.payment.updateMany({
+      // Handle GROUP registration.
+      // Match the pending Payment row. The registration route stores the
+      // checkout session id (cs_...); historically it tried to store the
+      // payment_intent, which is null at session creation, so we also accept
+      // NULL/cs_/pi_ matches by registrationId+pending. Swap in the real pi_
+      // so future lookups by payment_intent succeed.
+      const pendingPayment = await prisma.payment.findFirst({
         where: {
           registrationId: registrationId,
-          stripePaymentIntentId: session.payment_intent as string,
-        },
-        data: {
-          paymentStatus: 'succeeded',
-          processedAt: new Date(),
+          paymentStatus: 'pending',
+          OR: [
+            { stripePaymentIntentId: session.id },
+            { stripePaymentIntentId: session.payment_intent as string },
+            { stripePaymentIntentId: null },
+          ],
         },
       })
+
+      if (pendingPayment) {
+        await prisma.payment.update({
+          where: { id: pendingPayment.id },
+          data: {
+            paymentStatus: 'succeeded',
+            processedAt: new Date(),
+            stripePaymentIntentId: session.payment_intent as string,
+            receiptUrl: chargeReceiptUrl,
+            stripeChargeId: chargeStripeChargeId,
+            cardLast4: chargeCardLast4,
+            cardBrand: chargeCardBrand,
+          },
+        })
+      } else {
+        console.error('❌ No pending Payment row found for group registration', registrationId)
+      }
 
       // Update registration status
       await prisma.groupRegistration.update({
@@ -709,13 +808,9 @@ export async function POST(request: NextRequest) {
       })
 
       // Update payment balance
-      const paymentAmount = await prisma.payment.findFirst({
-        where: {
-          registrationId: registrationId,
-          stripePaymentIntentId: session.payment_intent as string,
-        },
-        select: { amount: true },
-      })
+      const paymentAmount = pendingPayment
+        ? { amount: pendingPayment.amount }
+        : null
 
       if (paymentAmount) {
         const balance = await prisma.paymentBalance.findUnique({
@@ -776,6 +871,7 @@ export async function POST(request: NextRequest) {
                 select: {
                   id: true,
                   name: true,
+                  contactEmail: true,
                 },
               },
             },
@@ -824,6 +920,15 @@ export async function POST(request: NextRequest) {
       const groupLeaderPortalUrl = `${appUrl}/dashboard/group-leader`
       const confirmationPageUrl = `${appUrl}/registration/confirmation/${registration.id}`
 
+      const fullPaymentDeadlineFormatted = registration.event.pricing?.fullPaymentDeadline
+        ? new Date(registration.event.pricing.fullPaymentDeadline).toLocaleDateString('en-US', {
+            timeZone: registration.event.timezone || 'America/New_York',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })
+        : undefined
+
       // Generate email using the template
       const emailHtml = generateGroupRegistrationConfirmationEmail({
         groupName: registration.groupName,
@@ -835,18 +940,20 @@ export async function POST(request: NextRequest) {
         totalAmount,
         depositAmount: depositPaid,
         balanceRemaining,
+        fullPaymentDeadline: fullPaymentDeadlineFormatted,
         paymentMethod: 'card',
         registrationInstructions: registration.event.settings?.registrationInstructions || undefined,
         customMessage: registration.event.settings?.confirmationEmailMessage || undefined,
         organizationName: registration.event.organization.name,
         porosLiabilityUrl,
         groupLeaderPortalUrl,
+        receiptUrl: chargeReceiptUrl,
       })
 
       // Send confirmation email
       await resend.emails.send({
         from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-        reply_to: 'support@chirhoevents.com',
+        reply_to: resolveReplyTo(registration.event.settings, registration.event.organization),
         to: registration.groupLeaderEmail,
         subject: `Payment Confirmed - ${registration.event.name}`,
         html: emailHtml,
@@ -854,6 +961,10 @@ export async function POST(request: NextRequest) {
 
       console.log('✅ Payment confirmed and email sent to:', registration.groupLeaderEmail)
       console.log('✅ Registration ID:', registrationId)
+
+      // Safety net: flip waitlist entry to 'registered' here too. Idempotent.
+      await markWaitlistAsRegistered(registration.eventId, registration.groupLeaderEmail)
+        .catch((err: any) => console.error('⚠️ Failed to mark waitlist as registered:', err))
     } catch (error) {
       console.error('❌ Error processing payment webhook:', error)
       console.error('Error details:', error instanceof Error ? error.message : 'Unknown error')

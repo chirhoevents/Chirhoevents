@@ -5,6 +5,15 @@ import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { Resend } from 'resend'
 import { generateWaitlistInvitationEmail } from '@/lib/email-templates'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+import { resolveReplyTo } from '@/lib/email-reply-to'
+import {
+  checkOptionCapacity,
+  decrementOptionCapacity,
+  checkDayPassOptionCapacity,
+  decrementDayPassOptionCapacity,
+  type HousingType,
+  type RoomType,
+} from '@/lib/option-capacity'
 import crypto from 'crypto'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
@@ -34,6 +43,33 @@ export async function POST(
 
     const { entryId } = await params
 
+    // Optional body: override capacity check with a reason, and/or a
+    // counter-offer that differs from the entry's request. If no offer is
+    // provided, the invite matches what they asked for. If provided, we
+    // reserve based on the offer values instead — that's what the invitee
+    // will see, and what the registration flow enforces.
+    let override = false
+    let overrideReason: string | null = null
+    let offer: {
+      partySize?: number
+      youthCount?: number
+      chaperoneCount?: number
+      priestCount?: number
+      preferredHousingType?: HousingType | null
+      preferredRoomType?: RoomType | null
+      preferredDayPassOptionId?: string | null
+    } | null = null
+    try {
+      const body = await request.json()
+      override = body?.override === true
+      overrideReason = typeof body?.overrideReason === 'string' ? body.overrideReason.trim() : null
+      if (body?.offer && typeof body.offer === 'object') {
+        offer = body.offer
+      }
+    } catch {
+      // No JSON body — treat as no override.
+    }
+
     // Fetch waitlist entry with event and organization
     const entry = await prisma.waitlistEntry.findUnique({
       where: { id: entryId },
@@ -47,6 +83,27 @@ export async function POST(
             organization: {
               select: {
                 name: true,
+                contactEmail: true,
+              },
+            },
+            settings: {
+              select: {
+                contactEmail: true,
+                groupSpotLimit: true,
+                onCampusCapacity: true,
+                onCampusRemaining: true,
+                offCampusCapacity: true,
+                offCampusRemaining: true,
+                dayPassCapacity: true,
+                dayPassRemaining: true,
+                singleRoomCapacity: true,
+                singleRoomRemaining: true,
+                doubleRoomCapacity: true,
+                doubleRoomRemaining: true,
+                tripleRoomCapacity: true,
+                tripleRoomRemaining: true,
+                quadRoomCapacity: true,
+                quadRoomRemaining: true,
               },
             },
           },
@@ -69,34 +126,231 @@ export async function POST(
       )
     }
 
-    // FIX 2.10: Check event capacity before sending invitation
+    // FIX 2.10: Check event capacity before sending invitation.
+    // An admin can force-invite past this with { override: true, overrideReason: "..." };
+    // the override is recorded on the entry for audit.
     const eventCapacity = await prisma.event.findUnique({
       where: { id: entry.event.id },
       select: { capacityTotal: true, capacityRemaining: true },
     })
 
-    if (
-      eventCapacity &&
-      eventCapacity.capacityTotal !== null &&
-      eventCapacity.capacityRemaining !== null
-    ) {
-      const spotsNeeded = entry.partySize || 1
-      if (eventCapacity.capacityRemaining < spotsNeeded) {
+    // If admin sent a counter-offer, use the offer values as the "needed"
+    // amounts and as the reserved amounts. Otherwise use the entry's request.
+    const offeredPartySize = offer?.partySize !== undefined ? Number(offer.partySize) : entry.partySize
+    if (offer && (isNaN(offeredPartySize) || offeredPartySize < 1 || offeredPartySize > 100)) {
+      return NextResponse.json(
+        { error: 'Counter-offer party size must be between 1 and 100.' },
+        { status: 400 }
+      )
+    }
+    const offeredYouth = offer?.youthCount !== undefined ? Number(offer.youthCount) : (entry.youthCount ?? 0)
+    const offeredChaperone = offer?.chaperoneCount !== undefined ? Number(offer.chaperoneCount) : (entry.chaperoneCount ?? 0)
+    const offeredPriest = offer?.priestCount !== undefined ? Number(offer.priestCount) : (entry.priestCount ?? 0)
+
+    // If the entry is a group, the offered mix must sum to the offered party size.
+    if (entry.registrationType === 'group' && offer) {
+      const mixTotal = offeredYouth + offeredChaperone + offeredPriest
+      if (mixTotal !== offeredPartySize) {
         return NextResponse.json(
           {
-            error: `Not enough capacity to invite this waitlist entry. Only ${eventCapacity.capacityRemaining} spot(s) remaining, but ${spotsNeeded} needed.`,
-            capacityRemaining: eventCapacity.capacityRemaining,
+            error: `Offered party size (${offeredPartySize}) doesn't match youth (${offeredYouth}) + chaperones (${offeredChaperone}) + priests (${offeredPriest}) = ${mixTotal}.`,
           },
-          { status: 409 }
+          { status: 400 }
         )
       }
+      // Guard: same rule as group registration — no solo or adult-only groups.
+      const hasAdultSupervisor = offeredChaperone >= 1 || offeredPriest >= 1
+      const hasYouth = offeredYouth >= 1
+      if (!hasAdultSupervisor || !hasYouth) {
+        return NextResponse.json(
+          {
+            error:
+              'Counter-offer must include at least one youth AND at least one chaperone or priest. To invite a single person, edit the entry to individual first.',
+          },
+          { status: 400 }
+        )
+      }
+      const groupSpotLimit = (entry.event.settings as any)?.groupSpotLimit ?? null
+      if (groupSpotLimit !== null && offeredPartySize > groupSpotLimit) {
+        return NextResponse.json(
+          {
+            error: `This event limits each group to ${groupSpotLimit} participant${groupSpotLimit === 1 ? '' : 's'}. Your offer is ${offeredPartySize}.`,
+          },
+          { status: 400 }
+        )
+      }
+    }
+
+    const spotsNeeded = offeredPartySize || 1
+    const capacityShort =
+      eventCapacity !== null &&
+      eventCapacity.capacityTotal !== null &&
+      eventCapacity.capacityRemaining !== null &&
+      eventCapacity.capacityRemaining < spotsNeeded
+
+    if (capacityShort && !override) {
+      return NextResponse.json(
+        {
+          error: `Not enough capacity to invite this waitlist entry. Only ${eventCapacity!.capacityRemaining} spot(s) remaining, but ${spotsNeeded} needed.`,
+          capacityRemaining: eventCapacity!.capacityRemaining,
+          spotsNeeded,
+          canOverride: true,
+        },
+        { status: 409 }
+      )
+    }
+
+    if (capacityShort && override && (!overrideReason || overrideReason.length === 0)) {
+      return NextResponse.json(
+        { error: 'A reason is required when overriding capacity.' },
+        { status: 400 }
+      )
     }
 
     // Generate token and set expiration (48 hours from now)
     const registrationToken = generateRegistrationToken()
     const invitationExpires = new Date(Date.now() + 48 * 60 * 60 * 1000) // 48 hours
 
-    // Update entry status to contacted with token
+    // Reserve the seats: atomically decrement event.capacityRemaining so a
+    // walk-in can't eat the promised spot while the invitee has the token.
+    // If this entry already has a reservation (re-invite / re-send), keep it.
+    // The reservation is restored on expiry / move-back-to-pending / delete.
+    const trackCapacity =
+      eventCapacity !== null &&
+      eventCapacity.capacityTotal !== null &&
+      eventCapacity.capacityRemaining !== null
+    const alreadyReserved = (entry.reservedSpots ?? 0) > 0
+    let reservationCreated = false
+
+    if (trackCapacity && !alreadyReserved) {
+      if (capacityShort && override) {
+        // Override path — decrement unconditionally, honest oversubscription.
+        await prisma.$executeRaw`
+          UPDATE events
+          SET capacity_remaining = capacity_remaining - ${spotsNeeded}
+          WHERE id = ${entry.event.id}::uuid
+        `
+        reservationCreated = true
+      } else {
+        // Normal path — atomic conditional decrement; a concurrent registration
+        // between the soft check above and here could still lose the race.
+        const result = await prisma.$executeRaw`
+          UPDATE events
+          SET capacity_remaining = capacity_remaining - ${spotsNeeded}
+          WHERE id = ${entry.event.id}::uuid
+            AND capacity_remaining >= ${spotsNeeded}
+        `
+        if (result === 0) {
+          const fresh = await prisma.event.findUnique({
+            where: { id: entry.event.id },
+            select: { capacityRemaining: true },
+          })
+          return NextResponse.json(
+            {
+              error: `Not enough capacity to invite this waitlist entry. Only ${fresh?.capacityRemaining ?? 0} spot(s) remaining, but ${spotsNeeded} needed.`,
+              capacityRemaining: fresh?.capacityRemaining ?? 0,
+              spotsNeeded,
+              canOverride: true,
+            },
+            { status: 409 }
+          )
+        }
+        reservationCreated = true
+      }
+    }
+
+    // Option-level reservation: if the entry has a preferred housing type or
+    // day pass option, decrement that pool too so a walk-in for that specific
+    // option can't eat the seat during the 48h window.
+    // Rollback the event-level reservation if the option pool is short and
+    // override isn't set — otherwise the two reservations get out of sync.
+    let reservedHousingType: HousingType | null = null
+    let reservedRoomType: RoomType | null = null
+    let reservedDayPassOptionId: string | null = null
+
+    // Counter-offer overrides — reserve for the OFFERED options (if any),
+    // otherwise for what the entry asked for. Falls back to entry values
+    // for anything the offer didn't touch.
+    const preferredHousingType: HousingType | null =
+      offer && 'preferredHousingType' in offer
+        ? ((offer.preferredHousingType as HousingType | null) ?? null)
+        : ((entry.preferredHousingType as HousingType | null) ?? null)
+    const preferredRoomType: RoomType | null =
+      offer && 'preferredRoomType' in offer
+        ? ((offer.preferredRoomType as RoomType | null) ?? null)
+        : ((entry.preferredRoomType as RoomType | null) ?? null)
+    const preferredDayPassOptionId: string | null =
+      offer && 'preferredDayPassOptionId' in offer
+        ? (offer.preferredDayPassOptionId ?? null)
+        : (entry.preferredDayPassOptionId ?? null)
+
+    if (preferredHousingType && entry.event.settings) {
+      const optionCheck = checkOptionCapacity(
+        entry.event.settings,
+        preferredHousingType,
+        preferredRoomType,
+        spotsNeeded
+      )
+      if (!optionCheck.hasCapacity && !override) {
+        // Roll back event-level reservation so we don't leak seats.
+        if (reservationCreated) {
+          await prisma.$executeRaw`
+            UPDATE events
+            SET capacity_remaining = capacity_remaining + ${spotsNeeded}
+            WHERE id = ${entry.event.id}::uuid
+          `
+        }
+        return NextResponse.json(
+          {
+            error: optionCheck.error || 'Not enough option capacity for this waitlist entry.',
+            housingRemaining: optionCheck.housingRemaining,
+            roomRemaining: optionCheck.roomRemaining,
+            spotsNeeded,
+            canOverride: true,
+          },
+          { status: 409 }
+        )
+      }
+      // Decrement the option pool. Override path may take it negative.
+      await decrementOptionCapacity(entry.event.id, preferredHousingType, preferredRoomType, spotsNeeded)
+      reservedHousingType = preferredHousingType
+      reservedRoomType = preferredRoomType
+    }
+
+    if (preferredDayPassOptionId) {
+      const dpCheck = await checkDayPassOptionCapacity(preferredDayPassOptionId, spotsNeeded)
+      if (!dpCheck.hasCapacity && !override) {
+        if (reservationCreated) {
+          await prisma.$executeRaw`
+            UPDATE events
+            SET capacity_remaining = capacity_remaining + ${spotsNeeded}
+            WHERE id = ${entry.event.id}::uuid
+          `
+        }
+        if (reservedHousingType) {
+          const { incrementOptionCapacity } = await import('@/lib/option-capacity')
+          await incrementOptionCapacity(entry.event.id, reservedHousingType, reservedRoomType, spotsNeeded)
+        }
+        return NextResponse.json(
+          {
+            error: dpCheck.error || 'Not enough day pass capacity for this waitlist entry.',
+            dayPassRemaining: dpCheck.remaining,
+            spotsNeeded,
+            canOverride: true,
+          },
+          { status: 409 }
+        )
+      }
+      await decrementDayPassOptionCapacity(preferredDayPassOptionId, spotsNeeded)
+      reservedDayPassOptionId = preferredDayPassOptionId
+    }
+
+    // Update entry status to contacted with token.
+    // Only stamp override fields when the override actually mattered — an invite
+    // that fit within capacity shouldn't look like a forced one, even if override:true was sent.
+    // Always store the reserved-mix values for group entries so the invitee
+    // page and the registration match know what was actually offered.
+    const isGroup = entry.registrationType === 'group'
     const updatedEntry = await prisma.waitlistEntry.update({
       where: { id: entryId },
       data: {
@@ -104,13 +358,78 @@ export async function POST(
         notifiedAt: new Date(),
         registrationToken,
         invitationExpires,
+        ...(reservationCreated ? { reservedSpots: spotsNeeded } : {}),
+        ...(reservedHousingType ? { reservedHousingType } : {}),
+        ...(reservedRoomType ? { reservedRoomType } : {}),
+        ...(reservedDayPassOptionId ? { reservedDayPassOptionId } : {}),
+        ...(isGroup
+          ? {
+              reservedYouthCount: offeredYouth,
+              reservedChaperoneCount: offeredChaperone,
+              reservedPriestCount: offeredPriest,
+            }
+          : {}),
+        ...(capacityShort && override
+          ? {
+              overriddenBy: user.id,
+              overriddenAt: new Date(),
+              overrideReason,
+            }
+          : {}),
       },
     })
 
-    // Send invitation email with token URL
+    if (capacityShort && override) {
+      console.log(
+        `[Waitlist] Capacity override used: entry=${entryId} by=${user.id} spotsNeeded=${spotsNeeded} remaining=${eventCapacity!.capacityRemaining} reason="${overrideReason}"`
+      )
+    }
+
+    // Send invitation email with token URL. Feed BOTH what was reserved
+    // (offered) and what the person originally requested — the template
+    // shows a comparison when they differ (counter-offer case) so the
+    // invitee isn't surprised at the registration form.
     const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
     const registrationUrl = `${APP_URL}/waitlist/register/${registrationToken}`
     let emailSent = false
+
+    // Resolve day-pass option names for the email copy (offered + requested).
+    const dayPassIdsToLookup = Array.from(
+      new Set(
+        [reservedDayPassOptionId, entry.preferredDayPassOptionId].filter(
+          (v): v is string => !!v
+        )
+      )
+    )
+    const dayPassNameById = new Map<string, string>()
+    if (dayPassIdsToLookup.length > 0) {
+      const dpOptions = await prisma.dayPassOption.findMany({
+        where: { id: { in: dayPassIdsToLookup } },
+        select: { id: true, name: true },
+      })
+      for (const dp of dpOptions) dayPassNameById.set(dp.id, dp.name)
+    }
+
+    const housingLabel = (h: HousingType | null): string | null =>
+      h === 'on_campus'
+        ? 'On-Campus'
+        : h === 'off_campus'
+        ? 'Off-Campus'
+        : h === 'day_pass'
+        ? 'Day Pass'
+        : null
+
+    // If admin used the counter-offer path the reserved values differ from
+    // preferred — surface that in the email.
+    const isCounterOffer =
+      spotsNeeded !== entry.partySize ||
+      offeredYouth !== (entry.youthCount ?? 0) ||
+      offeredChaperone !== (entry.chaperoneCount ?? 0) ||
+      offeredPriest !== (entry.priestCount ?? 0) ||
+      (reservedHousingType ?? null) !==
+        ((entry.preferredHousingType as HousingType | null) ?? null) ||
+      (reservedDayPassOptionId ?? null) !==
+        (entry.preferredDayPassOptionId ?? null)
 
     try {
       const emailHtml = generateWaitlistInvitationEmail({
@@ -120,11 +439,29 @@ export async function POST(
         organizationName: entry.event.organization.name,
         registrationUrl,
         expiresIn: '48 hours',
+        offeredPartySize: spotsNeeded,
+        offeredYouth: entry.registrationType === 'group' ? offeredYouth : null,
+        offeredChaperones:
+          entry.registrationType === 'group' ? offeredChaperone : null,
+        offeredPriests:
+          entry.registrationType === 'group' ? offeredPriest : null,
+        offeredHousingLabel: housingLabel(reservedHousingType),
+        offeredDayPassName: reservedDayPassOptionId
+          ? dayPassNameById.get(reservedDayPassOptionId) ?? null
+          : null,
+        requestedPartySize: entry.partySize,
+        requestedHousingLabel: housingLabel(
+          (entry.preferredHousingType as HousingType | null) ?? null
+        ),
+        requestedDayPassName: entry.preferredDayPassOptionId
+          ? dayPassNameById.get(entry.preferredDayPassOptionId) ?? null
+          : null,
+        isCounterOffer,
       })
 
       await resend.emails.send({
         from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-        reply_to: 'support@chirhoevents.com',
+        reply_to: resolveReplyTo(entry.event.settings, entry.event.organization),
         to: entry.email,
         subject: `A Spot is Available! - ${entry.event.name}`,
         html: emailHtml,

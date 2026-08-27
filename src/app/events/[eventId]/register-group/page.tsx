@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -82,7 +82,9 @@ interface EventData {
 export default function GroupRegistrationPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const eventId = params.eventId as string
+  const waitlistToken = searchParams?.get('waitlist') || ''
 
   // Queue management
   const {
@@ -468,6 +470,18 @@ export default function GroupRegistrationPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Group registrations must include both an adult supervisor (chaperone or
+    // priest) and at least one youth. Stops solo and adult-only signups from
+    // coming through the group flow.
+    const hasAdultSupervisor = formData.chaperoneCount >= 1 || formData.priestCount >= 1
+    const hasYouth = formData.youthCount >= 1
+    if (!hasAdultSupervisor || !hasYouth) {
+      alert(
+        'Group registrations must include at least one youth and at least one chaperone or priest. If you are registering only one person, please use the individual registration option.'
+      )
+      return
+    }
+
     // Validate capacity before proceeding
     const capacityCheck = validateCapacity()
     if (!capacityCheck.valid && capacityCheck.error) {
@@ -502,6 +516,7 @@ export default function GroupRegistrationPage() {
       housingType: event?.isOneDayEvent ? '' : formData.housingType,
       specialRequests: formData.specialRequests,
       couponCode: formData.couponCode,
+      ...(waitlistToken ? { waitlist: waitlistToken } : {}),
     })
 
     // Persist custom answers so the review page can include them
@@ -530,8 +545,10 @@ export default function GroupRegistrationPage() {
     )
   }
 
-  // Check if registration is not open
-  if (event && event.isRegistrationOpen === false) {
+  // Check if registration is not open — but skip this gate when the visitor
+  // is arriving with a valid waitlist token. Their invitation IS the bypass;
+  // the API-level token check still enforces validity + expiry + option match.
+  if (event && event.isRegistrationOpen === false && !waitlistToken) {
     const now = new Date()
     const openDate = event.registrationOpenDate ? new Date(event.registrationOpenDate) : null
     const closeDate = event.registrationCloseDate ? new Date(event.registrationCloseDate) : null
@@ -1347,7 +1364,7 @@ export default function GroupRegistrationPage() {
                     </div>
 
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Deposit Due Now:</span>
+                      <span className="text-gray-600">Deposit Amount:</span>
                       <span className="font-semibold text-gold">${pricing.deposit.toFixed(2)}</span>
                     </div>
 
@@ -1355,20 +1372,6 @@ export default function GroupRegistrationPage() {
                       <span className="text-gray-600">Balance Remaining:</span>
                       <span className="text-gray-900">${pricing.balance.toFixed(2)}</span>
                     </div>
-                  </div>
-
-                  <div className="bg-beige p-4 rounded-md text-sm">
-                    <p className="text-gray-600">
-                      {event?.pricing.requireFullPayment
-                        ? '✓ Full payment due now'
-                        : pricing.deposit > 0
-                          ? `✓ Pay $${pricing.deposit.toFixed(2)} deposit now`
-                          : '✓ No deposit required'}<br />
-                      {!event?.pricing.requireFullPayment && pricing.balance > 0 && (
-                        <>✓ Balance due before event<br /></>
-                      )}
-                      ✓ Secure payment via Stripe
-                    </p>
                   </div>
                 </CardContent>
               </Card>

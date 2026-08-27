@@ -6,6 +6,7 @@ import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import Stripe from 'stripe'
 import { Resend } from 'resend'
 import { generateVirtualTerminalReceipt } from '@/lib/email-templates'
+import { calculatePlatformFeeCents } from '@/lib/stripe-fees'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -203,9 +204,10 @@ export async function POST(request: Request) {
         const cardBrand = originalPm.card?.brand || ''
         const cardLast4 = originalPm.card?.last4 || ''
 
-        // Calculate platform fee (default 1%)
+        // Calculate platform fee — includes Stripe processing fee passthrough so the
+        // platform nets its configured margin instead of going negative on every charge.
         const platformFeePercentage = Number(org.platformFeePercentage) || 1
-        const platformFeeAmountCents = Math.round(amountCents * (platformFeePercentage / 100))
+        const platformFeeAmountCents = calculatePlatformFeeCents(amountCents, platformFeePercentage)
 
         // Create PaymentIntent on platform with transfer to connected account
         const paymentIntent = await stripe.paymentIntents.create({
@@ -225,6 +227,9 @@ export async function POST(request: Request) {
           },
           // Platform fee goes to ChiRho Events
           application_fee_amount: platformFeeAmountCents,
+          // on_behalf_of makes the connected account the merchant of record so Stripe's
+          // processing fees (2.9% + $0.30) are deducted from their share, not the platform's.
+          on_behalf_of: org.stripeAccountId,
           // Use destination charges - funds go to connected account
           transfer_data: {
             destination: org.stripeAccountId

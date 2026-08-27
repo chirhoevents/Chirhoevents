@@ -65,6 +65,15 @@ interface EventStats {
   balance: number
 }
 
+interface WaitlistSummary {
+  pending: number
+  contacted: number
+  headcountWaiting: number
+  byHousingType: { on_campus: number; off_campus: number; day_pass: number; unspecified: number }
+  byDayPassOption: Array<{ id: string; name: string; count: number }>
+  byRoomType: Record<string, number>
+}
+
 // NOTE: Auth is handled by the layout with proper retry logic.
 // Server Components using requireAdmin() cause redirect loops in production
 // because Clerk's auth() can fail during initial session hydration.
@@ -77,6 +86,7 @@ export default function EventDetailPage() {
   const [settings, setSettings] = useState<any>(null)
   const [dayPassOptions, setDayPassOptions] = useState<DayPassOption[]>([])
   const [activity, setActivity] = useState<ActivityData | null>(null)
+  const [waitlist, setWaitlist] = useState<WaitlistSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -148,6 +158,9 @@ export default function EventDetailPage() {
 
       // Set activity data
       setActivity(data.activity || null)
+
+      // Set waitlist summary (null when waitlist isn't enabled on the event)
+      setWaitlist(data.waitlist || null)
     } catch (err) {
       console.error('Error fetching event:', err)
       setError('Failed to load event')
@@ -194,6 +207,7 @@ export default function EventDetailPage() {
       settings={settings}
       dayPassOptions={dayPassOptions}
       activity={activity}
+      waitlist={waitlist}
     />
   )
 }

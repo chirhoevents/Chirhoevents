@@ -143,6 +143,7 @@ model User {
   inboundTicketsAssigned InboundSupportTicket[] @relation("InboundTicketsAssignedToUser")
   inboundTicketReplies InboundTicketReply[] @relation("InboundTicketRepliesByUser")
   couponsCreated       Coupon[]
+  surveysCreated       Survey[]
 
   @@index([organizationId], name: "idx_user_org")
   @@index([email], name: "idx_user_email")
@@ -197,6 +198,7 @@ model Event {
   queueSettings             EventQueueSettings?
   registrationQueueEntries  RegistrationQueue[]
   dayPassOptions            DayPassOption[]
+  surveys                   Survey[]
 
   @@index([organizationId], name: "idx_event_org")
   @@index([slug], name: "idx_event_slug")
@@ -533,6 +535,16 @@ model GroupRegistration {
   registeredAt               DateTime @default(now()) @map("registered_at") @db.Timestamptz(6)
   createdAt                  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  // Capacity override audit: set when a manual add proceeds despite insufficient capacity
+  overriddenBy               String?   @map("overridden_by") @db.Uuid
+  overriddenAt               DateTime? @map("overridden_at") @db.Timestamptz(6)
+  overrideReason             String?   @map("override_reason") @db.Text
+  // Cancellation (soft-delete). cancelledAt IS NULL = active registration.
+  // Cancelled rows are kept for payment / liability form / audit history but
+  // are excluded from bulk email, default registration lists, and reports.
+  cancelledAt                DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelledByUserId          String?   @map("cancelled_by_user_id") @db.Uuid
+  cancellationReason         String?   @map("cancellation_reason") @db.Text
 
   // Relations
   event          Event           @relation(fields: [eventId], references: [id])
@@ -544,6 +556,7 @@ model GroupRegistration {
   liabilityForms LiabilityForm[]
   userPreferences UserPreferences[]
   allocatedRooms Room[]          @relation("RoomsAllocatedToGroup")
+  surveyRecipients SurveyRecipient[]
 
   @@index([eventId], name: "idx_group_event")
   @@index([organizationId], name: "idx_group_org")
@@ -597,12 +610,21 @@ model IndividualRegistration {
   checkedInBy               String?  @map("checked_in_by") @db.Uuid
   checkInStation            String?  @map("check_in_station") @db.VarChar(100)
   checkInNotes              String?  @map("check_in_notes") @db.Text
+  // Capacity override audit: set when a manual add proceeds despite insufficient capacity
+  overriddenBy              String?  @map("overridden_by") @db.Uuid
+  overriddenAt              DateTime? @map("overridden_at") @db.Timestamptz(6)
+  overrideReason            String?  @map("override_reason") @db.Text
+  // Cancellation (soft-delete). cancelledAt IS NULL = active registration.
+  cancelledAt               DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelledByUserId         String?   @map("cancelled_by_user_id") @db.Uuid
+  cancellationReason        String?   @map("cancellation_reason") @db.Text
 
   // Relations
   event         Event        @relation(fields: [eventId], references: [id])
   organization  Organization @relation(fields: [organizationId], references: [id])
   dayPassOption DayPassOption? @relation(fields: [dayPassOptionId], references: [id])
   liabilityForms LiabilityForm[]
+  surveyRecipients SurveyRecipient[]
 
   @@index([confirmationCode], name: "idx_individual_confirmation_code")
   @@index([checkedIn], name: "idx_individual_checked_in")
@@ -645,6 +667,7 @@ model Participant {
   liabilityForms    LiabilityForm[]
   safeEnvironmentCertificates SafeEnvironmentCertificate[]
   lettersOfGoodStanding LetterOfGoodStanding[]
+  surveyRecipients  SurveyRecipient[]
 
   @@index([groupRegistrationId], name: "idx_participant_group")
   @@index([participantType], name: "idx_participant_type")
@@ -738,6 +761,7 @@ model LiabilityForm {
   participantPreferredName  String?  @map("participant_preferred_name") @db.VarChar(255)
   participantAge            Int?     @map("participant_age")
   participantGender         Gender?  @map("participant_gender")
+  dateOfBirth               DateTime? @map("date_of_birth") @db.Date
   participantEmail          String?  @map("participant_email") @db.VarChar(255)
   participantPhone          String?  @map("participant_phone") @db.VarChar(20)
   tShirtSize                String?  @map("t_shirt_size") @db.VarChar(10)
@@ -789,6 +813,7 @@ model LiabilityForm {
   individualRegistration IndividualRegistration? @relation(fields: [individualRegistrationId], references: [id])
   safeEnvironmentCertificates SafeEnvironmentCertificate[]
   staffRegistrations     StaffRegistration[]
+  vendorRegistrations    VendorRegistration[] @relation("VendorLiabilityForm")
   lettersOfGoodStanding  LetterOfGoodStanding[]
 
   @@index([organizationId], name: "idx_liability_org")
@@ -1307,6 +1332,159 @@ model CustomRegistrationAnswer {
 }
 
 // ===================================
+// POST-EVENT SURVEYS
+// ===================================
+
+enum SurveyStatus {
+  draft
+  active
+  closed
+}
+
+enum SurveyQuestionType {
+  text
+  yes_no
+  multiple_choice
+  multi_select
+  scale
+}
+
+enum SurveyRecipientType {
+  participant
+  group_leader
+  // Manually added by an admin: a vendor, staff member, test send, or
+  // anyone else not pulled from an existing registration record.
+  manual
+}
+
+model Survey {
+  id                 String   @id @default(uuid()) @db.Uuid
+  eventId            String   @map("event_id") @db.Uuid
+  title              String   @db.VarChar(255)
+  description        String?  @db.Text
+  status             SurveyStatus @default(draft)
+  // Audience: either or both may be enabled. Group leaders speak for their
+  // whole group (relevant when many participants are minors without their
+  // own email); participants who do have an email can also be reached
+  // directly.
+  sendToParticipants Boolean  @default(true) @map("send_to_participants")
+  sendToGroupLeaders Boolean  @default(true) @map("send_to_group_leaders")
+  // Anonymous surveys still track SurveyRecipient completion (so reminders
+  // work), but the results views must never join recipient identity back
+  // onto answers when this is true.
+  isAnonymous        Boolean  @default(false) @map("is_anonymous")
+  // Non-personalized link anyone can use (vendors, flyers, QR codes, a
+  // quick "just grab a link"). Submissions via this token aren't tied to
+  // a SurveyRecipient, so they're always anonymous and never remindable.
+  publicToken        String?  @unique @map("public_token") @db.VarChar(255)
+  closesAt           DateTime? @map("closes_at") @db.Timestamptz(6)
+  createdBy          String   @map("created_by") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  event      Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  creator    User              @relation(fields: [createdBy], references: [id])
+  questions  SurveyQuestion[]
+  recipients SurveyRecipient[]
+  responses  SurveyResponse[]
+
+  @@index([eventId], name: "idx_survey_event")
+  @@map("surveys")
+}
+
+model SurveyQuestion {
+  id            String   @id @default(uuid()) @db.Uuid
+  surveyId      String   @map("survey_id") @db.Uuid
+  questionText  String   @map("question_text") @db.Text
+  questionType  SurveyQuestionType @map("question_type")
+  // string[] for multiple_choice / multi_select
+  options       Json?
+  scaleMin      Int?     @map("scale_min")
+  scaleMax      Int?     @map("scale_max")
+  scaleMinLabel String?  @map("scale_min_label") @db.VarChar(100)
+  scaleMaxLabel String?  @map("scale_max_label") @db.VarChar(100)
+  required      Boolean  @default(false)
+  displayOrder  Int      @default(0) @map("display_order")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  survey  Survey         @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  answers SurveyAnswer[]
+
+  @@index([surveyId], name: "idx_survey_question_survey")
+  @@map("survey_questions")
+}
+
+model SurveyRecipient {
+  id                       String   @id @default(uuid()) @db.Uuid
+  surveyId                 String   @map("survey_id") @db.Uuid
+  recipientType            SurveyRecipientType @map("recipient_type")
+  participantId            String?  @map("participant_id") @db.Uuid
+  groupRegistrationId      String?  @map("group_registration_id") @db.Uuid
+  individualRegistrationId String?  @map("individual_registration_id") @db.Uuid
+  name                     String?  @db.VarChar(255)
+  email                    String   @db.VarChar(255)
+  token                    String   @unique @db.VarChar(255)
+  tokenExpiresAt           DateTime? @map("token_expires_at") @db.Timestamptz(6)
+  sentAt                   DateTime? @map("sent_at") @db.Timestamptz(6)
+  remindersSentCount       Int      @default(0) @map("reminders_sent_count")
+  lastReminderAt           DateTime? @map("last_reminder_at") @db.Timestamptz(6)
+  respondedAt              DateTime? @map("responded_at") @db.Timestamptz(6)
+  // A "send test" recipient -- gets a real working link, but is excluded
+  // from recipient/response counts and the results dashboard.
+  isTest                   Boolean  @default(false) @map("is_test")
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  survey                 Survey                  @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  participant             Participant?            @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  groupRegistration       GroupRegistration?      @relation(fields: [groupRegistrationId], references: [id], onDelete: Cascade)
+  individualRegistration  IndividualRegistration? @relation(fields: [individualRegistrationId], references: [id], onDelete: Cascade)
+  response                SurveyResponse?
+
+  @@index([surveyId], name: "idx_survey_recipient_survey")
+  @@index([participantId], name: "idx_survey_recipient_participant")
+  @@index([groupRegistrationId], name: "idx_survey_recipient_group")
+  @@index([individualRegistrationId], name: "idx_survey_recipient_individual")
+  @@map("survey_recipients")
+}
+
+model SurveyResponse {
+  id          String   @id @default(uuid()) @db.Uuid
+  surveyId    String   @map("survey_id") @db.Uuid
+  recipientId String?  @unique @map("recipient_id") @db.Uuid
+  submittedAt DateTime @default(now()) @map("submitted_at") @db.Timestamptz(6)
+
+  // Relations
+  survey    Survey           @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  recipient SurveyRecipient? @relation(fields: [recipientId], references: [id], onDelete: SetNull)
+  answers   SurveyAnswer[]
+
+  @@index([surveyId], name: "idx_survey_response_survey")
+  @@map("survey_responses")
+}
+
+model SurveyAnswer {
+  id         String   @id @default(uuid()) @db.Uuid
+  responseId String   @map("response_id") @db.Uuid
+  questionId String   @map("question_id") @db.Uuid
+  // Free text, a numeric string for `scale`, or a JSON-stringified string[]
+  // for `multi_select` (mirrors CustomRegistrationAnswer's convention).
+  answerText String?  @map("answer_text") @db.Text
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  response SurveyResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  question SurveyQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([responseId], name: "idx_survey_answer_response")
+  @@index([questionId], name: "idx_survey_answer_question")
+  @@map("survey_answers")
+}
+
+// ===================================
 // WAITLIST TABLES
 // ===================================
 
@@ -1325,12 +1503,41 @@ model WaitlistEntry {
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  // Capacity override audit: set when an admin sends the invite despite insufficient capacity
+  overriddenBy        String?   @map("overridden_by") @db.Uuid
+  overriddenAt        DateTime? @map("overridden_at") @db.Timestamptz(6)
+  overrideReason      String?   @map("override_reason") @db.Text
+
+  // Seat hold: how many event.capacityRemaining spots this 'contacted' entry is holding.
+  // NULL = no reservation. Restored on expiry / move-back-to-pending / delete.
+  reservedSpots       Int?      @map("reserved_spots")
+  // Which option pool the reservation drew from — the source of truth for
+  // restoration. Preferred_* fields describe intent; reserved_* describe what
+  // we actually decremented so restore is bulletproof.
+  reservedHousingType     HousingType? @map("reserved_housing_type")
+  reservedRoomType        RoomType?    @map("reserved_room_type")
+  reservedDayPassOptionId String?      @map("reserved_day_pass_option_id") @db.Uuid
+
+  // For group entries: the mix the admin actually offered. Matches
+  // youth_count/chaperone_count/priest_count on the entry when the admin
+  // sends a normal invite; can differ when the admin sends a counter-offer
+  // (e.g. entry asked for 60 total, admin offers 40).
+  reservedYouthCount      Int?         @map("reserved_youth_count")
+  reservedChaperoneCount  Int?         @map("reserved_chaperone_count")
+  reservedPriestCount     Int?         @map("reserved_priest_count")
+
   // Option preferences - what type of registration/housing they want
   registrationType         RegistrationType? @map("registration_type")
   preferredTicketType      TicketType? @map("preferred_ticket_type")
   preferredDayPassOptionId String? @map("preferred_day_pass_option_id") @db.Uuid
   preferredHousingType     HousingType? @map("preferred_housing_type")
   preferredRoomType        RoomType? @map("preferred_room_type")
+
+  // Participant breakdown for group waitlist entries. Sum should equal
+  // partySize. NULL on individual entries (partySize=1 is the whole story).
+  youthCount     Int? @map("youth_count")
+  chaperoneCount Int? @map("chaperone_count")
+  priestCount    Int? @map("priest_count")
 
   // Relations
   event         Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
@@ -2596,12 +2803,23 @@ model VendorRegistration {
   // Portal Access Code
   accessCode          String   @unique @map("access_code") @db.VarChar(50)
 
+  // Liability Form (issued at approval when the event requires forms)
+  porosAccessCode     String?  @unique @map("poros_access_code") @db.VarChar(50)
+  liabilityFormId     String?  @map("liability_form_id") @db.Uuid
+
+  // Safe Environment certificate (admin-uploaded on behalf of the vendor
+  // contact, typically after they email the file to the org support address)
+  safeEnvironmentCertUrl          String?   @map("safe_environment_cert_url") @db.Text
+  safeEnvironmentCertUploadedAt   DateTime? @map("safe_environment_cert_uploaded_at") @db.Timestamptz(6)
+  safeEnvironmentCertUploadedById String?   @map("safe_environment_cert_uploaded_by_id") @db.Uuid
+
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   // Relations
   event               Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   boothStaff          StaffRegistration[]
+  liabilityForm       LiabilityForm? @relation("VendorLiabilityForm", fields: [liabilityFormId], references: [id], onDelete: SetNull)
 
   @@index([eventId], name: "idx_vendor_reg_event")
   @@index([organizationId], name: "idx_vendor_reg_org")
@@ -2642,6 +2860,12 @@ model StaffRegistration {
   // Poros Integration (liability forms)
   porosAccessCode     String?  @unique @map("poros_access_code") @db.VarChar(50)
   liabilityFormId     String?  @map("liability_form_id") @db.Uuid
+
+  // Safe Environment certificate (admin-uploaded on behalf of the staffer,
+  // typically after they email the file to the org support address)
+  safeEnvironmentCertUrl          String?   @map("safe_environment_cert_url") @db.Text
+  safeEnvironmentCertUploadedAt   DateTime? @map("safe_environment_cert_uploaded_at") @db.Timestamptz(6)
+  safeEnvironmentCertUploadedById String?   @map("safe_environment_cert_uploaded_by_id") @db.Uuid
 
   // Check-in fields (SALVE integration)
   checkedIn           Boolean  @default(false) @map("checked_in")

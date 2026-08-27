@@ -35,6 +35,7 @@ const docSections = [
       { id: "coupon-codes", title: "Coupon & Discount Codes" },
       { id: "manage-registrations", title: "Managing Registrations & Payments" },
       { id: "email-participants", title: "Emailing Participants" },
+      { id: "surveys", title: "Post-Event Surveys" },
       { id: "virtual-terminal", title: "Virtual Terminal (Phone Payments)" },
       { id: "staff-volunteer", title: "Staff & Volunteer Registration" },
       { id: "liability-individual", title: "Liability Forms for Individuals" },
@@ -67,6 +68,7 @@ const docSections = [
       { id: "portal-settings", title: "Portal Settings & Linked Events" },
       { id: "safe-environment", title: "Safe Environment Requirements" },
       { id: "checkin-process", title: "Check-In Process" },
+      { id: "waitlist-group", title: "Joining the Waitlist as a Group" },
     ]
   },
   {
@@ -78,6 +80,7 @@ const docSections = [
       { id: "payment-options", title: "Payment Options" },
       { id: "completing-forms", title: "Completing Liability Forms" },
       { id: "event-checkin", title: "What to Expect at Check-In" },
+      { id: "waitlist-individual", title: "Joining the Waitlist as an Individual" },
     ]
   },
   {
@@ -141,7 +144,7 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           </li>
           <li>
             <strong>Complete setup</strong>
-            <p className="ml-6 mt-1">Once approved, you&apos;ll receive an invoice for your tier&apos;s one-time access or setup fee and your first subscription payment.</p>
+            <p className="ml-6 mt-1">Once approved, you&apos;ll receive an invoice for your plan&apos;s setup fee and your first subscription payment.</p>
           </li>
           <li>
             <strong>Start creating events</strong>
@@ -167,21 +170,21 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
               </tr>
             </thead>
             <tbody>
-              <tr><td className="border p-3">Chapel</td><td className="border p-3">$39/mo</td><td className="border p-3">3</td><td className="border p-3">500</td></tr>
-              <tr><td className="border p-3">Parish</td><td className="border p-3">$59/mo</td><td className="border p-3">5</td><td className="border p-3">1,000</td></tr>
-              <tr><td className="border p-3">Cathedral</td><td className="border p-3">$109/mo (or $1,080/yr)</td><td className="border p-3">10</td><td className="border p-3">2,000</td></tr>
-              <tr><td className="border p-3">Shrine</td><td className="border p-3">$159/mo (or $1,908/yr)</td><td className="border p-3">20</td><td className="border p-3">4,000</td></tr>
-              <tr><td className="border p-3">Basilica</td><td className="border p-3">Starting at $15,000/yr</td><td className="border p-3">Unlimited</td><td className="border p-3">10,000+</td></tr>
+              <tr><td className="border p-3">Chapel</td><td className="border p-3">$39/mo</td><td className="border p-3">1</td><td className="border p-3">500</td></tr>
+              <tr><td className="border p-3">Parish</td><td className="border p-3">$59/mo</td><td className="border p-3">3</td><td className="border p-3">750</td></tr>
+              <tr><td className="border p-3">Cathedral</td><td className="border p-3">$150/mo</td><td className="border p-3">5</td><td className="border p-3">1,250</td></tr>
+              <tr><td className="border p-3">Shrine</td><td className="border p-3">$200/mo</td><td className="border p-3">10</td><td className="border p-3">3,000</td></tr>
+              <tr><td className="border p-3">Basilica</td><td className="border p-3">Starting at $5,000/yr</td><td className="border p-3">Unlimited</td><td className="border p-3">Custom</td></tr>
             </tbody>
           </table>
         </div>
         <p className="mt-4">
-          <strong>One-time access or setup fees:</strong> Chapel $99, Parish $199 (Basic Access — self-serve only),
-          Cathedral $349, Shrine $499 (includes onboarding), Basilica custom.
-        </p>
-        <p className="mt-2">
-          <strong>Additional fees:</strong> Stripe processing (2.9% + $0.30 per transaction)
-          and 1% ChiRho platform fee apply to each registration.
+          <strong>Additional fees:</strong> A one-time setup fee that varies by plan
+          (Chapel & Parish: $50, Cathedral: $250, Shrine: $400, Basilica: custom),
+          Stripe processing (2.9% + $0.30 per transaction), and 1% ChiRho platform fee.
+          Cathedral and Shrine plans include a 1-hour onboarding phone call;
+          Chapel and Parish are self-serve. Extra help, training, or custom setup work
+          is available for any plan at <strong>$90/hour</strong>.
         </p>
       </div>
     )
@@ -198,13 +201,13 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
         <h3 className="text-xl font-semibold text-navy mt-6">Step 1 — Access or Setup Fee</h3>
         <p>
           After your onboarding request is approved, you will receive an email with a link to pay
-          your tier&apos;s <strong>one-time access or setup fee</strong>. Chapel ($99) and Parish ($199)
-          are self-serve <em>Basic Access Fees</em> — no onboarding included. Cathedral ($349) and
-          Shrine ($499) <em>Setup Fees</em> include onboarding and configuration assistance.
-          Basilica setup is custom.
+          a one-time setup fee. The amount depends on your plan: <strong>$50</strong> for
+          Chapel/Parish (basic access fee, self-serve), <strong>$250</strong> for Cathedral,
+          <strong> $400</strong> for Shrine (both include a 1-hour onboarding phone call), and
+          custom pricing for Basilica.
         </p>
         <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
-          <li>Click the <strong>Pay</strong> button in your approval email</li>
+          <li>Click the <strong>Pay Setup Fee</strong> link in your approval email</li>
           <li>You are taken to a secure Stripe-hosted payment page</li>
           <li>Enter your credit or debit card details</li>
           <li>Once paid, your card is saved on file for future subscription charges</li>
@@ -289,9 +292,9 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
 
         <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mt-4">
           <p className="text-sm">
-            <strong>Example:</strong> You are on the Parish plan ($59/mo) and upgrade to Cathedral ($109/mo)
+            <strong>Example:</strong> You are on the Parish plan ($59/mo) and upgrade to Cathedral ($150/mo)
             halfway through your billing cycle. Stripe credits you ~$29.50 for the unused Parish days and
-            charges ~$54.50 for the remaining Cathedral days. Your next full month will be billed at $109.
+            charges ~$75 for the remaining Cathedral days. Your next full month will be billed at $150.
           </p>
         </div>
 
@@ -623,6 +626,84 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           <strong>To complete a form:</strong> Click the unique link provided by your group leader
           or access the Poros portal directly. Fill out all required fields and sign electronically.
         </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-8">How the Youth Under 18 Form Works (Two-Part Flow)</h3>
+        <p>
+          The Youth Under 18 form is split across two people. The youth (or whoever is registering
+          them) fills out <strong>Part 1</strong> with basic info, and a parent or guardian fills
+          out <strong>Part 2</strong> with medical, emergency, insurance, and signature information.
+        </p>
+
+        <div className="mt-4 space-y-4">
+          <div className="border-l-4 border-gold pl-4">
+            <h4 className="font-semibold text-navy">Part 1 — Youth Info + Parent Email</h4>
+            <p className="text-sm text-gray-600 mt-1">
+              Includes first &amp; last name, preferred name, date of birth, age (12–17), gender,
+              t-shirt size, and the parent/guardian email address. As soon as Part 1 is submitted,
+              a form record is <strong>saved to the database</strong> (marked incomplete) and an
+              email is sent to the parent with a secure link to finish the form.
+            </p>
+          </div>
+          <div className="border-l-4 border-gold pl-4">
+            <h4 className="font-semibold text-navy">Part 2 — Parent Portion</h4>
+            <p className="text-sm text-gray-600 mt-1">
+              Medical conditions, medications, allergies, dietary restrictions, ADA accommodations,
+              up to two emergency contacts, insurance details, and the parent&apos;s electronic
+              signature. Part 2 is <strong>not saved on the server until the parent hits submit</strong> —
+              anything they type into the form only lives in their browser until then. When they
+              submit, the same form record is updated to <em>completed</em>, a Participant record is
+              created, and confirmation emails go to both the parent and the group leader.
+            </p>
+          </div>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">What Happens If the Parent Never Finishes</h3>
+        <p>
+          The Part 1 record stays in the database — <strong>nothing is auto-deleted</strong>, even
+          after the link expires. That means the youth&apos;s info is not lost if the parent
+          doesn&apos;t respond right away, and the form can always be revived.
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>
+            <strong>Parent link expires after 7 days</strong> from the moment Part 1 was submitted.
+            After that, opening the link shows a &quot;This link has expired — please contact your
+            group leader to resend the form&quot; message.
+          </li>
+          <li>
+            <strong>Wrong or mistyped email addresses aren&apos;t detected automatically.</strong>{" "}
+            If the email address was invalid or landed in someone else&apos;s inbox, nothing in the
+            app will surface a bounce — the form simply stays in the incomplete state until someone
+            resends it.
+          </li>
+          <li>
+            <strong>Nothing shows up on check-in until Part 2 is done.</strong> The participant
+            won&apos;t have a QR code, medical info, or a signed liability form until the parent
+            submits Part 2.
+          </li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Resending the Parent Link</h3>
+        <p>
+          As a group leader, you can send a fresh email at any time from the{" "}
+          <strong>Liability Forms</strong> tab of your leader portal:
+        </p>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Find the participant with the outstanding form</li>
+          <li>Click <strong>Resend Email</strong> and enter the correct parent email address</li>
+          <li>The parent receives a new link that&apos;s valid for <strong>30 days</strong></li>
+        </ol>
+        <p className="mt-2 text-sm text-gray-500">
+          You can also send bulk reminders from the same tab to everyone whose Youth Under 18
+          form is still incomplete.
+        </p>
+
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mt-6">
+          <p className="text-sm">
+            <strong>Good to know:</strong> Because the form record is preserved, resending after
+            fixing a typo in the parent&apos;s email doesn&apos;t create a duplicate — the parent
+            just gets a working link to the same form that was already started.
+          </p>
+        </div>
       </div>
     )
   },
@@ -2095,12 +2176,17 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           If you&apos;re under 18, a parent or guardian must also complete parts of your form:
         </p>
         <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
-          <li>You fill out your personal information</li>
-          <li>Your parent/guardian receives an email to complete their section</li>
-          <li>They provide consent for medical treatment, photo release, etc.</li>
-          <li>They sign electronically</li>
-          <li>Once both sections are complete, your form is submitted</li>
+          <li>You fill out your personal information (Part 1) and enter your parent&apos;s email</li>
+          <li>Your info is saved right away — an email goes to your parent with a secure link that&apos;s valid for 7 days</li>
+          <li>Your parent/guardian opens the link and fills out medical info, emergency contacts, insurance, and consents (Part 2)</li>
+          <li>They sign electronically and hit submit — only then is Part 2 saved</li>
+          <li>Once both sections are complete, your form is submitted and confirmation emails are sent to your parent and your group leader</li>
         </ol>
+        <p className="mt-2 text-sm text-gray-600">
+          <strong>If your parent doesn&apos;t get the email or the link expires:</strong> your Part 1
+          info is safe — nothing gets deleted. Just contact your group leader and they can send a
+          fresh link (valid for 30 days) to the correct email address.
+        </p>
 
         <h3 className="text-xl font-semibold text-navy mt-6">For Adults (18+)</h3>
         <p>
@@ -2129,7 +2215,8 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           <li><strong>Can&apos;t find form link?</strong> - Check spam folder or contact your group leader</li>
           <li><strong>Form won&apos;t submit?</strong> - Ensure all required fields are filled</li>
           <li><strong>Need to make changes?</strong> - Contact the event organizer</li>
-          <li><strong>Parent email not received?</strong> - Verify email address and resend</li>
+          <li><strong>Parent email not received?</strong> - Check spam first, then ask your group leader to resend to the correct address. Your Part 1 info is already saved, so nothing is lost.</li>
+          <li><strong>Parent link expired?</strong> - The link is valid for 7 days after Part 1 is submitted. Your group leader can send a new one (valid for 30 days) from their portal.</li>
         </ul>
 
         <div className="bg-beige p-4 rounded-lg mt-6">
@@ -2340,55 +2427,347 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
     content: (
       <div className="space-y-4">
         <p>
-          The waitlist system allows interested participants to join a queue when your event reaches
-          capacity. When spots open up, you can invite people from the waitlist to complete their registration.
+          The waitlist lets people put their name down when an event (or a specific
+          option, like on-campus housing) is sold out. When spots open up, you invite
+          people off the waitlist and the system holds their seats until they either
+          register or the invitation expires.
         </p>
 
-        <h3 className="text-xl font-semibold text-navy mt-6">Enabling the Waitlist</h3>
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 my-4">
+          <p className="text-sm">
+            <strong>Big picture:</strong> the waitlist form mirrors your registration
+            form. If you accept group registrations, the waitlist accepts groups
+            (with youth/chaperone/priest counts). If you accept individuals, it
+            accepts individuals. If your event has housing or day-pass options,
+            waitlisters pick which one they want &mdash; and they&apos;ll only be
+            invited when a spot in that specific option opens up.
+          </p>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">1. Enabling the Waitlist</h3>
         <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
           <li>Go to your event&apos;s <strong>Edit</strong> page</li>
           <li>Navigate to <strong>Step 6: Landing Page</strong></li>
-          <li>Find the <strong>Waitlist Settings</strong> section</li>
-          <li>Toggle <strong>Enable Waitlist</strong> on</li>
-          <li>Optionally set a maximum waitlist capacity (leave blank for unlimited)</li>
-          <li>Save your changes</li>
+          <li>Find <strong>Waitlist Settings</strong> and toggle <strong>Enable Waitlist</strong> on</li>
+          <li>Optionally set a <strong>maximum waitlist capacity</strong> (blank = unlimited)</li>
+          <li>Save. That&apos;s it &mdash; the &quot;Join Waitlist&quot; button will appear
+            on the public event page as soon as it&apos;s useful (see &quot;When the
+            button shows&quot; below).</li>
         </ol>
 
-        <h3 className="text-xl font-semibold text-navy mt-6">How the Queue Works</h3>
+        <h3 className="text-xl font-semibold text-navy mt-6">
+          2. When the &quot;Join Waitlist&quot; button shows
+        </h3>
+        <p>The public event page shows the Join Waitlist button in any of these cases:</p>
         <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
-          <li>When event is full, visitors see a &quot;Join Waitlist&quot; button instead of &quot;Register&quot;</li>
-          <li>People provide: name, email, phone, party size, and any preferences</li>
-          <li>They receive a confirmation email with their position in the queue</li>
-          <li>Queue position is first-come, first-served based on join time</li>
+          <li>The whole event is at capacity (0 spots left)</li>
+          <li>Registration has closed by date (past the registration close date)</li>
+          <li>Registration was manually closed by an admin</li>
+          <li>
+            <strong>A specific option is sold out</strong> &mdash; e.g. off-campus
+            housing is full even though on-campus still has room. People wanting the
+            sold-out option can waitlist for that option specifically.
+          </li>
         </ul>
 
-        <h3 className="text-xl font-semibold text-navy mt-6">Managing the Waitlist (Admin)</h3>
-        <p>Access waitlist management from <strong>Event Dashboard &gt; Waitlist</strong>:</p>
-        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
-          <li><strong>View Queue:</strong> See all entries sorted by position with contact info and preferences</li>
-          <li><strong>Contact Person:</strong> Send an invitation email to register (48-hour expiration)</li>
-          <li><strong>Update Status:</strong> Mark entries as pending, contacted, registered, or expired</li>
-          <li><strong>Analytics:</strong> View conversion rates, average wait times, and spots filled</li>
+        <h3 className="text-xl font-semibold text-navy mt-6">
+          3. What the join form asks for
+        </h3>
+        <p>The form only asks what your event actually accepts:</p>
+
+        <h4 className="text-lg font-medium text-navy mt-4">Everyone provides</h4>
+        <ul className="list-disc list-inside space-y-1 text-gray-600 mt-2">
+          <li>Full name, email, phone (optional)</li>
+          <li>Notes (optional &mdash; anything special they want you to know)</li>
         </ul>
 
-        <h3 className="text-xl font-semibold text-navy mt-6">Inviting from Waitlist</h3>
-        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
-          <li>Click <strong>Contact</strong> next to a waitlist entry</li>
-          <li>System generates a secure registration link (valid for 48 hours)</li>
-          <li>Invitation email is sent automatically</li>
-          <li>Entry status changes to &quot;Contacted&quot;</li>
-          <li>When they complete registration, status becomes &quot;Registered&quot;</li>
-          <li>If 48 hours pass without registration, status becomes &quot;Expired&quot;</li>
-        </ol>
+        <h4 className="text-lg font-medium text-navy mt-4">
+          If your event accepts both group and individual
+        </h4>
+        <p className="text-gray-600 mt-2">
+          They pick which one they&apos;re signing up for. If your event only accepts
+          one of the two, that&apos;s selected automatically and they don&apos;t see
+          a picker.
+        </p>
+
+        <h4 className="text-lg font-medium text-navy mt-4">If they pick Group</h4>
+        <p className="text-gray-600 mt-2">
+          They enter the mix: <strong>youth count + chaperone count + priest count</strong>.
+          The party size is calculated from the sum, not typed separately. This matches
+          the group registration form exactly.
+        </p>
+
+        <h4 className="text-lg font-medium text-navy mt-4">If they pick Individual</h4>
+        <p className="text-gray-600 mt-2">
+          Party size is fixed at 1 &mdash; that&apos;s what individual registration is.
+        </p>
+
+        <h4 className="text-lg font-medium text-navy mt-4">
+          If your event has housing / day-pass options
+        </h4>
+        <ul className="list-disc list-inside space-y-1 text-gray-600 mt-2">
+          <li>
+            <strong>Multiple housing types</strong> (e.g. on-campus + off-campus): they
+            pick one. Groups pick <em>one</em> housing type for the whole group &mdash;
+            not a mix.
+          </li>
+          <li>
+            <strong>Multiple day-pass options</strong> (e.g. Friday pass, Saturday pass):
+            they pick which one they want.
+          </li>
+          <li>
+            You&apos;ll only invite them when a spot opens up for the option they chose.
+          </li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">
+          4. What happens after they join
+        </h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Their entry is created with status <strong>Waiting</strong></li>
+          <li>They get a confirmation email with their position in the queue</li>
+          <li>Position is first-come, first-served by join time</li>
+          <li>Same email address can only be on the waitlist once per event</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">
+          5. Managing the waitlist (Admin)
+        </h3>
+        <p>
+          Open <strong>Event Dashboard &gt; Waitlist</strong>. Every entry has a{' '}
+          <strong>Manage</strong> button that opens a full detail dialog for that
+          person. Every action lives inside that dialog &mdash; there&apos;s no
+          hidden menu.
+        </p>
+
+        <p>Inside the Manage dialog you&apos;ll see:</p>
+        <ul className="list-disc list-inside space-y-1 text-gray-600 mt-2">
+          <li>Their name, position in the queue, when they joined</li>
+          <li>Current status badge (Waiting / Invited / Registered / Expired)</li>
+          <li>Their contact info (email, phone)</li>
+          <li>
+            Their request in plain English &mdash; e.g. &quot;10 spots (8 youth + 2
+            chaperones) &mdash; On-Campus&quot;
+          </li>
+          <li>
+            If invited: when the invite was sent and how much time is left before it
+            expires (with red styling under 6 hours)
+          </li>
+          <li>The action buttons for their current status (below)</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">
+          6. What each button does
+        </h3>
+
+        <div className="rounded-lg border border-gray-200 divide-y divide-gray-200 mt-3">
+          <div className="p-4">
+            <p className="font-semibold text-navy">Email invite &mdash; as they requested</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Available on <strong>Waiting</strong> entries. Sends an email with a
+              secure registration link that&apos;s valid for 48 hours, and{' '}
+              <strong>reserves the seats they asked for</strong> (both event-level and
+              the specific option pool, like on-campus housing). A walk-in registration
+              can&apos;t eat those seats during the 48 hours. Flips status to Invited.
+            </p>
+          </div>
+
+          <div className="p-4">
+            <p className="font-semibold text-navy">Email invite &mdash; with a different offer</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Available on <strong>Waiting</strong> entries. Opens a form where you
+              can change what you&apos;re actually offering &mdash; smaller party size,
+              a different housing type, a different day-pass. Sends the invite, reserves
+              seats for the offered values, and the invitee sees a &quot;You asked for
+              X &mdash; we&apos;re offering Y&quot; comparison on their invite page.
+              They can accept and register, or decline and stay on the waitlist.
+            </p>
+          </div>
+
+          <div className="p-4">
+            <p className="font-semibold text-navy">Edit their request</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Available on <strong>Waiting</strong> entries only. Changes the
+              entry&apos;s details in place: name, phone, party size, group mix,
+              option preferences, notes. <strong>No email is sent</strong>. Use this
+              to fix a typo or update a request the person changed their mind about.
+            </p>
+          </div>
+
+          <div className="p-4">
+            <p className="font-semibold text-navy">Mark them as registered</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Available on <strong>Invited</strong> entries. Use this if they
+              registered offline (walk-up, phone-in, etc.) so the waitlist
+              conversion analytics stay accurate. The reservation stays consumed
+              &mdash; the seat is theirs.
+            </p>
+          </div>
+
+          <div className="p-4">
+            <p className="font-semibold text-navy">Put back on waitlist</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Available on <strong>Invited</strong> or <strong>Expired</strong>
+              {' '}entries. Flips them back to Waiting and{' '}
+              <strong>releases their held seats</strong> back to the event and option
+              pools so someone else can be invited. Use if they need more time or
+              you want to re-send the invite fresh.
+            </p>
+          </div>
+
+          <div className="p-4">
+            <p className="font-semibold text-navy">Mark invitation as expired</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Available on <strong>Waiting</strong> or <strong>Invited</strong>
+              {' '}entries. Marks their invite as no longer valid and{' '}
+              <strong>releases the held seats</strong>. Use if you know they&apos;re
+              not going to respond. The system also does this automatically for
+              invites that pass their 48-hour expiration &mdash; see &quot;Auto-expire&quot;
+              below.
+            </p>
+          </div>
+
+          <div className="p-4">
+            <p className="font-semibold text-navy text-red-600">Delete this entry permanently</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Removes the entry entirely from the waitlist. If they were holding
+              seats, those seats are released back to the pools first. Use for spam,
+              duplicates, or when someone explicitly asks to be taken off.
+            </p>
+          </div>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">
+          7. What the invitee sees
+        </h3>
+        <p>When you send an invite, they receive an email with a link that opens their invitation page:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>A countdown showing how much time is left before the invite expires</li>
+          <li>Event details (date, location)</li>
+          <li>What&apos;s being offered (party size, options)</li>
+          <li>
+            If you sent a counter-offer: a side-by-side comparison of what they asked
+            for vs what you&apos;re offering
+          </li>
+          <li>
+            Registration buttons (Group and/or Individual, based on what your event
+            accepts and what they were invited for)
+          </li>
+          <li>
+            A <strong>&quot;This offer doesn&apos;t work &mdash; decline and stay on
+            waitlist&quot;</strong> button that releases the seats and puts them back
+            on the queue without registering
+          </li>
+        </ul>
+        <p className="text-gray-600 mt-2">
+          At registration time, the system enforces that the invitee registers for
+          exactly what was offered &mdash; they can&apos;t use a group-of-10 on-campus
+          invite to register 20 people off-campus. If they try, they see an error
+          asking them to register for the offered option or contact you to adjust it.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">
+          8. Capacity holds & auto-expire
+        </h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>
+            <strong>Seats are held on invite.</strong> When you click Email invite,
+            the seats they need are immediately decremented from the event&apos;s
+            remaining capacity (and from the specific option pool). A walk-in
+            registration during those 48 hours won&apos;t eat the promised seats.
+          </li>
+          <li>
+            <strong>Seats are released if the invite expires</strong> &mdash; and
+            the entry flips to Expired &mdash; the next time an admin loads the
+            waitlist page. No manual cleanup needed.
+          </li>
+          <li>
+            <strong>Seats are also released</strong> when you move an entry back to
+            Waiting, mark it Expired, delete it, or when the invitee clicks Decline.
+          </li>
+          <li>
+            <strong>Seats stay consumed</strong> when the invitee completes
+            registration or you mark them as Registered offline &mdash; that&apos;s
+            the whole point of the hold.
+          </li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">
+          9. Overriding capacity
+        </h3>
+        <p>
+          If the event is over capacity but you still want to invite someone off
+          the waitlist (or make a special manual add), you can override. The system
+          will show a confirmation dialog telling you exactly how many seats short
+          you are and require a written reason. The action is recorded on the entry
+          for auditing &mdash; who did it, when, and why. The event&apos;s remaining
+          capacity is allowed to go negative so your dashboard honestly reflects
+          how far over you went (rather than silently clamping to zero).
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">
+          10. Group vs Individual &mdash; the rules
+        </h3>
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+          <ul className="list-disc list-inside space-y-2 text-sm">
+            <li>
+              If your event only accepts group registrations, the waitlist{' '}
+              <strong>only accepts group entries</strong>. Someone trying to submit
+              as individual is blocked.
+            </li>
+            <li>
+              If your event only accepts individual registrations, the waitlist{' '}
+              <strong>only accepts individual entries</strong>. Groups are blocked.
+            </li>
+            <li>
+              If both are accepted, the person picks. Their choice determines what
+              fields they fill in and what registration flow their invite links to.
+            </li>
+            <li>
+              An entry can&apos;t change registration type after it&apos;s been invited &mdash;
+              move it back to Waiting first if you need to change it.
+            </li>
+          </ul>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">
+          11. Analytics
+        </h3>
+        <p>The waitlist page shows real-time cards at the top:</p>
+        <ul className="list-disc list-inside space-y-1 text-gray-600 mt-2">
+          <li><strong>Total entries</strong> &mdash; everyone on the queue</li>
+          <li><strong>Waiting / Contacted / Registered / Expired</strong> counts by status</li>
+          <li><strong>Spots requested</strong> &mdash; total headcount across all waiting entries</li>
+          <li>
+            <strong>Conversion rate</strong> &mdash; how many invitations actually
+            became registrations
+          </li>
+          <li>
+            <strong>Average wait time</strong> &mdash; how long people typically sit
+            on the queue before being invited
+          </li>
+        </ul>
 
         <h3 className="text-xl font-semibold text-navy mt-6">Recommendations</h3>
         <div className="bg-green-50 border-l-4 border-green-400 p-4">
           <ul className="list-disc list-inside space-y-2 text-sm">
-            <li>Enable waitlist before your event fills up so the button is ready</li>
-            <li>Check waitlist regularly and invite people promptly when spots open</li>
-            <li>Consider party size when inviting (invite people whose party size matches available spots)</li>
-            <li>Expired invitations can be re-sent if the person is still interested</li>
-            <li>Use the analytics to track your conversion rate and optimize timing</li>
+            <li>Turn the waitlist on <em>before</em> the event fills up so the button is ready</li>
+            <li>
+              When a group cancels, use &quot;Email invite &mdash; with a different
+              offer&quot; to make partial offers to bigger groups on the waitlist
+              (e.g. offer 10 spots to a group of 15 &mdash; they can accept the 10
+              or decline and wait for more)
+            </li>
+            <li>
+              Check the queue after big cancellations &mdash; the auto-expire sweep
+              only runs when you load the page, so a quick visit clears out stale
+              invites and frees up their held seats
+            </li>
+            <li>Use the reason field when overriding capacity &mdash; future you will thank present you</li>
+            <li>
+              Watch the conversion rate. If it&apos;s low, invitations may be sitting
+              too long &mdash; try shorter batches or a follow-up before expiry
+            </li>
           </ul>
         </div>
       </div>
@@ -2664,6 +3043,98 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           <p className="text-sm">
             <strong>Note:</strong> Emails are sent from your organization&apos;s configured email address
             and include automatic unsubscribe links for compliance.
+          </p>
+        </div>
+      </div>
+    )
+  },
+
+  "surveys": {
+    title: "Post-Event Surveys",
+    content: (
+      <div className="space-y-4">
+        <p>
+          Build a post-conference or post-retreat survey right inside ChiRho and send it out
+          after the event with a click — no external form tool required. Surveys support
+          multiple choice, multi-select, rating scale, yes/no, and short-answer questions, and
+          can go to participants, group leaders, or both.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Creating a Survey</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Go to <strong>Events → [Your Event] → Surveys</strong></li>
+          <li>Click <strong>New Survey</strong> and give it a title</li>
+          <li>Add as many questions as you want — there is no limit on question count</li>
+          <li>For each question, choose a type and mark it required or optional</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Question Types</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Multiple Choice</strong> — pick one option from a list</li>
+          <li><strong>Multi-Select</strong> — pick any number of options</li>
+          <li><strong>Rating Scale</strong> — a numeric scale (e.g. 1–5 or 1–10) with optional labels like &quot;Poor&quot; to &quot;Excellent&quot;</li>
+          <li><strong>Yes/No</strong></li>
+          <li><strong>Short Answer</strong> — a free-text response</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Choosing Your Audience</h3>
+        <p>
+          Every survey has two independent audience toggles, and you can turn on either one or
+          both:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Send to Participants</strong> — anyone with an email on file (participants, or their parent&apos;s email if the participant is a minor without their own)</li>
+          <li><strong>Send to Group Leaders</strong> — the primary contact for each group</li>
+        </ul>
+        <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mt-4">
+          <p className="text-sm">
+            <strong>Events with minors:</strong> Turn off &quot;Send to Participants&quot; and use
+            &quot;Send to Group Leaders&quot; only so the group leader answers on behalf of their
+            group instead of the survey going directly to a minor.
+          </p>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Anonymous Responses</h3>
+        <p>
+          Turn on <strong>Anonymous</strong> in a survey&apos;s settings to keep the results view
+          from ever showing who submitted which response. Delivery is still tracked behind the
+          scenes so reminders keep working, but names and emails are never joined to answers
+          once anonymous mode is on.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Sending the Survey</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Add at least one question, then click <strong>Send Survey</strong></li>
+          <li>Optionally add a custom note that appears in the email</li>
+          <li>ChiRho emails a personal, one-time survey link to everyone in your chosen audience</li>
+          <li>Click <strong>Send to New Registrants</strong> any time after that to reach people who registered since the last send — everyone who already has a link is skipped</li>
+          <li>Click <strong>Send Reminders</strong> to email only the people who haven&apos;t responded yet</li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Reaching People Outside Registration</h3>
+        <p>
+          Not every recipient has to come from a registration record. Each survey&apos;s page has a
+          &quot;Reach People Outside Registration&quot; section with three tools:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Add a Recipient</strong> — type any name and email (a vendor, a staff member, anyone) and send them a real tracked link</li>
+          <li><strong>Send Yourself a Test</strong> — get a working preview link instantly, even while the survey is still a draft; test submissions never count toward your results</li>
+          <li><strong>Public Link</strong> — a shareable link anyone can use to respond, good for flyers or QR codes. Public-link responses are always anonymous and can&apos;t be reminded, since they aren&apos;t tied to a specific person</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Reviewing Results</h3>
+        <p>Click <strong>View Results</strong> on any survey to see:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Recipients, sent count, responses, and response rate</li>
+          <li>A breakdown for every question — bar charts for multiple choice/multi-select, an average and distribution for rating scales, and the full list of answers for short-answer questions</li>
+          <li>A per-respondent view showing who answered what — hidden automatically for anonymous surveys</li>
+        </ul>
+
+        <div className="bg-beige p-4 rounded-lg mt-6">
+          <p className="text-sm">
+            <strong>💡 Pro Tip:</strong> Send yourself a test first to check the questions read
+            well on a phone, then send the real survey a day or two after the event while it&apos;s
+            still fresh in people&apos;s minds.
           </p>
         </div>
       </div>
@@ -3482,6 +3953,315 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
             Have suggestions for vendor features? Contact the event organizers with your
             feedback—we&apos;re always looking to improve!
           </p>
+        </div>
+      </div>
+    )
+  },
+
+  "waitlist-group": {
+    title: "Joining the Waitlist as a Group",
+    content: (
+      <div className="space-y-4">
+        <p>
+          If a Catholic event you want to bring your group to has filled up (or the
+          housing option your group needs is sold out), you don&apos;t have to give up.
+          Most events have a waitlist &mdash; you put your name down, and if a spot
+          opens up big enough for your group, you get first crack at it.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">1. When to use the waitlist</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>The event page shows &quot;Event is at full capacity&quot; and you see a{' '}
+            <strong>Join Waitlist</strong> button instead of Register</li>
+          <li>The event still has spots but the housing option you need
+            (e.g. on-campus) is sold out</li>
+          <li>Registration has closed by date but the organizer is still holding a queue</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">2. What the join form asks you</h3>
+        <p>Click <strong>Join Waitlist</strong> on the event page. The form asks:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Your <strong>full name</strong>, <strong>email</strong>, and phone (optional)</li>
+          <li>
+            <strong>Registration Type: Group</strong> &mdash; if the event only accepts
+            groups, this is already selected for you. If both group and individual are
+            offered, pick Group.
+          </li>
+          <li>
+            <strong>Your participant mix</strong> &mdash; how many youth, how many
+            chaperones, and how many priests. The total party size is calculated from
+            the sum. This is the same breakdown you&apos;d enter on the actual
+            group-registration form.
+          </li>
+          <li>
+            <strong>Housing preference</strong> &mdash; if the event offers multiple
+            housing types (like on-campus and off-campus), pick <em>one</em> for the
+            whole group. Groups can&apos;t split members across housing types on the
+            waitlist &mdash; if some need on-campus and some need off-campus, submit
+            two waitlist entries.
+          </li>
+          <li>
+            <strong>Day-pass option</strong> &mdash; if the event has multiple
+            day-pass tickets (Friday, Saturday, etc.), pick which one your group needs.
+          </li>
+          <li>
+            <strong>Notes</strong> &mdash; anything the organizer should know
+            (dietary needs, mobility considerations, etc.)
+          </li>
+        </ul>
+
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 my-4">
+          <p className="text-sm">
+            <strong>Be honest with the numbers.</strong> The organizer decides who
+            to invite off the waitlist partly based on the size and mix. If you
+            waitlist for 20 spots and then only actually need 10, you&apos;ve been
+            holding a bigger reservation than you needed &mdash; and someone else
+            might have gotten a chance. Update the count if it changes; you can ask
+            the organizer to adjust your entry.
+          </p>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">3. What happens after you submit</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>You&apos;ll see a confirmation on-screen and get an email with your
+            position in the queue (e.g. &quot;You&apos;re #3&quot;)</li>
+          <li>Position is first-come, first-served by the time you joined</li>
+          <li>The organizer sees your entry with all the info you provided</li>
+          <li>You wait &mdash; there&apos;s no action required from you until
+            (and if) spots open up</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">4. When you get invited</h3>
+        <p>
+          If spots open up matching what you asked for, you&apos;ll get an email
+          titled &quot;A Spot is Available!&quot; with a secure link. Clicking it
+          opens your <strong>invitation page</strong> which shows:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>A countdown &mdash; you have <strong>48 hours</strong> to register
+            before the invitation expires</li>
+          <li>Event details (date, location, organizer)</li>
+          <li>The number of spots being offered and the option (housing / day-pass)</li>
+          <li>A big <strong>Register as a Group</strong> button that takes you to
+            the standard group-registration flow with the waitlist bypass already
+            applied &mdash; even if the event is technically at capacity, your
+            invitation lets you through</li>
+          <li>
+            A <strong>&quot;This offer doesn&apos;t work &mdash; decline and stay
+            on waitlist&quot;</strong> button at the bottom
+          </li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">5. Counter-offers &mdash; when the offer differs from what you asked</h3>
+        <p>
+          Sometimes the organizer can&apos;t give you exactly what you requested.
+          Maybe you asked for 20 on-campus spots but only 12 opened up &mdash; they
+          can send you an invite for 12 on-campus, or for 20 off-campus. In that
+          case, your invitation page shows a side-by-side comparison:
+        </p>
+        <div className="bg-beige border-2 border-tan rounded-lg p-4 my-3 text-sm">
+          <p className="mb-2 uppercase tracking-wide text-xs text-gray-500">You asked for</p>
+          <p className="font-medium text-navy mb-3">20 spots (16 youth + 4 chaperones) &mdash; On-Campus</p>
+          <p className="mb-2 uppercase tracking-wide text-xs text-navy">We&apos;re offering</p>
+          <p className="font-semibold text-navy">12 spots (10 youth + 2 chaperones) &mdash; On-Campus</p>
+        </div>
+        <p>
+          You have two choices:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>
+            <strong>Accept</strong> by clicking Register as a Group. You&apos;ll go
+            through the normal registration flow, but the offer is now the contract &mdash;
+            you can only register for exactly what was offered (12 people, on-campus).
+            The system will block you if you try to register for anything different.
+          </li>
+          <li>
+            <strong>Decline</strong> by clicking &quot;This offer doesn&apos;t work.&quot;
+            Your entry goes back on the waitlist and the seats are released for someone
+            else. You keep your original spot in the queue &mdash; you&apos;re not sent
+            to the back of the line for declining.
+          </li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">6. If your invitation expires</h3>
+        <p>
+          If you don&apos;t register within 48 hours, the invitation expires
+          automatically. Your seats are released back to the event. Your entry gets
+          marked <strong>Expired</strong> and you won&apos;t be automatically
+          re-invited &mdash; but you can email the organizer to be put back on the
+          queue if you&apos;re still interested. If the event is still filling up,
+          they can often re-invite you.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Tips</h3>
+        <div className="bg-green-50 border-l-4 border-green-400 p-4">
+          <ul className="list-disc list-inside space-y-2 text-sm">
+            <li>
+              Check your inbox (and spam folder!) for a few days after joining &mdash;
+              spots can open up on short notice
+            </li>
+            <li>
+              Reply to the organizer within the 48-hour window even if you&apos;re
+              waiting on a decision; they can extend or re-send in most cases
+            </li>
+            <li>
+              Only put down the mix you can actually bring &mdash; over-asking hurts
+              your odds and takes seats from other groups
+            </li>
+            <li>
+              A counter-offer isn&apos;t a rejection &mdash; take it as &quot;this
+              is what we can do right now&quot; and decide honestly whether it works
+            </li>
+          </ul>
+        </div>
+      </div>
+    )
+  },
+
+  "waitlist-individual": {
+    title: "Joining the Waitlist as an Individual",
+    content: (
+      <div className="space-y-4">
+        <p>
+          If an event you want to attend is full &mdash; or the specific housing or
+          day-pass option you need is sold out &mdash; joining the waitlist puts your
+          name down for the next available spot. When one opens up matching what you
+          asked for, you get an email with a link to register.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">1. When to use the waitlist</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>The event page shows a <strong>Join Waitlist</strong> button instead of Register</li>
+          <li>The event has open spots but the specific housing type you need
+            (like on-campus, single room) is full</li>
+          <li>The specific day-pass you want (Saturday only, VIP pass, etc.) is sold out
+            even though the event isn&apos;t</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">2. What the join form asks you</h3>
+        <p>Click <strong>Join Waitlist</strong> on the event page. The form asks:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Your <strong>full name</strong>, <strong>email</strong>, and phone (optional)</li>
+          <li>
+            <strong>Registration Type: Individual</strong> &mdash; if the event only
+            accepts individuals, this is set for you. If both are offered, pick
+            Individual. (Party size is automatically 1 &mdash; that&apos;s what
+            individual registration is.)
+          </li>
+          <li>
+            <strong>Ticket type</strong> &mdash; if the event offers both general
+            admission (with housing) and day-pass tickets, pick which one you want
+          </li>
+          <li>
+            <strong>Housing preference</strong> &mdash; if the event has multiple
+            housing options (on-campus, off-campus), pick the one you want. If you
+            pick on-campus, you can also pick your <strong>room type</strong>
+            (single, double, triple, quad) if the event tracks those separately.
+          </li>
+          <li>
+            <strong>Day-pass option</strong> &mdash; if you picked day-pass and the
+            event has multiple options (Friday, Saturday, etc.), pick which one
+          </li>
+          <li>
+            <strong>Notes</strong> &mdash; dietary needs, accessibility, or anything
+            else the organizer should know
+          </li>
+        </ul>
+
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 my-4">
+          <p className="text-sm">
+            <strong>Be specific.</strong> The organizer will only invite you when a
+            spot opens for the <em>exact</em> option you picked. If you waitlist for
+            an on-campus single room, you won&apos;t be invited when a bed opens in
+            a quad room &mdash; even though technically both are on-campus. If
+            you&apos;re flexible, you can leave a note saying so, or submit multiple
+            waitlist entries with different preferences.
+          </p>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">3. What happens after you submit</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>You&apos;ll see a confirmation on-screen and get an email with your
+            position in the queue</li>
+          <li>Position is first-come, first-served by the time you joined</li>
+          <li>You wait &mdash; nothing further to do until spots open up</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">4. When you get invited</h3>
+        <p>
+          If a matching spot opens up, you&apos;ll get an email titled
+          &quot;A Spot is Available!&quot; with a secure link. Clicking it opens
+          your <strong>invitation page</strong> which shows:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>A countdown &mdash; you have <strong>48 hours</strong> to register</li>
+          <li>The option being offered (housing type, room type, or day-pass)</li>
+          <li>A big <strong>Register as Individual</strong> button that takes you
+            straight into the normal individual-registration flow &mdash; the invitation
+            lets you register even if the event is technically at capacity</li>
+          <li>A <strong>&quot;This offer doesn&apos;t work &mdash; decline and stay
+            on waitlist&quot;</strong> button at the bottom</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">5. Counter-offers &mdash; a different option than you asked for</h3>
+        <p>
+          Sometimes the option you originally asked for still isn&apos;t available,
+          but a similar one is. The organizer can send you an invitation for the
+          alternative &mdash; e.g. you waitlisted for on-campus, they&apos;re
+          offering off-campus. In that case, your invitation page shows a
+          comparison:
+        </p>
+        <div className="bg-beige border-2 border-tan rounded-lg p-4 my-3 text-sm">
+          <p className="mb-2 uppercase tracking-wide text-xs text-gray-500">You asked for</p>
+          <p className="font-medium text-navy mb-3">1 spot &mdash; On-Campus (single room)</p>
+          <p className="mb-2 uppercase tracking-wide text-xs text-navy">We&apos;re offering</p>
+          <p className="font-semibold text-navy">1 spot &mdash; Off-Campus</p>
+        </div>
+        <p>You have two choices:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>
+            <strong>Accept</strong> by clicking Register. You&apos;ll register for
+            exactly what was offered &mdash; the system won&apos;t let you change
+            the option at registration time. If you accepted an off-campus invite,
+            trying to register on-campus at the last step will show an error.
+          </li>
+          <li>
+            <strong>Decline</strong> by clicking &quot;This offer doesn&apos;t work.&quot;
+            Your entry goes back on the waitlist, the spot is released for someone
+            else, and you keep your position &mdash; you&apos;re not moved to the
+            back of the line for declining. You&apos;ll be considered again the next
+            time a matching spot opens up.
+          </li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">6. If your invitation expires</h3>
+        <p>
+          After 48 hours without registering, the invitation expires automatically.
+          The spot is released to someone else and your entry is marked{' '}
+          <strong>Expired</strong>. You won&apos;t be automatically re-invited, but
+          if you&apos;re still interested you can email the organizer directly and
+          ask to be put back on the queue.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Tips</h3>
+        <div className="bg-green-50 border-l-4 border-green-400 p-4">
+          <ul className="list-disc list-inside space-y-2 text-sm">
+            <li>Check your email (including spam) for a few days after joining</li>
+            <li>
+              If you&apos;re flexible, mention it in the notes &mdash; the organizer
+              can send you a counter-offer for a different option and you can
+              accept it
+            </li>
+            <li>
+              Register right away when you get an invitation &mdash; 48 hours goes
+              faster than you think, and once it expires the spot goes to someone else
+            </li>
+            <li>
+              Only decline if the offer really doesn&apos;t work &mdash; you keep
+              your queue position, but there&apos;s no guarantee another spot will
+              open before the event
+            </li>
+          </ul>
         </div>
       </div>
     )

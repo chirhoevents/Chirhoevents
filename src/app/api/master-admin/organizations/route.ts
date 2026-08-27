@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { generateOrgAdminOnboardingEmail } from '@/emails/org-admin-onboarding'
+import { SUBSCRIPTION_TIERS } from '@/lib/subscription-tiers'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -193,22 +194,25 @@ export async function POST(request: NextRequest) {
       sendStripeOnboarding,
     } = body
 
-    // Tier pricing — keyed by current DB enum value 'chapel' (renamed from 'starter').
-    // Legacy keys map to current tiers for backward compatibility.
-    const tierPricing: Record<string, { monthly: number; annual: number; setupFee: number; eventsLimit: number; registrationsLimit: number; storageLimit: number }> = {
-      chapel: { monthly: 39, annual: 468, setupFee: 99, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
-      parish: { monthly: 59, annual: 708, setupFee: 199, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
-      cathedral: { monthly: 109, annual: 1080, setupFee: 349, eventsLimit: 10, registrationsLimit: 2000, storageLimit: 25 },
-      shrine: { monthly: 159, annual: 1908, setupFee: 499, eventsLimit: 20, registrationsLimit: 4000, storageLimit: 100 },
-      basilica: { monthly: 1250, annual: 15000, setupFee: 0, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
-      test: { monthly: 0, annual: 0, setupFee: 0, eventsLimit: 3, registrationsLimit: 100, storageLimit: 1 },
-      // Legacy tier keys (pre-rename)
-      starter: { monthly: 39, annual: 468, setupFee: 99, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
-      small_diocese: { monthly: 59, annual: 708, setupFee: 199, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
-      growing: { monthly: 109, annual: 1080, setupFee: 349, eventsLimit: 10, registrationsLimit: 2000, storageLimit: 25 },
-      conference: { monthly: 159, annual: 1908, setupFee: 499, eventsLimit: 20, registrationsLimit: 4000, storageLimit: 100 },
-      enterprise: { monthly: 1250, annual: 15000, setupFee: 0, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
-    }
+    // Tier pricing — derived from the centralized SUBSCRIPTION_TIERS config so
+    // every place that creates an organization stays in sync with the published
+    // pricing on the landing page.
+    const tierPricing: Record<string, { monthly: number; annual: number; setupFee: number; eventsLimit: number; registrationsLimit: number; storageLimit: number }> =
+      Object.fromEntries(
+        Object.values(SUBSCRIPTION_TIERS).map(tier => [
+          tier.key,
+          {
+            monthly: tier.monthlyPrice,
+            annual: tier.annualPrice ?? tier.monthlyPrice * 12,
+            // setupFee=null (Basilica) defaults to 0 here — master admin sets the
+            // real custom amount manually on the org.
+            setupFee: tier.setupFee ?? 0,
+            eventsLimit: tier.eventsPerYear ?? -1,
+            registrationsLimit: tier.maxPeoplePerYear ?? -1,
+            storageLimit: tier.storageGb,
+          },
+        ])
+      )
 
     const pricing = tierPricing[subscriptionTier] || tierPricing.chapel
 

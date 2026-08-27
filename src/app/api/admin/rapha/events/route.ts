@@ -105,6 +105,7 @@ export async function GET() {
           raphaMedicalEnabled: true,
           stats: {
             totalParticipants: participantCount + individualCount,
+            totalRegistrations: event._count.groupRegistrations + event._count.individualRegistrations,
             severeAllergies,
             allergies,
             medications,

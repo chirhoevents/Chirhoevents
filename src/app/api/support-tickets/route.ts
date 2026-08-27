@@ -3,6 +3,10 @@ import { auth } from '@clerk/nextjs/server'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
+import {
+  renderMasterAdminNotificationHtml,
+  sendMasterAdminNotification,
+} from '@/lib/master-admin-notify'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -231,6 +235,34 @@ export async function POST(request: NextRequest) {
         // Don't fail the ticket creation if email fails
       }
     }
+
+    // Notify master-admin recipients so tickets don't sit unread until
+    // someone remembers to open the dashboard.
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
+    const submitterName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') ||
+      user.email ||
+      'Unknown user'
+    await sendMasterAdminNotification({
+      subject: `[Ticket ${ticket.ticketNumber}] ${ticket.subject}`,
+      replyTo: user.email || undefined,
+      html: renderMasterAdminNotificationHtml({
+        title: 'New support ticket',
+        intro: `A user just submitted a support ticket in ${org?.name ?? 'an organization'}.`,
+        rows: [
+          { label: 'Ticket', value: ticket.ticketNumber },
+          { label: 'Subject', value: ticket.subject },
+          { label: 'Category', value: String(category) },
+          { label: 'Priority', value: String(priority || 'medium') },
+          { label: 'Submitted by', value: `${submitterName}${user.email ? ` <${user.email}>` : ''}` },
+          { label: 'Organization', value: org?.name ?? '—' },
+        ],
+        bodyLabel: 'Message',
+        bodyText: message,
+        ctaLabel: 'Open ticket in dashboard',
+        ctaUrl: `${appUrl}/dashboard/master-admin/support-tickets/${ticket.id}`,
+      }),
+    })
 
     return NextResponse.json({
       success: true,

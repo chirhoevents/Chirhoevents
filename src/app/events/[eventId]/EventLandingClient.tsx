@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import WaitlistModal from '@/components/WaitlistModal'
+import WaitlistModal, { type WaitlistPreferenceOptions } from '@/components/WaitlistModal'
 import Link from 'next/link'
 import { CheckCircle, Clock, AlertCircle } from 'lucide-react'
 import CountdownTimer from '@/components/CountdownTimer'
@@ -26,6 +26,13 @@ interface EventLandingClientProps {
   spotsMessage: string | null
   earlyBirdMessage: string | null
   eventStartTarget: Date | null
+  organizationContact?: {
+    name: string
+    email: string | null
+    phone: string | null
+  } | null
+  waitlistPreferences?: WaitlistPreferenceOptions
+  hasFullOption?: boolean
 }
 
 export default function EventLandingClient({
@@ -37,8 +44,17 @@ export default function EventLandingClient({
   spotsMessage,
   earlyBirdMessage,
   eventStartTarget,
+  organizationContact,
+  waitlistPreferences,
+  hasFullOption = false,
 }: EventLandingClientProps) {
   const [isWaitlistModalOpen, setIsWaitlistModalOpen] = useState(false)
+
+  // Show the waitlist affordance when either the whole event is at capacity /
+  // closed (status.allowWaitlist), OR one of the specific options is sold out
+  // even though the event overall has room. Handles the "40 on-campus left
+  // but off-campus is full" case.
+  const showWaitlistButton = status.allowWaitlist || hasFullOption
 
   return (
     <>
@@ -47,7 +63,7 @@ export default function EventLandingClient({
         <div className="mb-3">
           {status.allowRegistration ? (
             <CheckCircle className="h-12 w-12 md:h-16 md:w-16 text-green-600" />
-          ) : status.allowWaitlist ? (
+          ) : showWaitlistButton ? (
             <Clock className="h-12 w-12 md:h-16 md:w-16 text-[#9C8466]" />
           ) : (
             <AlertCircle className="h-12 w-12 md:h-16 md:w-16 text-gray-400" />
@@ -144,7 +160,7 @@ export default function EventLandingClient({
             </>
           )}
 
-          {status.allowWaitlist && (
+          {showWaitlistButton && (
             <Button
               size="lg"
               variant="outline"
@@ -155,7 +171,7 @@ export default function EventLandingClient({
             </Button>
           )}
 
-          {!status.allowRegistration && !status.allowWaitlist && (
+          {!status.allowRegistration && !showWaitlistButton && (
             <Button
               size="lg"
               disabled
@@ -169,6 +185,38 @@ export default function EventLandingClient({
             </Button>
           )}
         </div>
+
+        {/* At-capacity helper: explain how to request additional spots when the
+            event is full. Covers groups that need more than what's currently
+            available and already-registered groups wanting to add people. */}
+        {status.status === 'at_capacity' && organizationContact && (organizationContact.email || organizationContact.phone) && (
+          <div className="mt-4 p-4 bg-[#F5F1E8] border border-[#9C8466] rounded-lg w-full text-left">
+            <p className="text-sm font-semibold text-[#1E3A5F] mb-1">
+              Need additional spots for your group?
+            </p>
+            <p className="text-sm text-[#6B7280] mb-2">
+              If you&apos;re already registered or want more than what&apos;s available,
+              contact {organizationContact.name} to request additional spots. Otherwise,
+              join the waitlist above and you&apos;ll be notified by email as soon as a spot opens up.
+            </p>
+            <div className="text-sm space-y-1">
+              {organizationContact.email && (
+                <p>
+                  <a href={`mailto:${organizationContact.email}`} className="text-[#1E3A5F] font-medium hover:underline">
+                    {organizationContact.email}
+                  </a>
+                </p>
+              )}
+              {organizationContact.phone && (
+                <p>
+                  <a href={`tel:${organizationContact.phone}`} className="text-[#1E3A5F] font-medium hover:underline">
+                    {organizationContact.phone}
+                  </a>
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Early Bird Pricing Info */}
         {earlyBirdMessage && settings.landingPageShowPrice && (
@@ -184,6 +232,7 @@ export default function EventLandingClient({
         eventName={eventName}
         isOpen={isWaitlistModalOpen}
         onClose={() => setIsWaitlistModalOpen(false)}
+        preferences={waitlistPreferences}
       />
     </>
   )

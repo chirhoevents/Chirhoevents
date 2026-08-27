@@ -43,6 +43,7 @@ interface PaymentBalance {
   lateFeesApplied: number
   lastPaymentDate: string | null
   paymentStatus: PaymentStatus
+  fullPaymentDeadline: string | null
 }
 
 interface PaymentTransaction {
@@ -453,6 +454,26 @@ export default function PaymentsPage() {
               Download Payment Invoice
             </Button>
           </div>
+
+          {balance.fullPaymentDeadline && balance.amountRemaining > 0 && (() => {
+            const deadline = new Date(balance.fullPaymentDeadline)
+            const isPast = deadline < new Date()
+            const formatted = deadline.toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })
+            return (
+              <div className={`border-l-4 p-4 mb-6 rounded ${isPast ? 'bg-red-50 border-red-500' : 'bg-amber-50 border-amber-500'}`}>
+                <p className={`text-sm font-medium ${isPast ? 'text-red-800' : 'text-amber-900'}`}>
+                  {isPast ? 'Full Payment Past Due' : 'Full Payment Due By'}
+                </p>
+                <p className={`text-sm mt-1 ${isPast ? 'text-red-700' : 'text-amber-800'}`}>
+                  {formatted}
+                </p>
+              </div>
+            )
+          })()}
 
           {balance.lateFeesApplied > 0 && (
             <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded">

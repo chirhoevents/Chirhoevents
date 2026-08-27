@@ -8,10 +8,14 @@ echo "Running pre-migration cleanup..."
 
 # Create a temp SQL file for the pre-prisma cleanup
 cat > /tmp/pre-cleanup.sql << 'SQLEOF'
--- Drop orphaned waitlist constraint if it exists
+-- Drop orphaned unique constraint / index left behind by an old schema.
+-- Idempotent — safe to keep running. DO NOT re-add the DROP COLUMN for
+-- registration_token here: the column IS in the current schema (used by
+-- waitlist invite tokens). Dropping it every deploy silently invalidated
+-- every outstanding waitlist invitation (all tokens wiped, links 404),
+-- which is exactly the bug Catherine hit with Maria Sousa on Aug 18.
 ALTER TABLE "waitlist_entries" DROP CONSTRAINT IF EXISTS "waitlist_entries_registration_token_key";
 DROP INDEX IF EXISTS "waitlist_entries_registration_token_key";
-ALTER TABLE "waitlist_entries" DROP COLUMN IF EXISTS "registration_token";
 
 -- Add salve_packet_settings column to event_settings if it doesn't exist
 DO $$
@@ -39,6 +43,44 @@ echo "Running prisma db push..."
 # This flag does NOT drop tables outside the Prisma schema — poros_confessions,
 # poros_adoration, poros_info_items etc. are completely unaffected.
 npx prisma db push --skip-generate --accept-data-loss
+
+# Post-push schema-drift canary: verify critical recently-added columns exist
+# in the live DB after db push runs. If db push is skipped, cached, or silently
+# no-ops, the app ships expecting columns the DB doesn't have — Prisma queries
+# 500 across every endpoint that touches those tables (waitlist, registrations,
+# and their emails). This block turns that silent failure into a hard build
+# failure. Add a new check here whenever a migration adds columns that all
+# queries on a table implicitly select.
+echo "Verifying critical columns after db push..."
+cat > /tmp/schema-canary.sql << 'SQLEOF'
+DO $$
+BEGIN
+  -- Waitlist capacity-override + reservation columns (PRs #754-#757)
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='waitlist_entries' AND column_name='overridden_by') THEN
+    RAISE EXCEPTION 'Schema drift after db push: waitlist_entries.overridden_by is missing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='waitlist_entries' AND column_name='reserved_spots') THEN
+    RAISE EXCEPTION 'Schema drift after db push: waitlist_entries.reserved_spots is missing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='waitlist_entries' AND column_name='reserved_housing_type') THEN
+    RAISE EXCEPTION 'Schema drift after db push: waitlist_entries.reserved_housing_type is missing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='individual_registrations' AND column_name='overridden_by') THEN
+    RAISE EXCEPTION 'Schema drift after db push: individual_registrations.overridden_by is missing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='group_registrations' AND column_name='overridden_by') THEN
+    RAISE EXCEPTION 'Schema drift after db push: group_registrations.overridden_by is missing';
+  END IF;
+  -- Public waitlist join surface (canary for the "attendees can't join" outage)
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='waitlist_capacity') THEN
+    RAISE EXCEPTION 'Schema drift after db push: events.waitlist_capacity is missing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='event_settings' AND column_name='waitlist_enabled') THEN
+    RAISE EXCEPTION 'Schema drift after db push: event_settings.waitlist_enabled is missing';
+  END IF;
+END $$;
+SQLEOF
+npx prisma db execute --file /tmp/schema-canary.sql --schema prisma/schema.prisma
 
 # Create confession/adoration/info tables AFTER Prisma push
 # These tables are managed outside of Prisma to prevent data loss during deployments

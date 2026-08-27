@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import crypto from 'crypto'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+
+function generatePaymentToken(): string {
+  return crypto.randomBytes(32).toString('hex')
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -54,10 +59,30 @@ export async function GET(request: NextRequest) {
         dueDate: true,
         paidAt: true,
         createdAt: true,
+        paymentToken: true,
       },
       orderBy: { createdAt: 'desc' },
       take: 20, // Last 20 invoices
     })
+
+    // Generate payment tokens for any unpaid invoices that don't have one yet,
+    // so the dashboard can render a working "Pay" link.
+    const tokensToCreate: Array<{ id: string; token: string }> = []
+    for (const inv of invoices) {
+      const isUnpaid = inv.status !== 'paid' && inv.status !== 'cancelled'
+      if (isUnpaid && !inv.paymentToken) {
+        const token = generatePaymentToken()
+        tokensToCreate.push({ id: inv.id, token })
+        inv.paymentToken = token
+      }
+    }
+    if (tokensToCreate.length > 0) {
+      await Promise.all(
+        tokensToCreate.map(({ id, token }) =>
+          prisma.invoice.update({ where: { id }, data: { paymentToken: token } })
+        )
+      )
+    }
 
     return NextResponse.json({
       subscription: {
@@ -80,6 +105,7 @@ export async function GET(request: NextRequest) {
       invoices: invoices.map((inv: typeof invoices[0]) => ({
         ...inv,
         amount: Number(inv.amount),
+        paymentLink: inv.paymentToken ? `/pay/invoice/${inv.paymentToken}` : null,
       })),
     })
   } catch (error) {

@@ -102,7 +102,7 @@ interface Payment {
   paymentMethod: string
   paymentType: string
   paymentStatus: string
-  processedAt: string
+  processedAt: string | null
   checkNumber?: string | null
   notes?: string | null
 }
@@ -265,7 +265,13 @@ export default function RegistrationDetailClient({
           body: JSON.stringify({
             type: registration.type,
             reason: cancelReason || 'Cancelled by admin',
-            hardDelete: true,
+            // Soft cancel: mark the row as cancelled, restore capacity, keep
+            // payments / liability forms / participants intact. The row still
+            // shows up in the "Cancelled" tab but is excluded from bulk email
+            // and the default Active list. Set hardDelete: true only when the
+            // admin explicitly wants to wipe every trace — currently not
+            // exposed in the UI.
+            hardDelete: false,
           }),
         }
       )
@@ -512,7 +518,7 @@ export default function RegistrationDetailClient({
                                     ${payment.amount.toFixed(2)}
                                   </p>
                                   <p className="text-sm text-gray-600 mt-1">
-                                    {format(new Date(payment.processedAt), 'MMM d, yyyy')}
+                                    {payment.processedAt ? format(new Date(payment.processedAt), 'MMM d, yyyy') : 'Pending'}
                                   </p>
                                 </div>
                                 <div className="text-right">
@@ -1160,7 +1166,7 @@ export default function RegistrationDetailClient({
                                   {payment.paymentMethod} • {payment.paymentType}
                                 </p>
                                 <p className="text-xs text-gray-400">
-                                  {format(new Date(payment.processedAt), 'MMM d, yyyy')}
+                                  {payment.processedAt ? format(new Date(payment.processedAt), 'MMM d, yyyy') : 'Pending'}
                                 </p>
                               </div>
                               <Badge variant="outline" className="text-xs">

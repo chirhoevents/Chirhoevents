@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { generateWaitlistConfirmationEmail } from '@/lib/email-templates'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -20,6 +21,9 @@ export async function POST(
       partySize,
       notes,
       registrationType,         // 'group' or 'individual'
+      youthCount,               // int, group only — mix must sum to partySize
+      chaperoneCount,           // int, group only
+      priestCount,              // int, group only
       preferredHousingType,     // 'on_campus', 'off_campus' (for general admission)
       preferredRoomType,        // 'single', 'double', 'triple', 'quad' (for individual)
       preferredTicketType,      // 'general_admission', 'day_pass'
@@ -68,10 +72,16 @@ export async function POST(
         organization: {
           select: {
             name: true,
+            contactEmail: true,
           },
         },
         settings: {
           select: {
+            contactEmail: true,
+            waitlistEnabled: true,
+            groupRegistrationEnabled: true,
+            individualRegistrationEnabled: true,
+            groupSpotLimit: true,
             onCampusCapacity: true,
             onCampusRemaining: true,
             offCampusCapacity: true,
@@ -104,9 +114,114 @@ export async function POST(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 
-    if (!event.enableWaitlist) {
+    // Waitlist can be enabled via either toggle — event.enableWaitlist (base field)
+    // or event.settings.waitlistEnabled (settings toggle). Match what
+    // registration-status.ts uses so the public "Join Waitlist" button and this
+    // API agree; otherwise the button appears but the join silently 400s.
+    const waitlistEnabled = event.settings?.waitlistEnabled ?? event.enableWaitlist
+    if (!waitlistEnabled) {
       return NextResponse.json(
         { error: 'Waitlist is not enabled for this event' },
+        { status: 400 }
+      )
+    }
+
+    // Registration-type gating: the waitlist can only accept the same
+    // registration types the event actually offers. If the event is
+    // group-only, an "individual" waitlist entry makes no sense — the
+    // person could never be invited to complete registration. Same rule
+    // in reverse for individual-only events.
+    const groupEnabled = event.settings?.groupRegistrationEnabled ?? true
+    const individualEnabled = event.settings?.individualRegistrationEnabled ?? true
+
+    if (registrationType === 'group' && !groupEnabled) {
+      return NextResponse.json(
+        { error: 'This event does not accept group registrations.' },
+        { status: 400 }
+      )
+    }
+    if (registrationType === 'individual' && !individualEnabled) {
+      return NextResponse.json(
+        { error: 'This event does not accept individual registrations.' },
+        { status: 400 }
+      )
+    }
+    if (!groupEnabled && !individualEnabled) {
+      return NextResponse.json(
+        { error: 'Registration is not available for this event.' },
+        { status: 400 }
+      )
+    }
+    // If exactly one type is offered, force the entry to use it — silently
+    // rewriting is fine here, but we require the client to send SOMETHING
+    // when a registration type is meaningful. Only reject a missing type
+    // when both options are on and it's genuinely ambiguous.
+    let effectiveRegistrationType: 'group' | 'individual' | null = null
+    if (registrationType === 'group' || registrationType === 'individual') {
+      effectiveRegistrationType = registrationType
+    } else if (groupEnabled && !individualEnabled) {
+      effectiveRegistrationType = 'group'
+    } else if (individualEnabled && !groupEnabled) {
+      effectiveRegistrationType = 'individual'
+    }
+
+    // Participant mix validation for group entries. Individual entries can
+    // ignore this — partySize is always 1 in the individual registration flow.
+    const parsedYouth = typeof youthCount === 'number' ? youthCount : parseInt(youthCount ?? '') || 0
+    const parsedChaperone = typeof chaperoneCount === 'number' ? chaperoneCount : parseInt(chaperoneCount ?? '') || 0
+    const parsedPriest = typeof priestCount === 'number' ? priestCount : parseInt(priestCount ?? '') || 0
+    const parsedPartySize = parseInt(partySize)
+
+    if (effectiveRegistrationType === 'group') {
+      const mixTotal = parsedYouth + parsedChaperone + parsedPriest
+      if (mixTotal <= 0) {
+        return NextResponse.json(
+          {
+            error:
+              'Group waitlist entries need a participant breakdown — enter how many youth, chaperones, and priests are in the group.',
+          },
+          { status: 400 }
+        )
+      }
+      if (mixTotal !== parsedPartySize) {
+        return NextResponse.json(
+          {
+            error: `Party size (${parsedPartySize}) doesn't match youth (${parsedYouth}) + chaperones (${parsedChaperone}) + priests (${parsedPriest}) = ${mixTotal}.`,
+          },
+          { status: 400 }
+        )
+      }
+      // Match the group registration API's guard exactly — otherwise the
+      // waitlist accepts entries that could never actually complete
+      // registration (like "1 youth, 0 chaperones, 0 priests"). See
+      // src/app/api/registration/group/route.ts:244-254.
+      const hasAdultSupervisor = parsedChaperone >= 1 || parsedPriest >= 1
+      const hasYouth = parsedYouth >= 1
+      if (!hasAdultSupervisor || !hasYouth) {
+        return NextResponse.json(
+          {
+            error:
+              'Group waitlist entries need at least one youth AND at least one chaperone or priest. For a single person, use the individual waitlist option instead.',
+          },
+          { status: 400 }
+        )
+      }
+      // Honor the event's per-group spot limit so someone can't waitlist for
+      // more than a single group could actually register for.
+      const groupSpotLimit = event.settings?.groupSpotLimit ?? null
+      if (groupSpotLimit !== null && parsedPartySize > groupSpotLimit) {
+        return NextResponse.json(
+          {
+            error: `This event limits each group to ${groupSpotLimit} participant${groupSpotLimit === 1 ? '' : 's'}. Your waitlist request is for ${parsedPartySize}.`,
+          },
+          { status: 400 }
+        )
+      }
+    }
+
+    if (effectiveRegistrationType === 'individual' && parsedPartySize !== 1) {
+      return NextResponse.json(
+        { error: 'Individual waitlist entries can only reserve one spot at a time.' },
         { status: 400 }
       )
     }
@@ -242,10 +357,13 @@ export async function POST(
         name,
         email: email.toLowerCase(),
         phone: phone || null,
-        partySize: parseInt(partySize),
+        partySize: parsedPartySize,
         notes: notes || null,
         status: 'pending',
-        registrationType: registrationType || null,
+        registrationType: effectiveRegistrationType,
+        youthCount: effectiveRegistrationType === 'group' ? parsedYouth : null,
+        chaperoneCount: effectiveRegistrationType === 'group' ? parsedChaperone : null,
+        priestCount: effectiveRegistrationType === 'group' ? parsedPriest : null,
         preferredHousingType: preferredHousingType || null,
         preferredRoomType: preferredRoomType || null,
         preferredTicketType: preferredTicketType || null,
@@ -269,7 +387,7 @@ export async function POST(
 
       await resend.emails.send({
         from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-        reply_to: 'support@chirhoevents.com',
+        reply_to: resolveReplyTo(event.settings, event.organization),
         to: email.toLowerCase(),
         subject: `You're on the Waitlist - ${event.name}`,
         html: emailHtml,
@@ -306,9 +424,14 @@ export async function POST(
       { status: 201 }
     )
   } catch (error) {
-    console.error('Error creating waitlist entry:', error)
+    // Surface the actual Prisma / runtime message on the response so a
+    // schema-drift or config bug shows up in the modal + Vercel logs
+    // instead of a generic "Internal server error" that gives Juan nothing
+    // to debug from and leaves the attendee stuck.
+    const message = error instanceof Error ? error.message : String(error)
+    console.error('Error creating waitlist entry:', message, error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: `Internal server error: ${message}` },
       { status: 500 }
     )
   }

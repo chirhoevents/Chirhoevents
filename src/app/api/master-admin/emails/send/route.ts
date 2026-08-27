@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
-import { getMasterAdminTemplateById, masterAdminEmailTemplates } from '@/lib/email-templates'
+import { formatPlainTextForEmail, getMasterAdminTemplateById, masterAdminEmailTemplates } from '@/lib/email-templates'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -212,6 +212,9 @@ export async function POST(request: NextRequest) {
 
     const senderFullName = senderName || `${user.firstName} ${user.lastName}`
 
+    const formattedCustomMessage = formatPlainTextForEmail(customMessage) || undefined
+    const formattedEventDescription = formatPlainTextForEmail(eventDescription) || undefined
+
     // Handle broadcast to all organizations
     if (broadcastToAllOrgs) {
       const organizations = await prisma.organization.findMany({
@@ -245,11 +248,11 @@ export async function POST(request: NextRequest) {
           try {
             const htmlContent = template.generateHtml({
               recipientName: admin.firstName || undefined,
-              customMessage,
+              customMessage: formattedCustomMessage,
               eventName,
               eventDate,
               eventLocation,
-              eventDescription,
+              eventDescription: formattedEventDescription,
               ctaUrl,
               ctaText,
               senderName: senderFullName,
@@ -308,11 +311,11 @@ export async function POST(request: NextRequest) {
     // Single recipient email
     const htmlContent = template.generateHtml({
       recipientName,
-      customMessage,
+      customMessage: formattedCustomMessage,
       eventName,
       eventDate,
       eventLocation,
-      eventDescription,
+      eventDescription: formattedEventDescription,
       ctaUrl,
       ctaText,
       senderName: senderFullName,

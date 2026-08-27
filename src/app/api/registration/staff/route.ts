@@ -6,6 +6,8 @@ import QRCode from 'qrcode'
 import { generateStaffPorosCode } from '@/lib/access-code'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { wrapEmail, emailInfoBox } from '@/lib/email-templates'
+import { resolveReplyTo } from '@/lib/email-reply-to'
+import { calculatePlatformFeeCents } from '@/lib/stripe-fees'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -55,6 +57,7 @@ export async function POST(request: NextRequest) {
             stripeAccountId: true,
             stripeChargesEnabled: true,
             platformFeePercentage: true,
+            contactEmail: true,
           },
         },
       },
@@ -189,8 +192,13 @@ export async function POST(request: NextRequest) {
         )
       }
 
+      // Platform fee includes Stripe processing fee passthrough so the platform
+      // nets its configured margin instead of going negative on every charge.
       const platformFeePercentage = Number(event.organization.platformFeePercentage || 1)
-      const platformFeeAmount = Math.round(totalAmount * 100 * platformFeePercentage / 100)
+      const platformFeeAmount = calculatePlatformFeeCents(
+        Math.round(totalAmount * 100),
+        platformFeePercentage
+      )
 
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
@@ -209,6 +217,7 @@ export async function POST(request: NextRequest) {
         ],
         payment_intent_data: {
           application_fee_amount: platformFeeAmount,
+          on_behalf_of: event.organization.stripeAccountId,
           transfer_data: {
             destination: event.organization.stripeAccountId,
           },
@@ -296,12 +305,17 @@ export async function POST(request: NextRequest) {
         <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto 24px auto;">
           <tr>
             <td style="background-color: #1E3A5F; border-radius: 6px; text-align: center;">
-              <a href="https://chirhoevents.com/poros?code=${porosAccessCode}" target="_blank" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 16px;">
+              <a href="${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://chirhoevents.com'}/poros?code=${porosAccessCode}" target="_blank" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 16px;">
                 Complete Liability Form
               </a>
             </td>
           </tr>
         </table>
+        <p style="font-size: 13px; color: #666; text-align: center; margin-top: -8px;">
+          Don't have your Safe Environment certificate handy? You can email a copy to
+          <a href="mailto:${resolveReplyTo(event.settings, event.organization)}" style="color: #1E3A5F;">${resolveReplyTo(event.settings, event.organization)}</a>
+          and we'll upload it for you.
+        </p>
         ` : ''}
 
         <p>We look forward to seeing you at the event!</p>
@@ -309,10 +323,11 @@ export async function POST(request: NextRequest) {
         <p style="font-size: 14px; color: #666;">
           If you have any questions, please contact the event organizers.
         </p>
-      `, { organizationName: event.organization?.name || 'ChiRho Events', preheader: `Staff registration confirmed for ${event.name}` })
+      `, { organizationName: event.organization?.name || 'ChiRho Events', preheader: `Staff registration confirmed for ${event.name}`, supportEmail: resolveReplyTo(event.settings, event.organization) })
 
       await resend.emails.send({
         from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+        reply_to: resolveReplyTo(event.settings, event.organization),
         to: email,
         subject: `Staff Registration Confirmed - ${event.name}`,
         html: emailContent,

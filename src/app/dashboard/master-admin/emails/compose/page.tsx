@@ -499,14 +499,14 @@ export default function ComposeEmailPage() {
               Custom Message
             </h2>
             <p className="text-sm text-gray-500 mb-3">
-              Add a personalized message to include in the email.
+              Add a personalized message to include in the email. Leave a blank line between paragraphs, and start a line with <code className="px-1 py-0.5 bg-gray-100 rounded text-xs">-</code> for a bullet list.
             </p>
             <textarea
               value={customMessage}
               onChange={(e) => setCustomMessage(e.target.value)}
-              placeholder="Write your custom message here..."
-              rows={6}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+              placeholder={`Write your custom message here...\n\nUse blank lines between paragraphs.\n\n- Start a line with - or * for a bullet\n- Like this`}
+              rows={8}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y font-sans"
             />
           </div>
 

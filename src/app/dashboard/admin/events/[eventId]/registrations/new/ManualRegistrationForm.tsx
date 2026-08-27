@@ -7,8 +7,18 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { ArrowLeft, Save, Users, User } from 'lucide-react'
+import { ArrowLeft, Save, Users, User, AlertTriangle, Loader2 } from 'lucide-react'
 import Link from 'next/link'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 interface Event {
   id: string
@@ -39,6 +49,10 @@ export default function ManualRegistrationForm({
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [registrationType, setRegistrationType] = useState<'individual' | 'group'>('individual')
+  const [overrideDialogOpen, setOverrideDialogOpen] = useState(false)
+  const [overrideInfo, setOverrideInfo] = useState<{ capacityRemaining: number; spotsNeeded: number } | null>(null)
+  const [overrideReason, setOverrideReason] = useState('')
+  const [overrideSubmitting, setOverrideSubmitting] = useState(false)
 
   const [formData, setFormData] = useState({
     // Individual fields
@@ -83,33 +97,73 @@ export default function ManualRegistrationForm({
     specialRequests: '',
   })
 
+  const submitRegistration = async (opts?: { override?: boolean; overrideReason?: string }) => {
+    return fetch(`/api/admin/registrations/manual`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        eventId: event.id,
+        organizationId,
+        registrationType,
+        ...formData,
+        ...(opts ?? {}),
+      }),
+    })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
 
     try {
-      const response = await fetch(`/api/admin/registrations/manual`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          eventId: event.id,
-          organizationId,
-          registrationType,
-          ...formData,
-        }),
-      })
+      const response = await submitRegistration()
+
+      if (response.status === 409) {
+        const data = await response.json().catch(() => ({}))
+        if (data.canOverride) {
+          setOverrideInfo({
+            capacityRemaining: data.capacityRemaining ?? 0,
+            spotsNeeded: data.spotsNeeded ?? 1,
+          })
+          setOverrideReason('')
+          setOverrideDialogOpen(true)
+          return
+        }
+        alert(data.error || 'Cannot create registration.')
+        return
+      }
 
       if (!response.ok) {
         throw new Error('Failed to create registration')
       }
 
-      const result = await response.json()
       router.push(`/dashboard/admin/events/${event.id}/registrations`)
     } catch (error) {
       console.error('Error creating manual registration:', error)
       alert('Failed to create registration. Please try again.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleConfirmOverride = async () => {
+    const reason = overrideReason.trim()
+    if (reason.length === 0) return
+
+    try {
+      setOverrideSubmitting(true)
+      const response = await submitRegistration({ override: true, overrideReason: reason })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to create registration with override')
+      }
+      setOverrideDialogOpen(false)
+      router.push(`/dashboard/admin/events/${event.id}/registrations`)
+    } catch (error) {
+      console.error('Error overriding capacity:', error)
+      alert(error instanceof Error ? error.message : 'Failed to override capacity.')
+    } finally {
+      setOverrideSubmitting(false)
     }
   }
 
@@ -626,6 +680,61 @@ export default function ManualRegistrationForm({
               </Button>
             </div>
           </form>
+
+          <AlertDialog open={overrideDialogOpen} onOpenChange={setOverrideDialogOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-orange-500" />
+                  Event is Over Capacity
+                </AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-3">
+                    <p>
+                      This registration needs{' '}
+                      <strong>{overrideInfo?.spotsNeeded}</strong> spot
+                      {overrideInfo?.spotsNeeded === 1 ? '' : 's'}, but only{' '}
+                      <strong>{overrideInfo?.capacityRemaining}</strong> remain.
+                    </p>
+                    <p>
+                      You can force this through, but the event will go over its configured
+                      capacity. This action is recorded on the registration.
+                    </p>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <div className="space-y-2 py-2">
+                <Label htmlFor="manual-override-reason">Reason (required)</Label>
+                <Textarea
+                  id="manual-override-reason"
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  placeholder="e.g. Sponsor's guest added at organizer's request"
+                  rows={3}
+                />
+              </div>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={overrideSubmitting}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={(e) => {
+                    e.preventDefault()
+                    handleConfirmOverride()
+                  }}
+                  disabled={overrideSubmitting || overrideReason.trim().length === 0}
+                  className="bg-orange-600 hover:bg-orange-700 text-white"
+                >
+                  {overrideSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating
+                    </>
+                  ) : (
+                    'Create anyway'
+                  )}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
     </div>

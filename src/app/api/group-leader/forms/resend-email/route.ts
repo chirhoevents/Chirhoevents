@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -36,7 +37,12 @@ export async function POST(req: NextRequest) {
       include: {
         groupRegistration: {
           include: {
-            event: true,
+            event: {
+              include: {
+                organization: { select: { contactEmail: true } },
+                settings: { select: { contactEmail: true } },
+              },
+            },
           },
         },
         liabilityForms: {
@@ -81,6 +87,32 @@ export async function POST(req: NextRequest) {
           signatureData: {},
         },
       })
+    } else {
+      // Persist a corrected email (e.g. fixing a typo) and refresh an expired token
+      // so a correction actually sticks instead of only affecting this one send.
+      const tokenExpired = !liabilityForm.parentToken ||
+        (liabilityForm.parentTokenExpiresAt !== null && liabilityForm.parentTokenExpiresAt < new Date())
+
+      liabilityForm = await prisma.liabilityForm.update({
+        where: { id: liabilityForm.id },
+        data: {
+          parentEmail,
+          ...(tokenExpired
+            ? {
+                parentToken: crypto.randomUUID(),
+                parentTokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+              }
+            : {}),
+        },
+      })
+    }
+
+    // Keep the roster's parent email in sync with what we actually sent to
+    if (participant.parentEmail !== parentEmail) {
+      await prisma.participant.update({
+        where: { id: participant.id },
+        data: { parentEmail },
+      })
     }
 
     // Send email to parent
@@ -88,7 +120,7 @@ export async function POST(req: NextRequest) {
 
     await resend.emails.send({
       from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-      reply_to: 'support@chirhoevents.com',
+      reply_to: resolveReplyTo(participant.groupRegistration.event.settings, participant.groupRegistration.event.organization),
       to: parentEmail,
       subject: `Liability Form Required for ${participant.firstName} ${participant.lastName}`,
       html: `

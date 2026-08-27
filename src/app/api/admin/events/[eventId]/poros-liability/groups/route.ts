@@ -39,8 +39,17 @@ export async function GET(
       include: {
         liabilityForms: {
           where: {
-            completed: true,
-            ...(status !== 'all' ? { formStatus: status } : {}),
+            OR: [
+              // Submitted forms, subject to the approval-status filter
+              { completed: true, ...(status !== 'all' && status !== 'pending_parent' ? { formStatus: status } : {}) },
+              // Youth-under-18 forms where step 1 is done but the parent hasn't
+              // finished step 2 yet — these never had an approval status to filter on.
+              // Keyed on formType, not participantType: the self-service Poros flow
+              // (api/liability/youth-u18/initiate) never sets participantType.
+              ...(status === 'all' || status === 'pending_parent'
+                ? [{ completed: false, formType: 'youth_u18' as const, parentToken: { not: null } }]
+                : []),
+            ],
           },
           include: {
             approvedBy: {
@@ -65,11 +74,12 @@ export async function GET(
 
     // Format response with stats
     type GroupResult = typeof groups[number]
-    type FormType = { formStatus: string; participantType: string | null }
+    type FormType = { formStatus: string; participantType: string | null; completed: boolean }
     const formattedGroups = groups.map((group: GroupResult) => {
       const totalSpots = group.totalParticipants
 
-      const allCompletedForms = group.liabilityForms
+      const allCompletedForms = group.liabilityForms.filter((f: FormType) => f.completed)
+      const pendingParentForms = group.liabilityForms.filter((f: FormType) => !f.completed)
       const submittedCount = allCompletedForms.length
       const approvedCount = allCompletedForms.filter(
         (f: FormType) => f.formStatus === 'approved'
@@ -80,6 +90,7 @@ export async function GET(
       const deniedCount = allCompletedForms.filter(
         (f: FormType) => f.formStatus === 'denied'
       ).length
+      const pendingParentCount = pendingParentForms.length
 
       // Calculate youth and chaperone submission counts
       const youthSubmittedCount = allCompletedForms.filter(
@@ -98,20 +109,22 @@ export async function GET(
         approvedCount,
         pendingCount,
         deniedCount,
+        pendingParentCount,
         // Youth and chaperone breakdown
         youthCount: group.youthCount,
         youthSubmittedCount,
         chaperoneCount: group.chaperoneCount,
         chaperoneSubmittedCount,
-        participants: allCompletedForms.map((form: GroupResult['liabilityForms'][number]) => ({
+        participants: [...allCompletedForms, ...pendingParentForms].map((form: GroupResult['liabilityForms'][number]) => ({
           id: form.participant?.id || form.id,
           firstName: form.participantFirstName,
           lastName: form.participantLastName,
           age: form.participantAge,
           gender: form.participantGender,
           participantType: form.participantType,
-          formStatus: form.formStatus,
+          formStatus: form.completed ? form.formStatus : 'pending_parent',
           formId: form.id,
+          parentEmail: form.parentEmail,
           pdfUrl: form.pdfUrl,
           allergies: form.allergies,
           medications: form.medications,

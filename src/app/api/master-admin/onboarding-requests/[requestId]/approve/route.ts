@@ -4,6 +4,7 @@ import { Resend } from 'resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import Stripe from 'stripe'
 import crypto from 'crypto'
+import { SUBSCRIPTION_TIERS } from '@/lib/subscription-tiers'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
@@ -56,21 +57,24 @@ export async function POST(
       )
     }
 
-    // Tier pricing — keyed by current DB enum value 'chapel' (renamed from 'starter').
-    // setupFee is the one-time access/setup fee charged at onboarding.
-    const tierPricing: Record<string, { monthly: number; annual: number; setupFee: number; eventsLimit: number; registrationsLimit: number; storageLimit: number }> = {
-      chapel: { monthly: 39, annual: 468, setupFee: 99, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
-      parish: { monthly: 59, annual: 708, setupFee: 199, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
-      cathedral: { monthly: 109, annual: 1080, setupFee: 349, eventsLimit: 10, registrationsLimit: 2000, storageLimit: 25 },
-      shrine: { monthly: 159, annual: 1908, setupFee: 499, eventsLimit: 20, registrationsLimit: 4000, storageLimit: 100 },
-      basilica: { monthly: 1250, annual: 15000, setupFee: 0, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
-      // Legacy tier keys (pre-rename)
-      starter: { monthly: 39, annual: 468, setupFee: 99, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
-      small_diocese: { monthly: 59, annual: 708, setupFee: 199, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
-      growing: { monthly: 109, annual: 1080, setupFee: 349, eventsLimit: 10, registrationsLimit: 2000, storageLimit: 25 },
-      conference: { monthly: 159, annual: 1908, setupFee: 499, eventsLimit: 20, registrationsLimit: 4000, storageLimit: 100 },
-      enterprise: { monthly: 1250, annual: 15000, setupFee: 0, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
-    }
+    // Tier pricing — sourced from centralized SUBSCRIPTION_TIERS so this
+    // matches the landing page and master admin org creator.
+    const tierPricing: Record<string, { monthly: number; annual: number; setupFee: number; eventsLimit: number; registrationsLimit: number; storageLimit: number }> =
+      Object.fromEntries(
+        Object.values(SUBSCRIPTION_TIERS).map(tier => [
+          tier.key,
+          {
+            monthly: tier.monthlyPrice,
+            annual: tier.annualPrice ?? tier.monthlyPrice * 12,
+            // setupFee=null (Basilica) defaults to 0 here — set the real
+            // custom amount manually on the org.
+            setupFee: tier.setupFee ?? 0,
+            eventsLimit: tier.eventsPerYear ?? -1,
+            registrationsLimit: tier.maxPeoplePerYear ?? -1,
+            storageLimit: tier.storageGb,
+          },
+        ])
+      )
 
     const requestedTier = onboardingRequest.requestedTier || 'shrine'
     const pricing = tierPricing[requestedTier] || tierPricing.shrine
@@ -173,25 +177,7 @@ export async function POST(
       },
     })
 
-    // Generate setup fee invoice with a secure payment token for the direct payment link
-    const setupFeePaymentToken = crypto.randomBytes(32).toString('hex')
-    const invoice = await prisma.invoice.create({
-      data: {
-        organizationId: organization.id,
-        invoiceNumber: await getNextInvoiceNumber(),
-        invoiceType: 'setup_fee',
-        amount: pricing.setupFee,
-        description: `One-time ${feeLabel.toLowerCase()} for ChiRho Events platform`,
-        status: 'pending',
-        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-        paymentToken: setupFeePaymentToken,
-      },
-    })
-
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
-    const setupFeePaymentUrl = `${appUrl}/pay/invoice/${setupFeePaymentToken}`
-
-    // Send welcome email
+    // Display labels for tier keys (used in invoice description and email).
     const tierLabels: Record<string, string> = {
       chapel: 'Chapel',
       starter: 'Chapel', // legacy tier key
@@ -200,6 +186,30 @@ export async function POST(
       cathedral: 'Cathedral',
       basilica: 'Basilica',
     }
+
+    // Generate setup fee invoice with a secure payment token for the direct payment link.
+    // Basilica's setup fee is custom (pricing.setupFee falls back to 0 from
+    // SUBSCRIPTION_TIERS) — skip auto-invoicing in that case so the master
+    // admin can issue a custom invoice manually.
+    const setupFeePaymentToken = crypto.randomBytes(32).toString('hex')
+    const setupFeeAmount = pricing.setupFee
+    const invoice = setupFeeAmount > 0
+      ? await prisma.invoice.create({
+          data: {
+            organizationId: organization.id,
+            invoiceNumber: await getNextInvoiceNumber(),
+            invoiceType: 'setup_fee',
+            amount: setupFeeAmount,
+            description: `One-time setup fee for ChiRho Events platform (${tierLabels[requestedTier] || requestedTier})`,
+            status: 'pending',
+            dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+            paymentToken: setupFeePaymentToken,
+          },
+        })
+      : null
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
+    const setupFeePaymentUrl = `${appUrl}/pay/invoice/${setupFeePaymentToken}`
 
     const welcomeEmailHtml = `
       <!DOCTYPE html>
@@ -249,21 +259,25 @@ export async function POST(
 
               <h3 style="color: #1E3A5F;">Next Steps:</h3>
               <ol>
-                <li><strong>Pay your ${feeLabel.toLowerCase()}:</strong> Click the button below to pay the one-time $${pricing.setupFee} ${feeLabel.toLowerCase()}. Your monthly subscription will start automatically after payment.</li>
+                ${invoice ? `<li><strong>Pay your setup fee:</strong> Click the button below to pay the one-time $${setupFeeAmount} setup fee. Your monthly subscription will start automatically after payment.</li>` : `<li><strong>Custom setup:</strong> A member of our team will reach out shortly to walk through your custom setup and send your first invoice.</li>`}
                 <li><strong>Set up your password:</strong> Sign in to create your account password and access your dashboard.</li>
                 <li><strong>Connect Stripe:</strong> Set up your payment processing to accept registrations.</li>
                 <li><strong>Create your first event:</strong> Start building your event and accepting registrations!</li>
               </ol>
 
               <div style="background: #FEF3C7; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                <strong>${feeLabel}:</strong> A $${pricing.setupFee} one-time ${feeLabel.toLowerCase()} is due within 30 days. After you pay, your ${tierLabels[requestedTier] || requestedTier} subscription ($${pricing.monthly}/month) will begin automatically — no further action needed.${isSelfServeTier ? ' <em>Note: ' + (tierLabels[requestedTier] || requestedTier) + ' is a self-serve tier — no onboarding assistance is included. Consider our Guided Setup ($199) or Full Implementation ($499) packages if you need help.</em>' : ''}
+                ${invoice
+                  ? `<strong>Setup Fee:</strong> A $${setupFeeAmount} one-time setup fee is due within 30 days. After you pay, your ${tierLabels[requestedTier] || requestedTier} subscription ($${pricing.monthly}/month) will begin automatically — no further action needed.`
+                  : `<strong>Custom Setup:</strong> Your ${tierLabels[requestedTier] || requestedTier} plan includes custom setup work. Our team will follow up to scope your setup and send a tailored invoice.`}
+                <br><br>
+                <em>Need extra help, training, or custom configuration beyond what's included? We're available at <strong>$90/hour</strong>.</em>
               </div>
 
-              <div style="text-align: center; margin: 30px 0;">
+              ${invoice ? `<div style="text-align: center; margin: 30px 0;">
                 <a href="${setupFeePaymentUrl}" class="cta-button">
-                  Pay $${pricing.setupFee} ${feeLabel}
+                  Pay $${setupFeeAmount} Setup Fee
                 </a>
-              </div>
+              </div>` : ''}
 
               <div style="text-align: center; margin: 10px 0;">
                 <a href="${appUrl}/sign-in" style="color: #1E3A5F; font-size: 14px;">
@@ -311,10 +325,12 @@ export async function POST(
         id: orgAdminUser.id,
         email: orgAdminUser.email,
       },
-      invoice: {
-        id: invoice.id,
-        invoiceNumber: invoice.invoiceNumber,
-      },
+      invoice: invoice
+        ? {
+            id: invoice.id,
+            invoiceNumber: invoice.invoiceNumber,
+          }
+        : null,
     })
   } catch (error) {
     console.error('Approve request error:', error)

@@ -29,6 +29,9 @@ export async function GET(
             boothStaff: true,
           },
         },
+        liabilityForm: {
+          select: { completed: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
     })

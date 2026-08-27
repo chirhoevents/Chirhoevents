@@ -4,6 +4,8 @@ import { Resend } from 'resend'
 import { generateLiabilityFormPDF } from '@/lib/pdf/generate-liability-form-pdf'
 import { uploadLiabilityFormPDF } from '@/lib/r2/upload-pdf'
 import { generateParticipantQRCode } from '@/lib/qr-code'
+import { resolveReplyTo } from '@/lib/email-reply-to'
+import { sanitizeMedicalText } from '@/lib/medical-info'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -47,7 +49,7 @@ export async function POST(request: NextRequest) {
     const liabilityForm = await prisma.liabilityForm.findUnique({
       where: { parentToken: parent_token },
       include: {
-        event: true,
+        event: { include: { settings: true } },
         organization: true,
       },
     })
@@ -127,11 +129,11 @@ export async function POST(request: NextRequest) {
       where: { id: liabilityForm.id },
       data: {
         participantId: participant.id,
-        medicalConditions: medical_conditions || null,
-        medications: medications || null,
-        allergies: allergies || null,
-        dietaryRestrictions: dietary_restrictions || null,
-        adaAccommodations: ada_accommodations || null,
+        medicalConditions: sanitizeMedicalText(medical_conditions) || null,
+        medications: sanitizeMedicalText(medications) || null,
+        allergies: sanitizeMedicalText(allergies) || null,
+        dietaryRestrictions: sanitizeMedicalText(dietary_restrictions) || null,
+        adaAccommodations: sanitizeMedicalText(ada_accommodations) || null,
         emergencyContact1Name: emergency_contact_1_name,
         emergencyContact1Phone: emergency_contact_1_phone,
         emergencyContact1Relation: emergency_contact_1_relation,
@@ -177,7 +179,7 @@ export async function POST(request: NextRequest) {
     try {
       await resend.emails.send({
         from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-        reply_to: 'support@chirhoevents.com',
+        reply_to: resolveReplyTo(liabilityForm.event.settings, liabilityForm.organization),
         to: liabilityForm.parentEmail!,
         subject: `✅ Form Completed - ${liabilityForm.participantFirstName} ${liabilityForm.participantLastName}`,
         html: `
@@ -244,7 +246,7 @@ export async function POST(request: NextRequest) {
       try {
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-          reply_to: 'support@chirhoevents.com',
+          reply_to: resolveReplyTo(liabilityForm.event.settings, liabilityForm.organization),
           to: groupRegistration.groupLeaderEmail,
           subject: `✅ Form Completed: ${liabilityForm.participantFirstName} ${liabilityForm.participantLastName}`,
           html: `
@@ -269,7 +271,7 @@ export async function POST(request: NextRequest) {
                 </div>
 
                 <p style="font-size: 14px; color: #666;">
-                  You can view all forms in your group leader portal (coming soon).
+                  You can view all forms in your <a href="https://chirhoevents.com/dashboard/group-leader" style="color: #1E3A5F; text-decoration: underline;">group leader portal</a>.
                 </p>
 
                 <p style="margin-top: 30px;">Pax Christi,<br><strong>ChiRho Events Team</strong></p>
@@ -277,7 +279,7 @@ export async function POST(request: NextRequest) {
                 <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
 
                 <p style="color: #666; font-size: 12px; text-align: center;">
-                  © 2025 ChiRho Events. All rights reserved.
+                  © ${new Date().getFullYear()} ChiRho Events. All rights reserved.
                 </p>
               </div>
             </div>

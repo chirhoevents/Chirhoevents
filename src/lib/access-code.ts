@@ -77,3 +77,15 @@ export function generateStaffPorosCode(eventYear?: string): string {
 
   return `STF-${year}-${code}`
 }
+
+// Vendor Poros Access Code Generation Utility (issued at vendor approval
+// when the event requires liability forms). Format: VNDPOR-YYYY-XXXXXX
+export function generateVendorPorosCode(eventYear?: string): string {
+  const year = eventYear || new Date().getFullYear().toString()
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  const code = Array.from({ length: 6 }, () =>
+    chars.charAt(Math.floor(Math.random() * chars.length))
+  ).join('')
+
+  return `VNDPOR-${year}-${code}`
+}

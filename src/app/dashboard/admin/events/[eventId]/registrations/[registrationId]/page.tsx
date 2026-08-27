@@ -116,7 +116,7 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
           paymentMethod: p.paymentMethod,
           paymentType: p.paymentType,
           paymentStatus: p.paymentStatus,
-          processedAt: p.processedAt.toISOString(),
+          processedAt: p.processedAt ? p.processedAt.toISOString() : null,
           checkNumber: p.checkNumber,
           notes: p.notes,
         }))}
@@ -202,7 +202,7 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
           paymentMethod: p.paymentMethod,
           paymentType: p.paymentType,
           paymentStatus: p.paymentStatus,
-          processedAt: p.processedAt.toISOString(),
+          processedAt: p.processedAt ? p.processedAt.toISOString() : null,
           checkNumber: p.checkNumber,
           notes: p.notes,
         }))}

@@ -14,7 +14,7 @@ interface RefundModalProps {
   isOpen: boolean
   onClose: () => void
   registrationId: string
-  registrationType: 'group' | 'individual'
+  registrationType: 'group' | 'individual' | 'staff' | 'vendor'
   currentBalance: number
   amountPaid: number
   onRefundProcessed?: () => void

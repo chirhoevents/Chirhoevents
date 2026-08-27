@@ -3,6 +3,7 @@ import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+import { releaseWaitlistOptionReservation } from '@/lib/waitlist-utils'
 
 export async function GET(
   request: NextRequest,
@@ -24,13 +25,31 @@ export async function GET(
 
     const { eventId } = await params
 
-    // Verify event belongs to user's organization
+    // Verify event belongs to user's organization + pull the settings that
+    // the admin waitlist UI needs for edit / adjust-offer dialogs.
     const event = await prisma.event.findUnique({
       where: { id: eventId },
       select: {
         id: true,
         name: true,
         organizationId: true,
+        settings: {
+          select: {
+            groupRegistrationEnabled: true,
+            individualRegistrationEnabled: true,
+            onCampusCapacity: true,
+            offCampusCapacity: true,
+            dayPassCapacity: true,
+            singleRoomCapacity: true,
+            doubleRoomCapacity: true,
+            tripleRoomCapacity: true,
+            quadRoomCapacity: true,
+          },
+        },
+        dayPassOptions: {
+          where: { isActive: true },
+          select: { id: true, name: true },
+        },
       },
     })
 
@@ -45,10 +64,69 @@ export async function GET(
       )
     }
 
-    // Fetch waitlist entries
+    // Lazy sweep: flip any 'contacted' entry whose invitationExpires has
+    // passed to 'expired' and release the seats it was holding back to event
+    // capacity and its option pool. Race-safe: only entries that actually flip
+    // from 'contacted' count toward the release, so concurrent sweeps don't
+    // double-count.
+    const staleContacted = await prisma.waitlistEntry.findMany({
+      where: {
+        eventId,
+        status: 'contacted',
+        invitationExpires: { lt: new Date() },
+      },
+      select: {
+        id: true,
+        reservedSpots: true,
+        reservedHousingType: true,
+        reservedRoomType: true,
+        reservedDayPassOptionId: true,
+      },
+    })
+
+    if (staleContacted.length > 0) {
+      let totalReleased = 0
+      for (const stale of staleContacted) {
+        const flipped = await prisma.$executeRaw`
+          UPDATE waitlist_entries
+          SET status = 'expired',
+              reserved_spots = NULL,
+              reserved_housing_type = NULL,
+              reserved_room_type = NULL,
+              reserved_day_pass_option_id = NULL
+          WHERE id = ${stale.id}::uuid
+            AND status = 'contacted'
+        `
+        if (flipped === 1) {
+          totalReleased += stale.reservedSpots ?? 0
+          await releaseWaitlistOptionReservation({
+            eventId,
+            reservedSpots: stale.reservedSpots,
+            reservedHousingType: stale.reservedHousingType as any,
+            reservedRoomType: stale.reservedRoomType as any,
+            reservedDayPassOptionId: stale.reservedDayPassOptionId,
+          })
+        }
+      }
+      if (totalReleased > 0) {
+        await prisma.event.update({
+          where: { id: eventId },
+          data: { capacityRemaining: { increment: totalReleased } },
+        })
+        console.log(
+          `[Waitlist] Sweep expired ${staleContacted.length} contacted invite(s), released ${totalReleased} seat(s) for event ${eventId}`
+        )
+      }
+    }
+
+    // Fetch waitlist entries with day-pass option name so the admin table
+    // can show the human-readable option instead of a UUID.
     const entries = await prisma.waitlistEntry.findMany({
       where: {
         eventId,
+      },
+      include: {
+        dayPassOption: { select: { name: true } },
       },
       orderBy: [{ status: 'asc' }, { createdAt: 'asc' }],
     })
@@ -82,10 +160,30 @@ export async function GET(
     // Total spots converted (party sizes of registered entries)
     const spotsConverted = registeredEntries.reduce((sum: number, e: any) => sum + e.partySize, 0)
 
+    // Build the preferences payload the admin waitlist UI uses to render
+    // edit / adjust-offer dialogs. Same shape logic as the public modal.
+    const s = event.settings
+    const housingOffered: Array<'on_campus' | 'off_campus' | 'day_pass'> = []
+    if (s?.onCampusCapacity !== null && s?.onCampusCapacity !== undefined) housingOffered.push('on_campus')
+    if (s?.offCampusCapacity !== null && s?.offCampusCapacity !== undefined) housingOffered.push('off_campus')
+    if (s?.dayPassCapacity !== null && s?.dayPassCapacity !== undefined) housingOffered.push('day_pass')
+    const roomsOffered: Array<'single' | 'double' | 'triple' | 'quad'> = []
+    if (s?.singleRoomCapacity !== null && s?.singleRoomCapacity !== undefined) roomsOffered.push('single')
+    if (s?.doubleRoomCapacity !== null && s?.doubleRoomCapacity !== undefined) roomsOffered.push('double')
+    if (s?.tripleRoomCapacity !== null && s?.tripleRoomCapacity !== undefined) roomsOffered.push('triple')
+    if (s?.quadRoomCapacity !== null && s?.quadRoomCapacity !== undefined) roomsOffered.push('quad')
+
     return NextResponse.json({
       event: {
         id: event.id,
         name: event.name,
+      },
+      preferences: {
+        groupRegistrationEnabled: s?.groupRegistrationEnabled ?? true,
+        individualRegistrationEnabled: s?.individualRegistrationEnabled ?? true,
+        housingTypes: housingOffered,
+        roomTypes: roomsOffered,
+        dayPassOptions: event.dayPassOptions ?? [],
       },
       entries: entries.map((entry: any, index: number) => ({
         id: entry.id,
@@ -104,6 +202,10 @@ export async function GET(
         preferredRoomType: entry.preferredRoomType,
         preferredTicketType: entry.preferredTicketType,
         preferredDayPassOptionId: entry.preferredDayPassOptionId,
+        preferredDayPassOptionName: entry.dayPassOption?.name ?? null,
+        youthCount: entry.youthCount,
+        chaperoneCount: entry.chaperoneCount,
+        priestCount: entry.priestCount,
         createdAt: entry.createdAt,
         updatedAt: entry.updatedAt,
       })),

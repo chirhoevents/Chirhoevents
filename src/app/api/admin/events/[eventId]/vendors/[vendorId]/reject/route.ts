@@ -4,6 +4,7 @@ import { verifyEventAccess } from '@/lib/api-auth'
 import { Resend } from 'resend'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { wrapEmail, emailInfoBox } from '@/lib/email-templates'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -36,6 +37,8 @@ export async function POST(
             id: true,
             name: true,
             organizationId: true,
+            organization: { select: { name: true, contactEmail: true } },
+            settings: { select: { contactEmail: true } },
           },
         },
       },
@@ -89,10 +92,11 @@ export async function POST(
         <p style="font-size: 14px; color: #666;">
           — The Event Team
         </p>
-      `, { preheader: `Update on your vendor application for ${vendor.event.name}` })
+      `, { preheader: `Update on your vendor application for ${vendor.event.name}`, organizationName: vendor.event.organization?.name || 'ChiRho Events', supportEmail: resolveReplyTo(vendor.event.settings, vendor.event.organization) })
 
       await resend.emails.send({
         from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+        reply_to: resolveReplyTo(vendor.event.settings, vendor.event.organization),
         to: vendor.email,
         subject: `Vendor Application Update - ${vendor.event.name}`,
         html: emailContent,

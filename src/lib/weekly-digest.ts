@@ -26,6 +26,9 @@ export interface WeeklyDigestData {
     totalRevenue: number
     pendingPayments: number
     overdueBalances: number
+    // Org's own platform invoices owed to ChiRho (past their due date)
+    overdueInvoices: number
+    overdueInvoiceAmount: number
 
     // Forms & Compliance
     formsCompletedThisWeek: number
@@ -47,7 +50,16 @@ export interface WeeklyDigestData {
     startDate: string
     registrationCount: number
     spotsRemaining?: number
+    waitlistEnabled?: boolean
+    waitlistPending?: number
+    waitlistContacted?: number
   }>
+  waitlistActivity?: {
+    newSignups: number
+    invitesSent: number
+    converted: number
+    totalPending: number
+  }
   actionItems: Array<{
     type: 'warning' | 'info' | 'urgent'
     title: string
@@ -66,19 +78,19 @@ export interface WeeklyDigestData {
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
 
 /**
- * Format currency in cents to display format
+ * Format a USD amount stored in dollars (Decimal(10,2)) for display.
  */
-function formatCurrency(amountInCents: number): string {
+function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-  }).format(amountInCents / 100)
+  }).format(amount)
 }
 
 /**
  * Generate a stat card for the email
  */
-function statCard(label: string, value: string | number, change?: { value: number; isPositive: boolean }): string {
+function statCard(label: string, value: string | number, change?: { value: number | string; isPositive: boolean }): string {
   const changeHtml = change ? `
     <span style="font-size: 12px; color: ${change.isPositive ? '#059669' : '#DC2626'}; margin-left: 8px;">
       ${change.isPositive ? '+' : ''}${change.value} this week
@@ -145,7 +157,20 @@ export function generateWeeklyDigestEmail(data: WeeklyDigestData): string {
     `
 
   const upcomingEventsHtml = data.upcomingEvents.length > 0
-    ? data.upcomingEvents.map(event => `
+    ? data.upcomingEvents.map(event => {
+        const waitlistParts: string[] = []
+        if (event.waitlistEnabled) {
+          if (event.waitlistPending && event.waitlistPending > 0) {
+            waitlistParts.push(`${event.waitlistPending} waitlisted`)
+          }
+          if (event.waitlistContacted && event.waitlistContacted > 0) {
+            waitlistParts.push(`${event.waitlistContacted} invited`)
+          }
+        }
+        const waitlistLine = waitlistParts.length > 0
+          ? `<br><span style="font-size: 12px; color: #7A5FAF;">${waitlistParts.join(' &middot; ')}</span>`
+          : ''
+        return `
         <tr>
           <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e5;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -157,12 +182,14 @@ export function generateWeeklyDigestEmail(data: WeeklyDigestData): string {
                 <td style="text-align: right;">
                   <span style="font-size: 14px; color: #1E3A5F;"><strong>${event.registrationCount}</strong> registered</span>
                   ${event.spotsRemaining !== undefined ? `<br><span style="font-size: 12px; color: ${event.spotsRemaining < 10 ? '#DC2626' : '#666'};">${event.spotsRemaining} spots left</span>` : ''}
+                  ${waitlistLine}
                 </td>
               </tr>
             </table>
           </td>
         </tr>
-      `).join('')
+      `
+      }).join('')
     : `
       <tr>
         <td style="padding: 20px; text-align: center; color: #666;">
@@ -194,7 +221,7 @@ export function generateWeeklyDigestEmail(data: WeeklyDigestData): string {
       <tr>
         ${statCard('Registrations', data.stats.totalRegistrations, { value: data.stats.newRegistrationsThisWeek, isPositive: true })}
         <td style="width: 8px;"></td>
-        ${statCard('Revenue', formatCurrency(data.stats.totalRevenue), { value: data.stats.revenueThisWeek > 0 ? Math.round(data.stats.revenueThisWeek / 100) : 0, isPositive: true })}
+        ${statCard('Revenue', formatCurrency(data.stats.totalRevenue), { value: data.stats.revenueThisWeek > 0 ? formatCurrency(data.stats.revenueThisWeek) : 0, isPositive: true })}
         <td style="width: 8px;"></td>
         ${statCard('Forms Done', `${data.stats.formsCompletedThisWeek}`, { value: data.stats.formsCompletedThisWeek, isPositive: true })}
         <td style="width: 8px;"></td>
@@ -206,7 +233,7 @@ export function generateWeeklyDigestEmail(data: WeeklyDigestData): string {
       <tr>
         ${statCard('Registrations', data.stats.totalRegistrations, { value: data.stats.newRegistrationsThisWeek, isPositive: true })}
         <td style="width: 8px;"></td>
-        ${statCard('Revenue', formatCurrency(data.stats.totalRevenue), { value: data.stats.revenueThisWeek > 0 ? Math.round(data.stats.revenueThisWeek / 100) : 0, isPositive: true })}
+        ${statCard('Revenue', formatCurrency(data.stats.totalRevenue), { value: data.stats.revenueThisWeek > 0 ? formatCurrency(data.stats.revenueThisWeek) : 0, isPositive: true })}
         <td style="width: 8px;"></td>
         ${statCard('Active Events', data.stats.activeEvents.toString())}
       </tr>
@@ -261,7 +288,8 @@ export function generateWeeklyDigestEmail(data: WeeklyDigestData): string {
             ${emailDetailRow('Revenue This Week', formatCurrency(data.stats.revenueThisWeek))}
             ${emailDetailRow('Total Revenue', formatCurrency(data.stats.totalRevenue))}
             ${emailDetailRow('Pending Check Payments', data.stats.pendingPayments.toString())}
-            ${emailDetailRow('Overdue Balances', data.stats.overdueBalances.toString())}
+            ${emailDetailRow('Group Registration Balances Outstanding', data.stats.overdueBalances.toString())}
+            ${emailDetailRow('Past-Due ChiRho Invoices', data.stats.overdueInvoices > 0 ? `${data.stats.overdueInvoices} (${formatCurrency(data.stats.overdueInvoiceAmount)})` : '0')}
           </table>
         </td>
       </tr>
@@ -274,6 +302,30 @@ export function generateWeeklyDigestEmail(data: WeeklyDigestData): string {
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0;">
       ${upcomingEventsHtml}
     </table>
+
+    ${data.waitlistActivity && (
+      data.waitlistActivity.newSignups > 0 ||
+      data.waitlistActivity.invitesSent > 0 ||
+      data.waitlistActivity.converted > 0 ||
+      data.waitlistActivity.totalPending > 0
+    ) ? `
+    <!-- Waitlist Activity -->
+    <h2 style="color: #1E3A5F; border-bottom: 2px solid #9C8466; padding-bottom: 8px; margin-top: 32px;">
+      Waitlist Activity
+    </h2>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0; background: #f9f9f9; border-radius: 8px; padding: 20px;">
+      <tr>
+        <td>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            ${emailDetailRow('New Waitlist Signups This Week', data.waitlistActivity.newSignups.toString())}
+            ${emailDetailRow('Invitations Sent This Week', data.waitlistActivity.invitesSent.toString())}
+            ${emailDetailRow('Converted to Registrations This Week', data.waitlistActivity.converted.toString())}
+            ${emailDetailRow('Currently Pending on Waitlists', data.waitlistActivity.totalPending.toString())}
+          </table>
+        </td>
+      </tr>
+    </table>
+    ` : ''}
 
     <!-- Registration & Forms -->
     <h2 style="color: #1E3A5F; border-bottom: 2px solid #9C8466; padding-bottom: 8px; margin-top: 32px;">
@@ -310,8 +362,8 @@ export function generateWeeklyDigestEmail(data: WeeklyDigestData): string {
     </div>
 
     <p style="font-size: 14px; color: #666; text-align: center; margin-top: 32px;">
-      You're receiving this because you have weekly digest emails enabled for ${data.organizationName}.<br>
-      <a href="${APP_URL}/dashboard/admin/settings" style="color: #9C8466;">Manage email preferences</a>
+      Sent every Monday around 10 AM Eastern for ${data.organizationName}.<br>
+      To turn this off, visit <a href="${APP_URL}/dashboard/admin/settings" style="color: #9C8466;">Settings &rarr; Notifications</a>.
     </p>
   `, {
     organizationName: data.organizationName,

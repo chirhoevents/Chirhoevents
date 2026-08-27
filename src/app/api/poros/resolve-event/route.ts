@@ -42,6 +42,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ eventId: staff.eventId, eventName: staff.event?.name ?? null })
     }
 
+    // Vendor registration (VNDPOR- prefix, issued at vendor approval)
+    if (code.startsWith('VNDPOR-')) {
+      const vendor = await prisma.vendorRegistration.findUnique({
+        where: { porosAccessCode: code },
+        select: { eventId: true, event: { select: { name: true } } },
+      })
+      if (!vendor) {
+        return NextResponse.json({ error: 'Invalid access code' }, { status: 404 })
+      }
+      return NextResponse.json({ eventId: vendor.eventId, eventName: vendor.event?.name ?? null })
+    }
+
     // Group registration
     const group = await prisma.groupRegistration.findUnique({
       where: { accessCode: code },

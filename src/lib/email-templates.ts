@@ -125,6 +125,56 @@ export function wrapEmail(content: string, options?: {
 }
 
 /**
+ * Convert plain text (e.g. from a textarea) into safe formatted HTML for an email.
+ * Preserves paragraph breaks (blank lines), single-line breaks, and simple
+ * bullet (`-`/`*`) and numbered (`1.`) lists. HTML in the input is escaped to
+ * prevent XSS. If the input already contains block-level HTML tags it is
+ * passed through unchanged so callers that pre-format their content still work.
+ */
+export function formatPlainTextForEmail(text: string | null | undefined): string {
+  if (!text) return ''
+  const trimmed = text.trim()
+  if (!trimmed) return ''
+
+  if (/<(p|div|br|ul|ol|li|h[1-6]|table|blockquote)[\s>]/i.test(trimmed)) {
+    return trimmed
+  }
+
+  const escape = (s: string) =>
+    s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+
+  return trimmed
+    .split(/\n\s*\n/)
+    .map(block => {
+      const lines = block.split('\n').map(l => l.trim()).filter(Boolean)
+      if (lines.length === 0) return ''
+
+      if (lines.every(l => /^[-*]\s+/.test(l))) {
+        const items = lines
+          .map(l => `<li style="margin-bottom: 6px;">${escape(l.replace(/^[-*]\s+/, ''))}</li>`)
+          .join('')
+        return `<ul style="margin: 0 0 16px 0; padding-left: 24px;">${items}</ul>`
+      }
+
+      if (lines.every(l => /^\d+\.\s+/.test(l))) {
+        const items = lines
+          .map(l => `<li style="margin-bottom: 6px;">${escape(l.replace(/^\d+\.\s+/, ''))}</li>`)
+          .join('')
+        return `<ol style="margin: 0 0 16px 0; padding-left: 24px;">${items}</ol>`
+      }
+
+      return `<p style="margin: 0 0 16px 0;">${lines.map(escape).join('<br>')}</p>`
+    })
+    .filter(Boolean)
+    .join('\n')
+}
+
+/**
  * Generate a styled button for emails
  */
 export function emailButton(text: string, url: string, color: 'primary' | 'secondary' | 'success' = 'primary'): string {
@@ -1669,6 +1719,58 @@ export function generateSurveyFeedbackEmail({
 }
 
 /**
+ * Post-event Survey invite / reminder email (native in-app survey, delivered
+ * via a per-recipient tokenized link — distinct from generateSurveyFeedbackEmail
+ * above, which just points at an external survey URL).
+ */
+export function generateSurveyInviteEmail({
+  recipientName,
+  eventName,
+  surveyTitle,
+  surveyUrl,
+  isReminder,
+  isAnonymous,
+  isGroupLeader,
+  customMessage,
+  organizationName,
+  supportEmail,
+}: {
+  recipientName: string
+  eventName: string
+  surveyTitle: string
+  surveyUrl: string
+  isReminder?: boolean
+  isAnonymous?: boolean
+  isGroupLeader?: boolean
+  customMessage?: string
+  organizationName: string
+  supportEmail?: string
+}): string {
+  const heading = isReminder ? "Quick Reminder — We'd Love Your Feedback" : 'Share Your Feedback'
+
+  return wrapEmail(`
+    <h1 style="color: #1E3A5F; margin-top: 0;">${heading}</h1>
+
+    <p>Dear ${recipientName},</p>
+
+    <p>${isGroupLeader
+      ? `Thank you for leading your group at <strong>${eventName}</strong>! We'd love to hear how it went — on behalf of yourself and your group.`
+      : `Thank you for being part of <strong>${eventName}</strong>! We hope it was a meaningful experience.`
+    }</p>
+
+    <p>${isReminder ? "We haven't heard from you yet — could you t" : 'Could you t'}ake a few minutes to complete "<strong>${surveyTitle}</strong>"?${isAnonymous ? ' Your responses are anonymous.' : ''}</p>
+
+    ${starLink('Take the Survey', surveyUrl, true)}
+
+    ${customMessage ? `<p>${customMessage}</p>` : ''}
+
+    <p>Thank you for taking a few minutes to share your thoughts. It means a lot to us.</p>
+
+    <p style="font-size: 14px; color: #666;">— ${organizationName}</p>
+  `, { organizationName, supportEmail, preheader: `${surveyTitle} — ${eventName}` })
+}
+
+/**
  * Registration Open announcement email
  */
 export function generateRegistrationOpenEmail({
@@ -2162,15 +2264,31 @@ export function generateWaitlistConfirmationEmail({
 }
 
 /**
- * Generate waitlist invitation email when a spot opens up
+ * Generate waitlist invitation email when a spot opens up.
+ *
+ * The offered fields describe what's actually being reserved — for a
+ * normal invite they match what the person requested; for a counter-offer
+ * they differ, in which case the email highlights the change so the
+ * invitee isn't surprised when the registration form only accepts the
+ * offered amount / option.
  */
 export function generateWaitlistInvitationEmail({
   name,
   eventName,
-  partySize,
+  partySize, // kept for backward compat; treated as offeredPartySize when the specific ones aren't set
   organizationName,
   registrationUrl,
   expiresIn,
+  offeredPartySize,
+  offeredYouth,
+  offeredChaperones,
+  offeredPriests,
+  offeredHousingLabel,
+  offeredDayPassName,
+  requestedPartySize,
+  requestedHousingLabel,
+  requestedDayPassName,
+  isCounterOffer,
 }: {
   name: string
   eventName: string
@@ -2178,7 +2296,90 @@ export function generateWaitlistInvitationEmail({
   organizationName: string
   registrationUrl: string
   expiresIn?: string
+  offeredPartySize?: number
+  offeredYouth?: number | null
+  offeredChaperones?: number | null
+  offeredPriests?: number | null
+  offeredHousingLabel?: string | null
+  offeredDayPassName?: string | null
+  requestedPartySize?: number
+  requestedHousingLabel?: string | null
+  requestedDayPassName?: string | null
+  isCounterOffer?: boolean
 }): string {
+  const spots = offeredPartySize ?? partySize
+
+  // Describe the offer in plain English — mix if we have it, plus option
+  // ("On-Campus", a day-pass name, etc.). Falls back gracefully when the
+  // extra fields aren't provided (older call sites).
+  const describeOffer = (): string => {
+    const parts: string[] = []
+    parts.push(`${spots} spot${spots === 1 ? '' : 's'}`)
+    const hasMix =
+      (offeredYouth ?? 0) > 0 ||
+      (offeredChaperones ?? 0) > 0 ||
+      (offeredPriests ?? 0) > 0
+    if (hasMix) {
+      const mix = [
+        offeredYouth ? `${offeredYouth} youth` : null,
+        offeredChaperones
+          ? `${offeredChaperones} chaperone${offeredChaperones === 1 ? '' : 's'}`
+          : null,
+        offeredPriests
+          ? `${offeredPriests} priest${offeredPriests === 1 ? '' : 's'}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' + ')
+      parts.push(`(${mix})`)
+    }
+    if (offeredDayPassName) {
+      parts.push(`— ${offeredDayPassName}`)
+    } else if (offeredHousingLabel) {
+      parts.push(`— ${offeredHousingLabel}`)
+    }
+    return parts.join(' ')
+  }
+
+  const describeRequest = (): string => {
+    if (!isCounterOffer) return ''
+    const parts: string[] = []
+    if (requestedPartySize !== undefined) {
+      parts.push(`${requestedPartySize} spot${requestedPartySize === 1 ? '' : 's'}`)
+    }
+    if (requestedDayPassName) {
+      parts.push(`— ${requestedDayPassName}`)
+    } else if (requestedHousingLabel) {
+      parts.push(`— ${requestedHousingLabel}`)
+    }
+    return parts.join(' ')
+  }
+
+  const offerSummary = describeOffer()
+  const requestSummary = describeRequest()
+
+  const counterOfferBlock = isCounterOffer && requestSummary
+    ? emailInfoBox(`
+        <strong>We're offering something a little different than what you asked for.</strong><br><br>
+        <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">You asked for</div>
+        <div style="font-weight: 500; margin-bottom: 12px;">${requestSummary}</div>
+        <div style="font-size: 12px; color: #1E3A5F; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">We're offering</div>
+        <div style="font-weight: 600; color: #1E3A5F;">${offerSummary}</div>
+        <p style="margin: 12px 0 0 0; font-size: 13px; color: #666;">
+          If this works, tap Register below and complete your registration for these exact numbers.
+          If it doesn't work, open the link and tap "This offer doesn't work" — you'll go back on the waitlist without losing your place.
+        </p>
+      `, 'warning')
+    : ''
+
+  const primaryOfferBlock = !counterOfferBlock
+    ? emailInfoBox(`
+        <strong>You've been invited to register!</strong><br>
+        We have <strong>${offerSummary}</strong> reserved for you.
+        ${expiresIn ? ` Please complete your registration within ${expiresIn}.` : ''}
+      `, 'success')
+    : ''
+
   return wrapEmail(`
     <h1>A Spot is Available!</h1>
 
@@ -2186,11 +2387,8 @@ export function generateWaitlistInvitationEmail({
 
     <p>Great news! A spot has opened up for <strong>${eventName}</strong>, and you're next in line!</p>
 
-    ${emailInfoBox(`
-      <strong>You have been invited to register!</strong><br>
-      ${partySize > 1 ? `We have ${partySize} spots reserved for you.` : 'Your spot is reserved.'}
-      ${expiresIn ? ` Please complete your registration within ${expiresIn}.` : ''}
-    `, 'success')}
+    ${counterOfferBlock}
+    ${primaryOfferBlock}
 
     <div style="text-align: center; margin: 30px 0;">
       ${emailButton('Register Now', registrationUrl, 'primary')}
@@ -2198,9 +2396,9 @@ export function generateWaitlistInvitationEmail({
 
     <h2>Important Notes</h2>
     <ul>
-      <li><strong>Don't wait</strong> - this invitation is time-sensitive</li>
-      <li><strong>Complete your registration</strong> to secure your spot</li>
-      <li>If you no longer wish to attend, simply ignore this email and the spot will go to the next person</li>
+      <li><strong>Don't wait</strong> — this invitation is time-sensitive.</li>
+      <li>Your registration must be for <strong>exactly ${offerSummary}</strong>. If the numbers or option don't work, reply to the organizer or decline via the registration page.</li>
+      <li>If you no longer wish to attend, simply ignore this email and the spot will go to the next person.</li>
     </ul>
 
     ${expiresIn ? emailInfoBox(`
@@ -2212,7 +2410,7 @@ export function generateWaitlistInvitationEmail({
     <p style="font-size: 14px; color: #666;">
       — ${organizationName}
     </p>
-  `, { organizationName, preheader: `A spot opened up for ${eventName} - Register now!` })
+  `, { organizationName, preheader: `${offerSummary} reserved for ${eventName} — register within ${expiresIn ?? '48 hours'}` })
 }
 
 export function generateGroupRegistrationConfirmationEmail({
@@ -2225,6 +2423,7 @@ export function generateGroupRegistrationConfirmationEmail({
   totalAmount,
   depositAmount,
   balanceRemaining,
+  fullPaymentDeadline,
   paymentMethod,
   checkPayableTo,
   checkMailingAddress,
@@ -2235,6 +2434,7 @@ export function generateGroupRegistrationConfirmationEmail({
   groupLeaderPortalUrl,
   groupLeaderEmail,
   supportEmail,
+  receiptUrl,
 }: {
   groupName: string
   groupLeaderName: string
@@ -2245,6 +2445,7 @@ export function generateGroupRegistrationConfirmationEmail({
   totalAmount: number
   depositAmount: number
   balanceRemaining: number
+  fullPaymentDeadline?: string
   paymentMethod: 'card' | 'check'
   checkPayableTo?: string
   checkMailingAddress?: string
@@ -2255,6 +2456,7 @@ export function generateGroupRegistrationConfirmationEmail({
   groupLeaderPortalUrl: string
   groupLeaderEmail?: string
   supportEmail?: string
+  receiptUrl?: string | null
 }): string {
   // Amounts are passed in dollars (from PaymentBalance.totalAmountDue and the
   // group registration's calculated totals), not Stripe-style cents.
@@ -2276,6 +2478,7 @@ export function generateGroupRegistrationConfirmationEmail({
   ` : `
     <h2>Payment Confirmed</h2>
     <p>Your deposit of <strong>${formatCurrency(depositAmount)}</strong> has been successfully processed.</p>
+    ${receiptUrl ? `<p style="margin: 8px 0 0 0;"><a href="${receiptUrl}" style="color: #1a73e8;">View Stripe Receipt</a></p>` : ''}
   `
 
   return wrapEmail(`
@@ -2328,10 +2531,15 @@ export function generateGroupRegistrationConfirmationEmail({
             ${emailDetailRow('Total Amount', formatCurrency(totalAmount))}
             ${emailDetailRow('Deposit Paid', formatCurrency(depositAmount))}
             ${emailDetailRow('Balance Remaining', formatCurrency(balanceRemaining))}
+            ${balanceRemaining > 0 && fullPaymentDeadline ? emailDetailRow('Full Payment Due By', fullPaymentDeadline) : ''}
           </table>
         </td>
       </tr>
     </table>
+
+    ${balanceRemaining > 0 && fullPaymentDeadline ? emailInfoBox(`
+      <strong>Full Payment Due By ${fullPaymentDeadline}.</strong> You can make payments anytime in your Group Leader Portal.
+    `, 'warning') : ''}
 
     ${paymentSection}
 
