@@ -219,7 +219,8 @@ export default function SurveyPage() {
                           name={question.id}
                           checked={answers[question.id] === opt}
                           onChange={() => setAnswer(question.id, opt)}
-                          className="h-4 w-4 text-navy"
+                          className="h-4 w-4"
+                          style={{ accentColor: '#1E3A5F' }}
                         />
                         <span className="text-gray-700">{opt}</span>
                       </label>
@@ -242,7 +243,8 @@ export default function SurveyPage() {
                             type="checkbox"
                             checked={selected}
                             onChange={() => toggleMultiSelect(question.id, opt)}
-                            className="h-4 w-4 text-navy"
+                            className="h-4 w-4"
+                            style={{ accentColor: '#1E3A5F' }}
                           />
                           <span className="text-gray-700">{opt}</span>
                         </label>
