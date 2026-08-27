@@ -2,15 +2,30 @@
 
 This guide explains how to set up subscription products and prices in Stripe for ChiRho Events.
 
+> **Note on tier naming:** The "Chapel" tier is stored internally under the DB enum value `starter`
+> (preserved for backward compatibility). The Stripe price ID env var `STRIPE_PRICE_STARTER_MONTHLY`
+> still corresponds to the Chapel tier. New Stripe prices must be created in the dashboard to match
+> the updated amounts below.
+
 ## Subscription Tier Overview
 
-| Tier | Monthly Price | Annual Price | Events/Year | Max People | Modules Included |
-|------|---------------|--------------|-------------|------------|------------------|
-| **Starter** | $25/mo | N/A | 3 | 500 | Basic registration only |
-| **Parish** | $45/mo | N/A | 5 | 1,000 | Basic registration only |
-| **Cathedral** | $89/mo | $900/year | 10 | 3,000 | POROS, SALVE, RAPHA |
-| **Shrine** | $120/mo | $1,200/year | 25 | 8,000 | POROS, SALVE, RAPHA |
-| **Basilica** | Custom | Starting $2,000/year | Unlimited | 15,000+ | All features |
+| Tier | Monthly Price | Annual Price | One-Time Fee | Events/Year | Max People | Modules Included |
+|------|---------------|--------------|--------------|-------------|------------|------------------|
+| **Chapel** | $39/mo | N/A | $99 Basic Access Fee (self-serve) | 3 | 500 | Basic registration only |
+| **Parish** | $59/mo | N/A | $199 Basic Access Fee (self-serve) | 5 | 1,000 | Basic registration only |
+| **Cathedral** | $109/mo | $1,080/year | $349 Setup Fee | 10 | 2,000 | POROS, SALVE, RAPHA |
+| **Shrine** | $159/mo | $1,908/year | $499 Setup Fee | 20 | 4,000 | POROS, SALVE, RAPHA |
+| **Basilica** | Custom | Starting $15,000/year | Custom | Unlimited | 10,000+ | All features |
+
+## Implementation & Consulting Packages
+
+| Package | Price | Description |
+|---------|-------|-------------|
+| Self-Serve | Free | Required for Chapel tier. Documentation and video walkthroughs only — no live support. |
+| Guided Setup | $199 | One onboarding call + we configure your first event |
+| Full Implementation | $499 | We build everything, train your team, and provide go-live support |
+
+Ongoing consulting available at **$75/hr** (1-hour minimum).
 
 ---
 
@@ -26,31 +41,31 @@ This guide explains how to set up subscription products and prices in Stripe for
 
 For each subscription tier, create a **Product** in Stripe:
 
-### Starter Product
+### Chapel Product (internal key: `starter`)
 1. Click **+ Add product**
-2. **Name:** `ChiRho Events - Starter`
-3. **Description:** `Starter subscription - 3 events/year, 500 people max, basic registration`
+2. **Name:** `ChiRho Events - Chapel`
+3. **Description:** `Chapel subscription - 3 events/year, 500 people max, basic registration (self-serve)`
 4. **Pricing:** Recurring
 5. Click **Add product**
 
 ### Parish Product
 1. Click **+ Add product**
 2. **Name:** `ChiRho Events - Parish`
-3. **Description:** `Parish subscription - 5 events/year, 1,000 people max, basic registration`
+3. **Description:** `Parish subscription - 5 events/year, 1,000 people max, basic registration (self-serve)`
 4. **Pricing:** Recurring
 5. Click **Add product**
 
 ### Cathedral Product
 1. Click **+ Add product**
 2. **Name:** `ChiRho Events - Cathedral`
-3. **Description:** `Cathedral subscription - 10 events/year, 3,000 people max, includes POROS/SALVE/RAPHA`
+3. **Description:** `Cathedral subscription - 10 events/year, 2,000 people max, includes POROS/SALVE/RAPHA`
 4. **Pricing:** Recurring
 5. Click **Add product**
 
 ### Shrine Product
 1. Click **+ Add product**
 2. **Name:** `ChiRho Events - Shrine`
-3. **Description:** `Shrine subscription - 25 events/year, 8,000 people max, includes POROS/SALVE/RAPHA`
+3. **Description:** `Shrine subscription - 20 events/year, 4,000 people max, includes POROS/SALVE/RAPHA`
 4. **Pricing:** Recurring
 5. Click **Add product**
 
@@ -60,21 +75,21 @@ For each subscription tier, create a **Product** in Stripe:
 
 For each product, create the appropriate price(s):
 
-### Starter Prices
-On the Starter product, click **Add another price**:
+### Chapel Prices
+On the Chapel product, click **Add another price**:
 
 **Monthly Price:**
 - **Pricing model:** Standard pricing
-- **Price:** $25.00 USD
+- **Price:** $39.00 USD
 - **Billing period:** Monthly
-- **Price ID:** Copy this for `STRIPE_PRICE_STARTER_MONTHLY`
+- **Price ID:** Copy this for `STRIPE_PRICE_STARTER_MONTHLY` (env var name preserved for backward compat)
 
 ### Parish Prices
 On the Parish product, click **Add another price**:
 
 **Monthly Price:**
 - **Pricing model:** Standard pricing
-- **Price:** $45.00 USD
+- **Price:** $59.00 USD
 - **Billing period:** Monthly
 - **Price ID:** Copy this for `STRIPE_PRICE_PARISH_MONTHLY`
 
@@ -83,13 +98,13 @@ On the Cathedral product, add TWO prices:
 
 **Monthly Price:**
 - **Pricing model:** Standard pricing
-- **Price:** $89.00 USD
+- **Price:** $109.00 USD
 - **Billing period:** Monthly
 - **Price ID:** Copy this for `STRIPE_PRICE_CATHEDRAL_MONTHLY`
 
 **Annual Price:**
 - **Pricing model:** Standard pricing
-- **Price:** $900.00 USD
+- **Price:** $1,080.00 USD
 - **Billing period:** Yearly
 - **Price ID:** Copy this for `STRIPE_PRICE_CATHEDRAL_ANNUAL`
 
@@ -98,13 +113,13 @@ On the Shrine product, add TWO prices:
 
 **Monthly Price:**
 - **Pricing model:** Standard pricing
-- **Price:** $120.00 USD
+- **Price:** $159.00 USD
 - **Billing period:** Monthly
 - **Price ID:** Copy this for `STRIPE_PRICE_SHRINE_MONTHLY`
 
 **Annual Price:**
 - **Pricing model:** Standard pricing
-- **Price:** $1,200.00 USD
+- **Price:** $1,908.00 USD
 - **Billing period:** Yearly
 - **Price ID:** Copy this for `STRIPE_PRICE_SHRINE_ANNUAL`
 
@@ -223,14 +238,16 @@ You can also manually trigger invoice generation from the master admin billing d
 
 If you have existing organizations with old tier names, the system automatically maps:
 
-| Old Tier Name | New Tier Name |
-|---------------|---------------|
+| Old Tier Name | Current Tier Name |
+|---------------|-------------------|
+| `starter` (DB enum) | **Chapel** (display name) |
 | `small_diocese` | `Parish` |
 | `growing` | `Cathedral` |
 | `conference` | `Shrine` |
 | `enterprise` | `Basilica` |
 
 The old environment variables still work for backward compatibility:
+- `STRIPE_PRICE_STARTER_MONTHLY` → Maps to Chapel pricing (DB enum value preserved)
 - `STRIPE_PRICE_SMALL_DIOCESE_MONTHLY` → Maps to Parish pricing
 - `STRIPE_PRICE_GROWING_MONTHLY` → Maps to Cathedral pricing
 - `STRIPE_PRICE_CONFERENCE_MONTHLY` → Maps to Shrine pricing

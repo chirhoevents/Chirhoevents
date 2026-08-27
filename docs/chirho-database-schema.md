@@ -48,7 +48,7 @@ Master table for all organizations (dioceses, archdioceses, retreat centers)
 | subscription_tier | ENUM | NOT NULL | 'starter', 'small', 'growing', 'conference', 'enterprise' |
 | subscription_status | ENUM | NOT NULL | 'active', 'archived', 'suspended', 'trial' |
 | monthly_fee | DECIMAL(10,2) | NOT NULL | Current monthly subscription cost |
-| setup_fee_paid | BOOLEAN | DEFAULT FALSE | Whether $250 setup fee paid |
+| setup_fee_paid | BOOLEAN | DEFAULT FALSE | Whether tier setup/access fee paid ($99-$499 depending on tier) |
 | reactivation_fee_paid | BOOLEAN | DEFAULT FALSE | Whether $75 reactivation fee paid |
 | storage_used_gb | DECIMAL(10,2) | DEFAULT 0 | Current storage usage |
 | storage_limit_gb | INT | NOT NULL | Storage limit based on tier |

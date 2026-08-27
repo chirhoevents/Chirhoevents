@@ -80,6 +80,10 @@ export async function POST(
     const pricing = tierPricing[requestedTier] || tierPricing.shrine
     const billingCycle = onboardingRequest.billingCyclePreference || 'annual'
 
+    // Self-serve tiers (Chapel, Parish) charge "Basic Access Fee" instead of "Setup Fee"
+    const isSelfServeTier = requestedTier === 'chapel' || requestedTier === 'starter' || requestedTier === 'parish'
+    const feeLabel = isSelfServeTier ? 'Basic Access Fee' : 'Setup Fee'
+
     // Create Stripe customer first so we can link it to the org
     let stripeCustomerId: string | undefined
     try {

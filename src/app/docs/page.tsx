@@ -198,7 +198,7 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           from the moment you are approved to your recurring monthly charges.
         </p>
 
-        <h3 className="text-xl font-semibold text-navy mt-6">Step 1 — Setup Fee</h3>
+        <h3 className="text-xl font-semibold text-navy mt-6">Step 1 — Access or Setup Fee</h3>
         <p>
           After your onboarding request is approved, you will receive an email with a link to pay
           a one-time setup fee. The amount depends on your plan: <strong>$50</strong> for

@@ -309,8 +309,19 @@ export function getTierPrice(tierKey: string, billingCycle: 'monthly' | 'annual'
 }
 
 /**
+ * Get the setup fee for a tier (returns null for custom/Basilica)
+ */
+export function getTierSetupFee(tierKey: string): number | null {
+  const tier = getTier(tierKey);
+  return tier?.setupFee ?? null;
+}
+
+/**
  * Mapping from old tier keys to new tier keys
  * Used for database migrations and backward compatibility
+ *
+ * Note: 'starter' is the legacy DB enum value — display name is now "Chapel".
+ * The 'chapel' key is accepted as input and routed to the 'starter' tier.
  */
 export const TIER_KEY_MIGRATION: Record<string, SubscriptionTierKey> = {
   starter: 'chapel',
@@ -375,7 +386,42 @@ export function getSuggestedTierByEvents(eventsPerYear: number): SubscriptionTie
 }
 
 /**
- * Platform fees configuration
+ * Implementation & consulting packages (separate from tier subscriptions)
+ */
+export const CONSULTING_PACKAGES = [
+  {
+    key: 'self_serve',
+    name: 'Self-Serve',
+    price: 0,
+    priceLabel: 'Free',
+    description: 'Required for Chapel tier. Documentation and video walkthroughs only — no live support.',
+  },
+  {
+    key: 'guided_setup',
+    name: 'Guided Setup',
+    price: 199,
+    priceLabel: '$199',
+    description: 'One onboarding call + we configure your first event',
+  },
+  {
+    key: 'full_implementation',
+    name: 'Full Implementation',
+    price: 499,
+    priceLabel: '$499',
+    description: 'We build everything, train your team, and provide go-live support',
+  },
+] as const;
+
+/**
+ * Hourly consulting rate (1-hour minimum)
+ */
+export const CONSULTING_HOURLY_RATE = 75;
+
+/**
+ * Platform fees configuration.
+ *
+ * Note: per-tier setup/access fees are defined on each tier (see SUBSCRIPTION_TIERS).
+ * The fields below are platform-wide constants.
  */
 export const PLATFORM_FEES = {
   setupFee: 250, // Legacy fallback; per-tier setupFee lives on SubscriptionTier

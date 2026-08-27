@@ -493,6 +493,65 @@ export default function LandingPage() {
             <p>• ChiRho fee (1%): $1.00</p>
             <p className="mt-2"><strong>You receive: $95.80</strong></p>
           </div>
+
+          {/* Implementation & Consulting */}
+          <div className="mt-16">
+            <h3 className="text-2xl sm:text-3xl font-bold text-center text-navy mb-4">
+              Implementation &amp; Consulting
+            </h3>
+            <p className="text-center text-gray-600 mb-10 max-w-2xl mx-auto">
+              Need help getting started? Choose the level of hands-on support that fits your team.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              {/* Self-Serve */}
+              <Card className="border-2 border-gray-200">
+                <CardHeader>
+                  <CardTitle className="text-xl">Self-Serve</CardTitle>
+                  <div className="mt-2">
+                    <span className="text-3xl font-bold text-navy">Free</span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600">
+                    <strong>Required for Chapel tier.</strong> Documentation and video walkthroughs only — no live support.
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Guided Setup */}
+              <Card className="border-2 border-gray-200">
+                <CardHeader>
+                  <CardTitle className="text-xl">Guided Setup</CardTitle>
+                  <div className="mt-2">
+                    <span className="text-3xl font-bold text-navy">$199</span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600">
+                    One onboarding call + we configure your first event.
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Full Implementation */}
+              <Card className="border-2 border-gold">
+                <CardHeader>
+                  <CardTitle className="text-xl">Full Implementation</CardTitle>
+                  <div className="mt-2">
+                    <span className="text-3xl font-bold text-navy">$499</span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600">
+                    We build everything, train your team, and provide go-live support.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+            <p className="text-center text-sm text-gray-600 mt-8">
+              Need ongoing help? We offer consulting at <strong>$75/hr</strong> (1-hour minimum).
+            </p>
+          </div>
         </div>
       </section>
 
@@ -509,7 +568,7 @@ export default function LandingPage() {
                   What fees does ChiRho charge?
                 </AccordionTrigger>
                 <AccordionContent className="text-gray-600">
-                  ChiRho charges a 1% platform fee on all event registrations plus a monthly or annual subscription fee based on your plan. Standard Stripe processing fees (2.9% + $0.30) also apply to credit card transactions.
+                  Your monthly or annual subscription plus a one-time access or setup fee (see the pricing section above for tier-specific amounts). Processing and platform fees are summarized in the pricing header.
                 </AccordionContent>
               </AccordionItem>
 

@@ -199,8 +199,8 @@ export default function OrganizationDetailPage() {
         periodEnd: oneMonthLater.toISOString().split('T')[0],
       })
     } else if (type === 'setup_fee') {
-      amount = organization.setupFeeAmount?.toString() || '250'
-      description = `One-time setup fee for ${organization.name}`
+      amount = organization.setupFeeAmount?.toString() || '349'
+      description = `One-time setup / basic access fee for ${organization.name}`
       setInvoiceForm({ ...invoiceForm, invoiceType: type, amount, description, periodStart: '', periodEnd: '' })
     } else {
       setInvoiceForm({ ...invoiceForm, invoiceType: type, periodStart: '', periodEnd: '' })
@@ -1326,7 +1326,7 @@ export default function OrganizationDetailPage() {
                 >
                   <option value="subscription_annual">Annual Subscription ({formatCurrency(organization?.annualPrice || 0)}/year)</option>
                   <option value="subscription_monthly">Monthly Subscription ({formatCurrency(organization?.monthlyPrice || 0)}/month)</option>
-                  <option value="setup_fee">Setup Fee ({formatCurrency(organization?.setupFeeAmount || 250)})</option>
+                  <option value="setup_fee">Setup / Basic Access Fee ({formatCurrency(organization?.setupFeeAmount || 349)})</option>
                   <option value="overage">Overage</option>
                   <option value="custom">Custom</option>
                 </select>

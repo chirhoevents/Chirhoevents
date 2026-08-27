@@ -21,8 +21,8 @@ ChiRho Events is a comprehensive Catholic ministry registration and event manage
 - Seminary programs
 
 **Revenue Model:**
-- Tiered monthly subscriptions ($29-$199+)
-- One-time setup fee ($250)
+- Tiered monthly subscriptions ($39-$1,250+)
+- One-time access/setup fee per tier ($99-$499; custom for Basilica)
 - 98.4% profit margin at scale
 
 ---
