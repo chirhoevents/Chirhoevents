@@ -35,6 +35,7 @@ import {
   Copy,
   Check,
   X,
+  Upload,
 } from 'lucide-react'
 
 type QuestionType = 'text' | 'yes_no' | 'multiple_choice' | 'multi_select' | 'scale'
@@ -59,6 +60,7 @@ interface Survey {
   status: 'draft' | 'active' | 'closed'
   sendToParticipants: boolean
   sendToGroupLeaders: boolean
+  sendToStaff: boolean
   isAnonymous: boolean
   closesAt: string | null
   publicToken: string | null
@@ -102,6 +104,7 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
   const [description, setDescription] = useState('')
   const [sendToParticipants, setSendToParticipants] = useState(true)
   const [sendToGroupLeaders, setSendToGroupLeaders] = useState(true)
+  const [sendToStaff, setSendToStaff] = useState(false)
   const [isAnonymous, setIsAnonymous] = useState(false)
   const [closesAt, setClosesAt] = useState('')
 
@@ -132,12 +135,23 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
   const [addEmail, setAddEmail] = useState('')
   const [addingRecipient, setAddingRecipient] = useState(false)
   const [addResult, setAddResult] = useState<string | null>(null)
+  const [bulkList, setBulkList] = useState('')
+  const [bulkImporting, setBulkImporting] = useState(false)
+  const [bulkResult, setBulkResult] = useState<string | null>(null)
   const [testEmail, setTestEmail] = useState('')
   const [sendingTest, setSendingTest] = useState(false)
   const [testResult, setTestResult] = useState<string | null>(null)
   const [publicLink, setPublicLink] = useState<string | null>(null)
   const [publicLinkLoading, setPublicLinkLoading] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
+
+  // Copy to another event
+  const [copyModalOpen, setCopyModalOpen] = useState(false)
+  const [orgEvents, setOrgEvents] = useState<{ id: string; name: string }[]>([])
+  const [loadingEvents, setLoadingEvents] = useState(false)
+  const [copyTargetEventId, setCopyTargetEventId] = useState('')
+  const [copying, setCopying] = useState(false)
+  const [copyResult, setCopyResult] = useState<string | null>(null)
 
   const authHeaders = useCallback(
     async (extra: Record<string, string> = {}) => {
@@ -158,6 +172,7 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
       setDescription(data.survey.description || '')
       setSendToParticipants(data.survey.sendToParticipants)
       setSendToGroupLeaders(data.survey.sendToGroupLeaders)
+      setSendToStaff(data.survey.sendToStaff)
       setIsAnonymous(data.survey.isAnonymous)
       setClosesAt(data.survey.closesAt ? data.survey.closesAt.slice(0, 10) : '')
       setPublicLink(
@@ -178,8 +193,8 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
 
   const handleSaveSettings = async () => {
     if (!title.trim()) return
-    if (!sendToParticipants && !sendToGroupLeaders) {
-      alert('At least one audience (participants or group leaders) must be enabled')
+    if (!sendToParticipants && !sendToGroupLeaders && !sendToStaff) {
+      alert('At least one audience must be enabled')
       return
     }
     setSavingSettings(true)
@@ -195,6 +210,7 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
           description: description || null,
           sendToParticipants,
           sendToGroupLeaders,
+          sendToStaff,
           isAnonymous,
           closesAt: closesAt || null,
         }),
@@ -366,6 +382,55 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
     }
   }
 
+  // Lenient parser for a pasted list: one person per line, as a bare email,
+  // "Name, email@x.com", or "Name <email@x.com>".
+  const parseBulkList = (text: string): { name?: string; email: string }[] =>
+    text
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
+      .map(line => {
+        const angleMatch = line.match(/^(.*)<([^>]+)>$/)
+        if (angleMatch) {
+          return { name: angleMatch[1].trim() || undefined, email: angleMatch[2].trim() }
+        }
+        const parts = line.split(/[,\t]/).map(p => p.trim()).filter(Boolean)
+        if (parts.length >= 2) {
+          const emailPart = parts.find(p => p.includes('@'))
+          const namePart = parts.find(p => p !== emailPart)
+          if (emailPart) return { name: namePart, email: emailPart }
+        }
+        return { email: line }
+      })
+
+  const handleBulkImport = async () => {
+    const recipients = parseBulkList(bulkList)
+    if (recipients.length === 0) return
+    setBulkImporting(true)
+    setBulkResult(null)
+    try {
+      const headers = await authHeaders({ 'Content-Type': 'application/json' })
+      const res = await fetch(`/api/admin/events/${eventId}/surveys/${surveyId}/recipients/bulk`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ recipients }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to import recipients')
+      const parts = [`Sent to ${data.sent} recipient${data.sent === 1 ? '' : 's'}.`]
+      if (data.skipped) parts.push(`${data.skipped} already had a link and were skipped.`)
+      if (data.invalid?.length) parts.push(`${data.invalid.length} invalid email(s) ignored.`)
+      if (data.failed) parts.push(`${data.failed} failed to send.`)
+      setBulkResult(parts.join(' '))
+      setBulkList('')
+      await loadSurvey()
+    } catch (err) {
+      setBulkResult(err instanceof Error ? err.message : 'Failed to import recipients')
+    } finally {
+      setBulkImporting(false)
+    }
+  }
+
   const handleAddRecipient = async () => {
     if (!addEmail.trim()) return
     setAddingRecipient(true)
@@ -461,6 +526,44 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
     }
   }
 
+  const openCopyModal = async () => {
+    setCopyTargetEventId('')
+    setCopyResult(null)
+    setCopyModalOpen(true)
+    setLoadingEvents(true)
+    try {
+      const headers = await authHeaders()
+      const res = await fetch('/api/admin/events', { headers })
+      if (!res.ok) throw new Error('Failed to load events')
+      const data = await res.json()
+      setOrgEvents((data.events || []).map((e: { id: string; name: string }) => ({ id: e.id, name: e.name })))
+    } catch (err) {
+      console.error('Error loading events for copy:', err)
+    } finally {
+      setLoadingEvents(false)
+    }
+  }
+
+  const handleCopySurvey = async () => {
+    if (!copyTargetEventId) return
+    setCopying(true)
+    setCopyResult(null)
+    try {
+      const headers = await authHeaders({ 'Content-Type': 'application/json' })
+      const res = await fetch(`/api/admin/events/${eventId}/surveys/${surveyId}/duplicate`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ targetEventId: copyTargetEventId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to copy survey')
+      router.push(`/dashboard/admin/events/${copyTargetEventId}/surveys/${data.survey.id}`)
+    } catch (err) {
+      setCopyResult(err instanceof Error ? err.message : 'Failed to copy survey')
+      setCopying(false)
+    }
+  }
+
   const addOption = () => setQForm(prev => ({ ...prev, options: [...prev.options, ''] }))
   const updateOption = (index: number, value: string) =>
     setQForm(prev => ({ ...prev, options: prev.options.map((o, i) => (i === index ? value : o)) }))
@@ -511,6 +614,10 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
               View Results ({survey._count.responses})
             </Button>
           </Link>
+          <Button variant="outline" size="sm" onClick={openCopyModal}>
+            <Copy className="h-4 w-4 mr-2" />
+            Copy to Event
+          </Button>
           {survey.status === 'active' && survey._count.recipients > survey._count.responses && (
             <Button variant="outline" size="sm" onClick={handleRemind} disabled={reminding}>
               {reminding ? (
@@ -557,7 +664,7 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
             <div className="flex items-center justify-between border border-[#D1D5DB] rounded-md px-4 py-3">
               <div>
                 <p className="font-medium text-sm text-[#1E3A5F]">Send to Participants</p>
@@ -571,6 +678,13 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
                 <p className="text-xs text-[#6B7280]">Good for groups with minors</p>
               </div>
               <Switch checked={sendToGroupLeaders} onCheckedChange={setSendToGroupLeaders} />
+            </div>
+            <div className="flex items-center justify-between border border-[#D1D5DB] rounded-md px-4 py-3">
+              <div>
+                <p className="font-medium text-sm text-[#1E3A5F]">Send to Staff/Volunteers</p>
+                <p className="text-xs text-[#6B7280]">Your registered staff team</p>
+              </div>
+              <Switch checked={sendToStaff} onCheckedChange={setSendToStaff} />
             </div>
           </div>
 
@@ -662,6 +776,34 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
               </Button>
             </div>
             {addResult && <p className="text-xs text-[#6B7280] mt-1">{addResult}</p>}
+          </div>
+
+          {/* Bulk import a list */}
+          <div>
+            <Label className="flex items-center gap-2 mb-2">
+              <Upload className="h-4 w-4" /> Import a List
+            </Label>
+            <Textarea
+              value={bulkList}
+              onChange={e => setBulkList(e.target.value)}
+              rows={4}
+              placeholder={'One per line -- any of these formats work:\njane@example.com\nJane Smith, jane@example.com\nJane Smith <jane@example.com>'}
+              className="font-mono text-xs"
+            />
+            <div className="flex items-center justify-between mt-2">
+              <p className="text-xs text-[#6B7280]">
+                For people not tracked in ChiRho at all -- e.g. volunteers you never registered.
+              </p>
+              <Button
+                onClick={handleBulkImport}
+                disabled={bulkImporting || !bulkList.trim() || survey.questions.length === 0}
+                className="bg-[#1E3A5F] hover:bg-[#2d4a6f] text-white whitespace-nowrap ml-3"
+              >
+                {bulkImporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                Import &amp; Send
+              </Button>
+            </div>
+            {bulkResult && <p className="text-xs text-[#6B7280] mt-1">{bulkResult}</p>}
           </div>
 
           {/* Send a test */}
@@ -931,9 +1073,10 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
               {[
                 survey.sendToParticipants && 'every participant with an email on file',
                 survey.sendToGroupLeaders && 'every group leader',
+                survey.sendToStaff && 'every registered staff/volunteer',
               ]
                 .filter(Boolean)
-                .join(' and ')}
+                .join(', ')}
               . People who already have a link won&apos;t be emailed again — use &quot;Send
               Reminders&quot; for that instead.
             </p>
@@ -956,6 +1099,59 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
             <Button onClick={handleSend} disabled={sending} className="bg-[#1E3A5F] hover:bg-[#2d4a6f] text-white">
               {sending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
               Send
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Copy to Event Modal */}
+      <Dialog open={copyModalOpen} onOpenChange={setCopyModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Copy Survey to Another Event</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-[#6B7280]">
+              Copies all {survey.questions.length} question{survey.questions.length === 1 ? '' : 's'} and
+              this survey&apos;s settings into the event you pick below. The copy starts as a draft
+              with no recipients or responses.
+            </p>
+            <div>
+              <Label htmlFor="targetEvent">Target Event</Label>
+              {loadingEvents ? (
+                <div className="flex items-center gap-2 text-sm text-[#6B7280] mt-1">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Loading events...
+                </div>
+              ) : (
+                <select
+                  id="targetEvent"
+                  value={copyTargetEventId}
+                  onChange={e => setCopyTargetEventId(e.target.value)}
+                  className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+                >
+                  <option value="">Select an event...</option>
+                  {orgEvents.map(e => (
+                    <option key={e.id} value={e.id}>
+                      {e.name}
+                      {e.id === eventId ? ' (this event)' : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+            {copyResult && <p className="text-sm text-red-600">{copyResult}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCopyModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCopySurvey}
+              disabled={copying || !copyTargetEventId}
+              className="bg-[#1E3A5F] hover:bg-[#2d4a6f] text-white"
+            >
+              {copying ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
+              Copy Survey
             </Button>
           </DialogFooter>
         </DialogContent>

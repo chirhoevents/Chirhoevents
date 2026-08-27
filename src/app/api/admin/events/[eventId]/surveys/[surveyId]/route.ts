@@ -76,15 +76,17 @@ export async function PUT(
       status,
       sendToParticipants,
       sendToGroupLeaders,
+      sendToStaff,
       isAnonymous,
       closesAt,
     } = body
 
     const nextSendToParticipants = sendToParticipants ?? existing.sendToParticipants
     const nextSendToGroupLeaders = sendToGroupLeaders ?? existing.sendToGroupLeaders
-    if (!nextSendToParticipants && !nextSendToGroupLeaders) {
+    const nextSendToStaff = sendToStaff ?? existing.sendToStaff
+    if (!nextSendToParticipants && !nextSendToGroupLeaders && !nextSendToStaff) {
       return NextResponse.json(
-        { error: 'At least one audience (participants or group leaders) must be enabled' },
+        { error: 'At least one audience must be enabled' },
         { status: 400 }
       )
     }
@@ -95,6 +97,7 @@ export async function PUT(
     if (status !== undefined) data.status = status
     if (sendToParticipants !== undefined) data.sendToParticipants = sendToParticipants
     if (sendToGroupLeaders !== undefined) data.sendToGroupLeaders = sendToGroupLeaders
+    if (sendToStaff !== undefined) data.sendToStaff = sendToStaff
     if (isAnonymous !== undefined) data.isAnonymous = isAnonymous
     if (closesAt !== undefined) data.closesAt = closesAt ? new Date(closesAt) : null
 

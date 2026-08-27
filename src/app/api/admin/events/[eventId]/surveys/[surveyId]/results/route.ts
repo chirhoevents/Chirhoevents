@@ -125,6 +125,7 @@ export async function GET(
         isAnonymous: survey.isAnonymous,
         sendToParticipants: survey.sendToParticipants,
         sendToGroupLeaders: survey.sendToGroupLeaders,
+        sendToStaff: survey.sendToStaff,
       },
       stats: {
         recipientCount,

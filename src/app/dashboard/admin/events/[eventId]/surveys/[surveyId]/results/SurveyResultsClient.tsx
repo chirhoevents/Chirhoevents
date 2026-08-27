@@ -257,9 +257,11 @@ export default function SurveyResultsClient({ eventId, eventName, surveyId }: Su
                       <Badge variant="outline" className="text-xs">
                         {r.recipientType === 'group_leader'
                           ? 'Group Leader'
-                          : r.recipientType === 'manual'
-                            ? 'Manually Added'
-                            : 'Participant'}
+                          : r.recipientType === 'staff'
+                            ? 'Staff/Volunteer'
+                            : r.recipientType === 'manual'
+                              ? 'Manually Added'
+                              : 'Participant'}
                       </Badge>
                     ) : (
                       <Badge variant="outline" className="text-xs">

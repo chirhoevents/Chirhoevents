@@ -63,6 +63,7 @@ export async function POST(
       description,
       sendToParticipants = true,
       sendToGroupLeaders = true,
+      sendToStaff = false,
       isAnonymous = false,
       closesAt,
     } = body
@@ -71,9 +72,9 @@ export async function POST(
       return NextResponse.json({ error: 'Missing required field: title' }, { status: 400 })
     }
 
-    if (!sendToParticipants && !sendToGroupLeaders) {
+    if (!sendToParticipants && !sendToGroupLeaders && !sendToStaff) {
       return NextResponse.json(
-        { error: 'At least one audience (participants or group leaders) must be enabled' },
+        { error: 'At least one audience must be enabled' },
         { status: 400 }
       )
     }
@@ -85,6 +86,7 @@ export async function POST(
         description: description || null,
         sendToParticipants,
         sendToGroupLeaders,
+        sendToStaff,
         isAnonymous,
         closesAt: closesAt ? new Date(closesAt) : null,
         createdBy: user.id,

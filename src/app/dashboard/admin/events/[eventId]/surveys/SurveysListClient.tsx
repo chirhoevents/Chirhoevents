@@ -35,6 +35,7 @@ interface Survey {
   isAnonymous: boolean
   sendToParticipants: boolean
   sendToGroupLeaders: boolean
+  sendToStaff: boolean
   createdAt: string
   _count: { questions: number; recipients: number; responses: number }
 }
@@ -189,6 +190,7 @@ export default function SurveysListClient({ eventId, eventName }: SurveysListCli
                         {[
                           survey.sendToParticipants && 'Participants',
                           survey.sendToGroupLeaders && 'Group Leaders',
+                          survey.sendToStaff && 'Staff',
                         ]
                           .filter(Boolean)
                           .join(' + ')}

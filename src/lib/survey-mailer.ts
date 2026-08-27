@@ -18,7 +18,7 @@ interface RecipientForMailer {
   name: string | null
   email: string
   token: string
-  recipientType: 'participant' | 'group_leader' | 'manual'
+  recipientType: 'participant' | 'group_leader' | 'staff' | 'manual'
 }
 
 interface SurveyForMailer {
@@ -68,6 +68,7 @@ export async function sendSurveyInviteToRecipient({
     isReminder,
     isAnonymous: survey.isAnonymous,
     isGroupLeader: recipient.recipientType === 'group_leader',
+    isStaff: recipient.recipientType === 'staff',
     customMessage,
     organizationName: orgName,
     supportEmail,
