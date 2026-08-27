@@ -93,6 +93,8 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
   const [survey, setSurvey] = useState<Survey | null>(null)
   const [loading, setLoading] = useState(true)
   const [savingSettings, setSavingSettings] = useState(false)
+  const [settingsSaved, setSettingsSaved] = useState(false)
+  const [settingsError, setSettingsError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
 
   // Settings form (local editable copy)
@@ -181,6 +183,8 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
       return
     }
     setSavingSettings(true)
+    setSettingsSaved(false)
+    setSettingsError(null)
     try {
       const headers = await authHeaders({ 'Content-Type': 'application/json' })
       const res = await fetch(`/api/admin/events/${eventId}/surveys/${surveyId}`, {
@@ -195,11 +199,14 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
           closesAt: closesAt || null,
         }),
       })
-      if (!res.ok) throw new Error('Failed to save settings')
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Failed to save settings')
       await loadSurvey()
+      setSettingsSaved(true)
+      setTimeout(() => setSettingsSaved(false), 2500)
     } catch (err) {
       console.error('Error saving survey settings:', err)
-      alert('Failed to save settings')
+      setSettingsError(err instanceof Error ? err.message : 'Failed to save settings')
     } finally {
       setSavingSettings(false)
     }
@@ -589,15 +596,26 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
             />
           </div>
 
+          {settingsError && (
+            <p className="text-sm text-red-600">{settingsError}</p>
+          )}
+
           <div className="flex justify-between items-center pt-2">
             <Button variant="ghost" className="text-red-600 hover:text-red-700" onClick={handleDeleteSurvey} disabled={deleting}>
               <Trash2 className="h-4 w-4 mr-2" />
               Delete Survey
             </Button>
-            <Button onClick={handleSaveSettings} disabled={savingSettings || !title.trim()} className="bg-[#1E3A5F] hover:bg-[#2d4a6f] text-white">
-              {savingSettings ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-              Save Settings
-            </Button>
+            <div className="flex items-center gap-3">
+              {settingsSaved && (
+                <span className="flex items-center gap-1 text-sm text-green-700">
+                  <Check className="h-4 w-4" /> Saved
+                </span>
+              )}
+              <Button onClick={handleSaveSettings} disabled={savingSettings || !title.trim()} className="bg-[#1E3A5F] hover:bg-[#2d4a6f] text-white">
+                {savingSettings ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                Save Settings
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
