@@ -1352,8 +1352,11 @@ enum SurveyQuestionType {
 enum SurveyRecipientType {
   participant
   group_leader
-  // Manually added by an admin: a vendor, staff member, test send, or
-  // anyone else not pulled from an existing registration record.
+  // Registered staff/volunteer (StaffRegistration), including vendor staff.
+  staff
+  // Manually added by an admin, or imported from a pasted list: a test
+  // send, or anyone not pulled from an existing registration record
+  // (e.g. an informal volunteer never registered in ChiRho at all).
   manual
 }
 
@@ -1369,6 +1372,9 @@ model Survey {
   // directly.
   sendToParticipants Boolean  @default(true) @map("send_to_participants")
   sendToGroupLeaders Boolean  @default(true) @map("send_to_group_leaders")
+  // Off by default -- most surveys are attendee-focused; orgs opt in when
+  // they want feedback from their staff/volunteer team too.
+  sendToStaff        Boolean  @default(false) @map("send_to_staff")
   // Anonymous surveys still track SurveyRecipient completion (so reminders
   // work), but the results views must never join recipient identity back
   // onto answers when this is true.
@@ -1424,6 +1430,7 @@ model SurveyRecipient {
   participantId            String?  @map("participant_id") @db.Uuid
   groupRegistrationId      String?  @map("group_registration_id") @db.Uuid
   individualRegistrationId String?  @map("individual_registration_id") @db.Uuid
+  staffRegistrationId      String?  @map("staff_registration_id") @db.Uuid
   name                     String?  @db.VarChar(255)
   email                    String   @db.VarChar(255)
   token                    String   @unique @db.VarChar(255)
@@ -1442,10 +1449,12 @@ model SurveyRecipient {
   participant             Participant?            @relation(fields: [participantId], references: [id], onDelete: Cascade)
   groupRegistration       GroupRegistration?      @relation(fields: [groupRegistrationId], references: [id], onDelete: Cascade)
   individualRegistration  IndividualRegistration? @relation(fields: [individualRegistrationId], references: [id], onDelete: Cascade)
+  staffRegistration       StaffRegistration?      @relation(fields: [staffRegistrationId], references: [id], onDelete: Cascade)
   response                SurveyResponse?
 
   @@index([surveyId], name: "idx_survey_recipient_survey")
   @@index([participantId], name: "idx_survey_recipient_participant")
+  @@index([staffRegistrationId], name: "idx_survey_recipient_staff")
   @@index([groupRegistrationId], name: "idx_survey_recipient_group")
   @@index([individualRegistrationId], name: "idx_survey_recipient_individual")
   @@map("survey_recipients")
@@ -2880,6 +2889,7 @@ model StaffRegistration {
   event               Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   vendorRegistration  VendorRegistration? @relation(fields: [vendorRegistrationId], references: [id], onDelete: SetNull)
   liabilityForm       LiabilityForm? @relation(fields: [liabilityFormId], references: [id], onDelete: SetNull)
+  surveyRecipients    SurveyRecipient[]
 
   @@index([eventId], name: "idx_staff_reg_event")
   @@index([organizationId], name: "idx_staff_reg_org")

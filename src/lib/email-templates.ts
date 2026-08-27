@@ -1731,6 +1731,7 @@ export function generateSurveyInviteEmail({
   isReminder,
   isAnonymous,
   isGroupLeader,
+  isStaff,
   customMessage,
   organizationName,
   supportEmail,
@@ -1742,6 +1743,7 @@ export function generateSurveyInviteEmail({
   isReminder?: boolean
   isAnonymous?: boolean
   isGroupLeader?: boolean
+  isStaff?: boolean
   customMessage?: string
   organizationName: string
   supportEmail?: string
@@ -1755,7 +1757,9 @@ export function generateSurveyInviteEmail({
 
     <p>${isGroupLeader
       ? `Thank you for leading your group at <strong>${eventName}</strong>! We'd love to hear how it went — on behalf of yourself and your group.`
-      : `Thank you for being part of <strong>${eventName}</strong>! We hope it was a meaningful experience.`
+      : isStaff
+        ? `Thank you for serving on staff at <strong>${eventName}</strong>! We'd love to hear about your experience.`
+        : `Thank you for being part of <strong>${eventName}</strong>! We hope it was a meaningful experience.`
     }</p>
 
     <p>${isReminder ? "We haven't heard from you yet — could you t" : 'Could you t'}ake a few minutes to complete "<strong>${surveyTitle}</strong>"?${isAnonymous ? ' Your responses are anonymous.' : ''}</p>

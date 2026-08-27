@@ -3057,7 +3057,8 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           Build a post-conference or post-retreat survey right inside ChiRho and send it out
           after the event with a click — no external form tool required. Surveys support
           multiple choice, multi-select, rating scale, yes/no, and short-answer questions, and
-          can go to participants, group leaders, or both.
+          can go to participants, group leaders, and/or your staff/volunteer team. Surveys are
+          per event — each event has its own separate set of surveys.
         </p>
 
         <h3 className="text-xl font-semibold text-navy mt-6">Creating a Survey</h3>
@@ -3079,12 +3080,12 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
 
         <h3 className="text-xl font-semibold text-navy mt-6">Choosing Your Audience</h3>
         <p>
-          Every survey has two independent audience toggles, and you can turn on either one or
-          both:
+          Every survey has three independent audience toggles — turn on any combination:
         </p>
         <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
           <li><strong>Send to Participants</strong> — anyone with an email on file (participants, or their parent&apos;s email if the participant is a minor without their own)</li>
           <li><strong>Send to Group Leaders</strong> — the primary contact for each group</li>
+          <li><strong>Send to Staff/Volunteers</strong> — everyone registered as staff for the event (off by default; turn it on to collect feedback from your own team)</li>
         </ul>
         <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mt-4">
           <p className="text-sm">
@@ -3114,13 +3115,22 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
         <h3 className="text-xl font-semibold text-navy mt-6">Reaching People Outside Registration</h3>
         <p>
           Not every recipient has to come from a registration record. Each survey&apos;s page has a
-          &quot;Reach People Outside Registration&quot; section with three tools:
+          &quot;Reach People Outside Registration&quot; section with four tools:
         </p>
         <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
-          <li><strong>Add a Recipient</strong> — type any name and email (a vendor, a staff member, anyone) and send them a real tracked link</li>
+          <li><strong>Add a Recipient</strong> — type any name and email (a vendor, anyone) and send them a real tracked link</li>
+          <li><strong>Import a List</strong> — paste a batch of names/emails (one per line) for people not tracked in ChiRho at all — e.g. informal volunteers — and send to all of them at once. Accepts a bare email, &quot;Name, email&quot;, or &quot;Name &lt;email&gt;&quot; per line</li>
           <li><strong>Send Yourself a Test</strong> — get a working preview link instantly, even while the survey is still a draft; test submissions never count toward your results</li>
           <li><strong>Public Link</strong> — a shareable link anyone can use to respond, good for flyers or QR codes. Public-link responses are always anonymous and can&apos;t be reminded, since they aren&apos;t tied to a specific person</li>
         </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Copying a Survey to Another Event</h3>
+        <p>
+          Running the same survey every year? Click <strong>Copy to Event</strong> on a survey&apos;s
+          page, pick the target event from the dropdown, and every question and setting is
+          cloned over instantly — no rebuilding by hand. The copy always starts fresh as a draft
+          with no recipients or responses, even when copying onto the same event.
+        </p>
 
         <h3 className="text-xl font-semibold text-navy mt-6">Reviewing Results</h3>
         <p>Click <strong>View Results</strong> on any survey to see:</p>

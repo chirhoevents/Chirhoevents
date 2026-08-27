@@ -5,10 +5,11 @@ import { verifyEventAccess } from '@/lib/api-auth'
 import { getEventForMailer, sendSurveyInviteToRecipient } from '@/lib/survey-mailer'
 
 interface Candidate {
-  recipientType: 'participant' | 'group_leader'
+  recipientType: 'participant' | 'group_leader' | 'staff'
   participantId?: string
   groupRegistrationId?: string
   individualRegistrationId?: string
+  staffRegistrationId?: string
   name: string
   email: string
 }
@@ -104,19 +105,41 @@ export async function POST(
       }
     }
 
+    if (survey.sendToStaff) {
+      const staffRegistrations = await prisma.staffRegistration.findMany({
+        where: { eventId },
+        select: { id: true, firstName: true, lastName: true, email: true },
+      })
+      for (const staff of staffRegistrations) {
+        candidates.push({
+          recipientType: 'staff',
+          staffRegistrationId: staff.id,
+          name: `${staff.firstName} ${staff.lastName}`,
+          email: staff.email,
+        })
+      }
+    }
+
     // ── Skip anyone who already has a recipient row for this survey ────────
     const existing = await prisma.surveyRecipient.findMany({
       where: { surveyId },
-      select: { participantId: true, groupRegistrationId: true, individualRegistrationId: true },
+      select: {
+        participantId: true,
+        groupRegistrationId: true,
+        individualRegistrationId: true,
+        staffRegistrationId: true,
+      },
     })
     const seenParticipants = new Set(existing.map(r => r.participantId).filter(Boolean))
     const seenGroups = new Set(existing.map(r => r.groupRegistrationId).filter(Boolean))
     const seenIndividuals = new Set(existing.map(r => r.individualRegistrationId).filter(Boolean))
+    const seenStaff = new Set(existing.map(r => r.staffRegistrationId).filter(Boolean))
 
     const newCandidates = candidates.filter(c => {
       if (c.participantId) return !seenParticipants.has(c.participantId)
       if (c.groupRegistrationId) return !seenGroups.has(c.groupRegistrationId)
       if (c.individualRegistrationId) return !seenIndividuals.has(c.individualRegistrationId)
+      if (c.staffRegistrationId) return !seenStaff.has(c.staffRegistrationId)
       return true
     })
 
@@ -130,6 +153,7 @@ export async function POST(
       participantId: c.participantId || null,
       groupRegistrationId: c.groupRegistrationId || null,
       individualRegistrationId: c.individualRegistrationId || null,
+      staffRegistrationId: c.staffRegistrationId || null,
       name: c.name,
       email: c.email,
       token: randomUUID(),
