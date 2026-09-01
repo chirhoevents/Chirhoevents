@@ -1845,6 +1845,83 @@ export function generateRegistrationOpenEmail({
 }
 
 /**
+ * Save the Date / Registration Announcement email — for teasing a future
+ * event before registration opens (distinct from generateRegistrationOpenEmail,
+ * which assumes registration is already live and needs a working link).
+ * Typically sent from a past event to that event's own past attendees,
+ * announcing the next one -- pastEventName and newEventName are separate
+ * fields since they're often different events.
+ */
+export function generateSaveTheDateEmail({
+  recipientName,
+  pastEventName,
+  newEventName,
+  theme,
+  eventDate,
+  eventLocation,
+  registrationOpensDate,
+  learnMoreUrl,
+  customMessage,
+  organizationName,
+  supportEmail,
+  links,
+}: {
+  recipientName: string
+  pastEventName?: string
+  newEventName: string
+  theme?: string
+  eventDate?: string
+  eventLocation?: string
+  registrationOpensDate?: string
+  learnMoreUrl?: string
+  customMessage?: string
+  organizationName: string
+  supportEmail?: string
+  links?: { label: string; url: string }[]
+}): string {
+  const hasDetails = theme || eventDate || eventLocation || registrationOpensDate
+
+  return wrapEmail(`
+    <h1 style="color: #1E3A5F; margin-top: 0;">Save the Date!</h1>
+
+    <p>Dear ${recipientName},</p>
+
+    <p>${pastEventName
+      ? `You joined us at <strong>${pastEventName}</strong> — thank you for being part of it! We're thrilled to announce that <strong>${newEventName}</strong> is coming.`
+      : `We're thrilled to announce that <strong>${newEventName}</strong> is coming.`
+    }</p>
+
+    ${hasDetails ? `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0; background: #f9f9f9; border-radius: 8px; overflow: hidden;">
+      <tr>
+        <td style="padding: 20px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            ${theme ? emailDetailRow('Theme', theme) : ''}
+            ${eventDate ? emailDetailRow('Event Date', eventDate) : ''}
+            ${eventLocation ? emailDetailRow('Location', eventLocation) : ''}
+            ${registrationOpensDate ? emailDetailRow('Registration Opens', registrationOpensDate) : ''}
+          </table>
+        </td>
+      </tr>
+    </table>
+    ` : ''}
+
+    ${learnMoreUrl ? starLink('Learn More', learnMoreUrl, true) : ''}
+
+    ${customMessage ? `<p>${customMessage}</p>` : ''}
+
+    ${links && links.length > 0 ? `
+    <h2 style="color: #1E3A5F;">Additional Links</h2>
+    ${starLinkList(links)}
+    ` : ''}
+
+    <p>Mark your calendar — we can&apos;t wait to see you there!</p>
+
+    <p style="font-size: 14px; color: #666;">— ${organizationName}</p>
+  `, { organizationName, supportEmail, preheader: `Save the date for ${newEventName}` })
+}
+
+/**
  * General Update / Announcement email — freeform with custom subject + body
  */
 export function generateGeneralUpdateEmail({

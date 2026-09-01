@@ -10,6 +10,7 @@ import {
   generateEventReminderEmail,
   generateSurveyFeedbackEmail,
   generateRegistrationOpenEmail,
+  generateSaveTheDateEmail,
   generateGeneralUpdateEmail,
   generatePaymentReminderEmail,
   generateLateFeeNoticeEmail,
@@ -25,6 +26,7 @@ type TemplateType =
   | 'event_reminder'
   | 'survey_feedback'
   | 'registration_open'
+  | 'save_the_date'
   | 'general_update'
   | 'payment_reminder'
   | 'late_fee_notice'
@@ -45,6 +47,8 @@ function buildSubject(templateType: TemplateType, eventName: string, body?: any)
       return `We'd love your feedback on ${eventName}`
     case 'registration_open':
       return `Registration is now open for ${eventName}`
+    case 'save_the_date':
+      return `Save the Date: ${body?.newEventName || eventName}`
     case 'general_update':
       return body?.emailSubject || `Update: ${eventName}`
     case 'payment_reminder':
@@ -197,6 +201,22 @@ function buildGroupEmailHtml(
         links,
       })
 
+    case 'save_the_date':
+      return generateSaveTheDateEmail({
+        recipientName: group.groupLeaderName,
+        pastEventName: event.name,
+        newEventName: body.newEventName || event.name,
+        theme: body.theme || undefined,
+        eventDate: body.eventDate || undefined,
+        eventLocation: body.eventLocation || undefined,
+        registrationOpensDate: body.registrationOpensDate || undefined,
+        learnMoreUrl: body.learnMoreUrl || undefined,
+        customMessage: body.customMessage || undefined,
+        organizationName: orgName,
+        supportEmail,
+        links,
+      })
+
     case 'general_update':
       return generateGeneralUpdateEmail({
         recipientName: group.groupLeaderName,
@@ -333,6 +353,22 @@ function buildIndividualEmailHtml(
         eventLocation: body.eventLocation || undefined,
         registrationDeadline: body.registrationDeadline || undefined,
         price: body.price || undefined,
+        customMessage: body.customMessage || undefined,
+        organizationName: orgName,
+        supportEmail,
+        links,
+      })
+
+    case 'save_the_date':
+      return generateSaveTheDateEmail({
+        recipientName,
+        pastEventName: event.name,
+        newEventName: body.newEventName || event.name,
+        theme: body.theme || undefined,
+        eventDate: body.eventDate || undefined,
+        eventLocation: body.eventLocation || undefined,
+        registrationOpensDate: body.registrationOpensDate || undefined,
+        learnMoreUrl: body.learnMoreUrl || undefined,
         customMessage: body.customMessage || undefined,
         organizationName: orgName,
         supportEmail,
