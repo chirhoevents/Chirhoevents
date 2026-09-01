@@ -3,6 +3,7 @@ import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+import { countEventsUsedInCurrentPeriod } from '@/lib/event-usage'
 
 // Tier limits and pricing.
 const TIER_LIMITS: Record<string, { events: number; monthlyPrice: number }> = {
@@ -75,8 +76,9 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         name: true,
+        createdAt: true,
+        subscriptionStartedAt: true,
         eventsPerYearLimit: true,
-        eventsUsed: true,
         subscriptionTier: true,
       },
     })
@@ -89,7 +91,10 @@ export async function GET(request: NextRequest) {
     }
 
     const limit = organization.eventsPerYearLimit ?? TIER_LIMITS[organization.subscriptionTier]?.events ?? 2
-    const used = organization.eventsUsed
+    const used = await countEventsUsedInCurrentPeriod(
+      organizationId,
+      organization.subscriptionStartedAt ?? organization.createdAt
+    )
     const atLimit = used >= limit
     const remaining = Math.max(0, limit - used)
 

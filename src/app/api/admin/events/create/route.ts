@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import { parseDateTimeInTimezone } from '@/lib/timezone'
+import { countEventsUsedInCurrentPeriod } from '@/lib/event-usage'
 
 // Treat a datetime-local string from the form as wall-clock time in the event's
 // timezone (the admin's selected IANA zone), then store the corresponding UTC
@@ -44,8 +45,9 @@ export async function POST(request: NextRequest) {
       select: {
         id: true,
         name: true,
+        createdAt: true,
+        subscriptionStartedAt: true,
         eventsPerYearLimit: true,
-        eventsUsed: true,
         subscriptionTier: true,
       },
     })
@@ -57,14 +59,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Usage resets each subscription-year period, not once ever, so count
+    // live rather than trust a running total (e.g. last year's conference
+    // must not count against this year's limit).
+    const eventsUsedThisPeriod = await countEventsUsedInCurrentPeriod(
+      organizationId,
+      organization.subscriptionStartedAt ?? organization.createdAt
+    )
+
     // Check if organization has exceeded event limit (HARD LIMIT - block creation)
     if (organization.eventsPerYearLimit !== null) {
-      if (organization.eventsUsed >= organization.eventsPerYearLimit) {
+      if (eventsUsedThisPeriod >= organization.eventsPerYearLimit) {
         return NextResponse.json(
           {
-            error: `Event limit reached. Your ${organization.subscriptionTier} plan allows ${organization.eventsPerYearLimit} events per year. You have used ${organization.eventsUsed}. Please upgrade your subscription or contact support.`,
+            error: `Event limit reached. Your ${organization.subscriptionTier} plan allows ${organization.eventsPerYearLimit} events per year. You have used ${eventsUsedThisPeriod}. Please upgrade your subscription or contact support.`,
             limitReached: true,
-            currentUsage: organization.eventsUsed,
+            currentUsage: eventsUsedThisPeriod,
             limit: organization.eventsPerYearLimit,
           },
           { status: 403 }
@@ -309,10 +319,15 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Increment events used counter
+    // Recompute the stored usage counter from the current period rather than
+    // blindly incrementing it, so it can't drift once a new period starts.
+    const eventsUsedAfterCreate = await countEventsUsedInCurrentPeriod(
+      organizationId,
+      organization.subscriptionStartedAt ?? organization.createdAt
+    )
     await prisma.organization.update({
       where: { id: organizationId },
-      data: { eventsUsed: { increment: 1 } },
+      data: { eventsUsed: eventsUsedAfterCreate },
     })
 
     // Create day pass options if provided

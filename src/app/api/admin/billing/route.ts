@@ -4,6 +4,7 @@ import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+import { countEventsUsedInCurrentPeriod } from '@/lib/event-usage'
 
 function generatePaymentToken(): string {
   return crypto.randomBytes(32).toString('hex')
@@ -26,6 +27,7 @@ export async function GET(request: NextRequest) {
     const organization = await prisma.organization.findUnique({
       where: { id: organizationId },
       select: {
+        createdAt: true,
         subscriptionTier: true,
         subscriptionStatus: true,
         billingCycle: true,
@@ -34,7 +36,6 @@ export async function GET(request: NextRequest) {
         monthlyFee: true,
         subscriptionStartedAt: true,
         subscriptionRenewsAt: true,
-        eventsUsed: true,
         eventsPerYearLimit: true,
         registrationsUsed: true,
         registrationsLimit: true,
@@ -46,6 +47,11 @@ export async function GET(request: NextRequest) {
     if (!organization) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
     }
+
+    const eventsUsedThisPeriod = await countEventsUsedInCurrentPeriod(
+      organizationId,
+      organization.subscriptionStartedAt ?? organization.createdAt
+    )
 
     // Get invoices for this organization
     const invoices = await prisma.invoice.findMany({
@@ -95,7 +101,7 @@ export async function GET(request: NextRequest) {
         renewsAt: organization.subscriptionRenewsAt,
       },
       usage: {
-        eventsUsed: organization.eventsUsed,
+        eventsUsed: eventsUsedThisPeriod,
         eventsLimit: organization.eventsPerYearLimit,
         registrationsUsed: organization.registrationsUsed,
         registrationsLimit: organization.registrationsLimit,
