@@ -51,6 +51,7 @@ type TemplateType =
   | 'event_reminder'
   | 'survey_feedback'
   | 'registration_open'
+  | 'save_the_date'
   | 'general_update'
   | 'payment_reminder'
   | 'late_fee_notice'
@@ -75,6 +76,12 @@ const TEMPLATES: Template[] = [
     name: 'Survey / Feedback',
     description: 'Send a survey link to collect feedback after (or during) the event.',
     icon: '📝',
+  },
+  {
+    id: 'save_the_date',
+    name: 'Save the Date',
+    description: 'Announce an upcoming event before registration opens -- theme, dates, and when to expect it.',
+    icon: '📌',
   },
   {
     id: 'registration_open',
@@ -223,6 +230,15 @@ export default function SendReminderEmailModal({
   const [regPrice, setRegPrice] = useState('')
   const [regMessage, setRegMessage] = useState('')
 
+  // Save the Date fields
+  const [newEventName, setNewEventName] = useState('')
+  const [saveTheDateTheme, setSaveTheDateTheme] = useState('')
+  const [saveTheDateEventDate, setSaveTheDateEventDate] = useState('')
+  const [saveTheDateLocation, setSaveTheDateLocation] = useState('')
+  const [registrationOpensDate, setRegistrationOpensDate] = useState('')
+  const [learnMoreUrl, setLearnMoreUrl] = useState('')
+  const [saveTheDateMessage, setSaveTheDateMessage] = useState('')
+
   // General Update fields
   const [emailSubject, setEmailSubject] = useState('')
   const [messageBody, setMessageBody] = useState('')
@@ -342,6 +358,17 @@ export default function SendReminderEmailModal({
           price: regPrice,
           customMessage: regMessage,
         }
+      case 'save_the_date':
+        return {
+          ...base,
+          newEventName,
+          theme: saveTheDateTheme,
+          eventDate: saveTheDateEventDate,
+          eventLocation: saveTheDateLocation,
+          registrationOpensDate,
+          learnMoreUrl,
+          customMessage: saveTheDateMessage,
+        }
       case 'general_update':
         return { ...base, emailSubject, messageBody }
       case 'payment_reminder':
@@ -380,6 +407,8 @@ export default function SendReminderEmailModal({
         return !!surveyUrl
       case 'registration_open':
         return !!registrationUrl
+      case 'save_the_date':
+        return !!newEventName
       case 'general_update':
         return !!emailSubject && !!messageBody
       case 'payment_reminder':
@@ -478,6 +507,13 @@ export default function SendReminderEmailModal({
     setRegDeadline('')
     setRegPrice('')
     setRegMessage('')
+    setNewEventName('')
+    setSaveTheDateTheme('')
+    setSaveTheDateEventDate('')
+    setSaveTheDateLocation('')
+    setRegistrationOpensDate('')
+    setLearnMoreUrl('')
+    setSaveTheDateMessage('')
     setEmailSubject('')
     setMessageBody('')
     setBalanceDue('')
@@ -731,6 +767,99 @@ export default function SendReminderEmailModal({
                 value={surveyMessage}
                 onChange={(e) => setSurveyMessage(e.target.value)}
                 placeholder="Add a personal note to accompany the survey link..."
+                className="min-h-[90px]"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Additional Links (Optional)</Label>
+              <LinkEditor links={links} onChange={setLinks} />
+            </div>
+          </div>
+        )
+
+      // ── Save the Date ───────────────────────────────────────────────────
+      case 'save_the_date':
+        return (
+          <div className="space-y-5">
+            <RecipientsField />
+
+            <div className="space-y-2">
+              <Label htmlFor="newEventName">
+                New Event Name <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="newEventName"
+                placeholder="e.g., Mount 2000 Youth Retreat 2027"
+                value={newEventName}
+                onChange={(e) => setNewEventName(e.target.value)}
+              />
+              <p className="text-xs text-[#6B7280]">
+                Recipients are told they attended <strong>{eventName}</strong> -- this is the
+                event you&apos;re announcing, which can be different.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="saveTheDateTheme">Theme (Optional)</Label>
+                <Input
+                  id="saveTheDateTheme"
+                  placeholder="e.g., Rooted in Faith"
+                  value={saveTheDateTheme}
+                  onChange={(e) => setSaveTheDateTheme(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="saveTheDateEventDate">Event Date (Optional)</Label>
+                <Input
+                  id="saveTheDateEventDate"
+                  placeholder="e.g., July 17–20, 2027"
+                  value={saveTheDateEventDate}
+                  onChange={(e) => setSaveTheDateEventDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="saveTheDateLocation">Location (Optional)</Label>
+                <Input
+                  id="saveTheDateLocation"
+                  placeholder="e.g., Camp Sunshine, TX"
+                  value={saveTheDateLocation}
+                  onChange={(e) => setSaveTheDateLocation(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="registrationOpensDate">Registration Opens (Optional)</Label>
+                <Input
+                  id="registrationOpensDate"
+                  placeholder="e.g., January 15, 2027"
+                  value={registrationOpensDate}
+                  onChange={(e) => setRegistrationOpensDate(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="learnMoreUrl">Learn More URL (Optional)</Label>
+              <Input
+                id="learnMoreUrl"
+                type="url"
+                placeholder="https://chirhoevents.com/events/..."
+                value={learnMoreUrl}
+                onChange={(e) => setLearnMoreUrl(e.target.value)}
+              />
+              <p className="text-xs text-[#6B7280]">
+                Leave blank if there&apos;s nothing to link to yet -- registration isn&apos;t open.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="saveTheDateMessage">Custom Message (Optional)</Label>
+              <Textarea
+                id="saveTheDateMessage"
+                value={saveTheDateMessage}
+                onChange={(e) => setSaveTheDateMessage(e.target.value)}
+                placeholder="Anything else you'd like to share..."
                 className="min-h-[90px]"
               />
             </div>
@@ -1059,6 +1188,7 @@ export default function SendReminderEmailModal({
     switch (t.id) {
       case 'event_reminder': return 'Send Reminder Emails'
       case 'survey_feedback': return 'Send Survey Emails'
+      case 'save_the_date': return 'Send Save the Date Emails'
       case 'registration_open': return 'Send Announcement Emails'
       case 'general_update': return 'Send Update Emails'
       case 'payment_reminder': return 'Send Payment Reminders'

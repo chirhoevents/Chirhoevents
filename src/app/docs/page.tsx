@@ -3041,20 +3041,25 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
 
         <h3 className="text-xl font-semibold text-navy mt-6">Announcing a New Event to Past Attendees</h3>
         <p>
-          To send a &quot;save the date&quot; or registration announcement for a new event to people
-          who attended a <em>previous</em> one:
+          Two templates cover telling last year&apos;s attendees about what&apos;s next, depending on
+          whether registration is open yet:
         </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Save the Date</strong> — for before registration opens. Announce the new event&apos;s name, theme, dates, and when registration will open, without needing a working registration link yet</li>
+          <li><strong>Registration Open</strong> — for once registration is actually live and you have a link to send</li>
+        </ul>
+        <p className="mt-2">The simplest way to reach last year&apos;s group:</p>
         <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
-          <li>Create (or open) the new event, then open its <strong>Send Reminder Email</strong> tool</li>
-          <li>Pick the <strong>Registration Open</strong> template (or <strong>General Update</strong> for a freeform note)</li>
-          <li>For <strong>Send To</strong>, choose <strong>&quot;Attendees of a Past/Other Event...&quot;</strong></li>
-          <li>Select the past event whose group leaders and registrants you want to reach</li>
-          <li>Fill in the new event&apos;s details (link, dates, location) and send</li>
+          <li>Open the <em>past</em> event (the one they actually attended) and use its <strong>Send Reminder Email</strong> tool — its own registrants are already the right audience</li>
+          <li>Pick <strong>Save the Date</strong> (or <strong>Registration Open</strong>) and enter the <em>new</em> event&apos;s name, theme, and dates — these are separate from the past event you&apos;re sending from</li>
+          <li>Send. Recipients are told they attended this past event, and are introduced to the new one</li>
         </ol>
-        <p className="mt-2 text-sm text-gray-500">
-          The recipient list comes from the event you picked, but the email content — subject,
-          links, event name — always refers to the event you&apos;re currently on. The past event
-          must belong to your own organization.
+        <p className="mt-2">
+          If instead you&apos;re on the <em>new</em> event&apos;s page and want to pull in a past event&apos;s
+          audience from there, use <strong>Send To → &quot;Attendees of a Past/Other Event...&quot;</strong> and
+          pick the past event — the recipient list comes from there while the email content still
+          refers to the event you&apos;re currently on. The past event must belong to your own
+          organization.
         </p>
 
         <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mt-4">
