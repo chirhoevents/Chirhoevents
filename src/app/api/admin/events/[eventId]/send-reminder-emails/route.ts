@@ -439,7 +439,8 @@ export async function POST(
     const body = await request.json()
     const {
       templateType = 'event_reminder' as TemplateType,
-      recipients = 'all', // 'all', 'groups', 'individuals'
+      recipients = 'all', // 'all', 'groups', 'individuals', 'other_event'
+      sourceEventId, // required when recipients === 'other_event'
       testMode = false,
       testEmail = '',
       // Event reminder specific
@@ -447,6 +448,28 @@ export async function POST(
       includeStaffAssignments = false,
       includePaymentInfo = false,
     } = body
+
+    // Sending to a past/other event's audience (e.g. announcing this year's
+    // conference to last year's attendees) -- the email content still
+    // reflects the current event, only the recipient list is sourced
+    // elsewhere. Must be in the same org as the current event.
+    let recipientEventId = eventId
+    if (recipients === 'other_event') {
+      if (!sourceEventId) {
+        return NextResponse.json(
+          { error: 'Missing required field: sourceEventId' },
+          { status: 400 },
+        )
+      }
+      const sourceEvent = await prisma.event.findFirst({
+        where: { id: sourceEventId, organizationId },
+        select: { id: true },
+      })
+      if (!sourceEvent) {
+        return NextResponse.json({ error: 'Source event not found' }, { status: 404 })
+      }
+      recipientEventId = sourceEventId
+    }
 
     const orgName = event.organization.name
     const supportEmail = event.organization.contactEmail || 'support@chirhoevents.com'
@@ -508,10 +531,10 @@ export async function POST(
     let groupRegistrations: any[] = []
     let individualRegistrations: any[] = []
 
-    if (recipients === 'all' || recipients === 'groups') {
+    if (recipients === 'all' || recipients === 'groups' || recipients === 'other_event') {
       groupRegistrations = await prisma.groupRegistration.findMany({
         where: {
-          eventId,
+          eventId: recipientEventId,
           registrationStatus: { in: ['pending_forms', 'pending_payment', 'complete'] },
         },
         select: {
@@ -562,10 +585,10 @@ export async function POST(
       }
     }
 
-    if (recipients === 'all' || recipients === 'individuals') {
+    if (recipients === 'all' || recipients === 'individuals' || recipients === 'other_event') {
       individualRegistrations = await prisma.individualRegistration.findMany({
         where: {
-          eventId,
+          eventId: recipientEventId,
           registrationStatus: { in: ['pending_forms', 'pending_payment', 'complete'] },
         },
         select: {

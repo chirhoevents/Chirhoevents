@@ -193,6 +193,9 @@ export default function SendReminderEmailModal({
 
   // Shared across all templates
   const [recipients, setRecipients] = useState('all')
+  const [sourceEventId, setSourceEventId] = useState('')
+  const [orgEvents, setOrgEvents] = useState<{ id: string; name: string }[]>([])
+  const [loadingOrgEvents, setLoadingOrgEvents] = useState(false)
   const [testEmail, setTestEmail] = useState('')
   const [links, setLinks] = useState<CustomLink[]>([])
 
@@ -261,16 +264,44 @@ export default function SendReminderEmailModal({
 
   const recipientOptions = () => {
     if (isGroupOnly) {
-      return [{ value: 'groups', label: 'Group Leaders Only' }]
+      return [
+        { value: 'groups', label: 'Group Leaders Only' },
+        { value: 'other_event', label: "Attendees of a Past/Other Event..." },
+      ]
     }
     if (isIndividualOnly) {
-      return [{ value: 'individuals', label: 'All Registrants' }]
+      return [
+        { value: 'individuals', label: 'All Registrants' },
+        { value: 'other_event', label: "Attendees of a Past/Other Event..." },
+      ]
     }
     return [
       { value: 'all', label: 'All Registrations (Groups & Individuals)' },
       { value: 'groups', label: 'Group Leaders Only' },
       { value: 'individuals', label: 'Individual Registrations Only' },
+      { value: 'other_event', label: "Attendees of a Past/Other Event..." },
     ]
+  }
+
+  const loadOrgEvents = async () => {
+    if (orgEvents.length > 0) return
+    setLoadingOrgEvents(true)
+    try {
+      const token = await getToken()
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+      const res = await fetch('/api/admin/events', { headers })
+      if (!res.ok) throw new Error('Failed to load events')
+      const data = await res.json()
+      setOrgEvents(
+        (data.events || [])
+          .filter((e: { id: string }) => e.id !== eventId)
+          .map((e: { id: string; name: string }) => ({ id: e.id, name: e.name }))
+      )
+    } catch (err) {
+      console.error('Error loading events:', err)
+    } finally {
+      setLoadingOrgEvents(false)
+    }
   }
 
   // ── Payload builders ──────────────────────────────────────────────────────
@@ -279,6 +310,7 @@ export default function SendReminderEmailModal({
     const base = {
       templateType: selectedTemplate,
       recipients,
+      ...(recipients === 'other_event' ? { sourceEventId } : {}),
       links: links.filter((l) => l.label && l.url),
       ...(testMode ? { testMode: true, testEmail: testEmailAddr } : {}),
     }
@@ -342,6 +374,7 @@ export default function SendReminderEmailModal({
   // ── Validation ────────────────────────────────────────────────────────────
 
   const isValid = () => {
+    if (recipients === 'other_event' && !sourceEventId) return false
     switch (selectedTemplate) {
       case 'survey_feedback':
         return !!surveyUrl
@@ -424,6 +457,7 @@ export default function SendReminderEmailModal({
     setTestResult(null)
     setTestEmail('')
     setRecipients('all')
+    setSourceEventId('')
     setLinks([])
     // Reset all fields
     setIncludePortalReminder(true)
@@ -469,7 +503,13 @@ export default function SendReminderEmailModal({
   const RecipientsField = () => (
     <div className="space-y-2">
       <Label>Send To</Label>
-      <Select value={recipients} onValueChange={setRecipients}>
+      <Select
+        value={recipients}
+        onValueChange={(v) => {
+          setRecipients(v)
+          if (v === 'other_event') loadOrgEvents()
+        }}
+      >
         <SelectTrigger>
           <SelectValue placeholder="Select recipients" />
         </SelectTrigger>
@@ -481,7 +521,34 @@ export default function SendReminderEmailModal({
           ))}
         </SelectContent>
       </Select>
-      <p className="text-xs text-[#6B7280]">Cancelled registrations are automatically excluded.</p>
+      {recipients === 'other_event' ? (
+        <>
+          {loadingOrgEvents ? (
+            <p className="text-xs text-[#6B7280] flex items-center gap-2">
+              <Loader2 className="h-3 w-3 animate-spin" /> Loading events...
+            </p>
+          ) : (
+            <select
+              value={sourceEventId}
+              onChange={(e) => setSourceEventId(e.target.value)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+            >
+              <option value="">Select an event...</option>
+              {orgEvents.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <p className="text-xs text-[#6B7280]">
+            Pulls the group leader / registrant emails from that event, but the message itself
+            still refers to <strong>{eventName}</strong>.
+          </p>
+        </>
+      ) : (
+        <p className="text-xs text-[#6B7280]">Cancelled registrations are automatically excluded.</p>
+      )}
     </div>
   )
 
