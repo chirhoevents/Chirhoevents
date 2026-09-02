@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { countEventsUsedInCurrentPeriod } from '@/lib/event-usage'
 
 /**
  * POST /api/master-admin/organizations/[orgId]/reset-usage
@@ -42,6 +43,8 @@ export async function POST(
       select: {
         id: true,
         name: true,
+        createdAt: true,
+        subscriptionStartedAt: true,
         eventsUsed: true,
         registrationsUsed: true,
       },
@@ -51,13 +54,14 @@ export async function POST(
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
     }
 
-    // Count all non-draft events for this organization
-    const eventsCount = await prisma.event.count({
-      where: {
-        organizationId: orgId,
-        status: { not: 'draft' },
-      },
-    })
+    // Count non-draft events in the org's current subscription-year period only
+    // (eventsUsed is a per-year limit, not a lifetime total — a straight
+    // lifetime count here would just reproduce the drift this reset is meant
+    // to fix, e.g. counting last year's conference against this year's limit).
+    const eventsCount = await countEventsUsedInCurrentPeriod(
+      orgId,
+      organization.subscriptionStartedAt ?? organization.createdAt
+    )
 
     // Sum up totalParticipants from all non-incomplete group registrations
     // This matches how registrations are counted when created (by totalParticipants, not individual Participant records)

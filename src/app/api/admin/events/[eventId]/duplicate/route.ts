@@ -3,6 +3,7 @@ import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+import { countEventsUsedInCurrentPeriod } from '@/lib/event-usage'
 
 function shiftDateByOneYear(date: Date | null | undefined): Date | null {
   if (!date) return null
@@ -52,8 +53,9 @@ export async function POST(
     const organization = await prisma.organization.findUnique({
       where: { id: organizationId },
       select: {
+        createdAt: true,
+        subscriptionStartedAt: true,
         eventsPerYearLimit: true,
-        eventsUsed: true,
         subscriptionTier: true,
       },
     })
@@ -62,8 +64,16 @@ export async function POST(
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
     }
 
+    // Usage resets each subscription-year period, not once ever, so count
+    // live rather than trust a running total (e.g. duplicating last year's
+    // conference into this year must not be blocked by last year's count).
+    const eventsUsedThisPeriod = await countEventsUsedInCurrentPeriod(
+      organizationId,
+      organization.subscriptionStartedAt ?? organization.createdAt
+    )
+
     if (organization.eventsPerYearLimit !== null) {
-      if (organization.eventsUsed >= organization.eventsPerYearLimit) {
+      if (eventsUsedThisPeriod >= organization.eventsPerYearLimit) {
         return NextResponse.json(
           {
             error: `Event limit reached. Your ${organization.subscriptionTier} plan allows ${organization.eventsPerYearLimit} events per year.`,
@@ -586,10 +596,14 @@ export async function POST(
       })
     }
 
-    // ── Increment events used counter ───────────────────────────────────────
+    // ── Recompute events used counter for the current period ───────────────
+    const eventsUsedAfterDuplicate = await countEventsUsedInCurrentPeriod(
+      organizationId,
+      organization.subscriptionStartedAt ?? organization.createdAt
+    )
     await prisma.organization.update({
       where: { id: organizationId },
-      data: { eventsUsed: { increment: 1 } },
+      data: { eventsUsed: eventsUsedAfterDuplicate },
     })
 
     return NextResponse.json({ event: newEvent })
