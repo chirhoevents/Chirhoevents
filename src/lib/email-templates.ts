@@ -1881,32 +1881,45 @@ export function generateSaveTheDateEmail({
 }): string {
   const hasDetails = theme || eventDate || eventLocation || registrationOpensDate
 
-  return wrapEmail(`
-    <h1 style="color: #1E3A5F; margin-top: 0;">Save the Date!</h1>
+  const funDetailRow = (icon: string, label: string, value: string): string => `
+    <tr>
+      <td style="padding: 12px 0; border-bottom: 1px solid rgba(30,58,95,0.08); color: #5b6b7d; font-size: 14px;">
+        <span style="font-size: 16px; margin-right: 8px;">${icon}</span>${label}
+      </td>
+      <td style="padding: 12px 0; border-bottom: 1px solid rgba(30,58,95,0.08); text-align: right; font-weight: 700; color: #1E3A5F;">${value}</td>
+    </tr>
+  `
 
-    <p>Dear ${recipientName},</p>
+  return wrapEmail(`
+    <div style="text-align: center; margin: 0 0 8px;">
+      <span style="display: inline-block; background-color: #EEF2FF; color: #2563EB; font-weight: 700; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; padding: 6px 18px; border-radius: 999px;">🎉 Save the Date</span>
+    </div>
+
+    <h1 style="color: #1E3A5F; margin: 16px 0 20px; text-align: center; font-size: 28px;">${newEventName} is Coming!</h1>
+
+    <p>Hey ${recipientName}! 👋</p>
 
     <p>${pastEventName
-      ? `You joined us at <strong>${pastEventName}</strong> — thank you for being part of it! We're thrilled to announce that <strong>${newEventName}</strong> is coming.`
-      : `We're thrilled to announce that <strong>${newEventName}</strong> is coming.`
+      ? `We had an amazing time with you at <strong>${pastEventName}</strong> — thank you for being part of it! Get ready, because <strong>${newEventName}</strong> is on its way, and it's going to be even better.`
+      : `Get ready — <strong>${newEventName}</strong> is on its way, and it's going to be one for the books!`
     }</p>
 
     ${hasDetails ? `
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0; background: #f9f9f9; border-radius: 8px; overflow: hidden;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 28px 0; background: linear-gradient(135deg, #F5F1E8 0%, #EEF2FF 100%); border-radius: 12px; overflow: hidden;">
       <tr>
-        <td style="padding: 20px;">
+        <td style="padding: 24px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-            ${theme ? emailDetailRow('Theme', theme) : ''}
-            ${eventDate ? emailDetailRow('Event Date', eventDate) : ''}
-            ${eventLocation ? emailDetailRow('Location', eventLocation) : ''}
-            ${registrationOpensDate ? emailDetailRow('Registration Opens', registrationOpensDate) : ''}
+            ${theme ? funDetailRow('✨', 'Theme', theme) : ''}
+            ${eventDate ? funDetailRow('📅', 'Event Date', eventDate) : ''}
+            ${eventLocation ? funDetailRow('📍', 'Location', eventLocation) : ''}
+            ${registrationOpensDate ? funDetailRow('🔓', 'Registration Opens', registrationOpensDate) : ''}
           </table>
         </td>
       </tr>
     </table>
     ` : ''}
 
-    ${learnMoreUrl ? starLink('Learn More', learnMoreUrl, true) : ''}
+    ${learnMoreUrl ? starLink('Learn More 🚀', learnMoreUrl, true) : ''}
 
     ${customMessage ? `<p>${customMessage}</p>` : ''}
 
@@ -1915,10 +1928,10 @@ export function generateSaveTheDateEmail({
     ${starLinkList(links)}
     ` : ''}
 
-    <p>Mark your calendar — we can&apos;t wait to see you there!</p>
+    <p>Mark your calendars — this is one you won&apos;t want to miss! 🎊</p>
 
-    <p style="font-size: 14px; color: #666;">— ${organizationName}</p>
-  `, { organizationName, supportEmail, preheader: `Save the date for ${newEventName}` })
+    <p style="font-size: 14px; color: #666;">Can&apos;t wait to see you there,<br>— ${organizationName}</p>
+  `, { organizationName, supportEmail, preheader: `🎉 Save the date for ${newEventName}!` })
 }
 
 /**
