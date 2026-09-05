@@ -25,6 +25,55 @@ export default function YouthU18InitialForm() {
   const [submitted, setSubmitted] = useState(false)
   const [emailSent, setEmailSent] = useState(true)
   const [parentLink, setParentLink] = useState<string | null>(null)
+  const [duplicateInfo, setDuplicateInfo] = useState<{
+    id: string
+    completed: boolean
+    parentEmailMasked: string
+  } | null>(null)
+
+  function buildPayload(extra?: Record<string, unknown>) {
+    return {
+      access_code: accessCode,
+      first_name: formData.firstName,
+      last_name: formData.lastName,
+      preferred_name: formData.preferredName || null,
+      date_of_birth: formData.dateOfBirth,
+      age: parseInt(formData.age),
+      gender: formData.gender,
+      t_shirt_size: formData.tShirtSize,
+      parent_email: formData.parentEmail,
+      ...extra,
+    }
+  }
+
+  async function submitForm(extra?: Record<string, unknown>) {
+    const response = await fetch('/api/liability/youth-u18/initiate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildPayload(extra)),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to send form to parent')
+    }
+
+    const data = await response.json()
+
+    if (data.duplicate_found) {
+      setDuplicateInfo({
+        id: data.existing_form.id,
+        completed: data.existing_form.completed,
+        parentEmailMasked: data.existing_form.parent_email_masked,
+      })
+      return
+    }
+
+    setDuplicateInfo(null)
+    setEmailSent(data.email_sent !== false)
+    setParentLink(data.parent_link || null)
+    setSubmitted(true)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,36 +89,115 @@ export default function YouthU18InitialForm() {
     setLoading(true)
 
     try {
-      const response = await fetch('/api/liability/youth-u18/initiate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          access_code: accessCode,
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          preferred_name: formData.preferredName || null,
-          date_of_birth: formData.dateOfBirth,
-          age: parseInt(formData.age),
-          gender: formData.gender,
-          t_shirt_size: formData.tShirtSize,
-          parent_email: formData.parentEmail,
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to send form to parent')
-      }
-
-      const data = await response.json()
-      setEmailSent(data.email_sent !== false)
-      setParentLink(data.parent_link || null)
-      setSubmitted(true)
+      await submitForm()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit form. Please try again.')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleDuplicateChoice = async (action: 'update' | 'new') => {
+    if (!duplicateInfo) return
+    setLoading(true)
+    setError(null)
+    try {
+      await submitForm({
+        confirm_duplicate: true,
+        duplicate_action: action,
+        existing_form_id: duplicateInfo.id,
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to submit form. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (duplicateInfo) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-navy py-6 shadow-md">
+          <div className="container mx-auto px-4">
+            <div className="flex justify-center">
+              <Image
+                src="/Poros logo.png"
+                alt="Poros - ChiRho Events"
+                width={350}
+                height={105}
+                className="h-16 md:h-20 w-auto"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="container mx-auto px-4 py-12">
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-white rounded-lg shadow-lg p-8">
+              <h1 className="text-2xl font-bold text-navy mb-3">
+                Looks like this might already be started
+              </h1>
+
+              {duplicateInfo.completed ? (
+                <>
+                  <p className="text-gray-700 mb-4">
+                    We already have a <strong>completed and signed</strong> form for{' '}
+                    <strong>{formData.firstName} {formData.lastName}</strong>
+                    {duplicateInfo.parentEmailMasked !== '(none on file)' && (
+                      <> (parent/guardian: {duplicateInfo.parentEmailMasked})</>
+                    )}. If that&apos;s you and something needs to be corrected, contact your
+                    group leader or the event organizer instead of submitting again.
+                  </p>
+                  <p className="text-gray-700 mb-6">
+                    If this is actually a <strong>different person</strong> with the same name, you can continue.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-gray-700 mb-6">
+                    We already have a form started for <strong>{formData.firstName} {formData.lastName}</strong> —
+                    it&apos;s waiting on <strong>{duplicateInfo.parentEmailMasked}</strong> to finish step 2.
+                    Is that you?
+                  </p>
+                </>
+              )}
+
+              {error && (
+                <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded mb-4">
+                  <p className="text-red-700 text-sm">{error}</p>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                {!duplicateInfo.completed && (
+                  <button
+                    onClick={() => handleDuplicateChoice('update')}
+                    disabled={loading}
+                    className="flex-1 bg-navy text-white py-3 px-4 rounded-lg font-semibold hover:bg-navy/90 transition-colors disabled:opacity-50"
+                  >
+                    {loading ? 'Updating…' : "Yes, that's me — update it"}
+                  </button>
+                )}
+                <button
+                  onClick={() => handleDuplicateChoice('new')}
+                  disabled={loading}
+                  className="flex-1 border border-navy text-navy py-3 px-4 rounded-lg font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  {loading ? 'Submitting…' : 'No, this is a different person'}
+                </button>
+              </div>
+              <button
+                onClick={() => setDuplicateInfo(null)}
+                disabled={loading}
+                className="w-full text-center text-sm text-gray-500 hover:text-gray-700 mt-4"
+              >
+                Cancel and go back
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (submitted) {
