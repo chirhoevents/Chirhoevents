@@ -6,6 +6,14 @@ import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
+function maskEmail(email: string | null): string {
+  if (!email) return '(none on file)'
+  const [local, domain] = email.split('@')
+  if (!domain) return email
+  const visible = local.slice(0, 2)
+  return `${visible}${'•'.repeat(Math.max(local.length - visible.length, 3))}@${domain}`
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -20,6 +28,9 @@ export async function POST(request: NextRequest) {
       gender,
       t_shirt_size,
       parent_email,
+      confirm_duplicate,
+      duplicate_action,
+      existing_form_id,
     } = body
 
     // Validate required fields
@@ -139,28 +150,93 @@ export async function POST(request: NextRequest) {
       contactEmail = groupRegistration.groupLeaderEmail
       replyToAddr = resolveReplyTo(groupRegistration.event.settings, groupRegistration.organization)
 
-      // Create liability form record for group participant
-      liabilityForm = await prisma.liabilityForm.create({
-        data: {
-          organizationId: groupRegistration.organizationId,
-          eventId: groupRegistration.eventId,
-          groupRegistrationId: groupRegistration.id,
-          formType: 'youth_u18',
-          participantFirstName: first_name,
-          participantLastName: last_name,
-          participantPreferredName: preferred_name || null,
-          participantAge: age,
-          participantGender: gender,
-          dateOfBirth: date_of_birth ? new Date(date_of_birth) : null,
-          participantEmail: null,
-          tShirtSize: t_shirt_size,
-          parentEmail: parent_email,
-          parentToken: parentToken,
-          parentTokenExpiresAt: parentTokenExpiresAt,
-          signatureData: {},
-          completed: false,
-        },
-      })
+      // Group registrations have no per-participant ID to key off at this step, so the
+      // same teen resubmitting (e.g. to fix a typo'd parent email) used to always create
+      // a brand-new LiabilityForm row instead of updating theirs — leaving duplicates.
+      // Look for a likely-existing entry by name and, unless the caller has already
+      // confirmed how to proceed, ask before silently creating another one.
+      if (!confirm_duplicate) {
+        const possibleDuplicate = await prisma.liabilityForm.findFirst({
+          where: {
+            groupRegistrationId: groupRegistration.id,
+            formType: 'youth_u18',
+            participantFirstName: { equals: first_name, mode: 'insensitive' },
+            participantLastName: { equals: last_name, mode: 'insensitive' },
+          },
+          orderBy: { createdAt: 'desc' },
+        })
+
+        if (possibleDuplicate) {
+          return NextResponse.json({
+            duplicate_found: true,
+            existing_form: {
+              id: possibleDuplicate.id,
+              completed: possibleDuplicate.completed,
+              parent_email_masked: maskEmail(possibleDuplicate.parentEmail),
+              created_at: possibleDuplicate.createdAt,
+            },
+          })
+        }
+      }
+
+      if (confirm_duplicate && duplicate_action === 'update' && existing_form_id) {
+        const existingForm = await prisma.liabilityForm.findFirst({
+          where: { id: existing_form_id, groupRegistrationId: groupRegistration.id },
+        })
+
+        if (!existingForm) {
+          return NextResponse.json({ error: 'Existing form not found' }, { status: 404 })
+        }
+
+        // A completed, signed form is a legal document — don't let a resubmission
+        // silently reopen it. The frontend only offers "update" for incomplete ones,
+        // but guard here too in case of a stale confirmation.
+        if (existingForm.completed) {
+          return NextResponse.json(
+            { error: 'That form has already been completed and signed. Contact the event organizer if it needs to be corrected.' },
+            { status: 400 }
+          )
+        }
+
+        liabilityForm = await prisma.liabilityForm.update({
+          where: { id: existingForm.id },
+          data: {
+            participantFirstName: first_name,
+            participantLastName: last_name,
+            participantPreferredName: preferred_name || null,
+            participantAge: age,
+            participantGender: gender,
+            dateOfBirth: date_of_birth ? new Date(date_of_birth) : null,
+            tShirtSize: t_shirt_size,
+            parentEmail: parent_email,
+            parentToken: parentToken,
+            parentTokenExpiresAt: parentTokenExpiresAt,
+          },
+        })
+      } else {
+        // Create new liability form record for group participant
+        liabilityForm = await prisma.liabilityForm.create({
+          data: {
+            organizationId: groupRegistration.organizationId,
+            eventId: groupRegistration.eventId,
+            groupRegistrationId: groupRegistration.id,
+            formType: 'youth_u18',
+            participantFirstName: first_name,
+            participantLastName: last_name,
+            participantPreferredName: preferred_name || null,
+            participantAge: age,
+            participantGender: gender,
+            dateOfBirth: date_of_birth ? new Date(date_of_birth) : null,
+            participantEmail: null,
+            tShirtSize: t_shirt_size,
+            parentEmail: parent_email,
+            parentToken: parentToken,
+            parentTokenExpiresAt: parentTokenExpiresAt,
+            signatureData: {},
+            completed: false,
+          },
+        })
+      }
     }
 
     // Send email to parent
