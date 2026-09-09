@@ -167,6 +167,9 @@ export async function PUT(
     if (body.website !== undefined) updateData.website = toNullable(body.website)
     if (body.paymentMethod !== undefined) updateData.paymentMethodPreference = body.paymentMethod
     if (body.platformFeePercentage !== undefined) updateData.platformFeePercentage = body.platformFeePercentage
+    if (body.usePlatformStripeAccount !== undefined) updateData.usePlatformStripeAccount = body.usePlatformStripeAccount
+    if (body.checkPaymentName !== undefined) updateData.checkPaymentName = toNullable(body.checkPaymentName)
+    if (body.checkPaymentAddress !== undefined) updateData.checkPaymentAddress = toNullable(body.checkPaymentAddress)
 
     const organization = await prisma.organization.update({
       where: { id: orgId },

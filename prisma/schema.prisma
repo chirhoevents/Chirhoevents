@@ -70,6 +70,13 @@ model Organization {
   website                 String?  @db.VarChar(255)
   paymentMethodPreference PaymentMethodPreference? @map("payment_method_preference")
 
+  // When true, card payments for this org's events are collected directly into
+  // the platform's own Stripe account instead of a Connect destination charge —
+  // used when an org can't or won't complete Stripe Connect onboarding. The
+  // platform then owes the org their net share, settled manually (see
+  // PlatformPayout) using checkPaymentName/checkPaymentAddress above.
+  usePlatformStripeAccount Boolean @default(false) @map("use_platform_stripe_account")
+
   // Subscription pause tracking
   pauseReason             SubscriptionPauseReason? @map("pause_reason")
   pauseReasonNote         String?  @map("pause_reason_note") @db.Text
@@ -95,6 +102,7 @@ model Organization {
   dayPassOptions          DayPassOption[]
   registrationEdits       RegistrationEdit[]  // Fix #11
   refunds                 Refund[]            // Fix #11
+  platformPayouts         PlatformPayout[]
   createdByUser           User?    @relation("OrganizationsCreatedByUser", fields: [createdByUserId], references: [id])
 
   @@index([contactEmail], name: "idx_org_email")
@@ -130,6 +138,7 @@ model User {
   refundsProcessed Refund[]
   reportTemplates ReportTemplate[] @relation("ReportTemplatesCreated")
   paymentsProcessed Payment[] @relation("PaymentsProcessed")
+  platformPayoutsProcessed PlatformPayout[] @relation("PlatformPayoutsProcessed")
   liabilityFormsApproved LiabilityForm[] @relation("LiabilityFormsApproved")
   lettersVerified        LetterOfGoodStanding[] @relation("VerifiedLetters")
   organizationsCreated Organization[] @relation("OrganizationsCreatedByUser")
@@ -708,6 +717,11 @@ model Payment {
   processedByUserId     String?  @map("processed_by_user_id") @db.Uuid
   processedVia          ProcessedVia? @map("processed_via")
   processedAt           DateTime? @map("processed_at") @db.Timestamptz(6)
+  // True when this charge was collected into the platform's own Stripe account
+  // (org.usePlatformStripeAccount) rather than transferred to the org's Connect
+  // account. Set at charge time so it stays accurate even if the org later
+  // connects their own Stripe account. Drives the PlatformPayout balance-owed calc.
+  collectedByPlatform   Boolean  @default(false) @map("collected_by_platform")
   createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -718,6 +732,29 @@ model Payment {
   @@index([registrationId, registrationType], name: "idx_payment_registration")
   @@index([stripePaymentIntentId], name: "idx_payment_stripe")
   @@map("payments")
+}
+
+// Records a manual payout (e.g. a mailed check) settling up an org whose card
+// payments are collected into the platform's Stripe account
+// (Organization.usePlatformStripeAccount) instead of their own Connect account.
+model PlatformPayout {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  amount          Decimal  @db.Decimal(10, 2)
+  method          PlatformPayoutMethod @default(check) @map("method")
+  checkNumber     String?  @map("check_number") @db.VarChar(50)
+  periodStart     DateTime? @map("period_start") @db.Timestamptz(6)
+  periodEnd       DateTime? @map("period_end") @db.Timestamptz(6)
+  notes           String?  @db.Text
+  processedByUserId String? @map("processed_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  processedBy   User?        @relation("PlatformPayoutsProcessed", fields: [processedByUserId], references: [id])
+
+  @@index([organizationId], name: "idx_platform_payout_org")
+  @@map("platform_payouts")
 }
 
 model PaymentBalance {
@@ -2453,6 +2490,13 @@ enum OnboardingRequestStatus {
 enum PaymentMethodPreference {
   credit_card
   check
+}
+
+enum PlatformPayoutMethod {
+  check
+  ach
+  wire
+  other
 }
 
 enum HowDidYouHear {

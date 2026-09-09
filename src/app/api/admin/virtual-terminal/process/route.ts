@@ -58,11 +58,12 @@ export async function POST(request: Request) {
         name: true,
         stripeAccountId: true,
         stripeChargesEnabled: true,
+        usePlatformStripeAccount: true,
         platformFeePercentage: true,
       }
     })
 
-    if (!org?.stripeAccountId) {
+    if (!org?.usePlatformStripeAccount && !org?.stripeAccountId) {
       return NextResponse.json({
         error: 'Stripe not connected. Please connect Stripe in Settings.'
       }, { status: 400 })
@@ -173,6 +174,7 @@ export async function POST(request: Request) {
       cardBrand?: string
       cardLast4?: string
       platformFeeAmount?: number
+      collectedByPlatform?: boolean
     }
 
     const paymentData: PaymentData = {
@@ -209,7 +211,10 @@ export async function POST(request: Request) {
         const platformFeePercentage = Number(org.platformFeePercentage) || 1
         const platformFeeAmountCents = calculatePlatformFeeCents(amountCents, platformFeePercentage)
 
-        // Create PaymentIntent on platform with transfer to connected account
+        // Create PaymentIntent on platform. Normally with transfer to the org's
+        // connected account (destination charge); in platform-collected mode
+        // (org.usePlatformStripeAccount) the charge stays in the platform's own
+        // balance and the org is paid out manually — see PlatformPayout.
         const paymentIntent = await stripe.paymentIntents.create({
           amount: amountCents,
           currency: 'usd',
@@ -225,15 +230,19 @@ export async function POST(request: Request) {
             processedVia: 'virtual_terminal',
             platformFeeAmount: platformFeeAmountCents.toString(),
           },
-          // Platform fee goes to ChiRho Events
-          application_fee_amount: platformFeeAmountCents,
-          // on_behalf_of makes the connected account the merchant of record so Stripe's
-          // processing fees (2.9% + $0.30) are deducted from their share, not the platform's.
-          on_behalf_of: org.stripeAccountId,
-          // Use destination charges - funds go to connected account
-          transfer_data: {
-            destination: org.stripeAccountId
-          },
+          ...(org.usePlatformStripeAccount
+            ? {}
+            : {
+                // Platform fee goes to ChiRho Events
+                application_fee_amount: platformFeeAmountCents,
+                // on_behalf_of makes the connected account the merchant of record so Stripe's
+                // processing fees (2.9% + $0.30) are deducted from their share, not the platform's.
+                on_behalf_of: org.stripeAccountId!,
+                // Use destination charges - funds go to connected account
+                transfer_data: {
+                  destination: org.stripeAccountId!
+                },
+              }),
           // Enable automatic payment methods for better compatibility
           automatic_payment_methods: {
             enabled: true,
@@ -252,6 +261,7 @@ export async function POST(request: Request) {
         paymentData.cardBrand = cardBrand
         paymentData.cardLast4 = cardLast4
         paymentData.platformFeeAmount = platformFeeAmountCents / 100 // Store in dollars
+        paymentData.collectedByPlatform = org.usePlatformStripeAccount
 
       } catch (stripeError) {
         console.error('Stripe error:', stripeError)

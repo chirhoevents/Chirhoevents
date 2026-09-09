@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
                 status: true,
                 stripeAccountId: true,
                 stripeChargesEnabled: true,
+                usePlatformStripeAccount: true,
                 platformFeePercentage: true,
               },
             },
@@ -75,8 +76,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Fix #1: Guard — org must have Stripe onboarding complete before accepting payments
-    if (!org.stripeAccountId || !org.stripeChargesEnabled) {
+    // Fix #1: Guard — org must have Stripe onboarding complete before accepting
+    // payments, unless the platform is collecting this org's payments directly.
+    if (!org.usePlatformStripeAccount && (!org.stripeAccountId || !org.stripeChargesEnabled)) {
       return NextResponse.json(
         { error: 'This organization has not completed payment setup. Registration cannot be processed at this time. Please contact the event organizer.' },
         { status: 400 }
@@ -109,15 +111,21 @@ export async function POST(req: NextRequest) {
       },
     }
 
-    // Use destination charges — org Stripe account is guaranteed by guard above.
-    // on_behalf_of makes the connected account the merchant of record so Stripe's
-    // processing fees (2.9% + $0.30) are deducted from their share, not the platform's.
-    paymentIntentConfig.application_fee_amount = platformFeeAmount
-    paymentIntentConfig.on_behalf_of = org.stripeAccountId
-    paymentIntentConfig.transfer_data = {
-      destination: org.stripeAccountId,
+    if (org.usePlatformStripeAccount) {
+      // Platform-collected mode: charge lands directly in the platform's own
+      // Stripe balance (no Connect destination).
+      console.log(`[Stripe Connect] Platform-collected mode for org ${org.id} — no Connect destination`)
+    } else {
+      // Use destination charges — org Stripe account is guaranteed by guard above.
+      // on_behalf_of makes the connected account the merchant of record so Stripe's
+      // processing fees (2.9% + $0.30) are deducted from their share, not the platform's.
+      paymentIntentConfig.application_fee_amount = platformFeeAmount
+      paymentIntentConfig.on_behalf_of = org.stripeAccountId
+      paymentIntentConfig.transfer_data = {
+        destination: org.stripeAccountId,
+      }
+      console.log(`[Stripe Connect] Applying platform fee: $${(platformFeeAmount / 100).toFixed(2)} to org ${org.id}`)
     }
-    console.log(`[Stripe Connect] Applying platform fee: $${(platformFeeAmount / 100).toFixed(2)} to org ${org.id}`)
 
     // Create Stripe payment intent
     const paymentIntent = await stripe.paymentIntents.create(paymentIntentConfig)
@@ -135,6 +143,7 @@ export async function POST(req: NextRequest) {
         paymentStatus: 'pending',
         stripePaymentIntentId: paymentIntent.id,
         platformFeeAmount: platformFeeAmount / 100, // Store in dollars
+        collectedByPlatform: org.usePlatformStripeAccount,
         notes: notes || null,
       },
     })

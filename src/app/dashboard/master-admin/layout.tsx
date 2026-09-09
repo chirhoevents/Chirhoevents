@@ -19,7 +19,8 @@ import {
   AlertTriangle,
   LucideIcon,
   CreditCard,
-  Mail
+  Mail,
+  HandCoins
 } from 'lucide-react'
 
 interface UserInfo {
@@ -38,6 +39,7 @@ const navigation: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard/master-admin', icon: LayoutDashboard },
   { name: 'Organizations', href: '/dashboard/master-admin/organizations', icon: Building2 },
   { name: 'Billing', href: '/dashboard/master-admin/billing', icon: CreditCard },
+  { name: 'Platform Payouts', href: '/dashboard/master-admin/platform-payouts', icon: HandCoins },
   { name: 'Pending Requests', href: '/dashboard/master-admin/pending-requests', icon: FileText },
   { name: 'Support Tickets', href: '/dashboard/master-admin/support-tickets', icon: Ticket },
   { name: 'Emails', href: '/dashboard/master-admin/emails', icon: Mail },
