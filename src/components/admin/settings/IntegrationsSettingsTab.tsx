@@ -37,6 +37,7 @@ interface StripeIntegration {
   payoutsEnabled: boolean
   detailsSubmitted: boolean
   mode: 'test' | 'live'
+  platformCollected: boolean
   contactEmail: string | null
   stats: {
     totalVolume: number
@@ -233,7 +234,12 @@ export default function IntegrationsSettingsTab() {
                 <CardDescription>Accept online payments for registrations</CardDescription>
               </div>
             </div>
-            {stripe?.connected ? (
+            {stripe?.platformCollected ? (
+              <Badge className="bg-blue-500 text-white">
+                <CheckCircle className="h-3 w-3 mr-1" />
+                Handled by ChiRho Events
+              </Badge>
+            ) : stripe?.connected ? (
               <Badge className="bg-green-500 text-white">
                 <CheckCircle className="h-3 w-3 mr-1" />
                 Connected
@@ -247,7 +253,52 @@ export default function IntegrationsSettingsTab() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {stripe?.connected ? (
+          {stripe?.platformCollected ? (
+            <div className="py-4 space-y-4">
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-blue-800 font-medium">Card payments are collected by ChiRho Events</p>
+                <p className="mt-1 text-sm text-blue-700">
+                  Your organization&apos;s card payments are accepted directly by ChiRho Events on your
+                  behalf, and your net share is settled with you separately (e.g. by check). No Stripe
+                  account setup is needed on your end. Contact ChiRho Events if you have questions about
+                  a payout.
+                </p>
+              </div>
+
+              {/* Payment Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 border border-gray-200 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <DollarSign className="h-4 w-4 text-green-600" />
+                    <p className="text-sm text-gray-500">Total Volume</p>
+                  </div>
+                  <p className="text-2xl font-bold text-green-600">
+                    {formatCurrency(stripe.stats.totalVolume)}
+                  </p>
+                </div>
+                <div className="p-4 border border-gray-200 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <RefreshCw className="h-4 w-4 text-[#1E3A5F]" />
+                    <p className="text-sm text-gray-500">Total Payments</p>
+                  </div>
+                  <p className="text-2xl font-bold text-[#1E3A5F]">
+                    {stripe.stats.totalPayments}
+                  </p>
+                </div>
+                <div className="p-4 border border-gray-200 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle className="h-4 w-4 text-[#9C8466]" />
+                    <p className="text-sm text-gray-500">Last Payment</p>
+                  </div>
+                  <p className="text-lg font-medium text-[#1E3A5F]">
+                    {stripe.stats.lastPaymentDate
+                      ? format(new Date(stripe.stats.lastPaymentDate), 'MMM d, yyyy')
+                      : 'No payments yet'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : stripe?.connected ? (
             <>
               {/* Connection Status */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
