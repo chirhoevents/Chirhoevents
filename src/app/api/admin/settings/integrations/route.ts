@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
       where: { id: organizationId },
       select: {
         stripeAccountId: true,
+        usePlatformStripeAccount: true,
         contactEmail: true,
       },
     })
@@ -49,9 +50,26 @@ export async function GET(request: NextRequest) {
       payoutsEnabled: false,
       detailsSubmitted: false,
       mode: 'test' as 'test' | 'live',
+      platformCollected: false,
     }
 
-    if (organization.stripeAccountId) {
+    if (organization.usePlatformStripeAccount) {
+      // Platform-collected mode: there's no connected account to check — card
+      // payments are already accepted directly on the platform's own Stripe
+      // account, settled with the org manually. Report as fully active so the
+      // Virtual Terminal and registration flows aren't gated on a Connect
+      // account that intentionally doesn't exist for this org.
+      stripeConnection = {
+        connected: true,
+        accountId: null,
+        accountName: null,
+        chargesEnabled: true,
+        payoutsEnabled: true,
+        detailsSubmitted: true,
+        mode: process.env.STRIPE_SECRET_KEY?.startsWith('sk_live_') ? 'live' : 'test',
+        platformCollected: true,
+      }
+    } else if (organization.stripeAccountId) {
       try {
         const account = await stripe.accounts.retrieve(
           organization.stripeAccountId
@@ -67,6 +85,7 @@ export async function GET(request: NextRequest) {
           mode: process.env.STRIPE_SECRET_KEY?.startsWith('sk_live_')
             ? 'live'
             : 'test',
+          platformCollected: false,
         }
       } catch (stripeError) {
         console.error('Error fetching Stripe account:', stripeError)
