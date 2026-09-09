@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
             organization: {
               select: {
                 stripeAccountId: true,
+                usePlatformStripeAccount: true,
               },
             },
           },
@@ -51,9 +52,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get Stripe configuration
+    // Get Stripe configuration. Platform-collected orgs (usePlatformStripeAccount)
+    // don't need their own connected account — the charge is created directly on
+    // the platform below instead of via the stripeAccount request option.
+    const usesPlatformAccount = vendor.event.organization.usePlatformStripeAccount
     const stripeAccountId = vendor.event.organization.stripeAccountId
-    if (!stripeAccountId) {
+    if (!usesPlatformAccount && !stripeAccountId) {
       return NextResponse.json(
         { error: 'Payment processing is not configured for this organization' },
         { status: 400 }
@@ -67,7 +71,8 @@ export async function POST(request: NextRequest) {
     // Use the amount directly (no fee passthrough)
     const finalAmount = amount
 
-    // Create payment intent
+    // Create payment intent — on the connected account normally, or directly on
+    // the platform account when the org's payments are platform-collected.
     const paymentIntent = await stripe.paymentIntents.create(
       {
         amount: Math.round(finalAmount),
@@ -80,9 +85,7 @@ export async function POST(request: NextRequest) {
         },
         description: `Vendor booth payment - ${vendor.businessName} for ${vendor.event.name}`,
       },
-      {
-        stripeAccount: stripeAccountId,
-      }
+      usesPlatformAccount ? undefined : { stripeAccount: stripeAccountId! }
     )
 
     // Update vendor with payment intent ID
@@ -123,7 +126,7 @@ export async function PUT(request: NextRequest) {
         event: {
           include: {
             organization: {
-              select: { stripeAccountId: true },
+              select: { stripeAccountId: true, usePlatformStripeAccount: true },
             },
           },
         },
@@ -134,8 +137,9 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Vendor not found' }, { status: 404 })
     }
 
+    const usesPlatformAccount = vendor.event.organization.usePlatformStripeAccount
     const stripeAccountId = vendor.event.organization.stripeAccountId
-    if (!stripeAccountId) {
+    if (!usesPlatformAccount && !stripeAccountId) {
       return NextResponse.json({ error: 'Stripe not configured' }, { status: 400 })
     }
 
@@ -146,7 +150,7 @@ export async function PUT(request: NextRequest) {
     // Retrieve payment intent to get the amount
     const paymentIntent = await stripe.paymentIntents.retrieve(
       paymentIntentId,
-      { stripeAccount: stripeAccountId }
+      usesPlatformAccount ? undefined : { stripeAccount: stripeAccountId! }
     )
 
     if (paymentIntent.status !== 'succeeded') {

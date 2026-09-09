@@ -91,6 +91,7 @@ export async function POST(request: NextRequest) {
             name: true,
             stripeAccountId: true,
             stripeChargesEnabled: true,
+            usePlatformStripeAccount: true,
             platformFeePercentage: true,
             contactEmail: true,
             contactPhone: true,
@@ -108,8 +109,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Fix #1 (individual): Guard — org must have Stripe onboarding complete before accepting card payments
-    if (!event.organization.stripeAccountId || !event.organization.stripeChargesEnabled) {
+    // Fix #1 (individual): Guard — org must have Stripe onboarding complete before
+    // accepting card payments, unless the platform is collecting this org's
+    // payments directly (usePlatformStripeAccount) and settling up manually.
+    if (
+      !event.organization.usePlatformStripeAccount &&
+      (!event.organization.stripeAccountId || !event.organization.stripeChargesEnabled)
+    ) {
       return NextResponse.json(
         { error: 'This organization has not completed payment setup. Registration cannot be processed at this time. Please contact the event organizer.' },
         { status: 400 }
@@ -776,17 +782,24 @@ export async function POST(request: NextRequest) {
         customer_email: email,
       }
 
-      // Fix #1 (individual): Always use destination charges — guard above ensures stripeAccountId is present.
-      // on_behalf_of makes the connected account the merchant of record so Stripe's
-      // processing fees (2.9% + $0.30) are deducted from their share, not the platform's.
-      checkoutConfig.payment_intent_data = {
-        application_fee_amount: platformFeeAmount,
-        on_behalf_of: event.organization.stripeAccountId,
-        transfer_data: {
-          destination: event.organization.stripeAccountId,
-        },
+      if (event.organization.usePlatformStripeAccount) {
+        // Platform-collected mode: charge lands directly in the platform's own
+        // Stripe balance (no Connect destination). platformFeeAmount is still
+        // computed/stored so the org's owed balance can be paid out manually.
+        console.log(`[Stripe Connect] Platform-collected mode for org ${event.organization.id} — no Connect destination`)
+      } else {
+        // Fix #1 (individual): Always use destination charges — guard above ensures stripeAccountId is present.
+        // on_behalf_of makes the connected account the merchant of record so Stripe's
+        // processing fees (2.9% + $0.30) are deducted from their share, not the platform's.
+        checkoutConfig.payment_intent_data = {
+          application_fee_amount: platformFeeAmount,
+          on_behalf_of: event.organization.stripeAccountId,
+          transfer_data: {
+            destination: event.organization.stripeAccountId,
+          },
+        }
+        console.log(`[Stripe Connect] Applying platform fee: $${(platformFeeAmount / 100).toFixed(2)} to org ${event.organization.id}`)
       }
-      console.log(`[Stripe Connect] Applying platform fee: $${(platformFeeAmount / 100).toFixed(2)} to org ${event.organization.id}`)
 
       const checkoutSession = await stripe.checkout.sessions.create(checkoutConfig)
 
@@ -807,6 +820,7 @@ export async function POST(request: NextRequest) {
           // the real pi_... on checkout.session.completed.
           stripePaymentIntentId: checkoutSession.id,
           platformFeeAmount: platformFeeAmount / 100, // Store in dollars
+          collectedByPlatform: event.organization.usePlatformStripeAccount,
         },
       })
 

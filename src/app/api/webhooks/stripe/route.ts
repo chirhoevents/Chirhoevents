@@ -654,6 +654,9 @@ export async function POST(request: NextRequest) {
         })
 
         // Create Payment record with actual collected amount and real payment intent ID
+        const staffPlatformFeeAmount = session.metadata?.platformFeeAmount
+          ? Number(session.metadata.platformFeeAmount) / 100
+          : null
         await prisma.payment.create({
           data: {
             registrationId,
@@ -670,6 +673,8 @@ export async function POST(request: NextRequest) {
             processedAt: new Date(),
             organizationId: session.metadata?.organizationId || '',
             eventId: session.metadata?.eventId || '',
+            platformFeeAmount: staffPlatformFeeAmount,
+            collectedByPlatform: session.metadata?.collectedByPlatform === 'true',
           },
         })
 

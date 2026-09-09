@@ -33,6 +33,9 @@ interface Organization {
   website: string | null
   paymentMethodPreference: string
   platformFeePercentage: number
+  usePlatformStripeAccount: boolean
+  checkPaymentName: string | null
+  checkPaymentAddress: string | null
 }
 
 // Standard tier pricing
@@ -89,6 +92,9 @@ export default function EditOrganizationPage() {
     website: '',
     paymentMethod: 'credit_card',
     platformFeePercentage: 1,
+    usePlatformStripeAccount: false,
+    checkPaymentName: '',
+    checkPaymentAddress: '',
   })
 
   useEffect(() => {
@@ -126,6 +132,9 @@ export default function EditOrganizationPage() {
             website: org.website || '',
             paymentMethod: org.paymentMethodPreference || 'credit_card',
             platformFeePercentage: org.platformFeePercentage || 1,
+            usePlatformStripeAccount: org.usePlatformStripeAccount || false,
+            checkPaymentName: org.checkPaymentName || '',
+            checkPaymentAddress: org.checkPaymentAddress || '',
           })
         } else {
           setError('Organization not found')
@@ -472,6 +481,59 @@ export default function EditOrganizationPage() {
                 <span className="text-sm text-gray-700">%</span>
               </div>
             </div>
+          </div>
+
+          {/* Platform-Collected Payments */}
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="text-sm font-medium text-gray-700">Collect Payments via Platform Account</label>
+                <p className="text-xs text-gray-500 max-w-md">
+                  For orgs that can&apos;t or won&apos;t complete Stripe Connect onboarding. Card payments
+                  are collected directly into ChiRho Technologies&apos; own Stripe account instead of a
+                  connected account, and the org&apos;s net share is settled manually (e.g. by check) — see
+                  Platform Payouts.
+                </p>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer shrink-0 ml-4">
+                <input
+                  type="checkbox"
+                  checked={formData.usePlatformStripeAccount}
+                  onChange={(e) => setFormData({ ...formData, usePlatformStripeAccount: e.target.checked })}
+                  className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                />
+                <span className="text-sm text-gray-700">Enabled</span>
+              </label>
+            </div>
+
+            {formData.usePlatformStripeAccount && (
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Payee Name for Payout Checks
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.checkPaymentName}
+                    onChange={(e) => setFormData({ ...formData, checkPaymentName: e.target.value })}
+                    placeholder="e.g. St. Example Parish"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Mailing Address for Payout Checks
+                  </label>
+                  <textarea
+                    value={formData.checkPaymentAddress}
+                    onChange={(e) => setFormData({ ...formData, checkPaymentAddress: e.target.value })}
+                    rows={2}
+                    placeholder="123 Main St, City, ST 00000"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

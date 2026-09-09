@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
             name: true,
             stripeAccountId: true,
             stripeChargesEnabled: true,
+            usePlatformStripeAccount: true,
             platformFeePercentage: true,
             contactEmail: true,
           },
@@ -185,7 +186,10 @@ export async function POST(request: NextRequest) {
 
     // If payment required, create Stripe checkout session
     if (totalAmount > 0) {
-      if (!event.organization.stripeAccountId || !event.organization.stripeChargesEnabled) {
+      if (
+        !event.organization.usePlatformStripeAccount &&
+        (!event.organization.stripeAccountId || !event.organization.stripeChargesEnabled)
+      ) {
         return NextResponse.json(
           { error: 'Payment processing is not configured for this organization' },
           { status: 400 }
@@ -215,18 +219,28 @@ export async function POST(request: NextRequest) {
             quantity: 1,
           },
         ],
-        payment_intent_data: {
-          application_fee_amount: platformFeeAmount,
-          on_behalf_of: event.organization.stripeAccountId,
-          transfer_data: {
-            destination: event.organization.stripeAccountId,
-          },
-          metadata: {
-            registrationId: registration.id,
-            registrationType: 'staff',
-            eventId: event.id,
-          },
-        },
+        payment_intent_data: event.organization.usePlatformStripeAccount
+          ? {
+              // Platform-collected mode: charge lands directly in the platform's
+              // own Stripe balance (no Connect destination).
+              metadata: {
+                registrationId: registration.id,
+                registrationType: 'staff',
+                eventId: event.id,
+              },
+            }
+          : {
+              application_fee_amount: platformFeeAmount,
+              on_behalf_of: event.organization.stripeAccountId!,
+              transfer_data: {
+                destination: event.organization.stripeAccountId!,
+              },
+              metadata: {
+                registrationId: registration.id,
+                registrationType: 'staff',
+                eventId: event.id,
+              },
+            },
         success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/events/${eventId}/register-staff/success?id=${registration.id}`,
         cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/events/${eventId}/register-staff?cancelled=true`,
         metadata: {
@@ -234,6 +248,8 @@ export async function POST(request: NextRequest) {
           registrationType: 'staff',
           organizationId: event.organizationId,
           eventId: event.id,
+          platformFeeAmount: platformFeeAmount.toString(),
+          collectedByPlatform: event.organization.usePlatformStripeAccount ? 'true' : 'false',
         },
       })
 
