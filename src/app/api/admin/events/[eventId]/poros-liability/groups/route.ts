@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyFormsViewAccess } from '@/lib/api-auth'
+import { liabilityFormNeedsApproval } from '@/lib/liability-form-approval'
 
 export async function GET(
   request: NextRequest,
@@ -74,7 +75,12 @@ export async function GET(
 
     // Format response with stats
     type GroupResult = typeof groups[number]
-    type FormType = { formStatus: string; participantType: string | null; completed: boolean }
+    type FormType = {
+      formStatus: string
+      participantType: string | null
+      participantAge: number | null
+      completed: boolean
+    }
     const formattedGroups = groups.map((group: GroupResult) => {
       const totalSpots = group.totalParticipants
 
@@ -84,8 +90,13 @@ export async function GET(
       const approvedCount = allCompletedForms.filter(
         (f: FormType) => f.formStatus === 'approved'
       ).length
+      // Youth-under-18 forms sit at formStatus 'pending' forever since they never
+      // go through admin approval — exclude them so this only reflects forms
+      // actually waiting on an admin (chaperones, clergy, religious, adult youth).
       const pendingCount = allCompletedForms.filter(
-        (f: FormType) => f.formStatus === 'pending'
+        (f: FormType) =>
+          f.formStatus === 'pending' &&
+          liabilityFormNeedsApproval(f.participantType, f.participantAge)
       ).length
       const deniedCount = allCompletedForms.filter(
         (f: FormType) => f.formStatus === 'denied'

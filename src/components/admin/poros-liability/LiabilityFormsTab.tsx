@@ -30,6 +30,7 @@ import {
   Send
 } from 'lucide-react'
 import { hasAnyMedicalInfo, hasRealMedicalText } from '@/lib/medical-info'
+import { liabilityFormNeedsApproval } from '@/lib/liability-form-approval'
 
 interface LiabilityFormsTabProps {
   eventId: string
@@ -1006,7 +1007,7 @@ function ParticipantRow({
   const hasMedicalInfo = hasAnyMedicalInfo(participant)
 
   // Youth (under 18) forms don't require admin approval
-  const isYouth = participant.participantType === 'youth' || (participant.age !== null && participant.age < 18)
+  const isYouth = !liabilityFormNeedsApproval(participant.participantType, participant.age)
 
   return (
     <div className="border rounded-lg overflow-hidden">
