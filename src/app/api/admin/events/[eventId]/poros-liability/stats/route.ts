@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyFormsViewAccess } from '@/lib/api-auth'
+import { liabilityFormNeedsApproval } from '@/lib/liability-form-approval'
 
 export async function GET(
   request: NextRequest,
@@ -33,13 +34,20 @@ export async function GET(
       },
     })
 
-    const pendingForms = await prisma.liabilityForm.count({
+    // Youth-under-18 forms sit at formStatus 'pending' forever since they never
+    // go through admin approval — exclude them so this only reflects forms
+    // actually waiting on an admin (chaperones, clergy, religious, adult youth).
+    const pendingFormsRaw = await prisma.liabilityForm.findMany({
       where: {
         eventId,
         completed: true,
         formStatus: 'pending',
       },
+      select: { participantType: true, participantAge: true },
     })
+    const pendingForms = pendingFormsRaw.filter((f) =>
+      liabilityFormNeedsApproval(f.participantType, f.participantAge)
+    ).length
 
     const deniedForms = await prisma.liabilityForm.count({
       where: {
