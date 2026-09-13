@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AlertCircle, Loader2, AlertTriangle } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import RegistrationAcknowledgmentModal from '@/components/registration/RegistrationAcknowledgmentModal'
 import { useRegistrationQueue } from '@/hooks/useRegistrationQueue'
 import RegistrationTimer from '@/components/RegistrationTimer'
 import LoadingScreen from '@/components/LoadingScreen'
@@ -51,6 +52,9 @@ interface EventSettings {
   offCampusRemaining?: number | null
   dayPassCapacity?: number | null
   dayPassRemaining?: number | null
+  registrationAcknowledgmentEnabled?: boolean
+  registrationAcknowledgmentTitle?: string | null
+  registrationAcknowledgmentItems?: string[] | null
 }
 
 interface DayPassOption {
@@ -126,6 +130,10 @@ export default function GroupRegistrationPage() {
     availableSpots: number
     housingType?: string
   } | null>(null)
+
+  // Pre-checkout acknowledgment modal state
+  const [acknowledgmentModalOpen, setAcknowledgmentModalOpen] = useState(false)
+  const [hasAcknowledged, setHasAcknowledged] = useState(false)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -490,6 +498,21 @@ export default function GroupRegistrationPage() {
       return
     }
 
+    // Some events require group leaders to check off a list of important
+    // changes (e.g. a new payment process) before they can continue.
+    const acknowledgmentItems = event?.settings?.registrationAcknowledgmentItems || []
+    if (event?.settings?.registrationAcknowledgmentEnabled && acknowledgmentItems.length > 0 && !hasAcknowledged) {
+      setAcknowledgmentModalOpen(true)
+      return
+    }
+
+    proceedToReview()
+  }
+
+  // Navigates to the review/payment step. Split out of handleSubmit so the
+  // acknowledgment modal's "Continue" button can trigger it directly once
+  // every checkbox is checked.
+  const proceedToReview = () => {
     // Build URL with all form data as query parameters
     const params = new URLSearchParams({
       groupName: formData.groupName,
@@ -1428,6 +1451,19 @@ export default function GroupRegistrationPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Pre-Checkout Acknowledgment Modal */}
+      <RegistrationAcknowledgmentModal
+        open={acknowledgmentModalOpen}
+        title={event?.settings?.registrationAcknowledgmentTitle || 'New Registration Process'}
+        items={event?.settings?.registrationAcknowledgmentItems || []}
+        onConfirm={() => {
+          setHasAcknowledged(true)
+          setAcknowledgmentModalOpen(false)
+          proceedToReview()
+        }}
+        onCancel={() => setAcknowledgmentModalOpen(false)}
+      />
     </div>
   )
 }

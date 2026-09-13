@@ -68,6 +68,10 @@ const VALID_SETTINGS_FIELDS = [
   'overlayOpacity',
   'waitlistEnabled',
   'registrationClosedMessage',
+  // Pre-checkout acknowledgment modal
+  'registrationAcknowledgmentEnabled',
+  'registrationAcknowledgmentTitle',
+  'registrationAcknowledgmentItems',
   // Option capacity fields
   'onCampusCapacity',
   'onCampusRemaining',
