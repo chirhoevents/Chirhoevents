@@ -378,6 +378,16 @@ model EventSettings {
   // Adoration feature
   porosAdorationEnabled           Boolean  @default(false) @map("poros_adoration_enabled")
 
+  // Pre-checkout acknowledgment modal (per-event "read and check every change" gate)
+  // Shown once per group leader on the group registration page before they can
+  // continue to review/payment. Scoped per-event so it can be turned on just
+  // for one event (e.g. a year with a new registration/payment process) without
+  // affecting others.
+  registrationAcknowledgmentEnabled Boolean @default(false) @map("registration_acknowledgment_enabled")
+  registrationAcknowledgmentTitle   String? @map("registration_acknowledgment_title") @db.VarChar(255)
+  // JSON array of strings, one per required checkbox, e.g. ["$20 deposit due...", "Final fee due..."]
+  registrationAcknowledgmentItems   Json?   @map("registration_acknowledgment_items") @db.JsonB
+
   // Letter of Good Standing configuration
   // 'file_upload' | 'instructions_only' | 'both'
   letterOfGoodStandingMethod      String   @default("both") @map("letter_of_good_standing_method") @db.VarChar(50)

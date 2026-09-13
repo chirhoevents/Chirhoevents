@@ -153,6 +153,28 @@ SET "poros_confessions_enabled" = true,
     "poros_info_enabled" = true,
     "poros_adoration_enabled" = true
 WHERE "event_id" = 'b9b70d36-ae35-47a0-aeb7-a50df9a598f1';
+
+-- Ensure event_settings columns exist for the pre-checkout acknowledgment modal
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "registration_acknowledgment_enabled" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "registration_acknowledgment_title" VARCHAR(255);
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "registration_acknowledgment_items" JSONB;
+
+-- Seed the new-registration-process acknowledgment checklist for Mount 2000 2027,
+-- but only the first time (guarded on items still being unset) so an admin's
+-- later edits in the dashboard survive future deploys.
+UPDATE "event_settings"
+SET "registration_acknowledgment_enabled" = true,
+    "registration_acknowledgment_title" = 'New Registration Process',
+    "registration_acknowledgment_items" = '[
+      "Deposit: $20 per spot, due one month from your registration date. Deposits are non-refundable.",
+      "Final Fee: due December 18.",
+      "Late Fee: a 20% late fee applies to any balance not paid by December 18.",
+      "Dropping Spots: you can drop a spot at any point before December 18 (when the late fee kicks in) at no penalty beyond the lost deposit.",
+      "Group Leader Portal: you now have access to a portal where you can make your deposit online and track/manage liability forms.",
+      "Paperwork Deadline: digital liability waivers for all teens and chaperones are due January 15."
+    ]'::jsonb
+WHERE "event_id" = '8c7aaf89-6790-4a81-bf6b-33e8dd8586f1'
+  AND "registration_acknowledgment_items" IS NULL;
 SQLEOF
 
 echo "Executing table creation SQL..."
