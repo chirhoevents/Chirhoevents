@@ -79,8 +79,11 @@ export async function GET(
       formStatus: string
       participantType: string | null
       participantAge: number | null
+      participantGender: string | null
       completed: boolean
     }
+    const isYouthType = (t: string | null) => t === 'youth_u18' || t === 'youth_o18' || t === 'youth'
+    const isChaperoneType = (t: string | null) => t === 'chaperone' || t === 'youth_o18_chaperone'
     const formattedGroups = groups.map((group: GroupResult) => {
       const totalSpots = group.totalParticipants
 
@@ -105,10 +108,26 @@ export async function GET(
 
       // Calculate youth and chaperone submission counts
       const youthSubmittedCount = allCompletedForms.filter(
-        (f: FormType) => f.participantType === 'youth_u18' || f.participantType === 'youth_o18' || f.participantType === 'youth'
+        (f: FormType) => isYouthType(f.participantType)
       ).length
       const chaperoneSubmittedCount = allCompletedForms.filter(
-        (f: FormType) => f.participantType === 'chaperone' || f.participantType === 'youth_o18_chaperone'
+        (f: FormType) => isChaperoneType(f.participantType)
+      ).length
+
+      // Gender breakdown, for safe-environment supervision ratios (e.g. male
+      // chaperones present relative to male youth, and the same for female) —
+      // based on who has actually submitted a form, not who was registered.
+      const maleYouthCount = allCompletedForms.filter(
+        (f: FormType) => isYouthType(f.participantType) && f.participantGender === 'male'
+      ).length
+      const femaleYouthCount = allCompletedForms.filter(
+        (f: FormType) => isYouthType(f.participantType) && f.participantGender === 'female'
+      ).length
+      const maleChaperoneCount = allCompletedForms.filter(
+        (f: FormType) => isChaperoneType(f.participantType) && f.participantGender === 'male'
+      ).length
+      const femaleChaperoneCount = allCompletedForms.filter(
+        (f: FormType) => isChaperoneType(f.participantType) && f.participantGender === 'female'
       ).length
 
       return {
@@ -124,6 +143,10 @@ export async function GET(
         // Youth and chaperone breakdown
         youthCount: group.youthCount,
         youthSubmittedCount,
+        maleYouthCount,
+        femaleYouthCount,
+        maleChaperoneCount,
+        femaleChaperoneCount,
         chaperoneCount: group.chaperoneCount,
         chaperoneSubmittedCount,
         participants: [...allCompletedForms, ...pendingParentForms].map((form: GroupResult['liabilityForms'][number]) => ({

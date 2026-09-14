@@ -75,6 +75,10 @@ interface Group {
   youthSubmittedCount: number
   chaperoneCount: number
   chaperoneSubmittedCount: number
+  maleYouthCount: number
+  femaleYouthCount: number
+  maleChaperoneCount: number
+  femaleChaperoneCount: number
   participants: Participant[]
 }
 
@@ -578,6 +582,44 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
                         {group.chaperoneSubmittedCount}
                       </div>
                     </div>
+                  </div>
+
+                  {/* Safe Environment Gender Ratio — chaperones present relative to
+                      youth of the same gender, based on actual submitted forms */}
+                  <div className="flex flex-wrap gap-2 mb-4 pb-4 border-b">
+                    {([
+                      { label: 'Male', youth: group.maleYouthCount, chaperones: group.maleChaperoneCount },
+                      { label: 'Female', youth: group.femaleYouthCount, chaperones: group.femaleChaperoneCount },
+                    ] as const).map(({ label, youth, chaperones }) => {
+                      const noSameGenderChaperone = youth > 0 && chaperones === 0
+                      return (
+                        <div
+                          key={label}
+                          className={`px-3 py-2 rounded-lg flex-1 min-w-[160px] border ${
+                            noSameGenderChaperone
+                              ? 'bg-red-50 border-red-300'
+                              : 'bg-gray-50 border-gray-200'
+                          }`}
+                        >
+                          <div className="text-xs text-gray-700 font-medium">
+                            {label} Chaperones / Youth
+                          </div>
+                          <div className="text-lg font-bold text-gray-800">
+                            {chaperones} / {youth}
+                            {chaperones > 0 && youth > 0 && (
+                              <span className="text-xs font-normal text-gray-500 ml-1">
+                                (1:{(youth / chaperones).toFixed(1)})
+                              </span>
+                            )}
+                          </div>
+                          {noSameGenderChaperone && (
+                            <div className="text-xs text-red-600 font-medium mt-1">
+                              No {label.toLowerCase()} chaperone on file
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
 
                   {group.participants.length === 0 ? (
