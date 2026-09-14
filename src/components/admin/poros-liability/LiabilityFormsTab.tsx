@@ -131,6 +131,8 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
   const [printingGroups, setPrintingGroups] = useState<Set<string>>(new Set())
   const [remindingGroups, setRemindingGroups] = useState<Set<string>>(new Set())
   const [downloadingBlank, setDownloadingBlank] = useState<string | null>(null)
+  const [backfillingYouthType, setBackfillingYouthType] = useState(false)
+  const [backfillMessage, setBackfillMessage] = useState<string | null>(null)
   const [filters, setFilters] = useState({
     status: 'all',
     searchTerm: ''
@@ -163,6 +165,30 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
       console.error('Failed to fetch groups:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleBackfillYouthType() {
+    setBackfillingYouthType(true)
+    setBackfillMessage(null)
+    try {
+      const token = await getToken()
+      const response = await fetch('/api/admin/backfill-liability-form-youth-type', {
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
+      const data = await response.json()
+      if (response.ok) {
+        setBackfillMessage(data.message || 'Done.')
+        await fetchGroups()
+      } else {
+        setBackfillMessage(data.error || 'Failed to fix youth counts.')
+      }
+    } catch (error) {
+      console.error('Failed to backfill youth participant type:', error)
+      setBackfillMessage('Failed to fix youth counts. Please try again.')
+    } finally {
+      setBackfillingYouthType(false)
     }
   }
 
@@ -427,6 +453,35 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
             )}
           </Card>
         </div>
+      )}
+
+      {/* One-time fix for Youth counts submitted before participantType was set
+          on youth-u18 forms. Safe to click more than once — it only touches
+          rows still missing the field, so once everything's fixed it's a no-op. */}
+      <Card className="p-4 bg-amber-50 border-amber-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-amber-900">Youth counts look off for groups registered before this fix?</p>
+          <p className="text-xs text-amber-700 mt-0.5">
+            Forms submitted earlier were saved without a youth/chaperone tag, so their Youth badge can show 0. This one-time fix corrects existing forms — new submissions are already fixed.
+          </p>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleBackfillYouthType}
+          disabled={backfillingYouthType}
+          className="border-amber-400 text-amber-800 hover:bg-amber-100 whitespace-nowrap"
+        >
+          {backfillingYouthType ? (
+            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+          ) : (
+            <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+          )}
+          {backfillingYouthType ? 'Fixing…' : 'Fix Youth Counts'}
+        </Button>
+      </Card>
+      {backfillMessage && (
+        <p className="text-sm text-gray-700 -mt-1">{backfillMessage}</p>
       )}
 
       {/* Groups List */}
