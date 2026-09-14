@@ -16,11 +16,15 @@ export async function DELETE(
       )
     }
 
-    const { participantId } = await params
+    // This route's :participantId param doubles as either a Participant id
+    // (a completed form) or a raw LiabilityForm id (a pending, not-yet-linked
+    // youth-u18 form still waiting on a parent) — the two live in separate ID
+    // spaces so there's no collision risk. Group leaders need to be able to
+    // delete both: a stale pending duplicate has no Participant to hang off.
+    const { participantId: id } = await params
 
-    // Find the participant and verify it belongs to this user's group
     const participant = await prisma.participant.findUnique({
-      where: { id: participantId },
+      where: { id },
       include: {
         groupRegistration: {
           select: {
@@ -30,29 +34,65 @@ export async function DELETE(
       },
     })
 
-    if (!participant) {
+    if (participant) {
+      if (participant.groupRegistration.clerkUserId !== userId) {
+        return NextResponse.json(
+          { error: 'Unauthorized - This participant does not belong to your group' },
+          { status: 403 }
+        )
+      }
+
+      // Delete the participant (this will cascade delete liability forms due to onDelete: Cascade)
+      await prisma.participant.delete({
+        where: { id },
+      })
+
+      return NextResponse.json({
+        success: true,
+        message: 'Participant and associated forms deleted successfully',
+      })
+    }
+
+    // Not a Participant — try a pending, participant-less LiabilityForm instead.
+    const form = await prisma.liabilityForm.findUnique({
+      where: { id },
+      include: {
+        groupRegistration: {
+          select: {
+            clerkUserId: true,
+          },
+        },
+      },
+    })
+
+    if (!form) {
       return NextResponse.json(
-        { error: 'Participant not found' },
+        { error: 'Form not found' },
         { status: 404 }
       )
     }
 
-    // Verify the participant belongs to this user's group
-    if (participant.groupRegistration.clerkUserId !== userId) {
+    if (!form.groupRegistration || form.groupRegistration.clerkUserId !== userId) {
       return NextResponse.json(
-        { error: 'Unauthorized - This participant does not belong to your group' },
+        { error: 'Unauthorized - This form does not belong to your group' },
         { status: 403 }
       )
     }
 
-    // Delete the participant (this will cascade delete liability forms due to onDelete: Cascade)
-    await prisma.participant.delete({
-      where: { id: participantId },
+    if (form.completed || form.participantId) {
+      return NextResponse.json(
+        { error: 'This form is already completed — delete the participant instead.' },
+        { status: 400 }
+      )
+    }
+
+    await prisma.liabilityForm.delete({
+      where: { id },
     })
 
     return NextResponse.json({
       success: true,
-      message: 'Participant and associated forms deleted successfully',
+      message: 'Pending form deleted successfully',
     })
   } catch (error) {
     console.error('Error deleting participant:', error)
