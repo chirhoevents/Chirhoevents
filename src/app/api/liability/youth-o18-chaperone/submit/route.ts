@@ -6,6 +6,7 @@ import { uploadCertificate } from '@/lib/r2/upload-certificate'
 import { incrementOrgStorage } from '@/lib/storage/track-storage'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { sanitizeMedicalText } from '@/lib/medical-info'
+import { checkGroupParticipantCapacity, GROUP_CAPACITY_FULL_MESSAGE } from '@/lib/group-participant-capacity'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -516,6 +517,18 @@ export async function POST(request: NextRequest) {
 
     eventName = groupRegistration.event.name
     contactEmail = groupRegistration.groupLeaderEmail
+
+    // Enforce the group's registered participant cap. This form creates the
+    // Participant immediately (there's no separate "pending" stage for
+    // chaperones/18+ youth the way there is for u18 forms), so this is the
+    // one place a new slot for this form type gets claimed.
+    const capacity = await checkGroupParticipantCapacity(groupRegistration.id)
+    if (!capacity.hasCapacity) {
+      return NextResponse.json(
+        { error: GROUP_CAPACITY_FULL_MESSAGE },
+        { status: 409 }
+      )
+    }
 
     // Create Participant record first
     const participant = await prisma.participant.create({
