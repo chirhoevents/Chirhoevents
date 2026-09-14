@@ -31,6 +31,7 @@ interface ParticipantForm {
   pdfUrl?: string
   parentEmail?: string
   completedAt?: string
+  possibleDuplicate?: boolean
 }
 
 export default function LiabilityFormsPage() {
@@ -447,10 +448,21 @@ export default function LiabilityFormsPage() {
                           Complete
                         </span>
                       ) : form.formStatus === 'pending_parent' ? (
-                        <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-800">
-                          <Clock className="h-3 w-3 mr-1" />
-                          Waiting on Parent
-                        </span>
+                        <div className="flex flex-col gap-1 items-start">
+                          <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-800">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Waiting on Parent
+                          </span>
+                          {form.possibleDuplicate && (
+                            <span
+                              className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800"
+                              title="Someone with this same name already has a completed form — this is likely a leftover from a restarted registration."
+                            >
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                              Possible Duplicate
+                            </span>
+                          )}
+                        </div>
                       ) : (
                         <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
                           <AlertCircle className="h-3 w-3 mr-1" />
@@ -520,13 +532,22 @@ export default function LiabilityFormsPage() {
                               </button>
                             </div>
                           ) : (
-                            <button
-                              onClick={() => startEditEmail(form.id, form.parentEmail ?? null)}
-                              className="text-[#3B82F6] hover:text-[#2563EB]"
-                              title={form.parentEmail ? 'Edit Parent Email & Resend' : 'Send to Parent'}
-                            >
-                              <RefreshCw className="h-4 w-4" />
-                            </button>
+                            <>
+                              <button
+                                onClick={() => startEditEmail(form.id, form.parentEmail ?? null)}
+                                className="text-[#3B82F6] hover:text-[#2563EB]"
+                                title={form.parentEmail ? 'Edit Parent Email & Resend' : 'Send to Parent'}
+                              >
+                                <RefreshCw className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteForm(form.id, `${form.firstName} ${form.lastName}`)}
+                                className="text-red-600 hover:text-red-800"
+                                title={form.possibleDuplicate ? 'Delete this likely duplicate' : 'Delete this pending form'}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </>
                           )
                         )}
                       </div>
