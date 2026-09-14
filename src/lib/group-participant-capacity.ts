@@ -51,5 +51,29 @@ export async function checkGroupParticipantCapacity(
   }
 }
 
+/**
+ * At the moment a pending form is actually being finalized — a parent signs a
+ * youth-u18 form — what matters is whether a real seat is still free, not how
+ * many pending forms are outstanding. A group can already have more pending
+ * (not-yet-verified-by-parent) forms outstanding than it has real spots left,
+ * e.g. from before capacity was enforced at invite time, or because a group
+ * leader over-invited. Whichever pending forms get completed first, up to the
+ * group's registered total, claim the remaining real seats; this only compares
+ * completed Participant rows against totalParticipants, so it works correctly
+ * even when outstanding pending forms already outnumber the spots left.
+ */
+export async function hasFreeParticipantSlot(groupRegistrationId: string): Promise<boolean> {
+  const [groupRegistration, participantCount] = await Promise.all([
+    prisma.groupRegistration.findUnique({
+      where: { id: groupRegistrationId },
+      select: { totalParticipants: true },
+    }),
+    prisma.participant.count({ where: { groupRegistrationId } }),
+  ])
+
+  const totalParticipants = groupRegistration?.totalParticipants ?? 0
+  return participantCount < totalParticipants
+}
+
 export const GROUP_CAPACITY_FULL_MESSAGE =
   "Sorry, there are no more spots available for this group. Please contact your group leader — they can log in to the Group Leader Portal to edit or delete an already-submitted form to free up a spot, or reach out to the event organizer to add more."

@@ -6,6 +6,7 @@ import { uploadLiabilityFormPDF } from '@/lib/r2/upload-pdf'
 import { generateParticipantQRCode } from '@/lib/qr-code'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { sanitizeMedicalText } from '@/lib/medical-info'
+import { hasFreeParticipantSlot, GROUP_CAPACITY_FULL_MESSAGE } from '@/lib/group-participant-capacity'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -83,6 +84,19 @@ export async function POST(request: NextRequest) {
           where: { id: liabilityForm.groupRegistrationId },
         })
       : null
+
+    // A parent can be completing a form for a group that's already over-invited
+    // (more pending forms outstanding than real spots left) — check for a free
+    // seat right before claiming one, not just when the form was first initiated.
+    if (groupRegistration) {
+      const hasSlot = await hasFreeParticipantSlot(groupRegistration.id)
+      if (!hasSlot) {
+        return NextResponse.json(
+          { error: GROUP_CAPACITY_FULL_MESSAGE },
+          { status: 409 }
+        )
+      }
+    }
 
     // Build signature data JSON
     const signatureData = {
