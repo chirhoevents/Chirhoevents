@@ -1,4 +1,14 @@
 import { prisma } from '@/lib/prisma'
+import type { Prisma } from '@prisma/client'
+
+type TransactionClient = Prisma.TransactionClient
+
+export class GroupCapacityFullError extends Error {
+  constructor() {
+    super('Group participant capacity is full')
+    this.name = 'GroupCapacityFullError'
+  }
+}
 
 interface GroupCapacityResult {
   hasCapacity: boolean
@@ -53,26 +63,41 @@ export async function checkGroupParticipantCapacity(
 
 /**
  * At the moment a pending form is actually being finalized — a parent signs a
- * youth-u18 form — what matters is whether a real seat is still free, not how
- * many pending forms are outstanding. A group can already have more pending
- * (not-yet-verified-by-parent) forms outstanding than it has real spots left,
- * e.g. from before capacity was enforced at invite time, or because a group
- * leader over-invited. Whichever pending forms get completed first, up to the
- * group's registered total, claim the remaining real seats; this only compares
- * completed Participant rows against totalParticipants, so it works correctly
- * even when outstanding pending forms already outnumber the spots left.
+ * youth-u18 form, or a chaperone/clergy member submits directly — what matters
+ * is whether a real seat is still free, not how many pending forms are
+ * outstanding. A group can already have more pending (not-yet-verified) forms
+ * outstanding than it has real spots left, e.g. from before capacity was
+ * enforced at invite time, or because a group leader over-invited. Whichever
+ * ones get completed first, up to the group's registered total, claim the
+ * remaining real seats.
+ *
+ * This must be called with a transaction client, as the first statement inside
+ * a `prisma.$transaction(async (tx) => { ... })` that goes on to create the
+ * Participant using the same `tx`. `SELECT ... FOR UPDATE` row-locks the group
+ * registration for the rest of that transaction, so if two parents for the
+ * same group submit within milliseconds of each other, the second transaction
+ * blocks on the lock until the first commits (or rolls back) rather than both
+ * reading "1 spot left" and both getting through — a plain count-then-create
+ * with no lock can't guarantee that under concurrent requests. Throws
+ * GroupCapacityFullError if no seat is left; catch it in the route and map it
+ * to a 409.
  */
-export async function hasFreeParticipantSlot(groupRegistrationId: string): Promise<boolean> {
-  const [groupRegistration, participantCount] = await Promise.all([
-    prisma.groupRegistration.findUnique({
-      where: { id: groupRegistrationId },
-      select: { totalParticipants: true },
-    }),
-    prisma.participant.count({ where: { groupRegistrationId } }),
-  ])
+export async function assertParticipantSlotAvailable(
+  tx: TransactionClient,
+  groupRegistrationId: string
+): Promise<void> {
+  const locked = await tx.$queryRaw<{ totalParticipants: number }[]>`
+    SELECT total_participants AS "totalParticipants"
+    FROM group_registrations
+    WHERE id = ${groupRegistrationId}::uuid
+    FOR UPDATE
+  `
+  const totalParticipants = locked[0]?.totalParticipants ?? 0
+  const participantCount = await tx.participant.count({ where: { groupRegistrationId } })
 
-  const totalParticipants = groupRegistration?.totalParticipants ?? 0
-  return participantCount < totalParticipants
+  if (participantCount >= totalParticipants) {
+    throw new GroupCapacityFullError()
+  }
 }
 
 export const GROUP_CAPACITY_FULL_MESSAGE =

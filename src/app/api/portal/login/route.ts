@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { checkGroupParticipantCapacity } from '@/lib/group-participant-capacity'
 
 export async function POST(request: NextRequest) {
   try {
@@ -184,6 +185,11 @@ export async function POST(request: NextRequest) {
     ).length
     const formsPending = groupRegistration.totalParticipants - formsCompleted
 
+    // Whether there's still a real spot to start a new form for — counts
+    // participants AND forms already pending parent verification, so this
+    // matches what actually gets enforced when a new form is submitted.
+    const capacity = await checkGroupParticipantCapacity(groupRegistration.id)
+
     // Format event dates
     const startDate = new Date(groupRegistration.event.startDate)
     const endDate = new Date(groupRegistration.event.endDate)
@@ -208,6 +214,8 @@ export async function POST(request: NextRequest) {
       priestCount: groupRegistration.priestCount,
       formsCompleted,
       formsPending,
+      spotsRemaining: capacity.slotsRemaining,
+      isFull: !capacity.hasCapacity,
     })
   } catch (error) {
     console.error('Portal login error:', error)
