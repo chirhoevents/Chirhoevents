@@ -6,6 +6,7 @@ import { uploadLiabilityFormPDF } from '@/lib/r2/upload-pdf'
 import { generateParticipantQRCode } from '@/lib/qr-code'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { sanitizeMedicalText } from '@/lib/medical-info'
+import { checkGroupParticipantCapacity, GROUP_CAPACITY_FULL_MESSAGE } from '@/lib/group-participant-capacity'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -192,6 +193,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Invalid access code' },
         { status: 404 }
+      )
+    }
+
+    // Enforce the group's registered participant cap before claiming a slot.
+    const capacity = await checkGroupParticipantCapacity(groupRegistration.id)
+    if (!capacity.hasCapacity) {
+      return NextResponse.json(
+        { error: GROUP_CAPACITY_FULL_MESSAGE },
+        { status: 409 }
       )
     }
 
