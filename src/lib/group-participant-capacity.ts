@@ -27,7 +27,13 @@ interface GroupCapacityResult {
  *
  * Used = existing Participant rows (every completed form, of any type) + pending
  * youth-u18 LiabilityForm rows that were initiated but haven't produced a
- * Participant yet (i.e. still waiting on the parent).
+ * Participant yet (i.e. still waiting on the parent) — excluding ones whose
+ * parent link has already expired. An expired pending form can never be
+ * completed (the complete route rejects it outright), so still counting it
+ * here would tie up a real spot forever just because someone started a form
+ * and never finished within the window — exactly the scenario where a group
+ * leader blasts the registration link, a bunch of people do step 1 and never
+ * come back, and everyone who's actually attending runs into "no spots left."
  */
 export async function checkGroupParticipantCapacity(
   groupRegistrationId: string
@@ -45,6 +51,10 @@ export async function checkGroupParticipantCapacity(
         groupRegistrationId,
         participantId: null,
         completed: false,
+        OR: [
+          { parentTokenExpiresAt: null },
+          { parentTokenExpiresAt: { gt: new Date() } },
+        ],
       },
     }),
   ])
