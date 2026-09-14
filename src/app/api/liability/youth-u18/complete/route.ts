@@ -150,6 +150,11 @@ export async function POST(request: NextRequest) {
       where: { id: liabilityForm.id },
       data: {
         participantId: participant.id,
+        // Never set at initiate time either — without this, the admin dashboard's
+        // youth-submitted count (filtered on LiabilityForm.participantType) silently
+        // excludes every youth-u18 submission, which is exactly the kind of gap that
+        // could hide an unsafe youth-to-chaperone ratio from event staff.
+        participantType: 'youth_u18',
         medicalConditions: sanitizeMedicalText(medical_conditions) || null,
         medications: sanitizeMedicalText(medications) || null,
         allergies: sanitizeMedicalText(allergies) || null,

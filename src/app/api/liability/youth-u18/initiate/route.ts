@@ -93,6 +93,7 @@ export async function POST(request: NextRequest) {
         liabilityForm = await prisma.liabilityForm.update({
           where: { id: existingForm.id },
           data: {
+            participantType: 'youth_u18',
             participantFirstName: first_name,
             participantLastName: last_name,
             participantPreferredName: preferred_name || null,
@@ -113,6 +114,7 @@ export async function POST(request: NextRequest) {
             eventId: individualRegistration.eventId,
             individualRegistrationId: individualRegistration.id,
             formType: 'youth_u18',
+            participantType: 'youth_u18',
             participantFirstName: first_name,
             participantLastName: last_name,
             participantPreferredName: preferred_name || null,
@@ -202,6 +204,7 @@ export async function POST(request: NextRequest) {
         liabilityForm = await prisma.liabilityForm.update({
           where: { id: existingForm.id },
           data: {
+            participantType: 'youth_u18',
             participantFirstName: first_name,
             participantLastName: last_name,
             participantPreferredName: preferred_name || null,
@@ -233,6 +236,7 @@ export async function POST(request: NextRequest) {
             eventId: groupRegistration.eventId,
             groupRegistrationId: groupRegistration.id,
             formType: 'youth_u18',
+            participantType: 'youth_u18',
             participantFirstName: first_name,
             participantLastName: last_name,
             participantPreferredName: preferred_name || null,
