@@ -6,7 +6,7 @@ import { uploadLiabilityFormPDF } from '@/lib/r2/upload-pdf'
 import { generateParticipantQRCode } from '@/lib/qr-code'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { sanitizeMedicalText } from '@/lib/medical-info'
-import { checkGroupParticipantCapacity, GROUP_CAPACITY_FULL_MESSAGE } from '@/lib/group-participant-capacity'
+import { assertParticipantSlotAvailable, GroupCapacityFullError, GROUP_CAPACITY_FULL_MESSAGE } from '@/lib/group-participant-capacity'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -196,33 +196,38 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Enforce the group's registered participant cap before claiming a slot.
-    const capacity = await checkGroupParticipantCapacity(groupRegistration.id)
-    if (!capacity.hasCapacity) {
-      return NextResponse.json(
-        { error: GROUP_CAPACITY_FULL_MESSAGE },
-        { status: 409 }
-      )
+    // Enforce the group's registered participant cap. Check and create happen
+    // in one transaction (row-locked on the group) so that if several clergy
+    // from the same group submit within milliseconds of each other, only as
+    // many as there are real spots left actually get through.
+    let participant
+    try {
+      participant = await prisma.$transaction(async (tx) => {
+        await assertParticipantSlotAvailable(tx, groupRegistration.id)
+        return tx.participant.create({
+          data: {
+            groupRegistrationId: groupRegistration.id,
+            organizationId: groupRegistration.organizationId,
+            firstName: first_name,
+            lastName: last_name,
+            preferredName: preferred_name || null,
+            email: email,
+            age: age,
+            gender: 'male' as any, // Default to male for clergy (can be updated if needed)
+            participantType: 'priest',
+            clergyTitle: clergy_title,
+            tShirtSize: t_shirt_size,
+            liabilityFormCompleted: true,
+            parentEmail: null, // Not applicable for clergy
+          },
+        })
+      })
+    } catch (err) {
+      if (err instanceof GroupCapacityFullError) {
+        return NextResponse.json({ error: GROUP_CAPACITY_FULL_MESSAGE }, { status: 409 })
+      }
+      throw err
     }
-
-    // Create Participant record first
-    const participant = await prisma.participant.create({
-      data: {
-        groupRegistrationId: groupRegistration.id,
-        organizationId: groupRegistration.organizationId,
-        firstName: first_name,
-        lastName: last_name,
-        preferredName: preferred_name || null,
-        email: email,
-        age: age,
-        gender: 'male' as any, // Default to male for clergy (can be updated if needed)
-        participantType: 'priest',
-        clergyTitle: clergy_title,
-        tShirtSize: t_shirt_size,
-        liabilityFormCompleted: true,
-        parentEmail: null, // Not applicable for clergy
-      },
-    })
 
     // Generate QR code for participant (used for check-in and medical lookup)
     try {

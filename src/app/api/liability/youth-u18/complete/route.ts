@@ -6,7 +6,7 @@ import { uploadLiabilityFormPDF } from '@/lib/r2/upload-pdf'
 import { generateParticipantQRCode } from '@/lib/qr-code'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { sanitizeMedicalText } from '@/lib/medical-info'
-import { hasFreeParticipantSlot, GROUP_CAPACITY_FULL_MESSAGE } from '@/lib/group-participant-capacity'
+import { assertParticipantSlotAvailable, GroupCapacityFullError, GROUP_CAPACITY_FULL_MESSAGE } from '@/lib/group-participant-capacity'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -85,19 +85,6 @@ export async function POST(request: NextRequest) {
         })
       : null
 
-    // A parent can be completing a form for a group that's already over-invited
-    // (more pending forms outstanding than real spots left) — check for a free
-    // seat right before claiming one, not just when the form was first initiated.
-    if (groupRegistration) {
-      const hasSlot = await hasFreeParticipantSlot(groupRegistration.id)
-      if (!hasSlot) {
-        return NextResponse.json(
-          { error: GROUP_CAPACITY_FULL_MESSAGE },
-          { status: 409 }
-        )
-      }
-    }
-
     // Build signature data JSON
     const signatureData = {
       full_legal_name: signature_full_name,
@@ -108,23 +95,43 @@ export async function POST(request: NextRequest) {
       user_agent: request.headers.get('user-agent') || 'unknown',
     }
 
-    // Create Participant record first
-    const participant = await prisma.participant.create({
-      data: {
-        groupRegistrationId: liabilityForm.groupRegistrationId!,
-        organizationId: liabilityForm.organizationId,
-        firstName: liabilityForm.participantFirstName,
-        lastName: liabilityForm.participantLastName,
-        preferredName: liabilityForm.participantPreferredName,
-        email: liabilityForm.participantEmail,
-        age: liabilityForm.participantAge!,
-        gender: liabilityForm.participantGender!,
-        participantType: 'youth_u18', // Explicitly set for youth U18 forms
-        tShirtSize: liabilityForm.tShirtSize,
-        liabilityFormCompleted: true,
-        parentEmail: liabilityForm.parentEmail,
-      },
-    })
+    const participantData = {
+      organizationId: liabilityForm.organizationId,
+      firstName: liabilityForm.participantFirstName,
+      lastName: liabilityForm.participantLastName,
+      preferredName: liabilityForm.participantPreferredName,
+      email: liabilityForm.participantEmail,
+      age: liabilityForm.participantAge!,
+      gender: liabilityForm.participantGender!,
+      participantType: 'youth_u18' as const, // Explicitly set for youth U18 forms
+      tShirtSize: liabilityForm.tShirtSize,
+      liabilityFormCompleted: true,
+      parentEmail: liabilityForm.parentEmail,
+    }
+
+    // A parent can be completing a form for a group that's already over-invited
+    // (more pending forms outstanding than real spots left) — check for a free
+    // seat and create the Participant in one transaction, so that if several
+    // parents for the same group submit within milliseconds of each other,
+    // only as many as there are real spots left actually get through.
+    let participant
+    try {
+      participant = liabilityForm.groupRegistrationId
+        ? await prisma.$transaction(async (tx) => {
+            await assertParticipantSlotAvailable(tx, liabilityForm.groupRegistrationId!)
+            return tx.participant.create({
+              data: { groupRegistrationId: liabilityForm.groupRegistrationId!, ...participantData },
+            })
+          })
+        : await prisma.participant.create({
+            data: { groupRegistrationId: liabilityForm.groupRegistrationId!, ...participantData },
+          })
+    } catch (err) {
+      if (err instanceof GroupCapacityFullError) {
+        return NextResponse.json({ error: GROUP_CAPACITY_FULL_MESSAGE }, { status: 409 })
+      }
+      throw err
+    }
 
     // Generate QR code for participant (used for check-in and medical lookup)
     try {
