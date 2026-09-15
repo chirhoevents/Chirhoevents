@@ -71,6 +71,9 @@ interface Group {
   pendingCount: number
   deniedCount: number
   pendingParentCount: number
+  isAtCapacity: boolean
+  isOverCapacity: boolean
+  willExceedCapacity: boolean
   youthCount: number
   youthSubmittedCount: number
   chaperoneCount: number
@@ -449,7 +452,34 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
                     )}
 
                     <div className="flex-1">
-                      <h3 className="font-semibold text-[#1E3A5F]">{group.groupName}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-[#1E3A5F]">{group.groupName}</h3>
+                        {group.isOverCapacity ? (
+                          <span
+                            className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full flex items-center gap-1"
+                            title={`${group.submittedCount} completed forms vs. ${group.totalSpots} spots reserved at signup`}
+                          >
+                            <AlertTriangle className="w-3 h-3" />
+                            {group.submittedCount - group.totalSpots} over capacity
+                          </span>
+                        ) : group.isAtCapacity ? (
+                          <span
+                            className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-full flex items-center gap-1"
+                            title={`${group.submittedCount} of ${group.totalSpots} spots filled — tell the group leader before more teens finish Step 2`}
+                          >
+                            <AlertTriangle className="w-3 h-3" />
+                            At capacity
+                          </span>
+                        ) : group.willExceedCapacity ? (
+                          <span
+                            className="px-2 py-0.5 bg-yellow-50 text-yellow-700 text-xs font-medium rounded-full flex items-center gap-1"
+                            title={`${group.submittedCount} completed + ${group.pendingParentCount} waiting on parent would exceed the ${group.totalSpots} spots reserved`}
+                          >
+                            <Clock className="w-3 h-3" />
+                            May exceed capacity
+                          </span>
+                        ) : null}
+                      </div>
                       <p className="text-sm text-gray-600">{group.parishName}</p>
                     </div>
 
