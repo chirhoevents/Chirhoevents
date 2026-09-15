@@ -130,6 +130,14 @@ export async function GET(
         (f: FormType) => isChaperoneType(f.participantType) && f.participantGender === 'female'
       ).length
 
+      // A spot is only actually taken once a participant record exists, which
+      // happens at form completion (submittedCount) — not on admin approval and
+      // not just from a teen starting Step 1 (pendingParentCount doesn't count).
+      const isOverCapacity = totalSpots > 0 && submittedCount > totalSpots
+      const isAtCapacity = totalSpots > 0 && submittedCount >= totalSpots
+      const willExceedCapacity =
+        totalSpots > 0 && !isAtCapacity && submittedCount + pendingParentCount > totalSpots
+
       return {
         id: group.id,
         groupName: group.groupName,
@@ -140,6 +148,9 @@ export async function GET(
         pendingCount,
         deniedCount,
         pendingParentCount,
+        isAtCapacity,
+        isOverCapacity,
+        willExceedCapacity,
         // Youth and chaperone breakdown
         youthCount: group.youthCount,
         youthSubmittedCount,
