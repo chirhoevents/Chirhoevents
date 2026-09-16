@@ -84,7 +84,7 @@ export default function IndividualRegistrationPage() {
     extensionAllowed,
     markComplete,
     checkQueue,
-  } = useRegistrationQueue(eventId, 'individual')
+  } = useRegistrationQueue(eventId, 'individual', { skip: !!waitlistToken })
 
   const [loading, setLoading] = useState(true)
   const [event, setEvent] = useState<EventData | null>(null)
