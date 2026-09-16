@@ -79,6 +79,9 @@ interface EventDetailClientProps {
     individualRegistrationEnabled?: boolean
     waitlistEnabled?: boolean
     registrationClosedMessage?: string | null
+    registrationAcknowledgmentEnabled?: boolean
+    registrationAcknowledgmentTitle?: string | null
+    registrationAcknowledgmentItems?: string[] | null
     porosHousingEnabled?: boolean
     salveCheckinEnabled?: boolean
     raphaMedicalEnabled?: boolean
@@ -164,6 +167,11 @@ export default function EventDetailClient({
   const [currentIsPublished, setCurrentIsPublished] = useState(event.isPublished)
   const [waitlistEnabled, setWaitlistEnabled] = useState(settings?.waitlistEnabled ?? false)
   const [closedMessage, setClosedMessage] = useState(settings?.registrationClosedMessage ?? '')
+  const [acknowledgmentEnabled, setAcknowledgmentEnabled] = useState(settings?.registrationAcknowledgmentEnabled ?? false)
+  const [acknowledgmentTitle, setAcknowledgmentTitle] = useState(settings?.registrationAcknowledgmentTitle ?? 'New Registration Process')
+  const [acknowledgmentItemsText, setAcknowledgmentItemsText] = useState(
+    (settings?.registrationAcknowledgmentItems ?? []).join('\n')
+  )
   const [savingSettings, setSavingSettings] = useState(false)
   const [reminderModalOpen, setReminderModalOpen] = useState(false)
   const [recalculatingCapacity, setRecalculatingCapacity] = useState(false)
@@ -262,6 +270,12 @@ export default function EventDetailClient({
         body: JSON.stringify({
           waitlistEnabled,
           registrationClosedMessage: closedMessage || null,
+          registrationAcknowledgmentEnabled: acknowledgmentEnabled,
+          registrationAcknowledgmentTitle: acknowledgmentTitle || null,
+          registrationAcknowledgmentItems: acknowledgmentItemsText
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean),
         }),
       })
 
@@ -1653,6 +1667,59 @@ export default function EventDetailClient({
                     onChange={(e) => setClosedMessage(e.target.value)}
                     placeholder="Enter a custom message (leave blank for default)"
                     className="mt-2 min-h-[80px]"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Pre-Checkout Acknowledgment Modal */}
+            <Card className="bg-white border-[#D1D5DB]">
+              <CardHeader>
+                <CardTitle className="text-lg text-[#1E3A5F]">
+                  Pre-Checkout Acknowledgment Modal
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="acknowledgment-toggle" className="text-sm font-medium text-[#1E3A5F]">
+                      Require group leaders to check off changes before registering
+                    </Label>
+                    <p className="text-xs text-[#6B7280] mt-1">
+                      Shows a popup on the group registration page that group leaders must
+                      check every box on before they can continue to checkout. Only affects
+                      this event.
+                    </p>
+                  </div>
+                  <Switch
+                    id="acknowledgment-toggle"
+                    checked={acknowledgmentEnabled}
+                    onCheckedChange={setAcknowledgmentEnabled}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="acknowledgment-title" className="text-sm text-[#6B7280]">
+                    Popup title
+                  </Label>
+                  <input
+                    id="acknowledgment-title"
+                    type="text"
+                    value={acknowledgmentTitle}
+                    onChange={(e) => setAcknowledgmentTitle(e.target.value)}
+                    placeholder="New Registration Process"
+                    className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="acknowledgment-items" className="text-sm text-[#6B7280]">
+                    Checklist items (one per line — each becomes a required checkbox)
+                  </Label>
+                  <Textarea
+                    id="acknowledgment-items"
+                    value={acknowledgmentItemsText}
+                    onChange={(e) => setAcknowledgmentItemsText(e.target.value)}
+                    placeholder={'Deposit: $20 per spot, due one month from your registration date.\nFinal Fee: due December 18.'}
+                    className="mt-2 min-h-[140px]"
                   />
                 </div>
               </CardContent>

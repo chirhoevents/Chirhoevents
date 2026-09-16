@@ -6,6 +6,7 @@ import { uploadCertificate } from '@/lib/r2/upload-certificate'
 import { incrementOrgStorage } from '@/lib/storage/track-storage'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { sanitizeMedicalText } from '@/lib/medical-info'
+import { assertParticipantSlotAvailable, GroupCapacityFullError, GROUP_CAPACITY_FULL_MESSAGE } from '@/lib/group-participant-capacity'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -517,23 +518,40 @@ export async function POST(request: NextRequest) {
     eventName = groupRegistration.event.name
     contactEmail = groupRegistration.groupLeaderEmail
 
-    // Create Participant record first
-    const participant = await prisma.participant.create({
-      data: {
-        groupRegistrationId: groupRegistration.id,
-        organizationId: groupRegistration.organizationId,
-        firstName: first_name,
-        lastName: last_name,
-        preferredName: preferred_name || null,
-        email: email,
-        age: age,
-        gender: gender,
-        participantType: participant_type,
-        tShirtSize: t_shirt_size,
-        liabilityFormCompleted: true,
-        parentEmail: null,
-      },
-    })
+    // Enforce the group's registered participant cap. This form creates the
+    // Participant immediately (there's no separate "pending" stage for
+    // chaperones/18+ youth the way there is for u18 forms), so this is the
+    // one place a new slot for this form type gets claimed. Capacity check and
+    // create happen in one transaction (row-locked on the group) so that if
+    // several people from the same group submit within milliseconds of each
+    // other, only as many as there are real spots left actually get through.
+    let participant
+    try {
+      participant = await prisma.$transaction(async (tx) => {
+        await assertParticipantSlotAvailable(tx, groupRegistration.id)
+        return tx.participant.create({
+          data: {
+            groupRegistrationId: groupRegistration.id,
+            organizationId: groupRegistration.organizationId,
+            firstName: first_name,
+            lastName: last_name,
+            preferredName: preferred_name || null,
+            email: email,
+            age: age,
+            gender: gender,
+            participantType: participant_type,
+            tShirtSize: t_shirt_size,
+            liabilityFormCompleted: true,
+            parentEmail: null,
+          },
+        })
+      })
+    } catch (err) {
+      if (err instanceof GroupCapacityFullError) {
+        return NextResponse.json({ error: GROUP_CAPACITY_FULL_MESSAGE }, { status: 409 })
+      }
+      throw err
+    }
 
     // Generate QR code for participant
     try {

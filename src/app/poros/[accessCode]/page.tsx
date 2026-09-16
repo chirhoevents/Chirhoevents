@@ -11,6 +11,8 @@ interface GroupData {
   eventName: string
   eventDates: string
   priestCount: number
+  isFull: boolean
+  spotsRemaining: number
 }
 
 interface IndividualData {
@@ -106,6 +108,8 @@ export default function PorosRoleSelection() {
             eventName: data.eventName,
             eventDates: data.eventDates,
             priestCount: data.priestCount || 0,
+            isFull: !!data.isFull,
+            spotsRemaining: data.spotsRemaining ?? 0,
           })
         }
       } catch (err: any) {
@@ -462,6 +466,23 @@ export default function PorosRoleSelection() {
             <p className="text-lg text-gray-600">Group: {portalData.groupName}</p>
           </div>
 
+          {/* Group is full — block before anyone starts filling out a form */}
+          {portalData.isFull ? (
+            <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg p-8 text-center">
+              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-navy mb-2">No Spots Available</h2>
+              <p className="text-gray-600">
+                Sorry, there are no more spots available for this group. Please contact your group leader —
+                they can log in to the Group Leader Portal to edit or delete an already-submitted form to free
+                up a spot, or reach out to the event organizer to add more.
+              </p>
+            </div>
+          ) : (
+            <>
           {/* Question */}
           <div className="text-center mb-8">
             <h2 className="text-2xl font-semibold text-navy">Who are you?</h2>
@@ -527,6 +548,8 @@ export default function PorosRoleSelection() {
               </div>
             </div>
           </div>
+            </>
+          )}
         </div>
       </div>
 

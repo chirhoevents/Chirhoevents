@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { randomUUID } from 'crypto'
 import { resolveReplyTo } from '@/lib/email-reply-to'
+import { checkGroupParticipantCapacity, GROUP_CAPACITY_FULL_MESSAGE } from '@/lib/group-participant-capacity'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -92,6 +93,7 @@ export async function POST(request: NextRequest) {
         liabilityForm = await prisma.liabilityForm.update({
           where: { id: existingForm.id },
           data: {
+            participantType: 'youth_u18',
             participantFirstName: first_name,
             participantLastName: last_name,
             participantPreferredName: preferred_name || null,
@@ -112,6 +114,7 @@ export async function POST(request: NextRequest) {
             eventId: individualRegistration.eventId,
             individualRegistrationId: individualRegistration.id,
             formType: 'youth_u18',
+            participantType: 'youth_u18',
             participantFirstName: first_name,
             participantLastName: last_name,
             participantPreferredName: preferred_name || null,
@@ -201,6 +204,7 @@ export async function POST(request: NextRequest) {
         liabilityForm = await prisma.liabilityForm.update({
           where: { id: existingForm.id },
           data: {
+            participantType: 'youth_u18',
             participantFirstName: first_name,
             participantLastName: last_name,
             participantPreferredName: preferred_name || null,
@@ -214,6 +218,17 @@ export async function POST(request: NextRequest) {
           },
         })
       } else {
+        // Claiming a brand-new slot (as opposed to updating a pending form above) —
+        // enforce the group's registered participant cap here, not just at signing,
+        // since a pending-parent-verification form already ties up a spot.
+        const capacity = await checkGroupParticipantCapacity(groupRegistration.id)
+        if (!capacity.hasCapacity) {
+          return NextResponse.json(
+            { error: GROUP_CAPACITY_FULL_MESSAGE },
+            { status: 409 }
+          )
+        }
+
         // Create new liability form record for group participant
         liabilityForm = await prisma.liabilityForm.create({
           data: {
@@ -221,6 +236,7 @@ export async function POST(request: NextRequest) {
             eventId: groupRegistration.eventId,
             groupRegistrationId: groupRegistration.id,
             formType: 'youth_u18',
+            participantType: 'youth_u18',
             participantFirstName: first_name,
             participantLastName: last_name,
             participantPreferredName: preferred_name || null,

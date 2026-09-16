@@ -78,6 +78,10 @@ interface Group {
   youthSubmittedCount: number
   chaperoneCount: number
   chaperoneSubmittedCount: number
+  maleYouthCount: number
+  femaleYouthCount: number
+  maleChaperoneCount: number
+  femaleChaperoneCount: number
   participants: Participant[]
 }
 
@@ -130,6 +134,8 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
   const [printingGroups, setPrintingGroups] = useState<Set<string>>(new Set())
   const [remindingGroups, setRemindingGroups] = useState<Set<string>>(new Set())
   const [downloadingBlank, setDownloadingBlank] = useState<string | null>(null)
+  const [backfillingYouthType, setBackfillingYouthType] = useState(false)
+  const [backfillMessage, setBackfillMessage] = useState<string | null>(null)
   const [filters, setFilters] = useState({
     status: 'all',
     searchTerm: ''
@@ -162,6 +168,30 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
       console.error('Failed to fetch groups:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleBackfillYouthType() {
+    setBackfillingYouthType(true)
+    setBackfillMessage(null)
+    try {
+      const token = await getToken()
+      const response = await fetch('/api/admin/backfill-liability-form-youth-type', {
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
+      const data = await response.json()
+      if (response.ok) {
+        setBackfillMessage(data.message || 'Done.')
+        await fetchGroups()
+      } else {
+        setBackfillMessage(data.error || 'Failed to fix youth counts.')
+      }
+    } catch (error) {
+      console.error('Failed to backfill youth participant type:', error)
+      setBackfillMessage('Failed to fix youth counts. Please try again.')
+    } finally {
+      setBackfillingYouthType(false)
     }
   }
 
@@ -428,6 +458,35 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
         </div>
       )}
 
+      {/* One-time fix for Youth counts submitted before participantType was set
+          on youth-u18 forms. Safe to click more than once — it only touches
+          rows still missing the field, so once everything's fixed it's a no-op. */}
+      <Card className="p-4 bg-amber-50 border-amber-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-amber-900">Youth counts look off for groups registered before this fix?</p>
+          <p className="text-xs text-amber-700 mt-0.5">
+            Forms submitted earlier were saved without a youth/chaperone tag, so their Youth badge can show 0. This one-time fix corrects existing forms — new submissions are already fixed.
+          </p>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleBackfillYouthType}
+          disabled={backfillingYouthType}
+          className="border-amber-400 text-amber-800 hover:bg-amber-100 whitespace-nowrap"
+        >
+          {backfillingYouthType ? (
+            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+          ) : (
+            <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+          )}
+          {backfillingYouthType ? 'Fixing…' : 'Fix Youth Counts'}
+        </Button>
+      </Card>
+      {backfillMessage && (
+        <p className="text-sm text-gray-700 -mt-1">{backfillMessage}</p>
+      )}
+
       {/* Groups List */}
       <div className="space-y-3">
         {groups.length === 0 ? (
@@ -608,6 +667,44 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
                         {group.chaperoneSubmittedCount}
                       </div>
                     </div>
+                  </div>
+
+                  {/* Safe Environment Gender Ratio — chaperones present relative to
+                      youth of the same gender, based on actual submitted forms */}
+                  <div className="flex flex-wrap gap-2 mb-4 pb-4 border-b">
+                    {([
+                      { label: 'Male', youth: group.maleYouthCount, chaperones: group.maleChaperoneCount },
+                      { label: 'Female', youth: group.femaleYouthCount, chaperones: group.femaleChaperoneCount },
+                    ] as const).map(({ label, youth, chaperones }) => {
+                      const noSameGenderChaperone = youth > 0 && chaperones === 0
+                      return (
+                        <div
+                          key={label}
+                          className={`px-3 py-2 rounded-lg flex-1 min-w-[160px] border ${
+                            noSameGenderChaperone
+                              ? 'bg-red-50 border-red-300'
+                              : 'bg-gray-50 border-gray-200'
+                          }`}
+                        >
+                          <div className="text-xs text-gray-700 font-medium">
+                            {label} Chaperones / Youth
+                          </div>
+                          <div className="text-lg font-bold text-gray-800">
+                            {chaperones} / {youth}
+                            {chaperones > 0 && youth > 0 && (
+                              <span className="text-xs font-normal text-gray-500 ml-1">
+                                (1:{(youth / chaperones).toFixed(1)})
+                              </span>
+                            )}
+                          </div>
+                          {noSameGenderChaperone && (
+                            <div className="text-xs text-red-600 font-medium mt-1">
+                              No {label.toLowerCase()} chaperone on file
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
 
                   {group.participants.length === 0 ? (

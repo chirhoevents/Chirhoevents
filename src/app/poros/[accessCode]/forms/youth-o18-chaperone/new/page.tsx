@@ -57,6 +57,44 @@ export default function YouthO18ChaperoneForm() {
   const [submittedFormId, setSubmittedFormId] = useState<string | null>(null)
   const [eventName, setEventName] = useState<string | null>(null)
 
+  const [capacityChecked, setCapacityChecked] = useState(false)
+  const [capacityFull, setCapacityFull] = useState(false)
+
+  useEffect(() => {
+    // Only group-registration access codes have a participant cap to check —
+    // individual/staff codes aren't governed by a group's totalParticipants.
+    if (isStaff) {
+      setCapacityChecked(true)
+      return
+    }
+
+    let cancelled = false
+
+    async function checkCapacity() {
+      try {
+        const response = await fetch('/api/portal/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ access_code: accessCode }),
+        })
+        const data = await response.json()
+        if (!cancelled && response.ok) {
+          setCapacityFull(data.registrationType === 'group' && !!data.isFull)
+        }
+      } catch {
+        // If the check itself fails, don't block submission — the same cap
+        // is still enforced server-side on submit.
+      } finally {
+        if (!cancelled) setCapacityChecked(true)
+      }
+    }
+
+    if (accessCode) checkCapacity()
+    return () => {
+      cancelled = true
+    }
+  }, [accessCode, isStaff])
+
   // Resolve eventId from access code (lazy — only when participantType is first set)
   const [eventId, setEventId] = useState<string | null>(null)
 
@@ -255,6 +293,55 @@ export default function YouthO18ChaperoneForm() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (!capacityChecked) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy"></div>
+      </div>
+    )
+  }
+
+  if (capacityFull) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-navy py-6 shadow-md">
+          <div className="container mx-auto px-4">
+            <div className="flex justify-center">
+              <Image
+                src="/Poros logo.png"
+                alt="Poros - ChiRho Events"
+                width={350}
+                height={105}
+                className="h-16 md:h-20 w-auto"
+              />
+            </div>
+          </div>
+        </div>
+        <div className="container mx-auto px-4 py-12">
+          <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg p-8 text-center">
+            <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-navy mb-2">No Spots Available</h2>
+            <p className="text-gray-600 mb-6">
+              Sorry, there are no more spots available for this group. Please contact your group leader —
+              they can log in to the Group Leader Portal to edit or delete an already-submitted form to free
+              up a spot, or reach out to the event organizer to add more.
+            </p>
+            <button
+              onClick={() => router.push(`/poros/${accessCode}`)}
+              className="bg-navy text-white px-6 py-3 rounded-lg font-semibold hover:bg-navy/90 transition-colors"
+            >
+              Back
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (submitted) {
