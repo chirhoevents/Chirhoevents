@@ -163,6 +163,67 @@ export default function GroupRegistrationPage() {
     couponCode: '',
   })
 
+  // Waitlist offer — when arriving via a waitlist invitation, the exact spot
+  // count/mix was already fixed by the admin (and is enforced server-side on
+  // submit). Fetch it so the form can be pre-filled and locked to match,
+  // instead of making the invitee guess the right numbers and only finding
+  // out they don't match after filling out the whole form.
+  const [waitlistOffer, setWaitlistOffer] = useState<{
+    partySize: number
+    youthCount: number | null
+    chaperoneCount: number | null
+    priestCount: number | null
+    housingType: 'on_campus' | 'off_campus' | 'day_pass' | null
+    dayPassOptionId: string | null
+  } | null>(null)
+
+  useEffect(() => {
+    if (!waitlistToken) return
+    let cancelled = false
+    async function loadOffer() {
+      try {
+        const res = await fetch(`/api/waitlist/register/${waitlistToken}`)
+        const data = await res.json()
+        if (!cancelled && data?.valid && data.offered) {
+          setWaitlistOffer(data.offered)
+        }
+      } catch {
+        // Non-fatal — the server-side check at submission still enforces the
+        // exact match; this fetch only drives pre-filling/locking the form.
+      }
+    }
+    loadOffer()
+    return () => {
+      cancelled = true
+    }
+  }, [waitlistToken])
+
+  // Pre-fill the spot counts and housing/day-pass selection from the offer
+  // once it loads.
+  useEffect(() => {
+    if (!waitlistOffer) return
+    setFormData(prev => ({
+      ...prev,
+      youthCount: waitlistOffer.youthCount ?? prev.youthCount,
+      chaperoneCount: waitlistOffer.chaperoneCount ?? prev.chaperoneCount,
+      priestCount: waitlistOffer.priestCount ?? prev.priestCount,
+      ticketType: waitlistOffer.housingType === 'day_pass' ? 'day_pass' : 'general_admission',
+      dayPassOptionId:
+        waitlistOffer.housingType === 'day_pass'
+          ? waitlistOffer.dayPassOptionId ?? prev.dayPassOptionId
+          : '',
+      housingType:
+        waitlistOffer.housingType && waitlistOffer.housingType !== 'day_pass'
+          ? waitlistOffer.housingType
+          : prev.housingType,
+    }))
+  }, [waitlistOffer])
+
+  // Whether the spot count / ticket type / housing fields should be locked
+  // to the offer rather than left editable — editing them would just lead to
+  // a rejection at submission, since the server enforces an exact match.
+  const isLockedByWaitlist = !!waitlistToken && !!waitlistOffer
+
   // Load event data
   useEffect(() => {
     async function loadEvent() {
@@ -195,9 +256,12 @@ export default function GroupRegistrationPage() {
     loadQuestions()
   }, [eventId])
 
-  // Auto-switch housing type if the selected one is sold out
+  // Auto-switch housing type if the selected one is sold out — skipped when
+  // locked to a waitlist offer, since that housing type was already reserved
+  // for this invitee specifically and the server bypasses this capacity
+  // check for them too.
   useEffect(() => {
-    if (!event?.settings || formData.ticketType !== 'general_admission') return
+    if (!event?.settings || formData.ticketType !== 'general_admission' || isLockedByWaitlist) return
 
     const settings = event.settings
     const currentHousing = formData.housingType
@@ -219,7 +283,8 @@ export default function GroupRegistrationPage() {
     else if (currentHousing === 'off_campus' && isOffCampusSoldOut && !isOnCampusSoldOut) {
       setFormData(prev => ({ ...prev, housingType: 'on_campus' }))
     }
-  }, [event?.settings, formData.ticketType])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- formData.housingType intentionally omitted, only re-run on ticket type/settings/lock changes
+  }, [event?.settings, formData.ticketType, isLockedByWaitlist])
 
   // Calculate pricing
   const calculatePricing = () => {
@@ -1002,6 +1067,14 @@ export default function GroupRegistrationPage() {
                         </span>
                       </div>
                     )}
+                    {isLockedByWaitlist && (
+                      <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
+                        <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                        <span>
+                          Your invitation reserves exactly {waitlistOffer!.partySize} spot{waitlistOffer!.partySize === 1 ? '' : 's'} — these counts are set for you and can&apos;t be changed here. Contact the event organizer if this isn&apos;t right.
+                        </span>
+                      </div>
+                    )}
                     <div>
                       <label className="block text-sm font-medium text-navy mb-2">
                         Youth Count *
@@ -1010,7 +1083,8 @@ export default function GroupRegistrationPage() {
                         type="number"
                         min="0"
                         required
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                        disabled={isLockedByWaitlist}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold disabled:bg-gray-100 disabled:text-gray-500"
                         value={formData.youthCount}
                         onChange={(e) =>
                           setFormData({ ...formData, youthCount: parseInt(e.target.value) || 0 })
@@ -1027,7 +1101,8 @@ export default function GroupRegistrationPage() {
                         type="number"
                         min="0"
                         required
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                        disabled={isLockedByWaitlist}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold disabled:bg-gray-100 disabled:text-gray-500"
                         value={formData.chaperoneCount}
                         onChange={(e) =>
                           setFormData({ ...formData, chaperoneCount: parseInt(e.target.value) || 0 })
@@ -1043,7 +1118,8 @@ export default function GroupRegistrationPage() {
                       <input
                         type="number"
                         min="0"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                        disabled={isLockedByWaitlist}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold disabled:bg-gray-100 disabled:text-gray-500"
                         value={formData.priestCount}
                         onChange={(e) =>
                           setFormData({ ...formData, priestCount: parseInt(e.target.value) || 0 })
@@ -1060,6 +1136,14 @@ export default function GroupRegistrationPage() {
                     <CardTitle>Ticket Type & Housing</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {isLockedByWaitlist && (
+                      <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
+                        <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                        <span>
+                          Your invitation already reserved a ticket type{waitlistOffer!.housingType && waitlistOffer!.housingType !== 'day_pass' ? ' and housing option' : ''} — these are set for you and can&apos;t be changed here.
+                        </span>
+                      </div>
+                    )}
                     {/* Ticket Type Selection */}
                     <div>
                       <label className="block text-sm font-medium text-navy mb-3">
@@ -1068,12 +1152,17 @@ export default function GroupRegistrationPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {/* General Admission Option */}
                         <div
-                          className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                          className={`p-4 border-2 rounded-lg transition-all ${
+                            isLockedByWaitlist ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+                          } ${
                             formData.ticketType === 'general_admission'
                               ? 'border-gold bg-gold/5'
                               : 'border-gray-200 hover:border-gray-300'
                           }`}
-                          onClick={() => setFormData({ ...formData, ticketType: 'general_admission', dayPassOptionId: '' })}
+                          onClick={() =>
+                            !isLockedByWaitlist &&
+                            setFormData({ ...formData, ticketType: 'general_admission', dayPassOptionId: '' })
+                          }
                         >
                           <div className="flex items-center space-x-3">
                             <input
@@ -1081,6 +1170,7 @@ export default function GroupRegistrationPage() {
                               name="ticketType"
                               value="general_admission"
                               checked={formData.ticketType === 'general_admission'}
+                              disabled={isLockedByWaitlist}
                               onChange={() => setFormData({ ...formData, ticketType: 'general_admission', dayPassOptionId: '' })}
                               className="w-4 h-4 text-gold"
                             />
@@ -1094,12 +1184,17 @@ export default function GroupRegistrationPage() {
                         {/* Day Pass Option - Only show if day pass is enabled */}
                         {event?.settings?.allowDayPass && event.dayPassOptions && event.dayPassOptions.length > 0 && (
                           <div
-                            className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                            className={`p-4 border-2 rounded-lg transition-all ${
+                              isLockedByWaitlist ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+                            } ${
                               formData.ticketType === 'day_pass'
                                 ? 'border-gold bg-gold/5'
                                 : 'border-gray-200 hover:border-gray-300'
                             }`}
-                            onClick={() => setFormData({ ...formData, ticketType: 'day_pass', housingType: 'day_pass' })}
+                            onClick={() =>
+                              !isLockedByWaitlist &&
+                              setFormData({ ...formData, ticketType: 'day_pass', housingType: 'day_pass' })
+                            }
                           >
                             <div className="flex items-center space-x-3">
                               <input
@@ -1107,6 +1202,7 @@ export default function GroupRegistrationPage() {
                                 name="ticketType"
                                 value="day_pass"
                                 checked={formData.ticketType === 'day_pass'}
+                                disabled={isLockedByWaitlist}
                                 onChange={() => setFormData({ ...formData, ticketType: 'day_pass', housingType: 'day_pass' })}
                                 className="w-4 h-4 text-gold"
                               />
@@ -1128,7 +1224,8 @@ export default function GroupRegistrationPage() {
                         </label>
                         <select
                           required
-                          className="w-full px-4 py-2 border border-amber-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold bg-white"
+                          disabled={isLockedByWaitlist}
+                          className="w-full px-4 py-2 border border-amber-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold bg-white disabled:bg-gray-100 disabled:text-gray-500"
                           value={formData.dayPassOptionId}
                           onChange={(e) => setFormData({ ...formData, dayPassOptionId: e.target.value })}
                         >
@@ -1155,7 +1252,8 @@ export default function GroupRegistrationPage() {
                         </label>
                         <select
                           required
-                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
+                          disabled={isLockedByWaitlist}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold disabled:bg-gray-100 disabled:text-gray-500"
                           value={formData.housingType}
                           onChange={(e) => setFormData({ ...formData, housingType: e.target.value })}
                         >
