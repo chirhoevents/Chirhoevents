@@ -37,10 +37,12 @@ interface UseRegistrationQueueResult {
 
 export function useRegistrationQueue(
   eventId: string,
-  registrationType: 'group' | 'individual'
+  registrationType: 'group' | 'individual',
+  options?: { skip?: boolean }
 ): UseRegistrationQueueResult {
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
+  const skip = options?.skip ?? false
+  const [loading, setLoading] = useState(!skip)
   const [queueActive, setQueueActive] = useState(false)
   const [isBlocked, setIsBlocked] = useState(false)
   const [queueStatus, setQueueStatus] = useState<QueueStatus | null>(null)
@@ -48,6 +50,17 @@ export function useRegistrationQueue(
 
   // Check queue status
   const checkQueue = useCallback(async (): Promise<QueueStatus | null> => {
+    // A caller with its own bypass (e.g. a waitlist invitation — that invite
+    // IS their admission, first-come-first-served queueing doesn't apply to
+    // them) skips the queue entirely rather than risk it, or a transient
+    // check failure, blocking someone who was already guaranteed a spot.
+    if (skip) {
+      setQueueActive(false)
+      setIsBlocked(false)
+      setLoading(false)
+      return null
+    }
+
     try {
       const response = await fetch('/api/queue/check', {
         method: 'POST',
@@ -127,7 +140,7 @@ export function useRegistrationQueue(
       setLoading(false)
       return null
     }
-  }, [eventId, registrationType, router])
+  }, [eventId, registrationType, router, skip])
 
   // Mark session as complete after successful registration
   const markComplete = useCallback(async (): Promise<void> => {

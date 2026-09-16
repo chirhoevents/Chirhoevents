@@ -96,7 +96,7 @@ export default function GroupRegistrationPage() {
     extensionAllowed,
     markComplete,
     checkQueue,
-  } = useRegistrationQueue(eventId, 'group')
+  } = useRegistrationQueue(eventId, 'group', { skip: !!waitlistToken })
 
   // Debug mode - add ?debug=queue to URL to see queue status
   const showDebug = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === 'queue'
