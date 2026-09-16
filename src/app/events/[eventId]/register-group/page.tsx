@@ -440,6 +440,16 @@ export default function GroupRegistrationPage() {
       }
     }
 
+    // Waitlist invitees skip the day-pass/housing remaining-capacity checks
+    // below — the server does the same (registration/group/route.ts skips
+    // these when waitlistBypass is set), since the invitee is very often on
+    // the waitlist precisely because that option was sold out to everyone
+    // else. Without this, someone offered a reserved seat in a sold-out
+    // option would get turned away here before ever reaching the server.
+    if (waitlistToken) {
+      return { valid: true }
+    }
+
     // For day pass, check day pass capacity
     if (formData.ticketType === 'day_pass') {
       if (formData.dayPassOptionId) {
