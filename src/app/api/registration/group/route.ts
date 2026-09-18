@@ -84,9 +84,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Accept either the event's UUID or its public slug — callers like the
+    // waitlist invitation flow link using the slug (readable URLs), and a
+    // raw slug crashes a `where: { id }` lookup with a Postgres UUID-cast
+    // error instead of the intended "event not found".
+    const isEventIdUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId)
+
     // Fetch event and pricing
     const event = await prisma.event.findUnique({
-      where: { id: eventId },
+      where: isEventIdUuid ? { id: eventId } : { slug: eventId },
       include: {
         pricing: true,
         settings: true,
