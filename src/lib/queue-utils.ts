@@ -70,6 +70,20 @@ export async function checkRegistrationQueue(
   ipAddress?: string,
   userAgent?: string
 ): Promise<QueueCheckResult> {
+  // Callers (e.g. the waitlist invitation flow) can pass the event's public
+  // slug instead of its UUID — resolve it here rather than letting every
+  // `{ eventId }` lookup below crash on a Postgres UUID-cast error.
+  const isEventIdUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId)
+  if (!isEventIdUuid) {
+    const event = await prisma.event.findUnique({ where: { slug: eventId }, select: { id: true } })
+    // Unresolvable event — nothing to queue against; let the actual
+    // registration endpoint be the one to report "event not found".
+    if (!event) {
+      return { allowed: true, sessionId, status: 'active', queueNotEnabled: true }
+    }
+    eventId = event.id
+  }
+
   // Get queue settings for the event
   const queueSettings = await prisma.eventQueueSettings.findUnique({
     where: { eventId }

@@ -342,7 +342,7 @@ export default function WaitlistRegisterPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {event?.groupRegistrationEnabled && (
-              <Link href={`/events/${event.slug}/register-group?waitlist=${token}`} className="block">
+              <Link href={`/events/${event.id}/register-group?waitlist=${token}`} className="block">
                 <Button className="w-full bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white h-14 text-lg">
                   <Users className="h-5 w-5 mr-2" />
                   Register as a Group
@@ -350,7 +350,7 @@ export default function WaitlistRegisterPage() {
               </Link>
             )}
             {event?.individualRegistrationEnabled && (
-              <Link href={`/events/${event.slug}/register-individual?waitlist=${token}`} className="block">
+              <Link href={`/events/${event.id}/register-individual?waitlist=${token}`} className="block">
                 <Button
                   variant="outline"
                   className="w-full border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white h-14 text-lg"
