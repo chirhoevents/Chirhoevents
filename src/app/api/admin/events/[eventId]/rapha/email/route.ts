@@ -146,6 +146,7 @@ export async function POST(
       <body>
         <div class="container">
           <div class="header">
+            <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 180px; height: auto; margin-bottom: 12px;" />
             <h1>Medical Staff Update</h1>
             <p>${eventWithOrg.name}</p>
           </div>

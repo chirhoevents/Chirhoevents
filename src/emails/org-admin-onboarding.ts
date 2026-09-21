@@ -32,6 +32,7 @@ export function generateOrgAdminOnboardingEmail({
 
   <!-- Header -->
   <div style="background: #1E3A5F; color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+    <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 180px; height: auto; margin-bottom: 16px;" />
     <h1 style="margin: 0; font-size: 28px;">Welcome to ChiRho Events!</h1>
     <p style="margin: 10px 0 0 0; opacity: 0.9;">Your Catholic Event Management Platform</p>
   </div>
@@ -308,6 +309,7 @@ export function generateTeamInviteEmail({
 
   <!-- Header -->
   <div style="background: #1E3A5F; color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+    <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 180px; height: auto; margin-bottom: 16px;" />
     <h1 style="margin: 0; font-size: 28px;">You've Been Invited!</h1>
   </div>
 

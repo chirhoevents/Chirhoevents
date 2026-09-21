@@ -5,6 +5,7 @@ import { Resend } from 'resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { canAccessOrganization, isAdmin } from '@/lib/auth-utils'
 import { hasPermission, type UserRole } from '@/lib/permissions'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -98,14 +99,14 @@ export async function POST(request: NextRequest) {
     if (registrationType === 'individual') {
       registration = await prisma.individualRegistration.findUnique({
         where: { id: registrationId },
-        include: { event: true },
+        include: { event: { include: { organization: true, settings: true } } },
       })
       recipientEmail = registration?.email || ''
       recipientName = `${registration?.firstName} ${registration?.lastName}`
     } else {
       registration = await prisma.groupRegistration.findUnique({
         where: { id: registrationId },
-        include: { event: true },
+        include: { event: { include: { organization: true, settings: true } } },
       })
       recipientEmail = registration?.groupLeaderEmail || ''
       recipientName = registration?.groupName || ''
@@ -292,6 +293,7 @@ export async function POST(request: NextRequest) {
           <body>
             <div class="container">
               <div class="header">
+                <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 180px; height: auto; margin-bottom: 12px;" />
                 <h1>Payment Received!</h1>
               </div>
               <div class="content">
@@ -340,6 +342,7 @@ export async function POST(request: NextRequest) {
 
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+          reply_to: resolveReplyTo(registration.event.settings, registration.event.organization),
           to: recipientEmail,
           subject: emailSubject,
           html: emailBody,

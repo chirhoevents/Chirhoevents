@@ -7,6 +7,7 @@ import Stripe from 'stripe'
 import { Resend } from 'resend'
 import { generateVirtualTerminalReceipt } from '@/lib/email-templates'
 import { calculatePlatformFeeCents } from '@/lib/stripe-fees'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -78,6 +79,8 @@ export async function POST(request: Request) {
       totalAmount: number
       amountPaid: number
       eventName: string
+      eventOrganization: { contactEmail: string | null } | null
+      eventSettings: { contactEmail: string | null } | null
     } | null = null
 
     if (registrationType === 'group') {
@@ -87,7 +90,14 @@ export async function POST(request: Request) {
           organizationId: organizationId
         },
         include: {
-          event: { select: { id: true, name: true } }
+          event: {
+            select: {
+              id: true,
+              name: true,
+              organization: { select: { contactEmail: true } },
+              settings: { select: { contactEmail: true } },
+            },
+          }
         }
       })
 
@@ -110,7 +120,9 @@ export async function POST(request: Request) {
         recipientName: groupReg.groupLeaderName,
         totalAmount: Number(balance?.totalAmountDue || 0),
         amountPaid: Number(balance?.amountPaid || 0),
-        eventName: groupReg.event.name
+        eventName: groupReg.event.name,
+        eventOrganization: groupReg.event.organization,
+        eventSettings: groupReg.event.settings
       }
 
     } else {
@@ -120,7 +132,14 @@ export async function POST(request: Request) {
           organizationId: organizationId
         },
         include: {
-          event: { select: { id: true, name: true } }
+          event: {
+            select: {
+              id: true,
+              name: true,
+              organization: { select: { contactEmail: true } },
+              settings: { select: { contactEmail: true } },
+            },
+          }
         }
       })
 
@@ -143,7 +162,9 @@ export async function POST(request: Request) {
         recipientName: `${individualReg.firstName} ${individualReg.lastName}`,
         totalAmount: Number(balance?.totalAmountDue || 0),
         amountPaid: Number(balance?.amountPaid || 0),
-        eventName: individualReg.event.name
+        eventName: individualReg.event.name,
+        eventOrganization: individualReg.event.organization,
+        eventSettings: individualReg.event.settings
       }
     }
 
@@ -368,6 +389,7 @@ export async function POST(request: Request) {
 
       await resend.emails.send({
         from: `${org.name} <payments@chirhoevents.com>`,
+        reply_to: resolveReplyTo(registration.eventSettings, registration.eventOrganization),
         to: registration.recipientEmail,
         subject: `Payment Received - ${registration.eventName}`,
         html: emailHtml

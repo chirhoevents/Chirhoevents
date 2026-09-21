@@ -232,6 +232,7 @@ export async function POST(
         <body>
           <div class="container">
             <div class="header">
+              <img src="${appUrl}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 180px; height: auto; margin-bottom: 12px;" />
               <h1>Welcome to ChiRho Events!</h1>
             </div>
 

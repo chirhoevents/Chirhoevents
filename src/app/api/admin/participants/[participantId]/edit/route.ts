@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -46,7 +47,12 @@ export async function PUT(
         },
         groupRegistration: {
           include: {
-            event: true,
+            event: {
+              include: {
+                organization: true,
+                settings: true,
+              },
+            },
           },
         },
       },
@@ -201,6 +207,7 @@ export async function PUT(
             <body>
               <div class="container">
                 <div class="header">
+                  <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 180px; height: auto; margin-bottom: 12px;" />
                   <h1>Participant Information Updated</h1>
                 </div>
                 <div class="content">
@@ -247,6 +254,7 @@ export async function PUT(
 
           await resend.emails.send({
             from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+            reply_to: resolveReplyTo(event.settings, event.organization),
             to: groupRegistration.groupLeaderEmail,
             subject: emailSubject,
             html: emailBody,

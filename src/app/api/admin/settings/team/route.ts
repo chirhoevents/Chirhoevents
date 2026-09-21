@@ -190,6 +190,7 @@ export async function POST(request: NextRequest) {
 
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+          reply_to: user.email || 'support@chirhoevents.com',
           to: email,
           subject: `You've been invited to join ${organization?.name || 'ChirhoEvents'} as ${roleName}`,
           html: `
@@ -201,6 +202,7 @@ export async function POST(request: NextRequest) {
             </head>
             <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
               <div style="background: linear-gradient(135deg, #1E3A5F 0%, #2A4A6F 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 160px; height: auto; margin-bottom: 12px;" />
                 <h1 style="color: white; margin: 0; font-size: 24px;">You're Invited!</h1>
               </div>
               <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
@@ -273,6 +275,7 @@ export async function POST(request: NextRequest) {
 
       await resend.emails.send({
         from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+        reply_to: user.email || 'support@chirhoevents.com',
         to: email,
         subject: `You've been invited to join ${organization?.name || 'ChirhoEvents'} as ${roleName}`,
         html: `
@@ -284,6 +287,7 @@ export async function POST(request: NextRequest) {
           </head>
           <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background: linear-gradient(135deg, #1E3A5F 0%, #2A4A6F 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 160px; height: auto; margin-bottom: 12px;" />
               <h1 style="color: white; margin: 0; font-size: 24px;">You're Invited!</h1>
             </div>
             <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">

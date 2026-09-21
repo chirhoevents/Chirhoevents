@@ -114,6 +114,7 @@ export async function POST(request: NextRequest) {
       try {
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+          reply_to: 'support@chirhoevents.com',
           to: recipientEmail,
           subject,
           html,

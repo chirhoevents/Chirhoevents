@@ -315,7 +315,7 @@ export default function EmailResendModal({
                             onChange={(e) =>
                               setTemplateData({ ...templateData, eventName: e.target.value })
                             }
-                            placeholder="e.g., Youth Retreat 2025"
+                            placeholder="e.g., Youth Retreat 2026"
                             className="mt-1"
                           />
                         </div>
@@ -349,7 +349,7 @@ export default function EmailResendModal({
                             onChange={(e) =>
                               setTemplateData({ ...templateData, eventName: e.target.value })
                             }
-                            placeholder="e.g., Youth Retreat 2025"
+                            placeholder="e.g., Youth Retreat 2026"
                             className="mt-1"
                           />
                         </div>
@@ -381,7 +381,7 @@ export default function EmailResendModal({
                                 onChange={(e) =>
                                   setTemplateData({ ...templateData, dueDate: e.target.value })
                                 }
-                                placeholder="e.g., March 15, 2025"
+                                placeholder="e.g., March 15, 2026"
                                 className="mt-1"
                               />
                             </div>

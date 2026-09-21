@@ -48,7 +48,7 @@ function generateInvoiceEmailHtml(params: {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
-        <h1 style="color: white; margin: 0;">ChirhoEvents</h1>
+        <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 180px; height: auto;" />
       </div>
 
       <div style="padding: 30px 20px;">
