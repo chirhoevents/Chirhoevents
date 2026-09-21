@@ -895,7 +895,7 @@ export default function SendReminderEmailModal({
                 <Label htmlFor="regEventDate">Event Date (Optional)</Label>
                 <Input
                   id="regEventDate"
-                  placeholder="e.g., July 18–21, 2025"
+                  placeholder="e.g., July 18–21, 2026"
                   value={regEventDate}
                   onChange={(e) => setRegEventDate(e.target.value)}
                 />
@@ -913,7 +913,7 @@ export default function SendReminderEmailModal({
                 <Label htmlFor="regDeadline">Registration Deadline (Optional)</Label>
                 <Input
                   id="regDeadline"
-                  placeholder="e.g., June 1, 2025"
+                  placeholder="e.g., June 1, 2026"
                   value={regDeadline}
                   onChange={(e) => setRegDeadline(e.target.value)}
                 />
@@ -1010,7 +1010,7 @@ export default function SendReminderEmailModal({
                 <Label htmlFor="paymentDeadline">Payment Deadline (Optional)</Label>
                 <Input
                   id="paymentDeadline"
-                  placeholder="e.g., May 15, 2025"
+                  placeholder="e.g., May 15, 2026"
                   value={paymentDeadline}
                   onChange={(e) => setPaymentDeadline(e.target.value)}
                 />
@@ -1114,7 +1114,7 @@ export default function SendReminderEmailModal({
                 <Label htmlFor="lateFeeDate">Late Fee Effective Date (Optional)</Label>
                 <Input
                   id="lateFeeDate"
-                  placeholder="e.g., April 30, 2025"
+                  placeholder="e.g., April 30, 2026"
                   value={lateFeeDate}
                   onChange={(e) => setLateFeeDate(e.target.value)}
                 />

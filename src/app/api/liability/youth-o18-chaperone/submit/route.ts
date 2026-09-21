@@ -485,7 +485,7 @@ export async function POST(request: NextRequest) {
                 <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
 
                 <p style="color: #666; font-size: 12px; text-align: center;">
-                  © 2025 ChiRho Events. All rights reserved.
+                  © ${new Date().getFullYear()} ChiRho Events. All rights reserved.
                 </p>
               </div>
             </div>
@@ -710,7 +710,7 @@ export async function POST(request: NextRequest) {
               <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
 
               <p style="color: #666; font-size: 12px; text-align: center;">
-                © 2025 ChiRho Events. All rights reserved.
+                © ${new Date().getFullYear()} ChiRho Events. All rights reserved.
               </p>
             </div>
           </div>
@@ -760,7 +760,7 @@ export async function POST(request: NextRequest) {
               <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
 
               <p style="color: #666; font-size: 12px; text-align: center;">
-                © 2025 ChiRho Events. All rights reserved.
+                © ${new Date().getFullYear()} ChiRho Events. All rights reserved.
               </p>
             </div>
           </div>

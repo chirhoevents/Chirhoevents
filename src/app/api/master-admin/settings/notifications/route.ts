@@ -306,6 +306,7 @@ export async function POST() {
       <body>
         <div class="container">
           <div class="header">
+            <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 180px; height: auto; margin-bottom: 12px;" />
             <h1>Master Admin Weekly Digest</h1>
             <p>${dateRange.start} - ${dateRange.end}</p>
           </div>
@@ -380,6 +381,7 @@ export async function POST() {
       try {
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+          reply_to: 'support@chirhoevents.com',
           to: recipientEmail,
           subject: `[TEST] ChiRho Events - Master Admin Weekly Digest (${dateRange.start} - ${dateRange.end})`,
           html: htmlContent,

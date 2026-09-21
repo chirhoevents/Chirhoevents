@@ -674,7 +674,7 @@ export async function POST(request: NextRequest) {
               </div>
 
               <p style="color: #666; font-size: 12px; margin-top: 30px;">
-                © 2025 ChiRho Events. All rights reserved.
+                © ${new Date().getFullYear()} ChiRho Events. All rights reserved.
               </p>
             </div>
           </div>

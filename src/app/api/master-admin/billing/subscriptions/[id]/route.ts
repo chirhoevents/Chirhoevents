@@ -209,7 +209,7 @@ export async function PUT(
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1E3A5F;">
                 <div style="background: #1E3A5F; padding: 30px; text-align: center;">
-                  <h1 style="color: white; margin: 0;">ChiRho Events</h1>
+                  <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 180px; height: auto;" />
                 </div>
                 <div style="padding: 30px; background: #F5F5F5;">
                   <h2>Your subscription has been suspended</h2>
@@ -261,7 +261,7 @@ export async function PUT(
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1E3A5F;">
                 <div style="background: #1E3A5F; padding: 30px; text-align: center;">
-                  <h1 style="color: white; margin: 0;">ChiRho Events</h1>
+                  <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 180px; height: auto;" />
                 </div>
                 <div style="padding: 30px; background: #F5F5F5;">
                   <h2>Your subscription has been reactivated!</h2>
@@ -309,7 +309,7 @@ export async function PUT(
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1E3A5F;">
                 <div style="background: #1E3A5F; padding: 30px; text-align: center;">
-                  <h1 style="color: white; margin: 0;">ChiRho Events</h1>
+                  <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 180px; height: auto;" />
                 </div>
                 <div style="padding: 30px; background: #F5F5F5;">
                   <h2>Your subscription has been cancelled</h2>
@@ -403,7 +403,7 @@ export async function PUT(
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1E3A5F;">
                 <div style="background: #1E3A5F; padding: 30px; text-align: center;">
-                  <h1 style="color: white; margin: 0;">ChiRho Events</h1>
+                  <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 180px; height: auto;" />
                 </div>
                 <div style="padding: 30px; background: #F5F5F5;">
                   <h2>Your subscription has been upgraded!</h2>

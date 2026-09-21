@@ -82,7 +82,7 @@ function generateReminderEmailHtml(params: {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
-        <h1 style="color: white; margin: 0;">ChiRho Events</h1>
+        <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 180px; height: auto;" />
       </div>
 
       <div style="padding: 30px 20px;">
@@ -248,6 +248,7 @@ export async function GET(request: NextRequest) {
         try {
           await resend.emails.send({
             from: 'ChiRho Events Billing <billing@chirhoevents.com>',
+            reply_to: 'support@chirhoevents.com',
             to: email,
             subject: `Annual Subscription Renewal Reminder - ${daysUntilRenewal} Days`,
             html: generateReminderEmailHtml({

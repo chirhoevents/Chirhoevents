@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import Stripe from 'stripe'
 import { Resend } from 'resend'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -81,12 +82,12 @@ export async function POST(request: NextRequest) {
     if (registrationType === 'individual') {
       registration = await prisma.individualRegistration.findUnique({
         where: { id: registrationId },
-        include: { event: true },
+        include: { event: { include: { organization: true, settings: true } } },
       })
     } else {
       registration = await prisma.groupRegistration.findUnique({
         where: { id: registrationId },
-        include: { event: true },
+        include: { event: { include: { organization: true, settings: true } } },
       })
     }
 
@@ -207,6 +208,7 @@ export async function POST(request: NextRequest) {
               <body>
                 <div class="container">
                   <div class="header">
+                    <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 180px; height: auto; margin-bottom: 12px;" />
                     <h1>Check Payment ${paymentStatus === 'received' ? 'Received' : 'Expected'}</h1>
                   </div>
                   <div class="content">
@@ -298,6 +300,7 @@ export async function POST(request: NextRequest) {
 
           await resend.emails.send({
             from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+            reply_to: resolveReplyTo(event.settings, event.organization),
             to: recipientEmail,
             subject: emailSubject,
             html: emailBody,

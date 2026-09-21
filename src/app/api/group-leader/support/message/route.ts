@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background-color: #1E3A5F; padding: 20px; text-align: center;">
+            <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 180px; height: auto; margin-bottom: 10px;" />
             <h1 style="color: white; margin: 0; font-size: 22px;">Group Leader Support Message</h1>
           </div>
 
@@ -114,6 +115,7 @@ export async function POST(request: NextRequest) {
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background-color: #1E3A5F; padding: 20px; text-align: center;">
+            <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 180px; height: auto; margin-bottom: 10px;" />
             <h1 style="color: white; margin: 0; font-size: 22px;">Message Sent</h1>
           </div>
 

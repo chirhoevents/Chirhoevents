@@ -5,6 +5,7 @@ import { Resend } from 'resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { canAccessOrganization } from '@/lib/auth-utils'
 import { incrementOptionCapacity, decrementOptionCapacity, type HousingType } from '@/lib/option-capacity'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -139,7 +140,12 @@ export async function PUT(
     const existingRegistration = await prisma.groupRegistration.findUnique({
       where: { id: registrationId },
       include: {
-        event: true,
+        event: {
+          include: {
+            organization: true,
+            settings: true,
+          },
+        },
         participants: true,
       },
     })
@@ -434,6 +440,7 @@ export async function PUT(
             <body>
               <div class="container">
                 <div class="header">
+                  <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 180px; height: auto; margin-bottom: 12px;" />
                   <h1>Registration Updated</h1>
                 </div>
                 <div class="content">
@@ -470,6 +477,7 @@ export async function PUT(
 
           await resend.emails.send({
             from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+            reply_to: resolveReplyTo(existingRegistration.event.settings, existingRegistration.event.organization),
             to: groupLeaderEmail,
             subject: emailSubject,
             html: emailBody,
