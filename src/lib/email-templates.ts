@@ -804,6 +804,7 @@ export function generateVirtualTerminalReceipt({
       <body>
         <div class="container">
           <div class="header">
+            <img src="${APP_URL}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 180px; height: auto; margin-bottom: 12px;" />
             <h1>Payment Received</h1>
             <p>Payment processed by ${organizationName} staff</p>
           </div>
