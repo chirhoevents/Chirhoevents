@@ -224,6 +224,21 @@ export default function GroupRegistrationPage() {
   // a rejection at submission, since the server enforces an exact match.
   const isLockedByWaitlist = !!waitlistToken && !!waitlistOffer
 
+  // The youth/chaperone/priest breakdown is only meaningful — and only
+  // enforced exactly by the server (src/app/api/registration/group/route.ts)
+  // — when the admin actually recorded one on the offer. Many waitlist
+  // entries only ever get a total party size (e.g. "17 spots") with no
+  // breakdown. Locking + zeroing the count fields in that case leaves the
+  // group leader stuck at 0/0/0 with no way to enter their real counts, so
+  // only lock them when there's a real breakdown to lock to; otherwise
+  // leave them editable and just require the total to match the offer.
+  const waitlistHasCountBreakdown =
+    !!waitlistOffer &&
+    waitlistOffer.youthCount !== null &&
+    waitlistOffer.chaperoneCount !== null &&
+    waitlistOffer.priestCount !== null
+  const countsLockedByWaitlist = isLockedByWaitlist && waitlistHasCountBreakdown
+
   // Load event data
   useEffect(() => {
     async function loadEvent() {
@@ -563,6 +578,20 @@ export default function GroupRegistrationPage() {
         'Group registrations must include at least one youth and at least one chaperone or priest. If you are registering only one person, please use the individual registration option.'
       )
       return
+    }
+
+    // When arriving via a waitlist invitation whose offer only fixed a total
+    // party size (no youth/chaperone/priest breakdown), the counts are left
+    // editable above but the server still requires them to add up to exactly
+    // what was reserved. Catch a mismatch here instead of round-tripping to
+    // the server just to find out.
+    if (isLockedByWaitlist && !countsLockedByWaitlist && waitlistOffer) {
+      if (totalParticipants !== waitlistOffer.partySize) {
+        alert(
+          `Your invitation reserves exactly ${waitlistOffer.partySize} spot${waitlistOffer.partySize === 1 ? '' : 's'}. Please make sure youth + chaperones + priests add up to ${waitlistOffer.partySize} before continuing.`
+        )
+        return
+      }
     }
 
     // Validate capacity before proceeding
@@ -1077,11 +1106,19 @@ export default function GroupRegistrationPage() {
                         </span>
                       </div>
                     )}
-                    {isLockedByWaitlist && (
+                    {countsLockedByWaitlist && (
                       <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
                         <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                         <span>
                           Your invitation reserves exactly {waitlistOffer!.partySize} spot{waitlistOffer!.partySize === 1 ? '' : 's'} — these counts are set for you and can&apos;t be changed here. Contact the event organizer if this isn&apos;t right.
+                        </span>
+                      </div>
+                    )}
+                    {isLockedByWaitlist && !countsLockedByWaitlist && (
+                      <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
+                        <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                        <span>
+                          Your invitation reserves {waitlistOffer!.partySize} spot{waitlistOffer!.partySize === 1 ? '' : 's'} total. Enter how those spots break down between youth, chaperones, and priests below — the total must add up to {waitlistOffer!.partySize}.
                         </span>
                       </div>
                     )}
@@ -1093,7 +1130,7 @@ export default function GroupRegistrationPage() {
                         type="number"
                         min="0"
                         required
-                        disabled={isLockedByWaitlist}
+                        disabled={countsLockedByWaitlist}
                         className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold disabled:bg-gray-100 disabled:text-gray-500"
                         value={formData.youthCount}
                         onChange={(e) =>
@@ -1111,7 +1148,7 @@ export default function GroupRegistrationPage() {
                         type="number"
                         min="0"
                         required
-                        disabled={isLockedByWaitlist}
+                        disabled={countsLockedByWaitlist}
                         className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold disabled:bg-gray-100 disabled:text-gray-500"
                         value={formData.chaperoneCount}
                         onChange={(e) =>
@@ -1128,7 +1165,7 @@ export default function GroupRegistrationPage() {
                       <input
                         type="number"
                         min="0"
-                        disabled={isLockedByWaitlist}
+                        disabled={countsLockedByWaitlist}
                         className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold disabled:bg-gray-100 disabled:text-gray-500"
                         value={formData.priestCount}
                         onChange={(e) =>
