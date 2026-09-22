@@ -7,6 +7,30 @@ import {
 } from '@/lib/option-capacity'
 
 /**
+ * A group waitlist offer that's actually been given a specific mix always has
+ * at least one youth and at least one chaperone/priest — that's enforced
+ * everywhere a mix gets set (the join form, admin edit, and the counter-offer
+ * path on /contact all reject anything else). So a stored 0/0/0 mix can only
+ * mean no breakdown was ever recorded for this entry — most commonly because
+ * an admin sent a plain "invite as requested" for a group entry whose
+ * original request predated requiring a breakdown, which fell back to 0s
+ * instead of staying null (see the /contact route). Treat that as "no
+ * breakdown" (null) rather than a literal, impossible 0/0/0 offer, so
+ * callers can tell the two apart.
+ */
+export function normalizeGroupMix(
+  registrationType: string | null,
+  youth: number | null,
+  chaperone: number | null,
+  priest: number | null
+): { youth: number | null; chaperone: number | null; priest: number | null } {
+  if (registrationType === 'group' && youth === 0 && chaperone === 0 && priest === 0) {
+    return { youth: null, chaperone: null, priest: null }
+  }
+  return { youth, chaperone, priest }
+}
+
+/**
  * Release the option-level reservation held by a waitlist entry (if any) back
  * to its pools. Idempotent — no-op when the entry has no option reservation.
  * Does NOT touch event.capacityRemaining; the callers handle that separately
@@ -192,6 +216,13 @@ export async function validateWaitlistToken(token: string): Promise<{
     const preferredRoomType = ((entry as any).preferredRoomType as RoomType | null) ?? null
     const preferredDayPassOptionId = (entry as any).preferredDayPassOptionId ?? null
 
+    const normalizedMix = normalizeGroupMix(
+      entry.registrationType,
+      (entry as any).reservedYouthCount ?? null,
+      (entry as any).reservedChaperoneCount ?? null,
+      (entry as any).reservedPriestCount ?? null
+    )
+
     return {
       valid: true,
       entry: {
@@ -201,9 +232,9 @@ export async function validateWaitlistToken(token: string): Promise<{
         partySize: entry.partySize,
         eventId: entry.eventId,
         reservedSpots: (entry as any).reservedSpots ?? null,
-        reservedYouthCount: (entry as any).reservedYouthCount ?? null,
-        reservedChaperoneCount: (entry as any).reservedChaperoneCount ?? null,
-        reservedPriestCount: (entry as any).reservedPriestCount ?? null,
+        reservedYouthCount: normalizedMix.youth,
+        reservedChaperoneCount: normalizedMix.chaperone,
+        reservedPriestCount: normalizedMix.priest,
         preferredHousingType,
         preferredRoomType,
         preferredDayPassOptionId,
