@@ -143,24 +143,30 @@ export async function POST(
         { status: 400 }
       )
     }
-    const offeredYouth = offer?.youthCount !== undefined ? Number(offer.youthCount) : (entry.youthCount ?? 0)
-    const offeredChaperone = offer?.chaperoneCount !== undefined ? Number(offer.chaperoneCount) : (entry.chaperoneCount ?? 0)
-    const offeredPriest = offer?.priestCount !== undefined ? Number(offer.priestCount) : (entry.priestCount ?? 0)
+    // Preserve null (no breakdown ever recorded) instead of defaulting to 0
+    // when no counter-offer is given — coalescing to 0 here used to persist
+    // as a literal reservedYouthCount/reservedChaperoneCount/reservedPriestCount
+    // of 0/0/0, which is indistinguishable from a real (impossible, since a
+    // group always needs >=1 youth) all-zero offer and permanently blocks the
+    // invitee's registration from ever matching it exactly.
+    const offeredYouth = offer?.youthCount !== undefined ? Number(offer.youthCount) : entry.youthCount
+    const offeredChaperone = offer?.chaperoneCount !== undefined ? Number(offer.chaperoneCount) : entry.chaperoneCount
+    const offeredPriest = offer?.priestCount !== undefined ? Number(offer.priestCount) : entry.priestCount
 
     // If the entry is a group, the offered mix must sum to the offered party size.
     if (entry.registrationType === 'group' && offer) {
-      const mixTotal = offeredYouth + offeredChaperone + offeredPriest
+      const mixTotal = (offeredYouth ?? 0) + (offeredChaperone ?? 0) + (offeredPriest ?? 0)
       if (mixTotal !== offeredPartySize) {
         return NextResponse.json(
           {
-            error: `Offered party size (${offeredPartySize}) doesn't match youth (${offeredYouth}) + chaperones (${offeredChaperone}) + priests (${offeredPriest}) = ${mixTotal}.`,
+            error: `Offered party size (${offeredPartySize}) doesn't match youth (${offeredYouth ?? 0}) + chaperones (${offeredChaperone ?? 0}) + priests (${offeredPriest ?? 0}) = ${mixTotal}.`,
           },
           { status: 400 }
         )
       }
       // Guard: same rule as group registration — no solo or adult-only groups.
-      const hasAdultSupervisor = offeredChaperone >= 1 || offeredPriest >= 1
-      const hasYouth = offeredYouth >= 1
+      const hasAdultSupervisor = (offeredChaperone ?? 0) >= 1 || (offeredPriest ?? 0) >= 1
+      const hasYouth = (offeredYouth ?? 0) >= 1
       if (!hasAdultSupervisor || !hasYouth) {
         return NextResponse.json(
           {
@@ -423,9 +429,9 @@ export async function POST(
     // preferred — surface that in the email.
     const isCounterOffer =
       spotsNeeded !== entry.partySize ||
-      offeredYouth !== (entry.youthCount ?? 0) ||
-      offeredChaperone !== (entry.chaperoneCount ?? 0) ||
-      offeredPriest !== (entry.priestCount ?? 0) ||
+      offeredYouth !== entry.youthCount ||
+      offeredChaperone !== entry.chaperoneCount ||
+      offeredPriest !== entry.priestCount ||
       (reservedHousingType ?? null) !==
         ((entry.preferredHousingType as HousingType | null) ?? null) ||
       (reservedDayPassOptionId ?? null) !==

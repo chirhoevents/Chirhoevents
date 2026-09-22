@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { normalizeGroupMix } from '@/lib/waitlist-utils'
 
 export async function GET(
   request: NextRequest,
@@ -109,20 +110,41 @@ export async function GET(
     // What was asked for vs what's actually being offered. When the admin
     // sends a counter-offer the two differ; the invitee page shows both
     // side-by-side so they know what they're accepting.
+    //
+    // A validated group mix always has >=1 youth and >=1 chaperone/priest, so
+    // a stored 0/0/0 mix can only mean no breakdown was ever recorded (see
+    // normalizeGroupMix). Normalize both sides so the registration form
+    // reports "no breakdown" instead of locking the count fields to an
+    // impossible all-zero mix.
+    const requestedMix = normalizeGroupMix(
+      entry.registrationType,
+      entry.youthCount,
+      entry.chaperoneCount,
+      entry.priestCount
+    )
+    const offeredRawYouth = entry.reservedYouthCount ?? requestedMix.youth
+    const offeredRawChaperone = entry.reservedChaperoneCount ?? requestedMix.chaperone
+    const offeredRawPriest = entry.reservedPriestCount ?? requestedMix.priest
+    const offeredMix = normalizeGroupMix(
+      entry.registrationType,
+      offeredRawYouth,
+      offeredRawChaperone,
+      offeredRawPriest
+    )
     const requested = {
       partySize: entry.partySize,
-      youthCount: entry.youthCount,
-      chaperoneCount: entry.chaperoneCount,
-      priestCount: entry.priestCount,
+      youthCount: requestedMix.youth,
+      chaperoneCount: requestedMix.chaperone,
+      priestCount: requestedMix.priest,
       housingType: entry.preferredHousingType,
       roomType: entry.preferredRoomType,
       dayPassOptionId: entry.preferredDayPassOptionId,
     }
     const offered = {
       partySize: entry.reservedSpots ?? entry.partySize,
-      youthCount: entry.reservedYouthCount ?? entry.youthCount,
-      chaperoneCount: entry.reservedChaperoneCount ?? entry.chaperoneCount,
-      priestCount: entry.reservedPriestCount ?? entry.priestCount,
+      youthCount: offeredMix.youth,
+      chaperoneCount: offeredMix.chaperone,
+      priestCount: offeredMix.priest,
       housingType: entry.reservedHousingType ?? entry.preferredHousingType,
       roomType: entry.reservedRoomType ?? entry.preferredRoomType,
       dayPassOptionId: entry.reservedDayPassOptionId ?? entry.preferredDayPassOptionId,
