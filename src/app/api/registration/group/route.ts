@@ -10,6 +10,7 @@ import { generateGroupRegistrationConfirmationEmail } from '@/lib/email-template
 import { getRegistrationStatus } from '@/lib/registration-status'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { calculatePlatformFeeCents } from '@/lib/stripe-fees'
+import { exceedsPlatformCollectedCardCap, PLATFORM_COLLECTED_CARD_CAP_MESSAGE } from '@/lib/platform-collected-payment-cap'
 import {
   checkOptionCapacity,
   decrementOptionCapacity,
@@ -517,12 +518,21 @@ export async function POST(request: NextRequest) {
 
     const balanceRemaining = totalAmount - depositAmount
 
+    // Platform-collected orgs (usePlatformStripeAccount) can't take a card charge
+    // over the cap — Chirho is the merchant of record for those, so a large
+    // dispute lands on Chirho's own account. Force those over the cap onto the
+    // same check-payment path as if the registrant had picked it themselves.
+    const forcedCheckDueToCap =
+      paymentMethod !== 'check' &&
+      exceedsPlatformCollectedCardCap(event.organization, Math.round(depositAmount * 100))
+    const effectivePaymentMethod = forcedCheckDueToCap ? 'check' : paymentMethod
+
     // Generate unique access code
     const accessCode = generateAccessCode(event.name, groupName)
 
     // Determine registration status based on payment method
     const registrationStatus =
-      paymentMethod === 'check' ? 'pending_payment' : 'incomplete'
+      effectivePaymentMethod === 'check' ? 'pending_payment' : 'incomplete'
 
     // Determine initial inventory counts based on housing type
     const initialOnCampusYouth = housingType === 'on_campus' ? youthCount : 0
@@ -549,7 +559,7 @@ export async function POST(request: NextRequest) {
     // Fix #5: Wrap all DB writes in a transaction so partial failures roll back cleanly.
     // Stripe checkout session creation happens AFTER this transaction commits.
     const paymentBalanceStatus =
-      paymentMethod === 'check' ? 'pending_check_payment' : 'unpaid'
+      effectivePaymentMethod === 'check' ? 'pending_check_payment' : 'unpaid'
 
     // Fix #M3: Hoist custom answers so we can save them inside the same transaction
     // as the registration row. Previously this ran AFTER the tx committed, so a DB
@@ -670,7 +680,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle payment method
-    if (paymentMethod === 'check') {
+    if (effectivePaymentMethod === 'check') {
       // Check payment - create pending payment record
       await prisma.payment.create({
         data: {
@@ -705,6 +715,15 @@ export async function POST(request: NextRequest) {
           })
         : undefined
 
+      // If a card payment was forced to check because it exceeded the platform-
+      // collected cap, lead with that explanation ahead of any custom message
+      // the org has configured for check-payment confirmations.
+      const groupCustomMessage = forcedCheckDueToCap
+        ? [PLATFORM_COLLECTED_CARD_CAP_MESSAGE, eventSettings?.confirmationEmailMessage]
+            .filter(Boolean)
+            .join('\n\n')
+        : eventSettings?.confirmationEmailMessage || undefined
+
       // Prepare email content using new template
       const emailSubject = `Registration Received - ${event.name}`
       const emailHtml = generateGroupRegistrationConfirmationEmail({
@@ -722,7 +741,7 @@ export async function POST(request: NextRequest) {
         checkPayableTo: eventSettings?.checkPaymentPayableTo || event.organization.name,
         checkMailingAddress: eventSettings?.checkPaymentAddress || undefined,
         registrationInstructions: eventSettings?.registrationInstructions || undefined,
-        customMessage: eventSettings?.confirmationEmailMessage || undefined,
+        customMessage: groupCustomMessage,
         organizationName: event.organization.name,
         porosLiabilityUrl,
         groupLeaderPortalUrl,

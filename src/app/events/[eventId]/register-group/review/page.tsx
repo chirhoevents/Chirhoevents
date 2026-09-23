@@ -43,6 +43,9 @@ interface EventData {
     checkPaymentAddress: string | null
     couponsEnabled?: boolean
   }
+  organization: {
+    usePlatformStripeAccount: boolean
+  }
 }
 
 interface CouponData {
@@ -333,6 +336,12 @@ export default function InvoiceReviewPage() {
   }
 
   const pricing = calculatePricing()
+  // Platform-collected orgs (usePlatformStripeAccount) can't take a card charge
+  // over $1,000 — the backend already forces these onto the check-payment path,
+  // but catching it here means the group leader never opens Stripe checkout
+  // (and risks the broken back-button flow) only to be bounced into check anyway.
+  const cardBlockedByPlatformCap =
+    !!event?.organization?.usePlatformStripeAccount && pricing.deposit > 1000
   const totalParticipants =
     registrationData.youthCount +
     registrationData.chaperoneCount +
@@ -572,26 +581,35 @@ export default function InvoiceReviewPage() {
               <div className="space-y-4">
                 <h3 className="font-semibold text-navy text-lg">Choose Payment Method</h3>
 
-                <Button
-                  size="lg"
-                  className="w-full"
-                  onClick={handleCreditCardPayment}
-                  disabled={submitting}
-                >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard className="mr-2 h-5 w-5" />
-                      Pay by Credit Card (${pricing.deposit.toFixed(2)})
-                    </>
-                  )}
-                </Button>
+                {cardBlockedByPlatformCap && (
+                  <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3">
+                    Due to financial circumstances this year, we are unable to process card payments
+                    over $1,000 for this event. Please choose &quot;Pay Later&quot; below to pay by check.
+                  </p>
+                )}
 
-                {event?.settings.checkPaymentEnabled && (
+                {!cardBlockedByPlatformCap && (
+                  <Button
+                    size="lg"
+                    className="w-full"
+                    onClick={handleCreditCardPayment}
+                    disabled={submitting}
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard className="mr-2 h-5 w-5" />
+                        Pay by Credit Card (${pricing.deposit.toFixed(2)})
+                      </>
+                    )}
+                  </Button>
+                )}
+
+                {(event?.settings.checkPaymentEnabled || cardBlockedByPlatformCap) && (
                   <Button
                     size="lg"
                     variant="outline"

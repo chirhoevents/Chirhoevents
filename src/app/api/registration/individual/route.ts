@@ -4,6 +4,7 @@ import Stripe from 'stripe'
 import { Resend } from 'resend'
 import QRCode from 'qrcode'
 import { calculatePlatformFeeCents } from '@/lib/stripe-fees'
+import { exceedsPlatformCollectedCardCap, PLATFORM_COLLECTED_CARD_CAP_MESSAGE } from '@/lib/platform-collected-payment-cap'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { generateIndividualConfirmationCode } from '@/lib/access-code'
 import { resolveReplyTo } from '@/lib/email-reply-to'
@@ -348,9 +349,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Platform-collected orgs (usePlatformStripeAccount) can't take a card charge
+    // over the cap — Chirho is the merchant of record for those, so a large
+    // dispute lands on Chirho's own account. Force those over the cap onto the
+    // same check-payment path as if the registrant had picked it themselves.
+    const forcedCheckDueToCap =
+      paymentMethod !== 'check' &&
+      exceedsPlatformCollectedCardCap(event.organization, Math.round(totalAmount * 100))
+    const effectivePaymentMethod = forcedCheckDueToCap ? 'check' : paymentMethod
+
     // Determine registration status based on payment method
     const registrationStatus =
-      paymentMethod === 'check' ? 'pending_payment' : 'incomplete'
+      effectivePaymentMethod === 'check' ? 'pending_payment' : 'incomplete'
 
     // Generate unique confirmation code
     const eventYear = event.name.match(/\d{4}/)?.[0] || new Date().getFullYear().toString()
@@ -479,7 +489,7 @@ export async function POST(request: NextRequest) {
 
     // Create payment balance record
     const paymentBalanceStatus =
-      paymentMethod === 'check' ? 'pending_check_payment' : 'unpaid'
+      effectivePaymentMethod === 'check' ? 'pending_check_payment' : 'unpaid'
 
     await prisma.paymentBalance.create({
       data: {
@@ -545,7 +555,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle payment method
-    if (paymentMethod === 'check') {
+    if (effectivePaymentMethod === 'check') {
       // Check payment - create pending payment record
       await prisma.payment.create({
         data: {
@@ -599,6 +609,9 @@ export async function POST(request: NextRequest) {
 
               <div style="background-color: #FFF3CD; padding: 20px; border-left: 4px solid #FFC107; margin: 20px 0;">
                 <h3 style="color: #856404; margin-top: 0;">⚠️ Payment Required</h3>
+                ${forcedCheckDueToCap ? `
+                <p style="color: #856404; margin: 0 0 10px 0;">${PLATFORM_COLLECTED_CARD_CAP_MESSAGE}</p>
+                ` : ''}
                 <p style="color: #856404; margin: 0;">
                   <strong>Your registration is PENDING until we receive your check payment.</strong>
                 </p>
