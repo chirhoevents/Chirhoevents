@@ -309,6 +309,9 @@ export async function generateMedicalPDF(reportData: any, eventName: string, opt
       const pages = doc.bufferedPageRange()
       for (let i = 0; i < pages.count; i++) {
         doc.switchToPage(i)
+        // Footer sits inside the bottom margin; zero it so PDFKit does not
+        // auto-add a new page (which doubled the page count).
+        doc.page.margins.bottom = 0
         const footerY = doc.page.height - 30
         doc.moveTo(40, footerY - 5).lineTo(40 + pageWidth, footerY - 5)
           .strokeColor('#cccccc').lineWidth(0.5).stroke()

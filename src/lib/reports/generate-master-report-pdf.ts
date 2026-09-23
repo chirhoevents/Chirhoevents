@@ -407,6 +407,9 @@ export async function generateMasterEventReportPDF(
       const range = doc.bufferedPageRange()
       for (let i = 0; i < range.count; i++) {
         doc.switchToPage(i)
+        // Footer sits inside the bottom margin; zero it so PDFKit does not
+        // auto-add a new page (which doubled the page count).
+        doc.page.margins.bottom = 0
         const fy = PH - 30
         doc.moveTo(M, fy - 5).lineTo(M + W, fy - 5).strokeColor(LIGHT_GRAY).lineWidth(0.5).stroke()
         doc.font('Helvetica').fontSize(8).fillColor(GRAY)
