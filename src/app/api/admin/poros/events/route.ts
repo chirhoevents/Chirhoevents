@@ -12,6 +12,7 @@ export async function GET() {
     const allEvents = await prisma.event.findMany({
       where: {
         organizationId,
+        archivedAt: null,
         status: {
           in: ['published', 'registration_open', 'registration_closed', 'in_progress'],
         },

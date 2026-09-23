@@ -45,11 +45,13 @@ import {
   Minus,
   CreditCard,
   ClipboardList,
+  Archive,
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { parseDateOnly } from '@/lib/utils'
 import SendReminderEmailModal from '@/components/admin/SendReminderEmailModal'
+import ArchiveEventDialog from '@/components/admin/ArchiveEventDialog'
 
 interface EventDetailClientProps {
   event: {
@@ -174,6 +176,7 @@ export default function EventDetailClient({
   )
   const [savingSettings, setSavingSettings] = useState(false)
   const [reminderModalOpen, setReminderModalOpen] = useState(false)
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false)
   const [recalculatingCapacity, setRecalculatingCapacity] = useState(false)
   const [capacityRemaining, setCapacityRemaining] = useState(event.capacityRemaining)
 
@@ -402,6 +405,10 @@ export default function EventDetailClient({
               <Copy className="h-4 w-4 mr-2" />
               Duplicate
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setArchiveDialogOpen(true)}>
+              <Archive className="h-4 w-4 mr-2" />
+              Archive
+            </Button>
             <Link href={`/dashboard/admin/events/${event.id}/edit`}>
               <Button
                 size="sm"
@@ -414,6 +421,15 @@ export default function EventDetailClient({
           </div>
         </div>
       </div>
+
+      <ArchiveEventDialog
+        open={archiveDialogOpen}
+        onOpenChange={setArchiveDialogOpen}
+        eventId={event.id}
+        eventName={event.name}
+        mode="archive"
+        onDone={() => router.push(`/dashboard/admin/events/archived/${event.id}`)}
+      />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">

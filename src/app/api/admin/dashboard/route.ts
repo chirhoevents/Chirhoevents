@@ -53,10 +53,12 @@ export async function GET(request: NextRequest) {
         }
       : undefined
 
-    // Get all event IDs for the org (scoped to year if provided)
+    // Get all event IDs for the org (scoped to year if provided). Archived
+    // events are excluded from every dashboard number.
     const eventsInScope = await prisma.event.findMany({
       where: {
         organizationId,
+        archivedAt: null,
         ...(yearFilter ? { startDate: yearFilter } : {}),
       },
       select: { id: true },
@@ -68,6 +70,7 @@ export async function GET(request: NextRequest) {
     const activeEventsCount = await prisma.event.count({
       where: {
         organizationId,
+        archivedAt: null,
         status: {
           in: ['registration_open', 'in_progress', 'published'],
         },
@@ -78,8 +81,9 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // Get total registrations scoped to events in the selected year
-    const registrationEventFilter = eventIds.length > 0 ? { in: eventIds } : undefined
+    // Get total registrations scoped to the non-archived events in the
+    // selected year. Always applied, so archived events never leak in.
+    const registrationEventFilter = { in: eventIds }
 
     const groupRegistrationsCount = await prisma.groupRegistration.count({
       where: {
@@ -160,6 +164,7 @@ export async function GET(request: NextRequest) {
     const upcomingEvents = await prisma.event.findMany({
       where: {
         organizationId,
+        archivedAt: null,
         status: {
           not: 'draft',
         },
@@ -232,7 +237,7 @@ export async function GET(request: NextRequest) {
 
     // Get all years that have events for this org (for the year selector)
     const allEvents = await prisma.event.findMany({
-      where: { organizationId },
+      where: { organizationId, archivedAt: null },
       select: { startDate: true },
       orderBy: { startDate: 'asc' },
     })

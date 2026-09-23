@@ -24,6 +24,7 @@ import {
   ChevronRight,
   Loader2,
   Copy,
+  Archive,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -45,6 +46,7 @@ import {
 } from '@/components/ui/dialog'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { cn, parseDateOnly } from '@/lib/utils'
+import ArchiveEventDialog from '@/components/admin/ArchiveEventDialog'
 
 interface Event {
   id: string
@@ -112,6 +114,7 @@ export default function EventsListClient({
   const [limitModalOpen, setLimitModalOpen] = useState(false)
   const [limitData, setLimitData] = useState<LimitData | null>(null)
   const [usageData, setUsageData] = useState<LimitData | null>(null)
+  const [archiveTarget, setArchiveTarget] = useState<{ id: string; name: string } | null>(null)
 
   useEffect(() => {
     fetchEvents()
@@ -644,6 +647,12 @@ export default function EventsListClient({
                                 <Copy className="h-4 w-4 mr-2" />
                                 Duplicate Event
                               </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setArchiveTarget({ id: event.id, name: event.name })}
+                              >
+                                <Archive className="h-4 w-4 mr-2" />
+                                Archive Event
+                              </DropdownMenuItem>
                               {event.totalRegistrations === 0 && (
                                 <DropdownMenuItem
                                   className="text-red-600"
@@ -674,6 +683,20 @@ export default function EventsListClient({
         onUpgrade={handleUpgrade}
         onContactSupport={handleContactSupport}
       />
+
+      {archiveTarget && (
+        <ArchiveEventDialog
+          open={!!archiveTarget}
+          onOpenChange={(open) => !open && setArchiveTarget(null)}
+          eventId={archiveTarget.id}
+          eventName={archiveTarget.name}
+          mode="archive"
+          onDone={() => {
+            setArchiveTarget(null)
+            fetchEvents()
+          }}
+        />
+      )}
     </div>
   )
 }

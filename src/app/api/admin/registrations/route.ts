@@ -40,10 +40,13 @@ export async function GET(request: NextRequest) {
       organizationId,
     }
 
-    // Event filter
+    // Event filter. Without one, hide registrations for archived events.
     if (eventId) {
       groupWhereClause.eventId = eventId
       individualWhereClause.eventId = eventId
+    } else {
+      groupWhereClause.event = { archivedAt: null }
+      individualWhereClause.event = { archivedAt: null }
     }
 
     // Housing filter
@@ -315,6 +318,7 @@ export async function GET(request: NextRequest) {
     const events = await prisma.event.findMany({
       where: {
         organizationId,
+        archivedAt: null,
         status: { not: 'draft' },
       },
       select: {
