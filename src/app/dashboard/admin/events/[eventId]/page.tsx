@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, notFound } from 'next/navigation'
+import { useParams, useRouter, notFound } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
 import { Loader2 } from 'lucide-react'
 import EventDetailClient from './EventDetailClient'
@@ -80,6 +80,7 @@ interface WaitlistSummary {
 export default function EventDetailPage() {
   const params = useParams()
   const eventId = params?.eventId as string
+  const router = useRouter()
   const { getToken } = useAuth()
   const [event, setEvent] = useState<EventData | null>(null)
   const [stats, setStats] = useState<EventStats | null>(null)
@@ -119,6 +120,12 @@ export default function EventDetailPage() {
       }
 
       const data = await response.json()
+
+      // Archived events are only viewed read-only from the archive
+      if (data.event.archivedAt) {
+        router.replace(`/dashboard/admin/events/archived/${eventId}`)
+        return
+      }
 
       // Set event data
       setEvent({
@@ -169,7 +176,8 @@ export default function EventDetailPage() {
     }
   }
 
-  if (loading) {
+  // (!error && !event) also covers the moment we redirect to the archive view
+  if (loading || (!error && !event)) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">

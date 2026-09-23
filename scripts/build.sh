@@ -78,6 +78,10 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='event_settings' AND column_name='waitlist_enabled') THEN
     RAISE EXCEPTION 'Schema drift after db push: event_settings.waitlist_enabled is missing';
   END IF;
+  -- Event archiving: every events query selects this column
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='archived_at') THEN
+    RAISE EXCEPTION 'Schema drift after db push: events.archived_at is missing';
+  END IF;
 END $$;
 SQLEOF
 npx prisma db execute --file /tmp/schema-canary.sql --schema prisma/schema.prisma

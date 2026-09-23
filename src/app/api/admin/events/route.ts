@@ -26,11 +26,15 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')
     const sortBy = searchParams.get('sortBy') // 'date' | 'name' | 'registrations'
     const sortOrder = searchParams.get('sortOrder') as 'asc' | 'desc' || 'desc'
+    // Archived events are hidden everywhere unless asked for explicitly
+    // (the Archived Events page passes archived=true).
+    const archivedOnly = searchParams.get('archived') === 'true'
 
     // Build where clause
     const now = new Date()
     const whereClause: any = {
       organizationId,
+      archivedAt: archivedOnly ? { not: null } : null,
     }
 
     // Apply status filter
@@ -182,6 +186,7 @@ export async function GET(request: NextRequest) {
           totalExpectedRevenue,
           createdAt: event.createdAt,
           updatedAt: event.updatedAt,
+          archivedAt: event.archivedAt ?? null,
         }
       })
     )

@@ -33,7 +33,7 @@ export async function generateMetadata({
   // search engines and direct-link previews don't surface unfinished pages.
   // (isPublished, not status, is the public-visibility flag — status drives
   // registration availability and defaults to 'draft' on every new event.)
-  if (!event || !event.isPublished || event.organization.status !== 'active') {
+  if (!event || !event.isPublished || event.archivedAt || event.organization.status !== 'active') {
     return {
       title: 'Event Not Found',
     }
@@ -108,7 +108,7 @@ export default async function EventLandingPage({ params }: EventPageProps) {
   // Fix #C1: 404 unpublished events and events owned by inactive orgs from the
   // public detail page. (isPublished is the visibility flag; the registration
   // status enum is independent — see registration-status.ts:62-64.)
-  if (!event.isPublished || event.organization.status !== 'active') {
+  if (!event.isPublished || event.archivedAt || event.organization.status !== 'active') {
     notFound()
   }
 

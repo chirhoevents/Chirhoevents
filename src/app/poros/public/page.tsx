@@ -34,6 +34,7 @@ export default async function PorosPublicLandingPage() {
   try {
     events = await prisma.event.findMany({
       where: {
+        archivedAt: null,
         status: { in: ['published', 'registration_open', 'registration_closed', 'in_progress'] },
         settings: {
           porosPublicPortalEnabled: true
@@ -53,6 +54,7 @@ export default async function PorosPublicLandingPage() {
     try {
       events = await prisma.event.findMany({
         where: {
+          archivedAt: null,
           status: { in: ['published', 'registration_open', 'registration_closed', 'in_progress'] }
         },
         include: {

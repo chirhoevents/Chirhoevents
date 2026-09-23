@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     // If requesting location options, return unique cities and states
     if (getLocations) {
       const events = await prisma.event.findMany({
-        where: { isPublished: true },
+        where: { isPublished: true, archivedAt: null },
         select: { locationAddress: true, locationName: true },
       })
 
@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
     // Build where clause - only show publicly visible (published) events
     const whereClause: any = {
       isPublished: true,
+      archivedAt: null,
     }
 
     // Apply date filter

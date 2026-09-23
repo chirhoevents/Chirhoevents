@@ -182,6 +182,10 @@ model Event {
   isPublished            Boolean  @default(false) @map("is_published")
   enableWaitlist         Boolean  @default(false) @map("enable_waitlist")
   waitlistCapacity       Int?     @map("waitlist_capacity")
+  // Set once an event is wrapped up. Archived events drop out of the org's
+  // dashboards, event lists and public pages and are viewed read-only from
+  // the Archived Events page instead.
+  archivedAt             DateTime? @map("archived_at") @db.Timestamptz(6)
   createdBy              String   @map("created_by") @db.Uuid
   createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -212,6 +216,7 @@ model Event {
   @@index([organizationId], name: "idx_event_org")
   @@index([slug], name: "idx_event_slug")
   @@index([startDate, endDate], name: "idx_event_dates")
+  @@index([organizationId, archivedAt], name: "idx_event_org_archived")
   @@map("events")
 }
 

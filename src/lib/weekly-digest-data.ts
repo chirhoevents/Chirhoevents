@@ -168,6 +168,7 @@ export async function collectOrganizationStats(
     prisma.event.count({
       where: {
         organizationId,
+        archivedAt: null,
         status: { in: ['registration_open', 'in_progress', 'published'] },
         endDate: { gte: now },
       },
@@ -175,6 +176,7 @@ export async function collectOrganizationStats(
     prisma.event.count({
       where: {
         organizationId,
+        archivedAt: null,
         status: { not: 'draft' },
         startDate: { gte: now },
       },
@@ -279,6 +281,7 @@ export async function getUpcomingEvents(
   const events = await prisma.event.findMany({
     where: {
       organizationId,
+      archivedAt: null,
       status: { not: 'draft' },
       startDate: { gte: now },
     },

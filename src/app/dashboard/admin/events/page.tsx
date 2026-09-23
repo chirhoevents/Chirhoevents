@@ -1,5 +1,8 @@
 'use client'
 
+import Link from 'next/link'
+import { Archive } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import EventsListClient from './EventsListClient'
 
 // NOTE: Auth is handled by the layout with proper retry logic.
@@ -14,6 +17,12 @@ export default function EventsPage() {
             Manage all events for your organization
           </p>
         </div>
+        <Link href="/dashboard/admin/events/archived">
+          <Button variant="outline" size="sm">
+            <Archive className="h-4 w-4 mr-2" />
+            Archived Events
+          </Button>
+        </Link>
       </div>
 
       <EventsListClient />
