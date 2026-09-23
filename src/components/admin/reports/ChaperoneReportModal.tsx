@@ -108,7 +108,7 @@ export default function ChaperoneReportModal({
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `chaperone_report_${eventName.replace(/\s+/g, '_')}.${format === 'pdf' ? 'html' : format}`
+      a.download = `chaperone_report_${eventName.replace(/\s+/g, '_')}.${format}`
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)

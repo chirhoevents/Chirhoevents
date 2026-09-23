@@ -150,7 +150,7 @@ export default function RoomAllocationReportModal({
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `room_allocations_${eventName.replace(/\s+/g, '_')}.${format === 'csv' ? 'csv' : 'txt'}`
+      a.download = `room_allocations_${eventName.replace(/\s+/g, '_')}.${format}`
       a.click()
       window.URL.revokeObjectURL(url)
     } catch (error) {
