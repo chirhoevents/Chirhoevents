@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyReportAccess } from '@/lib/api-auth'
 import { generateStaffCSV } from '@/lib/reports/generate-csv'
+import { generateStaffReportPDF } from '@/lib/reports/report-export-pdfs'
+import { pdfResponseInit } from '@/lib/reports/generate-table-report-pdf'
 
 export async function POST(
   request: NextRequest,
@@ -24,6 +26,7 @@ export async function POST(
       {
         headers: {
           Cookie: request.headers.get('cookie') || '',
+          Authorization: request.headers.get('authorization') || '',
         },
       }
     )
@@ -42,53 +45,8 @@ export async function POST(
         },
       })
     } else if (format === 'pdf') {
-      // For PDF, return a simple text-based summary for now
-      const pdfContent = `
-Staff Report - ${eventName}
-Generated: ${new Date().toLocaleDateString()}
-
-SUMMARY
--------
-Total Staff: ${reportData.totalStaff}
-Volunteers: ${reportData.volunteerStaff}
-Vendor Staff: ${reportData.vendorStaff}
-Total Revenue: $${reportData.totalRevenue.toFixed(2)}
-
-CHECK-IN STATUS
----------------
-Checked In: ${reportData.checkedInStaff}
-Not Checked In: ${reportData.notCheckedIn}
-
-LIABILITY FORMS
----------------
-Completed: ${reportData.formsCompleted}
-Pending: ${reportData.formsPending}
-
-ROLE BREAKDOWN
---------------
-${Object.entries(reportData.roleBreakdown || {}).map(([role, count]) =>
-  `${role}: ${count}`
-).join('\n') || 'No roles'}
-
-T-SHIRT SIZES
--------------
-${Object.entries(reportData.tshirtBreakdown || {}).map(([size, count]) =>
-  `${size}: ${count}`
-).join('\n') || 'No sizes'}
-
-STAFF LIST
-----------
-${reportData.staffList?.map((s: any) =>
-  `${s.fullName} - ${s.role} - ${s.isVendorStaff ? 'Vendor' : 'Volunteer'} - ${s.checkedIn ? 'Checked In' : 'Not Checked In'}`
-).join('\n') || 'No staff'}
-      `.trim()
-
-      return new NextResponse(pdfContent, {
-        headers: {
-          'Content-Type': 'text/plain',
-          'Content-Disposition': `attachment; filename="staff_report_${eventName.replace(/\s+/g, '_')}.txt"`,
-        },
-      })
+      const pdfBuffer = await generateStaffReportPDF(reportData, eventName)
+      return new NextResponse(new Uint8Array(pdfBuffer), pdfResponseInit(`staff_report_${eventName}.pdf`))
     }
 
     return NextResponse.json({ error: 'Invalid format' }, { status: 400 })

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyReportAccess } from '@/lib/api-auth'
 import { generateVendorCSV } from '@/lib/reports/generate-csv'
+import { generateVendorReportPDF } from '@/lib/reports/report-export-pdfs'
+import { pdfResponseInit } from '@/lib/reports/generate-table-report-pdf'
 
 export async function POST(
   request: NextRequest,
@@ -24,6 +26,7 @@ export async function POST(
       {
         headers: {
           Cookie: request.headers.get('cookie') || '',
+          Authorization: request.headers.get('authorization') || '',
         },
       }
     )
@@ -42,46 +45,8 @@ export async function POST(
         },
       })
     } else if (format === 'pdf') {
-      // For PDF, return a simple text-based summary for now
-      // Could be enhanced with @react-pdf/renderer later
-      const pdfContent = `
-Vendor Report - ${eventName}
-Generated: ${new Date().toLocaleDateString()}
-
-SUMMARY
--------
-Total Vendors: ${reportData.totalVendors}
-Approved: ${reportData.approvedVendors}
-Pending: ${reportData.pendingVendors}
-Rejected: ${reportData.rejectedVendors}
-
-FINANCIAL
----------
-Total Invoiced: $${reportData.totalInvoiced.toFixed(2)}
-Total Paid: $${reportData.totalPaid.toFixed(2)}
-Balance Due: $${reportData.totalBalance.toFixed(2)}
-
-PAYMENT STATUS
---------------
-Paid: ${reportData.paidVendors}
-Partial: ${reportData.partialVendors}
-Unpaid: ${reportData.unpaidVendors}
-
-Total Booth Staff: ${reportData.totalBoothStaff}
-
-VENDOR LIST
------------
-${reportData.vendorList?.map((v: any) =>
-  `${v.businessName} - ${v.contactName} - ${v.status} - $${v.balance.toFixed(2)} balance`
-).join('\n') || 'No vendors'}
-      `.trim()
-
-      return new NextResponse(pdfContent, {
-        headers: {
-          'Content-Type': 'text/plain',
-          'Content-Disposition': `attachment; filename="vendor_report_${eventName.replace(/\s+/g, '_')}.txt"`,
-        },
-      })
+      const pdfBuffer = await generateVendorReportPDF(reportData, eventName)
+      return new NextResponse(new Uint8Array(pdfBuffer), pdfResponseInit(`vendor_report_${eventName}.pdf`))
     }
 
     return NextResponse.json({ error: 'Invalid format' }, { status: 400 })

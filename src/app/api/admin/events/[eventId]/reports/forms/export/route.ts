@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyReportAccess } from '@/lib/api-auth'
 import { generateFormsCSV } from '@/lib/reports/generate-csv'
+import { generateFormsReportPDF } from '@/lib/reports/report-export-pdfs'
+import { pdfResponseInit } from '@/lib/reports/generate-table-report-pdf'
 
 export async function POST(
   request: NextRequest,
@@ -20,20 +22,31 @@ export async function POST(
     const { format } = await request.json()
     const reportResponse = await fetch(
       `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/admin/events/${eventId}/reports/forms`,
-      { headers: { Cookie: request.headers.get('cookie') || '' } }
+      {
+        headers: {
+          Cookie: request.headers.get('cookie') || '',
+          Authorization: request.headers.get('authorization') || '',
+        },
+      }
     )
     if (!reportResponse.ok) throw new Error()
 
     const data = await reportResponse.json()
-    const csv = format === 'csv' ? generateFormsCSV(data) : 'PDF not implemented'
+    const eventName = event?.name || 'Event'
 
-    return new NextResponse(csv, {
+    if (format === 'pdf') {
+      const pdfBuffer = await generateFormsReportPDF(data, eventName)
+      return new NextResponse(new Uint8Array(pdfBuffer), pdfResponseInit(`forms_report_${eventName}.pdf`))
+    }
+
+    return new NextResponse(generateFormsCSV(data), {
       headers: {
         'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="forms_report.${format}"`,
+        'Content-Disposition': `attachment; filename="forms_report.csv"`,
       },
     })
   } catch (error) {
+    console.error('[Forms Export] failed:', error instanceof Error ? error.message : String(error))
     return NextResponse.json({ error: 'Export failed' }, { status: 500 })
   }
 }
