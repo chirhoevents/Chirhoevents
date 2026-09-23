@@ -231,6 +231,9 @@ export async function generateInvoicePDF(invoice: InvoiceData): Promise<Buffer> 
         .text('For questions about this invoice, please contact support@chirhoevents.com', M + 12, y)
 
       // ===== FOOTER =====
+      // Footer sits inside the bottom margin; zero it so PDFKit does not
+      // auto-add a blank page for the footer lines.
+      doc.page.margins.bottom = 0
       const fy = PH - 50
       doc.moveTo(M, fy).lineTo(M + W, fy).strokeColor(LIGHT_GRAY).lineWidth(1).stroke()
       doc.font('Helvetica').fontSize(9).fillColor(GRAY)
