@@ -4,10 +4,16 @@ import { prisma } from '@/lib/prisma'
 import { verifyFinancialReportAccess } from '@/lib/api-auth'
 import {
   generateMasterEventReportPDF,
-  generateLiabilityAppendixCoverPDF,
+  generateAppendixCoverPDF,
   MasterEventReportData,
 } from '@/lib/reports/generate-master-report-pdf'
 import { generateLiabilityFormPDF } from '@/lib/pdf/generate-liability-form-pdf'
+import { loadArchiveSections } from '@/lib/reports/master-report-archive'
+import {
+  appendAttachments,
+  uploadMasterReport,
+  type ArchiveAttachment,
+} from '@/lib/reports/master-report-attachments'
 
 // Master report is a serious PDF: many DB queries + per-form PDF renders +
 // pdf-lib merge. Keep it on the Node runtime, and don't hand it back before
@@ -21,17 +27,26 @@ export const maxDuration = 300
 /**
  * Master Event Report PDF endpoint.
  *
- * Fetches every relevant table for a single event and hands the data blob
- * to generateMasterEventReportPDF. Requires reports.view_financial because
+ * Fetches every relevant table for a single event (including cancelled
+ * registrations, housing, meals, incident reports, surveys, and the
+ * original uploaded safe environment certificates / letters / documents)
+ * and hands the data blob to generateMasterEventReportPDF. Requires reports.view_financial because
  * the resulting PDF includes payment details, Stripe payment intent IDs,
  * check numbers, and refund amounts.
  *
- * Returns a single PDF binary (application/pdf).
+ * The finished file is usually far larger than a serverless response can
+ * carry, so it's stored in R2 and the response is JSON `{ url, filename }`.
+ * Without R2 configured (local dev) the PDF binary is returned directly.
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
+  const startedAt = Date.now()
+  // Stop fetching attachments with time to spare for the merge + upload, so
+  // a huge event still produces a (clearly marked) report instead of a
+  // timeout with nothing.
+  const attachmentDeadline = startedAt + 230_000
   try {
     const { eventId } = await params
 
@@ -204,11 +219,14 @@ export async function POST(
     const labelFor = (registrationType: string, registrationId: string): string => {
       if (registrationType === 'group') {
         const g: any = groupById.get(registrationId)
-        return g?.groupName || 'Unknown Group'
+        if (!g) return 'Unknown Group'
+        return g.cancelledAt ? `${g.groupName} (CANCELLED)` : g.groupName
       }
       if (registrationType === 'individual') {
         const i: any = individualById.get(registrationId)
-        return i ? `${i.firstName || ''} ${i.lastName || ''}`.trim() || 'Unknown Individual' : 'Unknown Individual'
+        if (!i) return 'Unknown Individual'
+        const name = `${i.firstName || ''} ${i.lastName || ''}`.trim() || 'Unknown Individual'
+        return i.cancelledAt ? `${name} (CANCELLED)` : name
       }
       if (registrationType === 'vendor') {
         const v: any = vendorById.get(registrationId)
@@ -252,14 +270,27 @@ export async function POST(
       { total: 0, approved: 0, pending: 0, denied: 0, needsRevision: 0 }
     )
 
+    const archive = await loadArchiveSections({
+      eventId,
+      groups: groupRegs,
+      individuals: individualRegs,
+      participants,
+      vendors,
+      staff,
+      liabilityForms,
+      paymentBalances,
+      refunds: actualRefunds,
+    })
+    const fullEvent: any = archive.event || event
+
     const data: MasterEventReportData = {
       event: {
         name: event.name,
-        startDate: (event as any).startDate ?? null,
-        endDate: (event as any).endDate ?? null,
-        location: (event as any).locationName ?? null,
+        startDate: fullEvent.startDate ?? null,
+        endDate: fullEvent.endDate ?? null,
+        location: fullEvent.locationName ?? null,
         organizationName: organizationRow?.name ?? null,
-        capacity: (event as any).capacityTotal ?? null,
+        capacity: fullEvent.capacityTotal ?? null,
       },
       summary: {
         groupCount: groupRegs.length,
@@ -281,7 +312,7 @@ export async function POST(
         const bal: any = balanceByReg.get(`group:${g.id}`)
         return {
           accessCode: g.accessCode,
-          groupName: g.groupName,
+          groupName: g.cancelledAt ? `${g.groupName} (CANCELLED)` : g.groupName,
           parishName: g.parishName,
           dioceseName: g.dioceseName,
           groupLeaderName: g.groupLeaderName,
@@ -301,13 +332,13 @@ export async function POST(
         const bal: any = balanceByReg.get(`individual:${i.id}`)
         return {
           firstName: i.firstName,
-          lastName: i.lastName,
+          lastName: i.cancelledAt ? `${i.lastName} (CANCELLED)` : i.lastName,
           email: i.email,
           phone: i.phone,
           age: i.age,
           gender: i.gender,
           housingType: i.housingType,
-          registrationStatus: i.registrationStatus,
+          registrationStatus: i.cancelledAt ? 'cancelled' : i.registrationStatus,
           checkedIn: !!i.checkedIn,
           totalInvoiced: bal ? Number(bal.totalAmountDue) : 0,
           totalPaid: bal ? Number(bal.amountPaid) : 0,
@@ -323,7 +354,9 @@ export async function POST(
         gender: p.gender,
         participantType: p.participantType,
         tShirtSize: p.tShirtSize,
-        groupName: p.groupRegistration?.groupName,
+        groupName: groupById.get(p.groupRegistrationId)?.cancelledAt
+          ? `${p.groupRegistration?.groupName} (CANCELLED)`
+          : p.groupRegistration?.groupName,
         parishName: p.groupRegistration?.parishName,
         checkedIn: !!p.checkedIn,
         checkedInAt: p.checkedInAt,
@@ -401,7 +434,7 @@ export async function POST(
       liabilityForms: liabilityForms.map((f: any) => ({
         participantName: `${f.participantFirstName || ''} ${f.participantLastName || ''}`.trim(),
         formType: f.formType,
-        groupName: f.groupRegistration?.groupName,
+        groupName: f.groupRegistrationId ? labelFor('group', f.groupRegistrationId) : f.groupRegistration?.groupName,
         email: f.participantEmail || f.parentEmail,
         formStatus: f.formStatus || 'pending',
         completed: !!f.completed,
@@ -469,35 +502,58 @@ export async function POST(
         sentStatus: e.sentStatus,
         errorMessage: e.errorMessage,
       })),
+      extraSections: [
+        ...archive.registrationSections.map(s => ({ ...s, placement: 'registrations' as const })),
+        ...archive.endSections.map(s => ({ ...s, placement: 'end' as const })),
+      ],
     }
 
     const masterBuffer = await generateMasterEventReportPDF(data, event.name)
 
-    // Appendix: append the actual signed liability form PDFs so this file is a
-    // legally-usable archive of everyone's waivers, not just a status table.
+    // Appendices: the actual signed liability forms and every uploaded
+    // file (certificates, letters, event documents) so this file is a
+    // legally-usable archive on its own, not just a set of status tables.
     // Only completed forms are rendered — draft / abandoned forms have empty
-    // signature blocks and would just add blank pages.
+    // signature blocks and would just add blank pages. Cancelled
+    // registrations' forms are kept on purpose.
     const completedForms = liabilityForms.filter((f: any) => f.completed)
+    const merged = await PDFDocument.load(masterBuffer)
 
-    let combinedBuffer: Buffer = masterBuffer
+    const addCover = async (label: string, title: string, description: string, note?: string) => {
+      const coverDoc = await PDFDocument.load(await generateAppendixCoverPDF(label, title, description, note))
+      const pages = await merged.copyPages(coverDoc, coverDoc.getPageIndices())
+      pages.forEach(p => merged.addPage(p))
+    }
+    const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
+    const timeoutNotice = (items: string[]) => addCover(
+      'NOT INCLUDED',
+      'Report time limit reached',
+      `${plural(items.length, 'item')} could not be added before the report hit its time limit. ` +
+        'Download them individually from the event, or generate this report again.',
+      items.slice(0, 40).join(' · ') + (items.length > 40 ? ` · and ${items.length - 40} more` : '')
+    )
+
+    let appendixIndex = 0
+    const nextAppendix = () => `APPENDIX ${String.fromCharCode(65 + appendixIndex++)}`
+
     if (completedForms.length > 0) {
-      const merged = await PDFDocument.load(masterBuffer)
-
-      // Divider cover page so readers can see the transition from the
-      // event report to the form appendix.
-      const coverBytes = await generateLiabilityAppendixCoverPDF(
-        completedForms.length,
-        event.name
+      await addCover(
+        nextAppendix(),
+        'Signed Liability Forms',
+        `${plural(completedForms.length, 'completed liability form')} from ${event.name}`,
+        'Each form follows in participant order, including forms from cancelled registrations. Retain this section per your organization\'s record-keeping policy.'
       )
-      const coverDoc = await PDFDocument.load(coverBytes)
-      const coverPages = await merged.copyPages(coverDoc, coverDoc.getPageIndices())
-      coverPages.forEach(p => merged.addPage(p))
-
       // Sequential render — generateLiabilityFormPDF shares a PDFKit
       // reconciler that throws when called in parallel (see the existing
       // print-all/groups endpoint for the same constraint). Fail one form,
       // log and continue, so a single broken form doesn't kill the archive.
+      const skipped: string[] = []
       for (const form of completedForms) {
+        const who = `${form.participantFirstName} ${form.participantLastName}`
+        if (Date.now() > attachmentDeadline) {
+          skipped.push(who)
+          continue
+        }
         try {
           const formBuffer = await generateLiabilityFormPDF(form as any)
           const formDoc = await PDFDocument.load(formBuffer)
@@ -505,19 +561,47 @@ export async function POST(
           pages.forEach(p => merged.addPage(p))
         } catch (formErr: any) {
           console.error(
-            `[Master Report PDF] Skipping form ${form.id} for ${form.participantFirstName} ${form.participantLastName}:`,
+            `[Master Report PDF] Skipping form ${form.id} for ${who}:`,
             formErr?.message || formErr
           )
         }
       }
+      if (skipped.length > 0) await timeoutNotice(skipped)
+    }
 
-      combinedBuffer = Buffer.from(await merged.save())
+    const fileAppendices: Array<{ title: string; noun: string; items: ArchiveAttachment[] }> = [
+      { title: 'Safe Environment Certificates', noun: 'certificate', items: archive.certificateFiles },
+      { title: 'Letters of Good Standing', noun: 'letter', items: archive.letterFiles },
+      { title: 'Event Documents', noun: 'document', items: archive.eventDocuments },
+    ]
+    for (const appendix of fileAppendices) {
+      if (appendix.items.length === 0) continue
+      await addCover(
+        nextAppendix(),
+        appendix.title,
+        `${plural(appendix.items.length, appendix.noun)} from ${event.name}`,
+        'The original uploaded files follow. Each page is labeled with the person or document it belongs to.'
+      )
+      const { skipped } = await appendAttachments(merged, appendix.items, attachmentDeadline)
+      if (skipped.length > 0) await timeoutNotice(skipped.map(i => i.label))
+    }
+
+    const combinedBuffer = Buffer.from(await merged.save())
+    const filename = `${event.name.replace(/[^a-zA-Z0-9_-]+/g, '_')}_master_report.pdf`
+
+    const url = await uploadMasterReport(combinedBuffer, event.organizationId, eventId, filename)
+    console.log(
+      `[Master Report PDF] ${event.name}: ${merged.getPageCount()} pages, ` +
+      `${(combinedBuffer.length / 1024 / 1024).toFixed(1)} MB in ${Math.round((Date.now() - startedAt) / 1000)}s`
+    )
+    if (url) {
+      return NextResponse.json({ url, filename, pageCount: merged.getPageCount(), sizeBytes: combinedBuffer.length })
     }
 
     return new NextResponse(new Uint8Array(combinedBuffer), {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${event.name.replace(/\s+/g, '_')}_master_report.pdf"`,
+        'Content-Disposition': `attachment; filename="${filename}"`,
       },
     })
   } catch (error: any) {

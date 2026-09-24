@@ -268,6 +268,48 @@ export interface MasterEventReportData {
     sentStatus: string
     errorMessage?: string | null
   }>
+  /**
+   * Free-form table / key-value sections (cancellations, housing, meals,
+   * small groups, schedule, surveys, name tag template, ...). The route
+   * builds these so adding another archive table doesn't need a bespoke
+   * renderer here. Cells wrap instead of truncating — this is a legal
+   * record, so nothing gets cut off with an ellipsis.
+   */
+  extraSections?: GenericReportSection[]
+}
+
+export interface GenericReportSection {
+  title: string
+  subtitle?: string
+  /** 'registrations' renders right after Staff; default is after Email History. */
+  placement?: 'registrations' | 'end'
+  keyValues?: Array<[string, string]>
+  columns?: Array<{ label: string; weight: number; align?: 'left' | 'right' }>
+  rows?: string[][]
+  /** Optional per-row text color, parallel to rows (e.g. red for cancelled). */
+  rowColors?: Array<string | undefined>
+  /**
+   * Full-detail records (one block per record) for things like incident
+   * reports or survey responses, where a single table row can't hold the
+   * narrative text.
+   */
+  records?: Array<{ heading: string; keyValues: Array<[string, string]> }>
+  /** Drawn mock-up of a single name tag using the event's template colors. */
+  nameTagSample?: NameTagSample
+}
+
+export interface NameTagSample {
+  headerText?: string | null
+  name: string
+  groupLine?: string | null
+  roleLine?: string | null
+  housingLine?: string | null
+  mealColorHex?: string | null
+  mealColorLabel?: string | null
+  showQrCode: boolean
+  backgroundColor: string
+  textColor: string
+  accentColor: string
 }
 
 // ============================================================
@@ -355,6 +397,12 @@ export async function generateMasterEventReportPDF(
         drawStaffSection(ctx, data.staff)
       }
 
+      for (const section of (data.extraSections || []).filter(s => s.placement === 'registrations')) {
+        doc.addPage()
+        ctx.y = M
+        drawGenericSection(ctx, section)
+      }
+
       if (data.payments.length > 0) {
         doc.addPage()
         ctx.y = M
@@ -401,6 +449,12 @@ export async function generateMasterEventReportPDF(
         doc.addPage()
         ctx.y = M
         drawEmailHistorySection(ctx, data.emailHistory)
+      }
+
+      for (const section of (data.extraSections || []).filter(s => s.placement !== 'registrations')) {
+        doc.addPage()
+        ctx.y = M
+        drawGenericSection(ctx, section)
       }
 
       // Footer on every page (page 1..N of N)
@@ -629,6 +683,7 @@ function drawTableOfContents(ctx: DrawCtx, data: MasterEventReportData) {
     { label: 'Waitlist', count: data.waitlist.length },
     { label: 'Vendors', count: data.vendors.length },
     { label: 'Staff & Volunteers', count: data.staff.length },
+    ...extraTocItems(data, 'registrations'),
     { label: 'Payments (Transactions)', count: data.payments.length },
     { label: 'Refunds', count: data.refunds.length },
     { label: 'Balances by Registration', count: data.balances.length },
@@ -637,9 +692,11 @@ function drawTableOfContents(ctx: DrawCtx, data: MasterEventReportData) {
     { label: 'Medical Incidents', count: data.medicalIncidents.length },
     { label: 'Coupon Redemptions', count: data.couponRedemptions.length },
     { label: 'Email History', count: data.emailHistory.length },
+    ...extraTocItems(data, 'end'),
   ]
 
   for (const it of items) {
+    checkPage(ctx, 18)
     const included = it.count > 0 || it.label === 'Event Summary'
     const line = `${it.label}${it.count > 0 ? `  (${it.count})` : included ? '' : '  — none'}`
     ctx.doc.font(included ? 'Helvetica-Bold' : 'Helvetica').fontSize(11)
@@ -1173,54 +1230,6 @@ function drawCouponsSection(ctx: DrawCtx, redemptions: MasterEventReportData['co
   )
 }
 
-/**
- * Rendered as the last page of the master body, right before the caller
- * appends the signed liability form PDFs. Gives the reader a clear "the
- * signed originals start below" break in the flow.
- */
-export async function generateLiabilityAppendixCoverPDF(
-  formCount: number,
-  eventName: string
-): Promise<Buffer> {
-  const PDFDocument = await makePDFDoc()
-
-  return new Promise<Buffer>((resolve, reject) => {
-    try {
-      const doc = new PDFDocument({
-        size: 'LETTER',
-        layout: 'landscape',
-        margins: { top: 36, bottom: 40, left: 36, right: 36 },
-      })
-      const chunks: Buffer[] = []
-      doc.on('data', (c: Buffer) => chunks.push(c))
-      doc.on('end', () => resolve(Buffer.concat(chunks)))
-      doc.on('error', reject)
-
-      const W = doc.page.width - 72
-      const centerY = Math.round(doc.page.height * 0.36)
-
-      doc.font('Helvetica-Bold').fontSize(11).fillColor(TAN)
-        .text('APPENDIX', 36, centerY - 40, { width: W, align: 'center', characterSpacing: 3 })
-      doc.font('Helvetica-Bold').fontSize(28).fillColor(NAVY)
-        .text('Signed Liability Forms', 36, centerY, { width: W, align: 'center' })
-      doc.font('Helvetica').fontSize(12).fillColor(GRAY)
-        .text(
-          `${formCount} completed liability form${formCount === 1 ? '' : 's'} from ${eventName}`,
-          36, centerY + 48, { width: W, align: 'center' }
-        )
-      doc.font('Helvetica').fontSize(10).fillColor(GRAY)
-        .text(
-          'Each form follows in participant order. Retain this section per your organization\'s record-keeping policy.',
-          36, centerY + 78, { width: W, align: 'center' }
-        )
-
-      doc.end()
-    } catch (err) {
-      reject(err)
-    }
-  })
-}
-
 function drawEmailHistorySection(ctx: DrawCtx, emails: MasterEventReportData['emailHistory']) {
   sectionTitle(ctx, `Email History  (${emails.length})`, 'Every email the system sent related to this event. Body text is not included; use the admin email inspector for full content.')
 
@@ -1246,4 +1255,218 @@ function drawEmailHistorySection(ctx: DrawCtx, emails: MasterEventReportData['em
       humanize(e.sentStatus),
     ]
   )
+}
+
+// ============================================================
+// Generic sections (built by the route for archive-only tables)
+// ============================================================
+
+function genericSectionCount(section: GenericReportSection): number {
+  return (section.rows?.length || 0) + (section.records?.length || 0) +
+    (section.keyValues?.length || section.nameTagSample ? 1 : 0)
+}
+
+function extraTocItems(data: MasterEventReportData, placement: 'registrations' | 'end') {
+  return (data.extraSections || [])
+    .filter(s => (s.placement === 'registrations') === (placement === 'registrations'))
+    .map(s => ({ label: s.title, count: genericSectionCount(s) }))
+}
+
+/** Key/value row whose value wraps onto as many lines as it needs. */
+function wrappedKvRow(ctx: DrawCtx, label: string, value: string, labelW: number) {
+  ctx.doc.font('Helvetica').fontSize(9.5)
+  const valueW = ctx.W - labelW
+  let remaining = value || '—'
+  let first = true
+  // Long narrative text fills the rest of the current page, then continues
+  // on following pages, instead of leaving a gap under the heading.
+  while (remaining.length > 0) {
+    let available = ctx.BOTTOM - ctx.y - 6
+    if (available < 40) {
+      ctx.doc.addPage()
+      ctx.y = ctx.M
+      available = ctx.BOTTOM - ctx.y - 6
+    }
+    const h = ctx.doc.heightOfString(remaining, { width: valueW })
+    let chunk = remaining
+    if (h > available) {
+      const cut = Math.max(80, Math.floor(remaining.length * (available / h) * 0.92))
+      const breakAt = remaining.lastIndexOf(' ', cut)
+      chunk = remaining.slice(0, breakAt > 40 ? breakAt : cut)
+    }
+    const chunkH = ctx.doc.heightOfString(chunk, { width: valueW })
+    ctx.doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#333333')
+      .text(first ? label : `${label} (cont.)`, ctx.M, ctx.y, { width: labelW - 8 })
+    ctx.doc.font('Helvetica').fontSize(9.5).fillColor('#111111')
+      .text(chunk, ctx.M + labelW, ctx.y, { width: valueW })
+    ctx.y += Math.max(chunkH, 12) + 4
+    remaining = remaining.slice(chunk.length).trimStart()
+    first = false
+  }
+}
+
+function drawWrappedTable(ctx: DrawCtx, cols: Col[], rows: string[][], rowColors?: Array<string | undefined>) {
+  if (rows.length === 0) {
+    ctx.doc.font('Helvetica').fontSize(10).fillColor(GRAY).text('(no rows)', ctx.M, ctx.y)
+    ctx.y += 14
+    return
+  }
+  drawTableHeader(ctx, cols)
+  const maxRowH = ctx.BOTTOM - ctx.M - 30
+  let zebra = false
+  for (let r = 0; r < rows.length; r++) {
+    const values = rows[r]
+    ctx.doc.font('Helvetica').fontSize(8.5)
+    let rowH = 15
+    for (let i = 0; i < cols.length; i++) {
+      const h = ctx.doc.heightOfString(values[i] || '', { width: cols[i].w - 6 })
+      rowH = Math.max(rowH, Math.ceil(h) + 7)
+    }
+    rowH = Math.min(rowH, maxRowH)
+    if (ctx.y + rowH > ctx.BOTTOM) {
+      ctx.doc.addPage()
+      ctx.y = ctx.M
+      drawTableHeader(ctx, cols)
+    }
+    if (zebra) ctx.doc.rect(ctx.M, ctx.y, ctx.W, rowH).fillColor(ROW_ALT).fill()
+    let x = ctx.M + 6
+    for (let i = 0; i < cols.length; i++) {
+      ctx.doc.font('Helvetica').fontSize(8.5).fillColor(rowColors?.[r] || '#111111')
+        .text(values[i] || '', x, ctx.y + 3.5, {
+          width: cols[i].w - 6,
+          height: rowH - 4,
+          align: cols[i].align || 'left',
+          ellipsis: true,
+        })
+      x += cols[i].w
+    }
+    ctx.y += rowH
+    zebra = !zebra
+  }
+  ctx.y += 8
+}
+
+function drawGenericSection(ctx: DrawCtx, section: GenericReportSection) {
+  const count = (section.rows?.length || 0) + (section.records?.length || 0)
+  sectionTitle(ctx, count > 0 ? `${section.title}  (${count})` : section.title, section.subtitle)
+
+  const labelW = Math.min(230, Math.round(ctx.W * 0.3))
+  if (section.keyValues && section.keyValues.length > 0) {
+    for (const [k, v] of section.keyValues) wrappedKvRow(ctx, k, v, labelW)
+    ctx.y += 8
+  }
+
+  if (section.nameTagSample) drawNameTagSample(ctx, section.nameTagSample)
+
+  if (section.columns && section.rows && section.rows.length > 0) {
+    drawWrappedTable(ctx, sizedCols(ctx, section.columns), section.rows, section.rowColors)
+  }
+
+  if (section.records) {
+    for (const rec of section.records) {
+      checkPage(ctx, 60)
+      ctx.doc.rect(ctx.M, ctx.y, ctx.W, 20).fillColor(BG_HIGHLIGHT).fill()
+      ctx.doc.font('Helvetica-Bold').fontSize(10.5).fillColor(NAVY)
+        .text(rec.heading, ctx.M + 8, ctx.y + 5, { width: ctx.W - 16, lineBreak: false, ellipsis: true })
+      ctx.y += 26
+      for (const [k, v] of rec.keyValues) wrappedKvRow(ctx, k, v, labelW)
+      ctx.y += 10
+    }
+  }
+
+  if (!count && !section.keyValues?.length && !section.nameTagSample) {
+    ctx.doc.font('Helvetica').fontSize(10).fillColor(GRAY).text('(nothing recorded)', ctx.M, ctx.y)
+    ctx.y += 14
+  }
+}
+
+function safeColor(hex: string | null | undefined, fallback: string): string {
+  return typeof hex === 'string' && /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : fallback
+}
+
+/**
+ * Simple 4" x 3" mock-up of a name tag in the event's template colors, so
+ * the archive records what the printed badges looked like even after the
+ * live name-tag designer is gone.
+ */
+function drawNameTagSample(ctx: DrawCtx, t: NameTagSample) {
+  const w = 288
+  const h = 216
+  checkPage(ctx, h + 40)
+  ctx.doc.font('Helvetica-Bold').fontSize(10).fillColor(NAVY).text('Sample name tag (4" × 3")', ctx.M, ctx.y)
+  ctx.y += 16
+  const x = ctx.M
+  const y = ctx.y
+  const bg = safeColor(t.backgroundColor, '#FFFFFF')
+  const text = safeColor(t.textColor, NAVY)
+  const accent = safeColor(t.accentColor, TAN)
+
+  ctx.doc.rect(x, y, w, h).fillColor(bg).fill()
+  ctx.doc.rect(x, y, w, h).strokeColor('#9CA3AF').lineWidth(1).stroke()
+  ctx.doc.rect(x, y, w, 34).fillColor(accent).fill()
+  ctx.doc.font('Helvetica-Bold').fontSize(11).fillColor('#FFFFFF')
+    .text(t.headerText || '', x + 10, y + 11, { width: w - 20, align: 'center', lineBreak: false, ellipsis: true })
+
+  ctx.doc.font('Helvetica-Bold').fontSize(24).fillColor(text)
+    .text(t.name, x + 10, y + 56, { width: w - 20, align: 'center', lineBreak: false, ellipsis: true })
+  let ly = y + 92
+  for (const line of [t.groupLine, t.roleLine, t.housingLine]) {
+    if (!line) continue
+    ctx.doc.font('Helvetica').fontSize(11).fillColor(text)
+      .text(line, x + 10, ly, { width: w - 20, align: 'center', lineBreak: false, ellipsis: true })
+    ly += 16
+  }
+  if (t.mealColorHex) {
+    ctx.doc.rect(x + 10, y + h - 30, 90, 20).fillColor(safeColor(t.mealColorHex, GRAY)).fill()
+    ctx.doc.font('Helvetica-Bold').fontSize(8).fillColor('#FFFFFF')
+      .text(t.mealColorLabel || 'Meal', x + 10, y + h - 24, { width: 90, align: 'center', lineBreak: false })
+  }
+  if (t.showQrCode) {
+    ctx.doc.rect(x + w - 58, y + h - 58, 48, 48).strokeColor(text).lineWidth(1).stroke()
+    ctx.doc.font('Helvetica').fontSize(7).fillColor(text)
+      .text('QR', x + w - 58, y + h - 38, { width: 48, align: 'center', lineBreak: false })
+  }
+  ctx.y = y + h + 16
+}
+
+/**
+ * Divider page placed before each appendix of attached files (signed
+ * forms, safe environment certificates, letters, event documents).
+ */
+export async function generateAppendixCoverPDF(
+  label: string,
+  title: string,
+  description: string,
+  note?: string
+): Promise<Buffer> {
+  const PDFDocument = await makePDFDoc()
+  return new Promise<Buffer>((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({
+        size: 'LETTER',
+        layout: 'landscape',
+        margins: { top: 36, bottom: 40, left: 36, right: 36 },
+      })
+      const chunks: Buffer[] = []
+      doc.on('data', (c: Buffer) => chunks.push(c))
+      doc.on('end', () => resolve(Buffer.concat(chunks)))
+      doc.on('error', reject)
+
+      const W = doc.page.width - 72
+      const centerY = Math.round(doc.page.height * 0.36)
+      doc.font('Helvetica-Bold').fontSize(11).fillColor(TAN)
+        .text(label, 36, centerY - 40, { width: W, align: 'center', characterSpacing: 3 })
+      doc.font('Helvetica-Bold').fontSize(28).fillColor(NAVY)
+        .text(title, 36, centerY, { width: W, align: 'center' })
+      doc.font('Helvetica').fontSize(12).fillColor(GRAY)
+        .text(description, 36, centerY + 48, { width: W, align: 'center' })
+      if (note) {
+        doc.font('Helvetica').fontSize(10).fillColor(GRAY)
+          .text(note, 36, centerY + 78, { width: W, align: 'center' })
+      }
+      doc.end()
+    } catch (err) {
+      reject(err)
+    }
+  })
 }

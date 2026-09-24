@@ -178,6 +178,13 @@ export async function POST(
         changesMade: {
           action: hardDelete ? 'deleted' : 'cancelled',
           reason: reason || null,
+          // Kept on the audit row so the master event report can still list
+          // hard-deleted registrations once the registration row is gone.
+          eventId,
+          registrantName: type === 'group'
+            ? registration.groupName
+            : `${registration.firstName || ''} ${registration.lastName || ''}`.trim(),
+          registrantEmail: type === 'group' ? registration.groupLeaderEmail : registration.email,
           participantsRestored: participantCount,
           housingType: housingType,
           ticketType: registration.ticketType || null,
