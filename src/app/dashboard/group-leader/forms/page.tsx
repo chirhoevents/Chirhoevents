@@ -200,7 +200,8 @@ export default function LiabilityFormsPage() {
         alert('Form deleted successfully. The participant can now fill out a new form.')
         fetchForms() // Refresh the list
       } else {
-        alert('Failed to delete form')
+        const data = await response.json().catch(() => ({}))
+        alert(`Failed to delete form${data.error ? `: ${data.error}` : ''}`)
       }
     } catch (error) {
       console.error('Error deleting form:', error)

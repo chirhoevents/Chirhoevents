@@ -1086,6 +1086,38 @@ function ParticipantRow({
     }
   }
 
+  async function handleRemoveParticipant() {
+    if (!participant.formId) return
+    if (!confirm(`Remove ${participant.firstName} ${participant.lastName} from this group? This permanently deletes their signed liability form${isYouth ? '' : ' and any safe environment certificate'} and frees their spot. This cannot be undone.`)) {
+      return
+    }
+
+    setProcessing(true)
+    try {
+      const token = await getToken()
+      const response = await fetch(
+        `/api/admin/events/${eventId}/poros-liability/forms/${participant.formId}?removeParticipant=true`,
+        {
+          method: 'DELETE',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      )
+
+      const data = await response.json().catch(() => ({}))
+      if (response.ok) {
+        alert(data.message || 'Participant removed.')
+        onUpdate()
+      } else {
+        alert(`Failed to remove: ${data.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Remove participant error:', error)
+      alert('Failed to remove participant')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
   async function handleApprove() {
     if (!confirm(`Approve liability form for ${participant.firstName} ${participant.lastName}?`)) {
       return
@@ -1329,6 +1361,19 @@ function ParticipantRow({
 
           {isYouth && participant.formStatus !== 'pending_parent' && (
             <span className="text-xs text-gray-500 px-2">No approval needed</span>
+          )}
+
+          {participant.formId && participant.formStatus !== 'pending_parent' && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              onClick={handleRemoveParticipant}
+              disabled={processing}
+              title="Remove from group (deletes the signed form)"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
           )}
         </div>
       </div>
