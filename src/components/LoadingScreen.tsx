@@ -1,12 +1,15 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import Image from 'next/image'
 
 interface LoadingScreenProps {
   message?: string
+  /** Optional extra content under the message (e.g. a "don't close this tab" warning). */
+  children?: ReactNode
 }
 
-export default function LoadingScreen({ message = 'Loading...' }: LoadingScreenProps) {
+export default function LoadingScreen({ message = 'Loading...', children }: LoadingScreenProps) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
@@ -51,6 +54,8 @@ export default function LoadingScreen({ message = 'Loading...' }: LoadingScreenP
           <span className="w-2 h-2 bg-gold rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
           <span className="w-2 h-2 bg-gold rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
         </div>
+
+        {children}
       </div>
     </div>
   )

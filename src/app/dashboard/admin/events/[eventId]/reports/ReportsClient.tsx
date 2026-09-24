@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Download, Settings, FileText } from 'lucide-react'
 import ReportCard from '@/components/admin/reports/ReportCard'
@@ -16,6 +16,7 @@ import VendorReportModal from '@/components/admin/reports/VendorReportModal'
 import StaffReportModal from '@/components/admin/reports/StaffReportModal'
 import { CustomReportBuilder } from '@/components/admin/reports/CustomReportBuilder'
 import { usePermissions } from '@/hooks/usePermissions'
+import LoadingScreen from '@/components/LoadingScreen'
 
 interface ReportsClientProps {
   eventId: string
@@ -42,6 +43,7 @@ export default function ReportsClient({
   const [activeModal, setActiveModal] = useState<string | null>(null)
   const [isExporting, setIsExporting] = useState(false)
   const [isExportingMaster, setIsExportingMaster] = useState(false)
+  const [masterElapsed, setMasterElapsed] = useState(0)
   const [showCustomBuilder, setShowCustomBuilder] = useState(false)
   const [showGroupDetailBuilder, setShowGroupDetailBuilder] = useState(false)
 
@@ -74,11 +76,31 @@ export default function ReportsClient({
     }
   }
 
+  // While the master report builds: tick an elapsed-time counter and ask the
+  // browser to confirm before the tab is closed or reloaded, since leaving
+  // throws away several minutes of work.
+  useEffect(() => {
+    if (!isExportingMaster) return
+    setMasterElapsed(0)
+    const started = Date.now()
+    const timer = window.setInterval(() => setMasterElapsed(Math.floor((Date.now() - started) / 1000)), 1000)
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('beforeunload', warn)
+    }
+  }, [isExportingMaster])
+
   // Master PDF: single archival document with every section (registrations,
-  // participants, waitlist, vendors, staff, payments, refunds, balances,
-  // liability form statuses, check-ins, medical incidents, coupons, email
-  // history). Restricted to users who can view financial reports because it
-  // exposes Stripe payment IDs, check numbers, and refund amounts.
+  // cancellations, participants, housing, meals, payments, refunds, liability
+  // forms, incident reports, surveys, check-ins, email history, ...) plus the
+  // signed forms and every uploaded certificate / letter / document.
+  // Restricted to users who can view financial reports because it exposes
+  // Stripe payment IDs, check numbers, and refund amounts.
   const handleExportMasterPDF = async () => {
     setIsExportingMaster(true)
     try {
@@ -88,17 +110,30 @@ export default function ReportsClient({
 
       if (!response.ok) {
         const text = await response.text().catch(() => '')
-        throw new Error(text || 'Failed to generate master report')
+        let message = text
+        try {
+          message = JSON.parse(text).error || text
+        } catch {
+          // not JSON
+        }
+        throw new Error(message || 'Failed to generate master report')
       }
 
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
-      a.href = url
-      a.download = `${eventName.replace(/\s+/g, '_')}_master_report.pdf`
+      if (response.headers.get('Content-Type')?.includes('application/json')) {
+        // Large reports are saved to file storage; the link downloads it
+        // (the file is served as an attachment).
+        const { url, filename } = await response.json()
+        a.href = url
+        a.download = filename
+      } else {
+        const blob = await response.blob()
+        a.href = window.URL.createObjectURL(blob)
+        a.download = `${eventName.replace(/[^a-zA-Z0-9_-]+/g, '_')}_master_report.pdf`
+      }
       document.body.appendChild(a)
       a.click()
-      window.URL.revokeObjectURL(url)
+      if (a.href.startsWith('blob:')) window.URL.revokeObjectURL(a.href)
       document.body.removeChild(a)
     } catch (error: any) {
       console.error('Error generating master report:', error)
@@ -110,6 +145,23 @@ export default function ReportsClient({
 
   return (
     <>
+      {isExportingMaster && (
+        <div role="alertdialog" aria-modal="true" aria-live="polite">
+          <LoadingScreen message="Building your Master Event Report...">
+            <div className="mt-6 max-w-md mx-4 rounded-lg bg-white/10 border border-gold/40 px-5 py-4 text-center">
+              <p className="text-white font-semibold">This might take a while.</p>
+              <p className="text-white/85 text-sm mt-2">
+                We&apos;re gathering every registration, form, certificate, and record for this event into one PDF.
+                Please don&apos;t close this tab, refresh, or leave this page until the download starts.
+              </p>
+              <p className="text-gold text-sm mt-3 tabular-nums">
+                Elapsed: {Math.floor(masterElapsed / 60)}:{String(masterElapsed % 60).padStart(2, '0')}
+              </p>
+            </div>
+          </LoadingScreen>
+        </div>
+      )}
+
       {/* Action Buttons */}
       <div className="flex justify-end gap-2 flex-wrap">
         <Button
@@ -134,7 +186,7 @@ export default function ReportsClient({
             onClick={handleExportMasterPDF}
             disabled={isExportingMaster}
             className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
-            title="Full archival PDF: every registration, payment, refund, liability form status, check-in, and email"
+            title="Full archival PDF: every registration (including cancelled), payment, liability form, safe environment certificate, housing and meal assignment, incident report, survey, and email"
           >
             <FileText className="h-4 w-4 mr-2" />
             {isExportingMaster ? 'Building PDF...' : 'Master Event Report (PDF)'}
