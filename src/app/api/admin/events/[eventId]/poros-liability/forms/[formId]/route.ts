@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyFormsEditAccess } from '@/lib/api-auth'
+import { deleteParticipantAndForms } from '@/lib/delete-participant'
 
 export async function DELETE(
   request: NextRequest,
@@ -30,6 +31,15 @@ export async function DELETE(
         { error: 'Form does not belong to this event' },
         { status: 400 }
       )
+    }
+
+    // ?removeParticipant=true takes the person off the group entirely (e.g. a
+    // chaperone who signed up but isn't going) — the Participant, their forms and
+    // any safe environment certificate — which also frees their spot.
+    const removeParticipant = request.nextUrl.searchParams.get('removeParticipant') === 'true'
+    if (removeParticipant && form.participantId) {
+      await deleteParticipantAndForms(form.participantId)
+      return NextResponse.json({ success: true, message: 'Participant removed from the group.' })
     }
 
     await prisma.liabilityForm.delete({ where: { id: formId } })

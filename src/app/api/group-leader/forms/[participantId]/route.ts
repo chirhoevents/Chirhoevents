@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { deleteParticipantAndForms } from '@/lib/delete-participant'
 
 export async function DELETE(
   req: NextRequest,
@@ -42,10 +43,7 @@ export async function DELETE(
         )
       }
 
-      // Delete the participant (this will cascade delete liability forms due to onDelete: Cascade)
-      await prisma.participant.delete({
-        where: { id },
-      })
+      await deleteParticipantAndForms(id)
 
       return NextResponse.json({
         success: true,
