@@ -713,10 +713,11 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
                     </p>
                   ) : (
                     <div className="space-y-2">
-                      {group.participants.map((participant) => (
+                      {group.participants.map((participant, index) => (
                         <ParticipantRow
                           key={participant.id}
                           participant={participant}
+                          possibleDuplicate={isPossibleDuplicate(group.participants, index)}
                           eventId={eventId}
                           onUpdate={() => {
                             fetchGroups()
@@ -981,13 +982,32 @@ function StaffMemberRow({
   )
 }
 
+// A pending-parent row is a likely duplicate when the same name also appears
+// elsewhere in the group — either already completed (any form type, e.g. a
+// teen who restarted on the 18+ form) or as an earlier pending row. The most
+// recent pending row for a name is left unflagged so one entry stays "real".
+function isPossibleDuplicate(participants: Participant[], index: number): boolean {
+  const participant = participants[index]
+  if (participant.formStatus !== 'pending_parent') return false
+  const key = `${participant.firstName} ${participant.lastName}`.trim().toLowerCase()
+  const sameName = participants.filter(
+    (p) => `${p.firstName} ${p.lastName}`.trim().toLowerCase() === key
+  )
+  if (sameName.length < 2) return false
+  if (sameName.some((p) => p.formStatus !== 'pending_parent')) return true
+  // All pending: flag every one except the last in list order.
+  return sameName[sameName.length - 1] !== participant
+}
+
 // Participant Row Component
 function ParticipantRow({
   participant,
+  possibleDuplicate = false,
   eventId,
   onUpdate
 }: {
   participant: Participant
+  possibleDuplicate?: boolean
   eventId: string
   onUpdate: () => void
 }) {
@@ -1169,6 +1189,14 @@ function ParticipantRow({
                 {participant.participantType?.replace('_', ' ')}
                 {participant.formStatus === 'pending_parent' && (
                   <span className="ml-2 text-orange-600 font-medium">Waiting on Parent</span>
+                )}
+                {possibleDuplicate && (
+                  <span
+                    className="ml-2 px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full font-medium"
+                    title="Another form with this name exists in this group — this pending entry is likely a leftover from a restarted registration"
+                  >
+                    Possible Duplicate
+                  </span>
                 )}
               </div>
               {participant.formStatus === 'pending_parent' && participant.parentEmail && (

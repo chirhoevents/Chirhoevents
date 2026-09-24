@@ -15,6 +15,12 @@ function maskEmail(email: string | null): string {
   return `${visible}${'•'.repeat(Math.max(local.length - visible.length, 3))}@${domain}`
 }
 
+function toDateKey(value: Date | string | null | undefined): string | null {
+  if (!value) return null
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10)
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -156,18 +162,40 @@ export async function POST(request: NextRequest) {
       // Group registrations have no per-participant ID to key off at this step, so the
       // same teen resubmitting (e.g. to fix a typo'd parent email) used to always create
       // a brand-new LiabilityForm row instead of updating theirs — leaving duplicates.
-      // Look for a likely-existing entry by name and, unless the caller has already
-      // confirmed how to proceed, ask before silently creating another one.
+      // Look for existing entries by name — across every form type, since a teen who
+      // started the u18 form may have finished on the 18+ form instead — and, unless
+      // the caller has already confirmed how to proceed, ask before creating another.
+      const sameNameForms = await prisma.liabilityForm.findMany({
+        where: {
+          groupRegistrationId: groupRegistration.id,
+          participantFirstName: { equals: first_name.trim(), mode: 'insensitive' },
+          participantLastName: { equals: last_name.trim(), mode: 'insensitive' },
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+
+      // Same name AND same date of birth is the same person, full stop — "different
+      // person" is only a plausible answer when the birthdays differ. Without this,
+      // a teen who clicked "different person" (e.g. because they were switching which
+      // parent to send it to) piled up a fresh pending row on every retry.
+      const submittedDob = toDateKey(date_of_birth)
+      const sameDob = (form: { dateOfBirth: Date | null }) =>
+        submittedDob !== null && toDateKey(form.dateOfBirth) === submittedDob
+      const pendingU18 = sameNameForms.filter(
+        (f) => f.formType === 'youth_u18' && !f.completed && !f.participantId
+      )
+      const completedSamePerson = sameNameForms.find((f) => f.completed && sameDob(f))
+      const pendingSamePerson = pendingU18.find(sameDob)
+
+      if (completedSamePerson) {
+        return NextResponse.json(
+          { error: 'A completed and signed form already exists for this person in this group. Contact your group leader or the event organizer if it needs to be corrected.' },
+          { status: 400 }
+        )
+      }
+
       if (!confirm_duplicate) {
-        const possibleDuplicate = await prisma.liabilityForm.findFirst({
-          where: {
-            groupRegistrationId: groupRegistration.id,
-            formType: 'youth_u18',
-            participantFirstName: { equals: first_name, mode: 'insensitive' },
-            participantLastName: { equals: last_name, mode: 'insensitive' },
-          },
-          orderBy: { createdAt: 'desc' },
-        })
+        const possibleDuplicate = pendingSamePerson ?? sameNameForms[0]
 
         if (possibleDuplicate) {
           return NextResponse.json({
@@ -175,6 +203,7 @@ export async function POST(request: NextRequest) {
             existing_form: {
               id: possibleDuplicate.id,
               completed: possibleDuplicate.completed,
+              same_person: Boolean(pendingSamePerson),
               parent_email_masked: maskEmail(possibleDuplicate.parentEmail),
               created_at: possibleDuplicate.createdAt,
             },
@@ -182,9 +211,14 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      if (confirm_duplicate && duplicate_action === 'update' && existing_form_id) {
+      // A "new" choice against a same-birthday pending form is really an update.
+      const updateTargetId =
+        pendingSamePerson?.id ??
+        (confirm_duplicate && duplicate_action === 'update' ? existing_form_id : null)
+
+      if (updateTargetId) {
         const existingForm = await prisma.liabilityForm.findFirst({
-          where: { id: existing_form_id, groupRegistrationId: groupRegistration.id },
+          where: { id: updateTargetId, groupRegistrationId: groupRegistration.id },
         })
 
         if (!existingForm) {
@@ -199,6 +233,18 @@ export async function POST(request: NextRequest) {
             { error: 'That form has already been completed and signed. Contact the event organizer if it needs to be corrected.' },
             { status: 400 }
           )
+        }
+
+        // Any other pending, unsigned u18 rows for this same person are leftovers
+        // from earlier restarts — clear them so they stop showing as "Waiting on
+        // Parent" and stop holding group capacity.
+        const staleIds = pendingU18
+          .filter((f) => f.id !== existingForm.id && (sameDob(f) || f.dateOfBirth === null))
+          .map((f) => f.id)
+        if (staleIds.length > 0) {
+          await prisma.liabilityForm.deleteMany({
+            where: { id: { in: staleIds }, completed: false, participantId: null },
+          })
         }
 
         liabilityForm = await prisma.liabilityForm.update({
