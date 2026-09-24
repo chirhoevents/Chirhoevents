@@ -59,6 +59,7 @@ export default function YouthU18InitialForm() {
   const [duplicateInfo, setDuplicateInfo] = useState<{
     id: string
     completed: boolean
+    samePerson: boolean
     parentEmailMasked: string
   } | null>(null)
 
@@ -95,6 +96,7 @@ export default function YouthU18InitialForm() {
       setDuplicateInfo({
         id: data.existing_form.id,
         completed: data.existing_form.completed,
+        samePerson: data.existing_form.same_person === true,
         parentEmailMasked: data.existing_form.parent_email_masked,
       })
       return
@@ -232,6 +234,13 @@ export default function YouthU18InitialForm() {
                     If this is actually a <strong>different person</strong> with the same name, you can continue.
                   </p>
                 </>
+              ) : duplicateInfo.samePerson ? (
+                <p className="text-gray-700 mb-6">
+                  You already started this form for <strong>{formData.firstName} {formData.lastName}</strong> —
+                  it&apos;s waiting on <strong>{duplicateInfo.parentEmailMasked}</strong> to finish step 2.
+                  Continuing will update that form and send a fresh link to{' '}
+                  <strong>{formData.parentEmail}</strong> (the old link will stop working).
+                </p>
               ) : (
                 <>
                   <p className="text-gray-700 mb-6">
@@ -255,9 +264,10 @@ export default function YouthU18InitialForm() {
                     disabled={loading}
                     className="flex-1 bg-navy text-white py-3 px-4 rounded-lg font-semibold hover:bg-navy/90 transition-colors disabled:opacity-50"
                   >
-                    {loading ? 'Updating…' : "Yes, that's me — update it"}
+                    {loading ? 'Updating…' : duplicateInfo.samePerson ? 'Update it and resend' : "Yes, that's me — update it"}
                   </button>
                 )}
+                {!duplicateInfo.samePerson && (
                 <button
                   onClick={() => handleDuplicateChoice('new')}
                   disabled={loading}
@@ -265,6 +275,7 @@ export default function YouthU18InitialForm() {
                 >
                   {loading ? 'Submitting…' : 'No, this is a different person'}
                 </button>
+                )}
               </div>
               <button
                 onClick={() => setDuplicateInfo(null)}
