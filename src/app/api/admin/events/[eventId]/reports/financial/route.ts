@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { hasPermission } from '@/lib/permissions'
+import { refundReasonLabel } from '@/lib/payment-balance-status'
 
 export async function GET(
   request: NextRequest,
@@ -73,10 +74,14 @@ export async function GET(
 
     // Get refunds
     const refunds = await prisma.refund.findMany({
-      where: {
-        ...(eventId === 'all' ? {} : { registrationId: { in: registrationIds } }),
-      },
+      where:
+        eventId === 'all'
+          ? eventFilter.organizationId
+            ? { organizationId: eventFilter.organizationId }
+            : {}
+          : { registrationId: { in: registrationIds } },
     })
+    const totalRefunded = refunds.reduce((sum: number, r: any) => sum + Number(r.refundAmount || 0), 0)
 
     // Calculate totals
     const totalRevenue = paymentBalances.reduce(
@@ -156,8 +161,10 @@ export async function GET(
     // This can drift from PaymentBalance.amountPaid if balances weren't
     // updated when a Payment was recorded — surface the mismatch so admins
     // can investigate rather than silently trusting the cached value.
+    // Refunds lower PaymentBalance.amountPaid but leave the original Payment
+    // rows untouched, so compare net of refunds or every refund reads as drift.
     const actualAmountPaid = stripePayments + checkPayments + cashPayments + otherPayments
-    const paymentMismatch = Math.abs(actualAmountPaid - amountPaid) > 0.01
+    const paymentMismatch = Math.abs(actualAmountPaid - totalRefunded - amountPaid) > 0.01
 
     // Revenue by participant type
     const participantTypeStats = {
@@ -284,7 +291,6 @@ export async function GET(
     }))
 
     // Refunds summary
-    const totalRefunded = refunds.reduce((sum: number, r: any) => sum + Number(r.refundAmount || 0), 0)
     const refundReasons: Record<string, number> = {}
     for (const refund of refunds) {
       refundReasons[refund.refundReason] = (refundReasons[refund.refundReason] || 0) + 1
@@ -395,7 +401,7 @@ export async function GET(
           payer,
           registrationType: regType,
           refundAmount: Number(r.refundAmount || 0),
-          refundReason: r.refundReason || '',
+          refundReason: refundReasonLabel(r.refundReason),
           refundMethod: r.refundMethod || null,
           refundStatus: r.refundStatus || null,
           processedAt: r.processedAt ? new Date(r.processedAt).toISOString() : null,
