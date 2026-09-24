@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { POROS_FROM } from '@/lib/poros-email'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { randomUUID } from 'crypto'
@@ -311,7 +312,7 @@ export async function POST(request: NextRequest) {
     let emailSent = true
     try {
     await resend.emails.send({
-      from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+      from: POROS_FROM,
       reply_to: replyToAddr,
       to: parent_email,
       subject: `ACTION REQUIRED: Complete ${first_name} ${last_name}'s liability form for ${eventName}`,

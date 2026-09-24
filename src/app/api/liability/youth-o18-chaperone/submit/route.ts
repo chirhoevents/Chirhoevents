@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { POROS_FROM } from '@/lib/poros-email'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { generateParticipantQRCode } from '@/lib/qr-code'
@@ -173,7 +174,7 @@ export async function POST(request: NextRequest) {
 
       try {
         await resend.emails.send({
-          from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+          from: POROS_FROM,
           reply_to: resolveReplyTo(staffRegistration.event.settings, staffRegistration.event.organization),
           to: email,
           subject: `Liability Form Completed - ${first_name} ${last_name}`,
@@ -280,7 +281,7 @@ export async function POST(request: NextRequest) {
 
       try {
         await resend.emails.send({
-          from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+          from: POROS_FROM,
           reply_to: resolveReplyTo(vendorRegistration.event.settings, vendorRegistration.event.organization),
           to: email,
           subject: `Liability Form Completed - ${vendorRegistration.businessName}`,
@@ -440,7 +441,7 @@ export async function POST(request: NextRequest) {
       // Send confirmation email to individual
       try {
         await resend.emails.send({
-          from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+          from: POROS_FROM,
           reply_to: resolveReplyTo(individualRegistration.event.settings, individualRegistration.organization),
           to: email,
           subject: `Liability Form Completed - ${first_name} ${last_name}`,
@@ -668,7 +669,7 @@ export async function POST(request: NextRequest) {
 
     try {
       await resend.emails.send({
-        from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+        from: POROS_FROM,
         reply_to: resolveReplyTo(groupRegistration.event.settings, groupRegistration.organization),
         to: email,
         subject: `Form Completed - ${first_name} ${last_name}`,
@@ -726,7 +727,7 @@ export async function POST(request: NextRequest) {
 
     try {
       await resend.emails.send({
-        from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+        from: POROS_FROM,
         reply_to: resolveReplyTo(groupRegistration.event.settings, groupRegistration.organization),
         to: groupRegistration.groupLeaderEmail,
         subject: `Form Completed: ${first_name} ${last_name}`,

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { POROS_FROM } from '@/lib/poros-email'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { generateLiabilityFormPDF } from '@/lib/pdf/generate-liability-form-pdf'
@@ -204,7 +205,7 @@ export async function POST(request: NextRequest) {
     // Send confirmation email to parent
     try {
       await resend.emails.send({
-        from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+        from: POROS_FROM,
         reply_to: resolveReplyTo(liabilityForm.event.settings, liabilityForm.organization),
         to: liabilityForm.parentEmail!,
         subject: `✅ Form Completed - ${liabilityForm.participantFirstName} ${liabilityForm.participantLastName}`,
@@ -271,7 +272,7 @@ export async function POST(request: NextRequest) {
 
       try {
         await resend.emails.send({
-          from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+          from: POROS_FROM,
           reply_to: resolveReplyTo(liabilityForm.event.settings, liabilityForm.organization),
           to: groupRegistration.groupLeaderEmail,
           subject: `✅ Form Completed: ${liabilityForm.participantFirstName} ${liabilityForm.participantLastName}`,

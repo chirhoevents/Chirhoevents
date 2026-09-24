@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { POROS_FROM } from '@/lib/poros-email'
 import { prisma } from '@/lib/prisma'
 import { verifyFormsEditAccess } from '@/lib/api-auth'
 import { Resend } from 'resend'
@@ -95,7 +96,7 @@ export async function POST(
     const replyToAddr = resolveReplyTo(form.event.settings, form.event.organization)
 
     await resend.emails.send({
-      from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+      from: POROS_FROM,
       reply_to: replyToAddr,
       to: targetParentEmail,
       subject: `ACTION REQUIRED: Complete ${form.participantFirstName} ${form.participantLastName}'s liability form - ${form.event.name}`,

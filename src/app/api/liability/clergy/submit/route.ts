@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { POROS_FROM } from '@/lib/poros-email'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { generateLiabilityFormPDF } from '@/lib/pdf/generate-liability-form-pdf'
@@ -156,7 +157,7 @@ export async function POST(request: NextRequest) {
 
       try {
         await resend.emails.send({
-          from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+          from: POROS_FROM,
           reply_to: resolveReplyTo(staffRegistration.event.settings, staffRegistration.event.organization),
           to: email,
           subject: `Form Completed - ${greeting} ${last_name}`,
@@ -316,7 +317,7 @@ export async function POST(request: NextRequest) {
     // Send confirmation email to clergy member
     try {
       await resend.emails.send({
-        from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+        from: POROS_FROM,
         reply_to: resolveReplyTo(groupRegistration.event.settings, groupRegistration.organization),
         to: email,
         subject: `✅ Form Completed - ${greeting} ${last_name}`,
@@ -372,7 +373,7 @@ export async function POST(request: NextRequest) {
 
     try {
       await resend.emails.send({
-        from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+        from: POROS_FROM,
         reply_to: resolveReplyTo(groupRegistration.event.settings, groupRegistration.organization),
         to: groupRegistration.groupLeaderEmail,
         subject: `✅ Form Completed: ${greeting} ${last_name}`,
