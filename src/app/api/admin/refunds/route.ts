@@ -7,6 +7,7 @@ import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { canAccessOrganization } from '@/lib/auth-utils'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { wrapEmail, emailInfoBox } from '@/lib/email-templates'
+import { deriveBalance, refundReasonLabel } from '@/lib/payment-balance-status'
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -232,17 +233,23 @@ export async function POST(request: NextRequest) {
 
     // Update payment balance (group/individual) OR the paid amount on
     // the staff/vendor registration row itself.
+    // Recompute the remaining balance from total − paid rather than adding
+    // the refund back onto amountRemaining: a refund returns money the payer
+    // no longer owes (the invoice was already lowered, or the group cancelled),
+    // so it must not create a new balance due.
     if (paymentBalance) {
+      const newAmountPaid = Math.max(0, amountPaid - refundAmount)
+      const { amountRemaining, paymentStatus } = deriveBalance(
+        Number(paymentBalance.totalAmountDue),
+        newAmountPaid,
+        newAmountPaid <= 0 ? 'refunded' : paymentBalance.paymentStatus
+      )
       await prisma.paymentBalance.update({
         where: { id: paymentBalance.id },
         data: {
-          amountPaid: {
-            decrement: refundAmount,
-          },
-          amountRemaining: {
-            increment: refundAmount,
-          },
-          paymentStatus: 'partial', // Will need to recalculate actual status
+          amountPaid: newAmountPaid,
+          amountRemaining,
+          paymentStatus,
         },
       })
     } else if (registrationType === 'staff') {
@@ -344,7 +351,7 @@ export async function POST(request: NextRequest) {
 
         ${
           refundReason
-            ? emailInfoBox(`<strong>Reason:</strong> ${refundReason}`, 'info')
+            ? emailInfoBox(`<strong>Reason:</strong> ${refundReasonLabel(refundReason)}`, 'info')
             : ''
         }
 

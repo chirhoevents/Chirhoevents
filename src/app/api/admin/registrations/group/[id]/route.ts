@@ -6,6 +6,7 @@ import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { canAccessOrganization } from '@/lib/auth-utils'
 import { incrementOptionCapacity, decrementOptionCapacity, type HousingType } from '@/lib/option-capacity'
 import { resolveReplyTo } from '@/lib/email-reply-to'
+import { deriveBalance } from '@/lib/payment-balance-status'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -369,12 +370,20 @@ export async function PUT(
 
     // Update payment balance if total changed (FIX 2.3: use server-computed total)
     if (difference !== 0 && paymentBalance) {
-      const newAmountRemaining = Math.max(0, Number(paymentBalance.amountRemaining) + difference)
+      // Derive from total − paid (not remaining + difference) so lowering the
+      // total below what was already paid shows as "overpaid" (refund owed)
+      // instead of being silently clamped to a $0 balance.
+      const { amountRemaining, paymentStatus } = deriveBalance(
+        computedNewTotal,
+        Number(paymentBalance.amountPaid),
+        paymentBalance.paymentStatus
+      )
       await prisma.paymentBalance.update({
         where: { id: paymentBalance.id },
         data: {
           totalAmountDue: computedNewTotal,
-          amountRemaining: newAmountRemaining,
+          amountRemaining,
+          paymentStatus,
         },
       })
     }
