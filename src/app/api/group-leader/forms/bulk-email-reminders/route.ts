@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { POROS_FROM } from '@/lib/poros-email'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
@@ -93,7 +94,7 @@ export async function POST(req: NextRequest) {
         const parentFormUrl = `${process.env.NEXT_PUBLIC_APP_URL}/poros/parent/${liabilityForm.parentToken}`
 
         return resend.emails.send({
-          from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+          from: POROS_FROM,
           reply_to: resolveReplyTo(participant.groupRegistration.event.settings, participant.groupRegistration.event.organization),
           to: participant.parentEmail,
           subject: `Reminder: Liability Form Required for ${participant.firstName}`,

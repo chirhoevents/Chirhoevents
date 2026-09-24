@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { POROS_FROM } from '@/lib/poros-email'
 import { prisma } from '@/lib/prisma'
 import { verifyFormsViewAccess } from '@/lib/api-auth'
 import { Resend } from 'resend'
@@ -97,7 +98,7 @@ export async function POST(
       const parentLink = `${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/poros/parent/${parentToken}`
 
       await resend.emails.send({
-        from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+        from: POROS_FROM,
         reply_to: replyToAddr,
         to: targetParentEmail,
         subject: `ACTION REQUIRED: Complete ${registration.firstName} ${registration.lastName}'s liability form - ${registration.event.name}`,
@@ -165,7 +166,7 @@ export async function POST(
     const portalLink = `${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/poros/${registration.confirmationCode}`
 
     await resend.emails.send({
-      from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+      from: POROS_FROM,
       reply_to: replyToAddr,
       to: registration.email,
       subject: `Complete Your Liability Form - ${registration.event.name}`,

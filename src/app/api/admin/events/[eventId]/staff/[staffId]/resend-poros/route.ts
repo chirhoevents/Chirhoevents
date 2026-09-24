@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { POROS_FROM } from '@/lib/poros-email'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { verifyEventAccess } from '@/lib/api-auth'
@@ -89,7 +90,7 @@ export async function POST(
 
   try {
     await resend.emails.send({
-      from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+      from: POROS_FROM,
       reply_to: supportEmail,
       to: staff.email,
       subject: `Your Liability Form Access Code - ${staff.event.name}`,
