@@ -110,8 +110,10 @@ export async function POST(
         },
         orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
       }),
+      // Pending rows are "pay later" intents, not payments — they show up as
+      // balance due in the balances section instead.
       prisma.payment.findMany({
-        where: { eventId },
+        where: { eventId, paymentStatus: { not: 'pending' } },
         include: {
           processedBy: { select: { firstName: true, lastName: true } },
         },
