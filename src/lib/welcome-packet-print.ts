@@ -334,8 +334,8 @@ export function generateWelcomePacketHTML(packet: PacketData, settings: PrintSet
               <tr style="${i % 2 === 0 ? 'background: #fafafa;' : ''}">
                 <td style="padding: 6px 8px; border-bottom: 1px solid #eee;">${item.description}</td>
                 <td style="padding: 6px 8px; text-align: center; border-bottom: 1px solid #eee;">${item.quantity}</td>
-                <td style="padding: 6px 8px; text-align: right; border-bottom: 1px solid #eee;">$${item.unitPrice.toFixed(2)}</td>
-                <td style="padding: 6px 8px; text-align: right; border-bottom: 1px solid #eee;">$${item.total.toFixed(2)}</td>
+                <td style="padding: 6px 8px; text-align: right; border-bottom: 1px solid #eee;">${item.unitPrice < 0 ? '-' : ''}$${Math.abs(item.unitPrice).toFixed(2)}</td>
+                <td style="padding: 6px 8px; text-align: right; border-bottom: 1px solid #eee;">${item.total < 0 ? '-' : ''}$${Math.abs(item.total).toFixed(2)}</td>
               </tr>
             `).join('')}
             <tr style="background: #f0f0f0; font-weight: 600;">
@@ -363,7 +363,7 @@ export function generateWelcomePacketHTML(packet: PacketData, settings: PrintSet
                 <tr style="${i % 2 === 0 ? 'background: #fafafa;' : ''}">
                   <td style="padding: 6px 8px; border-bottom: 1px solid #eee;">${new Date(payment.date).toLocaleDateString()}</td>
                   <td style="padding: 6px 8px; border-bottom: 1px solid #eee;">${payment.method}</td>
-                  <td style="padding: 6px 8px; text-align: right; border-bottom: 1px solid #eee; color: #16a34a;">-$${payment.amount.toFixed(2)}</td>
+                  <td style="padding: 6px 8px; text-align: right; border-bottom: 1px solid #eee; color: ${payment.amount < 0 ? '#dc2626' : '#16a34a'};">${payment.amount < 0 ? '+' : '-'}$${Math.abs(payment.amount).toFixed(2)}</td>
                 </tr>
               `).join('')}
               <tr style="background: #f0f0f0; font-weight: 600;">

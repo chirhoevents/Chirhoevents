@@ -252,8 +252,26 @@ export async function POST(
     const chaperonePrice = Number(eventPricing?.chaperoneRegularPrice || 0)
     const clergyPrice = Number(eventPricing?.priestPrice || 0)
 
-    const totalAmount = (youthCount * youthPrice) + (chaperoneCount * chaperonePrice) + (clergyCount * clergyPrice)
-    const totalPaid = payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0)
+    const listPriceTotal = (youthCount * youthPrice) + (chaperoneCount * chaperonePrice) + (clergyCount * clergyPrice)
+
+    // The group's real invoice total lives on its payment balance (it reflects
+    // early-bird / housing pricing, coupons and admin price changes). Fall back
+    // to list prices only when no balance record exists.
+    const paymentBalance = await prisma.paymentBalance.findUnique({
+      where: { registrationId: groupId },
+      select: { totalAmountDue: true },
+    })
+    const totalAmount = paymentBalance ? Number(paymentBalance.totalAmountDue) : listPriceTotal
+    const priceAdjustment = Math.round((totalAmount - listPriceTotal) * 100) / 100
+
+    const refunds = await prisma.refund.findMany({
+      where: { registrationId: groupId, status: 'completed' },
+      orderBy: { createdAt: 'asc' },
+    })
+
+    const grossPaid = payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0)
+    const totalRefunded = refunds.reduce((sum: number, r: any) => sum + Number(r.refundAmount), 0)
+    const totalPaid = Math.round((grossPaid - totalRefunded) * 100) / 100
     const balanceRemaining = Math.round((totalAmount - totalPaid) * 100) / 100
 
     // Get schedule entries from Poros
@@ -514,13 +532,28 @@ export async function POST(
             unitPrice: clergyPrice,
             total: clergyCount * clergyPrice,
           }] : []),
+          ...(priceAdjustment !== 0 ? [{
+            description: priceAdjustment < 0 ? 'Discounts / Pricing Adjustments' : 'Additional Charges / Adjustments',
+            quantity: 1,
+            unitPrice: priceAdjustment,
+            total: priceAdjustment,
+          }] : []),
         ],
-        payments: payments.map((p: any) => ({
-          date: p.createdAt,
-          method: p.paymentMethod || 'Payment',
-          amount: Number(p.amount),
-          reference: p.stripePaymentIntentId || p.checkNumber || p.id,
-        })),
+        payments: [
+          ...payments.map((p: any) => ({
+            date: p.createdAt,
+            method: p.paymentMethod || 'Payment',
+            amount: Number(p.amount),
+            reference: p.stripePaymentIntentId || p.checkNumber || p.id,
+          })),
+          // Refunds are shown as negative amounts (money returned to the group)
+          ...refunds.map((r: any) => ({
+            date: r.createdAt,
+            method: 'Refund',
+            amount: -Number(r.refundAmount),
+            reference: r.id,
+          })),
+        ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
         totalAmount,
         totalPaid,
         balanceRemaining,
