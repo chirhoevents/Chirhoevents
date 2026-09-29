@@ -198,11 +198,12 @@ export default function SalveDedicatedPortal() {
     try {
       const token = await getToken()
       const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
-      const response = await fetch(`/api/admin/events/${eventId}`, { headers })
+      // SALVE settings endpoint is readable by check-in-only staff, unlike the full admin event endpoint
+      const response = await fetch(`/api/admin/events/${eventId}/salve/settings`, { headers })
       if (response.ok) {
         const data = await response.json()
-        setEventName(data.name || 'Event')
-        mode = data.settings?.salveCheckinMode === 'individual' ? 'individual' : 'group'
+        setEventName(data.eventName || 'Event')
+        mode = data.checkInMode === 'individual' ? 'individual' : 'group'
         setCheckInMode(mode)
       } else {
         setError('Failed to load event')

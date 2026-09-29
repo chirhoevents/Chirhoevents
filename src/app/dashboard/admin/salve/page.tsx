@@ -5,7 +5,7 @@ import { useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { CheckSquare, Calendar, MapPin, Users, ArrowRight, ExternalLink, Loader2, BarChart3, FileText, Tag } from 'lucide-react'
+import { CheckSquare, Calendar, MapPin, Users, ArrowRight, ExternalLink, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { parseDateOnly } from '@/lib/utils'
 
@@ -114,9 +114,19 @@ export default function SalveSelectEventPage() {
           {/* Action Buttons */}
           <div className="flex flex-col gap-2 pt-3 border-t">
             <Link
+              href={`/dashboard/admin/events/${event.id}/salve`}
+              className="flex items-center justify-between px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium group"
+            >
+              <span className="flex items-center gap-2">
+                <CheckSquare className="w-4 h-4" />
+                Manage SALVE
+              </span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+            <Link
               href={`/portal/salve/${event.id}`}
               target="_blank"
-              className="flex items-center justify-between px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium group"
+              className="flex items-center justify-between px-3 py-2 bg-[#1E3A5F] text-white rounded-lg hover:bg-[#1E3A5F]/90 transition-colors text-sm font-medium group"
             >
               <span className="flex items-center gap-2">
                 <ExternalLink className="w-4 h-4" />
@@ -124,29 +134,6 @@ export default function SalveSelectEventPage() {
               </span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
-            <div className="grid grid-cols-3 gap-2">
-              <Link
-                href={`/dashboard/admin/events/${event.id}/salve/dashboard`}
-                className="flex items-center justify-center gap-1 px-2 py-2 border rounded-lg hover:bg-gray-50 text-xs font-medium text-navy"
-              >
-                <BarChart3 className="w-3.5 h-3.5" />
-                Dashboard
-              </Link>
-              <Link
-                href={`/dashboard/admin/events/${event.id}/salve/welcome-packets`}
-                className="flex items-center justify-center gap-1 px-2 py-2 border rounded-lg hover:bg-gray-50 text-xs font-medium text-navy"
-              >
-                <FileText className="w-3.5 h-3.5" />
-                Packets
-              </Link>
-              <Link
-                href={`/dashboard/admin/events/${event.id}/salve/name-tags`}
-                className="flex items-center justify-center gap-1 px-2 py-2 border rounded-lg hover:bg-gray-50 text-xs font-medium text-navy"
-              >
-                <Tag className="w-3.5 h-3.5" />
-                Name Tags
-              </Link>
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -170,7 +157,7 @@ export default function SalveSelectEventPage() {
           <h1 className="text-3xl font-bold text-navy">SALVE Check-In Portal</h1>
         </div>
         <p className="text-muted-foreground">
-          Select an event to open its check-in portal. All check-in happens in the portal; welcome packets, name tags, and the check-in dashboard are managed here.
+          Select an event to manage welcome packets, name tags, badge reprints and SALVE settings. Checking people in happens in the check-in portal.
         </p>
       </div>
 

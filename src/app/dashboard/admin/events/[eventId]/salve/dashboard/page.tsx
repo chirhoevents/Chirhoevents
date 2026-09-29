@@ -163,7 +163,7 @@ export default function SalveDashboardPage() {
           <span>/</span>
           <Link href={`/dashboard/admin/events/${eventId}`} className="hover:text-navy">{eventName}</Link>
           <span>/</span>
-          <Link href="/dashboard/admin/salve" className="hover:text-navy">SALVE</Link>
+          <Link href={`/dashboard/admin/events/${eventId}/salve`} className="hover:text-navy">SALVE</Link>
           <span>/</span>
           <span className="text-navy font-medium">Dashboard</span>
         </div>
@@ -198,10 +198,10 @@ export default function SalveDashboardPage() {
               <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
-            <Link href={`/portal/salve/${eventId}`}>
+            <Link href={`/dashboard/admin/events/${eventId}/salve`}>
               <Button>
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Check-In
+                Back to SALVE
               </Button>
             </Link>
           </div>
@@ -397,6 +397,7 @@ function GroupProgressCard({ group, eventId }: { group: GroupProgress; eventId: 
   return (
     <Link
       href={`/portal/salve/${eventId}?groupId=${group.id}`}
+      target="_blank"
       className="block"
     >
       <div className="flex items-center gap-4 p-3 rounded-lg border bg-white hover:bg-gray-50 transition-colors">

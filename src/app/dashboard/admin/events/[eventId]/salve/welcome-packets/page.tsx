@@ -751,7 +751,7 @@ export default function WelcomePacketsPage() {
           <span>/</span>
           <Link href={`/dashboard/admin/events/${eventId}`} className="hover:text-navy">{eventName}</Link>
           <span>/</span>
-          <Link href="/dashboard/admin/salve" className="hover:text-navy">SALVE</Link>
+          <Link href={`/dashboard/admin/events/${eventId}/salve`} className="hover:text-navy">SALVE</Link>
           <span>/</span>
           <span className="text-navy font-medium">Welcome Packets</span>
         </div>
@@ -763,10 +763,10 @@ export default function WelcomePacketsPage() {
           </div>
 
           <div className="flex gap-2">
-            <Link href={`/portal/salve/${eventId}`}>
+            <Link href={`/dashboard/admin/events/${eventId}/salve`}>
               <Button variant="outline">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Check-In
+                Back to SALVE
               </Button>
             </Link>
           </div>

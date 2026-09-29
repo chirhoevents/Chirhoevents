@@ -110,7 +110,7 @@ export default function SalveAllParticipants() {
       const eventResponse = await fetch(`/api/admin/events/${eventId}`, { headers })
       if (eventResponse.ok) {
         const data = await eventResponse.json()
-        setEventName(data.name || 'Event')
+        setEventName((data.event ?? data).name || 'Event')
       }
 
       await fetchParticipants()
