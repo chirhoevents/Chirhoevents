@@ -163,6 +163,9 @@ ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "registration_acknowledgme
 ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "registration_acknowledgment_title" VARCHAR(255);
 ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "registration_acknowledgment_items" JSONB;
 
+-- Ensure event_settings column exists for the SALVE check-in mode toggle
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "salve_checkin_mode" VARCHAR(20) NOT NULL DEFAULT 'group';
+
 -- Seed the new-registration-process acknowledgment checklist for Mount 2000 2027,
 -- but only the first time (guarded on items still being unset) so an admin's
 -- later edits in the dashboard survive future deploys.

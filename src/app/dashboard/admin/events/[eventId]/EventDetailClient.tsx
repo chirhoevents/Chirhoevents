@@ -86,6 +86,7 @@ interface EventDetailClientProps {
     registrationAcknowledgmentItems?: string[] | null
     porosHousingEnabled?: boolean
     salveCheckinEnabled?: boolean
+    salveCheckinMode?: string | null
     raphaMedicalEnabled?: boolean
     staffRegistrationEnabled?: boolean
     vendorRegistrationEnabled?: boolean
@@ -173,6 +174,9 @@ export default function EventDetailClient({
   const [acknowledgmentTitle, setAcknowledgmentTitle] = useState(settings?.registrationAcknowledgmentTitle ?? 'New Registration Process')
   const [acknowledgmentItemsText, setAcknowledgmentItemsText] = useState(
     (settings?.registrationAcknowledgmentItems ?? []).join('\n')
+  )
+  const [salveCheckinMode, setSalveCheckinMode] = useState<'group' | 'individual'>(
+    settings?.salveCheckinMode === 'individual' ? 'individual' : 'group'
   )
   const [savingSettings, setSavingSettings] = useState(false)
   const [reminderModalOpen, setReminderModalOpen] = useState(false)
@@ -279,6 +283,7 @@ export default function EventDetailClient({
             .split('\n')
             .map((line) => line.trim())
             .filter(Boolean),
+          ...(settings?.salveCheckinEnabled ? { salveCheckinMode } : {}),
         }),
       })
 
@@ -658,7 +663,7 @@ export default function EventDetailClient({
                   </Link>
                 )}
                 {settings?.salveCheckinEnabled && (
-                  <Link href={`/dashboard/admin/events/${event.id}/salve`}>
+                  <Link href={`/portal/salve/${event.id}`} target="_blank">
                     <Button
                       variant="outline"
                       className="w-full justify-start border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
@@ -1325,13 +1330,27 @@ export default function EventDetailClient({
                   SALVE Check-In
                 </h3>
                 <p className="text-[#6B7280] mb-4">
-                  QR code scanning and digital check-in management
+                  Check-in happens in the dedicated check-in portal.
+                  {settings?.groupRegistrationEnabled !== false && (
+                    <> Groups are checked in {salveCheckinMode === 'individual' ? 'one person at a time' : 'as a whole group'} (change this in Settings).</>
+                  )}
                 </p>
-                <Link href={`/dashboard/admin/events/${event.id}/salve`}>
-                  <Button className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
-                    Open SALVE Check-In
-                  </Button>
-                </Link>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Link href={`/portal/salve/${event.id}`} target="_blank">
+                    <Button className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
+                      Open Check-In Portal
+                    </Button>
+                  </Link>
+                  <Link href={`/dashboard/admin/events/${event.id}/salve/dashboard`}>
+                    <Button variant="outline">Check-In Dashboard</Button>
+                  </Link>
+                  <Link href={`/dashboard/admin/events/${event.id}/salve/welcome-packets`}>
+                    <Button variant="outline">Welcome Packets</Button>
+                  </Link>
+                  <Link href={`/dashboard/admin/events/${event.id}/salve/name-tags`}>
+                    <Button variant="outline">Name Tags</Button>
+                  </Link>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -1740,6 +1759,59 @@ export default function EventDetailClient({
                 </div>
               </CardContent>
             </Card>
+
+            {/* SALVE Check-In Mode */}
+            {settings?.salveCheckinEnabled && settings?.groupRegistrationEnabled !== false && (
+              <Card className="bg-white border-[#D1D5DB]">
+                <CardHeader>
+                  <CardTitle className="text-lg text-[#1E3A5F]">
+                    SALVE Check-In Mode
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-xs text-[#6B7280]">
+                    How group registrations are checked in at the SALVE check-in portal.
+                    Individual registrations are always checked in one person at a time.
+                  </p>
+                  {([
+                    {
+                      value: 'group',
+                      title: 'Group check-in',
+                      description:
+                        'The group leader checks in their whole group at once. Staff scan the group QR code or search the group, tick who is present, and can print the group welcome packet (including financial info) and all name tags.',
+                    },
+                    {
+                      value: 'individual',
+                      title: 'Individual check-in',
+                      description:
+                        "Each participant checks in on their own. Staff scan the participant's personal QR code or search their name, and print just that person's name tag. The group welcome packet and group finances are not shown at the table.",
+                    },
+                  ] as const).map((option) => (
+                    <label
+                      key={option.value}
+                      className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer ${
+                        salveCheckinMode === option.value
+                          ? 'border-[#1E3A5F] bg-[#1E3A5F]/5'
+                          : 'border-gray-200'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="salve-checkin-mode"
+                        value={option.value}
+                        checked={salveCheckinMode === option.value}
+                        onChange={() => setSalveCheckinMode(option.value)}
+                        className="mt-1"
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-[#1E3A5F]">{option.title}</p>
+                        <p className="text-xs text-[#6B7280] mt-1">{option.description}</p>
+                      </div>
+                    </label>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Status Reference Guide */}

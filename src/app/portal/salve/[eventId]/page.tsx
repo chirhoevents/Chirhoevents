@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
@@ -77,6 +77,7 @@ interface ParticipantData {
   id: string
   firstName: string
   lastName: string
+  email?: string | null
   age: number
   gender: string
   participantType: string
@@ -94,16 +95,32 @@ interface ParticipantData {
 
 type CheckInStatus = 'idle' | 'scanning' | 'loading' | 'found' | 'multiple' | 'not_found' | 'error'
 
+// 'group': a group registration is checked in all at once (the leader ticks who's present).
+// 'individual': each group participant is checked in on their own. Individual
+// registrations are always one person regardless of this setting.
+type CheckInMode = 'group' | 'individual'
+
+interface PersonResult {
+  group: GroupData
+  participant: ParticipantData
+}
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export default function SalveDedicatedPortal() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { getToken } = useAuth()
   const eventId = params.eventId as string
+  const initialGroupId = searchParams.get('groupId')
 
   const [status, setStatus] = useState<CheckInStatus>('idle')
   const [searchQuery, setSearchQuery] = useState('')
   const [groupData, setGroupData] = useState<GroupData | null>(null)
   const [multipleResults, setMultipleResults] = useState<GroupData[]>([])
+  const [personResults, setPersonResults] = useState<PersonResult[]>([])
+  const [checkInMode, setCheckInMode] = useState<CheckInMode>('group')
   const [selectedParticipants, setSelectedParticipants] = useState<Set<string>>(new Set())
   const [participantNotes, setParticipantNotes] = useState<Record<string, string>>({})
   const [checkingIn, setCheckingIn] = useState(false)
@@ -161,8 +178,13 @@ export default function SalveDedicatedPortal() {
       setAuthChecking(false)
 
       // Fetch event data
-      await fetchEventInfo()
+      const mode = await fetchEventInfo()
       await fetchStats()
+
+      // Deep link from the check-in dashboard (?groupId=...)
+      if (initialGroupId) {
+        await openGroupById(initialGroupId, mode)
+      }
     } catch (err) {
       console.error('Auth check failed:', err)
       setError('Failed to verify access')
@@ -171,7 +193,8 @@ export default function SalveDedicatedPortal() {
     }
   }
 
-  async function fetchEventInfo() {
+  async function fetchEventInfo(): Promise<CheckInMode> {
+    let mode: CheckInMode = 'group'
     try {
       const token = await getToken()
       const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
@@ -179,6 +202,8 @@ export default function SalveDedicatedPortal() {
       if (response.ok) {
         const data = await response.json()
         setEventName(data.name || 'Event')
+        mode = data.settings?.salveCheckinMode === 'individual' ? 'individual' : 'group'
+        setCheckInMode(mode)
       } else {
         setError('Failed to load event')
       }
@@ -186,6 +211,119 @@ export default function SalveDedicatedPortal() {
       setError('Failed to load event')
     } finally {
       setLoading(false)
+    }
+    return mode
+  }
+
+  async function openGroupById(groupId: string, mode: CheckInMode = checkInMode) {
+    setStatus('loading')
+    try {
+      const token = await getToken()
+      const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
+      const response = await fetch(
+        `/api/admin/events/${eventId}/salve/lookup?groupId=${encodeURIComponent(groupId)}`,
+        { headers }
+      )
+      if (!response.ok) {
+        setStatus(response.status === 404 ? 'not_found' : 'error')
+        return
+      }
+      presentResults([await response.json()], '', mode)
+    } catch (err) {
+      console.error('Group lookup failed:', err)
+      setStatus('error')
+    }
+  }
+
+  function clearResults() {
+    setMultipleResults([])
+    setPersonResults([])
+  }
+
+  // Show a whole group on the check-in screen with everyone not yet checked in pre-selected.
+  function showGroup(group: GroupData) {
+    setGroupData(group)
+    setStatus('found')
+    clearResults()
+    setSelectedParticipants(new Set(
+      group.participants.filter((p: ParticipantData) => !p.checkedIn).map((p: ParticipantData) => p.id)
+    ))
+  }
+
+  // Show a single participant on the check-in screen. The group is narrowed to
+  // just that person so the roster, check-in call and name tag only touch them.
+  function showPerson(group: GroupData, participantId: string) {
+    const participant = group.participants.find((p) => p.id === participantId)
+    if (!participant) {
+      showGroup(group)
+      return
+    }
+    setGroupData({ ...group, participants: [participant] })
+    setStatus('found')
+    clearResults()
+    setSelectedParticipants(participant.checkedIn ? new Set() : new Set([participant.id]))
+  }
+
+  // Route lookup results to the right screen for the current check-in mode.
+  function presentResults(
+    groups: GroupData[],
+    query: string,
+    mode: CheckInMode = checkInMode,
+    scannedParticipantId?: string
+  ) {
+    if (groups.length === 0) {
+      setStatus('not_found')
+      return
+    }
+
+    if (mode === 'group') {
+      if (groups.length === 1) {
+        showGroup(groups[0])
+      } else {
+        clearResults()
+        setMultipleResults(groups)
+        setStatus('multiple')
+      }
+      return
+    }
+
+    if (scannedParticipantId) {
+      const scannedGroup = groups.find((g) => g.participants.some((p) => p.id === scannedParticipantId))
+      if (scannedGroup) {
+        showPerson(scannedGroup, scannedParticipantId)
+        return
+      }
+    }
+
+    // Individual mode: list people, not groups. Prefer the participants whose
+    // name/email matched the search; if the match was on a group-level field
+    // (group name, access code, leader), list the whole group to pick from.
+    const q = query.trim().toLowerCase()
+    const people: PersonResult[] = []
+    for (const g of groups) {
+      if (g.type === 'individual') {
+        if (g.participants[0]) people.push({ group: g, participant: g.participants[0] })
+        continue
+      }
+      const matches = q
+        ? g.participants.filter((p) =>
+            `${p.firstName} ${p.lastName}`.toLowerCase().includes(q) ||
+            (p.email ?? '').toLowerCase().includes(q)
+          )
+        : []
+      for (const p of matches.length > 0 ? matches : g.participants) {
+        people.push({ group: g, participant: p })
+      }
+    }
+
+    if (people.length === 0) {
+      setStatus('not_found')
+    } else if (people.length === 1) {
+      showPerson(people[0].group, people[0].participant.id)
+    } else {
+      clearResults()
+      setPersonResults(people)
+      setStatus('multiple')
     }
   }
 
@@ -227,45 +365,23 @@ export default function SalveDedicatedPortal() {
 
       if (response.ok) {
         const data = await response.json()
-        let group: GroupData | null = null
 
         if (data.results) {
-          if (data.results.length === 0) {
+          if (data.results.length === 0 && looksLikeAccessCode) {
             // If no results and looks like access code, try access code lookup
-            if (looksLikeAccessCode) {
-              const accessCodeUrl = `/api/admin/events/${eventId}/salve/lookup?accessCode=${encodeURIComponent(query)}`
-              const accessCodeResponse = await fetch(accessCodeUrl, { headers })
-              if (accessCodeResponse.ok) {
-                const accessCodeData = await accessCodeResponse.json()
-                if (accessCodeData.id) {
-                  group = accessCodeData
-                }
+            const accessCodeUrl = `/api/admin/events/${eventId}/salve/lookup?accessCode=${encodeURIComponent(query)}`
+            const accessCodeResponse = await fetch(accessCodeUrl, { headers })
+            if (accessCodeResponse.ok) {
+              const accessCodeData = await accessCodeResponse.json()
+              if (accessCodeData.id) {
+                presentResults([accessCodeData], '')
+                return
               }
             }
-            if (!group) {
-              setStatus('not_found')
-              return
-            }
-          } else if (data.results.length === 1) {
-            group = data.results[0]
-          } else {
-            setMultipleResults(data.results)
-            setStatus('multiple')
-            return
           }
+          presentResults(data.results, query)
         } else if (data.id) {
-          group = data
-        }
-
-        if (group) {
-          setGroupData(group)
-          setStatus('found')
-          const notCheckedIn = new Set<string>(
-            group.participants
-              .filter((p: ParticipantData) => !p.checkedIn)
-              .map((p: ParticipantData) => p.id)
-          )
-          setSelectedParticipants(notCheckedIn)
+          presentResults([data], query)
         } else {
           setStatus('not_found')
         }
@@ -280,8 +396,8 @@ export default function SalveDedicatedPortal() {
     }
   }
 
-  async function handleQrScan(accessCode: string) {
-    if (!accessCode) {
+  async function handleQrScan(scannedCode: string) {
+    if (!scannedCode) {
       toast.error('Invalid QR code')
       setStatus('idle')
       return
@@ -289,45 +405,44 @@ export default function SalveDedicatedPortal() {
 
     setStatus('loading')
     setGroupData(null)
-    setSearchQuery(accessCode)
+    setSearchQuery(scannedCode)
+
+    // Personal participant QR codes (name tags, liability confirmation) are the
+    // participant's UUID; group QR codes are the group access code.
+    const isParticipantCode = UUID_REGEX.test(scannedCode)
 
     try {
       const token = await getToken()
       const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
+      const lookupParam = isParticipantCode
+        ? `participantId=${encodeURIComponent(scannedCode)}`
+        : `accessCode=${encodeURIComponent(scannedCode)}`
       const response = await fetch(
-        `/api/admin/events/${eventId}/salve/lookup?accessCode=${encodeURIComponent(accessCode)}`,
+        `/api/admin/events/${eventId}/salve/lookup?${lookupParam}`,
         { headers }
       )
 
       if (response.ok) {
         const data = await response.json()
-        let group: GroupData | null = null
-
-        if (data.results) {
-          if (data.results.length > 0) {
-            group = data.results[0]
-          }
-        } else if (data.id) {
-          group = data
-        }
+        const group: GroupData | null = data.results ? (data.results[0] ?? null) : (data.id ? data : null)
 
         if (group) {
-          setGroupData(group)
-          setStatus('found')
-          toast.success(`Found: ${group.groupName}`)
-          const notCheckedIn = new Set<string>(
-            group.participants
-              .filter((p: ParticipantData) => !p.checkedIn)
-              .map((p: ParticipantData) => p.id)
+          const scannedPerson = isParticipantCode
+            ? group.participants.find((p) => p.id === scannedCode)
+            : undefined
+          toast.success(
+            `Found: ${checkInMode === 'individual' && scannedPerson
+              ? `${scannedPerson.firstName} ${scannedPerson.lastName}`
+              : group.groupName}`
           )
-          setSelectedParticipants(notCheckedIn)
+          presentResults([group], '', checkInMode, scannedPerson?.id)
         } else {
           setStatus('not_found')
-          toast.error('Group not found for this QR code')
+          toast.error('Registration not found for this QR code')
         }
       } else if (response.status === 404) {
         setStatus('not_found')
-        toast.error('No group found with this access code')
+        toast.error(isParticipantCode ? 'No participant found for this QR code' : 'No group found with this access code')
       } else {
         setStatus('error')
         toast.error('Failed to look up group')
@@ -418,18 +533,9 @@ export default function SalveDedicatedPortal() {
     setStatus('idle')
     setSearchQuery('')
     setGroupData(null)
-    setMultipleResults([])
+    clearResults()
     setSelectedParticipants(new Set())
     setParticipantNotes({})
-  }
-
-  function selectGroup(group: GroupData) {
-    setGroupData(group)
-    setStatus('found')
-    setMultipleResults([])
-    setSelectedParticipants(new Set(
-      group.participants.filter((p: ParticipantData) => !p.checkedIn).map((p: ParticipantData) => p.id)
-    ))
   }
 
   async function handleUndoCheckIn() {
@@ -476,16 +582,13 @@ export default function SalveDedicatedPortal() {
           { headers: refreshHeaders }
         )
         if (refreshResponse.ok) {
-          const refreshedData = await refreshResponse.json()
-          setGroupData(refreshedData)
-          // Select all non-checked-in participants again
-          const notCheckedIn = new Set<string>(
-            refreshedData.participants
-              .filter((p: ParticipantData) => !p.checkedIn)
-              .map((p: ParticipantData) => p.id)
-          )
-          setSelectedParticipants(notCheckedIn)
-          setStatus('found')
+          const refreshedData: GroupData = await refreshResponse.json()
+          // Return to the same screen: the one person in individual mode, the whole group otherwise
+          if (checkInMode === 'individual' && groupData.participants.length === 1) {
+            showPerson(refreshedData, groupData.participants[0].id)
+          } else {
+            showGroup(refreshedData)
+          }
         }
       }
     } catch (err) {
@@ -641,6 +744,13 @@ export default function SalveDedicatedPortal() {
   const issues = stats?.issues || 0
   const notCheckedInCount = totalExpected - checkedIn
   const progressPercentage = totalExpected > 0 ? Math.round((checkedIn / totalExpected) * 100) : 0
+  // Checking in a single participant out of a group registration. Group-level
+  // finances and the group welcome packet belong to the group leader, so they
+  // are left off this screen.
+  const isPersonView = checkInMode === 'individual' && !!groupData && groupData.type !== 'individual'
+  const personName = isPersonView && groupData?.participants[0]
+    ? `${groupData.participants[0].firstName} ${groupData.participants[0].lastName}`
+    : null
 
   if (loading || authChecking) {
     return (
@@ -685,7 +795,9 @@ export default function SalveDedicatedPortal() {
             </div>
             <div>
               <h1 className="text-lg font-bold">SALVE Check-In Station</h1>
-              <p className="text-xs text-white/80">{eventName}</p>
+              <p className="text-xs text-white/80">
+                {eventName} · {checkInMode === 'individual' ? 'Individual check-in' : 'Group check-in'}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -783,7 +895,9 @@ export default function SalveDedicatedPortal() {
                   <QrCode className="w-16 h-16 mx-auto text-emerald-600 mb-4" />
                   <h2 className="text-xl font-semibold mb-2">Scan QR Code or Search</h2>
                   <p className="text-muted-foreground">
-                    Scan the group leader&apos;s QR code or search by name, email, or access code
+                    {checkInMode === 'individual'
+                      ? 'Scan the participant\'s QR code or search by their name or email'
+                      : 'Scan the group leader\'s QR code or search by name, email, or access code'}
                   </p>
                 </div>
 
@@ -828,7 +942,9 @@ export default function SalveDedicatedPortal() {
                 <div className="text-center mb-4">
                   <h2 className="text-xl font-semibold">Scan QR Code</h2>
                   <p className="text-muted-foreground">
-                    Point camera at the group leader&apos;s QR code
+                    {checkInMode === 'individual'
+                      ? 'Point camera at the participant\'s QR code'
+                      : 'Point camera at the group leader\'s QR code'}
                   </p>
                 </div>
                 <QRScanner
@@ -855,7 +971,8 @@ export default function SalveDedicatedPortal() {
                   <div>
                     <h2 className="text-lg font-semibold">Multiple Results Found</h2>
                     <p className="text-sm text-muted-foreground">
-                      {multipleResults.length} matches for &quot;{searchQuery}&quot; — select the correct one
+                      {personResults.length > 0 ? personResults.length : multipleResults.length} matches
+                      {searchQuery ? <> for &quot;{searchQuery}&quot;</> : null} — select the correct one
                     </p>
                   </div>
                   <Button variant="outline" size="sm" onClick={resetSearch}>
@@ -864,13 +981,34 @@ export default function SalveDedicatedPortal() {
                   </Button>
                 </div>
                 <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                  {personResults.map(({ group: g, participant: p }) => (
+                    <div
+                      key={`${g.id}-${p.id}`}
+                      className="flex items-center justify-between p-4 border rounded-lg bg-white hover:border-emerald-400 cursor-pointer"
+                      onClick={() => showPerson(g, p.id)}
+                    >
+                      <div className="flex-1">
+                        <p className="font-semibold">{p.firstName} {p.lastName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {g.type === 'individual' ? 'Individual registration' : g.groupName}
+                        </p>
+                      </div>
+                      {p.checkedIn ? (
+                        <Badge className="bg-green-500 ml-3">Checked In</Badge>
+                      ) : (
+                        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 ml-3">
+                          Select
+                        </Button>
+                      )}
+                    </div>
+                  ))}
                   {multipleResults.map((g) => {
                     const alreadyIn = g.participants.filter((p: ParticipantData) => p.checkedIn).length
                     return (
                       <div
                         key={g.id}
                         className="flex items-center justify-between p-4 border rounded-lg bg-white hover:border-emerald-400 cursor-pointer"
-                        onClick={() => selectGroup(g)}
+                        onClick={() => showGroup(g)}
                       >
                         <div className="flex-1">
                           <p className="font-semibold">{g.groupName}</p>
@@ -922,7 +1060,7 @@ export default function SalveDedicatedPortal() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-2xl font-bold">
-                      Salve, {groupData.groupLeaderName.split(' ')[0]}!
+                      Salve, {(isPersonView ? groupData.participants[0].firstName : groupData.groupLeaderName.split(' ')[0])}!
                     </h2>
                     <p className="text-white/80">Welcome to {eventName}</p>
                   </div>
@@ -938,15 +1076,21 @@ export default function SalveDedicatedPortal() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>{groupData.groupName}</CardTitle>
+                  <CardTitle>{personName ?? groupData.groupName}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {isPersonView && (
+                    <p className="text-muted-foreground">{groupData.groupName}</p>
+                  )}
                   {groupData.parishName && (
                     <p className="text-muted-foreground">{groupData.parishName}</p>
                   )}
-                  <p className="font-medium">{groupData.totalParticipants} Participants Registered</p>
+                  {!isPersonView && (
+                    <p className="font-medium">{groupData.totalParticipants} Participants Registered</p>
+                  )}
 
                   <div className="space-y-2">
+                    {!isPersonView && (
                     <div className="flex items-center gap-2">
                       {groupData.payment.balanceRemaining <= 0 ? (
                         <Check className="w-4 h-4 text-green-500" />
@@ -957,18 +1101,22 @@ export default function SalveDedicatedPortal() {
                         Payment: {groupData.payment.balanceRemaining <= 0 ? 'Paid in Full' : `$${groupData.payment.balanceRemaining.toFixed(2)} remaining`}
                       </span>
                     </div>
+                    )}
 
                     <div className="flex items-center gap-2">
-                      {groupData.forms.pending === 0 ? (
+                      {(isPersonView ? groupData.participants[0].liabilityFormCompleted : groupData.forms.pending === 0) ? (
                         <Check className="w-4 h-4 text-green-500" />
                       ) : (
                         <AlertCircle className="w-4 h-4 text-amber-500" />
                       )}
                       <span className="text-sm">
-                        Liability Forms: {groupData.forms.completed}/{groupData.forms.completed + groupData.forms.pending} Complete
+                        {isPersonView
+                          ? `Liability Form: ${groupData.participants[0].liabilityFormCompleted ? 'Complete' : 'Missing'}`
+                          : `Liability Forms: ${groupData.forms.completed}/${groupData.forms.completed + groupData.forms.pending} Complete`}
                       </span>
                     </div>
 
+                    {!isPersonView && (
                     <div className="flex items-center gap-2">
                       {groupData.housing.assigned ? (
                         <Check className="w-4 h-4 text-green-500" />
@@ -979,12 +1127,15 @@ export default function SalveDedicatedPortal() {
                         Housing: {groupData.housing.assigned ? 'Assigned' : 'Not Assigned'}
                       </span>
                     </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
 
               {/* Issues */}
-              {(groupData.payment.balanceRemaining > 0 || groupData.forms.pending > 0) && (
+              {(isPersonView
+                ? !groupData.participants[0].liabilityFormCompleted
+                : groupData.payment.balanceRemaining > 0 || groupData.forms.pending > 0) && (
                 <Card className="border-amber-200 bg-amber-50">
                   <CardHeader>
                     <CardTitle className="text-amber-800 flex items-center gap-2">
@@ -994,7 +1145,7 @@ export default function SalveDedicatedPortal() {
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-2">
-                      {groupData.payment.balanceRemaining > 0 && (
+                      {!isPersonView && groupData.payment.balanceRemaining > 0 && (
                         <li className="text-sm text-amber-700">
                           Outstanding balance: ${groupData.payment.balanceRemaining.toFixed(2)}
                         </li>
@@ -1007,7 +1158,7 @@ export default function SalveDedicatedPortal() {
                             {p.firstName} {p.lastName} - Missing Liability Form
                           </li>
                         ))}
-                      {groupData.forms.pending > 5 && (
+                      {!isPersonView && groupData.forms.pending > 5 && (
                         <li className="text-sm text-amber-700">
                           ... and {groupData.forms.pending - 5} more missing forms
                         </li>
@@ -1021,7 +1172,8 @@ export default function SalveDedicatedPortal() {
             {/* Participant Roster */}
             <Card>
               <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-2">
-                <CardTitle className="text-lg">Check In Participants</CardTitle>
+                <CardTitle className="text-lg">{isPersonView ? 'Check In Participant' : 'Check In Participants'}</CardTitle>
+                {!isPersonView && (
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={selectAllParticipants} className="flex-1 md:flex-none">
                     Select All
@@ -1030,9 +1182,10 @@ export default function SalveDedicatedPortal() {
                     Deselect All
                   </Button>
                 </div>
+                )}
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-[400px]">
+                <ScrollArea className={isPersonView ? undefined : 'h-[400px]'}>
                   <div className="space-y-2">
                     {groupData.participants.map((participant) => {
                       const isSelected = selectedParticipants.has(participant.id)
@@ -1182,7 +1335,8 @@ export default function SalveDedicatedPortal() {
 
             <div className="space-y-2">
               <p className="font-medium">Next Steps:</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className={`grid gap-2 ${isPersonView ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                {!isPersonView && (
                 <Button
                   variant="outline"
                   className="h-auto py-3"
@@ -1196,6 +1350,7 @@ export default function SalveDedicatedPortal() {
                   )}
                   Print Welcome Packet
                 </Button>
+                )}
                 <Button
                   variant="outline"
                   className="h-auto py-3"
@@ -1234,7 +1389,7 @@ export default function SalveDedicatedPortal() {
               }}
               className="bg-emerald-600 hover:bg-emerald-700"
             >
-              Done - Next Group
+              {checkInMode === 'individual' ? 'Done - Next Person' : 'Done - Next Group'}
             </Button>
           </DialogFooter>
         </DialogContent>

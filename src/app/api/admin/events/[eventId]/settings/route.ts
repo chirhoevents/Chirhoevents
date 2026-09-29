@@ -29,6 +29,7 @@ const VALID_SETTINGS_FIELDS = [
   'porosPublicPortalEnabled',
   'publicPortalEnabled',
   'salveCheckinEnabled',
+  'salveCheckinMode',
   'raphaMedicalEnabled',
   'tshirtsEnabled',
   'individualMealsEnabled',
