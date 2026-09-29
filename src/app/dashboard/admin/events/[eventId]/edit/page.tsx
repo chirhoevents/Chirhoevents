@@ -132,6 +132,7 @@ interface FormData {
   checkPaymentEnabled: boolean
   checkPaymentPayableTo: string
   checkPaymentAddress: string
+  cardPaymentDisabled: boolean
   landingPageShowPrice: boolean
   landingPageShowSchedule: boolean
   landingPageShowFaq: boolean
@@ -382,6 +383,7 @@ export default function EditEventPage() {
         checkPaymentEnabled: event.settings?.checkPaymentEnabled ?? true,
         checkPaymentPayableTo: event.settings?.checkPaymentPayableTo || '',
         checkPaymentAddress: event.settings?.checkPaymentAddress || '',
+        cardPaymentDisabled: event.settings?.cardPaymentDisabled ?? false,
 
         // Step 6: Landing Page
         landingPageShowPrice: event.settings?.landingPageShowPrice ?? true,

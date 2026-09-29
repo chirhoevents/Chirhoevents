@@ -9,6 +9,7 @@ import { generateVirtualTerminalReceipt } from '@/lib/email-templates'
 import { calculatePlatformFeeCents } from '@/lib/stripe-fees'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { exceedsPlatformCollectedCardCap, PLATFORM_COLLECTED_CARD_CAP_ERROR } from '@/lib/platform-collected-payment-cap'
+import { CARD_PAYMENT_DISABLED_ERROR } from '@/lib/event-card-payment-disabled'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
       amountPaid: number
       eventName: string
       eventOrganization: { contactEmail: string | null } | null
-      eventSettings: { contactEmail: string | null } | null
+      eventSettings: { contactEmail: string | null; cardPaymentDisabled: boolean } | null
     } | null = null
 
     if (registrationType === 'group') {
@@ -96,7 +97,7 @@ export async function POST(request: Request) {
               id: true,
               name: true,
               organization: { select: { contactEmail: true } },
-              settings: { select: { contactEmail: true } },
+              settings: { select: { contactEmail: true, cardPaymentDisabled: true } },
             },
           }
         }
@@ -138,7 +139,7 @@ export async function POST(request: Request) {
               id: true,
               name: true,
               organization: { select: { contactEmail: true } },
-              settings: { select: { contactEmail: true } },
+              settings: { select: { contactEmail: true, cardPaymentDisabled: true } },
             },
           }
         }
@@ -221,6 +222,10 @@ export async function POST(request: Request) {
 
       if (exceedsPlatformCollectedCardCap(org, amountCents)) {
         return NextResponse.json({ error: PLATFORM_COLLECTED_CARD_CAP_ERROR }, { status: 400 })
+      }
+
+      if (registration.eventSettings?.cardPaymentDisabled) {
+        return NextResponse.json({ error: CARD_PAYMENT_DISABLED_ERROR }, { status: 400 })
       }
 
       try {

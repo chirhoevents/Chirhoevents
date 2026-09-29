@@ -161,6 +161,7 @@ export async function POST(request: NextRequest) {
             checkPaymentEnabled: data.checkPaymentEnabled !== false,
             checkPaymentPayableTo: data.checkPaymentPayableTo || null,
             checkPaymentAddress: data.checkPaymentAddress || null,
+            cardPaymentDisabled: data.cardPaymentDisabled || false,
             allowOnCampus: data.allowOnCampus !== false,
             allowOffCampus: data.allowOffCampus !== false,
             allowDayPass: data.allowDayPass !== false,

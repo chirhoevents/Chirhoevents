@@ -9,6 +9,7 @@ import { wrapEmail, emailInfoBox } from '@/lib/email-templates'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { calculatePlatformFeeCents } from '@/lib/stripe-fees'
 import { exceedsPlatformCollectedCardCap, PLATFORM_COLLECTED_CARD_CAP_ERROR } from '@/lib/platform-collected-payment-cap'
+import { CARD_PAYMENT_DISABLED_ERROR } from '@/lib/event-card-payment-disabled'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -127,6 +128,12 @@ export async function POST(request: NextRequest) {
     // to, so block up front rather than creating a registration that can't pay.
     if (exceedsPlatformCollectedCardCap(event.organization, Math.round(totalAmount * 100))) {
       return NextResponse.json({ error: PLATFORM_COLLECTED_CARD_CAP_ERROR }, { status: 400 })
+    }
+
+    // Same reasoning as the cap above — this event has card payments turned
+    // off entirely, and staff registration has no check-payment fallback.
+    if (totalAmount > 0 && event.settings?.cardPaymentDisabled) {
+      return NextResponse.json({ error: CARD_PAYMENT_DISABLED_ERROR }, { status: 400 })
     }
 
     // FIX 4.4: Use registration UUID for QR code data — create registration first, then generate QR

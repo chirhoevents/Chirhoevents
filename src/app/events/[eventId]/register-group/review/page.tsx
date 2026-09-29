@@ -42,6 +42,7 @@ interface EventData {
     checkPaymentPayableTo: string | null
     checkPaymentAddress: string | null
     couponsEnabled?: boolean
+    cardPaymentDisabled?: boolean
   }
   organization: {
     usePlatformStripeAccount: boolean
@@ -342,6 +343,10 @@ export default function InvoiceReviewPage() {
   // (and risks the broken back-button flow) only to be bounced into check anyway.
   const cardBlockedByPlatformCap =
     !!event?.organization?.usePlatformStripeAccount && pricing.deposit > 1000
+  // Separately, an event can have card payments turned off entirely this year
+  // ("financial restrictions this year, checks only") regardless of amount.
+  const cardBlockedByEventSetting = !!event?.settings.cardPaymentDisabled
+  const cardBlocked = cardBlockedByPlatformCap || cardBlockedByEventSetting
   const totalParticipants =
     registrationData.youthCount +
     registrationData.chaperoneCount +
@@ -581,14 +586,25 @@ export default function InvoiceReviewPage() {
               <div className="space-y-4">
                 <h3 className="font-semibold text-navy text-lg">Choose Payment Method</h3>
 
-                {cardBlockedByPlatformCap && (
+                {cardBlockedByEventSetting && (
+                  <div className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md p-3">
+                    <p className="font-semibold mb-1">How do I Pay?</p>
+                    <p>
+                      Due to internal financial restructuring, we are temporarily only able to
+                      accept payments by check. We sincerely apologize for any inconvenience this
+                      may cause. Please choose &quot;Pay Later&quot; below for mailing instructions.
+                    </p>
+                  </div>
+                )}
+
+                {!cardBlockedByEventSetting && cardBlockedByPlatformCap && (
                   <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3">
                     Due to financial circumstances this year, we are unable to process card payments
                     over $1,000 for this event. Please choose &quot;Pay Later&quot; below to pay by check.
                   </p>
                 )}
 
-                {!cardBlockedByPlatformCap && (
+                {!cardBlocked && (
                   <Button
                     size="lg"
                     className="w-full"
@@ -609,7 +625,7 @@ export default function InvoiceReviewPage() {
                   </Button>
                 )}
 
-                {(event?.settings.checkPaymentEnabled || cardBlockedByPlatformCap) && (
+                {(event?.settings.checkPaymentEnabled || cardBlocked) && (
                   <Button
                     size="lg"
                     variant="outline"
