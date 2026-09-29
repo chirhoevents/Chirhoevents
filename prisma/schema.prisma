@@ -258,6 +258,11 @@ model EventSettings {
   checkPaymentEnabled             Boolean  @default(true) @map("check_payment_enabled")
   checkPaymentPayableTo           String?  @map("check_payment_payable_to") @db.VarChar(255)
   checkPaymentAddress             String?  @map("check_payment_address") @db.Text
+  // When true, card payments are turned off for this event entirely — every
+  // registration is forced onto the check-payment path regardless of amount,
+  // with a "financial restrictions this year" explanation. Independent of the
+  // $1,000 platform-collected cap (Organization.usePlatformStripeAccount).
+  cardPaymentDisabled              Boolean  @default(false) @map("card_payment_disabled")
   allowOnCampus                   Boolean  @default(true) @map("allow_on_campus")
   allowOffCampus                  Boolean  @default(true) @map("allow_off_campus")
   allowDayPass                    Boolean  @default(true) @map("allow_day_pass")

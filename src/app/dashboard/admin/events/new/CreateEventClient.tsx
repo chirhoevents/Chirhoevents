@@ -156,6 +156,7 @@ interface EventFormData {
   registrationInstructions: string
   confirmationEmailMessage: string
   checkPaymentEnabled: boolean
+  cardPaymentDisabled: boolean
   checkPaymentPayableTo: string
   checkPaymentAddress: string
 
@@ -395,6 +396,7 @@ export default function CreateEventClient({
     registrationInstructions: '',
     confirmationEmailMessage: '',
     checkPaymentEnabled: true,
+    cardPaymentDisabled: false,
     checkPaymentPayableTo: '',
     checkPaymentAddress: '',
 
@@ -3390,6 +3392,35 @@ export default function CreateEventClient({
                   <p className="text-sm text-gray-500 mt-1">
                     This message will appear in the confirmation email sent to group leaders after registration. Leave blank to use the standard template.
                   </p>
+                </div>
+
+                {/* Card Payments Disabled - checks only, any registration type */}
+                <div className="bg-amber-50 p-4 rounded-lg border-2 border-amber-200">
+                  <h3 className="font-semibold text-amber-900 mb-3">
+                    🚫 Disable Card Payments (Checks Only)
+                  </h3>
+                  <p className="text-sm text-amber-800 mb-3">
+                    Turn off card payments entirely for this event — every registration (group,
+                    individual, staff) is forced onto check payment instead, with a &quot;due to
+                    financial restrictions this year&quot; note. Use this only if the event truly
+                    cannot accept cards this year.
+                  </p>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="cardPaymentDisabled"
+                      checked={formData.cardPaymentDisabled}
+                      onChange={(e) =>
+                        updateFormData({
+                          cardPaymentDisabled: e.target.checked,
+                        })
+                      }
+                      className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                    />
+                    <Label htmlFor="cardPaymentDisabled" className="mb-0">
+                      Only accept check payments this year
+                    </Label>
+                  </div>
                 </div>
 
                 {/* Check Payment Settings - Only for Group Registration */}
