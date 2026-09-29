@@ -233,9 +233,11 @@ export async function POST(
       where: { eventId },
     })
 
-    // Get payments for invoice
+    // Get payments for invoice. Only count money actually received: a "pay later"
+    // check is recorded as a pending payment until it arrives, and failed or
+    // cancelled card attempts must not count toward the amount paid either.
     const payments = await prisma.payment.findMany({
-      where: { registrationId: groupId },
+      where: { registrationId: groupId, paymentStatus: 'succeeded' },
       orderBy: { createdAt: 'asc' },
     })
 
@@ -252,7 +254,7 @@ export async function POST(
 
     const totalAmount = (youthCount * youthPrice) + (chaperoneCount * chaperonePrice) + (clergyCount * clergyPrice)
     const totalPaid = payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0)
-    const balanceRemaining = totalAmount - totalPaid
+    const balanceRemaining = Math.round((totalAmount - totalPaid) * 100) / 100
 
     // Get schedule entries from Poros
     const scheduleEntries = await prisma.porosScheduleEntry.findMany({

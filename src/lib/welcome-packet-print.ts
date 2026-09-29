@@ -380,14 +380,14 @@ export function generateWelcomePacketHTML(packet: PacketData, settings: PrintSet
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <div>
             <div style="font-size: 14px; font-weight: 600; color: ${packet.invoice.balanceRemaining <= 0 ? '#16a34a' : '#d97706'};">
-              ${packet.invoice.balanceRemaining <= 0 ? 'Paid in Full' : 'Balance Due'}
+              ${packet.invoice.balanceRemaining < 0 ? 'Overpaid' : packet.invoice.balanceRemaining === 0 ? 'Paid in Full' : 'Balance Due'}
             </div>
             <div style="font-size: 11px; color: #666; margin-top: 2px;">
-              ${packet.invoice.balanceRemaining <= 0 ? 'Thank you for your payment!' : 'Please submit payment before the event.'}
+              ${packet.invoice.balanceRemaining < 0 ? 'Credit owed to your group.' : packet.invoice.balanceRemaining === 0 ? 'Thank you for your payment!' : 'Please submit payment before the event.'}
             </div>
           </div>
           <div style="font-size: 24px; font-weight: 700; color: ${packet.invoice.balanceRemaining <= 0 ? '#16a34a' : '#d97706'};">
-            $${Math.abs(packet.invoice.balanceRemaining).toFixed(2)}
+            ${packet.invoice.balanceRemaining < 0 ? '+' : ''}$${Math.abs(packet.invoice.balanceRemaining).toFixed(2)}
           </div>
         </div>
       </div>
