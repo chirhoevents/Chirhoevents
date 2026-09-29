@@ -112,16 +112,13 @@ export async function GET(
       })
     }
 
-    // Only count payments that actually settled. Pending / failed / cancelled
-    // Payment rows would otherwise inflate the totals and skew percentages.
+    // Only count payments that actually settled. Pending rows (e.g. a group
+    // leader who chose "pay later by check", or an unfinished card checkout)
+    // are not money received — that amount is already reflected in each
+    // registration's balance due, so it is not reported separately.
     const isSettled = (p: any) =>
       p.paymentStatus === 'succeeded' || p.paymentStatus === 'processing'
-    // "Expected" = the row was created (usually as an intent — e.g. group leader
-    // chose "pay later by check") but money has not been received. These are NOT
-    // counted as paid, but admins want visibility into them.
-    const isExpected = (p: any) => p.paymentStatus === 'pending'
     const settledPayments = payments.filter(isSettled)
-    const expectedPayments = payments.filter(isExpected)
 
     // Payment methods breakdown
     const stripePayments = settledPayments
@@ -141,21 +138,6 @@ export async function GET(
           p.paymentMethod !== 'cash'
       )
       .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0)
-
-    // Expected (not yet received) — split by intended payment method
-    const expectedStripe = expectedPayments
-      .filter((p: any) => p.paymentMethod === 'card')
-      .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0)
-    const expectedCheck = expectedPayments
-      .filter((p: any) => p.paymentMethod === 'check')
-      .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0)
-    const expectedOther = expectedPayments
-      .filter(
-        (p: any) =>
-          p.paymentMethod !== 'card' && p.paymentMethod !== 'check'
-      )
-      .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0)
-    const expectedTotal = expectedStripe + expectedCheck + expectedOther
 
     // Reconciliation: actualAmountPaid is the sum of settled Payment rows.
     // This can drift from PaymentBalance.amountPaid if balances weren't
@@ -345,33 +327,6 @@ export async function GET(
         }
       })
 
-    // Expected (pending) payments — these are commitments / intents only,
-    // not money received. A "pay later by check" registration creates one
-    // of these. Surfaced so admins can see what's outstanding *by method*
-    // without it counting toward revenue.
-    const expectedDetails = expectedPayments
-      .slice()
-      .sort((a: any, b: any) => {
-        const da = a.createdAt ? new Date(a.createdAt).getTime() : 0
-        const db = b.createdAt ? new Date(b.createdAt).getTime() : 0
-        return db - da
-      })
-      .map((p: any) => {
-        const { payer, type: regType } = labelForRegistration({
-          registrationId: p.registrationId,
-          registrationType: p.registrationType,
-        })
-        return {
-          createdAt: p.createdAt ? new Date(p.createdAt).toISOString() : null,
-          amount: Number(p.amount || 0),
-          paymentMethod: p.paymentMethod,
-          paymentType: p.paymentType,
-          payer,
-          registrationType: regType,
-          checkNumber: p.checkNumber || null,
-        }
-      })
-
     // Per-registration balance breakdown — gives accounting a row per invoice
     const balancesByRegistration = paymentBalances
       .map((pb: any) => {
@@ -425,14 +380,6 @@ export async function GET(
         // This is the outstanding balance, NOT a payment method, and the UI
         // should display it separately.
         pending: balanceDue,
-      },
-      expectedPayments: {
-        total: expectedTotal,
-        stripe: expectedStripe,
-        check: expectedCheck,
-        other: expectedOther,
-        count: expectedPayments.length,
-        details: expectedDetails,
       },
       byParticipantType: participantTypeStats,
       byHousingType: housingTypeStats,
