@@ -766,7 +766,7 @@ export default function WelcomePacketsPage() {
             <Link href={`/dashboard/admin/events/${eventId}/salve`}>
               <Button variant="outline">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Check-In
+                Back to SALVE
               </Button>
             </Link>
           </div>

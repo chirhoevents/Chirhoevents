@@ -1,154 +1,87 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import dynamic from 'next/dynamic'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog'
 import {
-  QrCode,
   Search,
   Users,
+  User,
   Loader2,
   Check,
   AlertCircle,
   X,
   Printer,
-  Mail,
-  Home,
   FileText,
-  CreditCard,
   BarChart3,
-  Settings,
-  Camera,
   RefreshCw,
   Tag,
   ExternalLink,
+  QrCode,
+  Settings,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
-import { generateMultiplePacketsHTML, type PacketData } from '@/lib/welcome-packet-print'
-import { openBadgePrintWindow } from '@/lib/badge-renderer'
 import { ReprintBadgeModal } from '@/components/salve/ReprintBadgeModal'
 
-// Dynamic import for QR scanner to avoid SSR issues
-const QRScanner = dynamic(
-  () => import('@/components/salve/QRScanner').then((mod) => mod.QRScanner),
-  { ssr: false, loading: () => <div className="text-center py-8"><Loader2 className="w-8 h-8 animate-spin mx-auto" /></div> }
-)
+type CheckInMode = 'group' | 'individual'
 
-interface GroupData {
-  id: string
-  groupName: string
-  parishName: string | null
-  accessCode: string
-  groupLeaderName: string
-  groupLeaderEmail: string
-  totalParticipants: number
-  registrationStatus: string
-  payment: {
-    status: string
-    totalAmount: number
-    paidAmount: number
-    balanceRemaining: number
-  }
-  forms: {
-    completed: number
-    pending: number
-  }
-  housing: {
-    assigned: boolean
-  }
-  participants: ParticipantData[]
-}
-
-interface ParticipantData {
-  id: string
-  firstName: string
-  lastName: string
-  age: number
-  gender: string
-  participantType: string
-  liabilityFormCompleted: boolean
-  checkedIn: boolean
-  checkedInAt: string | null
-  housing?: {
-    buildingName: string
-    roomNumber: string
-    bedLetter: string
-  } | null
-  mealColor?: string | null
-  smallGroup?: string | null
-}
-
-type CheckInStatus = 'idle' | 'scanning' | 'loading' | 'found' | 'multiple' | 'not_found' | 'error'
-
-export default function SalveCheckInPage() {
+// SALVE management page in the admin dashboard. Everything except the actual
+// check-in lives here (packets, name tags, badge reprints, attendance, stats,
+// settings). Check-in itself only happens in the dedicated portal at
+// /portal/salve/[eventId].
+export default function SalveManagementPage() {
   const params = useParams()
   const eventId = params.eventId as string
 
-  const [status, setStatus] = useState<CheckInStatus>('idle')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [groupData, setGroupData] = useState<GroupData | null>(null)
-  const [multipleResults, setMultipleResults] = useState<GroupData[]>([])
-  const [selectedParticipants, setSelectedParticipants] = useState<Set<string>>(new Set())
-  const [participantNotes, setParticipantNotes] = useState<Record<string, string>>({})
-  const [checkingIn, setCheckingIn] = useState(false)
   const [eventName, setEventName] = useState('')
   const [stats, setStats] = useState({ totalExpected: 0, checkedIn: 0, issues: 0 })
+
+  // SALVE settings
+  const [checkInMode, setCheckInMode] = useState<CheckInMode>('group')
+  const [groupRegistrationEnabled, setGroupRegistrationEnabled] = useState(true)
+  const [canEditSettings, setCanEditSettings] = useState(false)
+  const [savingMode, setSavingMode] = useState(false)
 
   // Reprint modal
   const [isReprintModalOpen, setIsReprintModalOpen] = useState(false)
 
-  // Roster view modal
-  const [isRosterModalOpen, setIsRosterModalOpen] = useState(false)
-
-  // All participants modal
-  const [isAllParticipantsOpen, setIsAllParticipantsOpen] = useState(false)
-  const [allParticipants, setAllParticipants] = useState<any[]>([])
-  const [allParticipantsLoading, setAllParticipantsLoading] = useState(false)
-  const [allParticipantsSearch, setAllParticipantsSearch] = useState('')
-  const [allParticipantsFilter, setAllParticipantsFilter] = useState<'all' | 'checked_in' | 'not_checked_in'>('all')
-
-  // Success modal
-  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false)
-  const [checkedInCount, setCheckedInCount] = useState(0)
-  const [notCheckedInParticipants, setNotCheckedInParticipants] = useState<ParticipantData[]>([])
-  const [printingPacket, setPrintingPacket] = useState(false)
-  const [printingNameTags, setPrintingNameTags] = useState(false)
-  // Captured at check-in time so the success-modal buttons know what to print
-  const [lastCheckedInParticipantIds, setLastCheckedInParticipantIds] = useState<string[]>([])
-  const [lastCheckedInGroupId, setLastCheckedInGroupId] = useState<string | null>(null)
-  const [lastCheckedInRegistrationType, setLastCheckedInRegistrationType] = useState<'group' | 'individual'>('group')
+  // Attendance modal (view only; check-in happens in the portal)
+  const [isAttendanceOpen, setIsAttendanceOpen] = useState(false)
+  const [attendance, setAttendance] = useState<any[]>([])
+  const [attendanceLoading, setAttendanceLoading] = useState(false)
+  const [attendanceSearch, setAttendanceSearch] = useState('')
+  const [attendanceFilter, setAttendanceFilter] = useState<'all' | 'checked_in' | 'not_checked_in'>('all')
 
   useEffect(() => {
-    fetchEventInfo()
+    fetchSettings()
     fetchStats()
   }, [eventId])
 
-  async function fetchEventInfo() {
+  async function fetchSettings() {
     try {
-      const response = await fetch(`/api/admin/events/${eventId}`)
+      const response = await fetch(`/api/admin/events/${eventId}/salve/settings`)
       if (response.ok) {
         const data = await response.json()
-        setEventName(data.name || 'Event')
+        setEventName(data.eventName || 'Event')
+        setCheckInMode(data.checkInMode === 'individual' ? 'individual' : 'group')
+        setGroupRegistrationEnabled(data.groupRegistrationEnabled !== false)
+        setCanEditSettings(!!data.canEdit)
       }
     } catch (error) {
-      console.error('Failed to fetch event info:', error)
+      console.error('Failed to fetch SALVE settings:', error)
     }
   }
 
@@ -164,412 +97,54 @@ export default function SalveCheckInPage() {
     }
   }
 
-  async function fetchAllParticipants() {
-    setAllParticipantsLoading(true)
+  async function handleModeChange(mode: CheckInMode) {
+    if (mode === checkInMode || savingMode) return
+    const previous = checkInMode
+    setCheckInMode(mode)
+    setSavingMode(true)
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}/salve/settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ checkInMode: mode }),
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to save check-in mode')
+      }
+      toast.success(mode === 'individual' ? 'Individual check-in turned on' : 'Group check-in turned on')
+    } catch (error) {
+      setCheckInMode(previous)
+      toast.error(error instanceof Error ? error.message : 'Failed to save check-in mode')
+    } finally {
+      setSavingMode(false)
+    }
+  }
+
+  async function fetchAttendance() {
+    setAttendanceLoading(true)
     try {
       const params = new URLSearchParams()
-      if (allParticipantsSearch) params.set('search', allParticipantsSearch)
-      if (allParticipantsFilter !== 'all') params.set('status', allParticipantsFilter)
+      if (attendanceSearch) params.set('search', attendanceSearch)
+      if (attendanceFilter !== 'all') params.set('status', attendanceFilter)
 
       const response = await fetch(`/api/admin/events/${eventId}/salve/participants?${params}`)
       if (response.ok) {
         const data = await response.json()
-        setAllParticipants(data.participants || [])
+        setAttendance(data.participants || [])
       }
     } catch (error) {
-      console.error('Failed to fetch all participants:', error)
+      console.error('Failed to fetch attendance:', error)
     } finally {
-      setAllParticipantsLoading(false)
+      setAttendanceLoading(false)
     }
   }
 
   useEffect(() => {
-    if (isAllParticipantsOpen) {
-      fetchAllParticipants()
+    if (isAttendanceOpen) {
+      fetchAttendance()
     }
-  }, [isAllParticipantsOpen, allParticipantsFilter])
-
-  async function handleQuickCheckIn(participant: any) {
-    try {
-      const response = await fetch(`/api/admin/events/${eventId}/salve/check-in`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          participantIds: [participant.id],
-          action: participant.checkedIn ? 'check_out' : 'check_in',
-          registrationType: participant.registrationType,
-        }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || 'Failed to update check-in status')
-      }
-
-      toast.success(participant.checkedIn ? 'Checked out successfully' : 'Checked in successfully')
-      fetchAllParticipants()
-      fetchStats()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to update check-in status')
-    }
-  }
-
-  async function handlePrintWelcomePacket() {
-    if (!groupData) return
-    setPrintingPacket(true)
-
-    try {
-      const response = await fetch(`/api/admin/events/${eventId}/salve/generate-packet`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ groupId: groupData.id }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to generate welcome packet')
-      }
-
-      const packetData = await response.json()
-
-      // Generate printable HTML using saved settings from API response
-      const printWindow = window.open('', '_blank')
-      if (!printWindow) {
-        toast.error('Please allow popups to print')
-        return
-      }
-
-      const html = generatePrintablePacketHTML(packetData)
-      printWindow.document.write(html)
-      printWindow.document.close()
-      printWindow.focus()
-
-      setTimeout(() => {
-        printWindow.print()
-      }, 500)
-
-      toast.success('Welcome packet opened for printing')
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to print welcome packet')
-    } finally {
-      setPrintingPacket(false)
-    }
-  }
-
-  async function handlePrintNameTags() {
-    if (lastCheckedInParticipantIds.length === 0) {
-      toast.error('No checked-in participants to print badges for')
-      return
-    }
-
-    setPrintingNameTags(true)
-    try {
-      const isIndividual = lastCheckedInRegistrationType === 'individual'
-      const response = await fetch(`/api/admin/events/${eventId}/salve/generate-name-tags`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          participantIds: isIndividual ? undefined : lastCheckedInParticipantIds,
-          groupId: isIndividual ? undefined : (lastCheckedInGroupId ?? undefined),
-          registrationId: isIndividual ? (lastCheckedInParticipantIds[0] ?? undefined) : undefined,
-          registrationType: lastCheckedInRegistrationType,
-        }),
-      })
-
-      if (!response.ok) {
-        const err = await response.json()
-        throw new Error(err.message || 'Failed to generate name tags')
-      }
-
-      const data = await response.json()
-      openBadgePrintWindow(data.nameTags, data.template, eventName, data.schedule ?? [])
-      toast.success('Name tags opened for printing')
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to print name tags')
-    } finally {
-      setPrintingNameTags(false)
-    }
-  }
-
-  function generatePrintablePacketHTML(data: any) {
-    // Convert to the shared PacketData format (matching pre-print exactly)
-    const packetData: PacketData = {
-      event: {
-        name: data.event?.name || 'Event',
-        organizationName: data.event?.organizationName,
-        logoUrl: data.event?.logoUrl,
-      },
-      group: {
-        id: data.group?.id || '',
-        name: data.group?.name || 'Group',
-        diocese: data.group?.diocese,
-        accessCode: data.group?.accessCode || '',
-        contactEmail: data.group?.contactEmail,
-        contactPhone: data.group?.contactPhone,
-      },
-      mealColor: data.mealColor,
-      smallGroup: data.smallGroup,
-      participants: {
-        total: data.participants?.total || 0,
-        youth: data.participants?.youth || 0,
-        chaperones: data.participants?.chaperones || 0,
-        clergy: data.participants?.clergy || 0,
-        list: data.participants?.list || [],
-      },
-      housing: {
-        totalRooms: data.housing?.totalRooms || 0,
-        summary: data.housing?.summary || [],
-      },
-      resources: data.resources,
-      inserts: data.inserts,
-      invoice: data.invoice,
-    }
-
-    // Use saved settings from the API response (welcome packets editor)
-    const savedSettings = data.packetPrintSettings || {}
-    const printSettings = {
-      includeSchedule: savedSettings.includeSchedule ?? true,
-      includeConfessionSchedule: savedSettings.includeConfessionSchedule ?? true,
-      includeMap: savedSettings.includeMap ?? true,
-      includeRoster: savedSettings.includeRoster ?? true,
-      includeHousingAssignments: savedSettings.includeHousingAssignments ?? true,
-      includeHousingColumn: true,
-      includeEmergencyContacts: savedSettings.includeEmergencyContacts ?? true,
-      includeInvoice: savedSettings.includeInvoice ?? false,
-    }
-
-    // Get active inserts with imageUrls for printing
-    const activeInserts = data.inserts?.filter((i: any) => i.isActive !== false) || []
-
-    return generateMultiplePacketsHTML([packetData], printSettings, activeInserts)
-  }
-
-  async function handleSearch() {
-    if (!searchQuery.trim()) {
-      toast.error('Please enter an access code or search term')
-      return
-    }
-
-    setStatus('loading')
-    setGroupData(null)
-
-    try {
-      const query = searchQuery.trim()
-      // Check if this looks like an access code (alphanumeric, 4-8 chars)
-      const isAccessCode = /^[A-Za-z0-9]{4,8}$/.test(query)
-
-      const url = isAccessCode
-        ? `/api/admin/events/${eventId}/salve/lookup?accessCode=${encodeURIComponent(query)}`
-        : `/api/admin/events/${eventId}/salve/lookup?search=${encodeURIComponent(query)}`
-
-      const response = await fetch(url)
-
-      if (response.ok) {
-        const data = await response.json()
-
-        // Handle different response formats
-        let group: GroupData | null = null
-
-        if (data.results) {
-          // Search response with multiple results
-          if (data.results.length === 0) {
-            setStatus('not_found')
-            return
-          } else if (data.results.length === 1) {
-            // Single result - use it directly
-            group = data.results[0]
-          } else {
-            setMultipleResults(data.results)
-            setStatus('multiple')
-            return
-          }
-        } else if (data.id) {
-          // Direct group response (access code or groupId lookup)
-          group = data
-        }
-
-        if (group) {
-          setGroupData(group)
-          setStatus('found')
-
-          // Pre-select all participants who aren't already checked in
-          const notCheckedIn = new Set<string>(
-            group.participants
-              .filter((p: ParticipantData) => !p.checkedIn)
-              .map((p: ParticipantData) => p.id)
-          )
-          setSelectedParticipants(notCheckedIn)
-        } else {
-          setStatus('not_found')
-        }
-      } else if (response.status === 404) {
-        setStatus('not_found')
-      } else {
-        setStatus('error')
-      }
-    } catch (error) {
-      console.error('Search failed:', error)
-      setStatus('error')
-    }
-  }
-
-  async function handleQrScan(accessCode: string) {
-    if (!accessCode) {
-      toast.error('Invalid QR code')
-      setStatus('idle')
-      return
-    }
-
-    setStatus('loading')
-    setGroupData(null)
-    setSearchQuery(accessCode) // Show what was scanned
-
-    try {
-      const response = await fetch(
-        `/api/admin/events/${eventId}/salve/lookup?accessCode=${encodeURIComponent(accessCode)}`
-      )
-
-      if (response.ok) {
-        const data = await response.json()
-
-        // Handle response - accessCode returns single group directly
-        let group: GroupData | null = null
-
-        if (data.results) {
-          // Search response format
-          if (data.results.length > 0) {
-            group = data.results[0]
-          }
-        } else if (data.id) {
-          // Direct group response
-          group = data
-        }
-
-        if (group) {
-          setGroupData(group)
-          setStatus('found')
-          toast.success(`Found: ${group.groupName}`)
-
-          // Pre-select all participants who aren't already checked in
-          const notCheckedIn = new Set<string>(
-            group.participants
-              .filter((p: ParticipantData) => !p.checkedIn)
-              .map((p: ParticipantData) => p.id)
-          )
-          setSelectedParticipants(notCheckedIn)
-        } else {
-          setStatus('not_found')
-          toast.error('Group not found for this QR code')
-        }
-      } else if (response.status === 404) {
-        setStatus('not_found')
-        toast.error('No group found with this access code')
-      } else {
-        setStatus('error')
-        toast.error('Failed to look up group')
-      }
-    } catch (error) {
-      console.error('QR lookup failed:', error)
-      setStatus('error')
-      toast.error('Failed to look up group')
-    }
-  }
-
-  function toggleParticipant(participantId: string) {
-    setSelectedParticipants(prev => {
-      const next = new Set(prev)
-      if (next.has(participantId)) {
-        next.delete(participantId)
-      } else {
-        next.add(participantId)
-      }
-      return next
-    })
-  }
-
-  function selectAllParticipants() {
-    const all = new Set(
-      groupData?.participants
-        .filter(p => !p.checkedIn)
-        .map(p => p.id) || []
-    )
-    setSelectedParticipants(all)
-  }
-
-  function deselectAllParticipants() {
-    setSelectedParticipants(new Set())
-  }
-
-  async function handleCheckIn() {
-    if (!groupData || selectedParticipants.size === 0) {
-      toast.error('Please select at least one participant to check in')
-      return
-    }
-
-    setCheckingIn(true)
-
-    // Check if this is an individual registration
-    const isIndividual = (groupData as any).type === 'individual'
-
-    try {
-      const response = await fetch(`/api/admin/events/${eventId}/salve/check-in`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          groupRegistrationId: groupData.id,
-          participantIds: Array.from(selectedParticipants),
-          action: 'check_in',
-          registrationType: isIndividual ? 'individual' : 'group',
-          absentParticipantIds: groupData.participants
-            .filter(p => !p.checkedIn && !selectedParticipants.has(p.id))
-            .map(p => p.id),
-          notes: participantNotes,
-        }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || 'Failed to check in')
-      }
-
-      // Capture context for the success-modal print buttons
-      const checkedInIds = Array.from(selectedParticipants)
-      setLastCheckedInParticipantIds(checkedInIds)
-      setLastCheckedInGroupId(groupData.id)
-      setLastCheckedInRegistrationType(isIndividual ? 'individual' : 'group')
-
-      // Show success modal
-      setCheckedInCount(selectedParticipants.size)
-      setNotCheckedInParticipants(
-        groupData.participants.filter(p => !p.checkedIn && !selectedParticipants.has(p.id))
-      )
-      setIsSuccessModalOpen(true)
-
-      // Refresh stats
-      fetchStats()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to check in')
-    } finally {
-      setCheckingIn(false)
-    }
-  }
-
-  function resetSearch() {
-    setStatus('idle')
-    setSearchQuery('')
-    setGroupData(null)
-    setMultipleResults([])
-    setSelectedParticipants(new Set())
-    setParticipantNotes({})
-  }
-
-  function selectGroup(group: GroupData) {
-    setGroupData(group)
-    setStatus('found')
-    setMultipleResults([])
-    setSelectedParticipants(new Set(
-      group.participants.filter((p: ParticipantData) => !p.checkedIn).map((p: ParticipantData) => p.id)
-    ))
-  }
+  }, [isAttendanceOpen, attendanceFilter])
 
   const totalExpected = stats?.totalExpected || 0
   const checkedIn = stats?.checkedIn || 0
@@ -590,12 +165,12 @@ export default function SalveCheckInPage() {
           <span>/</span>
           <Link href={`/dashboard/admin/events/${eventId}`} className="hover:text-navy">{eventName}</Link>
           <span>/</span>
-          <span className="text-navy font-medium">SALVE Check-In</span>
+          <span className="text-navy font-medium">SALVE</span>
         </div>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-navy">SALVE Check-In Station</h1>
-            <p className="text-muted-foreground">{eventName} • Station #1</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-navy">SALVE Check-In</h1>
+            <p className="text-muted-foreground">{eventName}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link href={`/dashboard/admin/events/${eventId}/salve/welcome-packets`}>
@@ -623,7 +198,7 @@ export default function SalveCheckInPage() {
               variant="outline"
               size="sm"
               className="w-full md:w-auto"
-              onClick={() => setIsAllParticipantsOpen(true)}
+              onClick={() => setIsAttendanceOpen(true)}
             >
               <Users className="w-4 h-4 mr-2" />
               View All Attendance
@@ -632,12 +207,6 @@ export default function SalveCheckInPage() {
               <Button variant="outline" size="sm" className="w-full md:w-auto">
                 <BarChart3 className="w-4 h-4 mr-2" />
                 Dashboard
-              </Button>
-            </Link>
-            <Link href={`/portal/salve/${eventId}`} target="_blank">
-              <Button variant="outline" size="sm" className="w-full md:w-auto">
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Open Portal
               </Button>
             </Link>
           </div>
@@ -690,440 +259,101 @@ export default function SalveCheckInPage() {
         </Card>
       </div>
 
-      {/* Search / Scan Section */}
-      <Card className="mb-6">
-        <CardContent className="pt-6">
-          {status === 'idle' && (
-            <div className="space-y-6">
-              <div className="text-center">
-                <QrCode className="w-16 h-16 mx-auto text-navy mb-4" />
-                <h2 className="text-xl font-semibold mb-2">Scan QR Code or Search</h2>
-                <p className="text-muted-foreground">
-                  Scan the group leader&apos;s QR code or search by name, email, or access code
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Check-in happens in the portal */}
+        <Card>
+          <CardContent className="pt-6 text-center space-y-4">
+            <QrCode className="w-14 h-14 mx-auto text-emerald-600" />
+            <div>
+              <h2 className="text-xl font-semibold mb-1">Check-In Portal</h2>
+              <p className="text-muted-foreground text-sm max-w-md mx-auto">
+                Scanning QR codes and checking people in happens in the dedicated check-in
+                portal. Open it on each check-in station&apos;s device.
+              </p>
+            </div>
+            <Link href={`/portal/salve/${eventId}`} target="_blank">
+              <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                <ExternalLink className="w-5 h-5 mr-2" />
+                Open Check-In Portal
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* SALVE Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg text-navy flex items-center gap-2">
+              <Settings className="w-5 h-5" />
+              SALVE Settings
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm font-medium text-navy">Check-in mode</p>
+            {groupRegistrationEnabled ? (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  How group registrations are checked in at the portal. Individual
+                  registrations are always checked in one person at a time.
                 </p>
-              </div>
-
-              {/* Scan QR Code Button */}
-              <div className="flex justify-center">
-                <Button
-                  onClick={() => setStatus('scanning')}
-                  size="lg"
-                  className="h-14 px-8 text-lg bg-navy text-white hover:bg-navy/90"
-                >
-                  <Camera className="w-6 h-6 mr-3" />
-                  Scan QR Code
-                </Button>
-              </div>
-
-              <div className="flex items-center gap-4 max-w-xl mx-auto">
-                <div className="flex-1 h-px bg-gray-200" />
-                <span className="text-sm text-muted-foreground">or search manually</span>
-                <div className="flex-1 h-px bg-gray-200" />
-              </div>
-
-              <div className="flex gap-2 max-w-xl mx-auto">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search by name, email, or access code..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                    className="pl-10 h-12"
-                  />
-                </div>
-                <Button onClick={handleSearch} className="h-12 px-6">
-                  Search
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {status === 'scanning' && (
-            <div className="space-y-4">
-              <div className="text-center mb-4">
-                <h2 className="text-xl font-semibold">Scan QR Code</h2>
-                <p className="text-muted-foreground">
-                  Point camera at the group leader&apos;s QR code
-                </p>
-              </div>
-              <QRScanner
-                onScan={handleQrScan}
-                onError={(err) => {
-                  console.error('QR Error:', err)
-                  toast.error('QR scanner error. Try manual search.')
-                }}
-                onClose={() => setStatus('idle')}
-              />
-            </div>
-          )}
-
-          {status === 'loading' && (
-            <div className="text-center py-12">
-              <Loader2 className="w-12 h-12 animate-spin mx-auto text-navy" />
-              <p className="text-muted-foreground mt-4">Looking up registration...</p>
-            </div>
-          )}
-
-          {status === 'multiple' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold">Multiple Results Found</h2>
-                  <p className="text-sm text-muted-foreground">
-                    {multipleResults.length} matches for &quot;{searchQuery}&quot; — select the correct one
-                  </p>
-                </div>
-                <Button variant="outline" size="sm" onClick={resetSearch}>
-                  <X className="w-4 h-4 mr-1" />
-                  New Search
-                </Button>
-              </div>
-              <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                {multipleResults.map((g) => {
-                  const alreadyIn = g.participants.filter((p: ParticipantData) => p.checkedIn).length
+                {([
+                  {
+                    value: 'group',
+                    icon: Users,
+                    title: 'Group check-in',
+                    description:
+                      'The group leader checks in the whole group at once. Staff scan the group QR code or search the group, tick who is here, then print the group welcome packet (with the group\'s balance and invoice, if turned on) and everyone\'s name tags.',
+                  },
+                  {
+                    value: 'individual',
+                    icon: User,
+                    title: 'Individual check-in',
+                    description:
+                      'Each participant checks in on their own. Staff scan the participant\'s personal QR code or search their name, and print just that person\'s name tag. The group\'s balance, housing summary and welcome packet are not shown at the table; hand group packets to group leaders separately.',
+                  },
+                ] as const).map((option) => {
+                  const Icon = option.icon
+                  const selected = checkInMode === option.value
                   return (
-                    <div
-                      key={g.id}
-                      className="flex items-center justify-between p-4 border rounded-lg bg-white hover:border-navy/50 cursor-pointer"
-                      onClick={() => selectGroup(g)}
+                    <button
+                      key={option.value}
+                      type="button"
+                      disabled={!canEditSettings || savingMode}
+                      onClick={() => handleModeChange(option.value)}
+                      className={`w-full text-left flex items-start gap-3 rounded-lg border p-3 transition-colors disabled:cursor-not-allowed ${
+                        selected ? 'border-navy bg-navy/5' : 'border-gray-200 hover:border-gray-300'
+                      }`}
                     >
+                      <Icon className={`w-5 h-5 mt-0.5 ${selected ? 'text-navy' : 'text-muted-foreground'}`} />
                       <div className="flex-1">
-                        <p className="font-semibold">{g.groupName}</p>
-                        {g.parishName && <p className="text-sm text-muted-foreground">{g.parishName}</p>}
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {g.totalParticipants} participants · {alreadyIn} checked in
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-navy">{option.title}</p>
+                          {selected && (
+                            savingMode
+                              ? <Loader2 className="w-3.5 h-3.5 animate-spin text-navy" />
+                              : <Badge className="bg-navy text-white">On</Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">{option.description}</p>
                       </div>
-                      <Button size="sm" className="ml-3">Select</Button>
-                    </div>
+                    </button>
                   )
                 })}
-              </div>
-            </div>
-          )}
-
-          {status === 'not_found' && (
-            <div className="text-center py-12">
-              <X className="w-16 h-16 mx-auto text-red-500 mb-4" />
-              <h2 className="text-xl font-semibold text-red-600 mb-2">Not Found</h2>
-              <p className="text-muted-foreground mb-4">
-                No registration found for &quot;{searchQuery}&quot;
-              </p>
-              <Button onClick={resetSearch}>Try Again</Button>
-            </div>
-          )}
-
-          {status === 'error' && (
-            <div className="text-center py-12">
-              <AlertCircle className="w-16 h-16 mx-auto text-red-500 mb-4" />
-              <h2 className="text-xl font-semibold text-red-600 mb-2">Error</h2>
-              <p className="text-muted-foreground mb-4">
-                Something went wrong. Please try again.
-              </p>
-              <Button onClick={resetSearch}>Try Again</Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Group Check-In Screen */}
-      {status === 'found' && groupData && (
-        <div className="space-y-6">
-          {/* Welcome Banner */}
-          <Card className="bg-gradient-to-r from-navy to-[#2A4A6F] text-white">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold">
-                    Salve, {groupData.groupLeaderName.split(' ')[0]}!
-                  </h2>
-                  <p className="text-white/80">Welcome to {eventName}</p>
-                </div>
-                <Button variant="outline" className="text-white border-white hover:bg-white/10" onClick={resetSearch}>
-                  <X className="w-4 h-4 mr-2" />
-                  Cancel
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Group Info & Status */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>{groupData.groupName}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {groupData.parishName && (
-                  <p className="text-muted-foreground">{groupData.parishName}</p>
+                {!canEditSettings && (
+                  <p className="text-xs text-muted-foreground">
+                    Only org admins, event managers and SALVE coordinators can change this.
+                  </p>
                 )}
-                <p className="font-medium">{groupData.totalParticipants} Participants Registered</p>
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    {groupData.payment.balanceRemaining <= 0 ? (
-                      <Check className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <AlertCircle className="w-4 h-4 text-amber-500" />
-                    )}
-                    <span className="text-sm">
-                      Payment: {groupData.payment.balanceRemaining <= 0 ? 'Paid in Full' : `$${groupData.payment.balanceRemaining.toFixed(2)} remaining`}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {groupData.forms.pending === 0 ? (
-                      <Check className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <AlertCircle className="w-4 h-4 text-amber-500" />
-                    )}
-                    <span className="text-sm">
-                      Liability Forms: {groupData.forms.completed}/{groupData.forms.completed + groupData.forms.pending} Complete
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {groupData.housing.assigned ? (
-                      <Check className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <AlertCircle className="w-4 h-4 text-amber-500" />
-                    )}
-                    <span className="text-sm">
-                      Housing: {groupData.housing.assigned ? 'Assigned' : 'Not Assigned'}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Issues */}
-            {(groupData.payment.balanceRemaining > 0 || groupData.forms.pending > 0) && (
-              <Card className="border-amber-200 bg-amber-50">
-                <CardHeader>
-                  <CardTitle className="text-amber-800 flex items-center gap-2">
-                    <AlertCircle className="w-5 h-5" />
-                    Outstanding Issues
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2">
-                    {groupData.payment.balanceRemaining > 0 && (
-                      <li className="text-sm text-amber-700">
-                        • Outstanding balance: ${groupData.payment.balanceRemaining.toFixed(2)}
-                      </li>
-                    )}
-                    {groupData.participants
-                      .filter(p => !p.liabilityFormCompleted)
-                      .slice(0, 5)
-                      .map(p => (
-                        <li key={p.id} className="text-sm text-amber-700">
-                          • {p.firstName} {p.lastName} - Missing Liability Form
-                        </li>
-                      ))}
-                    {groupData.forms.pending > 5 && (
-                      <li className="text-sm text-amber-700">
-                        ... and {groupData.forms.pending - 5} more missing forms
-                      </li>
-                    )}
-                  </ul>
-                </CardContent>
-              </Card>
+              </>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                This event only takes individual registrations, so everyone is checked in one
+                person at a time.
+              </p>
             )}
-          </div>
-
-          {/* Participant Roster */}
-          <Card>
-            <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-2">
-              <CardTitle className="text-lg">Check In Participants</CardTitle>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={selectAllParticipants} className="flex-1 md:flex-none">
-                  Select All
-                </Button>
-                <Button variant="outline" size="sm" onClick={deselectAllParticipants} className="flex-1 md:flex-none">
-                  Deselect All
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[400px]">
-                <div className="space-y-2">
-                  {groupData.participants.map((participant) => {
-                    const isSelected = selectedParticipants.has(participant.id)
-                    const isAlreadyCheckedIn = participant.checkedIn
-
-                    return (
-                      <div
-                        key={participant.id}
-                        className={`flex items-center gap-4 p-3 rounded-lg border ${
-                          isAlreadyCheckedIn
-                            ? 'bg-green-50 border-green-200'
-                            : isSelected
-                              ? 'bg-navy/5 border-navy'
-                              : 'bg-white border-gray-200'
-                        }`}
-                      >
-                        {!isAlreadyCheckedIn && (
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={() => toggleParticipant(participant.id)}
-                          />
-                        )}
-
-                        {isAlreadyCheckedIn && (
-                          <Check className="w-5 h-5 text-green-600" />
-                        )}
-
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">
-                              {participant.firstName} {participant.lastName}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              ({participant.age}, {participant.gender === 'male' ? 'M' : 'F'})
-                            </span>
-                            {!participant.liabilityFormCompleted && (
-                              <Badge variant="outline" className="text-amber-600 border-amber-300">
-                                Missing Form
-                              </Badge>
-                            )}
-                            {isAlreadyCheckedIn && (
-                              <Badge className="bg-green-500">Checked In</Badge>
-                            )}
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {participant.housing ? (
-                              <span>{participant.housing.buildingName} {participant.housing.roomNumber}-{participant.housing.bedLetter}</span>
-                            ) : (
-                              <span className="text-amber-600">No housing assigned</span>
-                            )}
-                            {participant.mealColor && (
-                              <span className="ml-2">• {participant.mealColor} Meals</span>
-                            )}
-                            {participant.smallGroup && (
-                              <span className="ml-2">• SG-{participant.smallGroup}</span>
-                            )}
-                          </div>
-                        </div>
-
-                        {!isAlreadyCheckedIn && !isSelected && (
-                          <Input
-                            placeholder="Add note (arriving later?)"
-                            value={participantNotes[participant.id] || ''}
-                            onChange={(e) => setParticipantNotes(prev => ({
-                              ...prev,
-                              [participant.id]: e.target.value,
-                            }))}
-                            className="w-48 text-sm"
-                          />
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </ScrollArea>
-
-              <div className="mt-4 pt-4 border-t flex items-center justify-between">
-                <div>
-                  <span className="font-medium">
-                    {selectedParticipants.size} selected
-                  </span>
-                  <span className="text-muted-foreground ml-2">
-                    ({groupData.participants.filter(p => p.checkedIn).length} already checked in)
-                  </span>
-                </div>
-                <Button
-                  onClick={handleCheckIn}
-                  disabled={checkingIn || selectedParticipants.size === 0}
-                  className="px-8"
-                >
-                  {checkingIn && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  <Check className="w-4 h-4 mr-2" />
-                  Check In Selected ({selectedParticipants.size})
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Success Modal */}
-      <Dialog open={isSuccessModalOpen} onOpenChange={setIsSuccessModalOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-green-600 flex items-center gap-2">
-              <Check className="w-6 h-6" />
-              Check-In Successful!
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="bg-green-50 p-4 rounded-lg text-center">
-              <p className="text-2xl font-bold text-green-600">{checkedInCount}</p>
-              <p className="text-sm text-green-700">participants checked in</p>
-            </div>
-
-            {notCheckedInParticipants.length > 0 && (
-              <div className="bg-amber-50 p-4 rounded-lg">
-                <p className="font-medium text-amber-800 mb-2">Not Checked In ({notCheckedInParticipants.length}):</p>
-                <ul className="text-sm text-amber-700 space-y-1">
-                  {notCheckedInParticipants.map(p => (
-                    <li key={p.id}>
-                      • {p.firstName} {p.lastName}
-                      {participantNotes[p.id] && (
-                        <span className="text-amber-600"> - {participantNotes[p.id]}</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <p className="font-medium">Next Steps:</p>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant="outline"
-                  className="h-auto py-3"
-                  onClick={handlePrintWelcomePacket}
-                  disabled={printingPacket}
-                >
-                  {printingPacket ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Printer className="w-4 h-4 mr-2" />
-                  )}
-                  Print Welcome Packet
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-auto py-3"
-                  onClick={handlePrintNameTags}
-                  disabled={printingNameTags}
-                >
-                  {printingNameTags ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Printer className="w-4 h-4 mr-2" />
-                  )}
-                  Print Name Tags ({checkedInCount})
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              onClick={() => {
-                setIsSuccessModalOpen(false)
-                resetSearch()
-              }}
-            >
-              Done - Next Group
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Reprint / Walk-Up Modal */}
       <ReprintBadgeModal
@@ -1133,8 +363,8 @@ export default function SalveCheckInPage() {
         eventName={eventName}
       />
 
-      {/* All Participants Modal */}
-      <Dialog open={isAllParticipantsOpen} onOpenChange={setIsAllParticipantsOpen}>
+      {/* Attendance Modal (view only) */}
+      <Dialog open={isAttendanceOpen} onOpenChange={setIsAttendanceOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="text-navy flex items-center gap-2">
@@ -1142,50 +372,50 @@ export default function SalveCheckInPage() {
               All Attendance - {eventName}
             </DialogTitle>
             <DialogDescription>
-              View and manage check-in status for all participants
+              Check-in status for all participants. To check someone in, use the check-in portal.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Search and Filter */}
+            {/* Filter */}
             <div className="flex flex-col sm:flex-row gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by name..."
-                  value={allParticipantsSearch}
-                  onChange={(e) => setAllParticipantsSearch(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && fetchAllParticipants()}
+                  placeholder="Filter by name..."
+                  value={attendanceSearch}
+                  onChange={(e) => setAttendanceSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && fetchAttendance()}
                   className="pl-10"
                 />
               </div>
               <div className="flex gap-2">
                 <Button
-                  variant={allParticipantsFilter === 'all' ? 'default' : 'outline'}
+                  variant={attendanceFilter === 'all' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setAllParticipantsFilter('all')}
+                  onClick={() => setAttendanceFilter('all')}
                 >
                   All
                 </Button>
                 <Button
-                  variant={allParticipantsFilter === 'checked_in' ? 'default' : 'outline'}
+                  variant={attendanceFilter === 'checked_in' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setAllParticipantsFilter('checked_in')}
-                  className={allParticipantsFilter === 'checked_in' ? 'bg-green-600 hover:bg-green-700' : ''}
+                  onClick={() => setAttendanceFilter('checked_in')}
+                  className={attendanceFilter === 'checked_in' ? 'bg-green-600 hover:bg-green-700' : ''}
                 >
                   <Check className="w-4 h-4 mr-1" />
                   Checked In
                 </Button>
                 <Button
-                  variant={allParticipantsFilter === 'not_checked_in' ? 'default' : 'outline'}
+                  variant={attendanceFilter === 'not_checked_in' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setAllParticipantsFilter('not_checked_in')}
-                  className={allParticipantsFilter === 'not_checked_in' ? 'bg-amber-600 hover:bg-amber-700' : ''}
+                  onClick={() => setAttendanceFilter('not_checked_in')}
+                  className={attendanceFilter === 'not_checked_in' ? 'bg-amber-600 hover:bg-amber-700' : ''}
                 >
                   <X className="w-4 h-4 mr-1" />
                   Not Checked In
                 </Button>
-                <Button variant="outline" size="sm" onClick={fetchAllParticipants}>
+                <Button variant="outline" size="sm" onClick={fetchAttendance}>
                   <RefreshCw className="w-4 h-4" />
                 </Button>
               </div>
@@ -1193,21 +423,21 @@ export default function SalveCheckInPage() {
 
             {/* Participants List */}
             <ScrollArea className="h-[500px] border rounded-lg">
-              {allParticipantsLoading ? (
+              {attendanceLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="w-8 h-8 animate-spin text-navy" />
                 </div>
-              ) : allParticipants.length === 0 ? (
+              ) : attendance.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                   <Users className="w-12 h-12 mb-2 opacity-50" />
                   <p>No participants found</p>
                 </div>
               ) : (
                 <div className="divide-y">
-                  {allParticipants.map((participant) => (
+                  {attendance.map((participant) => (
                     <div
                       key={`${participant.registrationType}-${participant.id}`}
-                      className={`flex items-center justify-between p-3 hover:bg-gray-50 ${
+                      className={`flex items-center justify-between p-3 ${
                         participant.checkedIn ? 'bg-green-50' : ''
                       }`}
                     >
@@ -1232,24 +462,6 @@ export default function SalveCheckInPage() {
                           {participant.email && ` • ${participant.email}`}
                         </div>
                       </div>
-                      <Button
-                        size="sm"
-                        variant={participant.checkedIn ? 'outline' : 'default'}
-                        onClick={() => handleQuickCheckIn(participant)}
-                        className={!participant.checkedIn ? 'bg-green-600 hover:bg-green-700' : ''}
-                      >
-                        {participant.checkedIn ? (
-                          <>
-                            <X className="w-4 h-4 mr-1" />
-                            Check Out
-                          </>
-                        ) : (
-                          <>
-                            <Check className="w-4 h-4 mr-1" />
-                            Check In
-                          </>
-                        )}
-                      </Button>
                     </div>
                   ))}
                 </div>
@@ -1258,9 +470,9 @@ export default function SalveCheckInPage() {
 
             {/* Summary */}
             <div className="flex items-center justify-between text-sm text-muted-foreground pt-2 border-t">
-              <span>Showing {allParticipants.length} participants</span>
+              <span>Showing {attendance.length} participants</span>
               <span>
-                {allParticipants.filter(p => p.checkedIn).length} checked in / {allParticipants.filter(p => !p.checkedIn).length} not checked in
+                {attendance.filter(p => p.checkedIn).length} checked in / {attendance.filter(p => !p.checkedIn).length} not checked in
               </span>
             </div>
           </div>

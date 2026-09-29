@@ -201,7 +201,7 @@ export default function SalveDashboardPage() {
             <Link href={`/dashboard/admin/events/${eventId}/salve`}>
               <Button>
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Check-In
+                Back to SALVE
               </Button>
             </Link>
           </div>
@@ -396,7 +396,8 @@ export default function SalveDashboardPage() {
 function GroupProgressCard({ group, eventId }: { group: GroupProgress; eventId: string }) {
   return (
     <Link
-      href={`/dashboard/admin/events/${eventId}/salve?groupId=${group.id}`}
+      href={`/portal/salve/${eventId}?groupId=${group.id}`}
+      target="_blank"
       className="block"
     >
       <div className="flex items-center gap-4 p-3 rounded-lg border bg-white hover:bg-gray-50 transition-colors">

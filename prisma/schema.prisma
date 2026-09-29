@@ -245,6 +245,11 @@ model EventSettings {
   porosPublicPortalEnabled        Boolean  @default(false) @map("poros_public_portal_enabled")
   publicPortalEnabled             Boolean  @default(false) @map("public_portal_enabled")
   salveCheckinEnabled             Boolean  @default(false) @map("salve_checkin_enabled")
+  // SALVE check-in mode for group registrations: 'group' checks in a whole
+  // group at once (search/scan the group, tick who's present); 'individual'
+  // checks in one participant at a time. Individual registrations are always
+  // checked in one person at a time regardless of this setting.
+  salveCheckinMode                String   @default("group") @map("salve_checkin_mode") @db.VarChar(20)
   raphaMedicalEnabled             Boolean  @default(false) @map("rapha_medical_enabled")
   tshirtsEnabled                  Boolean  @default(false) @map("tshirts_enabled")
   individualMealsEnabled          Boolean  @default(false) @map("individual_meals_enabled")

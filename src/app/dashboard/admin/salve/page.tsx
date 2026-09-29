@@ -119,7 +119,7 @@ export default function SalveSelectEventPage() {
             >
               <span className="flex items-center gap-2">
                 <CheckSquare className="w-4 h-4" />
-                Open SALVE Check-In
+                Manage SALVE
               </span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
@@ -130,7 +130,7 @@ export default function SalveSelectEventPage() {
             >
               <span className="flex items-center gap-2">
                 <ExternalLink className="w-4 h-4" />
-                Open Dedicated Portal
+                Open Check-In Portal
               </span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
@@ -157,7 +157,7 @@ export default function SalveSelectEventPage() {
           <h1 className="text-3xl font-bold text-navy">SALVE Check-In Portal</h1>
         </div>
         <p className="text-muted-foreground">
-          Select an event to manage check-in, scan QR codes, and print welcome packets.
+          Select an event to manage welcome packets, name tags, badge reprints and SALVE settings. Checking people in happens in the check-in portal.
         </p>
       </div>
 
