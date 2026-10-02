@@ -697,7 +697,21 @@ export async function POST(request: NextRequest) {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
       const porosLiabilityUrl = `${appUrl}/poros?code=${accessCode}`
       const groupLeaderPortalUrl = `${appUrl}/dashboard/group-leader`
-      const confirmationPageUrl = `${appUrl}/registration/confirmation/${registration.id}`
+      // Same params as the live post-registration redirect (see review page) —
+      // without them, clicking this link from the email later (before linking
+      // a Group Leader account) shows the unauthenticated, param-less view:
+      // $0 total vs $0 paid, which doesn't say the wrong thing but doesn't say
+      // anything useful either. Carrying the real numbers means this link
+      // keeps working correctly no matter when it's clicked.
+      const confirmationPageParams = new URLSearchParams({
+        access_code: accessCode,
+        group_name: groupName,
+        participants: String(totalParticipants),
+        amount_paid: '0',
+        total_amount: String(totalAmount),
+        housing: housingType,
+      })
+      const confirmationPageUrl = `${appUrl}/registration/confirmation/${registration.id}?${confirmationPageParams.toString()}`
 
       const fullPaymentDeadlineFormatted = event.pricing.fullPaymentDeadline
         ? new Date(event.pricing.fullPaymentDeadline).toLocaleDateString('en-US', {
