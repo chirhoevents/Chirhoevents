@@ -28,6 +28,12 @@ export default function RegistrationTimer({
   const [currentExpiresAt, setCurrentExpiresAt] = useState<Date>(
     typeof expiresAt === 'string' ? new Date(expiresAt) : expiresAt
   )
+  const expiresAtMs = new Date(expiresAt).getTime()
+
+  // Keep in sync with the server's expiry when the queue hook re-checks
+  useEffect(() => {
+    setCurrentExpiresAt(new Date(expiresAtMs))
+  }, [expiresAtMs])
 
   // Calculate time remaining
   useEffect(() => {
@@ -55,9 +61,11 @@ export default function RegistrationTimer({
         if (onSessionExpired) {
           onSessionExpired()
         } else {
-          // Default behavior: redirect to queue
-          alert('Your session has expired. Returning to queue.')
-          router.push(`/events/${eventId}/queue?type=${registrationType}`)
+          // Default behavior: send them out to the waiting room. Navigate
+          // before alerting — alert() blocks, and the user must not be able
+          // to keep filling in the form behind it.
+          router.replace(`/events/${eventId}/queue?type=${registrationType}`)
+          alert('Your registration time has run out. You have been returned to the queue.')
         }
       }
     }, 1000)

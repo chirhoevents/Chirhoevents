@@ -107,13 +107,14 @@ export default function QueuePage() {
 
     try {
       const response = await fetch(`/api/queue/status?eventId=${eventId}&type=${registrationType}`)
+      const statusData = response.ok ? await response.json() : null
 
-      if (!response.ok) {
-        // If not in queue, join it
+      // Not in the queue yet, or their time ran out — (re)join at the back
+      if (!statusData || statusData.status === 'expired' || statusData.status === 'abandoned') {
         const joinResponse = await fetch('/api/queue/check', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ eventId, registrationType })
+          body: JSON.stringify({ eventId, registrationType, rejoin: true })
         })
 
         if (!joinResponse.ok) {
@@ -138,7 +139,7 @@ export default function QueuePage() {
         return joinData
       }
 
-      const data = await response.json()
+      const data = statusData
       setQueueStatus(data)
       setLastUpdated(new Date())
       setRefreshCount(prev => prev + 1)

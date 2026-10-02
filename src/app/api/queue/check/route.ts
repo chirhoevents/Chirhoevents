@@ -7,7 +7,7 @@ const QUEUE_SESSION_COOKIE = 'queue_session_id'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { eventId, registrationType } = body
+    const { eventId, registrationType, rejoin } = body
 
     if (!eventId || !registrationType) {
       return NextResponse.json(
@@ -43,7 +43,8 @@ export async function POST(request: NextRequest) {
       registrationType as QueueRegistrationType,
       undefined, // userId - could be populated from Clerk if needed
       ipAddress,
-      userAgent
+      userAgent,
+      { rejoin: rejoin === true }
     )
 
     const response = NextResponse.json(result)

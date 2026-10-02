@@ -100,8 +100,9 @@ export function useRegistrationQueue(
         return data
       }
 
-      // If queue is active but user needs to wait
-      if (!data.allowed && data.status === 'waiting') {
+      // Not allowed in — either still waiting for a spot, or their time ran
+      // out while on the page. Block them and send them to the waiting room.
+      if (!data.allowed) {
         setQueueActive(false)
         setIsBlocked(true) // BLOCK the user
         setLoading(false)
@@ -109,20 +110,7 @@ export function useRegistrationQueue(
         // Only redirect once to avoid redirect loops
         if (!hasRedirected.current) {
           hasRedirected.current = true
-          router.push(`/events/${eventId}/queue?type=${registrationType}`)
-        }
-        return data
-      }
-
-      // If session expired while on page, block them
-      if (data.status === 'expired') {
-        setQueueActive(false)
-        setIsBlocked(true)
-        setLoading(false)
-
-        if (!hasRedirected.current) {
-          hasRedirected.current = true
-          router.push(`/events/${eventId}/queue?type=${registrationType}`)
+          router.replace(`/events/${eventId}/queue?type=${registrationType}`)
         }
         return data
       }
