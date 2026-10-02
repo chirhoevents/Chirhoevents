@@ -173,8 +173,8 @@ export async function GET(request: NextRequest) {
       include: {
         _count: {
           select: {
-            groupRegistrations: true,
-            individualRegistrations: true,
+            groupRegistrations: { where: { cancelledAt: null } },
+            individualRegistrations: { where: { cancelledAt: null } },
           },
         },
       },
@@ -211,10 +211,27 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    // Cancelled registrations keep their balance rows for the record but
+    // aren't owed money any more — leave them out of the alerts below.
+    const [cancelledGroups, cancelledIndividuals] = await Promise.all([
+      prisma.groupRegistration.findMany({
+        where: { organizationId, cancelledAt: { not: null } },
+        select: { id: true },
+      }),
+      prisma.individualRegistration.findMany({
+        where: { organizationId, cancelledAt: { not: null } },
+        select: { id: true },
+      }),
+    ])
+    const notCancelled = {
+      registrationId: { notIn: [...cancelledGroups, ...cancelledIndividuals].map((r) => r.id) },
+    }
+
     // Registrations that chose "pay later / by check" and still owe money
     const pendingCheckPayments = await prisma.paymentBalance.count({
       where: {
         organizationId,
+        ...notCancelled,
         paymentStatus: 'pending_check_payment',
         amountRemaining: { gt: 0 },
         ...(registrationEventFilter ? { eventId: registrationEventFilter } : {}),
@@ -225,6 +242,7 @@ export async function GET(request: NextRequest) {
     const overdueBalances = await prisma.paymentBalance.count({
       where: {
         organizationId,
+        ...notCancelled,
         paymentStatus: {
           in: ['unpaid', 'partial'],
         },

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { hasPermission } from '@/lib/permissions'
-import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
+import { prisma, type TransactionClient } from '@/lib/prisma'
 
 export async function POST(
   request: NextRequest,
@@ -156,7 +155,7 @@ export async function POST(
     }
 
     // Create all assignments in a transaction
-    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    await prisma.$transaction(async (tx: TransactionClient) => {
       // Create meal group assignments
       await tx.mealGroupAssignment.createMany({
         data: assignments,

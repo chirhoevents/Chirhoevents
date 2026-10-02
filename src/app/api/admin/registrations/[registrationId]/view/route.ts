@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils'
-import { prisma } from '@/lib/prisma'
+import { prisma, prismaIncludingCancelled } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 
@@ -366,8 +366,9 @@ async function getIndividualRegistration(registrationId: string, organizationId:
     take: 50,
   })
 
-  // Fetch liability forms for individual from LiabilityForm table
-  const liabilityFormsDb = await prisma.liabilityForm.findMany({
+  // Fetch liability forms for individual from LiabilityForm table.
+  // Unfiltered so a cancelled registration's forms still show here.
+  const liabilityFormsDb = await prismaIncludingCancelled.liabilityForm.findMany({
     where: {
       individualRegistrationId: registrationId,
     },

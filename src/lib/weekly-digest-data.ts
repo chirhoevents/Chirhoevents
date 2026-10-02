@@ -298,8 +298,8 @@ export async function getUpcomingEvents(
       enableWaitlist: true,
       _count: {
         select: {
-          groupRegistrations: true,
-          individualRegistrations: true,
+          groupRegistrations: { where: { cancelledAt: null } },
+          individualRegistrations: { where: { cancelledAt: null } },
         },
       },
     },

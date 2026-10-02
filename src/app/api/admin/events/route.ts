@@ -85,20 +85,22 @@ export async function GET(request: NextRequest) {
           },
           pricing: true,
           groupRegistrations: {
+            where: { cancelledAt: null },
             select: {
               id: true,
               totalParticipants: true,
             },
           },
           individualRegistrations: {
+            where: { cancelledAt: null },
             select: {
               id: true,
             },
           },
           _count: {
             select: {
-              groupRegistrations: true,
-              individualRegistrations: true,
+              groupRegistrations: { where: { cancelledAt: null } },
+              individualRegistrations: { where: { cancelledAt: null } },
             },
           },
         },
