@@ -839,7 +839,13 @@ export async function POST(request: NextRequest) {
           },
         ],
         mode: 'payment',
-        success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/registration/confirmation/${registration.id}?session_id={CHECKOUT_SESSION_ID}&access_code=${encodeURIComponent(accessCode)}&group_name=${encodeURIComponent(groupName)}&participants=${totalParticipants}&amount_paid=${depositAmount}&housing=${encodeURIComponent(housingType)}`,
+        // total_amount is separate from amount_paid so the confirmation page
+        // doesn't have to infer the registration total from the deposit just
+        // paid — before this, an unauthenticated viewer (always true right
+        // after registering) would see the total collapse to the deposit
+        // amount too, showing a false "Paid in Full, $0 balance" whenever the
+        // deposit was less than the full cost.
+        success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/registration/confirmation/${registration.id}?session_id={CHECKOUT_SESSION_ID}&access_code=${encodeURIComponent(accessCode)}&group_name=${encodeURIComponent(groupName)}&participants=${totalParticipants}&amount_paid=${depositAmount}&total_amount=${totalAmount}&housing=${encodeURIComponent(housingType)}`,
         cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/events/${eventId}/register-group/review?cancelled=true`,
         metadata: {
           registrationId: registration.id,

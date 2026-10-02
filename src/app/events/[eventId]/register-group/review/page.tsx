@@ -501,11 +501,19 @@ export default function InvoiceReviewPage() {
       // page's API call can't return the access code over an unauthenticated
       // request. Without this, check-payment registrants were told to "check
       // your email" instead of seeing their code immediately like card payers do.
+      //
+      // amount_paid is 0 here — this is the check/"Pay Later" path, nothing has
+      // actually been paid yet. Sending the deposit amount as "paid" produced a
+      // false "Paid in Full, $0 balance" confirmation for registrants who hadn't
+      // paid a cent. total_amount carries the real registration cost separately
+      // so the confirmation page doesn't have to (wrongly) infer it from
+      // amount_paid.
       const confirmationParams = new URLSearchParams({
         access_code: result.accessCode || '',
         group_name: registrationData.groupName || '',
         participants: String(totalParticipants),
-        amount_paid: String(result.depositAmount ?? 0),
+        amount_paid: '0',
+        total_amount: String(result.totalAmount ?? 0),
         housing: registrationData.housingType || '',
       })
       router.push(`/registration/confirmation/${result.registrationId}?${confirmationParams.toString()}`)
