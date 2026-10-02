@@ -35,6 +35,15 @@ export async function GET(request: NextRequest) {
             pricing: {
               select: { fullPaymentDeadline: true },
             },
+            settings: {
+              select: {
+                cardPaymentDisabled: true,
+                externalDepositPaymentUrl: true,
+                externalDepositPaymentNote: true,
+                externalBalancePaymentUrl: true,
+                externalBalancePaymentNote: true,
+              },
+            },
           },
         },
       },
@@ -70,6 +79,13 @@ export async function GET(request: NextRequest) {
     })
 
     return NextResponse.json({
+      cardPaymentDisabled: groupRegistration.event.settings?.cardPaymentDisabled || false,
+      externalPaymentLinks: {
+        depositUrl: groupRegistration.event.settings?.externalDepositPaymentUrl || null,
+        depositNote: groupRegistration.event.settings?.externalDepositPaymentNote || null,
+        balanceUrl: groupRegistration.event.settings?.externalBalancePaymentUrl || null,
+        balanceNote: groupRegistration.event.settings?.externalBalancePaymentNote || null,
+      },
       balance: paymentBalance
         ? {
             totalAmountDue: Number(paymentBalance.totalAmountDue),

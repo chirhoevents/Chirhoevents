@@ -132,6 +132,11 @@ interface FormData {
   checkPaymentEnabled: boolean
   checkPaymentPayableTo: string
   checkPaymentAddress: string
+  cardPaymentDisabled: boolean
+  externalDepositPaymentUrl: string
+  externalDepositPaymentNote: string
+  externalBalancePaymentUrl: string
+  externalBalancePaymentNote: string
   landingPageShowPrice: boolean
   landingPageShowSchedule: boolean
   landingPageShowFaq: boolean
@@ -382,6 +387,11 @@ export default function EditEventPage() {
         checkPaymentEnabled: event.settings?.checkPaymentEnabled ?? true,
         checkPaymentPayableTo: event.settings?.checkPaymentPayableTo || '',
         checkPaymentAddress: event.settings?.checkPaymentAddress || '',
+        cardPaymentDisabled: event.settings?.cardPaymentDisabled ?? false,
+        externalDepositPaymentUrl: event.settings?.externalDepositPaymentUrl || '',
+        externalDepositPaymentNote: event.settings?.externalDepositPaymentNote || '',
+        externalBalancePaymentUrl: event.settings?.externalBalancePaymentUrl || '',
+        externalBalancePaymentNote: event.settings?.externalBalancePaymentNote || '',
 
         // Step 6: Landing Page
         landingPageShowPrice: event.settings?.landingPageShowPrice ?? true,

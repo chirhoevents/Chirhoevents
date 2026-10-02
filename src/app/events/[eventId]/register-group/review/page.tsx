@@ -42,6 +42,9 @@ interface EventData {
     checkPaymentPayableTo: string | null
     checkPaymentAddress: string | null
     couponsEnabled?: boolean
+    cardPaymentDisabled?: boolean
+    externalDepositPaymentUrl?: string | null
+    externalBalancePaymentUrl?: string | null
   }
   organization: {
     usePlatformStripeAccount: boolean
@@ -105,6 +108,7 @@ export default function InvoiceReviewPage() {
   const [errorModalOpen, setErrorModalOpen] = useState(false)
   const [showCheckModal, setShowCheckModal] = useState(false)
   const [checkAcknowledged, setCheckAcknowledged] = useState(false)
+  const [depositPolicyAcknowledged, setDepositPolicyAcknowledged] = useState(false)
 
   // Coupon state
   const [validatedCoupon, setValidatedCoupon] = useState<CouponData | null>(null)
@@ -342,6 +346,10 @@ export default function InvoiceReviewPage() {
   // (and risks the broken back-button flow) only to be bounced into check anyway.
   const cardBlockedByPlatformCap =
     !!event?.organization?.usePlatformStripeAccount && pricing.deposit > 1000
+  // Separately, an event can have card payments turned off entirely this year
+  // ("financial restrictions this year, checks only") regardless of amount.
+  const cardBlockedByEventSetting = !!event?.settings.cardPaymentDisabled
+  const cardBlocked = cardBlockedByPlatformCap || cardBlockedByEventSetting
   const totalParticipants =
     registrationData.youthCount +
     registrationData.chaperoneCount +
@@ -349,6 +357,11 @@ export default function InvoiceReviewPage() {
 
   // Handle credit card payment
   const handleCreditCardPayment = async () => {
+    if (pricing.deposit > 0 && !depositPolicyAcknowledged) {
+      setError('Please acknowledge that your deposit is non-refundable and non-transferable.')
+      return
+    }
+
     setSubmitting(true)
     setError(null)
 
@@ -395,6 +408,11 @@ export default function InvoiceReviewPage() {
   const handleCheckPayment = async () => {
     if (!checkAcknowledged) {
       setError('Please acknowledge that you understand your registration is pending payment.')
+      return
+    }
+
+    if (pricing.deposit > 0 && !depositPolicyAcknowledged) {
+      setError('Please acknowledge that your deposit is non-refundable and non-transferable.')
       return
     }
 
@@ -581,19 +599,46 @@ export default function InvoiceReviewPage() {
               <div className="space-y-4">
                 <h3 className="font-semibold text-navy text-lg">Choose Payment Method</h3>
 
-                {cardBlockedByPlatformCap && (
+                {cardBlockedByEventSetting && (
+                  <div className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md p-3">
+                    <p className="font-semibold mb-1">How do I Pay?</p>
+                    <p>
+                      Due to internal financial restructuring, we are temporarily only able to
+                      accept payments by check. We sincerely apologize for any inconvenience this
+                      may cause. Please choose &quot;Pay Later&quot; below for mailing instructions.
+                    </p>
+                  </div>
+                )}
+
+                {!cardBlockedByEventSetting && cardBlockedByPlatformCap && (
                   <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3">
                     Due to financial circumstances this year, we are unable to process card payments
                     over $1,000 for this event. Please choose &quot;Pay Later&quot; below to pay by check.
                   </p>
                 )}
 
-                {!cardBlockedByPlatformCap && (
+                {pricing.deposit > 0 && (
+                  <div className="flex items-start space-x-2 bg-gray-50 border border-gray-200 rounded-md p-3">
+                    <input
+                      type="checkbox"
+                      id="depositPolicyAcknowledge"
+                      checked={depositPolicyAcknowledged}
+                      onChange={(e) => setDepositPolicyAcknowledged(e.target.checked)}
+                      className="mt-1"
+                    />
+                    <label htmlFor="depositPolicyAcknowledge" className="text-sm text-gray-700">
+                      I understand my deposit (${pricing.deposit.toFixed(2)}) is{' '}
+                      <strong>non-refundable and non-transferable</strong>.
+                    </label>
+                  </div>
+                )}
+
+                {!cardBlocked && (
                   <Button
                     size="lg"
                     className="w-full"
                     onClick={handleCreditCardPayment}
-                    disabled={submitting}
+                    disabled={submitting || (pricing.deposit > 0 && !depositPolicyAcknowledged)}
                   >
                     {submitting ? (
                       <>
@@ -609,13 +654,13 @@ export default function InvoiceReviewPage() {
                   </Button>
                 )}
 
-                {(event?.settings.checkPaymentEnabled || cardBlockedByPlatformCap) && (
+                {(event?.settings.checkPaymentEnabled || cardBlocked) && (
                   <Button
                     size="lg"
                     variant="outline"
                     className="w-full"
                     onClick={() => setShowCheckModal(true)}
-                    disabled={submitting}
+                    disabled={submitting || (pricing.deposit > 0 && !depositPolicyAcknowledged)}
                   >
                     <FileText className="mr-2 h-5 w-5" />
                     Pay Later
@@ -689,15 +734,30 @@ export default function InvoiceReviewPage() {
               <div className="border-2 border-green-200 rounded-lg p-4 bg-green-50">
                 <h4 className="font-semibold text-navy mb-3 flex items-center">
                   <CreditCard className="mr-2 h-5 w-5" />
-                  Option 2: Pay Later via Payment Portal
+                  Option 2: Pay Later via Group Leader Portal
                 </h4>
                 <div className="space-y-2 text-sm ml-7">
                   <p>
-                    You&apos;ll receive an email with your unique access code and a link to the payment portal.
+                    You&apos;ll receive an email with your unique access code and a link to your Group
+                    Leader Portal, where you can view your balance anytime before the event.
                   </p>
-                  <p>
-                    You can pay anytime before the event using the portal link. We accept credit cards, ACH, and other payment methods.
-                  </p>
+                  {cardBlockedByEventSetting ? (
+                    (event?.settings.externalDepositPaymentUrl || event?.settings.externalBalancePaymentUrl) ? (
+                      <p>
+                        If you&apos;d rather pay by card right now instead of mailing a check, a secure
+                        card payment link is also available on your Group Leader Portal. Payments made
+                        that way aren&apos;t listed immediately — please allow up to 24 hours for our
+                        staff to confirm it, after which it will show on the portal and you&apos;ll get
+                        a confirmation email.
+                      </p>
+                    ) : (
+                      <p>Card payment isn&apos;t available for this event — check is the only payment method.</p>
+                    )
+                  ) : (
+                    <p>
+                      You can pay anytime before the event using the portal link. We accept credit cards, ACH, and other payment methods.
+                    </p>
+                  )}
                   <p className="text-green-800 font-medium">
                     ✓ More flexible payment options
                     <br />

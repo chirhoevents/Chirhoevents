@@ -11,6 +11,7 @@ import { getRegistrationStatus } from '@/lib/registration-status'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { calculatePlatformFeeCents } from '@/lib/stripe-fees'
 import { exceedsPlatformCollectedCardCap, PLATFORM_COLLECTED_CARD_CAP_MESSAGE } from '@/lib/platform-collected-payment-cap'
+import { CARD_PAYMENT_DISABLED_MESSAGE, CARD_PAYMENT_DISABLED_TITLE } from '@/lib/event-card-payment-disabled'
 import {
   checkOptionCapacity,
   decrementOptionCapacity,
@@ -525,7 +526,12 @@ export async function POST(request: NextRequest) {
     const forcedCheckDueToCap =
       paymentMethod !== 'check' &&
       exceedsPlatformCollectedCardCap(event.organization, Math.round(depositAmount * 100))
-    const effectivePaymentMethod = forcedCheckDueToCap ? 'check' : paymentMethod
+    // Separately, an event can have card payments turned off entirely
+    // ("financial restrictions this year, checks only") regardless of amount.
+    const forcedCheckDueToCardDisabled =
+      paymentMethod !== 'check' && !!event.settings?.cardPaymentDisabled
+    const forcedCheck = forcedCheckDueToCap || forcedCheckDueToCardDisabled
+    const effectivePaymentMethod = forcedCheck ? 'check' : paymentMethod
 
     // Generate unique access code
     const accessCode = generateAccessCode(event.name, groupName)
@@ -705,11 +711,17 @@ export async function POST(request: NextRequest) {
           })
         : undefined
 
-      // If a card payment was forced to check because it exceeded the platform-
-      // collected cap, lead with that explanation ahead of any custom message
+      // If a card payment was forced to check — either because it exceeded the
+      // platform-collected cap or because the event has card payments turned
+      // off entirely — lead with that explanation ahead of any custom message
       // the org has configured for check-payment confirmations.
-      const groupCustomMessage = forcedCheckDueToCap
-        ? [PLATFORM_COLLECTED_CARD_CAP_MESSAGE, eventSettings?.confirmationEmailMessage]
+      const forcedCheckReasonMessage = forcedCheckDueToCardDisabled
+        ? `<strong>${CARD_PAYMENT_DISABLED_TITLE}</strong><br>${CARD_PAYMENT_DISABLED_MESSAGE}`
+        : forcedCheckDueToCap
+        ? PLATFORM_COLLECTED_CARD_CAP_MESSAGE
+        : null
+      const groupCustomMessage = forcedCheckReasonMessage
+        ? [forcedCheckReasonMessage, eventSettings?.confirmationEmailMessage]
             .filter(Boolean)
             .join('\n\n')
         : eventSettings?.confirmationEmailMessage || undefined

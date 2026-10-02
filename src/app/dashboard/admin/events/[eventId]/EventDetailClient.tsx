@@ -664,7 +664,7 @@ export default function EventDetailClient({
                       className="w-full justify-start border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F] hover:text-white"
                     >
                       <CheckSquare className="h-4 w-4 mr-2" />
-                      Open SALVE Check-In
+                      Open SALVE
                     </Button>
                   </Link>
                 )}
@@ -1325,11 +1325,12 @@ export default function EventDetailClient({
                   SALVE Check-In
                 </h3>
                 <p className="text-[#6B7280] mb-4">
-                  QR code scanning and digital check-in management
+                  Welcome packets, name tags, badge reprints, attendance and SALVE settings.
+                  Checking people in happens in the check-in portal.
                 </p>
                 <Link href={`/dashboard/admin/events/${event.id}/salve`}>
                   <Button className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
-                    Open SALVE Check-In
+                    Open SALVE
                   </Button>
                 </Link>
               </CardContent>

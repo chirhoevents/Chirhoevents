@@ -245,6 +245,11 @@ model EventSettings {
   porosPublicPortalEnabled        Boolean  @default(false) @map("poros_public_portal_enabled")
   publicPortalEnabled             Boolean  @default(false) @map("public_portal_enabled")
   salveCheckinEnabled             Boolean  @default(false) @map("salve_checkin_enabled")
+  // SALVE check-in mode for group registrations: 'group' checks in a whole
+  // group at once (search/scan the group, tick who's present); 'individual'
+  // checks in one participant at a time. Individual registrations are always
+  // checked in one person at a time regardless of this setting.
+  salveCheckinMode                String   @default("group") @map("salve_checkin_mode") @db.VarChar(20)
   raphaMedicalEnabled             Boolean  @default(false) @map("rapha_medical_enabled")
   tshirtsEnabled                  Boolean  @default(false) @map("tshirts_enabled")
   individualMealsEnabled          Boolean  @default(false) @map("individual_meals_enabled")
@@ -253,6 +258,20 @@ model EventSettings {
   checkPaymentEnabled             Boolean  @default(true) @map("check_payment_enabled")
   checkPaymentPayableTo           String?  @map("check_payment_payable_to") @db.VarChar(255)
   checkPaymentAddress             String?  @map("check_payment_address") @db.Text
+  // When true, card payments are turned off for this event entirely — every
+  // registration is forced onto the check-payment path regardless of amount,
+  // with a "financial restrictions this year" explanation. Independent of the
+  // $1,000 platform-collected cap (Organization.usePlatformStripeAccount).
+  cardPaymentDisabled              Boolean  @default(false) @map("card_payment_disabled")
+  // Optional links to an external (non-Stripe) card payment portal the org runs
+  // itself — e.g. a university's own payment system — surfaced on the group
+  // leader portal as an alternative to mailing a check when cardPaymentDisabled
+  // is set. Chirho never sees these payments directly; staff record them
+  // manually after the org notifies them, same as any other check/cash payment.
+  externalDepositPaymentUrl        String?  @map("external_deposit_payment_url") @db.Text
+  externalDepositPaymentNote       String?  @map("external_deposit_payment_note") @db.Text
+  externalBalancePaymentUrl        String?  @map("external_balance_payment_url") @db.Text
+  externalBalancePaymentNote       String?  @map("external_balance_payment_note") @db.Text
   allowOnCampus                   Boolean  @default(true) @map("allow_on_campus")
   allowOffCampus                  Boolean  @default(true) @map("allow_off_campus")
   allowDayPass                    Boolean  @default(true) @map("allow_day_pass")

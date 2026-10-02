@@ -5,6 +5,7 @@ import { Resend } from 'resend'
 import QRCode from 'qrcode'
 import { calculatePlatformFeeCents } from '@/lib/stripe-fees'
 import { exceedsPlatformCollectedCardCap, PLATFORM_COLLECTED_CARD_CAP_MESSAGE } from '@/lib/platform-collected-payment-cap'
+import { CARD_PAYMENT_DISABLED_MESSAGE, CARD_PAYMENT_DISABLED_TITLE } from '@/lib/event-card-payment-disabled'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { generateIndividualConfirmationCode } from '@/lib/access-code'
 import { resolveReplyTo } from '@/lib/email-reply-to'
@@ -356,7 +357,12 @@ export async function POST(request: NextRequest) {
     const forcedCheckDueToCap =
       paymentMethod !== 'check' &&
       exceedsPlatformCollectedCardCap(event.organization, Math.round(totalAmount * 100))
-    const effectivePaymentMethod = forcedCheckDueToCap ? 'check' : paymentMethod
+    // Separately, an event can have card payments turned off entirely
+    // ("financial restrictions this year, checks only") regardless of amount.
+    const forcedCheckDueToCardDisabled =
+      paymentMethod !== 'check' && !!event.settings?.cardPaymentDisabled
+    const forcedCheck = forcedCheckDueToCap || forcedCheckDueToCardDisabled
+    const effectivePaymentMethod = forcedCheck ? 'check' : paymentMethod
 
     // Determine registration status based on payment method
     const registrationStatus =
@@ -599,7 +605,10 @@ export async function POST(request: NextRequest) {
 
               <div style="background-color: #FFF3CD; padding: 20px; border-left: 4px solid #FFC107; margin: 20px 0;">
                 <h3 style="color: #856404; margin-top: 0;">⚠️ Payment Required</h3>
-                ${forcedCheckDueToCap ? `
+                ${forcedCheckDueToCardDisabled ? `
+                <p style="color: #856404; margin: 0 0 4px 0;"><strong>${CARD_PAYMENT_DISABLED_TITLE}</strong></p>
+                <p style="color: #856404; margin: 0 0 10px 0;">${CARD_PAYMENT_DISABLED_MESSAGE}</p>
+                ` : forcedCheckDueToCap ? `
                 <p style="color: #856404; margin: 0 0 10px 0;">${PLATFORM_COLLECTED_CARD_CAP_MESSAGE}</p>
                 ` : ''}
                 <p style="color: #856404; margin: 0;">

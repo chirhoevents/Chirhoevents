@@ -4,6 +4,7 @@ import Stripe from 'stripe'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { calculatePlatformFeeCents } from '@/lib/stripe-fees'
 import { exceedsPlatformCollectedCardCap, PLATFORM_COLLECTED_CARD_CAP_ERROR } from '@/lib/platform-collected-payment-cap'
+import { CARD_PAYMENT_DISABLED_ERROR } from '@/lib/event-card-payment-disabled'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -55,6 +56,9 @@ export async function POST(req: NextRequest) {
                 platformFeePercentage: true,
               },
             },
+            settings: {
+              select: { cardPaymentDisabled: true },
+            },
           },
         },
       },
@@ -90,6 +94,10 @@ export async function POST(req: NextRequest) {
 
     if (exceedsPlatformCollectedCardCap(org, amountInCents)) {
       return NextResponse.json({ error: PLATFORM_COLLECTED_CARD_CAP_ERROR }, { status: 400 })
+    }
+
+    if (groupRegistration.event.settings?.cardPaymentDisabled) {
+      return NextResponse.json({ error: CARD_PAYMENT_DISABLED_ERROR }, { status: 400 })
     }
 
     // Calculate platform fee — includes Stripe processing fee passthrough so the

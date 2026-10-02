@@ -1020,23 +1020,83 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           and welcome packet distribution.
         </p>
 
+        <h3 className="text-xl font-semibold text-navy mt-6">Where Things Live</h3>
+        <div className="space-y-4 mt-4">
+          <div className="border-l-4 border-gold pl-4">
+            <h4 className="font-semibold text-navy">SALVE page (admin dashboard)</h4>
+            <p className="text-sm text-gray-600 mt-1">
+              Go to SALVE Check-In in the sidebar (or Events → Select your event → SALVE Check-In tab →
+              Open SALVE). This is where you set things up and manage them: edit welcome packets, design
+              name tags, reprint badges, view attendance, see the check-in dashboard, and change SALVE
+              settings. You can&apos;t check anyone in from here.
+            </p>
+          </div>
+          <div className="border-l-4 border-gold pl-4">
+            <h4 className="font-semibold text-navy">Check-In Portal</h4>
+            <p className="text-sm text-gray-600 mt-1">
+              All check-in happens in the dedicated check-in portal. Open it from the SALVE page with
+              <strong> Open Check-In Portal</strong> on each check-in station&apos;s device. Staff with the
+              SALVE User role can use the portal without access to the rest of the dashboard.
+            </p>
+          </div>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Check-In Modes</h3>
+        <p>
+          For events with group registration, choose how groups are checked in under
+          <strong> SALVE page → SALVE Settings → Check-in mode</strong>. Org admins, event managers and
+          SALVE coordinators can change it. Individual registrations are always checked in one person at a time.
+        </p>
+        <div className="grid md:grid-cols-2 gap-4 mt-4">
+          <div className="border rounded-lg p-4">
+            <h4 className="font-semibold text-navy">Group check-in (default)</h4>
+            <ul className="list-disc list-inside space-y-1 text-sm text-gray-600 mt-2">
+              <li>The group leader checks in the whole group at once</li>
+              <li>Scan the group&apos;s QR code or search by group, leader, or access code</li>
+              <li>Tick who has arrived and add a note for anyone arriving later</li>
+              <li>Print the group welcome packet (with the balance and invoice, if turned on) and everyone&apos;s name tags</li>
+            </ul>
+          </div>
+          <div className="border rounded-lg p-4">
+            <h4 className="font-semibold text-navy">Individual check-in</h4>
+            <ul className="list-disc list-inside space-y-1 text-sm text-gray-600 mt-2">
+              <li>Each participant checks in on their own</li>
+              <li>Scan the participant&apos;s personal QR code or search their name</li>
+              <li>Print just that person&apos;s name tag</li>
+              <li>The group&apos;s balance, housing summary and welcome packet are not shown at the table</li>
+              <li>Scanning a group QR code lists that group&apos;s participants to pick from</li>
+            </ul>
+          </div>
+        </div>
+        <div className="bg-beige p-4 rounded-lg mt-4">
+          <p className="text-sm">
+            <strong>💡 Using individual check-in?</strong> Group welcome packets include the group&apos;s
+            finances, so they aren&apos;t printed at the table. Pre-print them from the SALVE page → Edit
+            Packets and hand them to group leaders separately.
+          </p>
+        </div>
+
         <h3 className="text-xl font-semibold text-navy mt-6">Before the Event</h3>
         <ol className="list-decimal list-inside space-y-4 text-gray-600">
           <li>
-            <strong>Review check-in settings</strong>
-            <p className="ml-6 mt-1">Go to Events → Select your event → Check-In (SALVE) tab.</p>
+            <strong>Choose a check-in mode</strong>
+            <p className="ml-6 mt-1">Open the SALVE page and pick group or individual check-in under SALVE Settings.</p>
           </li>
           <li>
             <strong>Configure name tag templates</strong>
             <p className="ml-6 mt-1">Customize what information appears on name tags (name, group, participant type).</p>
           </li>
           <li>
+            <strong>Set up welcome packets</strong>
+            <p className="ml-6 mt-1">Choose what goes in each packet (schedule, roster, housing, invoice) and add any inserts.</p>
+          </li>
+          <li>
             <strong>Set up check-in stations</strong>
-            <p className="ml-6 mt-1">Assign staff members to check-in stations with appropriate permissions.</p>
+            <p className="ml-6 mt-1">Give check-in staff the SALVE User role and open the check-in portal on each station.</p>
           </li>
           <li>
             <strong>Test your equipment</strong>
-            <p className="ml-6 mt-1">Ensure barcode scanners and label printers (4x6 format) are working properly.</p>
+            <p className="ml-6 mt-1">Ensure cameras or barcode scanners and label printers (4x6 format) are working properly.</p>
           </li>
         </ol>
 
@@ -1045,15 +1105,17 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           <div className="border-l-4 border-gold pl-4">
             <h4 className="font-semibold text-navy">QR Code Scanning</h4>
             <p className="text-sm text-gray-600 mt-1">
-              Participants receive QR codes via email. Scan the code to instantly pull up their
-              information and verify form completion.
+              The portal scans both group QR codes (the group&apos;s access code) and personal participant
+              QR codes. Each participant gets a personal QR code once their liability form is complete,
+              and it is printed on their name tag. Scan a code to pull up their information and check
+              form and payment status.
             </p>
           </div>
 
           <div className="border-l-4 border-gold pl-4">
             <h4 className="font-semibold text-navy">Manual Lookup</h4>
             <p className="text-sm text-gray-600 mt-1">
-              Search by name, group, or access code for participants without their QR code.
+              Search by name, email, group, or access code for anyone without their QR code.
             </p>
           </div>
 
@@ -1061,7 +1123,15 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
             <h4 className="font-semibold text-navy">Name Tag Printing</h4>
             <p className="text-sm text-gray-600 mt-1">
               Print name tags on-demand using 4x6 thermal label printers. Tags include the
-              participant&apos;s name, group, and any dietary/medical flags.
+              participant&apos;s name, group, and any dietary/medical flags. Lost a badge? Use Reprint
+              Badge in the portal or on the SALVE page.
+            </p>
+          </div>
+
+          <div className="border-l-4 border-gold pl-4">
+            <h4 className="font-semibold text-navy">Undo a Check-In</h4>
+            <p className="text-sm text-gray-600 mt-1">
+              Checked in the wrong person? Use Undo Check-in on the success screen right away.
             </p>
           </div>
         </div>

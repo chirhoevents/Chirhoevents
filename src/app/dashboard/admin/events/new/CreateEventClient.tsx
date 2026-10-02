@@ -12,6 +12,12 @@ import { Check, ChevronLeft, ChevronRight, Loader2, Upload, Trash2, Image as Ima
 import { Checkbox } from '@/components/ui/checkbox'
 import CatalogQuestionPicker, { type CatalogQuestionPickerHandle } from '@/components/admin/CatalogQuestionPicker'
 
+// This is a one-off arrangement for a single event (Mount Saint Mary's "Mount
+// 2000"), not a general-purpose feature — the external-payment-links section
+// below is restricted to this exact event so it never appears as an option
+// for any other org/event.
+const EXTERNAL_PAYMENT_LINKS_EVENT_ID = '8c7aaf89-6790-4a81-bf6b-33e8dd8586f1'
+
 interface CreateEventClientProps {
   organizationId: string
   eventId?: string
@@ -156,6 +162,11 @@ interface EventFormData {
   registrationInstructions: string
   confirmationEmailMessage: string
   checkPaymentEnabled: boolean
+  cardPaymentDisabled: boolean
+  externalDepositPaymentUrl: string
+  externalDepositPaymentNote: string
+  externalBalancePaymentUrl: string
+  externalBalancePaymentNote: string
   checkPaymentPayableTo: string
   checkPaymentAddress: string
 
@@ -395,6 +406,11 @@ export default function CreateEventClient({
     registrationInstructions: '',
     confirmationEmailMessage: '',
     checkPaymentEnabled: true,
+    cardPaymentDisabled: false,
+    externalDepositPaymentUrl: '',
+    externalDepositPaymentNote: '',
+    externalBalancePaymentUrl: '',
+    externalBalancePaymentNote: '',
     checkPaymentPayableTo: '',
     checkPaymentAddress: '',
 
@@ -3391,6 +3407,96 @@ export default function CreateEventClient({
                     This message will appear in the confirmation email sent to group leaders after registration. Leave blank to use the standard template.
                   </p>
                 </div>
+
+                {/* Card Payments Disabled - checks only, any registration type */}
+                <div className="bg-amber-50 p-4 rounded-lg border-2 border-amber-200">
+                  <h3 className="font-semibold text-amber-900 mb-3">
+                    🚫 Disable Card Payments (Checks Only)
+                  </h3>
+                  <p className="text-sm text-amber-800 mb-3">
+                    Turn off card payments entirely for this event — every registration (group,
+                    individual, staff) is forced onto check payment instead, with a &quot;due to
+                    financial restrictions this year&quot; note. Use this only if the event truly
+                    cannot accept cards this year.
+                  </p>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="cardPaymentDisabled"
+                      checked={formData.cardPaymentDisabled}
+                      onChange={(e) =>
+                        updateFormData({
+                          cardPaymentDisabled: e.target.checked,
+                        })
+                      }
+                      className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
+                    />
+                    <Label htmlFor="cardPaymentDisabled" className="mb-0">
+                      Only accept check payments this year
+                    </Label>
+                  </div>
+                </div>
+
+                {/* External (non-Stripe) card payment portal links - shown on the Group Leader Portal.
+                    Restricted to Mount 2000 only (see EXTERNAL_PAYMENT_LINKS_EVENT_ID above) — not a
+                    general feature, so it must not appear on any other event's edit page. */}
+                {eventId === EXTERNAL_PAYMENT_LINKS_EVENT_ID && (
+                <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
+                  <h3 className="font-semibold text-blue-900 mb-3">
+                    🔗 External Card Payment Links (Mount 2000 Only)
+                  </h3>
+                  <p className="text-sm text-blue-800 mb-3">
+                    This event has its own card payment portal (the university&apos;s own payment
+                    system). These links appear on the Group Leader Portal as an alternative to
+                    mailing a check — Chirho never processes these payments directly; staff record
+                    them manually once the org notifies us a payment came through.
+                  </p>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="externalDepositPaymentUrl">Deposit Payment Link</Label>
+                      <Input
+                        id="externalDepositPaymentUrl"
+                        value={formData.externalDepositPaymentUrl}
+                        onChange={(e) =>
+                          updateFormData({ externalDepositPaymentUrl: e.target.value })
+                        }
+                        placeholder="https://example.edu/pay-deposit"
+                        className="mt-1"
+                      />
+                      <Input
+                        id="externalDepositPaymentNote"
+                        value={formData.externalDepositPaymentNote}
+                        onChange={(e) =>
+                          updateFormData({ externalDepositPaymentNote: e.target.value })
+                        }
+                        placeholder="e.g. $20 per slot"
+                        className="mt-2"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="externalBalancePaymentUrl">Balance Payment Link</Label>
+                      <Input
+                        id="externalBalancePaymentUrl"
+                        value={formData.externalBalancePaymentUrl}
+                        onChange={(e) =>
+                          updateFormData({ externalBalancePaymentUrl: e.target.value })
+                        }
+                        placeholder="https://example.edu/pay-balance"
+                        className="mt-1"
+                      />
+                      <Input
+                        id="externalBalancePaymentNote"
+                        value={formData.externalBalancePaymentNote}
+                        onChange={(e) =>
+                          updateFormData({ externalBalancePaymentNote: e.target.value })
+                        }
+                        placeholder="e.g. $90 per slot off-campus, $130 per slot on-campus"
+                        className="mt-2"
+                      />
+                    </div>
+                  </div>
+                </div>
+                )}
 
                 {/* Check Payment Settings - Only for Group Registration */}
                 {formData.groupRegistrationEnabled && (
