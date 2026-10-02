@@ -31,12 +31,29 @@ export interface WaitlistPreferenceOptions {
   individualRegistrationEnabled: boolean
 }
 
+// Fields a caller can pre-fill when opening the modal — e.g. the group
+// registration form handing over what the leader already typed.
+export interface WaitlistPrefill {
+  name?: string
+  email?: string
+  phone?: string
+  notes?: string
+  registrationType?: 'group' | 'individual'
+  youthCount?: number
+  chaperoneCount?: number
+  priestCount?: number
+  preferredTicketType?: TicketType
+  preferredHousingType?: HousingType
+  preferredDayPassOptionId?: string
+}
+
 interface WaitlistModalProps {
   eventId: string
   eventName: string
   isOpen: boolean
   onClose: () => void
   preferences?: WaitlistPreferenceOptions
+  prefill?: WaitlistPrefill
 }
 
 const HOUSING_LABEL: Record<HousingType, string> = {
@@ -58,6 +75,7 @@ export default function WaitlistModal({
   isOpen,
   onClose,
   preferences,
+  prefill,
 }: WaitlistModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
@@ -102,13 +120,27 @@ export default function WaitlistModal({
 
   useEffect(() => {
     if (isOpen) {
+      const count = (n: number | undefined, prev: string) => (n !== undefined ? String(n) : prev)
       setFormData((prev) => ({
         ...prev,
         preferredTicketType: defaultTicketType,
         registrationType: defaultRegistrationType,
+        ...(prefill && {
+          name: prefill.name || prev.name,
+          email: prefill.email || prev.email,
+          phone: prefill.phone || prev.phone,
+          notes: prefill.notes || prev.notes,
+          registrationType: prefill.registrationType ?? defaultRegistrationType,
+          youthCount: count(prefill.youthCount, prev.youthCount),
+          chaperoneCount: count(prefill.chaperoneCount, prev.chaperoneCount),
+          priestCount: count(prefill.priestCount, prev.priestCount),
+          preferredTicketType: prefill.preferredTicketType ?? defaultTicketType,
+          preferredHousingType: prefill.preferredHousingType ?? prev.preferredHousingType,
+          preferredDayPassOptionId: prefill.preferredDayPassOptionId ?? prev.preferredDayPassOptionId,
+        }),
       }))
     }
-    // defaults only change when preferences change; safe to omit
+    // defaults/prefill are read when the modal opens; safe to omit
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen])
 
