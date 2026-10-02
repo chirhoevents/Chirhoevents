@@ -681,19 +681,9 @@ export async function POST(request: NextRequest) {
 
     // Handle payment method
     if (effectivePaymentMethod === 'check') {
-      // Check payment - create pending payment record
-      await prisma.payment.create({
-        data: {
-          organizationId: event.organizationId,
-          registrationId: registration.id,
-          registrationType: 'group',
-          eventId: event.id,
-          amount: depositAmount,
-          paymentType: 'deposit',
-          paymentMethod: 'check',
-          paymentStatus: 'pending',
-        },
-      })
+      // Pay later / by check: no Payment row is created here. The full amount
+      // already shows as the balance due (status pending_check_payment); a
+      // payment is recorded only when the check actually arrives.
 
       // Fetch event settings for check payment details
       const eventSettings = await prisma.eventSettings.findUnique({

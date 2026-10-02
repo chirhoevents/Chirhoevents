@@ -72,6 +72,8 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
       where: {
         registrationId: registrationId,
         registrationType: 'individual',
+        // Hide "pay later" placeholders — shown as balance remaining instead
+        paymentStatus: { not: 'pending' },
       },
       orderBy: {
         processedAt: 'desc',
@@ -153,6 +155,8 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
       where: {
         registrationId: registrationId,
         registrationType: 'group',
+        // Hide "pay later" placeholders — shown as balance remaining instead
+        paymentStatus: { not: 'pending' },
       },
       orderBy: {
         processedAt: 'desc',

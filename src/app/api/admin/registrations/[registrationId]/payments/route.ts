@@ -63,6 +63,8 @@ export async function GET(
         where: {
           registrationId,
           registrationType: 'group',
+          // Hide "pay later" placeholders — shown as balance remaining instead
+          paymentStatus: { not: 'pending' },
         },
         include: {
           processedBy: {
@@ -160,6 +162,8 @@ export async function GET(
         where: {
           registrationId,
           registrationType: 'individual',
+          // Hide "pay later" placeholders — shown as balance remaining instead
+          paymentStatus: { not: 'pending' },
         },
         include: {
           processedBy: {

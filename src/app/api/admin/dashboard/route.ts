@@ -211,12 +211,12 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // Get pending check payments
-    const pendingCheckPayments = await prisma.payment.count({
+    // Registrations that chose "pay later / by check" and still owe money
+    const pendingCheckPayments = await prisma.paymentBalance.count({
       where: {
         organizationId,
-        paymentMethod: 'check',
-        paymentStatus: 'pending',
+        paymentStatus: 'pending_check_payment',
+        amountRemaining: { gt: 0 },
         ...(registrationEventFilter ? { eventId: registrationEventFilter } : {}),
       },
     })

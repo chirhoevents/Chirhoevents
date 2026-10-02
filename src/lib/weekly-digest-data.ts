@@ -104,8 +104,12 @@ export async function collectOrganizationStats(
       where: { organizationId, paymentStatus: 'succeeded' },
       select: { amount: true },
     }),
-    prisma.payment.count({
-      where: { organizationId, paymentMethod: 'check', paymentStatus: 'pending' },
+    prisma.paymentBalance.count({
+      where: {
+        organizationId,
+        paymentStatus: 'pending_check_payment',
+        amountRemaining: { gt: 0 },
+      },
     }),
     prisma.paymentBalance.count({
       where: {
