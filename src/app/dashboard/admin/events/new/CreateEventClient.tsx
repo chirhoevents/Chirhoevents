@@ -2804,7 +2804,7 @@ export default function CreateEventClient({
                             onChange={() => updateFormData({ depositType: 'fixed' })}
                             className="w-4 h-4 text-[#1E3A5F]"
                           />
-                          <Label htmlFor="depositFixed" className="mb-0">Fixed amount: $</Label>
+                          <Label htmlFor="depositFixed" className="mb-0">Fixed amount per person: $</Label>
                           <Input
                             type="number"
                             value={formData.depositAmount}
