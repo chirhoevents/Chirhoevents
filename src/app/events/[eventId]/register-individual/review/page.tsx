@@ -115,6 +115,42 @@ export default function IndividualInvoiceReviewPage() {
     }
   }
 
+  // A card registration is created before the person is sent to Stripe. If
+  // they come back without paying and submit again (by check, or card again),
+  // release that unpaid one first so they aren't registered twice.
+  const pendingCheckoutKey = `chirho_pending_checkout_${eventId}`
+
+  // Returns false if the earlier checkout was in fact paid; in that case the
+  // person is sent to its confirmation page instead of registering again.
+  async function releasePendingCheckout(): Promise<boolean> {
+    let pending: { registrationId?: string } | null = null
+    try {
+      pending = JSON.parse(sessionStorage.getItem(pendingCheckoutKey) || 'null')
+    } catch {
+      pending = null
+    }
+    if (!pending?.registrationId) return true
+
+    try {
+      const res = await fetch('/api/registration/abandon-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ registrationId: pending.registrationId, type: 'individual' }),
+      })
+      if (!res.ok) return true
+      const result = await res.json()
+      sessionStorage.removeItem(pendingCheckoutKey)
+      if (result.status === 'paid') {
+        clearCustomAnswers()
+        router.push(`/registration/confirmation/individual/${pending.registrationId}`)
+        return false
+      }
+    } catch {
+      // Network error: carry on; the old checkout still expires on its own
+    }
+    return true
+  }
+
   // Get registration data from URL params
   const registrationData: RegistrationData = {
     firstName: searchParams.get('firstName') || '',
@@ -149,8 +185,11 @@ export default function IndividualInvoiceReviewPage() {
   // answers, instead of showing an empty review page.
   useEffect(() => {
     if (searchParams.get('cancelled') === 'true') {
-      router.replace(`/events/${eventId}/register-individual`)
+      releasePendingCheckout().then(ok => {
+        if (ok) router.replace(`/events/${eventId}/register-individual`)
+      })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- releasePendingCheckout is recreated every render
   }, [searchParams, router, eventId])
 
   // Load event data
@@ -258,6 +297,8 @@ export default function IndividualInvoiceReviewPage() {
     setError(null)
 
     try {
+      if (!(await releasePendingCheckout())) return
+
       const response = await fetch('/api/registration/individual', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -284,6 +325,12 @@ export default function IndividualInvoiceReviewPage() {
       // Redirect to Stripe checkout. The saved answers are kept until the
       // confirmation page, so cancelling out of Stripe doesn't wipe them.
       if (result.checkoutUrl) {
+        if (!waitlistToken) {
+          sessionStorage.setItem(
+            pendingCheckoutKey,
+            JSON.stringify({ registrationId: result.registrationId })
+          )
+        }
         window.location.href = result.checkoutUrl
       } else {
         clearCustomAnswers()
@@ -307,6 +354,8 @@ export default function IndividualInvoiceReviewPage() {
     setError(null)
 
     try {
+      if (!(await releasePendingCheckout())) return
+
       const response = await fetch('/api/registration/individual', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

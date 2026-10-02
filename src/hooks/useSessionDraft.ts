@@ -11,11 +11,13 @@ import { useState, useEffect, type Dispatch, type SetStateAction } from 'react'
  * form later still get their defaults. sessionStorage is per-tab and is
  * cleared when the tab closes; callers should also remove the key once the
  * registration is submitted.
+ *
+ * The third value turns true once the saved draft (if any) has been applied.
  */
 export function useSessionDraft<T extends Record<string, unknown>>(
   key: string,
   initial: T
-): [T, Dispatch<SetStateAction<T>>] {
+): [T, Dispatch<SetStateAction<T>>, boolean] {
   const [value, setValue] = useState<T>(initial)
   const [restored, setRestored] = useState(false)
 
@@ -45,5 +47,5 @@ export function useSessionDraft<T extends Record<string, unknown>>(
     }
   }, [key, value, restored])
 
-  return [value, setValue]
+  return [value, setValue, restored]
 }

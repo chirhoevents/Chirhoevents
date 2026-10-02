@@ -52,7 +52,9 @@ export default function ConfirmationPage() {
   useEffect(() => {
     try {
       Object.keys(sessionStorage)
-        .filter(k => k.startsWith('chirho_registration_draft_') || k.startsWith('chirho_custom_answers_'))
+        .filter(k => k.startsWith('chirho_registration_draft_') ||
+            k.startsWith('chirho_custom_answers_') ||
+            k.startsWith('chirho_pending_checkout_'))
         .forEach(k => sessionStorage.removeItem(k))
     } catch {
       // Storage unavailable — nothing to clear

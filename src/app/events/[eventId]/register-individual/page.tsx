@@ -104,7 +104,7 @@ export default function IndividualRegistrationPage() {
 
   // Form state
   // Saved to sessionStorage so going Next → Back doesn't wipe what was typed
-  const [formData, setFormData] = useSessionDraft(`chirho_registration_draft_individual_${eventId}`, {
+  const [formData, setFormData, draftRestored] = useSessionDraft(`chirho_registration_draft_individual_${eventId}`, {
     firstName: '',
     lastName: '',
     preferredName: '',
@@ -255,6 +255,13 @@ export default function IndividualRegistrationPage() {
       setVerifyingCoupon(false)
     }
   }
+
+  // A restored draft keeps the coupon code but not its "verified" badge,
+  // which made people think they had to apply it again. Re-check it once.
+  useEffect(() => {
+    if (draftRestored && formData.couponCode.trim()) verifyCoupon()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once, right after the draft is restored
+  }, [draftRestored])
 
   // Handle form submission - navigate to review page
   const handleSubmit = (e: React.FormEvent) => {
