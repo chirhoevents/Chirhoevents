@@ -229,7 +229,44 @@ export async function PUT(
     // Use server-computed total for payment balance update; fall back to client-supplied newTotal
     const computedNewTotal = serverNewTotal ?? newTotal
     const currentTotal = paymentBalance ? Number(paymentBalance.totalAmountDue) : (oldTotal ?? 0)
-    const difference = computedNewTotal - currentTotal
+
+    // When spots are dropped, the deposit already paid toward those spots is
+    // non-refundable — it must not silently act as a credit against what the
+    // remaining group members still owe. Without this, lowering the headcount
+    // would under-bill the group by exactly the forfeited amount, because the
+    // old amountPaid (which includes the forfeited deposit) would otherwise
+    // get applied in full against the smaller recalculated total.
+    //
+    // Only computed for the two configurations where a deposit is a distinct
+    // concept from the full price (flat per-person, or percentage-of-price) —
+    // a flat total-group deposit or "no deposit" has no clean per-spot slice
+    // to forfeit, so those are left unchanged.
+    const droppedYouth = Math.max(0, existingRegistration.youthCount - finalYouthCount)
+    const droppedChaperones = Math.max(0, existingRegistration.chaperoneCount - finalChaperoneCount)
+    const droppedPriests = Math.max(0, existingRegistration.priestCount - finalPriestCount)
+    const totalDropped = droppedYouth + droppedChaperones + droppedPriests
+
+    let forfeitedDeposit = 0
+    if (totalDropped > 0 && eventPricing && !eventPricing.requireFullPayment) {
+      if (eventPricing.depositPercentage != null) {
+        const droppedValue =
+          droppedYouth * Number(eventPricing.youthRegularPrice) +
+          droppedChaperones * Number(eventPricing.chaperoneRegularPrice) +
+          droppedPriests * Number(eventPricing.priestPrice)
+        forfeitedDeposit = (droppedValue * Number(eventPricing.depositPercentage)) / 100
+      } else if (eventPricing.depositAmount != null && eventPricing.depositPerPerson) {
+        forfeitedDeposit = totalDropped * Number(eventPricing.depositAmount)
+      }
+    }
+    // Never forfeit more than what's actually been paid so far.
+    forfeitedDeposit = Math.min(forfeitedDeposit, paymentBalance ? Number(paymentBalance.amountPaid) : 0)
+
+    // The real new total the remaining headcount owes, plus the forfeited
+    // deposit added back on so it stops counting as a credit. amountPaid
+    // itself is left untouched — the org genuinely received that money, so
+    // revenue reporting should keep reflecting it accurately.
+    const finalNewTotal = computedNewTotal + forfeitedDeposit
+    const difference = finalNewTotal - currentTotal
 
     // FIX 2.2: Update event-level capacity when totalParticipants changes
     const oldTotalParticipants = existingRegistration.totalParticipants ?? 0
@@ -352,6 +389,12 @@ export async function PUT(
     if (dayPassDiff !== 0) {
       changesMade.dayPassTotal = { old: oldDayPassTotal, new: newDayPassTotal }
     }
+    if (forfeitedDeposit > 0) {
+      changesMade.depositForfeited = {
+        old: null,
+        new: `$${forfeitedDeposit.toFixed(2)} (${totalDropped} dropped spot${totalDropped === 1 ? '' : 's'}) — non-refundable, excluded from the remaining balance`,
+      }
+    }
 
     // Create audit trail entry if changes were made
     if (Object.keys(changesMade).length > 0 || difference !== 0) {
@@ -364,27 +407,28 @@ export async function PUT(
           editType: difference !== 0 ? 'payment_updated' : 'info_updated',
           changesMade: changesMade as any,
           oldTotal: currentTotal || null,
-          newTotal: computedNewTotal || null,
+          newTotal: finalNewTotal || null,
           difference: difference || null,
           adminNotes: adminNotes || null,
         },
       })
     }
 
-    // Update payment balance if total changed (FIX 2.3: use server-computed total)
+    // Update payment balance if total changed (FIX 2.3: use server-computed total,
+    // plus any forfeited deposit added back on — see comment above)
     if (difference !== 0 && paymentBalance) {
       // Derive from total − paid (not remaining + difference) so lowering the
       // total below what was already paid shows as "overpaid" (refund owed)
       // instead of being silently clamped to a $0 balance.
       const { amountRemaining, paymentStatus } = deriveBalance(
-        computedNewTotal,
+        finalNewTotal,
         Number(paymentBalance.amountPaid),
         paymentBalance.paymentStatus
       )
       await prisma.paymentBalance.update({
         where: { id: paymentBalance.id },
         data: {
-          totalAmountDue: computedNewTotal,
+          totalAmountDue: finalNewTotal,
           amountRemaining,
           paymentStatus,
         },
@@ -428,7 +472,12 @@ export async function PUT(
           emailChanges.push(`Day Pass Total: ${oldDayPassTotal} → ${newDayPassTotal}`)
         }
         if (difference !== 0) {
-          emailChanges.push(`Total Amount Due: $${currentTotal.toFixed(2)} → $${computedNewTotal.toFixed(2)}`)
+          emailChanges.push(`Total Amount Due: $${currentTotal.toFixed(2)} → $${finalNewTotal.toFixed(2)}`)
+        }
+        if (forfeitedDeposit > 0) {
+          emailChanges.push(
+            `Note: the $${forfeitedDeposit.toFixed(2)} deposit already paid for the ${totalDropped} dropped spot${totalDropped === 1 ? '' : 's'} is non-refundable and does not reduce the amount still owed.`
+          )
         }
 
         if (emailChanges.length > 0) {
