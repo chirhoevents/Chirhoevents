@@ -530,19 +530,22 @@ export default function PaymentsPage() {
         </Card>
       )}
 
-      {/* Pay by Card via the org's own payment portal (not processed by Chirho) */}
+      {/* Pay by Card via the org's own payment portal (not processed by Chirho).
+          Deposit and balance are two separate charges on the org's own portal,
+          not two ways to pay the same amount — show both links whenever both
+          are still owed so a leader doesn't mistake paying one for paying in full. */}
       {balance && balance.amountRemaining > 0 && externalPaymentLinks && (() => {
         const depositStillOwed =
           balance.paymentStatus === 'pending' || balance.paymentStatus === 'pending_check_payment'
-        const link = depositStillOwed
-          ? externalPaymentLinks.depositUrl
-            ? { url: externalPaymentLinks.depositUrl, note: externalPaymentLinks.depositNote, label: 'Pay Deposit by Card' }
-            : null
-          : externalPaymentLinks.balanceUrl
-          ? { url: externalPaymentLinks.balanceUrl, note: externalPaymentLinks.balanceNote, label: 'Pay Remaining Balance by Card' }
-          : null
+        const links: { url: string; note: string | null; label: string }[] = []
+        if (depositStillOwed && externalPaymentLinks.depositUrl) {
+          links.push({ url: externalPaymentLinks.depositUrl, note: externalPaymentLinks.depositNote, label: 'Pay Deposit by Card' })
+        }
+        if (externalPaymentLinks.balanceUrl) {
+          links.push({ url: externalPaymentLinks.balanceUrl, note: externalPaymentLinks.balanceNote, label: 'Pay General Admission Balance by Card' })
+        }
 
-        if (!link) return null
+        if (links.length === 0) return null
 
         return (
           <Card className="p-6 bg-blue-50 border-blue-200">
@@ -550,21 +553,36 @@ export default function PaymentsPage() {
               <CreditCard className="h-5 w-5" />
               Pay by Card Now
             </h3>
-            <p className="text-sm text-[#374151] mb-1">
-              Prefer to pay by card right now instead of mailing a check? Use the secure link below.
-              {link.note ? ` ${link.note}.` : ''}
+            <p className="text-sm text-[#374151] mb-3">
+              Prefer to pay by card right now instead of mailing a check? Use the secure link(s) below.
             </p>
-            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3 my-3">
-              Payments made through this link are not listed on this site immediately. Please allow
+            {links.length > 1 && (
+              <p className="text-sm font-medium text-[#1E3A5F] bg-white border border-blue-200 rounded-md p-3 mb-3">
+                Your deposit and your general admission balance are two separate charges on the
+                university&apos;s payment system. You&apos;ll need to pay <strong>both</strong>,
+                using their own link below, to be paid in full — paying one does not cover the other.
+              </p>
+            )}
+            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3 mb-4">
+              Payments made through these links are not listed on this site immediately. Please allow
               up to 24 hours for our staff to confirm it — once recorded, it will show here and
               you&apos;ll receive a confirmation email.
             </p>
-            <a href={link.url} target="_blank" rel="noopener noreferrer">
-              <Button className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white">
-                <ExternalLink className="mr-2 h-4 w-4" />
-                {link.label}
-              </Button>
-            </a>
+            <div className="flex flex-col gap-3">
+              {links.map((link) => (
+                <div key={link.label}>
+                  {link.note && (
+                    <p className="text-xs text-[#6B7280] mb-1">{link.note}</p>
+                  )}
+                  <a href={link.url} target="_blank" rel="noopener noreferrer">
+                    <Button className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white">
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      {link.label}
+                    </Button>
+                  </a>
+                </div>
+              ))}
+            </div>
           </Card>
         )
       })()}

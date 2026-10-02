@@ -675,7 +675,6 @@ export async function POST(request: NextRequest) {
             organizationId: session.metadata?.organizationId || '',
             eventId: session.metadata?.eventId || '',
             platformFeeAmount: staffPlatformFeeAmount,
-            collectedByPlatform: session.metadata?.collectedByPlatform === 'true',
           },
         })
 

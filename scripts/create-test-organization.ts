@@ -43,8 +43,6 @@ async function createTestOrganization() {
         eventsPerYearLimit: 10,
         status: 'active',
         modulesEnabled: { poros: true, salve: true, rapha: true },
-        checkPaymentName: 'Holy Spirit Youth Ministry',
-        checkPaymentAddress: '123 Faith Street, Austin, TX 78701',
       },
     });
 

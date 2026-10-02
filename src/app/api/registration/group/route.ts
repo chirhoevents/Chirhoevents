@@ -104,7 +104,6 @@ export async function POST(request: NextRequest) {
             status: true,
             stripeAccountId: true,
             stripeChargesEnabled: true,
-            usePlatformStripeAccount: true,
             platformFeePercentage: true,
             contactEmail: true,
           },
@@ -256,11 +255,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Fix #1: Guard — org must have Stripe onboarding complete before accepting card
-    // payments, unless the platform is collecting this org's payments directly
-    // (usePlatformStripeAccount) and settling up with them manually.
+    // payments.
     if (
-      !event.organization.usePlatformStripeAccount &&
-      (!event.organization.stripeAccountId || !event.organization.stripeChargesEnabled)
+      !event.organization.stripeAccountId || !event.organization.stripeChargesEnabled
     ) {
       return NextResponse.json(
         { error: 'This organization has not completed payment setup. Registration cannot be processed at this time. Please contact the event organizer.' },
@@ -852,25 +849,17 @@ export async function POST(request: NextRequest) {
         customer_email: groupLeaderEmail,
       }
 
-      if (event.organization.usePlatformStripeAccount) {
-        // Platform-collected mode: charge lands directly in the platform's own
-        // Stripe balance (no Connect destination). platformFeeAmount is still
-        // computed/stored so the org's owed balance (amount - platformFeeAmount)
-        // can be paid out manually later — see PlatformPayout.
-        logger.info({ organizationId: event.organization.id, eventId: event.id, platformFeeAmount }, 'Stripe checkout session: platform-collected, no Connect destination')
-      } else {
-        // Use destination charges — org Stripe account is guaranteed by guard above.
-        // on_behalf_of makes the connected account the merchant of record so Stripe's
-        // processing fees (2.9% + $0.30) are deducted from their share, not the platform's.
-        checkoutConfig.payment_intent_data = {
-          application_fee_amount: platformFeeAmount,
-          on_behalf_of: event.organization.stripeAccountId,
-          transfer_data: {
-            destination: event.organization.stripeAccountId,
-          },
-        }
-        logger.info({ organizationId: event.organization.id, eventId: event.id, platformFeeAmount }, 'Stripe checkout session: applying platform fee')
+      // Use destination charges — org Stripe account is guaranteed by guard above.
+      // on_behalf_of makes the connected account the merchant of record so Stripe's
+      // processing fees (2.9% + $0.30) are deducted from their share, not the platform's.
+      checkoutConfig.payment_intent_data = {
+        application_fee_amount: platformFeeAmount,
+        on_behalf_of: event.organization.stripeAccountId,
+        transfer_data: {
+          destination: event.organization.stripeAccountId,
+        },
       }
+      logger.info({ organizationId: event.organization.id, eventId: event.id, platformFeeAmount }, 'Stripe checkout session: applying platform fee')
 
       // Fix #M2: Wrap Stripe call so a checkout-creation failure doesn't leak
       // capacity. On failure, undo every side effect (capacity decrements, registration
@@ -945,7 +934,6 @@ export async function POST(request: NextRequest) {
           // the real pi_... on checkout.session.completed.
           stripePaymentIntentId: checkoutSession.id,
           platformFeeAmount: platformFeeAmount / 100, // Store in dollars
-          collectedByPlatform: event.organization.usePlatformStripeAccount,
         },
       })
 
