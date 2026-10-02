@@ -64,7 +64,13 @@ export async function POST(request: Request) {
       }
     })
 
-    if (!org?.stripeAccountId) {
+    if (!org) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
+    }
+
+    // Only card payments actually touch Stripe — recording a check or cash
+    // payment for an org that hasn't connected Stripe should still work.
+    if ((paymentMethod === 'new_card' || paymentMethod === 'saved_card') && !org.stripeAccountId) {
       return NextResponse.json({
         error: 'Stripe not connected. Please connect Stripe in Settings.'
       }, { status: 400 })

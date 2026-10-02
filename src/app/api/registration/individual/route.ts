@@ -110,9 +110,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Fix #1 (individual): Guard — org must have Stripe onboarding complete before
-    // accepting card payments.
+    // accepting card payments. Skipped entirely for events with card payments
+    // turned off (checks only) — those registrations never touch Stripe, so an
+    // incomplete Connect setup shouldn't block them.
     if (
-      !event.organization.stripeAccountId || !event.organization.stripeChargesEnabled
+      !event.settings?.cardPaymentDisabled &&
+      (!event.organization.stripeAccountId || !event.organization.stripeChargesEnabled)
     ) {
       return NextResponse.json(
         { error: 'This organization has not completed payment setup. Registration cannot be processed at this time. Please contact the event organizer.' },

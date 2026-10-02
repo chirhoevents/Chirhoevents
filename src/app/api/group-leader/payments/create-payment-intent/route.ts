@@ -79,6 +79,13 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Card payments turned off entirely for this event (checks only) — check this
+    // before the Stripe setup guard below, since those registrations never touch
+    // Stripe and an incomplete Connect setup shouldn't block them.
+    if (groupRegistration.event.settings?.cardPaymentDisabled) {
+      return NextResponse.json({ error: CARD_PAYMENT_DISABLED_ERROR }, { status: 400 })
+    }
+
     // Fix #1: Guard — org must have Stripe onboarding complete before accepting payments.
     if (!org.stripeAccountId || !org.stripeChargesEnabled) {
       return NextResponse.json(
@@ -88,10 +95,6 @@ export async function POST(req: NextRequest) {
     }
 
     const amountInCents = Math.round(amount * 100)
-
-    if (groupRegistration.event.settings?.cardPaymentDisabled) {
-      return NextResponse.json({ error: CARD_PAYMENT_DISABLED_ERROR }, { status: 400 })
-    }
 
     // Calculate platform fee — includes Stripe processing fee passthrough so the
     // platform nets its configured margin instead of going negative on every charge.
