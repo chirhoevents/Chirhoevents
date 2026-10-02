@@ -902,27 +902,35 @@ export function DynamicLiabilityForm({
   const [configLoading, setConfigLoading] = useState(true)
   const [configError, setConfigError] = useState<string | null>(null)
 
-  const fetchConfig = useCallback(async () => {
+  const fetchConfig = useCallback(async (isStale: () => boolean) => {
     if (!eventId || !participantType) return
     setConfigLoading(true)
     setConfigError(null)
     try {
       const res = await fetch(
-        `/api/poros/events/${eventId}/form-config/${participantType}`
+        `/api/poros/events/${eventId}/form-config/${participantType}`,
+        { cache: 'no-store' }
       )
       if (!res.ok) throw new Error('Failed to load form configuration')
       const data: FormConfig = await res.json()
+      // Ignore responses for a participant type the user has since switched away from
+      if (isStale()) return
       setConfig(data)
       onConfigLoaded?.(data)
     } catch (err) {
+      if (isStale()) return
       setConfigError(err instanceof Error ? err.message : 'Failed to load form configuration')
     } finally {
-      setConfigLoading(false)
+      if (!isStale()) setConfigLoading(false)
     }
   }, [eventId, participantType, onConfigLoaded])
 
   useEffect(() => {
-    fetchConfig()
+    let stale = false
+    fetchConfig(() => stale)
+    return () => {
+      stale = true
+    }
   }, [fetchConfig])
 
   if (configLoading) {

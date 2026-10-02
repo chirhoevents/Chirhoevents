@@ -91,7 +91,9 @@ export function SectionConfigTab({ eventId }: SectionConfigTabProps) {
     setError(null)
     try {
       const token = await getToken()
-      const sections = configs[activeType] ?? []
+      // Save every participant type, not just the visible tab — edits made on
+      // other tabs live in local state and would otherwise be silently dropped.
+      const sections: SectionConfig[] = Object.values(configs).flat()
       const res = await fetch(`/api/admin/events/${eventId}/form-section-configs`, {
         method: 'PUT',
         headers: {
@@ -100,7 +102,7 @@ export function SectionConfigTab({ eventId }: SectionConfigTabProps) {
         },
         body: JSON.stringify({
           updates: sections.map(s => ({
-            participant_type: activeType,
+            participant_type: s.participantType,
             section_key: s.sectionKey,
             enabled: s.enabled,
             required: s.required,
