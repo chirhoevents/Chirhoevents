@@ -436,7 +436,19 @@ export default function InvoiceReviewPage() {
       await markComplete()
       clearCustomAnswers()
 
-      router.push(`/registration/confirmation/${result.registrationId}`)
+      // Pass the essentials via URL, same as the card-payment success_url does —
+      // the group leader isn't logged in yet at this point, so the confirmation
+      // page's API call can't return the access code over an unauthenticated
+      // request. Without this, check-payment registrants were told to "check
+      // your email" instead of seeing their code immediately like card payers do.
+      const confirmationParams = new URLSearchParams({
+        access_code: result.accessCode || '',
+        group_name: registrationData.groupName || '',
+        participants: String(totalParticipants),
+        amount_paid: String(result.depositAmount ?? 0),
+        housing: registrationData.housingType || '',
+      })
+      router.push(`/registration/confirmation/${result.registrationId}?${confirmationParams.toString()}`)
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.')
       setErrorModalOpen(true)
