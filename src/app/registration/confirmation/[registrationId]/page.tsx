@@ -40,6 +40,11 @@ export default function ConfirmationPage() {
   const urlGroupName = searchParams.get('group_name') || undefined
   const urlParticipants = searchParams.get('participants') ? Number(searchParams.get('participants')) : undefined
   const urlAmountPaid = searchParams.get('amount_paid') ? Number(searchParams.get('amount_paid')) : undefined
+  // Separate from amount_paid — without this, totalAmount fell back to the
+  // same number as amountPaid whenever the viewer isn't authenticated yet
+  // (always true right after registering), making the balance read $0 /
+  // "Paid in Full" even when nothing — or only a deposit — was actually paid.
+  const urlTotalAmount = searchParams.get('total_amount') ? Number(searchParams.get('total_amount')) : undefined
   const urlHousing = searchParams.get('housing') || undefined
 
   const [loading, setLoading] = useState(true)
@@ -91,7 +96,7 @@ export default function ConfirmationPage() {
   const groupName = registration?.groupName ?? urlGroupName ?? 'Your Group'
   const totalParticipants = registration?.totalParticipants ?? urlParticipants ?? 0
   const depositPaid = registration?.depositPaid ?? urlAmountPaid ?? 0
-  const totalAmount = registration?.totalAmount ?? urlAmountPaid ?? 0
+  const totalAmount = registration?.totalAmount ?? urlTotalAmount ?? 0
   const balanceRemaining = registration?.balanceRemaining ?? (totalAmount - depositPaid)
   const fullPaymentDeadlineFormatted = registration?.fullPaymentDeadline
     ? new Date(registration.fullPaymentDeadline).toLocaleDateString('en-US', {

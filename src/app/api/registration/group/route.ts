@@ -697,7 +697,21 @@ export async function POST(request: NextRequest) {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
       const porosLiabilityUrl = `${appUrl}/poros?code=${accessCode}`
       const groupLeaderPortalUrl = `${appUrl}/dashboard/group-leader`
-      const confirmationPageUrl = `${appUrl}/registration/confirmation/${registration.id}`
+      // Same params as the live post-registration redirect (see review page) —
+      // without them, clicking this link from the email later (before linking
+      // a Group Leader account) shows the unauthenticated, param-less view:
+      // $0 total vs $0 paid, which doesn't say the wrong thing but doesn't say
+      // anything useful either. Carrying the real numbers means this link
+      // keeps working correctly no matter when it's clicked.
+      const confirmationPageParams = new URLSearchParams({
+        access_code: accessCode,
+        group_name: groupName,
+        participants: String(totalParticipants),
+        amount_paid: '0',
+        total_amount: String(totalAmount),
+        housing: housingType,
+      })
+      const confirmationPageUrl = `${appUrl}/registration/confirmation/${registration.id}?${confirmationPageParams.toString()}`
 
       const fullPaymentDeadlineFormatted = event.pricing.fullPaymentDeadline
         ? new Date(event.pricing.fullPaymentDeadline).toLocaleDateString('en-US', {
@@ -839,7 +853,13 @@ export async function POST(request: NextRequest) {
           },
         ],
         mode: 'payment',
-        success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/registration/confirmation/${registration.id}?session_id={CHECKOUT_SESSION_ID}&access_code=${encodeURIComponent(accessCode)}&group_name=${encodeURIComponent(groupName)}&participants=${totalParticipants}&amount_paid=${depositAmount}&housing=${encodeURIComponent(housingType)}`,
+        // total_amount is separate from amount_paid so the confirmation page
+        // doesn't have to infer the registration total from the deposit just
+        // paid — before this, an unauthenticated viewer (always true right
+        // after registering) would see the total collapse to the deposit
+        // amount too, showing a false "Paid in Full, $0 balance" whenever the
+        // deposit was less than the full cost.
+        success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/registration/confirmation/${registration.id}?session_id={CHECKOUT_SESSION_ID}&access_code=${encodeURIComponent(accessCode)}&group_name=${encodeURIComponent(groupName)}&participants=${totalParticipants}&amount_paid=${depositAmount}&total_amount=${totalAmount}&housing=${encodeURIComponent(housingType)}`,
         cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/events/${eventId}/register-group/review?cancelled=true`,
         metadata: {
           registrationId: registration.id,
