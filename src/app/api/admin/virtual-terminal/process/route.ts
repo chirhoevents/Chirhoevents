@@ -8,7 +8,6 @@ import { Resend } from 'resend'
 import { generateVirtualTerminalReceipt } from '@/lib/email-templates'
 import { calculatePlatformFeeCents } from '@/lib/stripe-fees'
 import { resolveReplyTo } from '@/lib/email-reply-to'
-import { exceedsPlatformCollectedCardCap, PLATFORM_COLLECTED_CARD_CAP_ERROR } from '@/lib/platform-collected-payment-cap'
 import { CARD_PAYMENT_DISABLED_ERROR } from '@/lib/event-card-payment-disabled'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -218,10 +217,6 @@ export async function POST(request: Request) {
     if (paymentMethod === 'new_card' || paymentMethod === 'saved_card') {
       if (!stripePaymentMethodId) {
         return NextResponse.json({ error: 'Payment method required' }, { status: 400 })
-      }
-
-      if (exceedsPlatformCollectedCardCap(org, amountCents)) {
-        return NextResponse.json({ error: PLATFORM_COLLECTED_CARD_CAP_ERROR }, { status: 400 })
       }
 
       if (registration.eventSettings?.cardPaymentDisabled) {

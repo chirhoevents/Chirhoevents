@@ -1,7 +1,6 @@
 // Per-event switch (EventSettings.cardPaymentDisabled) that turns off card
 // payments entirely for a single event — e.g. "financial restrictions this
-// year, checks only." Independent of the $1,000 platform-collected cap in
-// src/lib/platform-collected-payment-cap.ts, which is org-wide and amount-based.
+// year, checks only." Only affects events that turn it on.
 //
 // Kept generic (no mailing address baked in) since it's shared across every
 // event that enables this flag — the actual payee/mailing address always

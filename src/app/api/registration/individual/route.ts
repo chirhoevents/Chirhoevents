@@ -4,7 +4,6 @@ import Stripe from 'stripe'
 import { Resend } from 'resend'
 import QRCode from 'qrcode'
 import { calculatePlatformFeeCents } from '@/lib/stripe-fees'
-import { exceedsPlatformCollectedCardCap, PLATFORM_COLLECTED_CARD_CAP_MESSAGE } from '@/lib/platform-collected-payment-cap'
 import { CARD_PAYMENT_DISABLED_MESSAGE, CARD_PAYMENT_DISABLED_TITLE } from '@/lib/event-card-payment-disabled'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { generateIndividualConfirmationCode } from '@/lib/access-code'
@@ -350,19 +349,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Platform-collected orgs (usePlatformStripeAccount) can't take a card charge
-    // over the cap — Chirho is the merchant of record for those, so a large
-    // dispute lands on Chirho's own account. Force those over the cap onto the
-    // same check-payment path as if the registrant had picked it themselves.
-    const forcedCheckDueToCap =
-      paymentMethod !== 'check' &&
-      exceedsPlatformCollectedCardCap(event.organization, Math.round(totalAmount * 100))
-    // Separately, an event can have card payments turned off entirely
-    // ("financial restrictions this year, checks only") regardless of amount.
+    // An event can have card payments turned off entirely ("financial
+    // restrictions this year, checks only"); force those onto the check path.
     const forcedCheckDueToCardDisabled =
       paymentMethod !== 'check' && !!event.settings?.cardPaymentDisabled
-    const forcedCheck = forcedCheckDueToCap || forcedCheckDueToCardDisabled
-    const effectivePaymentMethod = forcedCheck ? 'check' : paymentMethod
+    const effectivePaymentMethod = forcedCheckDueToCardDisabled ? 'check' : paymentMethod
 
     // Determine registration status based on payment method
     const registrationStatus =
@@ -608,8 +599,6 @@ export async function POST(request: NextRequest) {
                 ${forcedCheckDueToCardDisabled ? `
                 <p style="color: #856404; margin: 0 0 4px 0;"><strong>${CARD_PAYMENT_DISABLED_TITLE}</strong></p>
                 <p style="color: #856404; margin: 0 0 10px 0;">${CARD_PAYMENT_DISABLED_MESSAGE}</p>
-                ` : forcedCheckDueToCap ? `
-                <p style="color: #856404; margin: 0 0 10px 0;">${PLATFORM_COLLECTED_CARD_CAP_MESSAGE}</p>
                 ` : ''}
                 <p style="color: #856404; margin: 0;">
                   <strong>Your registration is PENDING until we receive your check payment.</strong>
