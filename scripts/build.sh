@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Build v2.3 - Run table creation AFTER Prisma push
+# Build v2.4 - Make every "ensure column exists" statement self-committing
 echo "=== Build Script Starting ==="
 
 echo "Running pre-migration cleanup..."
@@ -14,22 +14,60 @@ cat > /tmp/pre-cleanup.sql << 'SQLEOF'
 -- waitlist invite tokens). Dropping it every deploy silently invalidated
 -- every outstanding waitlist invitation (all tokens wiped, links 404),
 -- which is exactly the bug Catherine hit with Maria Sousa on Aug 18.
+BEGIN;
 ALTER TABLE "waitlist_entries" DROP CONSTRAINT IF EXISTS "waitlist_entries_registration_token_key";
 DROP INDEX IF EXISTS "waitlist_entries_registration_token_key";
+COMMIT;
 
--- Add salve_packet_settings column to event_settings if it doesn't exist
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_name = 'event_settings' AND column_name = 'salve_packet_settings'
-    ) THEN
-        ALTER TABLE "event_settings" ADD COLUMN "salve_packet_settings" JSONB;
-    END IF;
-END $$;
+-- Every "ensure this column exists" statement below runs in its OWN explicit
+-- transaction. `prisma db execute --file` sends this whole file to Postgres
+-- as one multi-statement string; without explicit BEGIN/COMMIT, Postgres
+-- treats that as a SINGLE implicit transaction, so an error on ANY statement
+-- — including one much further down this file, or in create-tables.sql run
+-- later in this same build — silently rolls back every earlier ALTER too,
+-- even though each one individually "succeeded." That's how
+-- event_settings.salve_checkin_mode (added weeks ago in PR #840, with its
+-- own ALTER right here) disappeared from production on 2026-10-02 and took
+-- the whole site down, and it's also why the Mount 2000 external-payment-link
+-- columns from PR #842 never showed up at all. Keep each column-creation
+-- statement (or tightly related group) wrapped in its own BEGIN/COMMIT so a
+-- later failure anywhere else can never undo it.
+BEGIN;
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "salve_packet_settings" JSONB;
+COMMIT;
+
+BEGIN;
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "salve_checkin_mode" VARCHAR(20) NOT NULL DEFAULT 'group';
+COMMIT;
+
+BEGIN;
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "card_payment_disabled" BOOLEAN NOT NULL DEFAULT false;
+COMMIT;
+
+BEGIN;
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "external_deposit_payment_url" TEXT;
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "external_deposit_payment_note" TEXT;
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "external_balance_payment_url" TEXT;
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "external_balance_payment_note" TEXT;
+COMMIT;
+
+BEGIN;
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "registration_acknowledgment_enabled" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "registration_acknowledgment_title" VARCHAR(255);
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "registration_acknowledgment_items" JSONB;
+COMMIT;
+
+BEGIN;
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "poros_confessions_enabled" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "confessions_reconciliation_guide_url" TEXT;
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "poros_info_enabled" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "poros_adoration_enabled" BOOLEAN NOT NULL DEFAULT false;
+COMMIT;
 
 -- Drop the old poros_confession_times table if it exists (we use poros_confessions now)
+BEGIN;
 DROP TABLE IF EXISTS "poros_confession_times" CASCADE;
+COMMIT;
 SQLEOF
 
 # Run pre-cleanup SQL
@@ -82,6 +120,35 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='archived_at') THEN
     RAISE EXCEPTION 'Schema drift after db push: events.archived_at is missing';
   END IF;
+  -- SALVE check-in mode (PR #840) — went missing in production on 2026-10-02
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='event_settings' AND column_name='salve_checkin_mode') THEN
+    RAISE EXCEPTION 'Schema drift after db push: event_settings.salve_checkin_mode is missing';
+  END IF;
+  -- Checks-only switch (PR #841)
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='event_settings' AND column_name='card_payment_disabled') THEN
+    RAISE EXCEPTION 'Schema drift after db push: event_settings.card_payment_disabled is missing';
+  END IF;
+  -- Mount 2000 external card-payment links on the Group Leader Portal (PR #842)
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='event_settings' AND column_name='external_deposit_payment_url') THEN
+    RAISE EXCEPTION 'Schema drift after db push: event_settings.external_deposit_payment_url is missing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='event_settings' AND column_name='external_balance_payment_url') THEN
+    RAISE EXCEPTION 'Schema drift after db push: event_settings.external_balance_payment_url is missing';
+  END IF;
+  -- Pre-checkout acknowledgment checklist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='event_settings' AND column_name='registration_acknowledgment_items') THEN
+    RAISE EXCEPTION 'Schema drift after db push: event_settings.registration_acknowledgment_items is missing';
+  END IF;
+  -- Poros confessions/info/adoration toggles
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='event_settings' AND column_name='poros_confessions_enabled') THEN
+    RAISE EXCEPTION 'Schema drift after db push: event_settings.poros_confessions_enabled is missing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='event_settings' AND column_name='poros_info_enabled') THEN
+    RAISE EXCEPTION 'Schema drift after db push: event_settings.poros_info_enabled is missing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='event_settings' AND column_name='poros_adoration_enabled') THEN
+    RAISE EXCEPTION 'Schema drift after db push: event_settings.poros_adoration_enabled is missing';
+  END IF;
 END $$;
 SQLEOF
 npx prisma db execute --file /tmp/schema-canary.sql --schema prisma/schema.prisma
@@ -93,6 +160,9 @@ echo "Creating confession/adoration/info tables..."
 cat > /tmp/create-tables.sql << 'SQLEOF'
 -- Create confession/adoration/info tables if they don't exist
 -- These tables are managed outside of Prisma to prevent data loss during deployments
+-- Wrapped in its own transaction (see pre-cleanup.sql above for why) so a
+-- failure in either seed UPDATE below can never roll back table creation.
+BEGIN;
 CREATE TABLE IF NOT EXISTS "poros_confessions" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "event_id" UUID NOT NULL,
@@ -144,31 +214,21 @@ CREATE INDEX IF NOT EXISTS "idx_poros_info_items_event" ON "poros_info_items"("e
 CREATE INDEX IF NOT EXISTS "idx_poros_info_items_active" ON "poros_info_items"("is_active");
 CREATE INDEX IF NOT EXISTS "idx_poros_adoration_event" ON "poros_adoration"("event_id");
 CREATE INDEX IF NOT EXISTS "idx_poros_adoration_active" ON "poros_adoration"("is_active");
-
--- Ensure event_settings columns exist for confessions/info/adoration
-ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "poros_confessions_enabled" BOOLEAN NOT NULL DEFAULT false;
-ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "confessions_reconciliation_guide_url" TEXT;
-ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "poros_info_enabled" BOOLEAN NOT NULL DEFAULT false;
-ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "poros_adoration_enabled" BOOLEAN NOT NULL DEFAULT false;
+COMMIT;
 
 -- Make sure confessions, adoration, and info are always enabled for Mount 2000 2026
+BEGIN;
 UPDATE "event_settings"
 SET "poros_confessions_enabled" = true,
     "poros_info_enabled" = true,
     "poros_adoration_enabled" = true
 WHERE "event_id" = 'b9b70d36-ae35-47a0-aeb7-a50df9a598f1';
-
--- Ensure event_settings columns exist for the pre-checkout acknowledgment modal
-ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "registration_acknowledgment_enabled" BOOLEAN NOT NULL DEFAULT false;
-ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "registration_acknowledgment_title" VARCHAR(255);
-ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "registration_acknowledgment_items" JSONB;
-
--- Ensure event_settings column exists for the SALVE check-in mode toggle
-ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "salve_checkin_mode" VARCHAR(20) NOT NULL DEFAULT 'group';
+COMMIT;
 
 -- Seed the new-registration-process acknowledgment checklist for Mount 2000 2027,
 -- but only the first time (guarded on items still being unset) so an admin's
 -- later edits in the dashboard survive future deploys.
+BEGIN;
 UPDATE "event_settings"
 SET "registration_acknowledgment_enabled" = true,
     "registration_acknowledgment_title" = 'New Registration Process',
@@ -182,6 +242,7 @@ SET "registration_acknowledgment_enabled" = true,
     ]'::jsonb
 WHERE "event_id" = '8c7aaf89-6790-4a81-bf6b-33e8dd8586f1'
   AND "registration_acknowledgment_items" IS NULL;
+COMMIT;
 SQLEOF
 
 echo "Executing table creation SQL..."
