@@ -9,6 +9,7 @@ import { AlertCircle, Loader2, AlertTriangle } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import RegistrationAcknowledgmentModal from '@/components/registration/RegistrationAcknowledgmentModal'
 import { useRegistrationQueue } from '@/hooks/useRegistrationQueue'
+import { useSessionDraft } from '@/hooks/useSessionDraft'
 import RegistrationTimer from '@/components/RegistrationTimer'
 import LoadingScreen from '@/components/LoadingScreen'
 import CustomQuestionRenderer, {
@@ -110,7 +111,10 @@ export default function GroupRegistrationPage() {
   const [error, setError] = useState<string | null>(null)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [customQuestions, setCustomQuestions] = useState<CustomQuestion[]>([])
-  const [customAnswers, setCustomAnswers] = useState<CustomAnswersMap>({})
+  const [customAnswers, setCustomAnswers] = useSessionDraft<CustomAnswersMap>(
+    `chirho_custom_answers_${eventId}`,
+    {}
+  )
 
   // Coupon verification state
   const [verifyingCoupon, setVerifyingCoupon] = useState(false)
@@ -136,7 +140,8 @@ export default function GroupRegistrationPage() {
   const [hasAcknowledged, setHasAcknowledged] = useState(false)
 
   // Form state
-  const [formData, setFormData] = useState({
+  // Saved to sessionStorage so going Next → Back doesn't wipe what was typed
+  const [formData, setFormData] = useSessionDraft(`chirho_registration_draft_group_${eventId}`, {
     groupName: '',
     parishName: '',
     dioceseName: '',
@@ -217,7 +222,7 @@ export default function GroupRegistrationPage() {
           ? waitlistOffer.housingType
           : prev.housingType,
     }))
-  }, [waitlistOffer])
+  }, [waitlistOffer, setFormData])
 
   // Whether the spot count / ticket type / housing fields should be locked
   // to the offer rather than left editable — editing them would just lead to

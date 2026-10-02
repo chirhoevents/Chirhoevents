@@ -38,6 +38,18 @@ export default function IndividualConfirmationPage() {
   const [registration, setRegistration] = useState<RegistrationData | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // Registration is done — drop the saved form drafts so the next
+  // registration in this tab starts blank.
+  useEffect(() => {
+    try {
+      Object.keys(sessionStorage)
+        .filter(k => k.startsWith('chirho_registration_draft_') || k.startsWith('chirho_custom_answers_'))
+        .forEach(k => sessionStorage.removeItem(k))
+    } catch {
+      // Storage unavailable — nothing to clear
+    }
+  }, [])
+
   useEffect(() => {
     async function loadRegistration() {
       try {

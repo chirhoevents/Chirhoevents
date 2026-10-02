@@ -111,6 +111,7 @@ export default function IndividualInvoiceReviewPage() {
   function clearCustomAnswers() {
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem(`chirho_custom_answers_${eventId}`)
+      sessionStorage.removeItem(`chirho_registration_draft_individual_${eventId}`)
     }
   }
 
@@ -142,6 +143,15 @@ export default function IndividualInvoiceReviewPage() {
   }
 
   const waitlistToken = searchParams.get('waitlist') || ''
+
+  // Stripe's cancel_url lands here with only ?cancelled=true and none of the
+  // form fields, so send them back to the form, which restores their saved
+  // answers, instead of showing an empty review page.
+  useEffect(() => {
+    if (searchParams.get('cancelled') === 'true') {
+      router.replace(`/events/${eventId}/register-individual`)
+    }
+  }, [searchParams, router, eventId])
 
   // Load event data
   useEffect(() => {
@@ -268,14 +278,15 @@ export default function IndividualInvoiceReviewPage() {
 
       const result = await response.json()
 
-      // Mark queue session as complete and clear transient answers
+      // Mark queue session as complete
       await markComplete()
-      clearCustomAnswers()
 
-      // Redirect to Stripe checkout
+      // Redirect to Stripe checkout. The saved answers are kept until the
+      // confirmation page, so cancelling out of Stripe doesn't wipe them.
       if (result.checkoutUrl) {
         window.location.href = result.checkoutUrl
       } else {
+        clearCustomAnswers()
         router.push(`/registration/confirmation/individual/${result.registrationId}`)
       }
     } catch (err: any) {
