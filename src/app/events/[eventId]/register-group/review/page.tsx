@@ -528,8 +528,8 @@ export default function InvoiceReviewPage() {
 
                       {pricing.isEarlyBird && pricing.earlyBirdDiscount > 0 && (
                         <div className="flex justify-between text-green-600">
-                          <span>Early Bird Discount:</span>
-                          <span className="font-medium">-${pricing.earlyBirdDiscount.toFixed(2)}</span>
+                          <span>Early Bird Savings (already applied):</span>
+                          <span className="font-medium">${pricing.earlyBirdDiscount.toFixed(2)}</span>
                         </div>
                       )}
 
