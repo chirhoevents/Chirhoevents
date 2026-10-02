@@ -6,6 +6,7 @@ import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import {
   incrementOptionCapacity,
   incrementDayPassOptionCapacity,
+  getGroupHousingCounts,
   type HousingType,
   type RoomType
 } from '@/lib/option-capacity'
@@ -92,36 +93,13 @@ export async function POST(
       participantCount = registration.totalParticipants || 0
       housingType = registration.housingType
 
-      // Calculate housing-specific counts for capacity restoration
-      const onCampusCount = (registration.onCampusYouth || 0) + (registration.onCampusChaperones || 0)
-      const offCampusCount = (registration.offCampusYouth || 0) + (registration.offCampusChaperones || 0)
-      const dayPassCount = (registration.dayPassYouth || 0) + (registration.dayPassChaperones || 0)
-
-      // Check if this registration has inventory-style fields set (not a legacy registration)
-      const hasInventoryFields =
-        registration.onCampusYouth !== null ||
-        registration.onCampusChaperones !== null ||
-        registration.offCampusYouth !== null ||
-        registration.offCampusChaperones !== null ||
-        registration.dayPassYouth !== null ||
-        registration.dayPassChaperones !== null
-
-      // Restore housing option capacities based on inventory counts
-      if (restoreCapacity && onCampusCount > 0) {
-        await incrementOptionCapacity(eventId, 'on_campus', null, onCampusCount)
-      }
-      if (restoreCapacity && offCampusCount > 0) {
-        await incrementOptionCapacity(eventId, 'off_campus', null, offCampusCount)
-      }
-      if (restoreCapacity && dayPassCount > 0) {
-        await incrementOptionCapacity(eventId, 'day_pass', null, dayPassCount)
-      }
-
-      // Only use fallback for LEGACY registrations that don't have inventory fields
-      // (registrations created before the inventory-style tracking was added)
-      // This prevents double-incrementing for registrations that had their counts set to 0
-      if (restoreCapacity && !hasInventoryFields && housingType && registration.ticketType !== 'day_pass') {
-        await incrementOptionCapacity(eventId, housingType, null, participantCount)
+      // Restore housing option capacities (includes priests, matching what
+      // registration took; legacy registrations fall back to housingType)
+      const housingCounts = getGroupHousingCounts(registration)
+      for (const pool of ['on_campus', 'off_campus', 'day_pass'] as const) {
+        if (restoreCapacity && housingCounts[pool] > 0) {
+          await incrementOptionCapacity(eventId, pool, null, housingCounts[pool])
+        }
       }
 
       // Restore day pass option capacity (if applicable)
