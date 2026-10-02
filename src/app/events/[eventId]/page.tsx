@@ -415,6 +415,11 @@ export default async function EventLandingPage({ params }: EventPageProps) {
               </CardContent>
             </Card>
           )}
+
+          {/* Deposit policy — fixed platform-wide disclosure, not per-event configurable */}
+          <p className="text-sm text-[#6B7280] text-center">
+            If a deposit is required for this event, it is non-refundable and non-transferable.
+          </p>
         </div>
 
         {/* Contact Section */}

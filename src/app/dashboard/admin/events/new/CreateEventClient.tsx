@@ -12,6 +12,12 @@ import { Check, ChevronLeft, ChevronRight, Loader2, Upload, Trash2, Image as Ima
 import { Checkbox } from '@/components/ui/checkbox'
 import CatalogQuestionPicker, { type CatalogQuestionPickerHandle } from '@/components/admin/CatalogQuestionPicker'
 
+// This is a one-off arrangement for a single event (Mount Saint Mary's "Mount
+// 2000"), not a general-purpose feature — the external-payment-links section
+// below is restricted to this exact event so it never appears as an option
+// for any other org/event.
+const EXTERNAL_PAYMENT_LINKS_EVENT_ID = '8c7aaf89-6790-4a81-bf6b-33e8dd8586f1'
+
 interface CreateEventClientProps {
   organizationId: string
   eventId?: string
@@ -3431,16 +3437,19 @@ export default function CreateEventClient({
                   </div>
                 </div>
 
-                {/* External (non-Stripe) card payment portal links - shown on the Group Leader Portal */}
+                {/* External (non-Stripe) card payment portal links - shown on the Group Leader Portal.
+                    Restricted to Mount 2000 only (see EXTERNAL_PAYMENT_LINKS_EVENT_ID above) — not a
+                    general feature, so it must not appear on any other event's edit page. */}
+                {eventId === EXTERNAL_PAYMENT_LINKS_EVENT_ID && (
                 <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
                   <h3 className="font-semibold text-blue-900 mb-3">
-                    🔗 External Card Payment Links (Optional)
+                    🔗 External Card Payment Links (Mount 2000 Only)
                   </h3>
                   <p className="text-sm text-blue-800 mb-3">
-                    If the org runs its own card payment portal (e.g. a university&apos;s own payment
-                    system), add the links here. They&apos;ll appear on the Group Leader Portal as an
-                    alternative to mailing a check — Chirho never processes these payments directly;
-                    staff record them manually once the org notifies us a payment came through.
+                    This event has its own card payment portal (the university&apos;s own payment
+                    system). These links appear on the Group Leader Portal as an alternative to
+                    mailing a check — Chirho never processes these payments directly; staff record
+                    them manually once the org notifies us a payment came through.
                   </p>
                   <div className="space-y-4">
                     <div>
@@ -3487,6 +3496,7 @@ export default function CreateEventClient({
                     </div>
                   </div>
                 </div>
+                )}
 
                 {/* Check Payment Settings - Only for Group Registration */}
                 {formData.groupRegistrationEnabled && (

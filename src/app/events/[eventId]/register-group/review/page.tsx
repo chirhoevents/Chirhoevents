@@ -108,6 +108,7 @@ export default function InvoiceReviewPage() {
   const [errorModalOpen, setErrorModalOpen] = useState(false)
   const [showCheckModal, setShowCheckModal] = useState(false)
   const [checkAcknowledged, setCheckAcknowledged] = useState(false)
+  const [depositPolicyAcknowledged, setDepositPolicyAcknowledged] = useState(false)
 
   // Coupon state
   const [validatedCoupon, setValidatedCoupon] = useState<CouponData | null>(null)
@@ -356,6 +357,11 @@ export default function InvoiceReviewPage() {
 
   // Handle credit card payment
   const handleCreditCardPayment = async () => {
+    if (pricing.deposit > 0 && !depositPolicyAcknowledged) {
+      setError('Please acknowledge that your deposit is non-refundable and non-transferable.')
+      return
+    }
+
     setSubmitting(true)
     setError(null)
 
@@ -402,6 +408,11 @@ export default function InvoiceReviewPage() {
   const handleCheckPayment = async () => {
     if (!checkAcknowledged) {
       setError('Please acknowledge that you understand your registration is pending payment.')
+      return
+    }
+
+    if (pricing.deposit > 0 && !depositPolicyAcknowledged) {
+      setError('Please acknowledge that your deposit is non-refundable and non-transferable.')
       return
     }
 
@@ -606,12 +617,28 @@ export default function InvoiceReviewPage() {
                   </p>
                 )}
 
+                {pricing.deposit > 0 && (
+                  <div className="flex items-start space-x-2 bg-gray-50 border border-gray-200 rounded-md p-3">
+                    <input
+                      type="checkbox"
+                      id="depositPolicyAcknowledge"
+                      checked={depositPolicyAcknowledged}
+                      onChange={(e) => setDepositPolicyAcknowledged(e.target.checked)}
+                      className="mt-1"
+                    />
+                    <label htmlFor="depositPolicyAcknowledge" className="text-sm text-gray-700">
+                      I understand my deposit (${pricing.deposit.toFixed(2)}) is{' '}
+                      <strong>non-refundable and non-transferable</strong>.
+                    </label>
+                  </div>
+                )}
+
                 {!cardBlocked && (
                   <Button
                     size="lg"
                     className="w-full"
                     onClick={handleCreditCardPayment}
-                    disabled={submitting}
+                    disabled={submitting || (pricing.deposit > 0 && !depositPolicyAcknowledged)}
                   >
                     {submitting ? (
                       <>
@@ -633,7 +660,7 @@ export default function InvoiceReviewPage() {
                     variant="outline"
                     className="w-full"
                     onClick={() => setShowCheckModal(true)}
-                    disabled={submitting}
+                    disabled={submitting || (pricing.deposit > 0 && !depositPolicyAcknowledged)}
                   >
                     <FileText className="mr-2 h-5 w-5" />
                     Pay Later

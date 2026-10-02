@@ -2634,6 +2634,10 @@ export function generateGroupRegistrationConfirmationEmail({
       <strong>Full Payment Due By ${fullPaymentDeadline}.</strong> You can make payments anytime in your Group Leader Portal.
     `, 'warning') : ''}
 
+    ${balanceRemaining > 0 ? emailInfoBox(`
+      <strong>Deposits are non-refundable and non-transferable.</strong> The ${formatCurrency(depositAmount)} deposit paid above cannot be refunded or applied to a different event or registration.
+    `, 'info') : ''}
+
     ${paymentSection}
 
     <!-- Next Steps -->
