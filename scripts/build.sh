@@ -262,9 +262,9 @@ COMMIT;
 BEGIN;
 UPDATE "event_settings"
 SET "external_deposit_payment_url" = 'https://mymount.msmary.edu/ICS/Events/Mount_2000_Deposit.jnz',
-    "external_deposit_payment_note" = '$20 per slot',
+    "external_deposit_payment_note" = '$20 per slot — this is your deposit only, separate from the general admission balance below.',
     "external_balance_payment_url" = 'https://mymount.msmary.edu/ICS/Events/Mount_2000_Final_Payment.jnz',
-    "external_balance_payment_note" = '$90 per slot off-campus, $130 per slot on-campus'
+    "external_balance_payment_note" = '$90 per slot off-campus, $130 per slot on-campus — this is your general admission balance. You must pay both the deposit and this balance to be paid in full.'
 WHERE "event_id" = '8c7aaf89-6790-4a81-bf6b-33e8dd8586f1'
   AND "external_deposit_payment_url" IS NULL
   AND "external_balance_payment_url" IS NULL;
