@@ -722,8 +722,10 @@ export function CustomReportBuilder({
     questionText: string
     questionType: string
     appliesTo: string
-    enabled: boolean
   }>>([])
+  // Older saved templates stored catalog columns under the shared template
+  // question's id rather than this event's copy; map them across.
+  const [legacyQuestionIds, setLegacyQuestionIds] = useState<Record<string, string>>({})
 
   const [selectedFields, setSelectedFields] = useState<string[]>([])
   const [filters, setFilters] = useState<Record<string, any>>({})
@@ -800,11 +802,23 @@ export function CustomReportBuilder({
         const token = await getToken()
         const headers: Record<string, string> = {}
         if (token) headers['Authorization'] = `Bearer ${token}`
-        const response = await fetch(`/api/admin/events/${eventId}/catalog-questions`, { headers })
-        if (response.ok) {
-          const data = await response.json()
-          const enabledQuestions = (data.questions || []).filter((q: any) => q.enabled)
-          setCatalogQuestions(enabledQuestions)
+        // Answers are saved against this event's own question rows, so the
+        // columns must use those ids (not the shared catalog template ids).
+        const [eventRes, catalogRes] = await Promise.all([
+          fetch(`/api/admin/events/${eventId}/custom-questions`, { headers }),
+          fetch(`/api/admin/events/${eventId}/catalog-questions`, { headers }),
+        ])
+        if (eventRes.ok) {
+          const data = await eventRes.json()
+          setCatalogQuestions((data.questions || []).filter((q: any) => !q.isTemplate))
+        }
+        if (catalogRes.ok) {
+          const data = await catalogRes.json()
+          const map: Record<string, string> = {}
+          for (const q of data.questions || []) {
+            if (q.eventCopyId) map[q.id] = q.eventCopyId
+          }
+          setLegacyQuestionIds(map)
         }
       } catch {
         // Non-critical — catalog questions simply won't show as dynamic columns
@@ -812,6 +826,23 @@ export function CustomReportBuilder({
     }
     fetchCatalogQuestions()
   }, [open, eventId])
+
+  const remapLegacyField = (field: string) => {
+    const id = field.startsWith('cq_') ? legacyQuestionIds[field.slice(3)] : undefined
+    return id ? `cq_${id}` : field
+  }
+
+  // Fix up a loaded template once the legacy id map arrives
+  useEffect(() => {
+    if (Object.keys(legacyQuestionIds).length === 0) return
+    setSelectedFields(prev => prev.map(remapLegacyField))
+    setFilters(prev => {
+      const qid = prev.catalogAnswerFilter?.questionId
+      if (!qid || !legacyQuestionIds[qid]) return prev
+      return { ...prev, catalogAnswerFilter: { ...prev.catalogAnswerFilter, questionId: legacyQuestionIds[qid] } }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- remapLegacyField only reads legacyQuestionIds
+  }, [legacyQuestionIds])
 
   // Load templates on mount and set default data source
   useEffect(() => {
@@ -893,8 +924,14 @@ export function CustomReportBuilder({
     if (template) {
       setSelectedTemplate(templateId)
       setDataSource(template.configuration.dataSource || template.reportType)
-      setSelectedFields(template.configuration.fields || [])
-      setFilters(template.configuration.filters || {})
+      setSelectedFields((template.configuration.fields || []).map(remapLegacyField))
+      const loadedFilters = template.configuration.filters || {}
+      const legacyFilterId = loadedFilters.catalogAnswerFilter?.questionId
+      setFilters(
+        legacyFilterId && legacyQuestionIds[legacyFilterId]
+          ? { ...loadedFilters, catalogAnswerFilter: { ...loadedFilters.catalogAnswerFilter, questionId: legacyQuestionIds[legacyFilterId] } }
+          : loadedFilters
+      )
       setGroupBy(template.configuration.groupBy || 'none')
       setSortBy(template.configuration.sortBy || '')
       setSortDirection(template.configuration.sortDirection || 'asc')
@@ -1101,7 +1138,15 @@ export function CustomReportBuilder({
       }).join(',')
     )
 
-    return [headers.join(','), ...rows].join('\n')
+    // Show question text / field labels instead of raw keys like cq_<uuid>
+    const headerRow = headers
+      .map(header => {
+        const label = allFields.find(f => f.value === header)?.label || header
+        return /[",\n]/.test(label) ? `"${label.replace(/"/g, '""')}"` : label
+      })
+      .join(',')
+
+    return [headerRow, ...rows].join('\n')
   }
 
   const flattenObject = (obj: any, prefix = ''): any => {
@@ -1140,7 +1185,7 @@ export function CustomReportBuilder({
 
     // Get visible field labels
     const fieldLabels = selectedFields.map(f => {
-      const field = currentSource?.fields.find(ff => ff.value === f)
+      const field = allFields.find(ff => ff.value === f)
       return field?.label || f
     })
 
@@ -1860,7 +1905,7 @@ export function CustomReportBuilder({
                     <thead className="sticky top-0 bg-gray-100">
                       <tr>
                         {selectedFields.map(fieldValue => {
-                          const field = currentSource?.fields.find(f => f.value === fieldValue)
+                          const field = allFields.find(f => f.value === fieldValue)
                           return (
                             <th key={fieldValue} className="border-b border-gray-300 px-3 py-2 text-left font-medium">
                               {field?.label || fieldValue}
