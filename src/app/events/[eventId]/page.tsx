@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Calendar, MapPin, Users } from 'lucide-react'
 import EventLandingClient from './EventLandingClient'
 import { PortalAccessSection } from '@/components/PortalAccessSection'
+import { buildWaitlistPreferences } from '@/lib/waitlist-preferences'
 
 interface EventPageProps {
   params: Promise<{
@@ -323,29 +324,11 @@ export default async function EventLandingPage({ params }: EventPageProps) {
                 email: event.settings?.contactEmail || event.organization.contactEmail || null,
                 phone: event.settings?.contactPhone || event.organization.contactPhone || null,
               }}
-              waitlistPreferences={(() => {
-                const s = event.settings
-                const housingOffered: Array<'on_campus' | 'off_campus' | 'day_pass'> = []
-                if (s?.onCampusCapacity !== null && s?.onCampusCapacity !== undefined) housingOffered.push('on_campus')
-                if (s?.offCampusCapacity !== null && s?.offCampusCapacity !== undefined) housingOffered.push('off_campus')
-                if (s?.dayPassCapacity !== null && s?.dayPassCapacity !== undefined) housingOffered.push('day_pass')
-                const roomsOffered: Array<'single' | 'double' | 'triple' | 'quad'> = []
-                if (s?.singleRoomCapacity !== null && s?.singleRoomCapacity !== undefined) roomsOffered.push('single')
-                if (s?.doubleRoomCapacity !== null && s?.doubleRoomCapacity !== undefined) roomsOffered.push('double')
-                if (s?.tripleRoomCapacity !== null && s?.tripleRoomCapacity !== undefined) roomsOffered.push('triple')
-                if (s?.quadRoomCapacity !== null && s?.quadRoomCapacity !== undefined) roomsOffered.push('quad')
-                const dpOffered = (event.dayPassOptions ?? []).map((o) => ({ id: o.id, name: o.name }))
-                return {
-                  offerGeneralAdmission: housingOffered.length > 0,
-                  offerDayPass: dpOffered.length > 0 || housingOffered.includes('day_pass'),
-                  housingTypes: housingOffered,
-                  roomTypes: roomsOffered,
-                  dayPassOptions: dpOffered,
-                  groupRegistrationEnabled: s?.groupRegistrationEnabled ?? true,
-                  individualRegistrationEnabled: s?.individualRegistrationEnabled ?? true,
-                }
-              })()}
+              waitlistPreferences={buildWaitlistPreferences(event.settings, event.dayPassOptions)}
               hasFullOption={(() => {
+                // A sold-out option only offers the waitlist when it's turned on;
+                // otherwise the button appears but joining is rejected.
+                if (!(event.settings?.waitlistEnabled ?? event.enableWaitlist)) return false
                 const s = event.settings
                 const optionFull = (cap: number | null | undefined, rem: number | null | undefined) =>
                   cap !== null && cap !== undefined && (rem ?? 0) <= 0
