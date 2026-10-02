@@ -58,14 +58,7 @@ export async function GET(
               startDate: true,
               endDate: true,
               locationName: true,
-            },
-          },
-          participants: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              participantType: true,
+              pricing: true,
             },
           },
         },
@@ -87,8 +80,10 @@ export async function GET(
         phone: registration.groupLeaderPhone,
         parish: registration.parishName,
         diocese: registration.dioceseName,
-        participantCount: registration.participants.length,
-        participants: registration.participants,
+        // Bill for the spots the group registered, not the participant records
+        // created so far (those only exist once liability forms are filled out)
+        participantCount: registration.totalParticipants,
+        lineItems: buildGroupLineItems(registration, registration.event.pricing),
         createdAt: registration.createdAt,
         accessCode: registration.accessCode,
       }
@@ -163,6 +158,29 @@ export async function GET(
     const totalRefunded = refunds.reduce((sum: number, r: any) => sum + Number(r.refundAmount), 0)
     const balanceRemaining = paymentBalance ? Number(paymentBalance.amountRemaining) : 0
 
+    // Reconcile itemized lines with the actual amount owed. Discounts, late
+    // fees, and manual price edits aren't captured per line, so show the
+    // difference explicitly instead of leaving the invoice inconsistent.
+    if (registrationData.lineItems) {
+      const lateFees = paymentBalance ? Number(paymentBalance.lateFeesApplied) : 0
+      if (lateFees > 0) {
+        registrationData.lineItems.push({ description: 'Late Fees', quantity: null, unitPrice: null, amount: lateFees })
+      }
+      const itemizedTotal = registrationData.lineItems.reduce(
+        (sum: number, item: LineItem) => sum + item.amount,
+        0
+      )
+      const adjustment = Math.round((totalDue - itemizedTotal) * 100) / 100
+      if (Math.abs(adjustment) >= 0.01) {
+        registrationData.lineItems.push({
+          description: adjustment < 0 ? 'Discounts / Adjustments' : 'Adjustments',
+          quantity: null,
+          unitPrice: null,
+          amount: adjustment,
+        })
+      }
+    }
+
     // Generate HTML invoice
     const html = generateInvoiceHTML({
       organization,
@@ -190,6 +208,74 @@ export async function GET(
       { status: 500 }
     )
   }
+}
+
+interface LineItem {
+  description: string
+  quantity: number | null
+  unitPrice: number | null
+  amount: number
+}
+
+function buildGroupLineItems(registration: any, pricing: any): LineItem[] {
+  const num = (v: any) => (v === null || v === undefined ? null : Number(v))
+  const isEarlyBird =
+    pricing?.earlyBirdDeadline &&
+    new Date(registration.registeredAt ?? registration.createdAt) <= new Date(pricing.earlyBirdDeadline)
+
+  const youthBase = num(isEarlyBird ? pricing?.youthEarlyBirdPrice ?? pricing?.youthRegularPrice : pricing?.youthRegularPrice) ?? 0
+  const chaperoneBase = num(isEarlyBird ? pricing?.chaperoneEarlyBirdPrice ?? pricing?.chaperoneRegularPrice : pricing?.chaperoneRegularPrice) ?? 0
+
+  const priceFor = (kind: 'youth' | 'chaperone', housing: string | null) => {
+    const housingPrices: Record<string, any> = kind === 'youth'
+      ? { on_campus: pricing?.onCampusYouthPrice, off_campus: pricing?.offCampusYouthPrice, day_pass: pricing?.dayPassYouthPrice }
+      : { on_campus: pricing?.onCampusChaperonePrice, off_campus: pricing?.offCampusChaperonePrice, day_pass: pricing?.dayPassChaperonePrice }
+    const specific = housing ? num(housingPrices[housing]) : null
+    return specific || (kind === 'youth' ? youthBase : chaperoneBase)
+  }
+
+  const housingLabels: Record<string, string> = {
+    on_campus: 'On-Campus',
+    off_campus: 'Off-Campus',
+    day_pass: 'Day Pass',
+  }
+
+  const items: LineItem[] = []
+  const add = (description: string, quantity: number, unitPrice: number) => {
+    if (quantity > 0) items.push({ description, quantity, unitPrice, amount: quantity * unitPrice })
+  }
+
+  const hasHousingBreakdown = [
+    registration.onCampusYouth, registration.onCampusChaperones,
+    registration.offCampusYouth, registration.offCampusChaperones,
+    registration.dayPassYouth, registration.dayPassChaperones,
+  ].some((v) => v !== null && v !== undefined)
+
+  if (hasHousingBreakdown) {
+    const rows: Array<[string, 'youth' | 'chaperone', number | null]> = [
+      ['on_campus', 'youth', registration.onCampusYouth],
+      ['on_campus', 'chaperone', registration.onCampusChaperones],
+      ['off_campus', 'youth', registration.offCampusYouth],
+      ['off_campus', 'chaperone', registration.offCampusChaperones],
+      ['day_pass', 'youth', registration.dayPassYouth],
+      ['day_pass', 'chaperone', registration.dayPassChaperones],
+    ]
+    for (const [housing, kind, count] of rows) {
+      add(
+        `${kind === 'youth' ? 'Youth' : 'Chaperone'} Registration (${housingLabels[housing]})`,
+        count || 0,
+        priceFor(kind, housing)
+      )
+    }
+  } else {
+    const housing = registration.housingType as string | null
+    const suffix = housing && housingLabels[housing] ? ` (${housingLabels[housing]})` : ''
+    add(`Youth Registration${suffix}`, registration.youthCount, priceFor('youth', housing))
+    add(`Chaperone Registration${suffix}`, registration.chaperoneCount, priceFor('chaperone', housing))
+  }
+
+  add('Clergy Registration', registration.priestCount, num(pricing?.priestPrice) ?? 0)
+  return items
 }
 
 interface InvoiceData {
@@ -235,46 +321,16 @@ function generateInvoiceHTML(data: InvoiceData): string {
     return methods[method] || method
   }
 
-  // Generate line items for participants if group registration
+  // Generate line items
   let lineItemsHTML = ''
-  if (registration.type === 'group' && registration.participants) {
-    const youthCount = registration.participants.filter(
-      (p: any) => p.participantType === 'youth_u18' || p.participantType === 'youth_o18'
-    ).length
-    const chaperoneCount = registration.participants.filter(
-      (p: any) => p.participantType === 'chaperone'
-    ).length
-    const priestCount = registration.participants.filter(
-      (p: any) => p.participantType === 'priest'
-    ).length
-
-    if (youthCount > 0) {
-      lineItemsHTML += `
+  if (registration.type === 'group' && registration.lineItems) {
+    lineItemsHTML = registration.lineItems.map((item: LineItem) => `
         <tr>
-          <td>Youth Registration</td>
-          <td style="text-align: center;">${youthCount}</td>
-          <td style="text-align: right;">--</td>
+          <td>${item.description}${item.quantity !== null && item.unitPrice !== null ? ` <span style="color: #666;">@ ${formatCurrency(item.unitPrice)}</span>` : ''}</td>
+          <td style="text-align: center;">${item.quantity ?? ''}</td>
+          <td style="text-align: right;">${item.amount < 0 ? `-${formatCurrency(Math.abs(item.amount))}` : formatCurrency(item.amount)}</td>
         </tr>
-      `
-    }
-    if (chaperoneCount > 0) {
-      lineItemsHTML += `
-        <tr>
-          <td>Chaperone Registration</td>
-          <td style="text-align: center;">${chaperoneCount}</td>
-          <td style="text-align: right;">--</td>
-        </tr>
-      `
-    }
-    if (priestCount > 0) {
-      lineItemsHTML += `
-        <tr>
-          <td>Clergy Registration</td>
-          <td style="text-align: center;">${priestCount}</td>
-          <td style="text-align: right;">--</td>
-        </tr>
-      `
-    }
+      `).join('')
   } else {
     lineItemsHTML = `
       <tr>
