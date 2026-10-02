@@ -263,6 +263,15 @@ model EventSettings {
   // with a "financial restrictions this year" explanation. Independent of the
   // $1,000 platform-collected cap (Organization.usePlatformStripeAccount).
   cardPaymentDisabled              Boolean  @default(false) @map("card_payment_disabled")
+  // Optional links to an external (non-Stripe) card payment portal the org runs
+  // itself — e.g. a university's own payment system — surfaced on the group
+  // leader portal as an alternative to mailing a check when cardPaymentDisabled
+  // is set. Chirho never sees these payments directly; staff record them
+  // manually after the org notifies them, same as any other check/cash payment.
+  externalDepositPaymentUrl        String?  @map("external_deposit_payment_url") @db.Text
+  externalDepositPaymentNote       String?  @map("external_deposit_payment_note") @db.Text
+  externalBalancePaymentUrl        String?  @map("external_balance_payment_url") @db.Text
+  externalBalancePaymentNote       String?  @map("external_balance_payment_note") @db.Text
   allowOnCampus                   Boolean  @default(true) @map("allow_on_campus")
   allowOffCampus                  Boolean  @default(true) @map("allow_off_campus")
   allowDayPass                    Boolean  @default(true) @map("allow_day_pass")

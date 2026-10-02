@@ -43,6 +43,8 @@ interface EventData {
     checkPaymentAddress: string | null
     couponsEnabled?: boolean
     cardPaymentDisabled?: boolean
+    externalDepositPaymentUrl?: string | null
+    externalBalancePaymentUrl?: string | null
   }
   organization: {
     usePlatformStripeAccount: boolean
@@ -705,15 +707,30 @@ export default function InvoiceReviewPage() {
               <div className="border-2 border-green-200 rounded-lg p-4 bg-green-50">
                 <h4 className="font-semibold text-navy mb-3 flex items-center">
                   <CreditCard className="mr-2 h-5 w-5" />
-                  Option 2: Pay Later via Payment Portal
+                  Option 2: Pay Later via Group Leader Portal
                 </h4>
                 <div className="space-y-2 text-sm ml-7">
                   <p>
-                    You&apos;ll receive an email with your unique access code and a link to the payment portal.
+                    You&apos;ll receive an email with your unique access code and a link to your Group
+                    Leader Portal, where you can view your balance anytime before the event.
                   </p>
-                  <p>
-                    You can pay anytime before the event using the portal link. We accept credit cards, ACH, and other payment methods.
-                  </p>
+                  {cardBlockedByEventSetting ? (
+                    (event?.settings.externalDepositPaymentUrl || event?.settings.externalBalancePaymentUrl) ? (
+                      <p>
+                        If you&apos;d rather pay by card right now instead of mailing a check, a secure
+                        card payment link is also available on your Group Leader Portal. Payments made
+                        that way aren&apos;t listed immediately — please allow up to 24 hours for our
+                        staff to confirm it, after which it will show on the portal and you&apos;ll get
+                        a confirmation email.
+                      </p>
+                    ) : (
+                      <p>Card payment isn&apos;t available for this event — check is the only payment method.</p>
+                    )
+                  ) : (
+                    <p>
+                      You can pay anytime before the event using the portal link. We accept credit cards, ACH, and other payment methods.
+                    </p>
+                  )}
                   <p className="text-green-800 font-medium">
                     ✓ More flexible payment options
                     <br />

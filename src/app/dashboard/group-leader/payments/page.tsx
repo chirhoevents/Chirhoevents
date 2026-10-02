@@ -14,7 +14,8 @@ import {
   DollarSign,
   FileText,
   Calendar,
-  RefreshCw
+  RefreshCw,
+  ExternalLink
 } from 'lucide-react'
 import { loadStripe } from '@stripe/stripe-js'
 import {
@@ -165,6 +166,13 @@ export default function PaymentsPage() {
   const { selectedEventId } = useEvent()
   const [balance, setBalance] = useState<PaymentBalance | null>(null)
   const [payments, setPayments] = useState<PaymentTransaction[]>([])
+  const [cardPaymentDisabled, setCardPaymentDisabled] = useState(false)
+  const [externalPaymentLinks, setExternalPaymentLinks] = useState<{
+    depositUrl: string | null
+    depositNote: string | null
+    balanceUrl: string | null
+    balanceNote: string | null
+  } | null>(null)
   const [loading, setLoading] = useState(true)
   const [showPaymentForm, setShowPaymentForm] = useState(false)
   const [paymentAmount, setPaymentAmount] = useState('')
@@ -186,6 +194,8 @@ export default function PaymentsPage() {
         const data = await response.json()
         setBalance(data.balance)
         setPayments(data.payments)
+        setExternalPaymentLinks(data.externalPaymentLinks || null)
+        setCardPaymentDisabled(!!data.cardPaymentDisabled)
       }
     } catch (error) {
       console.error('Error fetching payment data:', error)
@@ -501,8 +511,47 @@ export default function PaymentsPage() {
         </Card>
       )}
 
+      {/* Pay by Card via the org's own payment portal (not processed by Chirho) */}
+      {balance && balance.amountRemaining > 0 && externalPaymentLinks && (() => {
+        const depositStillOwed =
+          balance.paymentStatus === 'pending' || balance.paymentStatus === 'pending_check_payment'
+        const link = depositStillOwed
+          ? externalPaymentLinks.depositUrl
+            ? { url: externalPaymentLinks.depositUrl, note: externalPaymentLinks.depositNote, label: 'Pay Deposit by Card' }
+            : null
+          : externalPaymentLinks.balanceUrl
+          ? { url: externalPaymentLinks.balanceUrl, note: externalPaymentLinks.balanceNote, label: 'Pay Remaining Balance by Card' }
+          : null
+
+        if (!link) return null
+
+        return (
+          <Card className="p-6 bg-blue-50 border-blue-200">
+            <h3 className="text-lg font-semibold text-[#1E3A5F] mb-2 flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Pay by Card Now
+            </h3>
+            <p className="text-sm text-[#374151] mb-1">
+              Prefer to pay by card right now instead of mailing a check? Use the secure link below.
+              {link.note ? ` ${link.note}.` : ''}
+            </p>
+            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3 my-3">
+              Payments made through this link are not listed on this site immediately. Please allow
+              up to 24 hours for our staff to confirm it — once recorded, it will show here and
+              you&apos;ll receive a confirmation email.
+            </p>
+            <a href={link.url} target="_blank" rel="noopener noreferrer">
+              <Button className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white">
+                <ExternalLink className="mr-2 h-4 w-4" />
+                {link.label}
+              </Button>
+            </a>
+          </Card>
+        )
+      })()}
+
       {/* Make Payment */}
-      {balance && balance.amountRemaining > 0 && !showPaymentForm && (
+      {balance && balance.amountRemaining > 0 && !showPaymentForm && !cardPaymentDisabled && (
         <Card className="p-6 bg-white border-[#D1D5DB]">
           <h3 className="text-lg font-semibold text-[#1E3A5F] mb-4">
             Make a Payment
