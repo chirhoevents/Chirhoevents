@@ -740,6 +740,9 @@ export async function POST(request: NextRequest) {
         balanceRemaining,
         fullPaymentDeadline: fullPaymentDeadlineFormatted,
         paymentMethod: 'check',
+        // "Pay later" doesn't mean a check is coming — they can still pay by
+        // card from the portal unless card payments are off for this event.
+        cardPaymentAvailable: !eventSettings?.cardPaymentDisabled && !forcedCheckDueToCap,
         checkPayableTo: eventSettings?.checkPaymentPayableTo || event.organization.name,
         checkMailingAddress: eventSettings?.checkPaymentAddress || undefined,
         registrationInstructions: eventSettings?.registrationInstructions || undefined,

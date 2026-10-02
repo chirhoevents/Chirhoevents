@@ -2518,6 +2518,7 @@ export function generateGroupRegistrationConfirmationEmail({
   balanceRemaining,
   fullPaymentDeadline,
   paymentMethod,
+  cardPaymentAvailable = false,
   checkPayableTo,
   checkMailingAddress,
   registrationInstructions,
@@ -2540,6 +2541,7 @@ export function generateGroupRegistrationConfirmationEmail({
   balanceRemaining: number
   fullPaymentDeadline?: string
   paymentMethod: 'card' | 'check'
+  cardPaymentAvailable?: boolean
   checkPayableTo?: string
   checkMailingAddress?: string
   registrationInstructions?: string
@@ -2555,9 +2557,14 @@ export function generateGroupRegistrationConfirmationEmail({
   // group registration's calculated totals), not Stripe-style cents.
   const formatCurrency = (amount: number) => `$${amount.toFixed(2)}`
 
+  // Pay later / check: nothing has been charged yet, so the whole total is owed.
+  const paidNow = paymentMethod === 'check' ? 0 : depositAmount
+  const stillOwed = paymentMethod === 'check' ? totalAmount : balanceRemaining
+
   const paymentSection = paymentMethod === 'check' ? `
     <h2>Payment Information</h2>
-    <p>You have selected to pay by check. Please mail your payment to:</p>
+    <p>You have chosen to pay later — nothing has been charged yet. Your total of <strong>${formatCurrency(totalAmount)}</strong> is due${fullPaymentDeadline ? ` by <strong>${fullPaymentDeadline}</strong>` : ' before the event'}${depositAmount > 0 && depositAmount < totalAmount ? `, with a deposit of <strong>${formatCurrency(depositAmount)}</strong> due now` : ''}.</p>
+    ${cardPaymentAvailable ? `<p>You can pay online by card anytime from your <a href="${groupLeaderPortalUrl}" style="color: #1a73e8;">Group Leader Portal</a>, or mail a check to:</p>` : `<p>Please mail your check to:</p>`}
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0; background: #fff3cd; border-radius: 8px; padding: 16px; border-left: 4px solid #ffc107;">
       <tr>
         <td>
@@ -2622,19 +2629,19 @@ export function generateGroupRegistrationConfirmationEmail({
             ${emailDetailRow('Event', eventName)}
             ${emailDetailRow('Total Participants', totalParticipants.toString())}
             ${emailDetailRow('Total Amount', formatCurrency(totalAmount))}
-            ${emailDetailRow('Deposit Paid', formatCurrency(depositAmount))}
-            ${emailDetailRow('Balance Remaining', formatCurrency(balanceRemaining))}
-            ${balanceRemaining > 0 && fullPaymentDeadline ? emailDetailRow('Full Payment Due By', fullPaymentDeadline) : ''}
+            ${emailDetailRow(paidNow > 0 ? 'Deposit Paid' : 'Amount Paid', formatCurrency(paidNow))}
+            ${emailDetailRow('Balance Remaining', formatCurrency(stillOwed))}
+            ${stillOwed > 0 && fullPaymentDeadline ? emailDetailRow('Full Payment Due By', fullPaymentDeadline) : ''}
           </table>
         </td>
       </tr>
     </table>
 
-    ${balanceRemaining > 0 && fullPaymentDeadline ? emailInfoBox(`
+    ${stillOwed > 0 && fullPaymentDeadline ? emailInfoBox(`
       <strong>Full Payment Due By ${fullPaymentDeadline}.</strong> You can make payments anytime in your Group Leader Portal.
     `, 'warning') : ''}
 
-    ${balanceRemaining > 0 ? emailInfoBox(`
+    ${paidNow > 0 && balanceRemaining > 0 ? emailInfoBox(`
       <strong>Deposits are non-refundable and non-transferable.</strong> The ${formatCurrency(depositAmount)} deposit paid above cannot be refunded or applied to a different event or registration.
     `, 'info') : ''}
 
