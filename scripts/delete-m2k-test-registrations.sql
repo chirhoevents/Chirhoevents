@@ -3,9 +3,12 @@
 --   M22000-TESTEVEN-L1GW  ("test event", 7 participants)
 --   M22000-TEST2-TGLG     ("test 2", 5 participants)
 --
--- Step 0: in the admin dashboard, open each registration and click Cancel.
---         That restores event / housing capacity. This script only purges
---         rows that are already cancelled (cancelled_at IS NOT NULL).
+-- No need to cancel in the dashboard first; cancelled or not, both go.
+-- Afterwards, if the event has no registrations left (true for M2K 2027
+-- today), its spot counters — total, on-campus, off-campus, day pass,
+-- room types, day-pass options — are reset to full. If other registrations
+-- remain, use "Recalculate Capacity" on the event page instead.
+--
 -- Step 1: run the SELECT alone in the Neon console and check the rows.
 -- Step 2: run the BEGIN … COMMIT block.
 
@@ -21,8 +24,10 @@ BEGIN;
 
 CREATE TEMP TABLE _del_groups ON COMMIT DROP AS
   SELECT id FROM group_registrations
-  WHERE access_code IN ('M22000-TESTEVEN-L1GW', 'M22000-TEST2-TGLG')
-    AND cancelled_at IS NOT NULL;
+  WHERE access_code IN ('M22000-TESTEVEN-L1GW', 'M22000-TEST2-TGLG');
+
+CREATE TEMP TABLE _del_events ON COMMIT DROP AS
+  SELECT DISTINCT event_id FROM group_registrations WHERE id IN (SELECT id FROM _del_groups);
 
 CREATE TEMP TABLE _del_participants ON COMMIT DROP AS
   SELECT id FROM participants WHERE group_registration_id IN (SELECT id FROM _del_groups);
@@ -79,5 +84,28 @@ DELETE FROM email_logs                  WHERE registration_id IN (SELECT id FROM
 DELETE FROM registration_edits          WHERE registration_id IN (SELECT id FROM _del_groups);
 
 DELETE FROM group_registrations WHERE id IN (SELECT id FROM _del_groups);
+
+-- Reset spot counters on events that now have no registrations at all.
+CREATE TEMP TABLE _empty_events ON COMMIT DROP AS
+  SELECT e.id FROM events e
+  WHERE e.id IN (SELECT event_id FROM _del_events)
+    AND NOT EXISTS (SELECT 1 FROM group_registrations g WHERE g.event_id = e.id)
+    AND NOT EXISTS (SELECT 1 FROM individual_registrations i WHERE i.event_id = e.id);
+
+UPDATE events SET capacity_remaining = capacity_total
+  WHERE id IN (SELECT id FROM _empty_events) AND capacity_total IS NOT NULL;
+
+UPDATE event_settings SET
+    on_campus_remaining   = COALESCE(on_campus_capacity,   on_campus_remaining),
+    off_campus_remaining  = COALESCE(off_campus_capacity,  off_campus_remaining),
+    day_pass_remaining    = COALESCE(day_pass_capacity,    day_pass_remaining),
+    single_room_remaining = COALESCE(single_room_capacity, single_room_remaining),
+    double_room_remaining = COALESCE(double_room_capacity, double_room_remaining),
+    triple_room_remaining = COALESCE(triple_room_capacity, triple_room_remaining),
+    quad_room_remaining   = COALESCE(quad_room_capacity,   quad_room_remaining)
+  WHERE event_id IN (SELECT id FROM _empty_events);
+
+UPDATE day_pass_options SET remaining = capacity
+  WHERE event_id IN (SELECT id FROM _empty_events) AND capacity <> 0;
 
 COMMIT;
