@@ -326,10 +326,11 @@ export default function InvoiceReviewPage() {
       deposit = (total * Number(event.pricing.depositPercentage)) / 100
     } else if (event.pricing.depositAmount != null) {
       const baseDepositAmount = Number(event.pricing.depositAmount)
-      const totalParticipants = registrationData.youthCount + registrationData.chaperoneCount + registrationData.priestCount
+      // Only paying participants owe a per-person deposit (free priests don't)
+      const payingParticipants = breakdown.reduce((sum, item) => sum + (item.price > 0 ? item.count : 0), 0)
       // Access depositPerPerson field (may not be in generated types yet)
       const depositPerPerson = (event.pricing as any).depositPerPerson ?? true
-      deposit = depositPerPerson ? baseDepositAmount * totalParticipants : baseDepositAmount
+      deposit = depositPerPerson ? baseDepositAmount * payingParticipants : baseDepositAmount
       // Don't charge more deposit than total
       deposit = Math.min(deposit, total)
     }

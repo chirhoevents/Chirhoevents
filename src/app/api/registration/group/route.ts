@@ -506,9 +506,15 @@ export async function POST(request: NextRequest) {
       depositAmount = (totalAmount * Number(event.pricing.depositPercentage)) / 100
     } else if (event.pricing.depositAmount != null) {
       // Option 2: Fixed deposit amount (per person or total)
+      // Per-person deposits only apply to paying participants — free
+      // attendees (e.g. priests at $0) shouldn't owe a deposit.
       const baseDepositAmount = Number(event.pricing.depositAmount)
+      const payingParticipants =
+        (youthPrice > 0 ? youthCount : 0) +
+        (chaperonePrice > 0 ? chaperoneCount : 0) +
+        (priestPrice > 0 ? priestCount : 0)
       depositAmount = depositPerPerson
-        ? baseDepositAmount * totalParticipants
+        ? baseDepositAmount * payingParticipants
         : baseDepositAmount
     }
     // else Option 4: No deposit required (depositAmount = 0)

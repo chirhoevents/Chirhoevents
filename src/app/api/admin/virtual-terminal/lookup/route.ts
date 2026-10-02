@@ -91,7 +91,11 @@ export async function GET(request: NextRequest) {
       let depositAmount = 0
       if (eventPricing?.depositAmount) {
         if (eventPricing.depositPerPerson) {
-          depositAmount = Number(eventPricing.depositAmount) * participantCount
+          // Free priests don't owe a per-person deposit
+          const payingCount = Number(eventPricing.priestPrice) > 0
+            ? participantCount
+            : Math.max(0, participantCount - (groupReg.priestCount || 0))
+          depositAmount = Number(eventPricing.depositAmount) * payingCount
         } else {
           depositAmount = Number(eventPricing.depositAmount)
         }

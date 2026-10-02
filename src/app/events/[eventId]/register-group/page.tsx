@@ -382,7 +382,9 @@ export default function GroupRegistrationPage() {
     }
 
     const total = breakdown.reduce((sum, item) => sum + item.subtotal, 0)
-    const totalParticipants = formData.youthCount + formData.chaperoneCount + formData.priestCount
+    // Per-person deposits only apply to paying participants — free attendees
+    // (e.g. priests at $0) shouldn't owe a deposit.
+    const payingParticipants = breakdown.reduce((sum, item) => sum + (item.price > 0 ? item.count : 0), 0)
 
     // Fix #12: Use actual deposit configuration from backend instead of hardcoded 25%
     let deposit = 0
@@ -392,7 +394,7 @@ export default function GroupRegistrationPage() {
       deposit = (total * pricing.depositPercentage) / 100
     } else if (pricing.depositAmount != null) {
       deposit = pricing.depositPerPerson
-        ? pricing.depositAmount * totalParticipants
+        ? pricing.depositAmount * payingParticipants
         : pricing.depositAmount
     }
     deposit = Math.min(deposit, total)
