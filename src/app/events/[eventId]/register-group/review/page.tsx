@@ -46,9 +46,6 @@ interface EventData {
     externalDepositPaymentUrl?: string | null
     externalBalancePaymentUrl?: string | null
   }
-  organization: {
-    usePlatformStripeAccount: boolean
-  }
 }
 
 interface CouponData {
@@ -732,11 +729,13 @@ export default function InvoiceReviewPage() {
                   {cardBlockedByEventSetting ? (
                     (event?.settings.externalDepositPaymentUrl || event?.settings.externalBalancePaymentUrl) ? (
                       <p>
-                        If you&apos;d rather pay by card right now instead of mailing a check, a secure
-                        card payment link is also available on your Group Leader Portal. Payments made
-                        that way aren&apos;t listed immediately — please allow up to 24 hours for our
-                        staff to confirm it, after which it will show on the portal and you&apos;ll get
-                        a confirmation email.
+                        If you&apos;d rather pay by card right now instead of mailing a check, secure
+                        card payment links are also available on your Group Leader Portal — one for
+                        the deposit and a separate one for the general admission balance, since these
+                        are two different charges you&apos;ll both need to pay. Payments made that way
+                        aren&apos;t listed immediately — please allow up to 24 hours for our staff to
+                        confirm it, after which it will show on the portal and you&apos;ll get a
+                        confirmation email.
                       </p>
                     ) : (
                       <p>Card payment isn&apos;t available for this event — check is the only payment method.</p>

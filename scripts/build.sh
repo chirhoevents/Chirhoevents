@@ -243,6 +243,32 @@ SET "registration_acknowledgment_enabled" = true,
 WHERE "event_id" = '8c7aaf89-6790-4a81-bf6b-33e8dd8586f1'
   AND "registration_acknowledgment_items" IS NULL;
 COMMIT;
+
+-- Mount 2000 2027 is checks-only this year (internal financial restructuring).
+-- Force this on every deploy rather than relying on the admin edit page's
+-- checkbox being saved — it wasn't, which is how card payments stayed live
+-- on the Group Leader Portal after everyone believed this was already off.
+BEGIN;
+UPDATE "event_settings"
+SET "card_payment_disabled" = true
+WHERE "event_id" = '8c7aaf89-6790-4a81-bf6b-33e8dd8586f1';
+COMMIT;
+
+-- Seed Mount 2000's external card-payment links (Mount Saint Mary's own
+-- Jenzabar portal — not processed by Chirho) the first time, same
+-- guarded-on-NULL pattern as the acknowledgment checklist above, so an
+-- admin can still edit these later from the event edit page without a
+-- future deploy clobbering the change.
+BEGIN;
+UPDATE "event_settings"
+SET "external_deposit_payment_url" = 'https://mymount.msmary.edu/ICS/Events/Mount_2000_Deposit.jnz',
+    "external_deposit_payment_note" = '$20 per slot — this is your deposit only, separate from the general admission balance below.',
+    "external_balance_payment_url" = 'https://mymount.msmary.edu/ICS/Events/Mount_2000_Final_Payment.jnz',
+    "external_balance_payment_note" = '$90 per slot off-campus, $130 per slot on-campus — this is your general admission balance. You must pay both the deposit and this balance to be paid in full.'
+WHERE "event_id" = '8c7aaf89-6790-4a81-bf6b-33e8dd8586f1'
+  AND "external_deposit_payment_url" IS NULL
+  AND "external_balance_payment_url" IS NULL;
+COMMIT;
 SQLEOF
 
 echo "Executing table creation SQL..."

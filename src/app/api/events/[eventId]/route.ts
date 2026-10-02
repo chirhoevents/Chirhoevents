@@ -17,11 +17,6 @@ export async function GET(
         pricing: true,
         settings: true,
         dayPassOptions: true,
-        organization: {
-          select: {
-            usePlatformStripeAccount: true,
-          },
-        },
       },
     })
 
@@ -87,9 +82,6 @@ export async function GET(
         dayPassChaperonePrice: event.pricing?.dayPassChaperonePrice ? Number(event.pricing.dayPassChaperonePrice) : undefined,
       },
       settings: event.settings,
-      organization: {
-        usePlatformStripeAccount: event.organization?.usePlatformStripeAccount ?? false,
-      },
       dayPassOptions: event.dayPassOptions?.map(opt => ({
         id: opt.id,
         date: opt.date,

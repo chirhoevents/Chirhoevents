@@ -57,48 +57,107 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    if (!participant) {
-      return NextResponse.json(
-        { error: 'Participant not found' },
-        { status: 404 }
-      )
-    }
+    const tokenExpiredFor = (form: { parentToken: string | null; parentTokenExpiresAt: Date | null }) =>
+      !form.parentToken ||
+      (form.parentTokenExpiresAt !== null && form.parentTokenExpiresAt < new Date())
 
-    // Get or create liability form for this participant
-    let liabilityForm = participant.liabilityForms[0]
+    let liabilityForm
+    let firstName: string
+    let lastName: string
+    let event
 
-    if (!liabilityForm) {
-      // Create a new liability form
-      liabilityForm = await prisma.liabilityForm.create({
-        data: {
-          organizationId: participant.organizationId,
-          eventId: participant.groupRegistration.event.id,
-          groupRegistrationId: participant.groupRegistrationId,
-          participantId: participant.id,
-          formType: 'youth_u18',
-          participantType: 'youth_u18',
-          participantFirstName: participant.firstName,
-          participantLastName: participant.lastName,
-          participantAge: participant.age,
-          participantGender: participant.gender,
-          parentEmail: parentEmail,
-          parentToken: crypto.randomUUID(),
-          parentTokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+    if (participant) {
+      firstName = participant.firstName
+      lastName = participant.lastName
+      event = participant.groupRegistration.event
+
+      // Get or create liability form for this participant
+      liabilityForm = participant.liabilityForms[0]
+
+      if (!liabilityForm) {
+        // Create a new liability form
+        liabilityForm = await prisma.liabilityForm.create({
+          data: {
+            organizationId: participant.organizationId,
+            eventId: participant.groupRegistration.event.id,
+            groupRegistrationId: participant.groupRegistrationId,
+            participantId: participant.id,
+            formType: 'youth_u18',
+            participantType: 'youth_u18',
+            participantFirstName: participant.firstName,
+            participantLastName: participant.lastName,
+            participantAge: participant.age,
+            participantGender: participant.gender,
+            parentEmail: parentEmail,
+            parentToken: crypto.randomUUID(),
+            parentTokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+            completed: false,
+            signatureData: {},
+          },
+        })
+      } else {
+        // Persist a corrected email (e.g. fixing a typo) and refresh an expired token
+        // so a correction actually sticks instead of only affecting this one send.
+        liabilityForm = await prisma.liabilityForm.update({
+          where: { id: liabilityForm.id },
+          data: {
+            parentEmail,
+            ...(tokenExpiredFor(liabilityForm)
+              ? {
+                  parentToken: crypto.randomUUID(),
+                  parentTokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                }
+              : {}),
+          },
+        })
+      }
+
+      // Keep the roster's parent email in sync with what we actually sent to
+      if (participant.parentEmail !== parentEmail) {
+        await prisma.participant.update({
+          where: { id: participant.id },
+          data: { parentEmail },
+        })
+      }
+    } else {
+      // Not a Participant — the forms list uses the LiabilityForm's own id for
+      // teens whose parent hasn't finished step 2 yet (no Participant exists
+      // until then), so look the id up as a pending form instead.
+      const pendingForm = await prisma.liabilityForm.findFirst({
+        where: {
+          id: participantId,
+          participantId: null,
           completed: false,
-          signatureData: {},
+          groupRegistration: {
+            clerkUserId: userId,
+          },
+        },
+        include: {
+          event: {
+            include: {
+              organization: { select: { contactEmail: true } },
+              settings: { select: { contactEmail: true } },
+            },
+          },
         },
       })
-    } else {
-      // Persist a corrected email (e.g. fixing a typo) and refresh an expired token
-      // so a correction actually sticks instead of only affecting this one send.
-      const tokenExpired = !liabilityForm.parentToken ||
-        (liabilityForm.parentTokenExpiresAt !== null && liabilityForm.parentTokenExpiresAt < new Date())
+
+      if (!pendingForm) {
+        return NextResponse.json(
+          { error: 'Participant not found' },
+          { status: 404 }
+        )
+      }
+
+      firstName = pendingForm.participantFirstName
+      lastName = pendingForm.participantLastName
+      event = pendingForm.event
 
       liabilityForm = await prisma.liabilityForm.update({
-        where: { id: liabilityForm.id },
+        where: { id: pendingForm.id },
         data: {
           parentEmail,
-          ...(tokenExpired
+          ...(tokenExpiredFor(pendingForm)
             ? {
                 parentToken: crypto.randomUUID(),
                 parentTokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
@@ -108,27 +167,19 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Keep the roster's parent email in sync with what we actually sent to
-    if (participant.parentEmail !== parentEmail) {
-      await prisma.participant.update({
-        where: { id: participant.id },
-        data: { parentEmail },
-      })
-    }
-
     // Send email to parent
     const parentFormUrl = `${process.env.NEXT_PUBLIC_APP_URL}/poros/parent/${liabilityForm.parentToken}`
 
     await resend.emails.send({
       from: POROS_FROM,
-      reply_to: resolveReplyTo(participant.groupRegistration.event.settings, participant.groupRegistration.event.organization),
+      reply_to: resolveReplyTo(event.settings, event.organization),
       to: parentEmail,
-      subject: `Liability Form Required for ${participant.firstName} ${participant.lastName}`,
+      subject: `Liability Form Required for ${firstName} ${lastName}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #1E3A5F;">Liability Form Required</h2>
           <p>Hello,</p>
-          <p>Your child, <strong>${participant.firstName} ${participant.lastName}</strong>, is registered to attend <strong>${participant.groupRegistration.event.name}</strong>.</p>
+          <p>Your child, <strong>${firstName} ${lastName}</strong>, is registered to attend <strong>${event.name}</strong>.</p>
           <p>We need you to complete a liability and medical information form before the event.</p>
           <p>
             <a href="${parentFormUrl}" style="display: inline-block; background-color: #9C8466; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">
