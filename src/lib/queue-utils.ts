@@ -1,3 +1,4 @@
+import type { EventQueueSettings } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 
 export type QueueRegistrationType = 'group' | 'individual'
@@ -60,7 +61,97 @@ export function isQueueActive(settings: QueueSettings | null): boolean {
 }
 
 /**
- * Get or create a queue session for a user
+ * Mark an event's active sessions whose time has run out as expired. Run
+ * inline on every check rather than relying on the cleanup cron alone, so an
+ * expired session is never treated as still holding (or re-earning) a spot
+ * in the window before the cron next fires — or if the cron isn't running.
+ */
+async function expireStaleSessions(eventId: string): Promise<void> {
+  await prisma.registrationQueue.updateMany({
+    where: {
+      eventId,
+      status: 'active',
+      expiresAt: { lt: new Date() }
+    },
+    data: { status: 'expired' }
+  })
+}
+
+/**
+ * If a spot is open and nobody who has waited longer is ahead of this
+ * session, admit it with a fresh timer. Returns the new expiry, or null when
+ * the session has to keep waiting.
+ */
+async function tryAdmitSession(
+  eventId: string,
+  sessionId: string,
+  registrationType: QueueRegistrationType,
+  settings: EventQueueSettings,
+  waitingAhead: number
+): Promise<Date | null> {
+  const maxConcurrent = registrationType === 'group'
+    ? settings.maxConcurrentGroup
+    : settings.maxConcurrentIndividual
+
+  const activeSessions = await prisma.registrationQueue.count({
+    where: {
+      eventId,
+      registrationType,
+      status: 'active',
+      expiresAt: { gt: new Date() }
+    }
+  })
+
+  // Open spots go to whoever has waited longest — a newcomer (or someone
+  // whose timer just ran out) can't jump ahead of people already in line.
+  if (waitingAhead >= maxConcurrent - activeSessions) {
+    return null
+  }
+
+  const timeout = registrationType === 'group'
+    ? settings.groupSessionTimeout
+    : settings.individualSessionTimeout
+
+  const expiresAt = new Date(Date.now() + timeout * 1000)
+
+  await prisma.registrationQueue.update({
+    where: { sessionId },
+    data: {
+      status: 'active',
+      admittedAt: new Date(),
+      expiresAt,
+      queuePosition: null,
+      extensionUsed: false,
+    }
+  })
+
+  return expiresAt
+}
+
+function estimateWaitMinutes(
+  registrationType: QueueRegistrationType,
+  settings: EventQueueSettings,
+  position: number
+): number {
+  const maxConcurrent = registrationType === 'group'
+    ? settings.maxConcurrentGroup
+    : settings.maxConcurrentIndividual
+
+  const sessionTimeout = registrationType === 'group'
+    ? settings.groupSessionTimeout
+    : settings.individualSessionTimeout
+
+  // Estimate: position * (average session time / concurrent slots)
+  return Math.ceil(position * (sessionTimeout / 60 / maxConcurrent))
+}
+
+/**
+ * Get or create a queue session for a user.
+ *
+ * A session whose timer has run out is NOT silently re-admitted: it comes
+ * back as `expired` so the registration page can send the user out to the
+ * waiting room. Only an explicit `rejoin` (the waiting room does this) puts
+ * them back in line — at the back, behind everyone already waiting.
  */
 export async function checkRegistrationQueue(
   eventId: string,
@@ -68,7 +159,8 @@ export async function checkRegistrationQueue(
   registrationType: QueueRegistrationType,
   userId?: string,
   ipAddress?: string,
-  userAgent?: string
+  userAgent?: string,
+  options?: { rejoin?: boolean }
 ): Promise<QueueCheckResult> {
   // Callers (e.g. the waitlist invitation flow) can pass the event's public
   // slug instead of its UUID — resolve it here rather than letting every
@@ -98,21 +190,24 @@ export async function checkRegistrationQueue(
       queueNotEnabled: true,
     }
   }
+  const settings = queueSettings!
+
+  await expireStaleSessions(eventId)
 
   // Check if user already has a session
-  const existingEntry = await prisma.registrationQueue.findUnique({
+  let existingEntry = await prisma.registrationQueue.findUnique({
     where: { sessionId }
   })
 
-  // If user has an active session that hasn't expired, let them through
   if (existingEntry) {
-    if (existingEntry.status === 'active' && existingEntry.expiresAt && existingEntry.expiresAt > new Date()) {
+    // Still inside their time window — let them through
+    if (existingEntry.status === 'active') {
       return {
         allowed: true,
         sessionId,
         status: 'active',
-        expiresAt: existingEntry.expiresAt,
-        extensionAllowed: queueSettings?.allowTimeExtension && !existingEntry.extensionUsed,
+        expiresAt: existingEntry.expiresAt ?? undefined,
+        extensionAllowed: settings.allowTimeExtension && !existingEntry.extensionUsed,
         extensionUsed: existingEntry.extensionUsed,
       }
     }
@@ -126,13 +221,23 @@ export async function checkRegistrationQueue(
       }
     }
 
-    // If expired or abandoned, they need to re-queue
+    // Time ran out (or they left). Kick them out until they explicitly
+    // rejoin from the waiting room.
     if (existingEntry.status === 'expired' || existingEntry.status === 'abandoned') {
-      // Reset their status to waiting
-      await prisma.registrationQueue.update({
+      if (!options?.rejoin) {
+        return {
+          allowed: false,
+          sessionId,
+          status: existingEntry.status,
+        }
+      }
+
+      // Rejoin at the back of the line
+      existingEntry = await prisma.registrationQueue.update({
         where: { sessionId },
         data: {
           status: 'waiting',
+          enteredQueueAt: new Date(),
           queuePosition: null,
           admittedAt: null,
           expiresAt: null,
@@ -140,99 +245,48 @@ export async function checkRegistrationQueue(
         }
       })
     }
-  }
-
-  // Count current active sessions for this registration type
-  const maxConcurrent = registrationType === 'group'
-    ? queueSettings!.maxConcurrentGroup
-    : queueSettings!.maxConcurrentIndividual
-
-  const activeSessions = await prisma.registrationQueue.count({
-    where: {
-      eventId,
-      registrationType,
-      status: 'active',
-      expiresAt: { gt: new Date() }
-    }
-  })
-
-  // If under limit, admit user
-  if (activeSessions < maxConcurrent) {
-    const timeout = registrationType === 'group'
-      ? queueSettings!.groupSessionTimeout
-      : queueSettings!.individualSessionTimeout
-
-    const expiresAt = new Date(Date.now() + timeout * 1000)
-
-    await prisma.registrationQueue.upsert({
-      where: { sessionId },
-      create: {
+  } else {
+    existingEntry = await prisma.registrationQueue.create({
+      data: {
         eventId,
         sessionId,
         userId,
         registrationType,
-        status: 'active',
-        admittedAt: new Date(),
-        expiresAt,
+        status: 'waiting',
         ipAddress,
         userAgent,
-      },
-      update: {
-        status: 'active',
-        admittedAt: new Date(),
-        expiresAt,
-        queuePosition: null,
-        extensionUsed: false,
       }
     })
-
-    return {
-      allowed: true,
-      sessionId,
-      status: 'active',
-      expiresAt,
-      extensionAllowed: queueSettings?.allowTimeExtension,
-      extensionUsed: false,
-    }
   }
 
-  // Calculate queue position
+  // The entry is now 'waiting' — see whether it's their turn
   const waitingAhead = await prisma.registrationQueue.count({
     where: {
       eventId,
       registrationType,
       status: 'waiting',
-      enteredQueueAt: existingEntry ? { lt: existingEntry.enteredQueueAt } : undefined
+      enteredQueueAt: { lt: existingEntry.enteredQueueAt },
+      sessionId: { not: sessionId },
     }
   })
 
+  const expiresAt = await tryAdmitSession(eventId, sessionId, registrationType, settings, waitingAhead)
+  if (expiresAt) {
+    return {
+      allowed: true,
+      sessionId,
+      status: 'active',
+      expiresAt,
+      extensionAllowed: settings.allowTimeExtension,
+      extensionUsed: false,
+    }
+  }
+
   const position = waitingAhead + 1
 
-  // Calculate estimated wait time
-  const sessionTimeout = registrationType === 'group'
-    ? queueSettings!.groupSessionTimeout
-    : queueSettings!.individualSessionTimeout
-
-  // Estimate: position * (average session time / concurrent slots)
-  const estimatedWaitMinutes = Math.ceil(position * (sessionTimeout / 60 / maxConcurrent))
-
-  // Add to queue or update position
-  await prisma.registrationQueue.upsert({
+  await prisma.registrationQueue.update({
     where: { sessionId },
-    create: {
-      eventId,
-      sessionId,
-      userId,
-      registrationType,
-      status: 'waiting',
-      queuePosition: position,
-      ipAddress,
-      userAgent,
-    },
-    update: {
-      status: 'waiting',
-      queuePosition: position,
-    }
+    data: { queuePosition: position }
   })
 
   return {
@@ -240,13 +294,14 @@ export async function checkRegistrationQueue(
     sessionId,
     status: 'waiting',
     queuePosition: position,
-    estimatedWaitMinutes,
-    waitingRoomMessage: queueSettings?.waitingRoomMessage || undefined,
+    estimatedWaitMinutes: estimateWaitMinutes(registrationType, settings, position),
+    waitingRoomMessage: settings.waitingRoomMessage || undefined,
   }
 }
 
 /**
- * Get current queue status for a session
+ * Get current queue status for a session. A waiting session whose turn has
+ * come is admitted here too, so the line keeps moving between cron runs.
  */
 export async function getQueueStatus(
   eventId: string,
@@ -265,6 +320,17 @@ export async function getQueueStatus(
     where: { eventId }
   })
 
+  // Queue was turned off (or its window ended) while they waited
+  if (!isQueueActive(queueSettings)) {
+    return {
+      allowed: true,
+      sessionId,
+      status: 'active',
+      queueNotEnabled: true,
+    }
+  }
+  const settings = queueSettings!
+
   // If entry is active and not expired
   if (queueEntry.status === 'active' && queueEntry.expiresAt && queueEntry.expiresAt > new Date()) {
     return {
@@ -272,21 +338,36 @@ export async function getQueueStatus(
       sessionId,
       status: 'active',
       expiresAt: queueEntry.expiresAt,
-      extensionAllowed: queueSettings?.allowTimeExtension && !queueEntry.extensionUsed,
+      extensionAllowed: settings.allowTimeExtension && !queueEntry.extensionUsed,
       extensionUsed: queueEntry.extensionUsed,
     }
   }
 
-  // If waiting, recalculate position
+  await expireStaleSessions(eventId)
+
+  // If waiting, admit them if it's their turn, otherwise recalculate position
   if (queueEntry.status === 'waiting') {
     const waitingAhead = await prisma.registrationQueue.count({
       where: {
         eventId,
         registrationType,
         status: 'waiting',
-        enteredQueueAt: { lt: queueEntry.enteredQueueAt }
+        enteredQueueAt: { lt: queueEntry.enteredQueueAt },
+        sessionId: { not: sessionId },
       }
     })
+
+    const expiresAt = await tryAdmitSession(eventId, sessionId, registrationType, settings, waitingAhead)
+    if (expiresAt) {
+      return {
+        allowed: true,
+        sessionId,
+        status: 'active',
+        expiresAt,
+        extensionAllowed: settings.allowTimeExtension,
+        extensionUsed: false,
+      }
+    }
 
     const position = waitingAhead + 1
 
@@ -298,31 +379,22 @@ export async function getQueueStatus(
       })
     }
 
-    const maxConcurrent = registrationType === 'group'
-      ? queueSettings!.maxConcurrentGroup
-      : queueSettings!.maxConcurrentIndividual
-
-    const sessionTimeout = registrationType === 'group'
-      ? queueSettings!.groupSessionTimeout
-      : queueSettings!.individualSessionTimeout
-
-    const estimatedWaitMinutes = Math.ceil(position * (sessionTimeout / 60 / maxConcurrent))
-
     return {
       allowed: false,
       sessionId,
       status: 'waiting',
       queuePosition: position,
-      estimatedWaitMinutes,
-      waitingRoomMessage: queueSettings?.waitingRoomMessage || undefined,
+      estimatedWaitMinutes: estimateWaitMinutes(registrationType, settings, position),
+      waitingRoomMessage: settings.waitingRoomMessage || undefined,
     }
   }
 
-  // For completed, expired, or abandoned status
+  // For completed, expired, or abandoned status (an 'active' entry reaching
+  // here has run out of time and was just marked expired above)
   return {
     allowed: queueEntry.status === 'completed',
     sessionId,
-    status: queueEntry.status as QueueStatus,
+    status: queueEntry.status === 'active' ? 'expired' : queueEntry.status as QueueStatus,
   }
 }
 
