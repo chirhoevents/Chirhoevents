@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2, AlertCircle } from 'lucide-react'
 import { useRegistrationQueue } from '@/hooks/useRegistrationQueue'
+import { useSessionDraft } from '@/hooks/useSessionDraft'
 import LoadingScreen from '@/components/LoadingScreen'
 import RegistrationTimer from '@/components/RegistrationTimer'
 import CustomQuestionRenderer, {
@@ -102,7 +103,8 @@ export default function IndividualRegistrationPage() {
   } | null>(null)
 
   // Form state
-  const [formData, setFormData] = useState({
+  // Saved to sessionStorage so going Next → Back doesn't wipe what was typed
+  const [formData, setFormData, draftRestored] = useSessionDraft(`chirho_registration_draft_individual_${eventId}`, {
     firstName: '',
     lastName: '',
     preferredName: '',
@@ -133,7 +135,10 @@ export default function IndividualRegistrationPage() {
   })
 
   const [customQuestions, setCustomQuestions] = useState<CustomQuestion[]>([])
-  const [customAnswers, setCustomAnswers] = useState<CustomAnswersMap>({})
+  const [customAnswers, setCustomAnswers] = useSessionDraft<CustomAnswersMap>(
+    `chirho_custom_answers_${eventId}`,
+    {}
+  )
 
   // Load event data
   useEffect(() => {
@@ -250,6 +255,13 @@ export default function IndividualRegistrationPage() {
       setVerifyingCoupon(false)
     }
   }
+
+  // A restored draft keeps the coupon code but not its "verified" badge,
+  // which made people think they had to apply it again. Re-check it once.
+  useEffect(() => {
+    if (draftRestored && formData.couponCode.trim()) verifyCoupon()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once, right after the draft is restored
+  }, [draftRestored])
 
   // Handle form submission - navigate to review page
   const handleSubmit = (e: React.FormEvent) => {
