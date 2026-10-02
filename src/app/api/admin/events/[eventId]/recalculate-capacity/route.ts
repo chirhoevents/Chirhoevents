@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
+import { getGroupHousingCounts } from '@/lib/option-capacity'
 
 /**
  * Recalculate and sync event capacity based on actual registrations.
@@ -71,6 +72,8 @@ export async function POST(
       select: {
         totalParticipants: true,
         housingType: true,
+        ticketType: true,
+        priestCount: true,
         onCampusYouth: true,
         onCampusChaperones: true,
         offCampusYouth: true,
@@ -103,21 +106,11 @@ export async function POST(
       const count = reg.totalParticipants || 0
       totalGroupParticipants += count
 
-      // Count by housing type from inventory-style fields if available
-      if (reg.onCampusYouth !== null || reg.onCampusChaperones !== null) {
-        onCampusCount += (reg.onCampusYouth || 0) + (reg.onCampusChaperones || 0)
-        offCampusCount += (reg.offCampusYouth || 0) + (reg.offCampusChaperones || 0)
-        dayPassCount += (reg.dayPassYouth || 0) + (reg.dayPassChaperones || 0)
-      } else {
-        // Fall back to housing type field
-        if (reg.housingType === 'on_campus') {
-          onCampusCount += count
-        } else if (reg.housingType === 'off_campus') {
-          offCampusCount += count
-        } else if (reg.housingType === 'day_pass') {
-          dayPassCount += count
-        }
-      }
+      // Priests count toward their group's housing pool, matching registration
+      const housing = getGroupHousingCounts(reg)
+      onCampusCount += housing.on_campus
+      offCampusCount += housing.off_campus
+      dayPassCount += housing.day_pass
     }
 
     // Count individual registration participants

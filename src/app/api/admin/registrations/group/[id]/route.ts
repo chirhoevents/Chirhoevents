@@ -4,7 +4,7 @@ import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { Resend } from 'resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { canAccessOrganization } from '@/lib/auth-utils'
-import { incrementOptionCapacity, decrementOptionCapacity, type HousingType } from '@/lib/option-capacity'
+import { incrementOptionCapacity, decrementOptionCapacity, getGroupHousingCounts, type HousingType } from '@/lib/option-capacity'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { deriveBalance } from '@/lib/payment-balance-status'
 
@@ -283,18 +283,25 @@ export async function PUT(
     }
 
     // Handle housing count changes and capacity adjustment (inventory-style)
-    const oldOnCampusTotal = ((existingRegistration as any).onCampusYouth ?? 0) + ((existingRegistration as any).onCampusChaperones ?? 0)
-    const oldOffCampusTotal = ((existingRegistration as any).offCampusYouth ?? 0) + ((existingRegistration as any).offCampusChaperones ?? 0)
-    const oldDayPassTotal = ((existingRegistration as any).dayPassYouth ?? 0) + ((existingRegistration as any).dayPassChaperones ?? 0)
-
-    const newOnCampusTotal = (onCampusYouth ?? 0) + (onCampusChaperones ?? 0)
-    const newOffCampusTotal = (offCampusYouth ?? 0) + (offCampusChaperones ?? 0)
-    const newDayPassTotal = (dayPassYouth ?? 0) + (dayPassChaperones ?? 0)
+    // Priests count toward their group's housing pool (see getGroupHousingCounts)
+    const oldHousing = getGroupHousingCounts(existingRegistration)
+    const newHousing = getGroupHousingCounts({
+      housingType: housingType !== undefined ? housingType : existingRegistration.housingType,
+      ticketType: existingRegistration.ticketType,
+      totalParticipants: newTotalParticipants,
+      priestCount: finalPriestCount,
+      onCampusYouth: onCampusYouth ?? null,
+      onCampusChaperones: onCampusChaperones ?? null,
+      offCampusYouth: offCampusYouth ?? null,
+      offCampusChaperones: offCampusChaperones ?? null,
+      dayPassYouth: dayPassYouth ?? null,
+      dayPassChaperones: dayPassChaperones ?? null,
+    })
 
     // Calculate capacity changes needed for each housing type
-    const onCampusDiff = newOnCampusTotal - oldOnCampusTotal
-    const offCampusDiff = newOffCampusTotal - oldOffCampusTotal
-    const dayPassDiff = newDayPassTotal - oldDayPassTotal
+    const onCampusDiff = newHousing.on_campus - oldHousing.on_campus
+    const offCampusDiff = newHousing.off_campus - oldHousing.off_campus
+    const dayPassDiff = newHousing.day_pass - oldHousing.day_pass
 
     // Update option-level capacity if housing counts changed
     if (onCampusDiff !== 0) {
@@ -381,13 +388,13 @@ export async function PUT(
     }
     // Track housing count changes (inventory-style)
     if (onCampusDiff !== 0) {
-      changesMade.onCampusTotal = { old: oldOnCampusTotal, new: newOnCampusTotal }
+      changesMade.onCampusTotal = { old: oldHousing.on_campus, new: newHousing.on_campus }
     }
     if (offCampusDiff !== 0) {
-      changesMade.offCampusTotal = { old: oldOffCampusTotal, new: newOffCampusTotal }
+      changesMade.offCampusTotal = { old: oldHousing.off_campus, new: newHousing.off_campus }
     }
     if (dayPassDiff !== 0) {
-      changesMade.dayPassTotal = { old: oldDayPassTotal, new: newDayPassTotal }
+      changesMade.dayPassTotal = { old: oldHousing.day_pass, new: newHousing.day_pass }
     }
     if (forfeitedDeposit > 0) {
       changesMade.depositForfeited = {
@@ -463,13 +470,13 @@ export async function PUT(
         }
         // Include housing count changes (inventory-style)
         if (onCampusDiff !== 0) {
-          emailChanges.push(`On-Campus Total: ${oldOnCampusTotal} → ${newOnCampusTotal}`)
+          emailChanges.push(`On-Campus Total: ${oldHousing.on_campus} → ${newHousing.on_campus}`)
         }
         if (offCampusDiff !== 0) {
-          emailChanges.push(`Off-Campus Total: ${oldOffCampusTotal} → ${newOffCampusTotal}`)
+          emailChanges.push(`Off-Campus Total: ${oldHousing.off_campus} → ${newHousing.off_campus}`)
         }
         if (dayPassDiff !== 0) {
-          emailChanges.push(`Day Pass Total: ${oldDayPassTotal} → ${newDayPassTotal}`)
+          emailChanges.push(`Day Pass Total: ${oldHousing.day_pass} → ${newHousing.day_pass}`)
         }
         if (difference !== 0) {
           emailChanges.push(`Total Amount Due: $${currentTotal.toFixed(2)} → $${finalNewTotal.toFixed(2)}`)

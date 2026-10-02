@@ -3,6 +3,55 @@ import { prisma } from '@/lib/prisma'
 export type HousingType = 'on_campus' | 'off_campus' | 'day_pass'
 export type RoomType = 'single' | 'double' | 'triple' | 'quad'
 
+interface GroupHousingFields {
+  housingType: HousingType | string | null
+  ticketType?: string | null
+  totalParticipants: number | null
+  priestCount: number | null
+  onCampusYouth: number | null
+  onCampusChaperones: number | null
+  offCampusYouth: number | null
+  offCampusChaperones: number | null
+  dayPassYouth: number | null
+  dayPassChaperones: number | null
+}
+
+/**
+ * How many spots a group registration occupies in each housing pool.
+ *
+ * Registration decrements the pool by totalParticipants (youth + chaperones +
+ * priests), but the inventory fields only track youth and chaperones. Priests
+ * are added to the group's housingType bucket so cancel/edit/recalculate give
+ * back exactly what registration took — otherwise every priest leaks a bed.
+ */
+export function getGroupHousingCounts(reg: GroupHousingFields): Record<HousingType, number> {
+  const counts: Record<HousingType, number> = { on_campus: 0, off_campus: 0, day_pass: 0 }
+  // Day pass tickets draw from day pass options, not the housing pools
+  if (reg.ticketType === 'day_pass') return counts
+
+  const hasInventoryFields =
+    reg.onCampusYouth !== null ||
+    reg.onCampusChaperones !== null ||
+    reg.offCampusYouth !== null ||
+    reg.offCampusChaperones !== null ||
+    reg.dayPassYouth !== null ||
+    reg.dayPassChaperones !== null
+  const housingType = reg.housingType as HousingType | null
+  const isHousingType = housingType === 'on_campus' || housingType === 'off_campus' || housingType === 'day_pass'
+
+  if (!hasInventoryFields) {
+    // Legacy registration: the whole party sits in its housing type
+    if (isHousingType) counts[housingType] = reg.totalParticipants || 0
+    return counts
+  }
+
+  counts.on_campus = (reg.onCampusYouth || 0) + (reg.onCampusChaperones || 0)
+  counts.off_campus = (reg.offCampusYouth || 0) + (reg.offCampusChaperones || 0)
+  counts.day_pass = (reg.dayPassYouth || 0) + (reg.dayPassChaperones || 0)
+  if (isHousingType) counts[housingType] += reg.priestCount || 0
+  return counts
+}
+
 interface OptionCapacityResult {
   hasCapacity: boolean
   error?: string
