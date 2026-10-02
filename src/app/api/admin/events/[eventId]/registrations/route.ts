@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyEventAccess } from '@/lib/api-auth'
-import { prisma } from '@/lib/prisma'
+import { prisma, prismaIncludingCancelled } from '@/lib/prisma'
 
 export async function GET(
   request: NextRequest,
@@ -36,8 +36,11 @@ export async function GET(
         ? {}
         : { cancelledAt: null as any }
 
+    // Unfiltered client: cancelledWhere above decides which rows show.
+    const db = prismaIncludingCancelled
+
     // Fetch registrations with payment data - filter by organizationId for security
-    const groupRegistrations = await prisma.groupRegistration.findMany({
+    const groupRegistrations = await db.groupRegistration.findMany({
       where: {
         eventId: eventId,
         organizationId: effectiveOrgId,
@@ -56,7 +59,7 @@ export async function GET(
       },
     })
 
-    const individualRegistrations = await prisma.individualRegistration.findMany({
+    const individualRegistrations = await db.individualRegistration.findMany({
       where: {
         eventId: eventId,
         organizationId: effectiveOrgId,

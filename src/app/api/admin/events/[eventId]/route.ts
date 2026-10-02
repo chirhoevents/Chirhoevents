@@ -46,8 +46,8 @@ export async function GET(
         },
         _count: {
           select: {
-            groupRegistrations: true,
-            individualRegistrations: true,
+            groupRegistrations: { where: { cancelledAt: null } },
+            individualRegistrations: { where: { cancelledAt: null } },
           },
         },
       },
@@ -57,9 +57,17 @@ export async function GET(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 
-    // Fetch payment balances for stats calculation
+    // Fetch payment balances for stats calculation — active registrations
+    // only, so a cancelled group's balance doesn't count as revenue owed.
+    const [activeGroupIds, activeIndividualIds] = await Promise.all([
+      prisma.groupRegistration.findMany({ where: { eventId }, select: { id: true } }),
+      prisma.individualRegistration.findMany({ where: { eventId }, select: { id: true } }),
+    ])
     const paymentBalances = await prisma.paymentBalance.findMany({
-      where: { eventId },
+      where: {
+        eventId,
+        registrationId: { in: [...activeGroupIds, ...activeIndividualIds].map((r) => r.id) },
+      },
     })
 
     // Sum headcount across all group registrations using the stored totalParticipants

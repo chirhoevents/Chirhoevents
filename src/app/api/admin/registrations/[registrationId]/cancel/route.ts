@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils'
-import { prisma } from '@/lib/prisma'
+import { prismaIncludingCancelled as prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import {
@@ -9,6 +9,10 @@ import {
   type HousingType,
   type RoomType
 } from '@/lib/option-capacity'
+import {
+  releaseRegistrationAssignments,
+  deleteRegistrationPermanently,
+} from '@/lib/registration-cleanup'
 
 /**
  * Cancel/Delete a registration and restore capacity.
@@ -51,6 +55,9 @@ export async function POST(
     let housingType: HousingType | null = null
     let roomType: RoomType | null = null
     let eventId: string = ''
+    // A registration that's already cancelled has had its capacity given
+    // back; re-cancelling (or hard-deleting it later) must not do it again.
+    let restoreCapacity = true
 
     // Fetch the registration based on type
     if (type === 'group') {
@@ -76,6 +83,11 @@ export async function POST(
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
 
+      if (registration.cancelledAt && !hardDelete) {
+        return NextResponse.json({ error: 'Registration is already cancelled' }, { status: 400 })
+      }
+      restoreCapacity = !registration.cancelledAt
+
       eventId = registration.eventId
       participantCount = registration.totalParticipants || 0
       housingType = registration.housingType
@@ -95,25 +107,25 @@ export async function POST(
         registration.dayPassChaperones !== null
 
       // Restore housing option capacities based on inventory counts
-      if (onCampusCount > 0) {
+      if (restoreCapacity && onCampusCount > 0) {
         await incrementOptionCapacity(eventId, 'on_campus', null, onCampusCount)
       }
-      if (offCampusCount > 0) {
+      if (restoreCapacity && offCampusCount > 0) {
         await incrementOptionCapacity(eventId, 'off_campus', null, offCampusCount)
       }
-      if (dayPassCount > 0) {
+      if (restoreCapacity && dayPassCount > 0) {
         await incrementOptionCapacity(eventId, 'day_pass', null, dayPassCount)
       }
 
       // Only use fallback for LEGACY registrations that don't have inventory fields
       // (registrations created before the inventory-style tracking was added)
       // This prevents double-incrementing for registrations that had their counts set to 0
-      if (!hasInventoryFields && housingType && registration.ticketType !== 'day_pass') {
+      if (restoreCapacity && !hasInventoryFields && housingType && registration.ticketType !== 'day_pass') {
         await incrementOptionCapacity(eventId, housingType, null, participantCount)
       }
 
       // Restore day pass option capacity (if applicable)
-      if (registration.ticketType === 'day_pass' && registration.dayPassOptionId) {
+      if (restoreCapacity && registration.ticketType === 'day_pass' && registration.dayPassOptionId) {
         await incrementDayPassOptionCapacity(registration.dayPassOptionId, participantCount)
       }
 
@@ -141,25 +153,30 @@ export async function POST(
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
 
+      if (registration.cancelledAt && !hardDelete) {
+        return NextResponse.json({ error: 'Registration is already cancelled' }, { status: 400 })
+      }
+      restoreCapacity = !registration.cancelledAt
+
       eventId = registration.eventId
       participantCount = 1
       housingType = registration.housingType
       roomType = registration.roomType as RoomType | null
 
       // Restore housing option capacity (only for general admission)
-      if (housingType && registration.ticketType !== 'day_pass') {
+      if (restoreCapacity && housingType && registration.ticketType !== 'day_pass') {
         await incrementOptionCapacity(eventId, housingType, roomType, 1)
       }
 
       // Restore day pass option capacity (if applicable)
-      if (registration.ticketType === 'day_pass' && registration.dayPassOptionId) {
+      if (restoreCapacity && registration.ticketType === 'day_pass' && registration.dayPassOptionId) {
         await incrementDayPassOptionCapacity(registration.dayPassOptionId, 1)
       }
     }
 
     // Restore event-level capacity
     const event = registration.event
-    if (event.capacityTotal !== null && event.capacityRemaining !== null) {
+    if (restoreCapacity && event.capacityTotal !== null && event.capacityRemaining !== null) {
       await prisma.event.update({
         where: { id: eventId },
         data: {
@@ -185,7 +202,7 @@ export async function POST(
             ? registration.groupName
             : `${registration.firstName || ''} ${registration.lastName || ''}`.trim(),
           registrantEmail: type === 'group' ? registration.groupLeaderEmail : registration.email,
-          participantsRestored: participantCount,
+          participantsRestored: restoreCapacity ? participantCount : 0,
           housingType: housingType,
           ticketType: registration.ticketType || null,
           dayPassOptionId: registration.dayPassOptionId || null,
@@ -194,54 +211,14 @@ export async function POST(
       },
     })
 
+    // Free beds / small group / meal / seating places either way.
+    await releaseRegistrationAssignments(type, registrationId)
+
     // Delete or soft-delete based on preference
     if (hardDelete) {
       // Hard delete - remove from database. Use this rarely; the default
       // soft-cancel keeps payment / liability / participant history.
-      if (type === 'group') {
-        // Clean up child rows in FK order — SafeEnvironmentCertificate
-        // has a required FK to Participant, so it must go first or the
-        // participant delete crashes with P2003 (as seen in production
-        // when hardDelete was accidentally being sent from the UI).
-        const groupParticipants = await prisma.participant.findMany({
-          where: { groupRegistrationId: registrationId },
-          select: { id: true },
-        })
-        const participantIds = groupParticipants.map((p) => p.id)
-        if (participantIds.length > 0) {
-          await prisma.safeEnvironmentCertificate.deleteMany({
-            where: { participantId: { in: participantIds } },
-          })
-        }
-        await prisma.participant.deleteMany({
-          where: { groupRegistrationId: registrationId },
-        })
-        await prisma.liabilityForm.deleteMany({
-          where: { groupRegistrationId: registrationId },
-        })
-        await prisma.paymentBalance.deleteMany({
-          where: { registrationId, registrationType: 'group' },
-        })
-        await prisma.payment.deleteMany({
-          where: { registrationId, registrationType: 'group' },
-        })
-        await prisma.groupRegistration.delete({
-          where: { id: registrationId },
-        })
-      } else {
-        await prisma.liabilityForm.deleteMany({
-          where: { individualRegistrationId: registrationId },
-        })
-        await prisma.paymentBalance.deleteMany({
-          where: { registrationId, registrationType: 'individual' },
-        })
-        await prisma.payment.deleteMany({
-          where: { registrationId, registrationType: 'individual' },
-        })
-        await prisma.individualRegistration.delete({
-          where: { id: registrationId },
-        })
-      }
+      await deleteRegistrationPermanently(type, registrationId)
     } else {
       // Soft cancel — mark the row as cancelled but keep all related data
       // (payments, liability forms, participants) intact for the org's
@@ -268,12 +245,12 @@ export async function POST(
     return NextResponse.json({
       success: true,
       message: hardDelete ? 'Registration deleted successfully' : 'Registration cancelled successfully',
-      capacityRestored: participantCount,
+      capacityRestored: restoreCapacity ? participantCount : 0,
       event: {
         id: eventId,
         name: event.name,
         previousCapacityRemaining: event.capacityRemaining,
-        newCapacityRemaining: (event.capacityRemaining || 0) + participantCount,
+        newCapacityRemaining: (event.capacityRemaining || 0) + (restoreCapacity ? participantCount : 0),
       },
     })
   } catch (error) {

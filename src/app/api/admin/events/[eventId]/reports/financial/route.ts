@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { prisma, prismaIncludingCancelled } from '@/lib/prisma'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { hasPermission } from '@/lib/permissions'
 import { refundReasonLabel } from '@/lib/payment-balance-status'
@@ -45,10 +45,12 @@ export async function GET(
       where: eventFilter,
     })
 
-    // Get registrations separately (PaymentBalance has no direct relations)
+    // Get registrations separately (PaymentBalance has no direct relations).
+    // Unfiltered: money taken from a since-cancelled registration still
+    // belongs in the financial report, under its own name.
     const registrationIds = paymentBalances.map((pb: any) => pb.registrationId)
 
-    const groupRegistrations = await prisma.groupRegistration.findMany({
+    const groupRegistrations = await prismaIncludingCancelled.groupRegistration.findMany({
       where: {
         id: { in: registrationIds },
       },
@@ -57,7 +59,7 @@ export async function GET(
       },
     })
 
-    const individualRegistrations = await prisma.individualRegistration.findMany({
+    const individualRegistrations = await prismaIncludingCancelled.individualRegistration.findMany({
       where: {
         id: { in: registrationIds },
       },

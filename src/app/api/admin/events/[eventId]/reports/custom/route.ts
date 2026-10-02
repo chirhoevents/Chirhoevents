@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { prisma, prismaIncludingCancelled } from '@/lib/prisma'
 import { verifyReportAccess } from '@/lib/api-auth'
 
 // POST execute a custom report without saving as template
@@ -587,11 +587,11 @@ async function executeFinancialReport(eventId: string, config: any) {
   const staffRegIds = payments.filter((p: PaymentRef) => p.registrationType === 'staff').map((p: PaymentRef) => p.registrationId)
 
   const [groupRegs, indRegs, vendorRegs, staffRegs, balances, refunds] = await Promise.all([
-    prisma.groupRegistration.findMany({
+    prismaIncludingCancelled.groupRegistration.findMany({
       where: { id: { in: groupRegIds } },
       select: { id: true, groupName: true, groupLeaderEmail: true },
     }),
-    prisma.individualRegistration.findMany({
+    prismaIncludingCancelled.individualRegistration.findMany({
       where: { id: { in: indRegIds } },
       select: { id: true, firstName: true, lastName: true, email: true },
     }),
@@ -779,11 +779,11 @@ async function executeCheckinsReport(eventId: string, config: any) {
       where: { id: { in: participantIds } },
       select: { id: true, firstName: true, lastName: true, groupRegistration: { select: { groupName: true } } },
     }),
-    prisma.groupRegistration.findMany({
+    prismaIncludingCancelled.groupRegistration.findMany({
       where: { id: { in: groupIds } },
       select: { id: true, groupName: true },
     }),
-    prisma.individualRegistration.findMany({
+    prismaIncludingCancelled.individualRegistration.findMany({
       where: { id: { in: individualIds } },
       select: { id: true, firstName: true, lastName: true },
     }),
@@ -1160,11 +1160,11 @@ async function executeCouponsReport(eventId: string, config: any) {
   const indRegIds = redemptions.filter((r: RedemptionType) => r.registrationType === 'individual').map((r: RedemptionType) => r.registrationId)
 
   const [groupRegs, indRegs] = await Promise.all([
-    prisma.groupRegistration.findMany({
+    prismaIncludingCancelled.groupRegistration.findMany({
       where: { id: { in: groupRegIds } },
       select: { id: true, groupName: true },
     }),
-    prisma.individualRegistration.findMany({
+    prismaIncludingCancelled.individualRegistration.findMany({
       where: { id: { in: indRegIds } },
       select: { id: true, firstName: true, lastName: true },
     }),

@@ -21,8 +21,8 @@ export async function GET() {
         settings: true,
         _count: {
           select: {
-            groupRegistrations: true,
-            individualRegistrations: true,
+            groupRegistrations: { where: { cancelledAt: null } },
+            individualRegistrations: { where: { cancelledAt: null } },
           },
         },
       },

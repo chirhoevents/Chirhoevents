@@ -1,7 +1,4 @@
-import { prisma } from '@/lib/prisma'
-import type { Prisma } from '@prisma/client'
-
-type TransactionClient = Prisma.TransactionClient
+import { prisma, type TransactionClient } from '@/lib/prisma'
 
 export class GroupCapacityFullError extends Error {
   constructor() {

@@ -140,7 +140,7 @@ export default function EventRegistrationsPage() {
     } finally {
       setLoading(false)
     }
-  }, [eventId, getToken])
+  }, [eventId, getToken, viewFilter])
 
   useEffect(() => {
     // Validate eventId is a valid UUID
