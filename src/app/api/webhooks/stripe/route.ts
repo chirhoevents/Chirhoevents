@@ -439,6 +439,7 @@ export async function POST(request: NextRequest) {
           where: {
             registrationId: registrationId,
             paymentStatus: 'pending',
+            paymentMethod: 'card',
             OR: [
               { stripePaymentIntentId: session.id },
               { stripePaymentIntentId: session.payment_intent as string },
@@ -781,6 +782,7 @@ export async function POST(request: NextRequest) {
         where: {
           registrationId: registrationId,
           paymentStatus: 'pending',
+          paymentMethod: 'card',
           OR: [
             { stripePaymentIntentId: session.id },
             { stripePaymentIntentId: session.payment_intent as string },

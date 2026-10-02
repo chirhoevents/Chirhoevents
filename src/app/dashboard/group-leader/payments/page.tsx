@@ -33,7 +33,15 @@ if (!stripeKey) {
 }
 const stripePromise = stripeKey ? loadStripe(stripeKey) : null
 
-type PaymentStatus = 'paid_full' | 'paid_partial' | 'deposit_paid' | 'pending' | 'pending_check_payment'
+type PaymentStatus =
+  | 'paid_full'
+  | 'paid_partial'
+  | 'partial'
+  | 'deposit_paid'
+  | 'pending'
+  | 'pending_check_payment'
+  | 'unpaid'
+  | 'overpaid'
 type PaymentType = 'deposit' | 'balance' | 'late_fee' | 'refund'
 type PaymentMethod = 'card' | 'check' | 'cash'
 
@@ -340,11 +348,22 @@ export default function PaymentsPage() {
       pending_check_payment: (
         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
           <Clock className="h-3 w-3 mr-1" />
-          Pending Check
+          Balance Due
+        </span>
+      ),
+      overpaid: (
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+          <CheckCircle className="h-3 w-3 mr-1" />
+          Overpaid
         </span>
       ),
     }
-    return badges[status] || badges.pending
+    const aliases: Partial<Record<PaymentStatus, keyof typeof badges>> = {
+      partial: 'paid_partial',
+      unpaid: 'pending_check_payment',
+    }
+    const key = (aliases[status] ?? status) as keyof typeof badges
+    return badges[key] || badges.pending_check_payment
   }
 
   const getPaymentTypeLabel = (type: PaymentType): string => {

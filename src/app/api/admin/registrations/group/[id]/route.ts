@@ -73,6 +73,9 @@ export async function GET(
       where: {
         registrationId: registrationId,
         registrationType: 'group',
+        // Pending rows are "pay later" placeholders, not payments — the amount
+        // already shows as the balance remaining.
+        paymentStatus: { not: 'pending' },
       },
       orderBy: {
         createdAt: 'desc',

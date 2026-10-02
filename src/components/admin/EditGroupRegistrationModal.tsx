@@ -1376,7 +1376,13 @@ export default function EditGroupRegistrationModal({
                       : 'destructive'
                   }
                 >
-                  {registration.paymentBalance?.paymentStatus || 'pending'}
+                  {({
+                    paid_full: 'Paid in Full',
+                    partial: 'Partially Paid',
+                    overpaid: 'Overpaid',
+                    refunded: 'Refunded',
+                  } as Record<string, string>)[registration.paymentBalance?.paymentStatus || ''] ||
+                    'Balance Due'}
                 </Badge>
               </div>
 

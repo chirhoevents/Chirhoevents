@@ -68,6 +68,10 @@ export async function GET(request: NextRequest) {
       where: {
         registrationId: groupRegistration.id,
         registrationType: 'group',
+        // Pending rows are "pay later" / check intents or unfinished card
+        // checkouts — not money received. The amount already shows as the
+        // balance remaining, so don't list them as payments.
+        paymentStatus: { not: 'pending' },
       },
       orderBy: {
         createdAt: 'desc',

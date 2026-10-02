@@ -3,7 +3,6 @@ import { prisma } from '@/lib/prisma'
 import Stripe from 'stripe'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { calculatePlatformFeeCents } from '@/lib/stripe-fees'
-import { exceedsPlatformCollectedCardCap, PLATFORM_COLLECTED_CARD_CAP_ERROR } from '@/lib/platform-collected-payment-cap'
 import { CARD_PAYMENT_DISABLED_ERROR } from '@/lib/event-card-payment-disabled'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -91,10 +90,6 @@ export async function POST(req: NextRequest) {
     }
 
     const amountInCents = Math.round(amount * 100)
-
-    if (exceedsPlatformCollectedCardCap(org, amountInCents)) {
-      return NextResponse.json({ error: PLATFORM_COLLECTED_CARD_CAP_ERROR }, { status: 400 })
-    }
 
     if (groupRegistration.event.settings?.cardPaymentDisabled) {
       return NextResponse.json({ error: CARD_PAYMENT_DISABLED_ERROR }, { status: 400 })

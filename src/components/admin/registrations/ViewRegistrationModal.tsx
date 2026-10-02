@@ -278,6 +278,8 @@ export default function ViewRegistrationModal({
         return <Badge className="bg-orange-500 text-white">Partial Payment</Badge>
       case 'unpaid':
         return <Badge className="bg-red-500 text-white">Unpaid</Badge>
+      case 'pending_check_payment':
+        return <Badge className="bg-orange-500 text-white">Balance Due</Badge>
       case 'overpaid':
         return <Badge className="bg-blue-500 text-white">Overpaid</Badge>
       default:

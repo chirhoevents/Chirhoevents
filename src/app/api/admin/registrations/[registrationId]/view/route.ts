@@ -97,6 +97,8 @@ async function getGroupRegistration(registrationId: string, organizationId: stri
     where: {
       registrationId,
       registrationType: 'group',
+      // Hide "pay later" placeholders — shown as balance remaining instead
+      paymentStatus: { not: 'pending' },
     },
     include: {
       processedBy: {
@@ -295,6 +297,8 @@ async function getIndividualRegistration(registrationId: string, organizationId:
     where: {
       registrationId,
       registrationType: 'individual',
+      // Hide "pay later" placeholders — shown as balance remaining instead
+      paymentStatus: { not: 'pending' },
     },
     include: {
       processedBy: {

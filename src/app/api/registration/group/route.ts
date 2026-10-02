@@ -10,7 +10,6 @@ import { generateGroupRegistrationConfirmationEmail } from '@/lib/email-template
 import { getRegistrationStatus } from '@/lib/registration-status'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { calculatePlatformFeeCents } from '@/lib/stripe-fees'
-import { exceedsPlatformCollectedCardCap, PLATFORM_COLLECTED_CARD_CAP_MESSAGE } from '@/lib/platform-collected-payment-cap'
 import { CARD_PAYMENT_DISABLED_MESSAGE, CARD_PAYMENT_DISABLED_TITLE } from '@/lib/event-card-payment-disabled'
 import {
   checkOptionCapacity,
@@ -519,19 +518,11 @@ export async function POST(request: NextRequest) {
 
     const balanceRemaining = totalAmount - depositAmount
 
-    // Platform-collected orgs (usePlatformStripeAccount) can't take a card charge
-    // over the cap — Chirho is the merchant of record for those, so a large
-    // dispute lands on Chirho's own account. Force those over the cap onto the
-    // same check-payment path as if the registrant had picked it themselves.
-    const forcedCheckDueToCap =
-      paymentMethod !== 'check' &&
-      exceedsPlatformCollectedCardCap(event.organization, Math.round(depositAmount * 100))
-    // Separately, an event can have card payments turned off entirely
-    // ("financial restrictions this year, checks only") regardless of amount.
+    // An event can have card payments turned off entirely ("financial
+    // restrictions this year, checks only"); force those onto the check path.
     const forcedCheckDueToCardDisabled =
       paymentMethod !== 'check' && !!event.settings?.cardPaymentDisabled
-    const forcedCheck = forcedCheckDueToCap || forcedCheckDueToCardDisabled
-    const effectivePaymentMethod = forcedCheck ? 'check' : paymentMethod
+    const effectivePaymentMethod = forcedCheckDueToCardDisabled ? 'check' : paymentMethod
 
     // Generate unique access code
     const accessCode = generateAccessCode(event.name, groupName)
@@ -687,19 +678,9 @@ export async function POST(request: NextRequest) {
 
     // Handle payment method
     if (effectivePaymentMethod === 'check') {
-      // Check payment - create pending payment record
-      await prisma.payment.create({
-        data: {
-          organizationId: event.organizationId,
-          registrationId: registration.id,
-          registrationType: 'group',
-          eventId: event.id,
-          amount: depositAmount,
-          paymentType: 'deposit',
-          paymentMethod: 'check',
-          paymentStatus: 'pending',
-        },
-      })
+      // Pay later / by check: no Payment row is created here. The full amount
+      // already shows as the balance due (status pending_check_payment); a
+      // payment is recorded only when the check actually arrives.
 
       // Fetch event settings for check payment details
       const eventSettings = await prisma.eventSettings.findUnique({
@@ -721,14 +702,11 @@ export async function POST(request: NextRequest) {
           })
         : undefined
 
-      // If a card payment was forced to check — either because it exceeded the
-      // platform-collected cap or because the event has card payments turned
-      // off entirely — lead with that explanation ahead of any custom message
-      // the org has configured for check-payment confirmations.
+      // If a card payment was forced to check because the event has card
+      // payments turned off, lead with that explanation ahead of any custom
+      // message the org has configured for check-payment confirmations.
       const forcedCheckReasonMessage = forcedCheckDueToCardDisabled
         ? `<strong>${CARD_PAYMENT_DISABLED_TITLE}</strong><br>${CARD_PAYMENT_DISABLED_MESSAGE}`
-        : forcedCheckDueToCap
-        ? PLATFORM_COLLECTED_CARD_CAP_MESSAGE
         : null
       const groupCustomMessage = forcedCheckReasonMessage
         ? [forcedCheckReasonMessage, eventSettings?.confirmationEmailMessage]
@@ -750,6 +728,9 @@ export async function POST(request: NextRequest) {
         balanceRemaining,
         fullPaymentDeadline: fullPaymentDeadlineFormatted,
         paymentMethod: 'check',
+        // "Pay later" doesn't mean a check is coming — they can still pay by
+        // card from the portal unless card payments are off for this event.
+        cardPaymentAvailable: !eventSettings?.cardPaymentDisabled,
         checkPayableTo: eventSettings?.checkPaymentPayableTo || event.organization.name,
         checkMailingAddress: eventSettings?.checkPaymentAddress || undefined,
         registrationInstructions: eventSettings?.registrationInstructions || undefined,
