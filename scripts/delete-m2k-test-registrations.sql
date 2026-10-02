@@ -1,9 +1,11 @@
--- Permanently removes the two test group registrations made against
+-- Permanently removes the test group registrations made against
 -- Mount 2000 Youth Retreat 2027:
 --   M22000-TESTEVEN-L1GW  ("test event", 7 participants)
 --   M22000-TEST2-TGLG     ("test 2", 5 participants)
+--   M22000-TEST-XH95      ("test", 8 participants)
 --
--- No need to cancel in the dashboard first; cancelled or not, both go.
+-- No need to cancel in the dashboard first; cancelled or not, they all go.
+-- Codes already deleted are simply skipped.
 -- Afterwards, if the event has no registrations left (true for M2K 2027
 -- today), its spot counters — total, on-campus, off-campus, day pass,
 -- room types, day-pass options — are reset to full. If other registrations
@@ -17,14 +19,14 @@ SELECT gr.id, gr.access_code, gr.group_name, gr.group_leader_email,
        gr.total_participants, gr.cancelled_at, e.name AS event
 FROM group_registrations gr
 JOIN events e ON e.id = gr.event_id
-WHERE gr.access_code IN ('M22000-TESTEVEN-L1GW', 'M22000-TEST2-TGLG');
+WHERE gr.access_code IN ('M22000-TESTEVEN-L1GW', 'M22000-TEST2-TGLG', 'M22000-TEST-XH95');
 
 -- ───────────── Step 2: delete ─────────────
 BEGIN;
 
 CREATE TEMP TABLE _del_groups ON COMMIT DROP AS
   SELECT id FROM group_registrations
-  WHERE access_code IN ('M22000-TESTEVEN-L1GW', 'M22000-TEST2-TGLG');
+  WHERE access_code IN ('M22000-TESTEVEN-L1GW', 'M22000-TEST2-TGLG', 'M22000-TEST-XH95');
 
 CREATE TEMP TABLE _del_events ON COMMIT DROP AS
   SELECT DISTINCT event_id FROM group_registrations WHERE id IN (SELECT id FROM _del_groups);
