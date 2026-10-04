@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { AlertCircle, Loader2, AlertTriangle } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import RegistrationAcknowledgmentModal from '@/components/registration/RegistrationAcknowledgmentModal'
+import WaitlistModal, { type WaitlistPrefill } from '@/components/WaitlistModal'
+import { buildWaitlistPreferences } from '@/lib/waitlist-preferences'
 import { useRegistrationQueue } from '@/hooks/useRegistrationQueue'
 import { useSessionDraft } from '@/hooks/useSessionDraft'
 import RegistrationTimer from '@/components/RegistrationTimer'
@@ -41,6 +43,8 @@ interface EventPricing {
 
 interface EventSettings {
   couponsEnabled?: boolean
+  groupRegistrationEnabled?: boolean
+  individualRegistrationEnabled?: boolean
   allowDayPass?: boolean
   allowOnCampus?: boolean
   allowOffCampus?: boolean
@@ -82,6 +86,7 @@ interface EventData {
   registrationOpenDate?: string
   registrationCloseDate?: string
   isRegistrationOpen?: boolean
+  waitlistEnabled?: boolean
 }
 
 export default function GroupRegistrationPage() {
@@ -134,6 +139,11 @@ export default function GroupRegistrationPage() {
     availableSpots: number
     housingType?: string
   } | null>(null)
+
+  // Waitlist modal — lets a group join the waitlist from the form when the
+  // housing option they want is sold out or short on spots
+  const [waitlistModalOpen, setWaitlistModalOpen] = useState(false)
+  const [waitlistPrefill, setWaitlistPrefill] = useState<WaitlistPrefill | undefined>(undefined)
 
   // Pre-checkout acknowledgment modal state
   const [acknowledgmentModalOpen, setAcknowledgmentModalOpen] = useState(false)
@@ -438,6 +448,30 @@ export default function GroupRegistrationPage() {
     }
 
     return { hasCapacity: true, remaining: null }
+  }
+
+  // Invitees already hold a reserved spot, so they never see the waitlist
+  const canJoinWaitlist = !!event?.waitlistEnabled && !waitlistToken
+
+  const openWaitlist = (housingType?: 'on_campus' | 'off_campus') => {
+    const isDayPass = !housingType && formData.ticketType === 'day_pass'
+    setWaitlistPrefill({
+      name: formData.groupLeaderName,
+      email: formData.groupLeaderEmail,
+      phone: formData.groupLeaderPhone,
+      notes: formData.groupName ? `Group: ${formData.groupName}` : undefined,
+      registrationType: 'group',
+      youthCount: formData.youthCount || undefined,
+      chaperoneCount: formData.chaperoneCount || undefined,
+      priestCount: formData.priestCount || undefined,
+      preferredTicketType: isDayPass ? 'day_pass' : 'general_admission',
+      preferredHousingType: isDayPass
+        ? undefined
+        : housingType ?? (formData.housingType as 'on_campus' | 'off_campus'),
+      preferredDayPassOptionId: isDayPass ? formData.dayPassOptionId || undefined : undefined,
+    })
+    setCapacityModalOpen(false)
+    setWaitlistModalOpen(true)
   }
 
   // Check if group size exceeds the per-group spot limit
@@ -1355,6 +1389,31 @@ export default function GroupRegistrationPage() {
                             Your group will arrange their own accommodations outside the venue.
                           </p>
                         )}
+                        {canJoinWaitlist && (['on_campus', 'off_campus'] as const)
+                          .filter((type) => !getHousingAvailability(type).hasCapacity)
+                          .map((type) => {
+                            const label = type === 'on_campus' ? 'On-Campus Housing' : 'Off-Campus'
+                            return (
+                              <div
+                                key={type}
+                                className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-[#F5F1E8] border border-[#9C8466] rounded p-3"
+                              >
+                                <p className="text-sm text-[#1E3A5F]">
+                                  <span className="font-semibold">{label} is sold out.</span>{' '}
+                                  Want it anyway? Join the waitlist and we&apos;ll email you if spots open up.
+                                </p>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openWaitlist(type)}
+                                  className="shrink-0 border-[#9C8466] text-[#9C8466] hover:bg-[#9C8466] hover:text-white"
+                                >
+                                  Join Waitlist for {label}
+                                </Button>
+                              </div>
+                            )
+                          })}
                       </div>
                     )}
                   </CardContent>
@@ -1597,10 +1656,23 @@ export default function GroupRegistrationPage() {
 
             <p className="text-sm text-gray-600">
               Please reduce the number of participants or select a different housing option with more availability.
+              {canJoinWaitlist && capacityError?.housingType && (
+                <> Or join the waitlist for your full group and we&apos;ll email you if spots open up.</>
+              )}
             </p>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-col gap-2 sm:space-x-0">
+            {/* Spot-limit errors have no housingType — the waitlist enforces the same limit */}
+            {canJoinWaitlist && capacityError?.housingType && (
+              <Button
+                variant="outline"
+                onClick={() => openWaitlist()}
+                className="w-full border-2 border-[#9C8466] text-[#9C8466] hover:bg-[#9C8466] hover:text-white"
+              >
+                Join Waitlist Instead
+              </Button>
+            )}
             <Button
               onClick={() => setCapacityModalOpen(false)}
               className="w-full bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
@@ -1610,6 +1682,17 @@ export default function GroupRegistrationPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {event && canJoinWaitlist && (
+        <WaitlistModal
+          eventId={event.id}
+          eventName={event.name}
+          isOpen={waitlistModalOpen}
+          onClose={() => setWaitlistModalOpen(false)}
+          preferences={buildWaitlistPreferences(event.settings, event.dayPassOptions)}
+          prefill={waitlistPrefill}
+        />
+      )}
 
       {/* Pre-Checkout Acknowledgment Modal */}
       <RegistrationAcknowledgmentModal

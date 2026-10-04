@@ -378,6 +378,24 @@ export async function PUT(
         organizationId: true,
         capacityTotal: true,
         capacityRemaining: true,
+        settings: {
+          select: {
+            onCampusCapacity: true,
+            onCampusRemaining: true,
+            offCampusCapacity: true,
+            offCampusRemaining: true,
+            dayPassCapacity: true,
+            dayPassRemaining: true,
+            singleRoomCapacity: true,
+            singleRoomRemaining: true,
+            doubleRoomCapacity: true,
+            doubleRoomRemaining: true,
+            tripleRoomCapacity: true,
+            tripleRoomRemaining: true,
+            quadRoomCapacity: true,
+            quadRoomRemaining: true,
+          },
+        },
       },
     })
 
@@ -400,6 +418,19 @@ export async function PUT(
         // No previous capacity set, so remaining = total
         newCapacityRemaining = newCapacityTotal
       }
+    }
+
+    // Same rule for housing/room option pools: a new capacity keeps the spots
+    // already taken. Resetting remaining to the new capacity would reopen
+    // every sold seat each time the event is saved.
+    const prevSettings = existingEvent.settings
+    const parseCapacity = (value: unknown) => (value ? parseInt(String(value)) : null)
+    const keepTaken = (newCapacity: number | null, oldCapacity?: number | null, oldRemaining?: number | null) => {
+      if (newCapacity === null) return null
+      if (oldCapacity === null || oldCapacity === undefined || oldRemaining === null || oldRemaining === undefined) {
+        return newCapacity
+      }
+      return Math.max(0, newCapacity - (oldCapacity - oldRemaining))
     }
 
     // Update event with all related data
@@ -603,19 +634,19 @@ export async function PUT(
               allowLoginWhenClosed: data.allowLoginWhenClosed !== false,
               // Option capacity fields (null = unlimited)
               ...(data.onCampusCapacity !== undefined && { onCampusCapacity: data.onCampusCapacity ? parseInt(data.onCampusCapacity) : null }),
-              ...(data.onCampusCapacity !== undefined && { onCampusRemaining: data.onCampusCapacity ? parseInt(data.onCampusCapacity) : null }),
+              ...(data.onCampusCapacity !== undefined && { onCampusRemaining: keepTaken(parseCapacity(data.onCampusCapacity), prevSettings?.onCampusCapacity, prevSettings?.onCampusRemaining) }),
               ...(data.offCampusCapacity !== undefined && { offCampusCapacity: data.offCampusCapacity ? parseInt(data.offCampusCapacity) : null }),
-              ...(data.offCampusCapacity !== undefined && { offCampusRemaining: data.offCampusCapacity ? parseInt(data.offCampusCapacity) : null }),
+              ...(data.offCampusCapacity !== undefined && { offCampusRemaining: keepTaken(parseCapacity(data.offCampusCapacity), prevSettings?.offCampusCapacity, prevSettings?.offCampusRemaining) }),
               ...(data.dayPassCapacity !== undefined && { dayPassCapacity: data.dayPassCapacity ? parseInt(data.dayPassCapacity) : null }),
-              ...(data.dayPassCapacity !== undefined && { dayPassRemaining: data.dayPassCapacity ? parseInt(data.dayPassCapacity) : null }),
+              ...(data.dayPassCapacity !== undefined && { dayPassRemaining: keepTaken(parseCapacity(data.dayPassCapacity), prevSettings?.dayPassCapacity, prevSettings?.dayPassRemaining) }),
               ...(data.singleRoomCapacity !== undefined && { singleRoomCapacity: data.singleRoomCapacity ? parseInt(data.singleRoomCapacity) : null }),
-              ...(data.singleRoomCapacity !== undefined && { singleRoomRemaining: data.singleRoomCapacity ? parseInt(data.singleRoomCapacity) : null }),
+              ...(data.singleRoomCapacity !== undefined && { singleRoomRemaining: keepTaken(parseCapacity(data.singleRoomCapacity), prevSettings?.singleRoomCapacity, prevSettings?.singleRoomRemaining) }),
               ...(data.doubleRoomCapacity !== undefined && { doubleRoomCapacity: data.doubleRoomCapacity ? parseInt(data.doubleRoomCapacity) : null }),
-              ...(data.doubleRoomCapacity !== undefined && { doubleRoomRemaining: data.doubleRoomCapacity ? parseInt(data.doubleRoomCapacity) : null }),
+              ...(data.doubleRoomCapacity !== undefined && { doubleRoomRemaining: keepTaken(parseCapacity(data.doubleRoomCapacity), prevSettings?.doubleRoomCapacity, prevSettings?.doubleRoomRemaining) }),
               ...(data.tripleRoomCapacity !== undefined && { tripleRoomCapacity: data.tripleRoomCapacity ? parseInt(data.tripleRoomCapacity) : null }),
-              ...(data.tripleRoomCapacity !== undefined && { tripleRoomRemaining: data.tripleRoomCapacity ? parseInt(data.tripleRoomCapacity) : null }),
+              ...(data.tripleRoomCapacity !== undefined && { tripleRoomRemaining: keepTaken(parseCapacity(data.tripleRoomCapacity), prevSettings?.tripleRoomCapacity, prevSettings?.tripleRoomRemaining) }),
               ...(data.quadRoomCapacity !== undefined && { quadRoomCapacity: data.quadRoomCapacity ? parseInt(data.quadRoomCapacity) : null }),
-              ...(data.quadRoomCapacity !== undefined && { quadRoomRemaining: data.quadRoomCapacity ? parseInt(data.quadRoomCapacity) : null }),
+              ...(data.quadRoomCapacity !== undefined && { quadRoomRemaining: keepTaken(parseCapacity(data.quadRoomCapacity), prevSettings?.quadRoomCapacity, prevSettings?.quadRoomRemaining) }),
               // Group spot limit (null = unlimited)
               ...(data.groupSpotLimit !== undefined && { groupSpotLimit: data.groupSpotLimit ? parseInt(data.groupSpotLimit) : null }),
               // Add-ons
@@ -876,7 +907,7 @@ export async function PUT(
       // Get existing day pass options for this event
       const existingOptions = await prisma.dayPassOption.findMany({
         where: { eventId },
-        select: { id: true },
+        select: { id: true, capacity: true, remaining: true },
       })
 
       const existingIds = existingOptions.map((opt: { id: string }) => opt.id)
@@ -896,13 +927,18 @@ export async function PUT(
       for (const option of data.dayPassOptions) {
         if (option.id && !option.id.startsWith('temp-')) {
           // Update existing option (don't update eventId/organizationId as they don't change)
+          const previous = existingOptions.find((opt: { id: string }) => opt.id === option.id)
+          const newCapacity = option.capacity ? parseInt(option.capacity) : 0
           await prisma.dayPassOption.update({
             where: { id: option.id },
             data: {
               date: new Date(option.date),
               name: option.name || 'Day Pass',
-              capacity: option.capacity ? parseInt(option.capacity) : 0,
-              remaining: option.capacity ? parseInt(option.capacity) : 0,
+              capacity: newCapacity,
+              // Capacity 0 = unlimited, so there's no taken count to carry over
+              remaining: previous?.capacity
+                ? keepTaken(newCapacity, previous.capacity, previous.remaining) ?? 0
+                : newCapacity,
               price: option.price ? parseFloat(option.price) : 50,
               youthPrice: option.youthPrice ? parseFloat(option.youthPrice) : null,
               chaperonePrice: option.chaperonePrice ? parseFloat(option.chaperonePrice) : null,

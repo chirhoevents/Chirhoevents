@@ -59,6 +59,8 @@ export async function GET(
       registrationOpenDate: event.registrationOpenDate,
       registrationCloseDate: event.registrationCloseDate,
       isRegistrationOpen,
+      // Same either-toggle rule as the waitlist API and landing page
+      waitlistEnabled: event.settings?.waitlistEnabled ?? event.enableWaitlist,
       pricing: {
         youthRegularPrice: Number(event.pricing?.youthRegularPrice || 0),
         youthEarlyBirdPrice: event.pricing?.youthEarlyBirdPrice ? Number(event.pricing.youthEarlyBirdPrice) : null,
