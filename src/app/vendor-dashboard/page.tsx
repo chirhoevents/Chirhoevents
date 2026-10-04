@@ -55,6 +55,7 @@ interface EventData {
   name: string
   slug: string
   dates: string
+  organizerEmail: string
 }
 
 interface StaffMember {
@@ -677,7 +678,7 @@ function VendorPortalContent() {
                 Quick Links
               </h2>
               <div className="space-y-2">
-                <a href={`mailto:support@chirhoevents.com?subject=Vendor Question - ${vendor.businessName}`}>
+                <a href={`mailto:${event.organizerEmail}?subject=${encodeURIComponent(`Vendor Question - ${vendor.businessName}`)}`}>
                   <Button variant="outline" className="w-full border-[#1E3A5F] text-[#1E3A5F]">
                     <Mail className="h-4 w-4 mr-2" />
                     Contact Organizers

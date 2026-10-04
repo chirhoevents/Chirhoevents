@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 
 // Decode JWT payload to extract user ID when cookies aren't available
 function decodeJwtPayload(token: string): { sub?: string } | null {
@@ -63,6 +64,8 @@ export async function GET(request: NextRequest) {
             pricing: {
               select: { fullPaymentDeadline: true },
             },
+            settings: { select: { contactEmail: true } },
+            organization: { select: { contactEmail: true } },
           }
         },
         participants: {
@@ -132,6 +135,7 @@ export async function GET(request: NextRequest) {
       groupName: groupRegistration.groupName,
       eventName: groupRegistration.event.name,
       eventDates,
+      organizerEmail: resolveReplyTo(groupRegistration.event.settings, groupRegistration.event.organization),
       accessCode: groupRegistration.accessCode,
       totalParticipants,
       payment: {

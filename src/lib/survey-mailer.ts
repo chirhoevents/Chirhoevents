@@ -55,7 +55,7 @@ export async function sendSurveyInviteToRecipient({
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
   const surveyUrl = `${appUrl}/survey/${recipient.token}`
   const orgName = event.organization.name
-  const supportEmail = event.organization.contactEmail || 'support@chirhoevents.com'
+  const supportEmail = resolveReplyTo(event.settings, event.organization)
   const subject = isReminder
     ? `Reminder: We'd love your feedback on ${event.name}`
     : `We'd love your feedback on ${event.name}`

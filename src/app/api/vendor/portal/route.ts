@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { resolveReplyTo } from '@/lib/email-reply-to'
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,6 +22,8 @@ export async function GET(request: NextRequest) {
             slug: true,
             startDate: true,
             endDate: true,
+            settings: { select: { contactEmail: true } },
+            organization: { select: { contactEmail: true } },
           },
         },
         boothStaff: {
@@ -55,6 +58,8 @@ export async function GET(request: NextRequest) {
               slug: true,
               startDate: true,
               endDate: true,
+              settings: { select: { contactEmail: true } },
+              organization: { select: { contactEmail: true } },
             },
           },
           boothStaff: {
@@ -131,6 +136,7 @@ export async function GET(request: NextRequest) {
         name: vendor.event.name,
         slug: vendor.event.slug,
         dates: eventDates,
+        organizerEmail: resolveReplyTo(vendor.event.settings, vendor.event.organization),
       },
       boothStaff: vendor.boothStaff.map(staff => ({
         id: staff.id,

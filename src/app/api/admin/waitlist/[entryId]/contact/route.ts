@@ -443,6 +443,7 @@ export async function POST(
         eventName: entry.event.name,
         partySize: entry.partySize,
         organizationName: entry.event.organization.name,
+        supportEmail: resolveReplyTo(entry.event.settings, entry.event.organization),
         registrationUrl,
         expiresIn: '48 hours',
         offeredPartySize: spotsNeeded,

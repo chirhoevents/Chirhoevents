@@ -8,6 +8,13 @@ import {
   renderMasterAdminNotificationHtml,
   sendMasterAdminNotification,
 } from '@/lib/master-admin-notify'
+import {
+  extractEmailAddress,
+  findOrganizerForSender,
+  isAddressedToRoutableInbox,
+  isAutoReply,
+  type OrganizerRoute,
+} from '@/lib/inbound-organizer-routing'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -141,6 +148,7 @@ async function handleInboundEmail(emailData: any) {
     // Webhook only sends metadata - must fetch content from Receiving API
     let textBody: string | null = null
     let htmlBody: string | null = null
+    let headers: Record<string, string> | null = null
 
     if (emailData.email_id) {
       try {
@@ -159,6 +167,7 @@ async function handleInboundEmail(emailData: any) {
           console.log('[Resend Webhook] Received email content fields:', Object.keys(emailContent))
           textBody = emailContent.text || null
           htmlBody = emailContent.html || null
+          headers = emailContent.headers || null
           console.log('[Resend Webhook] Text length:', textBody?.length || 0)
           console.log('[Resend Webhook] HTML length:', htmlBody?.length || 0)
         } else {
@@ -240,7 +249,32 @@ async function handleInboundEmail(emailData: any) {
       }
     }
 
-    // 3. Find routing config for the TO address
+    // 3. Registrants (group leaders, parents, vendors…) writing to support@ or
+    //    events@ are asking about their event, not the platform. Hand those
+    //    to the event organizer instead of opening a ChiRho ticket.
+    if (
+      isAddressedToRoutableInbox([...(emailData.to || []), ...(emailData.cc || [])]) &&
+      !isAutoReply(emailData.subject, headers)
+    ) {
+      // A lookup failure falls through to the normal ticket flow.
+      const route = await findOrganizerForSender(extractEmailAddress(emailData.from)).catch((error) => {
+        console.error('[Resend Webhook] Organizer lookup failed:', error)
+        return null
+      })
+      if (route) {
+        const forwarded = await forwardToEventOrganizer(emailData, textBody, htmlBody, route)
+        if (forwarded) {
+          await prisma.receivedEmail.update({
+            where: { id: receivedEmail.id },
+            data: { processed: true, processedAt: new Date() },
+          })
+          console.log('[Resend Webhook] Routed registrant email to event organizer for', route.eventName)
+          return
+        }
+      }
+    }
+
+    // 4. Find routing config for the TO address
     const toAddress = (emailData.to?.[0] || '').toLowerCase()
 
     const forwardConfig = await prisma.emailForward.findFirst({
@@ -253,7 +287,7 @@ async function handleInboundEmail(emailData: any) {
       },
     })
 
-    // 4. Only create tickets / auto-reply for addresses explicitly opted in.
+    // 5. Only create tickets / auto-reply for addresses explicitly opted in.
     //    Emails to anything else (events@, noreply@, outreach@…) are stored
     //    in ReceivedEmail and viewable in the master-admin Emails inbox,
     //    but don't generate a ticket or auto-response.
@@ -290,12 +324,12 @@ async function handleInboundEmail(emailData: any) {
       console.log('[Resend Webhook] No ticket created — address not configured for tickets:', toAddress)
     }
 
-    // 5. Forward email if configured
+    // 6. Forward email if configured
     if (forwardConfig?.forwardTo && forwardConfig.forwardTo.length > 0) {
       await forwardEmail(emailData, ticket, forwardConfig.forwardTo)
     }
 
-    // 6. Mark email as processed
+    // 7. Mark email as processed
     await prisma.receivedEmail.update({
       where: { id: receivedEmail.id },
       data: {
@@ -435,6 +469,60 @@ async function sendDefaultAutoReply(emailData: any, ticketNumber: number) {
     console.log('[Resend Webhook] Default auto-reply sent')
   } catch (error) {
     console.error('[Resend Webhook] Error sending default auto-reply:', error)
+  }
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+// Returns false when the send fails so the caller can fall back to the normal
+// support-ticket flow rather than silently dropping the message.
+async function forwardToEventOrganizer(
+  emailData: any,
+  textBody: string | null,
+  htmlBody: string | null,
+  route: OrganizerRoute
+): Promise<boolean> {
+  const sender = escapeHtml(emailData.from || 'Unknown sender')
+  const subject = emailData.subject || '(No Subject)'
+  const attachmentCount = Array.isArray(emailData.attachments) ? emailData.attachments.length : 0
+  const body = htmlBody
+    || `<pre style="white-space: pre-wrap; font-family: inherit; margin: 0;">${escapeHtml(textBody || '(No message body)')}</pre>`
+
+  try {
+    const { error } = await resend.emails.send({
+      from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+      reply_to: emailData.from,
+      to: route.contactEmail,
+      subject: `Fwd: ${subject}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 680px;">
+          <div style="background: #F5F1E8; padding: 15px; border-left: 4px solid #1E3A5F; margin-bottom: 20px; border-radius: 4px; font-size: 14px; line-height: 1.5;">
+            <strong>A registrant for ${escapeHtml(route.eventName)} emailed ChiRho Events, so we've passed it along to you.</strong><br>
+            <strong>From:</strong> ${sender}<br>
+            <strong>Subject:</strong> ${escapeHtml(subject)}<br>
+            Hit <strong>Reply</strong> to answer them directly.
+            ${attachmentCount > 0 ? `<br><em>The original had ${attachmentCount} attachment(s) that weren't included. Ask the sender to send them to you directly.</em>` : ''}
+          </div>
+          <div style="background: #ffffff; padding: 20px; border: 1px solid #ddd; border-radius: 4px;">
+            ${body}
+          </div>
+        </div>
+      `,
+    })
+    if (error) {
+      console.error('[Resend Webhook] Error forwarding to event organizer:', error)
+      return false
+    }
+    return true
+  } catch (error) {
+    console.error('[Resend Webhook] Error forwarding to event organizer:', error)
+    return false
   }
 }
 

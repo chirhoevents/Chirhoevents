@@ -25,6 +25,7 @@ interface DashboardData {
   groupName: string
   eventName: string
   eventDates: string
+  organizerEmail: string
   accessCode: string
   totalParticipants: number
   payment: {
@@ -516,7 +517,7 @@ export default function GroupLeaderDashboard() {
               </Button>
             </div>
 
-            <a href="mailto:support@chirhoevents.com?subject=Event Question">
+            <a href={`mailto:${data.organizerEmail}?subject=${encodeURIComponent(`Question about ${data.eventName}`)}`}>
               <Button
                 variant="outline"
                 className="w-full border-[#1E3A5F] text-[#1E3A5F]"

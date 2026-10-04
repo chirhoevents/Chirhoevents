@@ -508,7 +508,7 @@ export async function POST(
     }
 
     const orgName = event.organization.name
-    const supportEmail = event.organization.contactEmail || 'support@chirhoevents.com'
+    const supportEmail = resolveReplyTo(event.settings, event.organization)
     const subject = buildSubject(templateType, event.name, body)
 
     // ── Test mode: send a single preview email ──────────────────────────────

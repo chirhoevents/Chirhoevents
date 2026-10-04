@@ -752,7 +752,7 @@ export async function POST(request: NextRequest) {
               ` : ''}
 
               <p>We look forward to seeing you at the event!</p>
-            `, { organizationName: staffReg.event.organization.name, preheader: `Staff registration confirmed for ${staffReg.event.name}` })
+            `, { organizationName: staffReg.event.organization.name, supportEmail: resolveReplyTo(staffReg.event.settings, staffReg.event.organization), preheader: `Staff registration confirmed for ${staffReg.event.name}` })
 
             await resend.emails.send({
               from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
@@ -951,6 +951,7 @@ export async function POST(request: NextRequest) {
         registrationInstructions: registration.event.settings?.registrationInstructions || undefined,
         customMessage: registration.event.settings?.confirmationEmailMessage || undefined,
         organizationName: registration.event.organization.name,
+        supportEmail: resolveReplyTo(registration.event.settings, registration.event.organization),
         porosLiabilityUrl,
         groupLeaderPortalUrl,
         receiptUrl: chargeReceiptUrl,
